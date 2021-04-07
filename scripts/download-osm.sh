@@ -15,8 +15,9 @@ mkdir -p data/sources
 
 LINK=$(echo "${1}" | tr '_' '/')
 LINK="http://download.geofabrik.de/$LINK-latest.osm.pbf"
+OUT="${1}.pbf"
 
 (
   cd data/sources
-  wget -N "${LINK}"
+  if [ ! -f "$OUT" ]; then wget -O "$OUT" "$LINK"; fi
 )
