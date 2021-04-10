@@ -1,7 +1,6 @@
-package com.onthegomap.flatmap.profiles;
+package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.GeoUtils;
-import com.onthegomap.flatmap.OsmInputFile;
+import com.onthegomap.flatmap.stats.Stats;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
@@ -74,5 +73,10 @@ public class Arguments {
     int threads = Math.max(2, Integer.parseInt(value));
     LOGGER.info("num threads: " + threads);
     return threads;
+  }
+
+  public Stats getStats() {
+    // TODO
+    return null;
   }
 }

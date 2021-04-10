@@ -1,5 +1,10 @@
 package com.onthegomap.flatmap;
 
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.locationtech.jts.geom.util.GeometryTransformer;
+
 public class GeoUtils {
 
   private static final double DEGREES_TO_RADIANS = Math.PI / 180;
@@ -50,4 +55,22 @@ public class GeoUtils {
     double sin = Math.sin(lat * DEGREES_TO_RADIANS);
     return 0.5 - 0.25 * Math.log((1 + sin) / (1 - sin)) / Math.PI;
   }
+
+  public static final GeometryTransformer ProjectWorldCoords = new GeometryTransformer() {
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
+      if (coords.getDimension() != 2) {
+        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
+      }
+      if (coords.getMeasures() != 0) {
+        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
+      }
+      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
+      for (int i = 0; i < coords.size(); i++) {
+        copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));
+        copy.setOrdinate(i, 1, getWorldY(coords.getY(i)));
+      }
+      return copy;
+    }
+  };
 }
