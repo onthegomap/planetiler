@@ -2,15 +2,22 @@ package com.onthegomap.flatmap.reader;
 
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.worker.Topology.SourceStep;
 import java.io.File;
 
-public class NaturalEarthReader implements Reader {
+public class NaturalEarthReader extends Reader {
 
   public NaturalEarthReader(File input, File tmpFile, Stats stats) {
+    super(stats);
   }
 
   @Override
-  public SourceFeature getNext() {
+  public long getCount() {
+    return 0;
+  }
+
+  @Override
+  public SourceStep<SourceFeature> open() {
     return null;
   }
 }

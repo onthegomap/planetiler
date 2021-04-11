@@ -76,7 +76,13 @@ public class Arguments {
   }
 
   public Stats getStats() {
-    // TODO
-    return null;
+    return new Stats.InMemory();
+  }
+
+  public int integer(String key, String description, int defaultValue) {
+    String value = getArg(key, Integer.toString(defaultValue));
+    int parsed = Integer.parseInt(value);
+    LOGGER.info(description + ": " + parsed);
+    return parsed;
   }
 }

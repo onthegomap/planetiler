@@ -3,7 +3,7 @@ package com.onthegomap.flatmap.profiles;
 
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.RenderableFeature;
+import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.reader.OpenStreetMapReader.RelationInfo;
 import java.util.List;
@@ -24,7 +24,9 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public void processFeature(SourceFeature sourceFeature, RenderableFeature features) {
+  public void processFeature(SourceFeature sourceFeature,
+    RenderableFeatures features) {
 
   }
+
 }

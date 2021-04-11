@@ -5,6 +5,7 @@ import org.locationtech.jts.geom.Geometry;
 public class SourceFeature {
 
   public Geometry getGeometry() {
+    return null;
   }
   // props
   // lazy geometry

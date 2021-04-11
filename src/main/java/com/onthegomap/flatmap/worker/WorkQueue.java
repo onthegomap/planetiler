@@ -1,15 +1,18 @@
 package com.onthegomap.flatmap.worker;
 
+import com.onthegomap.flatmap.stats.Stats;
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
 
+  public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
+
+  }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
 
   }
 
