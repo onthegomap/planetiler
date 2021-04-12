@@ -13,28 +13,8 @@ public record Topology<T>(
   Worker worker
 ) {
 
-  public static <T> Bufferable<?, T> fromGenerator(String name, Stats stats, SourceStep<T> producer, int threads) {
-    return (queueName, size, batchSize) -> {
-      var nextQueue = new WorkQueue<T>(queueName, size, batchSize, stats);
-      Worker worker = new Worker(name, stats, threads, () -> producer.run(nextQueue));
-      return new Builder<>(name, nextQueue, worker, stats);
-    };
-  }
-
-  public static <T> Bufferable<?, T> fromGenerator(String name, Stats stats, SourceStep<T> producer) {
-    return fromGenerator(name, stats, producer, 1);
-  }
-
-  public static <T> Bufferable<?, T> readFromIterator(String name, Stats stats, Iterator<T> iter) {
-    return fromGenerator(name, stats, next -> {
-      while (iter.hasNext()) {
-        next.accept(iter.next());
-      }
-    }, 1);
-  }
-
-  public static <T> Builder<?, T> readFromQueue(Stats stats, WorkQueue<T> input) {
-    return new Builder<>(input, stats);
+  public static Empty start(String prefix, Stats stats) {
+    return new Empty(prefix, stats);
   }
 
   public void awaitAndLog(ProgressLoggers loggers, long logIntervalSeconds) {
@@ -71,7 +51,35 @@ public record Topology<T>(
     }
   }
 
+  public static record Empty(String prefix, Stats stats) {
+
+    public <T> Bufferable<?, T> fromGenerator(String name, SourceStep<T> producer, int threads) {
+      return (queueName, size, batchSize) -> {
+        var nextQueue = new WorkQueue<T>(prefix, queueName, size, batchSize, stats);
+        Worker worker = new Worker(prefix, name, stats, threads, () -> producer.run(nextQueue));
+        return new Builder<>(prefix, name, nextQueue, worker, stats);
+      };
+    }
+
+    public <T> Bufferable<?, T> fromGenerator(String name, SourceStep<T> producer) {
+      return fromGenerator(name, producer, 1);
+    }
+
+    public <T> Bufferable<?, T> readFromIterator(String name, Iterator<T> iter) {
+      return fromGenerator(name, next -> {
+        while (iter.hasNext()) {
+          next.accept(iter.next());
+        }
+      }, 1);
+    }
+
+    public <T> Builder<?, T> readFromQueue(WorkQueue<T> input) {
+      return new Builder<>(input, stats);
+    }
+  }
+
   public static record Builder<I, O>(
+    String prefix,
     String name,
     Topology.Builder<?, I> previous,
     WorkQueue<I> inputQueue,
@@ -79,20 +87,20 @@ public record Topology<T>(
     Worker worker, Stats stats
   ) {
 
-    public Builder(String name, WorkQueue<O> outputQueue, Worker worker, Stats stats) {
-      this(name, null, null, outputQueue, worker, stats);
+    public Builder(String prefix, String name, WorkQueue<O> outputQueue, Worker worker, Stats stats) {
+      this(prefix, name, null, null, outputQueue, worker, stats);
     }
 
     public Builder(WorkQueue<O> outputQueue, Stats stats) {
-      this(null, outputQueue, null, stats);
+      this(null, null, outputQueue, null, stats);
     }
 
     public <O2> Bufferable<O, O2> addWorker(String name, int threads, WorkerStep<O, O2> step) {
       Builder<I, O> curr = this;
       return (queueName, size, batchSize) -> {
-        var nextOutputQueue = new WorkQueue<O2>(queueName, size, batchSize, stats);
-        var worker = new Worker(name, stats, threads, () -> step.run(outputQueue, nextOutputQueue));
-        return new Builder<>(name, curr, outputQueue, nextOutputQueue, worker, stats);
+        var nextOutputQueue = new WorkQueue<O2>(prefix, queueName, size, batchSize, stats);
+        var worker = new Worker(prefix, name, stats, threads, () -> step.run(outputQueue, nextOutputQueue));
+        return new Builder<>(prefix, name, curr, outputQueue, nextOutputQueue, worker, stats);
       };
     }
 
@@ -103,7 +111,7 @@ public record Topology<T>(
 
     public Topology<O> sinkTo(String name, int threads, SinkStep<O> step) {
       var previousTopology = previous.build();
-      var worker = new Worker(name, stats, threads, () -> step.run(outputQueue));
+      var worker = new Worker(prefix, name, stats, threads, () -> step.run(outputQueue));
       return new Topology<>(name, previousTopology, outputQueue, worker);
     }
 

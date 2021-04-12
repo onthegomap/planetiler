@@ -34,9 +34,10 @@ public abstract class Reader {
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
-    var topology = Topology.fromGenerator(name + "_read", stats, open())
-      .addBuffer(name + "_reader", 1000)
-      .<RenderedFeature>addWorker(name + "_process", threads, (prev, next) -> {
+    var topology = Topology.start(name, stats)
+      .fromGenerator("read", open())
+      .addBuffer("read_queue", 1000)
+      .<RenderedFeature>addWorker("process", threads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         SourceFeature sourceFeature;
         while ((sourceFeature = prev.get()) != null) {
@@ -50,8 +51,8 @@ public abstract class Reader {
           }
         }
       })
-      .addBuffer(name + "_writer", 1000)
-      .sinkToConsumer(name + "_write", 1, (item) -> {
+      .addBuffer("write_queue", 1000)
+      .sinkToConsumer("write", 1, (item) -> {
         featuresWritten.incrementAndGet();
         writer.accept(item);
       });

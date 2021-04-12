@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 
 public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
 
-  public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
+  public WorkQueue(String prefix, String name, int capacity, int maxBatch, Stats stats) {
 
   }
 

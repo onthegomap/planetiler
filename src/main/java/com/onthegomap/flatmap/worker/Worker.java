@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.stats.Stats;
 
 public class Worker {
 
-  public Worker(String name, Stats stats, int threads, RunnableThatThrows task) {
+  public Worker(String prefix, String name, Stats stats, int threads, RunnableThatThrows task) {
 
   }
 

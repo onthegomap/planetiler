@@ -40,11 +40,12 @@ public class MbtilesWriter {
     output.delete();
     MbtilesWriter writer = new MbtilesWriter(config.stats());
 
-    var topology = Topology.readFromIterator("mbtiles_reader", stats, features.getAll())
-      .addBuffer("mbtiles_reader_queue", 50_000, 1_000)
-      .addWorker("mbtiles_encoder", config.threads(), writer::tileEncoder)
-      .addBuffer("mbtiles_writer_queue", 50_000, 1_000)
-      .sinkTo("mbtiles_writer", 1, writer::tileWriter);
+    var topology = Topology.start("mbtiles", stats)
+      .readFromIterator("reader", features.getAll())
+      .addBuffer("reader_queue", 50_000, 1_000)
+      .addWorker("encoder", config.threads(), writer::tileEncoder)
+      .addBuffer("writer_queue", 50_000, 1_000)
+      .sinkTo("writer", 1, writer::tileWriter);
 
     var loggers = new ProgressLoggers("mbtiles")
       .addRatePercentCounter("features", featureCount, writer.featuresProcessed)

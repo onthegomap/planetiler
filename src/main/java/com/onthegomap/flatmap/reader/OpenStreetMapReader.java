@@ -60,37 +60,38 @@ public class OpenStreetMapReader implements Closeable {
 
   public void pass1(FlatMapConfig config) {
     Profile profile = config.profile();
-    var topology = Topology.readFromQueue(stats,
-      osmInputFile.newReaderQueue("osm_pass1_reader_queue", config.threads() - 1, 50_000, 10_000, stats)
-    ).sinkToConsumer("osm_pass1_processor", 1, (readerElement) -> {
-      if (readerElement instanceof ReaderNode node) {
-        TOTAL_NODES.incrementAndGet();
-        nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
-      } else if (readerElement instanceof ReaderWay) {
-        TOTAL_WAYS.incrementAndGet();
-      } else if (readerElement instanceof ReaderRelation rel) {
-        TOTAL_RELATIONS.incrementAndGet();
-        List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
-        if (infos != null) {
-          for (RelationInfo info : infos) {
-            relationInfo.put(rel.getId(), info);
-            relationInfoSizes.addAndGet(info.sizeBytes());
+    var topology = Topology.start("osm_pass1", stats)
+      .readFromQueue(
+        osmInputFile.newReaderQueue("osm_pass1_reader_queue", config.threads() - 1, 50_000, 10_000, stats)
+      ).sinkToConsumer("process", 1, (readerElement) -> {
+        if (readerElement instanceof ReaderNode node) {
+          TOTAL_NODES.incrementAndGet();
+          nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
+        } else if (readerElement instanceof ReaderWay) {
+          TOTAL_WAYS.incrementAndGet();
+        } else if (readerElement instanceof ReaderRelation rel) {
+          TOTAL_RELATIONS.incrementAndGet();
+          List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
+          if (infos != null) {
+            for (RelationInfo info : infos) {
+              relationInfo.put(rel.getId(), info);
+              relationInfoSizes.addAndGet(info.sizeBytes());
+              for (ReaderRelation.Member member : rel.getMembers()) {
+                if (member.getType() == ReaderRelation.Member.WAY) {
+                  wayToRelations.put(member.getRef(), rel.getId());
+                }
+              }
+            }
+          }
+          if (rel.hasTag("type", "multipolygon")) {
             for (ReaderRelation.Member member : rel.getMembers()) {
               if (member.getType() == ReaderRelation.Member.WAY) {
-                wayToRelations.put(member.getRef(), rel.getId());
+                waysInMultipolygon.add(member.getRef());
               }
             }
           }
         }
-        if (rel.hasTag("type", "multipolygon")) {
-          for (ReaderRelation.Member member : rel.getMembers()) {
-            if (member.getType() == ReaderRelation.Member.WAY) {
-              waysInMultipolygon.add(member.getRef());
-            }
-          }
-        }
-      }
-    });
+      });
 
     var loggers = new ProgressLoggers("osm_pass1")
       .addRateCounter("nodes", TOTAL_NODES)
@@ -114,43 +115,44 @@ public class OpenStreetMapReader implements Closeable {
     AtomicLong featuresWritten = new AtomicLong(0);
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
-    var topology = Topology.readFromQueue(stats,
-      osmInputFile.newReaderQueue("osm_pass2_reader_queue", readerThreads, 50_000, 1_000, stats)
-    ).<RenderedFeature>addWorker("osm_pass2_processor", processThreads, (prev, next) -> {
-      RenderableFeatures features = new RenderableFeatures();
-      ReaderElement readerElement;
-      while ((readerElement = prev.get()) != null) {
-        SourceFeature feature = null;
-        if (readerElement instanceof ReaderNode node) {
-          nodesProcessed.incrementAndGet();
-          feature = new NodeSourceFeature(node);
-        } else if (readerElement instanceof ReaderWay way) {
-          waysProcessed.incrementAndGet();
-          feature = new WaySourceFeature(way);
-        } else if (readerElement instanceof ReaderRelation rel) {
-          // ensure all ways finished processing before we start relations
-          if (waysDone.getCount() > 0) {
-            waysDone.countDown();
-            waysDone.await();
+    var topology = Topology.start("osm_pass2", stats)
+      .readFromQueue(
+        osmInputFile.newReaderQueue("osm_pass2_reader_queue", readerThreads, 50_000, 1_000, stats)
+      ).<RenderedFeature>addWorker("process", processThreads, (prev, next) -> {
+        RenderableFeatures features = new RenderableFeatures();
+        ReaderElement readerElement;
+        while ((readerElement = prev.get()) != null) {
+          SourceFeature feature = null;
+          if (readerElement instanceof ReaderNode node) {
+            nodesProcessed.incrementAndGet();
+            feature = new NodeSourceFeature(node);
+          } else if (readerElement instanceof ReaderWay way) {
+            waysProcessed.incrementAndGet();
+            feature = new WaySourceFeature(way);
+          } else if (readerElement instanceof ReaderRelation rel) {
+            // ensure all ways finished processing before we start relations
+            if (waysDone.getCount() > 0) {
+              waysDone.countDown();
+              waysDone.await();
+            }
+            relsProcessed.incrementAndGet();
+            if (rel.hasTag("type", "multipolygon")) {
+              feature = new MultipolygonSourceFeature(rel);
+            }
           }
-          relsProcessed.incrementAndGet();
-          if (rel.hasTag("type", "multipolygon")) {
-            feature = new MultipolygonSourceFeature(rel);
+          if (feature != null) {
+            features.reset(feature);
+            profile.processFeature(feature, features);
+            for (RenderableFeature renderable : features.all()) {
+              renderer.renderFeature(renderable, next);
+            }
           }
         }
-        if (feature != null) {
-          features.reset(feature);
-          profile.processFeature(feature, features);
-          for (RenderableFeature renderable : features.all()) {
-            renderer.renderFeature(renderable, next);
-          }
-        }
-      }
 
-      // just in case a worker skipped over all relations
-      waysDone.countDown();
-    }).addBuffer("osm_pass2_feature_queue", 50_000, 1_000)
-      .sinkToConsumer("osm_pass2_writer", 1, (item) -> {
+        // just in case a worker skipped over all relations
+        waysDone.countDown();
+      }).addBuffer("feature_queue", 50_000, 1_000)
+      .sinkToConsumer("write", 1, (item) -> {
         featuresWritten.incrementAndGet();
         writer.accept(item);
       });
