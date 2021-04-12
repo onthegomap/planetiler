@@ -2,10 +2,13 @@ package com.onthegomap.flatmap;
 
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
 public class GeoUtils {
+
+  public static final GeometryFactory gf = new GeometryFactory();
 
   private static final double DEGREES_TO_RADIANS = Math.PI / 180;
   private static final double RADIANS_TO_DEGREES = 180 / Math.PI;

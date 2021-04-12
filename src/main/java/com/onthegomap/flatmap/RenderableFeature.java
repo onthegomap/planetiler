@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap;
 
-import org.opengis.geometry.Geometry;
+import org.locationtech.jts.geom.Geometry;
 
 public class RenderableFeature {
 

@@ -66,8 +66,8 @@ public class OpenMapTilesMain {
     Path featureDb = tmpDir.resolve("feature.db");
     LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
     MergeSortFeatureMap featureMap = new MergeSortFeatureMap(featureDb, stats);
-    FeatureRenderer renderer = new FeatureRenderer(stats);
     FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logIntervalSeconds);
+    FeatureRenderer renderer = new FeatureRenderer(config);
 
     if (fetchWikidata) {
       stats.time("wikidata", () -> Wikidata.fetch(osmInputFile, wikidataNamesFile, config));
