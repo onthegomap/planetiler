@@ -23,6 +23,7 @@ import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
@@ -104,7 +105,7 @@ public class OpenStreetMapReader implements Closeable {
     topology.awaitAndLog(loggers, config.logIntervalSeconds());
   }
 
-  public void pass2(FeatureRenderer renderer, MergeSortFeatureMap writer, int readerThreads, int processThreads,
+  public long pass2(FeatureRenderer renderer, MergeSortFeatureMap writer, int readerThreads, int processThreads,
     FlatMapConfig config) {
     Profile profile = config.profile();
     AtomicLong nodesProcessed = new AtomicLong(0);
@@ -168,6 +169,8 @@ public class OpenStreetMapReader implements Closeable {
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logIntervalSeconds());
+
+    return featuresWritten.get();
   }
 
   private long getBigObjectSizeBytes() {
@@ -176,11 +179,12 @@ public class OpenStreetMapReader implements Closeable {
 
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     multipolygonWayGeometries = null;
     wayToRelations = null;
     waysInMultipolygon = null;
     relationInfo = null;
+    nodeDb.close();
   }
 
   public static class RelationInfo {

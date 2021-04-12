@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.io.FileUtils;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -87,10 +88,11 @@ public class OpenMapTilesMain {
         .process("natural_earth", renderer, featureMap, config)
     );
 
+    AtomicLong featureCount = new AtomicLong(0);
     try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, stats)) {
       stats.time("osm_pass1", () -> osmReader.pass1(config));
-      stats
-        .time("osm_pass2", () -> osmReader.pass2(renderer, featureMap, Math.max(threads / 4, 1), threads - 1, config));
+      stats.time("osm_pass2",
+        () -> featureCount.set(osmReader.pass2(renderer, featureMap, Math.max(threads / 4, 1), threads - 1, config)));
     }
 
     LOGGER.info("Deleting node.db to make room for mbtiles");
@@ -98,7 +100,7 @@ public class OpenMapTilesMain {
     nodeDb.delete();
 
     stats.time("sort", featureMap::sort);
-    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, config));
+    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureCount.get(), featureMap, output, config));
 
     stats.stopTimer("import");
 
