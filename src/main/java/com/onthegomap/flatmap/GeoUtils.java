@@ -73,4 +73,14 @@ public class GeoUtils {
       return copy;
     }
   };
+
+  static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
+
+  public static long encodeFlatLocation(double lon, double lat) {
+    double worldX = getWorldX(lon);
+    double worldY = getWorldY(lat);
+    long x = (long) (worldX * QUANTIZED_WORLD_SIZE);
+    long y = (long) (worldY * QUANTIZED_WORLD_SIZE);
+    return (x << 32) | y;
+  }
 }

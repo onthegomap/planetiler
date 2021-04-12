@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.stats.Stats;
 
 public class Worker {
 
-  public Worker(String name, Stats stats, int threads, Runnable task) {
+  public Worker(String name, Stats stats, int threads, RunnableThatThrows task) {
 
   }
 
@@ -14,5 +14,10 @@ public class Worker {
   }
 
   public void awaitAndLog(ProgressLoggers loggers, long logIntervalSeconds) {
+  }
+
+  public interface RunnableThatThrows {
+
+    void run() throws Exception;
   }
 }

@@ -1,6 +1,9 @@
 package com.onthegomap.flatmap;
 
 import com.google.protobuf.ByteString;
+import com.graphhopper.reader.ReaderElement;
+import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.worker.WorkQueue;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -58,5 +61,9 @@ public class OsmInputFile {
     } catch (IOException | DataFormatException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public WorkQueue<ReaderElement> newReaderQueue(String name, int threads, int size, int batchSize, Stats stats) {
+    return null;
   }
 }

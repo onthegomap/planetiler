@@ -11,4 +11,5 @@ public interface Profile {
   void processFeature(SourceFeature sourceFeature, RenderableFeatures features);
 
   void release();
+
 }

@@ -2,11 +2,9 @@ package com.onthegomap.flatmap;
 
 import org.locationtech.jts.geom.Geometry;
 
-public class SourceFeature {
+public interface SourceFeature {
 
-  public Geometry getGeometry() {
-    return null;
-  }
+  Geometry getGeometry();
   // props
   // lazy geometry
   // lazy centroid

@@ -39,17 +39,17 @@ public record Topology<T>(
 
   public interface SourceStep<O> {
 
-    void run(Consumer<O> next);
+    void run(Consumer<O> next) throws Exception;
   }
 
   public interface WorkerStep<I, O> {
 
-    void run(Supplier<I> prev, Consumer<O> next);
+    void run(Supplier<I> prev, Consumer<O> next) throws Exception;
   }
 
   public interface SinkStep<I> {
 
-    void run(Supplier<I> prev);
+    void run(Supplier<I> prev) throws Exception;
   }
 
   public interface Bufferable<I, O> {

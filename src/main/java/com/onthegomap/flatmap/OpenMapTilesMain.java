@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.reader.NaturalEarthReader;
@@ -62,13 +63,13 @@ public class OpenMapTilesMain {
     FileUtils.forceMkdir(tmpDir.toFile());
     File nodeDb = tmpDir.resolve("node.db").toFile();
     Path featureDb = tmpDir.resolve("feature.db");
+    LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
     MergeSortFeatureMap featureMap = new MergeSortFeatureMap(featureDb, stats);
     FeatureRenderer renderer = new FeatureRenderer(stats);
     FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logIntervalSeconds);
 
     if (fetchWikidata) {
-      stats.time("wikidata",
-        () -> Wikidata.fetch(osmInputFile, wikidataNamesFile, config));
+      stats.time("wikidata", () -> Wikidata.fetch(osmInputFile, wikidataNamesFile, config));
     }
     if (useWikidata) {
       translations.addTranslationProvider(Wikidata.load(wikidataNamesFile));
@@ -86,9 +87,9 @@ public class OpenMapTilesMain {
         .process("natural_earth", renderer, featureMap, config)
     );
 
-    try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeDb, stats)) {
-      stats.time("osm_pass1", () -> osmReader.pass1(profile, threads));
-      stats.time("osm_pass2", () -> osmReader.pass2(renderer, profile, threads));
+    try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, stats)) {
+      stats.time("osm_pass1", () -> osmReader.pass1(config));
+      stats.time("osm_pass2", () -> osmReader.pass2(renderer, featureMap, config));
     }
 
     LOGGER.info("Deleting node.db to make room for mbtiles");
@@ -96,7 +97,7 @@ public class OpenMapTilesMain {
     nodeDb.delete();
 
     stats.time("sort", featureMap::sort);
-    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, threads));
+    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, config));
 
     stats.stopTimer("import");
 

@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 public abstract class Reader {
 
   private final Stats stats;
-  private Logger LOGGER = LoggerFactory.getLogger(getClass());
+  private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
   public Reader(Stats stats) {
     this.stats = stats;
@@ -33,11 +33,10 @@ public abstract class Reader {
     OpenMapTilesProfile profile = config.profile();
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
-    LOGGER.info("[" + name + "] Reading with " + threads + " threads");
 
-    var topology = Topology.fromGenerator(name + "-read", stats, open())
-      .addBuffer(name + "-reader", 1000)
-      .<RenderedFeature>addWorker(name + "-process", threads, (prev, next) -> {
+    var topology = Topology.fromGenerator(name + "_read", stats, open())
+      .addBuffer(name + "_reader", 1000)
+      .<RenderedFeature>addWorker(name + "_process", threads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         SourceFeature sourceFeature;
         while ((sourceFeature = prev.get()) != null) {
@@ -51,8 +50,8 @@ public abstract class Reader {
           }
         }
       })
-      .addBuffer(name + "-writer", 1000)
-      .sinkToConsumer("write", 1, (item) -> {
+      .addBuffer(name + "_writer", 1000)
+      .sinkToConsumer(name + "_write", 1, (item) -> {
         featuresWritten.incrementAndGet();
         writer.accept(item);
       });

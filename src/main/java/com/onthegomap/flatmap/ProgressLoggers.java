@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import com.onthegomap.flatmap.worker.Worker;
+import java.io.File;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
@@ -28,7 +29,15 @@ public class ProgressLoggers {
     return this;
   }
 
+  public ProgressLoggers addFileSize(File filePath) {
+    return this;
+  }
+
   public ProgressLoggers addProcessStats() {
+    return this;
+  }
+
+  public ProgressLoggers addInMemoryObject(String name, LongSupplier size) {
     return this;
   }
 

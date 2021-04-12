@@ -5,7 +5,7 @@ import java.io.File;
 
 public class MbtilesWriter {
 
-  public static void writeOutput(MergeSortFeatureMap features, File output, int threads) {
+  public static void writeOutput(MergeSortFeatureMap features, File output, FlatMapConfig threads) {
   }
 
 }
