@@ -14,6 +14,8 @@ public interface Stats {
 
   void stopTimer(String name);
 
+  void encodedTile(int zoom, int length);
+
   class InMemory implements Stats {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InMemory.class);
@@ -38,6 +40,11 @@ public interface Stats {
 
     @Override
     public void stopTimer(String name) {
+
+    }
+
+    @Override
+    public void encodedTile(int zoom, int length) {
 
     }
   }

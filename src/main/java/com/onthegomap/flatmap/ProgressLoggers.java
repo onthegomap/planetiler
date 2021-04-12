@@ -61,4 +61,8 @@ public class ProgressLoggers {
       .addQueueStats(topology.inputQueue())
       .addThreadPoolStats(topology.name(), topology.worker());
   }
+
+  public ProgressLoggers add(String s) {
+    return this;
+  }
 }

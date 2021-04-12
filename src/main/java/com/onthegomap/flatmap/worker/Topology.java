@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.worker;
 
 import com.onthegomap.flatmap.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
+import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -22,6 +23,14 @@ public record Topology<T>(
 
   public static <T> Bufferable<?, T> fromGenerator(String name, Stats stats, SourceStep<T> producer) {
     return fromGenerator(name, stats, producer, 1);
+  }
+
+  public static <T> Bufferable<?, T> readFromIterator(String name, Stats stats, Iterator<T> iter) {
+    return fromGenerator(name, stats, next -> {
+      while (iter.hasNext()) {
+        next.accept(iter.next());
+      }
+    }, 1);
   }
 
   public static <T> Builder<?, T> readFromQueue(Stats stats, WorkQueue<T> input) {

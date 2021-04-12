@@ -1,8 +1,10 @@
 package com.onthegomap.flatmap.collections;
 
 import com.onthegomap.flatmap.RenderedFeature;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.stats.Stats;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.function.Consumer;
 
 public class MergeSortFeatureMap implements Consumer<RenderedFeature> {
@@ -21,5 +23,28 @@ public class MergeSortFeatureMap implements Consumer<RenderedFeature> {
 
   public long getStorageSize() {
     return 0;
+  }
+
+  public Iterator<TileFeatures> getAll() {
+    return null;
+  }
+
+  public static class TileFeatures {
+
+    public long getNumFeatures() {
+      return 0;
+    }
+
+    public int getTileId() {
+      return 0;
+    }
+
+    public boolean hasSameContents(TileFeatures other) {
+      return false;
+    }
+
+    public VectorTile getTile() {
+      return null;
+    }
   }
 }

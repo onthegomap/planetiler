@@ -89,7 +89,8 @@ public class OpenMapTilesMain {
 
     try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, stats)) {
       stats.time("osm_pass1", () -> osmReader.pass1(config));
-      stats.time("osm_pass2", () -> osmReader.pass2(renderer, featureMap, config));
+      stats
+        .time("osm_pass2", () -> osmReader.pass2(renderer, featureMap, Math.max(threads / 4, 1), threads - 1, config));
     }
 
     LOGGER.info("Deleting node.db to make room for mbtiles");

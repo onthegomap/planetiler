@@ -83,4 +83,17 @@ public class GeoUtils {
     long y = (long) (worldY * QUANTIZED_WORLD_SIZE);
     return (x << 32) | y;
   }
+
+  public static int z(int key) {
+    int result = key >> 28;
+    return result < 0 ? 16 + result : result;
+  }
+
+  public static int x(int key) {
+    return (key >> 14) & ((1 << 14) - 1);
+  }
+
+  public static int y(int key) {
+    return (key) & ((1 << 14) - 1);
+  }
 }
