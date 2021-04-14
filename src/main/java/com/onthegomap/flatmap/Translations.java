@@ -12,6 +12,10 @@ public class Translations {
     return new Translations();
   }
 
+  public static Translations defaultTranslationProvider() {
+    return null;
+  }
+
   public void addTranslationProvider(WikidataTranslations load) {
     // TODO
   }

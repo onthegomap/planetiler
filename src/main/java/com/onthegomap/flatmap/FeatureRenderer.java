@@ -44,14 +44,14 @@ public class FeatureRenderer {
   }
 
   private void addPointFeature(RenderableFeature feature, Point point, Consumer<RenderedFeature> consumer) {
-    TODO render features into tile
+    // TODO render features into tile
   }
 
   private void addPointFeature(RenderableFeature feature, MultiPoint points, Consumer<RenderedFeature> consumer) {
-    TODO render features into tile
+    // TODO render features into tile
   }
 
   private void addLinearFeature(RenderableFeature feature, Geometry geom, Consumer<RenderedFeature> consumer) {
-    TODO render lines / areas into tile
+    // TODO render lines / areas into tile
   }
 }

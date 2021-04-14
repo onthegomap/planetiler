@@ -2,6 +2,8 @@ package com.onthegomap.flatmap;
 
 import com.onthegomap.flatmap.stats.Stats;
 import java.io.File;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
@@ -83,6 +85,13 @@ public class Arguments {
     String value = getArg(key, Integer.toString(defaultValue));
     int parsed = Integer.parseInt(value);
     LOGGER.info(description + ": " + parsed);
+    return parsed;
+  }
+
+  public Duration duration(String key, String description, String defaultValue) {
+    String value = getArg(key, defaultValue);
+    Duration parsed = Duration.parse("PT" + value);
+    LOGGER.info(description + ": " + parsed.get(ChronoUnit.SECONDS) + " seconds");
     return parsed;
   }
 }

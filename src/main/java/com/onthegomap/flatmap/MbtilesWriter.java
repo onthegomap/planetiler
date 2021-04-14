@@ -55,7 +55,7 @@ public class MbtilesWriter {
       .addProcessStats()
       .addTopologyStats(topology);
 
-    topology.awaitAndLog(loggers, config.logIntervalSeconds());
+    topology.awaitAndLog(loggers, config.logInterval());
   }
 
   public void tileEncoder(Supplier<TileFeatures> prev, Consumer<RenderedTile> next) throws Exception {

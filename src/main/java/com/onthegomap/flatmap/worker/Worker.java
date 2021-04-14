@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.worker;
 
 import com.onthegomap.flatmap.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
+import java.time.Duration;
 
 public class Worker {
 
@@ -13,7 +14,7 @@ public class Worker {
     return null;
   }
 
-  public void awaitAndLog(ProgressLoggers loggers, long logIntervalSeconds) {
+  public void awaitAndLog(ProgressLoggers loggers, Duration longInterval) {
   }
 
   public interface RunnableThatThrows {

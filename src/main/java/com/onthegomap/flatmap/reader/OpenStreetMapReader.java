@@ -103,7 +103,7 @@ public class OpenStreetMapReader implements Closeable {
       .addThreadPoolStats("pbf", "PBF")
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
-    topology.awaitAndLog(loggers, config.logIntervalSeconds());
+    topology.awaitAndLog(loggers, config.logInterval());
   }
 
   public long pass2(FeatureRenderer renderer, MergeSortFeatureMap writer, int readerThreads, int processThreads,
@@ -170,7 +170,7 @@ public class OpenStreetMapReader implements Closeable {
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
 
-    topology.awaitAndLog(logger, config.logIntervalSeconds());
+    topology.awaitAndLog(logger, config.logInterval());
 
     return featuresWritten.get();
   }

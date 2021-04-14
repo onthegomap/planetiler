@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import com.google.protobuf.ByteString;
 import com.graphhopper.reader.ReaderElement;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import java.io.DataInputStream;
 import java.io.File;
@@ -65,5 +66,16 @@ public class OsmInputFile {
 
   public WorkQueue<ReaderElement> newReaderQueue(String name, int threads, int size, int batchSize, Stats stats) {
     return null;
+  }
+
+  public Topology.Builder<?, ReaderElement> newTopology(
+    String prefix,
+    int readerThreads,
+    int size,
+    int batchSize,
+    Stats stats
+  ) {
+    return Topology.start(prefix, stats)
+      .readFromQueue(newReaderQueue(prefix + "_reader_queue", readerThreads, size, batchSize, stats));
   }
 }

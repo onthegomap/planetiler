@@ -2,13 +2,13 @@ package com.onthegomap.flatmap.reader;
 
 import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.FlatMapConfig;
+import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.ProgressLoggers;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
-import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.Topology.SourceStep;
@@ -30,7 +30,7 @@ public abstract class Reader {
     long featureCount = getCount();
     int threads = config.threads();
     Envelope env = config.envelope();
-    OpenMapTilesProfile profile = config.profile();
+    Profile profile = config.profile();
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
@@ -64,7 +64,7 @@ public abstract class Reader {
       .addProcessStats()
       .addTopologyStats(topology);
 
-    topology.awaitAndLog(loggers, config.logIntervalSeconds());
+    topology.awaitAndLog(loggers, config.logInterval());
   }
 
   public abstract long getCount();

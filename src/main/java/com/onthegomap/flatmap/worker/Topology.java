@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.worker;
 
 import com.onthegomap.flatmap.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -17,13 +18,13 @@ public record Topology<T>(
     return new Empty(prefix, stats);
   }
 
-  public void awaitAndLog(ProgressLoggers loggers, long logIntervalSeconds) {
+  public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
     if (previous != null) {
-      previous.awaitAndLog(loggers, logIntervalSeconds);
+      previous.awaitAndLog(loggers, logInterval);
     } else { // producer is responsible for closing the initial input queue
       inputQueue.close();
     }
-    worker.awaitAndLog(loggers, logIntervalSeconds);
+    worker.awaitAndLog(loggers, logInterval);
   }
 
   public interface SourceStep<O> {

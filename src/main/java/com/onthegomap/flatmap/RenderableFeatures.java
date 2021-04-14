@@ -4,6 +4,9 @@ import java.util.List;
 
 public class RenderableFeatures {
 
+  public RenderableFeatures() {
+  }
+
   public Iterable<RenderableFeature> all() {
     return List.of();
   }

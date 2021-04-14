@@ -9,6 +9,7 @@ import com.onthegomap.flatmap.reader.ShapefileReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.io.FileUtils;
@@ -36,7 +37,7 @@ public class OpenMapTilesMain {
     double[] bounds = arguments.bounds("bounds", "bounds", osmInputFile);
     Envelope envelope = new Envelope(bounds[0], bounds[2], bounds[1], bounds[3]);
     int threads = arguments.threads();
-    int logIntervalSeconds = arguments.integer("loginterval", "seconds between logs", 10);
+    Duration logInterval = arguments.duration("loginterval", "time between logs", "10s");
     Path tmpDir = arguments.file("tmpdir", "temp directory", "./data/tmp").toPath();
     boolean fetchWikidata = arguments.get("fetch_wikidata", "fetch wikidata translations", false);
     boolean useWikidata = arguments.get("use_wikidata", "use wikidata translations", true);
@@ -66,7 +67,7 @@ public class OpenMapTilesMain {
     Path featureDb = tmpDir.resolve("feature.db");
     LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
     MergeSortFeatureMap featureMap = new MergeSortFeatureMap(featureDb, stats);
-    FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logIntervalSeconds);
+    FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logInterval);
     FeatureRenderer renderer = new FeatureRenderer(config);
 
     if (fetchWikidata) {
