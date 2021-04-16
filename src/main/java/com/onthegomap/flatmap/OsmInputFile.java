@@ -71,7 +71,7 @@ public class OsmInputFile {
 
   public void readTo(Consumer<ReaderElement> next, int threads) throws IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(threads);
-    try (var stream = new BufferedInputStream(new FileInputStream(file), 50000)) {
+    try (var stream = new BufferedInputStream(new FileInputStream(file), 50_000)) {
       PbfStreamSplitter streamSplitter = new PbfStreamSplitter(new DataInputStream(stream));
       var sink = new ReaderElementSink(next);
       PbfDecoder pbfDecoder = new PbfDecoder(streamSplitter, executorService, threads + 1, sink);

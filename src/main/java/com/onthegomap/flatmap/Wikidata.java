@@ -156,7 +156,6 @@ public class Wikidata {
         .addRateCounter("wiki", fetcher.wikidatas)
         .addFileSize(outfile)
         .addProcessStats()
-        .addThreadPoolStats("pbf", "PBF")
         .addThreadPoolStats("parse", "pool-")
         .addTopologyStats(topology);
 

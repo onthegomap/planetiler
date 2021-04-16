@@ -74,15 +74,17 @@ public class Worker {
     return prefix;
   }
 
-  public void awaitAndLog(ProgressLoggers loggers, Duration longInterval) {
+  public void awaitAndLog(ProgressLoggers loggers, Duration initialLogInterval, Duration logInterval) {
     try {
-      while (!es.awaitTermination(longInterval.toNanos(), TimeUnit.NANOSECONDS)) {
+      if (!es.awaitTermination(initialLogInterval.toNanos(), TimeUnit.NANOSECONDS)) {
         loggers.log();
+        while (!es.awaitTermination(logInterval.toNanos(), TimeUnit.NANOSECONDS)) {
+          loggers.log();
+        }
       }
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-    loggers.log();
   }
 
   public void await() {

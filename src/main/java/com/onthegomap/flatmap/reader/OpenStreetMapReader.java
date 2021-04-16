@@ -100,7 +100,6 @@ public class OpenStreetMapReader implements Closeable {
       .addRateCounter("rels", TOTAL_RELATIONS)
       .addProcessStats()
       .addInMemoryObject("hppc", this::getBigObjectSizeBytes)
-      .addThreadPoolStats("pbf", "PBF")
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
@@ -166,7 +165,6 @@ public class OpenStreetMapReader implements Closeable {
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
       .addInMemoryObject("hppc", this::getBigObjectSizeBytes)
-      .addThreadPoolStats("pbf", "PBF")
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
 

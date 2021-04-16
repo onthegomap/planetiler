@@ -18,16 +18,26 @@ public record Topology<T>(
     return new Empty(prefix, stats);
   }
 
-  public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
+  // track time since last log and stagger initial log interval for each step to keep logs
+  // coming at consistent intervals
+  private void doAwaitAndLog(ProgressLoggers loggers, Duration logInterval, long startNanos) {
     if (previous != null) {
-      previous.awaitAndLog(loggers, logInterval);
+      previous.doAwaitAndLog(loggers, logInterval, startNanos);
     }
     if (inputQueue != null) {
       inputQueue.close();
     }
     if (worker != null) {
-      worker.awaitAndLog(loggers, logInterval);
+      long elapsedSoFar = System.nanoTime() - startNanos;
+      Duration sinceLastLog = Duration.ofNanos(elapsedSoFar % logInterval.toNanos());
+      Duration untilNextLog = logInterval.minus(sinceLastLog);
+      worker.awaitAndLog(loggers, untilNextLog, logInterval);
     }
+  }
+
+  public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
+    doAwaitAndLog(loggers, logInterval, System.nanoTime());
+    loggers.log();
   }
 
   public void await() {
