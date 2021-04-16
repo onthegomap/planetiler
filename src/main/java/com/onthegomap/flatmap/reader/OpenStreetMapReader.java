@@ -61,9 +61,9 @@ public class OpenStreetMapReader implements Closeable {
   public void pass1(FlatMapConfig config) {
     Profile profile = config.profile();
     var topology = Topology.start("osm_pass1", stats)
-      .readFromQueue(
-        osmInputFile.newReaderQueue("osm_pass1_reader_queue", config.threads() - 1, 50_000, 10_000, stats)
-      ).sinkToConsumer("process", 1, (readerElement) -> {
+      .fromGenerator("pbf", osmInputFile.read(config.threads() - 1))
+      .addBuffer("reader_queue", 50_000, 10_000)
+      .sinkToConsumer("process", 1, (readerElement) -> {
         if (readerElement instanceof ReaderNode node) {
           TOTAL_NODES.incrementAndGet();
           nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
@@ -116,9 +116,9 @@ public class OpenStreetMapReader implements Closeable {
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
     var topology = Topology.start("osm_pass2", stats)
-      .readFromQueue(
-        osmInputFile.newReaderQueue("osm_pass2_reader_queue", readerThreads, 50_000, 1_000, stats)
-      ).<RenderedFeature>addWorker("process", processThreads, (prev, next) -> {
+      .fromGenerator("pbf", osmInputFile.read(readerThreads))
+      .addBuffer("reader_queue", 50_000, 1_000)
+      .<RenderedFeature>addWorker("process", processThreads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         ReaderElement readerElement;
         while ((readerElement = prev.get()) != null) {

@@ -2,13 +2,18 @@ package com.onthegomap.flatmap;
 
 import com.google.protobuf.ByteString;
 import com.graphhopper.reader.ReaderElement;
-import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
-import com.onthegomap.flatmap.worker.WorkQueue;
+import com.graphhopper.reader.osm.pbf.PbfDecoder;
+import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
+import com.graphhopper.reader.osm.pbf.Sink;
+import com.onthegomap.flatmap.worker.Topology.SourceStep;
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.Blob;
@@ -64,18 +69,31 @@ public class OsmInputFile {
     }
   }
 
-  public WorkQueue<ReaderElement> newReaderQueue(String name, int threads, int size, int batchSize, Stats stats) {
-    return null;
+  public void readTo(Consumer<ReaderElement> next, int threads) throws IOException {
+    ExecutorService executorService = Executors.newFixedThreadPool(threads);
+    try (var stream = new BufferedInputStream(new FileInputStream(file), 50000)) {
+      PbfStreamSplitter streamSplitter = new PbfStreamSplitter(new DataInputStream(stream));
+      var sink = new ReaderElementSink(next);
+      PbfDecoder pbfDecoder = new PbfDecoder(streamSplitter, executorService, threads + 1, sink);
+      pbfDecoder.run();
+    } finally {
+      executorService.shutdownNow();
+    }
   }
 
-  public Topology.Builder<?, ReaderElement> newTopology(
-    String prefix,
-    int readerThreads,
-    int size,
-    int batchSize,
-    Stats stats
-  ) {
-    return Topology.start(prefix, stats)
-      .readFromQueue(newReaderQueue(prefix + "_reader_queue", readerThreads, size, batchSize, stats));
+  public SourceStep<ReaderElement> read(int threads) {
+    return next -> readTo(next, threads);
+  }
+
+  private static record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
+
+    @Override
+    public void process(ReaderElement readerElement) {
+      queue.accept(readerElement);
+    }
+
+    @Override
+    public void complete() {
+    }
   }
 }

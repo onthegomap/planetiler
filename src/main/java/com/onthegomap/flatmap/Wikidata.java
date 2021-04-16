@@ -15,6 +15,7 @@ import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
+import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -135,7 +136,9 @@ public class Wikidata {
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000);
       fetcher.loadExisting(oldMappings);
 
-      var topology = infile.newTopology("wikidata", readerThreads, 50_000, 10_000, stats)
+      var topology = Topology.start("wikidata", stats)
+        .fromGenerator("pbf", infile.read(readerThreads))
+        .addBuffer("reader_queue", 50_000, 10_000)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 50_000)
         .sinkTo("fetch", 1, prev -> {
@@ -257,7 +260,7 @@ public class Wikidata {
     try {
       StopWatch timer = new StopWatch().start();
       LongObjectMap<Map<String, String>> results = queryWikidata(qidsToFetch);
-      LOGGER.info("Fetched batch " + batches.incrementAndGet() + " " + qidsToFetch.size() + " " + timer.stop());
+      LOGGER.info("Fetched batch " + batches.incrementAndGet() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
       writeTranslations(results);
     } catch (IOException | InterruptedException | URISyntaxException e) {
       throw new RuntimeException(e);
@@ -351,7 +354,7 @@ public class Wikidata {
     public Map<String, String> getNameTranslations(ReaderElement elem) {
       long wikidataId = parseQid(elem.getTag("wikidata"));
       if (wikidataId > 0) {
-        return data.get(wikidataId);
+        return get(wikidataId);
       }
       return null;
     }

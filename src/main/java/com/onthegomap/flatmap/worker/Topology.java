@@ -30,6 +30,18 @@ public record Topology<T>(
     }
   }
 
+  public void await() {
+    if (previous != null) {
+      previous.await();
+    }
+    if (inputQueue != null) {
+      inputQueue.close();
+    }
+    if (worker != null) {
+      worker.await();
+    }
+  }
+
   public interface SourceStep<O> {
 
     void run(Consumer<O> next) throws Exception;

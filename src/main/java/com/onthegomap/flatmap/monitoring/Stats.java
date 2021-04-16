@@ -1,6 +1,8 @@
 package com.onthegomap.flatmap.monitoring;
 
 import com.graphhopper.util.StopWatch;
+import java.util.Map;
+import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,13 +23,13 @@ public interface Stats {
   class InMemory implements Stats {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InMemory.class);
+    private Map<String, StopWatch> timers = new TreeMap<>();
 
     @Override
     public void time(String name, Runnable task) {
-      StopWatch timer = new StopWatch().start();
-      LOGGER.info("[" + name + "] Starting...");
+      startTimer(name);
       task.run();
-      LOGGER.info("[" + name + "] Finished in " + timer.stop());
+      stopTimer(name);
     }
 
     @Override
@@ -37,12 +39,13 @@ public interface Stats {
 
     @Override
     public void startTimer(String name) {
-
+      timers.put(name, new StopWatch().start());
+      LOGGER.info("[" + name + "] Starting...");
     }
 
     @Override
     public void stopTimer(String name) {
-
+      LOGGER.info("[" + name + "] Finished in " + timers.get(name).stop());
     }
 
     @Override
