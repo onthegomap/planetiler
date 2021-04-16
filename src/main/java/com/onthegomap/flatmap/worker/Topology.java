@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.worker;
 
-import com.onthegomap.flatmap.ProgressLoggers;
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.ProgressLoggers;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.function.Consumer;
@@ -21,10 +21,13 @@ public record Topology<T>(
   public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
     if (previous != null) {
       previous.awaitAndLog(loggers, logInterval);
-    } else { // producer is responsible for closing the initial input queue
+    }
+    if (inputQueue != null) {
       inputQueue.close();
     }
-    worker.awaitAndLog(loggers, logInterval);
+    if (worker != null) {
+      worker.awaitAndLog(loggers, logInterval);
+    }
   }
 
   public interface SourceStep<O> {
@@ -56,8 +59,8 @@ public record Topology<T>(
 
     public <T> Bufferable<?, T> fromGenerator(String name, SourceStep<T> producer, int threads) {
       return (queueName, size, batchSize) -> {
-        var nextQueue = new WorkQueue<T>(prefix, queueName, size, batchSize, stats);
-        Worker worker = new Worker(prefix, name, stats, threads, () -> producer.run(nextQueue));
+        var nextQueue = new WorkQueue<T>(prefix + "_" + queueName, size, batchSize, stats);
+        Worker worker = new Worker(prefix + "_" + name, stats, threads, () -> producer.run(nextQueue));
         return new Builder<>(prefix, name, nextQueue, worker, stats);
       };
     }
@@ -99,8 +102,8 @@ public record Topology<T>(
     public <O2> Bufferable<O, O2> addWorker(String name, int threads, WorkerStep<O, O2> step) {
       Builder<I, O> curr = this;
       return (queueName, size, batchSize) -> {
-        var nextOutputQueue = new WorkQueue<O2>(prefix, queueName, size, batchSize, stats);
-        var worker = new Worker(prefix, name, stats, threads, () -> step.run(outputQueue, nextOutputQueue));
+        var nextOutputQueue = new WorkQueue<O2>(prefix + "_" + queueName, size, batchSize, stats);
+        var worker = new Worker(prefix + "_" + name, stats, threads, () -> step.run(outputQueue, nextOutputQueue));
         return new Builder<>(prefix, name, curr, outputQueue, nextOutputQueue, worker, stats);
       };
     }
@@ -111,8 +114,8 @@ public record Topology<T>(
     }
 
     public Topology<O> sinkTo(String name, int threads, SinkStep<O> step) {
-      var previousTopology = previous.build();
-      var worker = new Worker(prefix, name, stats, threads, () -> step.run(outputQueue));
+      var previousTopology = build();
+      var worker = new Worker(prefix + "_" + name, stats, threads, () -> step.run(outputQueue));
       return new Topology<>(name, previousTopology, outputQueue, worker);
     }
 

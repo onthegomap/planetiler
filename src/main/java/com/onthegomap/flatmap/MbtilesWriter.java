@@ -6,7 +6,8 @@ import static com.onthegomap.flatmap.GeoUtils.z;
 
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap.TileFeatures;
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.ProgressLoggers;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.ByteArrayOutputStream;
 import java.io.File;

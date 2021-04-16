@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.time.Duration;
 import org.locationtech.jts.geom.Envelope;
 

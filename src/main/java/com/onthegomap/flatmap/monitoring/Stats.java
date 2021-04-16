@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap.stats;
+package com.onthegomap.flatmap.monitoring;
 
 import com.graphhopper.util.StopWatch;
 import org.slf4j.Logger;
@@ -15,6 +15,8 @@ public interface Stats {
   void stopTimer(String name);
 
   void encodedTile(int zoom, int length);
+
+  void gauge(String name, int value);
 
   class InMemory implements Stats {
 
@@ -45,6 +47,11 @@ public interface Stats {
 
     @Override
     public void encodedTile(int zoom, int length) {
+
+    }
+
+    @Override
+    public void gauge(String name, int value) {
 
     }
   }

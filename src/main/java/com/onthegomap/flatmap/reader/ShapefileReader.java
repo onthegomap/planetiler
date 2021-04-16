@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.reader;
 
 import com.onthegomap.flatmap.SourceFeature;
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology.SourceStep;
 import java.io.File;
 

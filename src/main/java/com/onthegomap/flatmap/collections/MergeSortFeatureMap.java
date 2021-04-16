@@ -2,7 +2,7 @@ package com.onthegomap.flatmap.collections;
 
 import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTile;
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.function.Consumer;

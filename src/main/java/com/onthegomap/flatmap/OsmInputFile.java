@@ -2,7 +2,7 @@ package com.onthegomap.flatmap;
 
 import com.google.protobuf.ByteString;
 import com.graphhopper.reader.ReaderElement;
-import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import java.io.DataInputStream;
