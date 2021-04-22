@@ -49,7 +49,7 @@ public class OpenMapTilesMain {
 
     LOGGER.info("Building OpenMapTiles profile into " + output + " in these phases:");
     if (fetchWikidata) {
-      LOGGER.info("- [wikidata] Fetch OpenStreetMap element name translations from wikidata");
+      LOGGER.info("  [wikidata] Fetch OpenStreetMap element name translations from wikidata");
     }
     LOGGER.info("  [lake_centerlines] Extract lake centerlines");
     LOGGER.info("  [water_polygons] Process ocean polygons");
@@ -78,12 +78,9 @@ public class OpenMapTilesMain {
     }
 
     stats.time("lake_centerlines", () ->
-      new ShapefileReader("EPSG:3857", centerlines, stats)
-        .process("lake_centerlines", renderer, featureMap, config));
+      ShapefileReader.process("EPSG:3857", "lake_centerlines", centerlines, renderer, featureMap, config));
     stats.time("water_polygons", () ->
-      new ShapefileReader(waterPolygons, stats)
-        .process("water_polygons", renderer, featureMap, config)
-    );
+      ShapefileReader.process("water_polygons", waterPolygons, renderer, featureMap, config));
     stats.time("natural_earth", () ->
       new NaturalEarthReader(naturalEarth, tmpDir.resolve("natearth.sqlite").toFile(), stats)
         .process("natural_earth", renderer, featureMap, config)

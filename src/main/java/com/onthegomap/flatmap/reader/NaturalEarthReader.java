@@ -17,7 +17,12 @@ public class NaturalEarthReader extends Reader {
   }
 
   @Override
-  public SourceStep<SourceFeature> open() {
+  public SourceStep<SourceFeature> read() {
     return null;
+  }
+
+  @Override
+  public void close() {
+
   }
 }

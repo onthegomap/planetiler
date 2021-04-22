@@ -13,16 +13,16 @@ import org.junit.jupiter.api.Timeout;
 
 public class OsmInputFileTest {
 
-  private OsmInputFile file = new OsmInputFile(new File("src/test/resources/andorra-latest.osm.pbf"));
+  private OsmInputFile file = new OsmInputFile(new File("src/test/resources/monaco-latest.osm.pbf"));
 
   @Test
   public void testGetBounds() {
-    assertArrayEquals(new double[]{1.412368, 42.4276, 1.787481, 42.65717}, file.getBounds());
+    assertArrayEquals(new double[]{7.409205, 43.72335, 7.448637, 43.75169}, file.getBounds());
   }
 
   @Test
   @Timeout(30)
-  public void testReadAndorraTwice() {
+  public void testReadMonacoTwice() {
     for (int i = 1; i <= 2; i++) {
       AtomicInteger nodes = new AtomicInteger(0);
       AtomicInteger ways = new AtomicInteger(0);
@@ -37,9 +37,9 @@ public class OsmInputFileTest {
             case ReaderElement.RELATION -> rels.incrementAndGet();
           }
         }).await();
-      assertEquals(246_028, nodes.get(), "nodes pass " + i);
-      assertEquals(12_677, ways.get(), "ways pass " + i);
-      assertEquals(287, rels.get(), "rels pass " + i);
+      assertEquals(25_423, nodes.get(), "nodes pass " + i);
+      assertEquals(4_106, ways.get(), "ways pass " + i);
+      assertEquals(243, rels.get(), "rels pass " + i);
     }
   }
 }

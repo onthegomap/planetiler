@@ -19,4 +19,4 @@ fi
 echo "Running..."
 java -Dinput="./data/sources/${AREA}.pbf" \
   -cp "$JAR" \
-  com.onthegomap.flatmap.profiles.OpenMapTilesProfile
+  com.onthegomap.flatmap.OpenMapTilesMain

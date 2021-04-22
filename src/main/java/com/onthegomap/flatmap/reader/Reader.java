@@ -12,14 +12,15 @@ import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.Topology.SourceStep;
+import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class Reader {
+public abstract class Reader implements Closeable {
 
-  private final Stats stats;
+  protected final Stats stats;
   private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
   public Reader(Stats stats) {
@@ -35,7 +36,7 @@ public abstract class Reader {
     AtomicLong featuresWritten = new AtomicLong(0);
 
     var topology = Topology.start(name, stats)
-      .fromGenerator("read", open())
+      .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
       .<RenderedFeature>addWorker("process", threads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
@@ -69,6 +70,8 @@ public abstract class Reader {
 
   public abstract long getCount();
 
-  public abstract SourceStep<SourceFeature> open();
+  public abstract SourceStep<SourceFeature> read();
 
+  @Override
+  public abstract void close();
 }
