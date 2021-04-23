@@ -57,11 +57,12 @@ public class TopologyTest {
 
     queue.accept(0);
     queue.accept(1);
+    queue.accept(2);
     queue.close();
 
     topology.await();
 
-    assertEquals(Set.of(1, 2, 3, 4), result);
+    assertEquals(Set.of(1, 2, 3, 4, 5, 6), result);
   }
 
   @Test
