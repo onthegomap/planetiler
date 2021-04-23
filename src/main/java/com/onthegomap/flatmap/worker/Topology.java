@@ -23,9 +23,9 @@ public record Topology<T>(
   private void doAwaitAndLog(ProgressLoggers loggers, Duration logInterval, long startNanos) {
     if (previous != null) {
       previous.doAwaitAndLog(loggers, logInterval, startNanos);
-    }
-    if (inputQueue != null) {
-      inputQueue.close();
+      if (inputQueue != null) {
+        inputQueue.close();
+      }
     }
     if (worker != null) {
       long elapsedSoFar = System.nanoTime() - startNanos;
@@ -43,9 +43,9 @@ public record Topology<T>(
   public void await() {
     if (previous != null) {
       previous.await();
-    }
-    if (inputQueue != null) {
-      inputQueue.close();
+      if (inputQueue != null) {
+        inputQueue.close();
+      }
     }
     if (worker != null) {
       worker.await();

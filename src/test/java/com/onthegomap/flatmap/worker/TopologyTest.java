@@ -55,14 +55,15 @@ public class TopologyTest {
       }).addBuffer("writer_queue", 1)
       .sinkToConsumer("writer", 1, result::add);
 
-    queue.accept(0);
-    queue.accept(1);
-    queue.accept(2);
-    queue.close();
+    new Thread(() -> {
+      queue.accept(0);
+      queue.accept(1);
+      queue.close();
+    }).start();
 
     topology.await();
 
-    assertEquals(Set.of(1, 2, 3, 4, 5, 6), result);
+    assertEquals(Set.of(1, 2, 3, 4), result);
   }
 
   @Test

@@ -28,7 +28,7 @@ import org.opengis.referencing.operation.MathTransform;
 public class ShapefileReader extends Reader implements Closeable {
 
   private final FeatureCollection<SimpleFeatureType, SimpleFeature> inputSource;
-  private String[] attributeNames;
+  private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
   private MathTransform transform;
 
@@ -76,17 +76,14 @@ public class ShapefileReader extends Reader implements Closeable {
       URI uri;
 
       if (name.endsWith(".zip")) {
-        String shapeFileInZip;
         try (ZipFile zip = new ZipFile(file)) {
-          shapeFileInZip = zip.stream()
+          String shapeFileInZip = zip.stream()
             .map(ZipEntry::getName)
             .filter(z -> z.endsWith(".shp"))
-            .findAny().orElse(null);
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + name));
+          uri = URI.create("jar:file:" + file.toPath().toAbsolutePath() + "!/" + shapeFileInZip);
         }
-        if (shapeFileInZip == null) {
-          throw new IllegalArgumentException("No .shp file found inside " + name);
-        }
-        uri = URI.create("jar:file:" + file.toPath().toAbsolutePath() + "!/" + shapeFileInZip);
       } else if (name.endsWith(".shp")) {
         uri = file.toURI();
       } else {
