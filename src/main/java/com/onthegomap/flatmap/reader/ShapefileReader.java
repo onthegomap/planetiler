@@ -15,7 +15,6 @@ import java.util.zip.ZipFile;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
@@ -29,7 +28,6 @@ import org.opengis.referencing.operation.MathTransform;
 public class ShapefileReader extends Reader implements Closeable {
 
   private final FeatureCollection<SimpleFeatureType, SimpleFeature> inputSource;
-  final FeatureIterator<SimpleFeature> featureIterator;
   private String[] attributeNames;
   private final ShapefileDataStore dataStore;
   private MathTransform transform;
@@ -66,7 +64,6 @@ public class ShapefileReader extends Reader implements Closeable {
       for (int i = 0; i < attributeNames.length; i++) {
         attributeNames[i] = inputSource.getSchema().getDescriptor(i).getLocalName();
       }
-      this.featureIterator = inputSource.features();
     } catch (IOException | FactoryException e) {
       throw new RuntimeException(e);
     }
@@ -113,20 +110,22 @@ public class ShapefileReader extends Reader implements Closeable {
   @Override
   public SourceStep<SourceFeature> read() {
     return next -> {
-      while (featureIterator.hasNext()) {
-        SimpleFeature feature = featureIterator.next();
-        Geometry source = (Geometry) feature.getDefaultGeometry();
-        Geometry transformed = source;
-        if (transform != null) {
-          transformed = JTS.transform(source, transform);
-        }
-        if (transformed != null) {
-          SourceFeature geom = new ReaderFeature(transformed);
-          // TODO
-          //          for (int i = 1; i < attributeNames.length; i++) {
-          //            geom.setTag(attributeNames[i], feature.getAttribute(i));
-          //          }
-          next.accept(geom);
+      try (var iter = inputSource.features()) {
+        while (iter.hasNext()) {
+          SimpleFeature feature = iter.next();
+          Geometry source = (Geometry) feature.getDefaultGeometry();
+          Geometry transformed = source;
+          if (transform != null) {
+            transformed = JTS.transform(source, transform);
+          }
+          if (transformed != null) {
+            SourceFeature geom = new ReaderFeature(transformed);
+            // TODO
+            //          for (int i = 1; i < attributeNames.length; i++) {
+            //            geom.setTag(attributeNames[i], feature.getAttribute(i));
+            //          }
+            next.accept(geom);
+          }
         }
       }
     };
@@ -134,7 +133,6 @@ public class ShapefileReader extends Reader implements Closeable {
 
   @Override
   public void close() {
-    featureIterator.close();
     dataStore.dispose();
   }
 }

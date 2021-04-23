@@ -31,21 +31,23 @@ public class ShapefileReaderTest {
 
   @Test
   @Timeout(30)
-  public void testReadShapefile() {
-    Map<String, Integer> counts = new TreeMap<>();
-    List<Geometry> points = new ArrayList<>();
-    Topology.start("test", new InMemory())
-      .fromGenerator("shapefile", reader.read())
-      .addBuffer("reader_queue", 100, 1)
-      .sinkToConsumer("counter", 1, elem -> {
-        String type = elem.getGeometry().getGeometryType();
-        counts.put(type, counts.getOrDefault(type, 0) + 1);
-        points.add(elem.getGeometry());
-      }).await();
-    assertEquals(86, points.size());
-    var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
-    var centroid = gc.getCentroid();
-    assertEquals(-77.0297995, centroid.getX(), 5);
-    assertEquals(38.9119684, centroid.getY(), 5);
+  public void testReadShapefileTwice() {
+    for (int i = 1; i <= 2; i++) {
+      Map<String, Integer> counts = new TreeMap<>();
+      List<Geometry> points = new ArrayList<>();
+      Topology.start("test", new InMemory())
+        .fromGenerator("shapefile", reader.read())
+        .addBuffer("reader_queue", 100, 1)
+        .sinkToConsumer("counter", 1, elem -> {
+          String type = elem.getGeometry().getGeometryType();
+          counts.put(type, counts.getOrDefault(type, 0) + 1);
+          points.add(elem.getGeometry());
+        }).await();
+      assertEquals(86, points.size());
+      var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
+      var centroid = gc.getCentroid();
+      assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
+      assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);
+    }
   }
 }

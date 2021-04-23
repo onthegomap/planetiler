@@ -1,11 +1,7 @@
 package com.onthegomap.flatmap.worker;
 
 import com.onthegomap.flatmap.monitoring.Stats;
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -15,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
+public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
 
   private final ThreadLocal<Queue<T>> itemWriteBatchProvider = new ThreadLocal<>();
   private final ThreadLocal<Queue<T>> itemReadBatchProvider = new ThreadLocal<>();
@@ -25,7 +21,6 @@ public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
   private final int pendingBatchesCapacity;
   private volatile boolean hasIncomingData = true;
   private final AtomicInteger pendingCount = new AtomicInteger(0);
-  private final List<Closeable> closeables = new ArrayList<>();
 
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
     this.pendingBatchesCapacity = capacity / maxBatch;
@@ -42,10 +37,7 @@ public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
         }
       }
       hasIncomingData = false;
-      for (Closeable closeable : closeables) {
-        closeable.close();
-      }
-    } catch (InterruptedException | IOException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -122,10 +114,6 @@ public class WorkQueue<T> implements Closeable, Supplier<T>, Consumer<T> {
 
   public int getCapacity() {
     return pendingBatchesCapacity * batchSize;
-  }
-
-  public void alsoClose(Closeable toClose) {
-    closeables.add(toClose);
   }
 }
 
