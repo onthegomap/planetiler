@@ -44,7 +44,7 @@ public abstract class Reader implements Closeable {
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
           features.reset(sourceFeature);
-          if (sourceFeature.getGeometry().getEnvelopeInternal().intersects(env)) {
+          if (sourceFeature.geometry().getEnvelopeInternal().intersects(env)) {
             profile.processFeature(sourceFeature, features);
             for (RenderableFeature renderable : features.all()) {
               renderer.renderFeature(renderable, next);

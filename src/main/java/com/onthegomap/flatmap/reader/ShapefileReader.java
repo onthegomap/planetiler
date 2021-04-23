@@ -119,11 +119,10 @@ public class ShapefileReader extends Reader implements Closeable {
             transformed = JTS.transform(source, transform);
           }
           if (transformed != null) {
-            SourceFeature geom = new ReaderFeature(transformed);
-            // TODO
-            //          for (int i = 1; i < attributeNames.length; i++) {
-            //            geom.setTag(attributeNames[i], feature.getAttribute(i));
-            //          }
+            SourceFeature geom = new ReaderFeature(transformed, attributeNames.length);
+            for (int i = 1; i < attributeNames.length; i++) {
+              geom.setTag(attributeNames[i], feature.getAttribute(i));
+            }
             next.accept(geom);
           }
         }

@@ -4,6 +4,7 @@ import com.carrotsearch.hppc.LongHashSet;
 import com.graphhopper.coll.GHLongHashSet;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.reader.ReaderElement;
+import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
@@ -25,6 +26,7 @@ import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
@@ -194,38 +196,52 @@ public class OpenStreetMapReader implements Closeable {
     }
   }
 
-  private static class NodeSourceFeature implements SourceFeature {
+  private static abstract class ProxyFeature implements SourceFeature {
+
+    protected final Map<String, Object> tags;
+
+    public ProxyFeature(ReaderElement elem) {
+      tags = ReaderElementUtils.getProperties(elem);
+    }
+
+    @Override
+    public Map<String, Object> properties() {
+      return null;
+    }
+  }
+
+  private static class NodeSourceFeature extends ProxyFeature {
 
     public NodeSourceFeature(ReaderNode node) {
-      super();
+      super(node);
     }
 
     @Override
-    public Geometry getGeometry() {
+    public Geometry geometry() {
       return null;
     }
   }
 
-  private static class WaySourceFeature implements SourceFeature {
+  private static class WaySourceFeature extends ProxyFeature {
 
     public WaySourceFeature(ReaderWay way) {
-      super();
+      super(way);
     }
 
     @Override
-    public Geometry getGeometry() {
+    public Geometry geometry() {
       return null;
     }
   }
 
-  private static class MultipolygonSourceFeature implements SourceFeature {
+  private static class MultipolygonSourceFeature extends ProxyFeature {
 
     public MultipolygonSourceFeature(ReaderRelation relation) {
-      super();
+      super(relation);
     }
 
     @Override
-    public Geometry getGeometry() {
+    public Geometry geometry() {
       return null;
     }
   }

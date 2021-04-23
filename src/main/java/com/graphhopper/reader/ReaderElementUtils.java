@@ -1,0 +1,13 @@
+package com.graphhopper.reader;
+
+import java.util.Map;
+
+/**
+ * Allows access to protected method ReaderElement.getTags
+ */
+public class ReaderElementUtils {
+
+  public static Map<String, Object> getProperties(ReaderElement elem) {
+    return elem.getTags();
+  }
+}

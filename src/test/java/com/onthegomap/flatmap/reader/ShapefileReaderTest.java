@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.reader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats.InMemory;
@@ -8,8 +9,6 @@ import com.onthegomap.flatmap.worker.Topology;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -27,21 +26,20 @@ public class ShapefileReaderTest {
   @Test
   public void testCount() {
     assertEquals(86, reader.getCount());
+    assertEquals(86, reader.getCount());
   }
 
   @Test
   @Timeout(30)
-  public void testReadShapefileTwice() {
+  public void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
-      Map<String, Integer> counts = new TreeMap<>();
       List<Geometry> points = new ArrayList<>();
       Topology.start("test", new InMemory())
         .fromGenerator("shapefile", reader.read())
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {
-          String type = elem.getGeometry().getGeometryType();
-          counts.put(type, counts.getOrDefault(type, 0) + 1);
-          points.add(elem.getGeometry());
+          assertTrue(elem.getTag("name") instanceof String);
+          points.add(elem.geometry());
         }).await();
       assertEquals(86, points.size());
       var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
