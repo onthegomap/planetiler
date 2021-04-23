@@ -61,7 +61,7 @@ public class TopologyTest {
       queue.close();
     }).start();
 
-    topology.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
+    topology.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(30));
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
