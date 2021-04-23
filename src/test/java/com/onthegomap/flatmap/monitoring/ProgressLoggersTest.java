@@ -30,7 +30,8 @@ public class ProgressLoggersTest {
       // spin waiting for threads to start
     }
 
-    assertEquals("[prefix] | reader( 0%) ->    (0/10) -> worker( 0%  0%) ->    (0/10) -> writer( 0%  0%)", log);
+    assertEquals("[prefix] | reader( 0%) ->    (0/10) -> worker( 0%  0%) ->    (0/10) -> writer( 0%  0%)",
+      log.replaceAll("( [0-9])[0-9]%", " 0%"));
     latch.countDown();
     topology.awaitAndLog(loggers, Duration.ofSeconds(10));
     assertEquals("[prefix] | reader( -%) ->    (0/10) -> worker( -%  -%) ->    (0/10) -> writer( -%  -%)",
