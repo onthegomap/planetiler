@@ -71,7 +71,7 @@ public class TopologyTest {
   public void testTopologyFromIterator() {
     Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
     var topology = Topology.start("test", stats)
-      .readFromIterator("reader", List.of(0, 1).iterator())
+      .readFrom("reader", List.of(0, 1))
       .addBuffer("reader_queue", 1)
       .<Integer>addWorker("process", 1, (prev, next) -> {
         Integer item;

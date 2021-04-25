@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.collections;
 import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.collections.MergeSortFeatureMap.TileFeatures;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.nio.file.Path;
@@ -11,7 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class MergeSortFeatureMap implements Consumer<RenderedFeature> {
+public class MergeSortFeatureMap implements Consumer<RenderedFeature>, Iterable<TileFeatures> {
 
   private volatile boolean prepared = false;
 
@@ -34,7 +35,8 @@ public class MergeSortFeatureMap implements Consumer<RenderedFeature> {
     return 0;
   }
 
-  public Iterator<TileFeatures> getAll() {
+  @Override
+  public Iterator<TileFeatures> iterator() {
     if (!prepared) {
       throw new IllegalStateException("Attempting to iterate over features but not prepared yet");
     }

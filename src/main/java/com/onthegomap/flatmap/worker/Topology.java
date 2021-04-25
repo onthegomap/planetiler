@@ -91,7 +91,8 @@ public record Topology<T>(
       return fromGenerator(name, producer, 1);
     }
 
-    public <T> Bufferable<?, T> readFromIterator(String name, Iterator<T> iter) {
+    public <T> Bufferable<?, T> readFrom(String name, Iterable<T> iterable) {
+      Iterator<T> iter = iterable.iterator();
       return fromGenerator(name, next -> {
         while (iter.hasNext()) {
           next.accept(iter.next());

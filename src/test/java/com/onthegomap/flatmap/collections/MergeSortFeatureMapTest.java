@@ -18,14 +18,14 @@ public class MergeSortFeatureMapTest {
   public void testEmpty() {
     var features = new MergeSortFeatureMap(tmpDir, new InMemory());
     features.sort();
-    assertFalse(features.getAll().hasNext());
+    assertFalse(features.iterator().hasNext());
   }
 
   @Test
   public void testThrowsWhenPreparedOutOfOrder() {
     var features = new MergeSortFeatureMap(tmpDir, new InMemory());
     features.accept(new RenderedFeature(1, new byte[]{}));
-    assertThrows(IllegalStateException.class, features::getAll);
+    assertThrows(IllegalStateException.class, features::iterator);
     features.sort();
     assertThrows(IllegalStateException.class, () -> features.accept(new RenderedFeature(1, new byte[]{})));
   }

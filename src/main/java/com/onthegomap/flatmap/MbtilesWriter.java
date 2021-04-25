@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 
 public class MbtilesWriter {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
+
   private final AtomicLong featuresProcessed = new AtomicLong(0);
   private final AtomicLong memoizedTiles = new AtomicLong(0);
   private final AtomicLong tiles = new AtomicLong(0);
@@ -26,8 +28,6 @@ public class MbtilesWriter {
   private MbtilesWriter(Stats stats) {
     this.stats = stats;
   }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
 
   private static record RenderedTile(TileCoord tile, byte[] contents) {
 
@@ -39,7 +39,7 @@ public class MbtilesWriter {
     MbtilesWriter writer = new MbtilesWriter(config.stats());
 
     var topology = Topology.start("mbtiles", stats)
-      .readFromIterator("reader", features.getAll())
+      .readFrom("reader", features)
       .addBuffer("reader_queue", 50_000, 1_000)
       .addWorker("encoder", config.threads(), writer::tileEncoder)
       .addBuffer("writer_queue", 50_000, 1_000)
