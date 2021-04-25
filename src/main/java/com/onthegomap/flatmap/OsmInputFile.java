@@ -32,18 +32,17 @@ public class OsmInputFile {
 
   public double[] getBounds() {
     try (var input = new FileInputStream(file)) {
-      var datinput = new DataInputStream(input);
-      int headersize = datinput.readInt();
-      if (headersize > 65536) {
-        throw new FileFormatException(
-          "Unexpectedly long header 65536 bytes. Possibly corrupt file " + file);
+      var dataInput = new DataInputStream(input);
+      int headerSize = dataInput.readInt();
+      if (headerSize > 65536) {
+        throw new FileFormatException("Unexpectedly long header 65536 bytes. Possibly corrupt file " + file);
       }
-      byte[] buf = datinput.readNBytes(headersize);
+      byte[] buf = dataInput.readNBytes(headerSize);
       BlobHeader header = BlobHeader.parseFrom(buf);
       if (!header.getType().equals("OSMHeader")) {
         throw new IllegalArgumentException("Expecting OSMHeader got " + header.getType());
       }
-      buf = datinput.readNBytes(header.getDatasize());
+      buf = dataInput.readNBytes(header.getDatasize());
       Blob blob = Blob.parseFrom(buf);
       ByteString data = null;
       if (blob.hasRaw()) {

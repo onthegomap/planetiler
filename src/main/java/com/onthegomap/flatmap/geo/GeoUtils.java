@@ -79,7 +79,8 @@ public class GeoUtils {
     }
   };
 
-  static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
+  private static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
+  private static final long LOWER_32_BIT_MASK = (1L << 32) - 1L;
 
   public static long encodeFlatLocation(double lon, double lat) {
     double worldX = getWorldX(lon);
@@ -87,5 +88,13 @@ public class GeoUtils {
     long x = (long) (worldX * QUANTIZED_WORLD_SIZE);
     long y = (long) (worldY * QUANTIZED_WORLD_SIZE);
     return (x << 32) | y;
+  }
+
+  public static double decodeWorldY(long encoded) {
+    return ((double) (encoded & LOWER_32_BIT_MASK)) / QUANTIZED_WORLD_SIZE;
+  }
+
+  public static double decodeWorldX(long encoded) {
+    return ((double) (encoded >> 32)) / QUANTIZED_WORLD_SIZE;
   }
 }

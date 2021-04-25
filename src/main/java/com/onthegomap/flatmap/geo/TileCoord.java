@@ -8,13 +8,14 @@ public class TileCoord {
   private final int z;
 
   private TileCoord(int encoded, int x, int y, int z) {
+    assert z <= 14;
     this.encoded = encoded;
     this.x = x;
     this.y = y;
     this.z = z;
   }
 
-  public static TileCoord of(int x, int y, int z) {
+  public static TileCoord ofXYZ(int x, int y, int z) {
     return new TileCoord(encode(x, y, z), x, y, z);
   }
 
