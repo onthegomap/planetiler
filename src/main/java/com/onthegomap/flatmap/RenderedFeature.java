@@ -1,5 +1,5 @@
 package com.onthegomap.flatmap;
 
-public class RenderedFeature {
+public record RenderedFeature(long sort, byte[] value) {
 
 }

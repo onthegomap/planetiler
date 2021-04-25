@@ -1,11 +1,8 @@
 package com.onthegomap.flatmap;
 
-import static com.onthegomap.flatmap.GeoUtils.x;
-import static com.onthegomap.flatmap.GeoUtils.y;
-import static com.onthegomap.flatmap.GeoUtils.z;
-
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap.TileFeatures;
+import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
@@ -32,7 +29,7 @@ public class MbtilesWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
 
-  private static record RenderedTile(int tile, byte[] contents) {
+  private static record RenderedTile(TileCoord tile, byte[] contents) {
 
   }
 
@@ -65,25 +62,23 @@ public class MbtilesWriter {
     while ((tileFeatures = prev.get()) != null) {
       featuresProcessed.addAndGet(tileFeatures.getNumFeatures());
       byte[] bytes, encoded;
-      int zoom = z(tileFeatures.getTileId());
       if (tileFeatures.hasSameContents(last)) {
         bytes = lastBytes;
         encoded = lastEncoded;
         memoizedTiles.incrementAndGet();
       } else {
-        VectorTile en = tileFeatures.getTile();
+        VectorTileEncoder en = tileFeatures.getTile();
         encoded = en.encode();
         bytes = gzipCompress(encoded);
         last = tileFeatures;
         lastEncoded = encoded;
         lastBytes = bytes;
         if (encoded.length > 1_000_000) {
-          LOGGER.warn("Tile " + zoom + "/" + x(tileFeatures.getTileId()) + "/" + y(tileFeatures.getTileId()) + " "
-            + encoded.length / 1024 + "kb uncompressed");
+          LOGGER.warn(tileFeatures.coord() + " " + encoded.length / 1024 + "kb uncompressed");
         }
       }
-      stats.encodedTile(zoom, encoded.length);
-      next.accept(new RenderedTile(tileFeatures.getTileId(), bytes));
+      stats.encodedTile(tileFeatures.coord().z(), encoded.length);
+      next.accept(new RenderedTile(tileFeatures.coord(), bytes));
     }
   }
 

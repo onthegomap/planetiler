@@ -3,7 +3,7 @@ package com.onthegomap.flatmap.reader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.flatmap.GeoUtils;
+import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats.InMemory;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.File;
