@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.VectorTileEncoder.VectorTileFeature;
 import java.util.Map;
 
 public record LayerFeature(
@@ -10,6 +11,6 @@ public record LayerFeature(
   byte geomType,
   int[] commands,
   long id
-) {
+) implements VectorTileFeature {
 
 }

@@ -40,8 +40,11 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vector_tile.VectorTile;
 import vector_tile.VectorTile.Tile.GeomType;
 
@@ -55,6 +58,8 @@ import vector_tile.VectorTile.Tile.GeomType;
  * hppc primitive collections.
  */
 public class VectorTileEncoder {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(VectorTileEncoder.class);
 
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
@@ -92,7 +97,7 @@ public class VectorTileEncoder {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  public static Geometry decode(byte geomTypeByte, int[] commands) {
+  public static Geometry decodeCommands(byte geomTypeByte, int[] commands) {
     VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
     GeometryFactory gf = GeoUtils.gf;
     int x = 0;
@@ -259,7 +264,7 @@ public class VectorTileEncoder {
           Object value = values.get(feature.getTags(tagIdx++));
           attrs.put(key, value);
         }
-        Geometry geometry = decode(feature.getType(), feature.getGeometryList());
+        Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
         features.add(new DecodedFeature(
           layerName,
           extent,
@@ -272,11 +277,22 @@ public class VectorTileEncoder {
     return features;
   }
 
-  private static Geometry decode(GeomType type, List<Integer> geometryList) {
-    return decode((byte) type.getNumber(), geometryList.stream().mapToInt(i -> i).toArray());
+  private static Geometry decodeCommands(GeomType type, List<Integer> geometryList) {
+    return decodeCommands((byte) type.getNumber(), geometryList.stream().mapToInt(i -> i).toArray());
   }
 
-  public VectorTileEncoder addLayerFeatures(String layerName, List<LayerFeature> features) {
+  public interface VectorTileFeature {
+
+    int[] commands();
+
+    long id();
+
+    byte geomType();
+
+    Map<String, Object> attrs();
+  }
+
+  public VectorTileEncoder addLayerFeatures(String layerName, List<VectorTileFeature> features) {
     if (features.isEmpty()) {
       return this;
     }
@@ -287,7 +303,7 @@ public class VectorTileEncoder {
       layers.put(layerName, layer);
     }
 
-    for (LayerFeature inFeature : features) {
+    for (VectorTileFeature inFeature : features) {
       if (inFeature.commands().length > 0) {
         EncodedFeature outFeature = new EncodedFeature(inFeature);
 
@@ -405,9 +421,11 @@ public class VectorTileEncoder {
         encode(lineString.getCoordinateSequence(), shouldClosePath(geometry));
       } else if (geometry instanceof Point point) {
         encode(point.getCoordinateSequence(), false);
-      } else {
+      } else if (geometry instanceof Puntal) {
         encode(new CoordinateArraySequence(geometry.getCoordinates()), shouldClosePath(geometry),
           geometry instanceof MultiPoint);
+      } else {
+        LOGGER.warn("Unrecognized geometry type: " + geometry.getGeometryType());
       }
     }
 
@@ -483,7 +501,7 @@ public class VectorTileEncoder {
 
   private static final record EncodedFeature(IntArrayList tags, long id, byte geometryType, int[] geometry) {
 
-    EncodedFeature(LayerFeature in) {
+    EncodedFeature(VectorTileFeature in) {
       this(new IntArrayList(), in.id(), in.geomType(), in.commands());
     }
   }
