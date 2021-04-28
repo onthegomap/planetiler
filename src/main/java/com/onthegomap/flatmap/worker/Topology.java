@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.worker;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -98,6 +99,14 @@ public record Topology<T>(
           next.accept(iter.next());
         }
       }, 1);
+    }
+
+    public <T> Builder<?, T> readFromTiny(String name, Collection<T> items) {
+      WorkQueue<T> queue = new WorkQueue<>(prefix + "_" + name, items.size(), 1, stats);
+      for (T item : items) {
+        queue.accept(item);
+      }
+      return readFromQueue(queue);
     }
 
     public <T> Builder<?, T> readFromQueue(WorkQueue<T> input) {

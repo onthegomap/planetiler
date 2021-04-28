@@ -292,7 +292,7 @@ public class VectorTileEncoder {
     Map<String, Object> attrs();
   }
 
-  public VectorTileEncoder addLayerFeatures(String layerName, List<VectorTileFeature> features) {
+  public VectorTileEncoder addLayerFeatures(String layerName, List<? extends VectorTileFeature> features) {
     if (features.isEmpty()) {
       return this;
     }

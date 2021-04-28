@@ -14,10 +14,10 @@ import com.onthegomap.flatmap.OsmInputFile;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
-import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.collections.LongLongMultimap;
+import com.onthegomap.flatmap.collections.MergeSort;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
@@ -119,7 +119,7 @@ public class OpenStreetMapReader implements Closeable {
     var topology = Topology.start("osm_pass2", stats)
       .fromGenerator("pbf", osmInputFile.read(readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
-      .<RenderedFeature>addWorker("process", processThreads, (prev, next) -> {
+      .<MergeSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         ReaderElement readerElement;
         while ((readerElement = prev.get()) != null) {

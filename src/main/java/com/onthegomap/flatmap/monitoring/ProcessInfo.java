@@ -50,6 +50,10 @@ public class ProcessInfo {
     return null;
   }
 
+  public static long getMaxMemoryBytes() {
+    return Runtime.getRuntime().maxMemory();
+  }
+
 
   public static record ThreadState(String name, long cpuTimeNanos, long id) {
 

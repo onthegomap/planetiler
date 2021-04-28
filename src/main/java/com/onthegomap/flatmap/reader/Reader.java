@@ -5,8 +5,8 @@ import com.onthegomap.flatmap.FlatMapConfig;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
-import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.collections.MergeSort;
 import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -38,7 +38,7 @@ public abstract class Reader implements Closeable {
     var topology = Topology.start(name, stats)
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
-      .<RenderedFeature>addWorker("process", threads, (prev, next) -> {
+      .<MergeSort.Entry>addWorker("process", threads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         SourceFeature sourceFeature;
         while ((sourceFeature = prev.get()) != null) {

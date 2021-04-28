@@ -1,18 +1,9 @@
 package com.onthegomap.flatmap.geo;
 
-public class TileCoord {
+public record TileCoord(int encoded, int x, int y, int z) {
 
-  private final int encoded;
-  private final int x;
-  private final int y;
-  private final int z;
-
-  private TileCoord(int encoded, int x, int y, int z) {
+  public TileCoord {
     assert z <= 14;
-    this.encoded = encoded;
-    this.x = x;
-    this.y = y;
-    this.z = z;
   }
 
   public static TileCoord ofXYZ(int x, int y, int z) {
@@ -21,22 +12,6 @@ public class TileCoord {
 
   public static TileCoord decode(int encoded) {
     return new TileCoord(encoded, decodeX(encoded), decodeY(encoded), decodeZ(encoded));
-  }
-
-  public int encoded() {
-    return encoded;
-  }
-
-  public int x() {
-    return x;
-  }
-
-  public int y() {
-    return y;
-  }
-
-  public int z() {
-    return z;
   }
 
   @Override
