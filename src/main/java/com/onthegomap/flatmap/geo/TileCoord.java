@@ -1,6 +1,8 @@
 package com.onthegomap.flatmap.geo;
 
-public record TileCoord(int encoded, int x, int y, int z) {
+import org.jetbrains.annotations.NotNull;
+
+public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
 
   public TileCoord {
     assert z <= 14;
@@ -69,5 +71,10 @@ public record TileCoord(int encoded, int x, int y, int z) {
       z + "/" + x + "/" + y +
       ", encoded=" + encoded +
       '}';
+  }
+
+  @Override
+  public int compareTo(@NotNull TileCoord o) {
+    return Long.compare(encoded, o.encoded);
   }
 }

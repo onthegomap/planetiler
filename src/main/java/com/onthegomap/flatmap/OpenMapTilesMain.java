@@ -66,7 +66,7 @@ public class OpenMapTilesMain {
     FileUtils.forceMkdir(tmpDir.toFile());
     File nodeDb = tmpDir.resolve("node.db").toFile();
     LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
-    MergeSort featureDb = new MergeSort(tmpDir.resolve("feature.db"), threads, stats);
+    MergeSort featureDb = MergeSort.newExternalMergeSort(tmpDir.resolve("feature.db"), threads, stats);
     MergeSortFeatureMap featureMap = new MergeSortFeatureMap(featureDb, profile);
     FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logInterval);
     FeatureRenderer renderer = new FeatureRenderer(config);

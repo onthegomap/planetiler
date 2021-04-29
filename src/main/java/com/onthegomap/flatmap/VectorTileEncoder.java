@@ -21,8 +21,8 @@ package com.onthegomap.flatmap;
 import com.carrotsearch.hppc.DoubleArrayList;
 import com.carrotsearch.hppc.IntArrayList;
 import com.google.common.primitives.Ints;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.onthegomap.flatmap.geo.GeoUtils;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -226,55 +226,59 @@ public class VectorTileEncoder {
     return geometry;
   }
 
-  public static List<DecodedFeature> decode(byte[] encoded) throws IOException {
-    VectorTile.Tile tile = VectorTile.Tile.parseFrom(encoded);
-    List<DecodedFeature> features = new ArrayList<>();
-    for (VectorTile.Tile.Layer layer : tile.getLayersList()) {
-      String layerName = layer.getName();
-      int extent = layer.getExtent();
-      List<String> keys = layer.getKeysList();
-      List<Object> values = new ArrayList<>();
+  public static List<DecodedFeature> decode(byte[] encoded) {
+    try {
+      VectorTile.Tile tile = VectorTile.Tile.parseFrom(encoded);
+      List<DecodedFeature> features = new ArrayList<>();
+      for (VectorTile.Tile.Layer layer : tile.getLayersList()) {
+        String layerName = layer.getName();
+        int extent = layer.getExtent();
+        List<String> keys = layer.getKeysList();
+        List<Object> values = new ArrayList<>();
 
-      for (VectorTile.Tile.Value value : layer.getValuesList()) {
-        if (value.hasBoolValue()) {
-          values.add(value.getBoolValue());
-        } else if (value.hasDoubleValue()) {
-          values.add(value.getDoubleValue());
-        } else if (value.hasFloatValue()) {
-          values.add(value.getFloatValue());
-        } else if (value.hasIntValue()) {
-          values.add(value.getIntValue());
-        } else if (value.hasSintValue()) {
-          values.add(value.getSintValue());
-        } else if (value.hasUintValue()) {
-          values.add(value.getUintValue());
-        } else if (value.hasStringValue()) {
-          values.add(value.getStringValue());
-        } else {
-          values.add(null);
+        for (VectorTile.Tile.Value value : layer.getValuesList()) {
+          if (value.hasBoolValue()) {
+            values.add(value.getBoolValue());
+          } else if (value.hasDoubleValue()) {
+            values.add(value.getDoubleValue());
+          } else if (value.hasFloatValue()) {
+            values.add(value.getFloatValue());
+          } else if (value.hasIntValue()) {
+            values.add(value.getIntValue());
+          } else if (value.hasSintValue()) {
+            values.add(value.getSintValue());
+          } else if (value.hasUintValue()) {
+            values.add(value.getUintValue());
+          } else if (value.hasStringValue()) {
+            values.add(value.getStringValue());
+          } else {
+            values.add(null);
+          }
+        }
+
+        for (VectorTile.Tile.Feature feature : layer.getFeaturesList()) {
+          int tagsCount = feature.getTagsCount();
+          Map<String, Object> attrs = new HashMap<>(tagsCount / 2);
+          int tagIdx = 0;
+          while (tagIdx < feature.getTagsCount()) {
+            String key = keys.get(feature.getTags(tagIdx++));
+            Object value = values.get(feature.getTags(tagIdx++));
+            attrs.put(key, value);
+          }
+          Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
+          features.add(new DecodedFeature(
+            layerName,
+            extent,
+            geometry,
+            attrs,
+            feature.getId()
+          ));
         }
       }
-
-      for (VectorTile.Tile.Feature feature : layer.getFeaturesList()) {
-        int tagsCount = feature.getTagsCount();
-        Map<String, Object> attrs = new HashMap<>(tagsCount / 2);
-        int tagIdx = 0;
-        while (tagIdx < feature.getTagsCount()) {
-          String key = keys.get(feature.getTags(tagIdx++));
-          Object value = values.get(feature.getTags(tagIdx++));
-          attrs.put(key, value);
-        }
-        Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
-        features.add(new DecodedFeature(
-          layerName,
-          extent,
-          geometry,
-          attrs,
-          feature.getId()
-        ));
-      }
+      return features;
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(e);
     }
-    return features;
   }
 
   private static Geometry decodeCommands(GeomType type, List<Integer> geometryList) {

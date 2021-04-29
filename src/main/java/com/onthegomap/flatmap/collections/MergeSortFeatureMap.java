@@ -1,6 +1,5 @@
 package com.onthegomap.flatmap.collections;
 
-import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.graphhopper.coll.GHLongLongHashMap;
 import com.onthegomap.flatmap.LayerFeature;
@@ -18,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Geometry;
@@ -38,6 +38,22 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
     this(mergeSort, profile, new CommonStringEncoder());
   }
 
+  public MergeSort.Entry encode(
+    long featureId,
+    TileCoord tile,
+    String layer,
+    Map<String, Object> attrs,
+    Geometry geom,
+    int zOrder,
+    boolean hasGroup,
+    int groupLimit
+  ) {
+    return new MergeSort.Entry(
+      FeatureMapKey.encode(tile.encoded(), commonStrings.encode(layer), zOrder, hasGroup),
+      FeatureMapValue.from(featureId, attrs, geom, hasGroup, groupLimit).encode(commonStrings)
+    );
+  }
+
   @Override
   public void accept(MergeSort.Entry entry) {
     mergeSort.add(entry);
@@ -50,33 +66,31 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
       return Collections.emptyIterator();
     }
     MergeSort.Entry firstFeature = entries.next();
-    byte[] firstData = firstFeature.value();
-    long firstSort = firstFeature.sortKey();
     return new Iterator<>() {
-      private byte[] last = firstData;
-      private long lastSortKey = firstSort;
-      private int lastTileId = FeatureMapKey.extractTileFromKey(firstSort);
+      private MergeSort.Entry lastFeature = firstFeature;
+      private int lastTileId = FeatureMapKey.extractTileFromKey(firstFeature.sortKey());
 
       @Override
       public boolean hasNext() {
-        return last != null;
+        return lastFeature != null;
       }
 
       @Override
       public TileFeatures next() {
         TileFeatures result = new TileFeatures(lastTileId);
-        result.add(lastSortKey, last);
+        result.accept(lastFeature);
         int lastTile = lastTileId;
+
         while (entries.hasNext()) {
           MergeSort.Entry next = entries.next();
-          last = next.value();
-          lastSortKey = next.sortKey();
-          lastTileId = FeatureMapKey.extractTileFromKey(lastSortKey);
+          lastFeature = next;
+          lastTileId = FeatureMapKey.extractTileFromKey(lastFeature.sortKey());
           if (lastTile != lastTileId) {
             return result;
           }
-          result.add(next.sortKey(), last);
+          result.accept(next);
         }
+        lastFeature = null;
         return result;
       }
     };
@@ -89,8 +103,7 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
   public class TileFeatures implements Consumer<MergeSort.Entry> {
 
     private final TileCoord tile;
-    private final LongArrayList sortKeys = new LongArrayList();
-    private final List<byte[]> entries = new ArrayList<>();
+    private final List<MergeSort.Entry> entries = new ArrayList<>();
 
     private LongLongHashMap counts = null;
     private byte layer = Byte.MAX_VALUE;
@@ -112,8 +125,8 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
         return false;
       }
       for (int i = 0; i < entries.size(); i++) {
-        byte[] a = entries.get(i);
-        byte[] b = other.entries.get(i);
+        byte[] a = entries.get(i).value();
+        byte[] b = other.entries.get(i).value();
         if (!Arrays.equals(a, b)) {
           return false;
         }
@@ -126,11 +139,10 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
       List<VectorTileFeature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
       for (int index = entries.size() - 1; index >= 0; index--) {
-        byte[] entry = entries.get(index);
-        long sortKey = sortKeys.get(index);
+        MergeSort.Entry entry = entries.get(index);
 
-        FeatureMapKey key = FeatureMapKey.decode(sortKey);
-        FeatureMapValue value = FeatureMapValue.decode(entry, key.hasGroup(), commonStrings);
+        FeatureMapKey key = FeatureMapKey.decode(entry.sortKey());
+        FeatureMapValue value = FeatureMapValue.decode(entry.value(), key.hasGroup(), commonStrings);
         String layer = commonStrings.decode(key.layer);
 
         if (currentLayer == null) {
@@ -153,7 +165,9 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
       return encoder;
     }
 
-    public TileFeatures add(long sortKey, byte[] entry) {
+    @Override
+    public void accept(MergeSort.Entry entry) {
+      long sortKey = entry.sortKey();
       if (FeatureMapKey.extractHasGroupFromKey(sortKey)) {
         byte thisLayer = FeatureMapKey.extractLayerIdFromKey(sortKey);
         if (counts == null) {
@@ -163,35 +177,37 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
           layer = thisLayer;
           counts.clear();
         }
-        var groupInfo = FeatureMapValue.decodeGroupInfo(entry);
+        var groupInfo = FeatureMapValue.decodeGroupInfo(entry.value());
         long old = counts.getOrDefault(groupInfo.group, 0);
-        if (old >= groupInfo.limit && groupInfo.limit > 0) {
-          return this;
+        if (groupInfo.limit > 0 && old >= groupInfo.limit) {
+          return;
         }
         counts.put(groupInfo.group, old + 1);
       }
-      sortKeys.add(sortKey);
       entries.add(entry);
-      return this;
-    }
-
-    @Override
-    public void accept(MergeSort.Entry renderedFeature) {
-      add(renderedFeature.sortKey(), renderedFeature.value());
     }
 
     @Override
     public String toString() {
       return "TileFeatures{" +
         "tile=" + tile +
-        ", sortKeys=" + sortKeys +
-        ", entries=" + entries +
+        ", num entries=" + entries.size() +
         '}';
     }
   }
 
   private static final ThreadLocal<MessageBufferPacker> messagePackers = ThreadLocal
     .withInitial(MessagePack::newDefaultBufferPacker);
+
+  public record RenderedFeature(
+    long featureId,
+    TileCoord tile,
+    String layer,
+    int zOrder,
+    Optional<FeatureMapValue.GroupInfo> groupInfo
+  ) {
+
+  }
 
   public record FeatureMapKey(long encoded, TileCoord tile, byte layer, int zOrder, boolean hasGroup) implements
     Comparable<FeatureMapKey> {
@@ -215,6 +231,7 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
     }
 
     public static long encode(int tile, byte layer, int zOrder, boolean hasGroup) {
+      zOrder = -zOrder - 1;
       return ((long) tile << 32L) | ((long) (layer & 0xff) << 24L) | (((zOrder - Z_ORDER_MIN) & Z_ORDER_MASK) << 1L) | (
         hasGroup ? 1 : 0);
     }
@@ -232,7 +249,7 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
     }
 
     public static int extractZorderFromKey(long sortKey) {
-      return ((int) ((sortKey >> 1) & Z_ORDER_MASK) + Z_ORDER_MIN);
+      return Z_ORDER_MAX - ((int) ((sortKey >> 1) & Z_ORDER_MASK));
     }
 
     @Override
@@ -291,7 +308,7 @@ public record MergeSortFeatureMap(MergeSort mergeSort, Profile profile, CommonSt
       boolean hasGrouping,
       int groupLimit
     ) {
-      long group = geom.getUserData() instanceof Long longValue ? longValue : 0;
+      long group = geom.getUserData() instanceof Number number ? number.longValue() : 0;
       byte geomType = (byte) VectorTileEncoder.toGeomType(geom).getNumber();
       int[] commands = VectorTileEncoder.getCommands(geom);
       return new FeatureMapValue(

@@ -21,7 +21,7 @@ public class MergeSortTest {
   }
 
   private MergeSort newSorter(int workers, int chunkSizeLimit) {
-    return new MergeSort(tmpDir, workers, chunkSizeLimit, new Stats.InMemory());
+    return MergeSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, new Stats.InMemory());
   }
 
   @Test
