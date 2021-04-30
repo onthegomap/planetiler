@@ -247,9 +247,11 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
         return false;
       }
       for (int i = 0; i < entries.size(); i++) {
-        byte[] a = entries.get(i).value();
-        byte[] b = other.entries.get(i).value();
-        if (!Arrays.equals(a, b)) {
+        FeatureSort.Entry a = entries.get(i);
+        FeatureSort.Entry b = other.entries.get(i);
+        long layerA = extractLayerIdFromSortKey(a.sortKey());
+        long layerB = extractLayerIdFromSortKey(b.sortKey());
+        if (layerA != layerB || !Arrays.equals(a.value(), b.value())) {
           return false;
         }
       }

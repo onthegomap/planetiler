@@ -76,9 +76,14 @@ public class FeatureGroupTest {
 
   private void putWithGroupAndZorder(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder,
     boolean hasGroup, long group, int limit) {
+    putWithIdGroupAndZorder(id++, tile, layer, attrs, geom, zOrder, hasGroup, group, limit);
+  }
+
+  private void putWithIdGroupAndZorder(long id, int tile, String layer, Map<String, Object> attrs, Geometry geom,
+    int zOrder, boolean hasGroup, long group, int limit) {
     RenderedFeature feature = new RenderedFeature(
       TileCoord.decode(tile),
-      new VectorTileEncoder.Feature(layer, id++, VectorTileEncoder.encodeGeometry(geom), attrs),
+      new VectorTileEncoder.Feature(layer, id, VectorTileEncoder.encodeGeometry(geom), attrs),
       zOrder,
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
@@ -304,5 +309,71 @@ public class FeatureGroupTest {
         <
         FeatureGroup.encodeSortKey(tileB, layerB, zOrderB, hasGroupB)
     );
+  }
+
+  @Test
+  public void testHasSameFeatures() {
+    // should be the "same" even though z-order is different
+    putWithIdGroupAndZorder(
+      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    putWithIdGroupAndZorder(
+      1, 2, "layer", Map.of("id", 1), newPoint(1, 2), 2, true, 2, 3
+    );
+    sorter.sort();
+    var iter = features.iterator();
+    assertTrue(iter.next().hasSameContents(iter.next()));
+  }
+
+  @Test
+  public void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
+    putWithIdGroupAndZorder(
+      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    putWithIdGroupAndZorder(
+      1, 2, "layer", Map.of("id", 1), newPoint(1, 3), 1, true, 2, 3
+    );
+    sorter.sort();
+    var iter = features.iterator();
+    assertFalse(iter.next().hasSameContents(iter.next()));
+  }
+
+  @Test
+  public void testDoesNotHaveSameFeaturesWhenAttrsChange() {
+    putWithIdGroupAndZorder(
+      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    putWithIdGroupAndZorder(
+      1, 2, "layer", Map.of("id", 2), newPoint(1, 2), 1, true, 2, 3
+    );
+    sorter.sort();
+    var iter = features.iterator();
+    assertFalse(iter.next().hasSameContents(iter.next()));
+  }
+
+  @Test
+  public void testDoesNotHaveSameFeaturesWhenLayerChanges() {
+    putWithIdGroupAndZorder(
+      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    putWithIdGroupAndZorder(
+      1, 2, "layer2", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    sorter.sort();
+    var iter = features.iterator();
+    assertFalse(iter.next().hasSameContents(iter.next()));
+  }
+
+  @Test
+  public void testDoesNotHaveSameFeaturesWhenIdChanges() {
+    putWithIdGroupAndZorder(
+      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    putWithIdGroupAndZorder(
+      2, 2, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
+    );
+    sorter.sort();
+    var iter = features.iterator();
+    assertFalse(iter.next().hasSameContents(iter.next()));
   }
 }
