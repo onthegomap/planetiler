@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap.TileFeatures;
+import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -33,7 +32,7 @@ public class MbtilesWriter {
 
   }
 
-  public static void writeOutput(long featureCount, MergeSortFeatureMap features, File output, FlatMapConfig config) {
+  public static void writeOutput(long featureCount, FeatureGroup features, File output, FlatMapConfig config) {
     Stats stats = config.stats();
     output.delete();
     MbtilesWriter writer = new MbtilesWriter(config.stats());
@@ -56,8 +55,8 @@ public class MbtilesWriter {
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public void tileEncoder(Supplier<TileFeatures> prev, Consumer<RenderedTile> next) throws Exception {
-    MergeSortFeatureMap.TileFeatures tileFeatures, last = null;
+  public void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<RenderedTile> next) throws Exception {
+    FeatureGroup.TileFeatures tileFeatures, last = null;
     byte[] lastBytes = null, lastEncoded = null;
     while ((tileFeatures = prev.get()) != null) {
       featuresProcessed.addAndGet(tileFeatures.getNumFeatures());

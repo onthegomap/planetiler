@@ -15,10 +15,10 @@ import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.collections.FeatureGroup;
+import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.collections.LongLongMultimap;
-import com.onthegomap.flatmap.collections.MergeSort;
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -107,7 +107,7 @@ public class OpenStreetMapReader implements Closeable {
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public long pass2(FeatureRenderer renderer, MergeSortFeatureMap writer, int readerThreads, int processThreads,
+  public long pass2(FeatureRenderer renderer, FeatureGroup writer, int readerThreads, int processThreads,
     FlatMapConfig config) {
     Profile profile = config.profile();
     AtomicLong nodesProcessed = new AtomicLong(0);
@@ -119,7 +119,7 @@ public class OpenStreetMapReader implements Closeable {
     var topology = Topology.start("osm_pass2", stats)
       .fromGenerator("pbf", osmInputFile.read(readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
-      .<MergeSort.Entry>addWorker("process", processThreads, (prev, next) -> {
+      .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         ReaderElement readerElement;
         while ((readerElement = prev.get()) != null) {

@@ -1,24 +1,24 @@
 package com.onthegomap.flatmap;
 
 import com.graphhopper.reader.ReaderRelation;
-import com.onthegomap.flatmap.VectorTileEncoder.VectorTileFeature;
-import com.onthegomap.flatmap.reader.OpenStreetMapReader.RelationInfo;
+import com.onthegomap.flatmap.reader.OpenStreetMapReader;
 import java.util.List;
 
 public interface Profile {
 
-  List<RelationInfo> preprocessOsmRelation(ReaderRelation relation);
+  List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation);
 
   void processFeature(SourceFeature sourceFeature, RenderableFeatures features);
 
   void release();
 
-  List<VectorTileFeature> postProcessLayerFeatures(String layer, int zoom, List<VectorTileFeature> items);
+  List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
+    List<VectorTileEncoder.Feature> items);
 
   class NullProfile implements Profile {
 
     @Override
-    public List<RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+    public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
       return null;
     }
 
@@ -33,8 +33,9 @@ public interface Profile {
     }
 
     @Override
-    public List<VectorTileFeature> postProcessLayerFeatures(String layer, int zoom,
-      List<VectorTileFeature> items) {
+    public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer,
+      int zoom,
+      List<VectorTileEncoder.Feature> items) {
       return items;
     }
   }

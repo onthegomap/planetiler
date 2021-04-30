@@ -8,7 +8,6 @@ import static com.onthegomap.flatmap.Format.padRight;
 
 import com.graphhopper.util.Helper;
 import com.onthegomap.flatmap.Format;
-import com.onthegomap.flatmap.monitoring.ProcessInfo.ThreadState;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import com.onthegomap.flatmap.worker.Worker;
@@ -150,7 +149,7 @@ public class ProgressLoggers {
   public ProgressLoggers addThreadPoolStats(String name, String prefix) {
     boolean first = loggers.isEmpty() || !(loggers.get(loggers.size() - 1) instanceof TopologyLogger);
     try {
-      Map<Long, ThreadState> lastThreads = ProcessInfo.getThreadStats();
+      Map<Long, ProcessInfo.ThreadState> lastThreads = ProcessInfo.getThreadStats();
       AtomicLong lastTime = new AtomicLong(System.nanoTime());
       loggers.add(new TopologyLogger(() -> {
         var oldAndNewThreads = new TreeMap<>(lastThreads);
@@ -165,7 +164,7 @@ public class ProgressLoggers {
             if (!newThreads.containsKey(thread.id())) {
               return " -%";
             }
-            long last = lastThreads.getOrDefault(thread.id(), ThreadState.DEFAULT).cpuTimeNanos();
+            long last = lastThreads.getOrDefault(thread.id(), ProcessInfo.ThreadState.DEFAULT).cpuTimeNanos();
             return padLeft(formatPercent(1d * (thread.cpuTimeNanos() - last) / timeDiff), 3);
           }).collect(Collectors.joining(" ", "(", ")"));
 

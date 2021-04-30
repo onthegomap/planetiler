@@ -30,9 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.primitives.Ints;
-import com.onthegomap.flatmap.VectorTileEncoder.DecodedFeature;
-import com.onthegomap.flatmap.VectorTileEncoder.VectorTileFeature;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +43,6 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import vector_tile.VectorTile;
-import vector_tile.VectorTile.Tile.GeomType;
 
 /**
  * This class is copied from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
@@ -56,13 +52,14 @@ public class VectorTileEncoderTest {
   // Tests adapted from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
 
   private static List<Integer> getCommands(Geometry geom) {
-    return Ints.asList(VectorTileEncoder.getCommands(TRANSFORM_TO_TILE.transform(geom)));
+    return Ints.asList(VectorTileEncoder.encodeGeometry(TRANSFORM_TO_TILE.transform(geom)).commands());
   }
 
   @Test
   public void testToGeomType() {
-    Geometry geometry = gf.createLineString();
-    assertEquals(VectorTile.Tile.GeomType.LINESTRING, VectorTileEncoder.toGeomType(geometry));
+    Geometry geometry = gf.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
+    assertEquals((byte) VectorTile.Tile.GeomType.LINESTRING.getNumber(),
+      VectorTileEncoder.encodeGeometry(geometry).geomType());
   }
 
   @Test
@@ -101,22 +98,13 @@ public class VectorTileEncoderTest {
     )));
   }
 
-  private static record SimpleVectorTileFeature(
-    int[] commands,
-    long id,
-    byte geomType,
-    Map<String, Object> attrs
-  ) implements VectorTileFeature {
-
-  }
-
-  private static VectorTileFeature newVectorTileFeature(Geometry geom, Map<String, Object> attrs) {
-    return new SimpleVectorTileFeature(VectorTileEncoder.getCommands(geom), 1,
-      (byte) VectorTileEncoder.toGeomType(geom).getNumber(), attrs);
+  private static VectorTileEncoder.Feature newVectorTileFeature(String layer, Geometry geom,
+    Map<String, Object> attrs) {
+    return new VectorTileEncoder.Feature(layer, 1, VectorTileEncoder.encodeGeometry(geom), attrs);
   }
 
   @Test
-  public void testNullAttributeValue() throws IOException {
+  public void testNullAttributeValue() {
     VectorTileEncoder vtm = new VectorTileEncoder();
     Map<String, Object> attrs = new HashMap<>();
     attrs.put("key1", "value1");
@@ -124,21 +112,23 @@ public class VectorTileEncoderTest {
     attrs.put("key3", "value3");
 
     vtm.addLayerFeatures("DEPCNT", List.of(
-      newVectorTileFeature(newPoint(3, 6), attrs)
+      newVectorTileFeature("DEPCNT", newPoint(3, 6), attrs)
     ));
 
     byte[] encoded = vtm.encode();
     assertNotSame(0, encoded.length);
 
     var decoded = VectorTileEncoder.decode(encoded);
-    assertEquals(List.of(new DecodedFeature("DEPCNT", 4096, newPoint(3, 6), Map.of(
-      "key1", "value1",
-      "key3", "value3"
-    ), 1)), decoded);
+    assertEquals(List
+      .of(new VectorTileEncoder.Feature("DEPCNT", 1, VectorTileEncoder.encodeGeometry(newPoint(3, 6)), Map.of(
+        "key1", "value1",
+        "key3", "value3"
+      ))), decoded);
+    assertSameGeometries(List.of(newPoint(3, 6)), decoded);
   }
 
   @Test
-  public void testAttributeTypes() throws IOException {
+  public void testAttributeTypes() {
     VectorTileEncoder vtm = new VectorTileEncoder();
 
     Map<String, Object> attrs = Map.of(
@@ -152,14 +142,14 @@ public class VectorTileEncoderTest {
       "key8", Boolean.FALSE
     );
 
-    vtm.addLayerFeatures("DEPCNT", List.of(newVectorTileFeature(newPoint(3, 6), attrs)));
+    vtm.addLayerFeatures("DEPCNT", List.of(newVectorTileFeature("DEPCNT", newPoint(3, 6), attrs)));
 
     byte[] encoded = vtm.encode();
     assertNotSame(0, encoded.length);
 
-    List<DecodedFeature> decoded = VectorTileEncoder.decode(encoded);
+    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
     assertEquals(1, decoded.size());
-    Map<String, Object> decodedAttributes = decoded.get(0).attributes();
+    Map<String, Object> decodedAttributes = decoded.get(0).attrs();
     assertEquals("value1", decodedAttributes.get("key1"));
     assertEquals(123L, decodedAttributes.get("key2"));
     assertEquals(234.1f, decodedAttributes.get("key3"));
@@ -202,7 +192,7 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testMultiPolygon() throws IOException {
+  public void testMultiPolygon() {
     MultiPolygon mp = newMultiPolygon(
       (Polygon) newPoint(13, 16).buffer(3),
       (Polygon) newPoint(24, 25).buffer(5)
@@ -212,19 +202,19 @@ public class VectorTileEncoderTest {
     Map<String, Object> attrs = Map.of("key1", "value1");
 
     VectorTileEncoder vtm = new VectorTileEncoder();
-    vtm.addLayerFeatures("mp", List.of(newVectorTileFeature(mp, attrs)));
+    vtm.addLayerFeatures("mp", List.of(newVectorTileFeature("mp", mp, attrs)));
 
     byte[] encoded = vtm.encode();
     assertTrue(encoded.length > 0);
 
     var features = VectorTileEncoder.decode(encoded);
     assertEquals(1, features.size());
-    MultiPolygon mp2 = (MultiPolygon) features.get(0).geometry();
+    MultiPolygon mp2 = (MultiPolygon) features.get(0).geometry().decode();
     assertEquals(mp.getNumGeometries(), mp2.getNumGeometries());
   }
 
   @Test
-  public void testGeometryCollectionSilentlyIgnored() throws IOException {
+  public void testGeometryCollectionSilentlyIgnored() {
     GeometryCollection gc = newGeometryCollection(
       newPoint(13, 16).buffer(3),
       newPoint(24, 25)
@@ -232,7 +222,7 @@ public class VectorTileEncoderTest {
     Map<String, Object> attributes = Map.of("key1", "value1");
 
     VectorTileEncoder vtm = new VectorTileEncoder();
-    vtm.addLayerFeatures("gc", List.of(newVectorTileFeature(gc, attributes)));
+    vtm.addLayerFeatures("gc", List.of(newVectorTileFeature("gc", gc, attributes)));
 
     byte[] encoded = vtm.encode();
 
@@ -243,12 +233,12 @@ public class VectorTileEncoderTest {
   // New tests added:
 
   @Test
-  public void testRoundTripPoint() throws IOException {
+  public void testRoundTripPoint() {
     testRoundTripGeometry(gf.createPoint(new CoordinateXY(1, 2)));
   }
 
   @Test
-  public void testRoundTripMultipoint() throws IOException {
+  public void testRoundTripMultipoint() {
     testRoundTripGeometry(gf.createMultiPointFromCoords(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
@@ -256,7 +246,7 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testRoundTripLineString() throws IOException {
+  public void testRoundTripLineString() {
     testRoundTripGeometry(gf.createLineString(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
@@ -264,7 +254,7 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testRoundTripPolygon() throws IOException {
+  public void testRoundTripPolygon() {
     testRoundTripGeometry(gf.createPolygon(
       gf.createLinearRing(new Coordinate[]{
         new CoordinateXY(0, 0),
@@ -286,7 +276,7 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testRoundTripMultiPolygon() throws IOException {
+  public void testRoundTripMultiPolygon() {
     testRoundTripGeometry(gf.createMultiPolygon(new Polygon[]{
       gf.createPolygon(new Coordinate[]{
         new CoordinateXY(0, 0),
@@ -306,7 +296,7 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testRoundTripAttributes() throws IOException {
+  public void testRoundTripAttributes() {
     testRoundTripAttrs(Map.of(
       "string", "string",
       "long", 1L,
@@ -317,52 +307,53 @@ public class VectorTileEncoderTest {
   }
 
   @Test
-  public void testMultipleFeaturesMultipleLayer() throws IOException {
+  public void testMultipleFeaturesMultipleLayer() {
     Point point = gf.createPoint(new CoordinateXY(0, 0));
     Map<String, Object> attrs1 = Map.of("a", 1L, "b", 2L);
     Map<String, Object> attrs2 = Map.of("b", 3L, "c", 2L);
     byte[] encoded = new VectorTileEncoder().addLayerFeatures("layer1", List.of(
-      new LayerFeature(false, 0, 0, attrs1,
-        (byte) GeomType.POINT.getNumber(), VectorTileEncoder.getCommands(point), 1L),
-      new LayerFeature(false, 0, 0, attrs2,
-        (byte) GeomType.POINT.getNumber(), VectorTileEncoder.getCommands(point), 2L)
+      new VectorTileEncoder.Feature("layer1", 1L, VectorTileEncoder.encodeGeometry(point), attrs1),
+      new VectorTileEncoder.Feature("layer1", 2L, VectorTileEncoder.encodeGeometry(point), attrs2)
     )).addLayerFeatures("layer2", List.of(
-      new LayerFeature(false, 0, 0, attrs1,
-        (byte) GeomType.POINT.getNumber(), VectorTileEncoder.getCommands(point), 3L)
+      new VectorTileEncoder.Feature("layer2", 3L, VectorTileEncoder.encodeGeometry(point), attrs1)
     )).encode();
 
-    List<DecodedFeature> decoded = VectorTileEncoder.decode(encoded);
-    assertEquals(attrs1, decoded.get(0).attributes());
-    assertEquals("layer1", decoded.get(0).layerName());
+    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
+    assertEquals(attrs1, decoded.get(0).attrs());
+    assertEquals("layer1", decoded.get(0).layer());
 
-    assertEquals(attrs2, decoded.get(1).attributes());
-    assertEquals("layer1", decoded.get(1).layerName());
+    assertEquals(attrs2, decoded.get(1).attrs());
+    assertEquals("layer1", decoded.get(1).layer());
 
-    assertEquals(attrs1, decoded.get(2).attributes());
-    assertEquals("layer2", decoded.get(2).layerName());
+    assertEquals(attrs1, decoded.get(2).attrs());
+    assertEquals("layer2", decoded.get(2).layer());
   }
 
-  private void testRoundTripAttrs(Map<String, Object> attrs) throws IOException {
+  private void testRoundTripAttrs(Map<String, Object> attrs) {
     testRoundTrip(gf.createPoint(new CoordinateXY(0, 0)), "layer", attrs, 1);
   }
 
-  private void testRoundTripGeometry(Geometry input) throws IOException {
+  private void testRoundTripGeometry(Geometry input) {
     testRoundTrip(input, "layer", Map.of(), 1);
   }
 
-  private void testRoundTrip(Geometry input, String layer, Map<String, Object> attrs, long id) throws IOException {
-    int[] commands = VectorTileEncoder.getCommands(input);
-    byte geomType = (byte) VectorTileEncoder.toGeomType(input).ordinal();
-    Geometry output = VectorTileEncoder.decodeCommands(geomType, commands);
+  private void testRoundTrip(Geometry input, String layer, Map<String, Object> attrs, long id) {
+    VectorTileEncoder.VectorGeometry encodedGeom = VectorTileEncoder.encodeGeometry(input);
+    Geometry output = encodedGeom.decode();
     assertTrue(input.equalsExact(output), "\n" + input + "\n!=\n" + output);
 
     byte[] encoded = new VectorTileEncoder().addLayerFeatures(layer, List.of(
-      new LayerFeature(false, 0, 0, attrs,
-        (byte) VectorTileEncoder.toGeomType(input).getNumber(), VectorTileEncoder.getCommands(input), id)
+      new VectorTileEncoder.Feature(layer, id, VectorTileEncoder.encodeGeometry(input), attrs)
     )).encode();
 
-    List<DecodedFeature> decoded = VectorTileEncoder.decode(encoded);
-    DecodedFeature expected = new DecodedFeature(layer, 4096, input, attrs, id);
+    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
+    VectorTileEncoder.Feature expected = new VectorTileEncoder.Feature(layer, id,
+      VectorTileEncoder.encodeGeometry(input), attrs);
     assertEquals(List.of(expected), decoded);
+    assertSameGeometries(List.of(input), decoded);
+  }
+
+  private void assertSameGeometries(List<Geometry> expected, List<VectorTileEncoder.Feature> actual) {
+    assertEquals(expected, actual.stream().map(d -> d.geometry().decode()).toList());
   }
 }

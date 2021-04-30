@@ -24,6 +24,7 @@ import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,13 +67,13 @@ public class VectorTileEncoder {
   private static final double SCALE = ((double) EXTENT) / SIZE;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
 
-  public static int[] getCommands(Geometry input) {
+  private static int[] getCommands(Geometry input) {
     var encoder = new CommandEncoder();
     encoder.accept(input);
     return encoder.result.toArray();
   }
 
-  public static VectorTile.Tile.GeomType toGeomType(Geometry geometry) {
+  private static VectorTile.Tile.GeomType toGeomType(Geometry geometry) {
     if (geometry instanceof Point || geometry instanceof MultiPoint) {
       return VectorTile.Tile.GeomType.POINT;
     } else if (geometry instanceof LineString || geometry instanceof MultiLineString) {
@@ -97,7 +98,7 @@ public class VectorTileEncoder {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  public static Geometry decodeCommands(byte geomTypeByte, int[] commands) {
+  private static Geometry decodeCommands(byte geomTypeByte, int[] commands) {
     VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
     GeometryFactory gf = GeoUtils.gf;
     int x = 0;
@@ -226,13 +227,13 @@ public class VectorTileEncoder {
     return geometry;
   }
 
-  public static List<DecodedFeature> decode(byte[] encoded) {
+  public static List<Feature> decode(byte[] encoded) {
     try {
       VectorTile.Tile tile = VectorTile.Tile.parseFrom(encoded);
-      List<DecodedFeature> features = new ArrayList<>();
+      List<Feature> features = new ArrayList<>();
       for (VectorTile.Tile.Layer layer : tile.getLayersList()) {
         String layerName = layer.getName();
-        int extent = layer.getExtent();
+        assert layer.getExtent() == 4096;
         List<String> keys = layer.getKeysList();
         List<Object> values = new ArrayList<>();
 
@@ -266,12 +267,11 @@ public class VectorTileEncoder {
             attrs.put(key, value);
           }
           Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
-          features.add(new DecodedFeature(
+          features.add(new Feature(
             layerName,
-            extent,
-            geometry,
-            attrs,
-            feature.getId()
+            feature.getId(),
+            encodeGeometry(geometry),
+            attrs
           ));
         }
       }
@@ -285,18 +285,11 @@ public class VectorTileEncoder {
     return decodeCommands((byte) type.getNumber(), geometryList.stream().mapToInt(i -> i).toArray());
   }
 
-  public interface VectorTileFeature {
-
-    int[] commands();
-
-    long id();
-
-    byte geomType();
-
-    Map<String, Object> attrs();
+  public static VectorGeometry encodeGeometry(Geometry geometry) {
+    return new VectorGeometry(getCommands(geometry), (byte) toGeomType(geometry).getNumber());
   }
 
-  public VectorTileEncoder addLayerFeatures(String layerName, List<? extends VectorTileFeature> features) {
+  public VectorTileEncoder addLayerFeatures(String layerName, List<? extends Feature> features) {
     if (features.isEmpty()) {
       return this;
     }
@@ -307,8 +300,8 @@ public class VectorTileEncoder {
       layers.put(layerName, layer);
     }
 
-    for (VectorTileFeature inFeature : features) {
-      if (inFeature.commands().length > 0) {
+    for (Feature inFeature : features) {
+      if (inFeature.geometry().commands().length > 0) {
         EncodedFeature outFeature = new EncodedFeature(inFeature);
 
         for (Map.Entry<String, ?> e : inFeature.attrs().entrySet()) {
@@ -370,8 +363,8 @@ public class VectorTileEncoder {
           featureBuilder.setId(feature.id);
         }
 
-        featureBuilder.setType(VectorTile.Tile.GeomType.forNumber(feature.geometryType));
-        featureBuilder.addAllGeometry(Ints.asList(feature.geometry));
+        featureBuilder.setType(VectorTile.Tile.GeomType.forNumber(feature.geometry().geomType()));
+        featureBuilder.addAllGeometry(Ints.asList(feature.geometry().commands()));
         tileLayer.addFeatures(featureBuilder.build());
       }
 
@@ -388,6 +381,63 @@ public class VectorTileEncoder {
 
     Command(int value) {
       this.value = value;
+    }
+  }
+
+  public static record VectorGeometry(int[] commands, byte geomType) {
+
+    public Geometry decode() {
+      return decodeCommands(geomType, commands);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      VectorGeometry that = (VectorGeometry) o;
+
+      if (geomType != that.geomType) {
+        return false;
+      }
+      return Arrays.equals(commands, that.commands);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Arrays.hashCode(commands);
+      result = 31 * result + (int) geomType;
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "VectorGeometry[" +
+        "commands=int[" + commands.length +
+        "], geomType=" + geomType +
+        " (" + GeomType.forNumber(geomType) +
+        ")]";
+    }
+  }
+
+  public static record Feature(
+    String layer,
+    long id,
+    VectorGeometry geometry,
+    Map<String, Object> attrs
+  ) {
+
+    public Feature copyWithNewGeometry(Geometry newGeometry) {
+      return new Feature(
+        layer,
+        id,
+        encodeGeometry(newGeometry),
+        attrs
+      );
     }
   }
 
@@ -503,21 +553,11 @@ public class VectorTileEncoder {
     }
   }
 
-  private static final record EncodedFeature(IntArrayList tags, long id, byte geometryType, int[] geometry) {
+  private static final record EncodedFeature(IntArrayList tags, long id, VectorGeometry geometry) {
 
-    EncodedFeature(VectorTileFeature in) {
-      this(new IntArrayList(), in.id(), in.geomType(), in.commands());
+    EncodedFeature(Feature in) {
+      this(new IntArrayList(), in.id(), in.geometry());
     }
-  }
-
-  public static final record DecodedFeature(
-    String layerName,
-    int extent,
-    Geometry geometry,
-    Map<String, Object> attributes,
-    long id
-  ) {
-
   }
 
   private static final class Layer {

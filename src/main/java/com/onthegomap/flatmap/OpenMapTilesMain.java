@@ -1,8 +1,8 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.collections.FeatureGroup;
+import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
-import com.onthegomap.flatmap.collections.MergeSort;
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
 import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.reader.NaturalEarthReader;
 import com.onthegomap.flatmap.reader.OpenStreetMapReader;
@@ -66,8 +66,8 @@ public class OpenMapTilesMain {
     FileUtils.forceMkdir(tmpDir.toFile());
     File nodeDb = tmpDir.resolve("node.db").toFile();
     LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
-    MergeSort featureDb = MergeSort.newExternalMergeSort(tmpDir.resolve("feature.db"), threads, stats);
-    MergeSortFeatureMap featureMap = new MergeSortFeatureMap(featureDb, profile);
+    FeatureSort featureDb = FeatureSort.newExternalMergeSort(tmpDir.resolve("feature.db"), threads, stats);
+    FeatureGroup featureMap = new FeatureGroup(featureDb, profile);
     FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logInterval);
     FeatureRenderer renderer = new FeatureRenderer(config);
 

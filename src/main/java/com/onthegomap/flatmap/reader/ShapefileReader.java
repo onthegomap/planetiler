@@ -3,9 +3,9 @@ package com.onthegomap.flatmap.reader;
 import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.FlatMapConfig;
 import com.onthegomap.flatmap.SourceFeature;
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
+import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology.SourceStep;
+import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -33,14 +33,14 @@ public class ShapefileReader extends Reader implements Closeable {
   private MathTransform transform;
 
   public static void process(String sourceProjection, String name, File input, FeatureRenderer renderer,
-    MergeSortFeatureMap writer, FlatMapConfig config) {
+    FeatureGroup writer, FlatMapConfig config) {
     try (var reader = new ShapefileReader(sourceProjection, input, config.stats())) {
       reader.process(name, renderer, writer, config);
     }
   }
 
   public static void process(String name, File input, FeatureRenderer renderer,
-    MergeSortFeatureMap writer, FlatMapConfig config) {
+    FeatureGroup writer, FlatMapConfig config) {
     process(null, name, input, renderer, writer, config);
   }
 
@@ -105,7 +105,7 @@ public class ShapefileReader extends Reader implements Closeable {
   }
 
   @Override
-  public SourceStep<SourceFeature> read() {
+  public Topology.SourceStep<SourceFeature> read() {
     return next -> {
       try (var iter = inputSource.features()) {
         while (iter.hasNext()) {

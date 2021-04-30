@@ -36,12 +36,6 @@ public class TestUtils {
     return GeoUtils.gf.createPoint(new CoordinateXY(x, y));
   }
 
-  public static Point newPointWithUserData(double x, double y, Object userData) {
-    Point point = GeoUtils.gf.createPoint(new CoordinateXY(x, y));
-    point.setUserData(userData);
-    return point;
-  }
-
   public static MultiPoint newMultiPoint(Point... points) {
     return GeoUtils.gf.createMultiPoint(points);
   }

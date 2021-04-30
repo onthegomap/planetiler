@@ -1,12 +1,11 @@
 package com.onthegomap.flatmap.profiles;
 
-
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.reader.OpenStreetMapReader.RelationInfo;
+import com.onthegomap.flatmap.reader.OpenStreetMapReader;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,13 +19,13 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public List<VectorTileEncoder.VectorTileFeature> postProcessLayerFeatures(String layer, int zoom,
-    List<VectorTileEncoder.VectorTileFeature> items) {
+  public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
+    List<VectorTileEncoder.Feature> items) {
     return items;
   }
 
   @Override
-  public List<RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+  public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
     return null;
   }
 

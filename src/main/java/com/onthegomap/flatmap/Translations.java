@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap;
 
 import com.graphhopper.reader.ReaderElement;
-import com.onthegomap.flatmap.Wikidata.WikidataTranslations;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +15,7 @@ public class Translations {
     return null;
   }
 
-  public void addTranslationProvider(WikidataTranslations load) {
+  public void addTranslationProvider(Wikidata.WikidataTranslations load) {
     // TODO
   }
 

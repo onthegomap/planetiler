@@ -7,13 +7,13 @@ import java.util.Arrays;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
-public interface MergeSort extends Iterable<MergeSort.Entry> {
+public interface FeatureSort extends Iterable<FeatureSort.Entry> {
 
-  static MergeSort newExternalMergeSort(Path tempDir, int threads, Stats stats) {
+  static FeatureSort newExternalMergeSort(Path tempDir, int threads, Stats stats) {
     return new ExternalMergeSort(tempDir, threads, stats);
   }
 
-  static MergeSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, Stats stats) {
+  static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, Stats stats) {
     return new ExternalMergeSort(dir, workers, chunkSizeLimit, stats);
   }
 

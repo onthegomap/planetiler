@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderNode;
-import com.onthegomap.flatmap.Wikidata.Client;
-import com.onthegomap.flatmap.Wikidata.WikidataTranslations;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
@@ -33,7 +31,7 @@ public class WikidataTest {
   @Test
   public void testWikidataTranslations() {
     var expected = Map.of("en", "en value", "es", "es value");
-    WikidataTranslations translations = new WikidataTranslations();
+    Wikidata.WikidataTranslations translations = new Wikidata.WikidataTranslations();
     assertNull(translations.get(1));
     translations.put(1, "en", "en value");
     translations.put(1, "es", "es value");
@@ -49,7 +47,7 @@ public class WikidataTest {
   @TestFactory
   public List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
-    Client client = Mockito.mock(Client.class, Mockito.RETURNS_SMART_NULLS);
+    Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
     Wikidata fixture = new Wikidata(writer, client, 2);
     fixture.fetch(1L);
     Mockito.verifyNoInteractions(client);
@@ -118,7 +116,7 @@ public class WikidataTest {
       }),
       dynamicTest("do not re-request on subsequent loads", () -> {
         StringWriter writer2 = new StringWriter();
-        Client client2 = Mockito.mock(Client.class, Mockito.RETURNS_SMART_NULLS);
+        Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
         Wikidata fixture2 = new Wikidata(writer2, client2, 2);
         fixture2.loadExisting(Wikidata.load(new StringReader(writer.toString())));
         fixture2.fetch(1L);

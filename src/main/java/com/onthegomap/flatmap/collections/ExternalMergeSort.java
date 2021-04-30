@@ -27,9 +27,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ExternalMergeSort implements MergeSort {
+class ExternalMergeSort implements FeatureSort {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MergeSort.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureSort.class);
 
   private static final long MAX_CHUNK_SIZE = 1_000_000_000; // 1GB
 

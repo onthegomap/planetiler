@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.monitoring.Stats.InMemory;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.File;
 import java.util.ArrayList;
@@ -16,7 +16,8 @@ import org.locationtech.jts.geom.Geometry;
 
 public class ShapefileReaderTest {
 
-  private ShapefileReader reader = new ShapefileReader(new File("src/test/resources/shapefile.zip"), new InMemory());
+  private ShapefileReader reader = new ShapefileReader(new File("src/test/resources/shapefile.zip"),
+    new Stats.InMemory());
 
   @AfterEach
   public void close() {
@@ -34,7 +35,7 @@ public class ShapefileReaderTest {
   public void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
-      Topology.start("test", new InMemory())
+      Topology.start("test", new Stats.InMemory())
         .fromGenerator("shapefile", reader.read())
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {

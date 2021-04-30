@@ -5,7 +5,7 @@ import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.osm.pbf.PbfDecoder;
 import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
 import com.graphhopper.reader.osm.pbf.Sink;
-import com.onthegomap.flatmap.worker.Topology.SourceStep;
+import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -80,7 +80,7 @@ public class OsmInputFile {
     }
   }
 
-  public SourceStep<ReaderElement> read(int threads) {
+  public Topology.SourceStep<ReaderElement> read(int threads) {
     return next -> readTo(next, threads);
   }
 

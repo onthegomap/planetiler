@@ -11,29 +11,29 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public class MergeSortTest {
+public class FeatureSortTest {
 
   @TempDir
   Path tmpDir;
 
-  private static MergeSort.Entry newEntry(int i) {
-    return new MergeSort.Entry(i, new byte[]{(byte) i});
+  private static FeatureSort.Entry newEntry(int i) {
+    return new FeatureSort.Entry(i, new byte[]{(byte) i});
   }
 
-  private MergeSort newSorter(int workers, int chunkSizeLimit) {
-    return MergeSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, new Stats.InMemory());
+  private FeatureSort newSorter(int workers, int chunkSizeLimit) {
+    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, new Stats.InMemory());
   }
 
   @Test
   public void testEmpty() {
-    MergeSort sorter = newSorter(1, 100);
+    FeatureSort sorter = newSorter(1, 100);
     sorter.sort();
     assertEquals(List.of(), sorter.toList());
   }
 
   @Test
   public void testSingle() {
-    MergeSort sorter = newSorter(1, 100);
+    FeatureSort sorter = newSorter(1, 100);
     sorter.add(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1)), sorter.toList());
@@ -41,7 +41,7 @@ public class MergeSortTest {
 
   @Test
   public void testTwoItemsOneChunk() {
-    MergeSort sorter = newSorter(1, 100);
+    FeatureSort sorter = newSorter(1, 100);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
     sorter.sort();
@@ -50,7 +50,7 @@ public class MergeSortTest {
 
   @Test
   public void testTwoItemsTwoChunks() {
-    MergeSort sorter = newSorter(1, 0);
+    FeatureSort sorter = newSorter(1, 0);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
     sorter.sort();
@@ -59,7 +59,7 @@ public class MergeSortTest {
 
   @Test
   public void testTwoWorkers() {
-    MergeSort sorter = newSorter(2, 0);
+    FeatureSort sorter = newSorter(2, 0);
     sorter.add(newEntry(4));
     sorter.add(newEntry(3));
     sorter.add(newEntry(2));
@@ -70,14 +70,14 @@ public class MergeSortTest {
 
   @Test
   public void testManyItems() {
-    List<MergeSort.Entry> sorted = new ArrayList<>();
-    List<MergeSort.Entry> shuffled = new ArrayList<>();
+    List<FeatureSort.Entry> sorted = new ArrayList<>();
+    List<FeatureSort.Entry> shuffled = new ArrayList<>();
     for (int i = 0; i < 10_000; i++) {
       shuffled.add(newEntry(i));
       sorted.add(newEntry(i));
     }
     Collections.shuffle(shuffled, new Random(0));
-    MergeSort sorter = newSorter(2, 20_000);
+    FeatureSort sorter = newSorter(2, 20_000);
     shuffled.forEach(sorter::add);
     sorter.sort();
     assertEquals(sorted, sorter.toList());

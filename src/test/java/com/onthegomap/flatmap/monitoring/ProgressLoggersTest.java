@@ -2,7 +2,6 @@ package com.onthegomap.flatmap.monitoring;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.monitoring.Stats.InMemory;
 import com.onthegomap.flatmap.worker.Topology;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -15,7 +14,7 @@ public class ProgressLoggersTest {
   @Timeout(10)
   public void testLogTopology() {
     var latch = new CountDownLatch(1);
-    var topology = Topology.start("topo", new InMemory())
+    var topology = Topology.start("topo", new Stats.InMemory())
       .fromGenerator("reader", next -> latch.await())
       .addBuffer("reader_queue", 10)
       .addWorker("worker", 2, (a, b) -> latch.await())

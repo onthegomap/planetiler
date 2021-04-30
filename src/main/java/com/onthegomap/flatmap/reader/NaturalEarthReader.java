@@ -3,7 +3,7 @@ package com.onthegomap.flatmap.reader;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology.SourceStep;
+import com.onthegomap.flatmap.worker.Topology;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -90,7 +90,7 @@ public class NaturalEarthReader extends Reader {
   }
 
   @Override
-  public SourceStep<SourceFeature> read() {
+  public Topology.SourceStep<SourceFeature> read() {
     return next -> {
       var tables = tableNames();
       for (int i = 0; i < tables.size(); i++) {

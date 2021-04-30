@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.monitoring.Stats.InMemory;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.File;
 import java.util.ArrayList;
@@ -24,12 +24,12 @@ public class NaturalEarthReaderTest {
   @Timeout(30)
   public void testReadNaturalEarth(String filename, @TempDir File tempDir) {
     var file = new File("src/test/resources/" + filename);
-    try (var reader = new NaturalEarthReader(file, tempDir, new InMemory())) {
+    try (var reader = new NaturalEarthReader(file, tempDir, new Stats.InMemory())) {
       for (int i = 1; i <= 2; i++) {
         assertEquals(19, reader.getCount(), "iter " + i);
 
         List<Geometry> points = new ArrayList<>();
-        Topology.start("test", new InMemory())
+        Topology.start("test", new Stats.InMemory())
           .fromGenerator("naturalearth", reader.read())
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {

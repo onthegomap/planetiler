@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.collections.MergeSort;
+import com.onthegomap.flatmap.collections.FeatureSort;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -22,11 +22,11 @@ public class FeatureRenderer {
     this.config = config;
   }
 
-  public void renderFeature(RenderableFeature feature, Consumer<MergeSort.Entry> consumer) {
+  public void renderFeature(RenderableFeature feature, Consumer<FeatureSort.Entry> consumer) {
     renderGeometry(feature.getGeometry(), feature, consumer);
   }
 
-  public void renderGeometry(Geometry geom, RenderableFeature feature, Consumer<MergeSort.Entry> consumer) {
+  public void renderGeometry(Geometry geom, RenderableFeature feature, Consumer<FeatureSort.Entry> consumer) {
     // TODO what about converting between area and line?
     if (geom instanceof Point point) {
       addPointFeature(feature, point, consumer);
@@ -44,15 +44,15 @@ public class FeatureRenderer {
     }
   }
 
-  private void addPointFeature(RenderableFeature feature, Point point, Consumer<MergeSort.Entry> consumer) {
+  private void addPointFeature(RenderableFeature feature, Point point, Consumer<FeatureSort.Entry> consumer) {
     // TODO render features into tile
   }
 
-  private void addPointFeature(RenderableFeature feature, MultiPoint points, Consumer<MergeSort.Entry> consumer) {
+  private void addPointFeature(RenderableFeature feature, MultiPoint points, Consumer<FeatureSort.Entry> consumer) {
     // TODO render features into tile
   }
 
-  private void addLinearFeature(RenderableFeature feature, Geometry geom, Consumer<MergeSort.Entry> consumer) {
+  private void addLinearFeature(RenderableFeature feature, Geometry geom, Consumer<FeatureSort.Entry> consumer) {
     // TODO render lines / areas into tile
   }
 }

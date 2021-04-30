@@ -1,13 +1,13 @@
 package com.onthegomap.flatmap.collections;
 
 import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPointWithUserData;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.flatmap.Profile;
+import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.ArrayList;
@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DynamicTest;
@@ -25,10 +26,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
 
-public class MergeSortFeatureMapTest {
+public class FeatureGroupTest {
 
-  private final List<MergeSort.Entry> list = new ArrayList<>();
-  private final MergeSort sorter = new MergeSort() {
+  private final List<FeatureSort.Entry> list = new ArrayList<>();
+  private final FeatureSort sorter = new FeatureSort() {
     @Override
     public void sort() {
       list.sort(Comparator.naturalOrder());
@@ -50,7 +51,7 @@ public class MergeSortFeatureMapTest {
       return list.iterator();
     }
   };
-  private MergeSortFeatureMap features = new MergeSortFeatureMap(sorter, new Profile.NullProfile());
+  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile());
 
   @Test
   public void testEmpty() {
@@ -61,27 +62,36 @@ public class MergeSortFeatureMapTest {
   long id = 0;
 
   private void put(int tile, String layer, Map<String, Object> attrs, Geometry geom) {
-    MergeSort.Entry key = features.encode(id++, TileCoord.decode(tile), layer, attrs, geom, 0, false, 0);
-    features.accept(key);
+    putWithZorder(tile, layer, attrs, geom, 0);
   }
 
   private void putWithZorder(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder) {
-    MergeSort.Entry key = features.encode(id++, TileCoord.decode(tile), layer, attrs, geom, zOrder, false, 0);
-    features.accept(key);
+    putWithGroupAndZorder(tile, layer, attrs, geom, zOrder, false, 0, 0);
   }
 
-  private void putWithGroup(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder, int limit) {
-    MergeSort.Entry key = features.encode(id++, TileCoord.decode(tile), layer, attrs, geom, zOrder, true, limit);
-    features.accept(key);
+  private void putWithGroup(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder, long group,
+    int limit) {
+    putWithGroupAndZorder(tile, layer, attrs, geom, zOrder, true, group, limit);
+  }
+
+  private void putWithGroupAndZorder(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder,
+    boolean hasGroup, long group, int limit) {
+    RenderedFeature feature = new RenderedFeature(
+      TileCoord.decode(tile),
+      new VectorTileEncoder.Feature(layer, id++, VectorTileEncoder.encodeGeometry(geom), attrs),
+      zOrder,
+      hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
+    );
+    features.accept(features.encode(feature));
   }
 
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
     Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
-    for (MergeSortFeatureMap.TileFeatures tile : features) {
+    for (FeatureGroup.TileFeatures tile : features) {
       for (var feature : VectorTileEncoder.decode(tile.getTile().encode())) {
         map.computeIfAbsent(tile.coord().encoded(), (i) -> new TreeMap<>())
-          .computeIfAbsent(feature.layerName(), l -> new ArrayList<>())
-          .add(new Feature(feature.attributes(), feature.geometry()));
+          .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
+          .add(new Feature(feature.attrs(), feature.geometry().decode()));
       }
     }
     return map;
@@ -144,13 +154,13 @@ public class MergeSortFeatureMapTest {
   public void testLimitPoints() {
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPointWithUserData(x, y, 1), 0, 2
+      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPointWithUserData(1, 2, 1), 2, 2
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 2), newPointWithUserData(3, 4, 1), 1, 2
+      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
@@ -168,13 +178,13 @@ public class MergeSortFeatureMapTest {
   public void testLimitPointsInDifferentGroups() {
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPointWithUserData(x, y, 2), 0, 2
+      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 2, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPointWithUserData(1, 2, 1), 2, 2
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 2), newPointWithUserData(3, 4, 1), 1, 2
+      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
@@ -192,13 +202,13 @@ public class MergeSortFeatureMapTest {
   public void testDontLimitPointsWithGroup() {
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPointWithUserData(x, y, 1), 0, 0
+      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 0
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPointWithUserData(1, 2, 1), 2, 0
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 0
     );
     putWithGroup(
-      1, "layer", Map.of("id", 2), newPointWithUserData(3, 4, 1), 1, 0
+      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 0
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
@@ -214,23 +224,23 @@ public class MergeSortFeatureMapTest {
 
   @Test
   public void testProfileChangesGeometry() {
-    features = new MergeSortFeatureMap(sorter, new Profile.NullProfile() {
+    features = new FeatureGroup(sorter, new Profile.NullProfile() {
       @Override
-      public List<VectorTileEncoder.VectorTileFeature> postProcessLayerFeatures(String layer, int zoom,
-        List<VectorTileEncoder.VectorTileFeature> items) {
+      public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
+        List<VectorTileEncoder.Feature> items) {
         Collections.reverse(items);
         return items;
       }
     });
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPointWithUserData(x, y, 1), 0, 2
+      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPointWithUserData(1, 2, 1), 2, 2
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 2), newPointWithUserData(3, 4, 1), 1, 2
+      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
@@ -260,14 +270,12 @@ public class MergeSortFeatureMapTest {
       for (byte layer : layers) {
         for (int zOrder : zOrders) {
           for (boolean hasGroup : hasGroups) {
-            MergeSortFeatureMap.FeatureMapKey key = MergeSortFeatureMap.FeatureMapKey
-              .of(tile.encoded(), layer, zOrder, hasGroup);
-            result.add(dynamicTest(key.toString(), () -> {
-              MergeSortFeatureMap.FeatureMapKey decoded = MergeSortFeatureMap.FeatureMapKey.decode(key.encoded());
-              assertEquals(decoded.tile(), tile, "tile");
-              assertEquals(decoded.layer(), layer, "layer");
-              assertEquals(decoded.zOrder(), zOrder, "zOrder");
-              assertEquals(decoded.hasGroup(), hasGroup, "hasGroup");
+            long sortKey = FeatureGroup.encodeSortKey(tile.encoded(), layer, zOrder, hasGroup);
+            result.add(dynamicTest(tile + " " + layer + " " + zOrder + " " + hasGroup, () -> {
+              assertEquals(tile.encoded(), FeatureGroup.extractTileFromSortKey(sortKey), "tile");
+              assertEquals(layer, FeatureGroup.extractLayerIdFromSortKey(sortKey), "layer");
+              assertEquals(zOrder, FeatureGroup.extractZorderFromKey(sortKey), "zOrder");
+              assertEquals(hasGroup, FeatureGroup.extractHasGroupFromSortKey(sortKey), "hasGroup");
             }));
           }
         }
@@ -292,9 +300,9 @@ public class MergeSortFeatureMapTest {
     int tileB, byte layerB, int zOrderB, boolean hasGroupB
   ) {
     assertTrue(
-      MergeSortFeatureMap.FeatureMapKey.encode(tileA, layerA, zOrderA, hasGroupA)
+      FeatureGroup.encodeSortKey(tileA, layerA, zOrderA, hasGroupA)
         <
-        MergeSortFeatureMap.FeatureMapKey.encode(tileB, layerB, zOrderB, hasGroupB)
+        FeatureGroup.encodeSortKey(tileB, layerB, zOrderB, hasGroupB)
     );
   }
 }

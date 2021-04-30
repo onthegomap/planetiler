@@ -6,12 +6,11 @@ import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
-import com.onthegomap.flatmap.collections.MergeSort;
-import com.onthegomap.flatmap.collections.MergeSortFeatureMap;
+import com.onthegomap.flatmap.collections.FeatureGroup;
+import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
-import com.onthegomap.flatmap.worker.Topology.SourceStep;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Envelope;
@@ -27,7 +26,7 @@ public abstract class Reader implements Closeable {
     this.stats = stats;
   }
 
-  public final void process(String name, FeatureRenderer renderer, MergeSortFeatureMap writer, FlatMapConfig config) {
+  public final void process(String name, FeatureRenderer renderer, FeatureGroup writer, FlatMapConfig config) {
     long featureCount = getCount();
     int threads = config.threads();
     Envelope env = config.envelope();
@@ -38,7 +37,7 @@ public abstract class Reader implements Closeable {
     var topology = Topology.start(name, stats)
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
-      .<MergeSort.Entry>addWorker("process", threads, (prev, next) -> {
+      .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
         RenderableFeatures features = new RenderableFeatures();
         SourceFeature sourceFeature;
         while ((sourceFeature = prev.get()) != null) {
@@ -70,7 +69,7 @@ public abstract class Reader implements Closeable {
 
   public abstract long getCount();
 
-  public abstract SourceStep<SourceFeature> read();
+  public abstract Topology.SourceStep<SourceFeature> read();
 
   @Override
   public abstract void close();
