@@ -47,8 +47,7 @@ public class NaturalEarthReader extends Reader {
     if (path.toString().toLowerCase().endsWith(".zip")) {
       Path toOpen = tmpLocation == null ? Files.createTempFile("sqlite", "natearth") : tmpLocation;
       extracted = toOpen;
-      File file = extracted.toFile();
-      file.deleteOnExit();
+      File file = path.toFile();
       try (ZipFile zipFile = new ZipFile(file)) {
         var zipEntry = zipFile.stream()
           .filter(entry -> entry.getName().endsWith(".sqlite"))
@@ -56,6 +55,7 @@ public class NaturalEarthReader extends Reader {
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + file.getName()));
         LOGGER.info("unzipping " + path.toAbsolutePath() + " to " + extracted);
         Files.copy(zipFile.getInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
+        extracted.toFile().deleteOnExit();
       }
       uri = "jdbc:sqlite:" + toOpen.toAbsolutePath();
     }
