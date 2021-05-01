@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderNode;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
@@ -110,7 +111,7 @@ public class WikidataTest {
           """, body);
       }),
       dynamicTest("can load serialized data", () -> {
-        var translations = Wikidata.load(new StringReader(writer.toString()));
+        var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
         assertEquals(Map.of("name:en", "en name", "name:es", "es name"), translations.get(1));
         assertEquals(Map.of("name:es", "es name2"), translations.get(2));
       }),
@@ -118,7 +119,7 @@ public class WikidataTest {
         StringWriter writer2 = new StringWriter();
         Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
         Wikidata fixture2 = new Wikidata(writer2, client2, 2);
-        fixture2.loadExisting(Wikidata.load(new StringReader(writer.toString())));
+        fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
         fixture2.fetch(1L);
         fixture2.fetch(2L);
         fixture2.fetch(1L);

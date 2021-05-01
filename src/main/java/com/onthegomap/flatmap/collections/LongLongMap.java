@@ -1,8 +1,8 @@
 package com.onthegomap.flatmap.collections;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 public interface LongLongMap extends Closeable {
 
@@ -10,11 +10,11 @@ public interface LongLongMap extends Closeable {
 
   long get(long key);
 
-  File filePath();
+  Path filePath();
 
   class MapdbSortedTable implements LongLongMap {
 
-    public MapdbSortedTable(File nodeDb) {
+    public MapdbSortedTable(Path nodeDb) {
 
     }
 
@@ -29,7 +29,7 @@ public interface LongLongMap extends Closeable {
     }
 
     @Override
-    public File filePath() {
+    public Path filePath() {
       return null;
     }
 

@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.geo;
 
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
@@ -16,25 +17,24 @@ public class GeoUtils {
   private static final double RADIANS_TO_DEGREES = 180 / Math.PI;
   private static final double MAX_LAT = getWorldLat(-0.1);
   private static final double MIN_LAT = getWorldLat(1.1);
-  public static double[] WORLD_BOUNDS = new double[]{0, 0, 1, 1};
-  public static double[] WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
+  public static Envelope WORLD_BOUNDS = new Envelope(0, 1, 0, 1);
+  public static Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
 
-  public static double[] toLatLonBoundsBounds(double[] worldBounds) {
-    return new double[]{
-      getWorldLon(worldBounds[0]),
-      getWorldLat(worldBounds[1]),
-      getWorldLon(worldBounds[2]),
-      getWorldLat(worldBounds[3])
-    };
+  public static Envelope toLatLonBoundsBounds(Envelope worldBounds) {
+    return new Envelope(
+      getWorldLon(worldBounds.getMinX()),
+      getWorldLon(worldBounds.getMaxX()),
+      getWorldLat(worldBounds.getMinY()),
+      getWorldLat(worldBounds.getMaxY()));
   }
 
-  public static double[] toWorldBounds(double[] lonLatBounds) {
-    return new double[]{
-      getWorldX(lonLatBounds[0]),
-      getWorldY(lonLatBounds[1]),
-      getWorldX(lonLatBounds[2]),
-      getWorldY(lonLatBounds[3])
-    };
+  public static Envelope toWorldBounds(Envelope lonLatBounds) {
+    return new Envelope(
+      getWorldX(lonLatBounds.getMinX()),
+      getWorldX(lonLatBounds.getMaxX()),
+      getWorldY(lonLatBounds.getMinY()),
+      getWorldY(lonLatBounds.getMaxY())
+    );
   }
 
   public static double getWorldLon(double x) {
@@ -96,5 +96,15 @@ public class GeoUtils {
 
   public static double decodeWorldX(long encoded) {
     return ((double) (encoded >> 32)) / QUANTIZED_WORLD_SIZE;
+  }
+
+  public static double getZoomFromLonLatBounds(Envelope envelope) {
+    Envelope worldBounds = GeoUtils.toWorldBounds(envelope);
+    return getZoomFromWorldBounds(worldBounds);
+  }
+
+  public static double getZoomFromWorldBounds(Envelope worldBounds) {
+    double maxEdge = Math.max(worldBounds.getWidth(), worldBounds.getHeight());
+    return Math.max(0, -Math.log(maxEdge) / Math.log(2));
   }
 }

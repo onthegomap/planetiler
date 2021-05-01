@@ -25,6 +25,28 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
+  public String name() {
+    return "OpenMapTiles";
+  }
+
+  @Override
+  public String description() {
+    return "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";
+  }
+
+  @Override
+  public String attribution() {
+    return """
+      <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+      """.trim();
+  }
+
+  @Override
+  public String version() {
+    return "3.12.1";
+  }
+
+  @Override
   public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
     return null;
   }

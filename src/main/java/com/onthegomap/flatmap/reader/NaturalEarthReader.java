@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.reader;
 
+import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -28,12 +29,12 @@ public class NaturalEarthReader extends Reader {
   private final Connection conn;
   private Path extracted;
 
-  public NaturalEarthReader(File input, Stats stats) {
-    this(input, null, stats);
+  public NaturalEarthReader(Path input, Profile profile, Stats stats) {
+    this(input, null, profile, stats);
   }
 
-  public NaturalEarthReader(File input, File tmpDir, Stats stats) {
-    super(stats);
+  public NaturalEarthReader(Path input, Path tmpDir, Profile profile, Stats stats) {
+    super(profile, stats);
     try {
       conn = open(input, tmpDir);
     } catch (IOException | SQLException e) {
@@ -41,23 +42,24 @@ public class NaturalEarthReader extends Reader {
     }
   }
 
-  private Connection open(File file, File tmpLocation) throws IOException, SQLException {
-    String path = "jdbc:sqlite:" + file.getAbsolutePath();
-    if (file.getName().endsWith(".zip")) {
-      File toOpen = tmpLocation == null ? File.createTempFile("sqlite", "natearth") : tmpLocation;
-      extracted = toOpen.toPath();
-      toOpen.deleteOnExit();
+  private Connection open(Path path, Path tmpLocation) throws IOException, SQLException {
+    String uri = "jdbc:sqlite:" + path.toAbsolutePath();
+    if (path.toString().toLowerCase().endsWith(".zip")) {
+      Path toOpen = tmpLocation == null ? Files.createTempFile("sqlite", "natearth") : tmpLocation;
+      extracted = toOpen;
+      File file = extracted.toFile();
+      file.deleteOnExit();
       try (ZipFile zipFile = new ZipFile(file)) {
         var zipEntry = zipFile.stream()
           .filter(entry -> entry.getName().endsWith(".sqlite"))
           .findFirst()
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + file.getName()));
-        LOGGER.info("unzipping " + file.getAbsolutePath() + " to " + extracted);
+        LOGGER.info("unzipping " + path.toAbsolutePath() + " to " + extracted);
         Files.copy(zipFile.getInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
       }
-      path = "jdbc:sqlite:" + toOpen.getAbsolutePath();
+      uri = "jdbc:sqlite:" + toOpen.toAbsolutePath();
     }
-    return DriverManager.getConnection(path);
+    return DriverManager.getConnection(uri);
   }
 
   private List<String> tableNames() {

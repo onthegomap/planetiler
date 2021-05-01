@@ -11,7 +11,9 @@ import com.onthegomap.flatmap.Format;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import com.onthegomap.flatmap.worker.Worker;
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,17 +109,30 @@ public class ProgressLoggers {
     return this;
   }
 
-  public ProgressLoggers addFileSize(File file) {
-    return addFileSize(file::length);
+  public ProgressLoggers addFileSize(Path file) {
+    loggers.add(string(() -> {
+      String bytes;
+      try {
+        bytes = formatBytes(Files.size(file), false);
+      } catch (IOException e) {
+        bytes = "-";
+      }
+      return " " + padRight(bytes, 5);
+    }));
+    return this;
+  }
+
+  private Object string(Supplier<String> supplier) {
+    return new Object() {
+      @Override
+      public String toString() {
+        return supplier.toString();
+      }
+    };
   }
 
   public ProgressLoggers addFileSize(LongSupplier longSupplier) {
-    loggers.add(new Object() {
-      @Override
-      public String toString() {
-        return " " + padRight(formatBytes(longSupplier.getAsLong(), false), 5);
-      }
-    });
+    loggers.add(string(() -> " " + padRight(formatBytes(longSupplier.getAsLong(), false), 5)));
     return this;
   }
 

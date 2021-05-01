@@ -4,10 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -22,9 +23,9 @@ public class NaturalEarthReaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"natural_earth_vector.sqlite", "natural_earth_vector.sqlite.zip"})
   @Timeout(30)
-  public void testReadNaturalEarth(String filename, @TempDir File tempDir) {
-    var file = new File("src/test/resources/" + filename);
-    try (var reader = new NaturalEarthReader(file, tempDir, new Stats.InMemory())) {
+  public void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
+    var path = Path.of("src", "test", "resources", filename);
+    try (var reader = new NaturalEarthReader(path, tempDir, new Profile.NullProfile(), new Stats.InMemory())) {
       for (int i = 1; i <= 2; i++) {
         assertEquals(19, reader.getCount(), "iter " + i);
 

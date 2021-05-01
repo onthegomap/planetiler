@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 public class FeatureRenderer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
-  private final FlatMapConfig config;
+  private final CommonParams config;
 
-  public FeatureRenderer(FlatMapConfig config) {
+  public FeatureRenderer(CommonParams config) {
     this.config = config;
   }
 

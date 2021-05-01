@@ -14,17 +14,11 @@ import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Reader;
 import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -32,6 +26,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +42,6 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
-import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,9 +116,8 @@ public class Wikidata {
     return resultMap;
   }
 
-  public static void fetch(OsmInputFile infile, File outfile, FlatMapConfig config) {
+  public static void fetch(OsmInputFile infile, Path outfile, CommonParams config, Profile profile, Stats stats) {
     int threads = config.threads();
-    Stats stats = config.stats();
     stats.startTimer("wikidata");
     int readerThreads = Math.max(1, Math.min(4, threads * 3 / 4));
     int processThreads = Math.max(1, Math.min(4, threads / 4));
@@ -131,7 +125,7 @@ public class Wikidata {
       .info("[wikidata] Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
-    try (Writer writer = new BufferedWriter(new FileWriter(outfile))) {
+    try (Writer writer = Files.newBufferedWriter(outfile)) {
       HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000);
       fetcher.loadExisting(oldMappings);
@@ -168,30 +162,28 @@ public class Wikidata {
     stats.stopTimer("wikidata");
   }
 
-  public static WikidataTranslations load(File file) {
+  public static WikidataTranslations load(Path path) {
     StopWatch watch = new StopWatch().start();
-    try (FileReader fis = new FileReader(file)) {
+    try (BufferedReader fis = Files.newBufferedReader(path)) {
       WikidataTranslations result = load(fis);
       LOGGER.info(
-        "[wikidata] loaded from " + result.getAll().size() + " mappings from " + file.getAbsolutePath() + " in " + watch
+        "[wikidata] loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + watch
           .stop());
       return result;
     } catch (IOException e) {
-      LOGGER.info("[wikidata] error loading " + file.getAbsolutePath() + ": " + e);
+      LOGGER.info("[wikidata] error loading " + path.toAbsolutePath() + ": " + e);
       return new WikidataTranslations();
     }
   }
 
-  public static WikidataTranslations load(Reader reader) throws IOException {
+  public static WikidataTranslations load(BufferedReader reader) throws IOException {
     WikidataTranslations mappings = new WikidataTranslations();
-    try (BufferedReader br = new BufferedReader(reader)) {
-      String line;
-      while ((line = br.readLine()) != null) {
-        JsonNode node = objectMapper.readTree(line);
-        long id = Long.parseLong(node.get(0).asText());
-        ObjectNode theseMappings = (ObjectNode) node.get(1);
-        theseMappings.fields().forEachRemaining(entry -> mappings.put(id, entry.getKey(), entry.getValue().asText()));
-      }
+    String line;
+    while ((line = reader.readLine()) != null) {
+      JsonNode node = objectMapper.readTree(line);
+      long id = Long.parseLong(node.get(0).asText());
+      ObjectNode theseMappings = (ObjectNode) node.get(1);
+      theseMappings.fields().forEachRemaining(entry -> mappings.put(id, entry.getKey(), entry.getValue().asText()));
     }
     return mappings;
   }
@@ -216,23 +208,6 @@ public class Wikidata {
       }
     }
     return result;
-  }
-
-  public static void main(String[] args) {
-    LOGGER.info("Arguments:");
-    Arguments arguments = new Arguments(args);
-    var stats = arguments.getStats();
-    int threads = arguments.threads();
-    OsmInputFile osmInputFile = new OsmInputFile(
-      arguments.inputFile("input", "OSM input file", "./data/sources/north-america_us_massachusetts.pbf"));
-    File output = arguments.file("output", "wikidata cache file", "./data/sources/wikidata_names.json");
-    Duration logInterval = arguments.duration("loginterval", "time between logs", "10s");
-    double[] bounds = arguments.bounds("bounds", "bounds", osmInputFile);
-    Envelope envelope = new Envelope(bounds[0], bounds[2], bounds[1], bounds[3]);
-    Profile profile = new OpenMapTilesProfile();
-    FlatMapConfig config = new FlatMapConfig(profile, envelope, threads, stats, logInterval);
-
-    fetch(osmInputFile, output, config);
   }
 
   private void filter(Supplier<ReaderElement> prev, Consumer<Long> next) {

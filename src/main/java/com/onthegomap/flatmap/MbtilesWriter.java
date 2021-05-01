@@ -6,8 +6,9 @@ import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -22,9 +23,15 @@ public class MbtilesWriter {
   private final AtomicLong featuresProcessed = new AtomicLong(0);
   private final AtomicLong memoizedTiles = new AtomicLong(0);
   private final AtomicLong tiles = new AtomicLong(0);
+  private final Path path;
+  private final CommonParams config;
+  private final Profile profile;
   private final Stats stats;
 
-  private MbtilesWriter(Stats stats) {
+  private MbtilesWriter(Path path, CommonParams config, Profile profile, Stats stats) {
+    this.path = path;
+    this.config = config;
+    this.profile = profile;
     this.stats = stats;
   }
 
@@ -32,10 +39,14 @@ public class MbtilesWriter {
 
   }
 
-  public static void writeOutput(long featureCount, FeatureGroup features, File output, FlatMapConfig config) {
-    Stats stats = config.stats();
-    output.delete();
-    MbtilesWriter writer = new MbtilesWriter(config.stats());
+  public static void writeOutput(long featureCount, FeatureGroup features, Path output, Profile profile,
+    CommonParams config, Stats stats) {
+    try {
+      Files.deleteIfExists(output);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to delete " + output);
+    }
+    MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats);
 
     var topology = Topology.start("mbtiles", stats)
       .readFrom("reader", features)
@@ -81,8 +92,42 @@ public class MbtilesWriter {
     }
   }
 
-  private void tileWriter(Supplier<RenderedTile> prev) throws Exception {
+  private void tileWriter(Supplier<RenderedTile> tiles) throws Exception {
+    try (Mbtiles db = Mbtiles.newFileDatabase(path)) {
+      db.setupSchema();
+      db.tuneForWrites();
+      if (!config.deferIndexCreation()) {
+        db.addIndex();
+      } else {
+        LOGGER.info("Deferring index creation until after tiles are written.");
+      }
 
+      db.metadata()
+        .setName(profile.name())
+        .setFormat("pbf")
+        .setDescription(profile.description())
+        .setAttribution(profile.attribution())
+        .setVersion(profile.version())
+        .setTypeIsBaselayer()
+        .setBoundsAndCenter(config.bounds())
+        .setMinzoom(config.minzoom())
+        .setMaxzoom(config.maxzoom())
+        .setJson(stats.getTileStats());
+
+      try (var batchedWriter = db.newBatchedTileWriter()) {
+        RenderedTile tile;
+        while ((tile = tiles.get()) != null) {
+          batchedWriter.write(tile.tile(), tile.contents);
+        }
+      }
+
+      if (config.deferIndexCreation()) {
+        db.addIndex();
+      }
+      if (config.optimizeDb()) {
+        db.vacuumAnalyze();
+      }
+    }
   }
 
   private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {

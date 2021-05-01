@@ -15,6 +15,20 @@ public interface Profile {
   List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTileEncoder.Feature> items);
 
+  String name();
+
+  default String description() {
+    return null;
+  }
+
+  default String attribution() {
+    return null;
+  }
+
+  default String version() {
+    return null;
+  }
+
   class NullProfile implements Profile {
 
     @Override
@@ -33,10 +47,14 @@ public interface Profile {
     }
 
     @Override
-    public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer,
-      int zoom,
+    public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
       List<VectorTileEncoder.Feature> items) {
       return items;
+    }
+
+    @Override
+    public String name() {
+      return "null";
     }
   }
 }

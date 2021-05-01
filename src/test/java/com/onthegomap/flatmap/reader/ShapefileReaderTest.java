@@ -3,10 +3,11 @@ package com.onthegomap.flatmap.reader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -16,8 +17,11 @@ import org.locationtech.jts.geom.Geometry;
 
 public class ShapefileReaderTest {
 
-  private ShapefileReader reader = new ShapefileReader(new File("src/test/resources/shapefile.zip"),
-    new Stats.InMemory());
+  private ShapefileReader reader = new ShapefileReader(
+    Path.of("src", "test", "resources", "shapefile.zip"),
+    new Profile.NullProfile(),
+    new Stats.InMemory()
+  );
 
   @AfterEach
   public void close() {

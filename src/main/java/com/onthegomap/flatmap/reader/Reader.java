@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.reader;
 
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
-import com.onthegomap.flatmap.FlatMapConfig;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
@@ -21,16 +21,17 @@ public abstract class Reader implements Closeable {
 
   protected final Stats stats;
   private final Logger LOGGER = LoggerFactory.getLogger(getClass());
+  private final Profile profile;
 
-  public Reader(Stats stats) {
+  public Reader(Profile profile, Stats stats) {
     this.stats = stats;
+    this.profile = profile;
   }
 
-  public final void process(String name, FeatureRenderer renderer, FeatureGroup writer, FlatMapConfig config) {
+  public final void process(String name, FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
     long featureCount = getCount();
     int threads = config.threads();
-    Envelope env = config.envelope();
-    Profile profile = config.profile();
+    Envelope env = config.bounds();
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 

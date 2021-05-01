@@ -8,8 +8,8 @@ import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
-import com.onthegomap.flatmap.FlatMapConfig;
 import com.onthegomap.flatmap.OsmInputFile;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
@@ -39,6 +39,7 @@ public class OpenStreetMapReader implements Closeable {
   private final AtomicLong TOTAL_NODES = new AtomicLong(0);
   private final AtomicLong TOTAL_WAYS = new AtomicLong(0);
   private final AtomicLong TOTAL_RELATIONS = new AtomicLong(0);
+  private final Profile profile;
 
   // need a few large objects to process ways in relations, should be small enough to keep in memory
   // for routes (750k rels 40m ways) and boundaries (650k rels, 8m ways)
@@ -54,14 +55,14 @@ public class OpenStreetMapReader implements Closeable {
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = new LongLongMultimap.ManyOrderedBinarySearchMultimap();
 
-  public OpenStreetMapReader(OsmInputFile osmInputFile, LongLongMap nodeDb, Stats stats) {
+  public OpenStreetMapReader(OsmInputFile osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
     this.osmInputFile = osmInputFile;
     this.nodeDb = nodeDb;
     this.stats = stats;
+    this.profile = profile;
   }
 
-  public void pass1(FlatMapConfig config) {
-    Profile profile = config.profile();
+  public void pass1(CommonParams config) {
     var topology = Topology.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read(config.threads() - 1))
       .addBuffer("reader_queue", 50_000, 10_000)
@@ -107,9 +108,9 @@ public class OpenStreetMapReader implements Closeable {
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public long pass2(FeatureRenderer renderer, FeatureGroup writer, int readerThreads, int processThreads,
-    FlatMapConfig config) {
-    Profile profile = config.profile();
+  public long pass2(FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
+    int readerThreads = Math.max(config.threads() / 4, 1);
+    int processThreads = config.threads() - 1;
     AtomicLong nodesProcessed = new AtomicLong(0);
     AtomicLong waysProcessed = new AtomicLong(0);
     AtomicLong relsProcessed = new AtomicLong(0);

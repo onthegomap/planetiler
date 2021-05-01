@@ -1,15 +1,16 @@
 package com.onthegomap.flatmap.reader;
 
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
-import com.onthegomap.flatmap.FlatMapConfig;
+import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.geotools.data.FeatureSource;
@@ -32,20 +33,20 @@ public class ShapefileReader extends Reader implements Closeable {
   private final ShapefileDataStore dataStore;
   private MathTransform transform;
 
-  public static void process(String sourceProjection, String name, File input, FeatureRenderer renderer,
-    FeatureGroup writer, FlatMapConfig config) {
-    try (var reader = new ShapefileReader(sourceProjection, input, config.stats())) {
+  public static void process(String sourceProjection, String name, Path input, FeatureRenderer renderer,
+    FeatureGroup writer, CommonParams config, Profile profile, Stats stats) {
+    try (var reader = new ShapefileReader(sourceProjection, input, profile, stats)) {
       reader.process(name, renderer, writer, config);
     }
   }
 
-  public static void process(String name, File input, FeatureRenderer renderer,
-    FeatureGroup writer, FlatMapConfig config) {
-    process(null, name, input, renderer, writer, config);
+  public static void process(String name, Path input, FeatureRenderer renderer,
+    FeatureGroup writer, CommonParams config, Profile profile, Stats stats) {
+    process(null, name, input, renderer, writer, config, profile, stats);
   }
 
-  public ShapefileReader(String sourceProjection, File input, Stats stats) {
-    super(stats);
+  public ShapefileReader(String sourceProjection, Path input, Profile profile, Stats stats) {
+    super(profile, stats);
     dataStore = decode(input);
     try {
       String typeName = dataStore.getTypeNames()[0];
@@ -69,25 +70,24 @@ public class ShapefileReader extends Reader implements Closeable {
     }
   }
 
-  private ShapefileDataStore decode(File file) {
+  private ShapefileDataStore decode(Path path) {
     try {
-      final String name = file.getName();
 
       URI uri;
 
-      if (name.endsWith(".zip")) {
-        try (ZipFile zip = new ZipFile(file)) {
+      if (path.toString().toLowerCase().endsWith(".zip")) {
+        try (ZipFile zip = new ZipFile(path.toFile())) {
           String shapeFileInZip = zip.stream()
             .map(ZipEntry::getName)
             .filter(z -> z.endsWith(".shp"))
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + name));
-          uri = URI.create("jar:file:" + file.toPath().toAbsolutePath() + "!/" + shapeFileInZip);
+            .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path));
+          uri = URI.create("jar:file:" + path.toAbsolutePath() + "!/" + shapeFileInZip);
         }
-      } else if (name.endsWith(".shp")) {
-        uri = file.toURI();
+      } else if (path.toString().toLowerCase().endsWith(".shp")) {
+        uri = path.toUri();
       } else {
-        throw new IllegalArgumentException("Invalid shapefile input: " + file + " must be zip or shp");
+        throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");
       }
       return new ShapefileDataStore(uri.toURL());
     } catch (IOException e) {
@@ -95,8 +95,8 @@ public class ShapefileReader extends Reader implements Closeable {
     }
   }
 
-  public ShapefileReader(File input, Stats stats) {
-    this(null, input, stats);
+  public ShapefileReader(Path input, Profile profile, Stats stats) {
+    this(null, input, profile, stats);
   }
 
   @Override

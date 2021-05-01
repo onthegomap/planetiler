@@ -8,34 +8,36 @@ import com.graphhopper.reader.osm.pbf.Sink;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import org.locationtech.jts.geom.Envelope;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.Blob;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.BlobHeader;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBBox;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
 import org.openstreetmap.osmosis.osmbinary.file.FileFormatException;
 
-public class OsmInputFile {
+public class OsmInputFile implements BoundsProvider {
 
-  private final File file;
+  private final Path path;
 
-  public OsmInputFile(File file) {
-    this.file = file;
+  public OsmInputFile(Path path) {
+    this.path = path;
   }
 
-  public double[] getBounds() {
-    try (var input = new FileInputStream(file)) {
+  @Override
+  public Envelope getBounds() {
+    try (var input = Files.newInputStream(path)) {
       var dataInput = new DataInputStream(input);
       int headerSize = dataInput.readInt();
       if (headerSize > 65536) {
-        throw new FileFormatException("Unexpectedly long header 65536 bytes. Possibly corrupt file " + file);
+        throw new FileFormatException("Unexpectedly long header 65536 bytes. Possibly corrupt file " + path);
       }
       byte[] buf = dataInput.readNBytes(headerSize);
       BlobHeader header = BlobHeader.parseFrom(buf);
@@ -57,12 +59,12 @@ public class OsmInputFile {
       }
       HeaderBlock headerblock = HeaderBlock.parseFrom(data);
       HeaderBBox bbox = headerblock.getBbox();
-      return new double[]{
+      return new Envelope(
         bbox.getLeft() / 1e9,
-        bbox.getBottom() / 1e9,
         bbox.getRight() / 1e9,
+        bbox.getBottom() / 1e9,
         bbox.getTop() / 1e9
-      };
+      );
     } catch (IOException | DataFormatException e) {
       throw new RuntimeException(e);
     }
@@ -70,7 +72,7 @@ public class OsmInputFile {
 
   public void readTo(Consumer<ReaderElement> next, int threads) throws IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(threads);
-    try (var stream = new BufferedInputStream(new FileInputStream(file), 50_000)) {
+    try (var stream = new BufferedInputStream(Files.newInputStream(path), 50_000)) {
       PbfStreamSplitter streamSplitter = new PbfStreamSplitter(new DataInputStream(stream));
       var sink = new ReaderElementSink(next);
       PbfDecoder pbfDecoder = new PbfDecoder(streamSplitter, executorService, threads + 1, sink);
