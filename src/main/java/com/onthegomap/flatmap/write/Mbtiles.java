@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.write;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

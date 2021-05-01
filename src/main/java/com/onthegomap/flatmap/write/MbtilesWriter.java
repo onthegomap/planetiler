@@ -1,5 +1,8 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.write;
 
+import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.Profile;
+import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;

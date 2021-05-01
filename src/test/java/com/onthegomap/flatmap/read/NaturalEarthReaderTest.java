@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap.reader;
+package com.onthegomap.flatmap.read;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,9 +1,10 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.read;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.graphhopper.reader.ReaderElement;
 import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.read.OsmInputFile;
 import com.onthegomap.flatmap.worker.Topology;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;

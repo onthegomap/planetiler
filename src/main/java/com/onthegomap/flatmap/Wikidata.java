@@ -14,6 +14,7 @@ import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.read.OsmInputFile;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;

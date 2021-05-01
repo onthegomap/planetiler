@@ -1,12 +1,13 @@
-package com.onthegomap.flatmap.reader;
+package com.onthegomap.flatmap.read;
 
+import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -17,7 +18,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.ZipFile;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,17 +44,16 @@ public class NaturalEarthReader extends Reader {
 
   private Connection open(Path path, Path tmpLocation) throws IOException, SQLException {
     String uri = "jdbc:sqlite:" + path.toAbsolutePath();
-    if (path.toString().toLowerCase().endsWith(".zip")) {
+    if (FileUtils.hasExtension(path, "zip")) {
       Path toOpen = tmpLocation == null ? Files.createTempFile("sqlite", "natearth") : tmpLocation;
       extracted = toOpen;
-      File file = path.toFile();
-      try (ZipFile zipFile = new ZipFile(file)) {
-        var zipEntry = zipFile.stream()
-          .filter(entry -> entry.getName().endsWith(".sqlite"))
+      try (var zipFs = FileSystems.newFileSystem(path)) {
+        var zipEntry = FileUtils.walkFileSystem(zipFs)
+          .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
           .findFirst()
-          .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + file.getName()));
+          .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));
         LOGGER.info("unzipping " + path.toAbsolutePath() + " to " + extracted);
-        Files.copy(zipFile.getInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
         extracted.toFile().deleteOnExit();
       }
       uri = "jdbc:sqlite:" + toOpen.toAbsolutePath();

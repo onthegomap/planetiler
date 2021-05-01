@@ -1,10 +1,11 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.read;
 
 import com.google.protobuf.ByteString;
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.osm.pbf.PbfDecoder;
 import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
 import com.graphhopper.reader.osm.pbf.Sink;
+import com.onthegomap.flatmap.BoundsProvider;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;

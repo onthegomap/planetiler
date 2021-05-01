@@ -1,7 +1,8 @@
-package com.onthegomap.flatmap.reader;
+package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
+import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
@@ -10,9 +11,8 @@ import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
@@ -75,16 +75,15 @@ public class ShapefileReader extends Reader implements Closeable {
 
       URI uri;
 
-      if (path.toString().toLowerCase().endsWith(".zip")) {
-        try (ZipFile zip = new ZipFile(path.toFile())) {
-          String shapeFileInZip = zip.stream()
-            .map(ZipEntry::getName)
-            .filter(z -> z.endsWith(".shp"))
+      if (FileUtils.hasExtension(path, "zip")) {
+        try (var zipFs = FileSystems.newFileSystem(path)) {
+          Path shapeFileInZip = FileUtils.walkFileSystem(zipFs)
+            .filter(z -> FileUtils.hasExtension(z, "shp"))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path));
-          uri = URI.create("jar:file:" + path.toAbsolutePath() + "!/" + shapeFileInZip);
+          uri = shapeFileInZip.toUri();
         }
-      } else if (path.toString().toLowerCase().endsWith(".shp")) {
+      } else if (FileUtils.hasExtension(path, "shp")) {
         uri = path.toUri();
       } else {
         throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");

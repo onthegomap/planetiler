@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.reader.OpenStreetMapReader;
+import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

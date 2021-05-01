@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap;
 
 import com.graphhopper.reader.ReaderRelation;
-import com.onthegomap.flatmap.reader.OpenStreetMapReader;
+import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import java.util.List;
 
 public interface Profile {

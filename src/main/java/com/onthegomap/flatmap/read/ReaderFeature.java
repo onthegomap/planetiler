@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap.reader;
+package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.SourceFeature;
 import java.util.HashMap;

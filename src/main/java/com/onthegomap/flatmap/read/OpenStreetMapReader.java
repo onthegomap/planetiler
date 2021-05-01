@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap.reader;
+package com.onthegomap.flatmap.read;
 
 import com.carrotsearch.hppc.LongHashSet;
 import com.graphhopper.coll.GHLongHashSet;
@@ -10,7 +10,6 @@ import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
-import com.onthegomap.flatmap.OsmInputFile;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;

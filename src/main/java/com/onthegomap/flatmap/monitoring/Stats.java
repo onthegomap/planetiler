@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.monitoring;
 
 import com.graphhopper.util.StopWatch;
-import com.onthegomap.flatmap.Mbtiles;
+import com.onthegomap.flatmap.write.Mbtiles;
 import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
