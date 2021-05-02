@@ -9,7 +9,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,22 +23,27 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sqlite.SQLiteConfig;
 
-public class Mbtiles implements Closeable {
+public record Mbtiles(Connection connection) implements Closeable {
+
+  public static final String TILES_TABLE = "tiles";
+  public static final String TILES_COL_X = "tile_column";
+  public static final String TILES_COL_Y = "tile_row";
+  public static final String TILES_COL_Z = "zoom_level";
+  public static final String TILES_COL_DATA = "tile_data";
+
+  public static final String METADATA_TABLE = "metadata";
+  public static final String METADATA_COL_NAME = "name";
+  public static final String METADATA_COL_VALUE = "value";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mbtiles.class);
-
   private static final ObjectMapper objectMapper = new ObjectMapper();
-
-  private final Connection connection;
-
-  private Mbtiles(Connection connection) {
-    this.connection = connection;
-  }
 
   public static Mbtiles newInMemoryDatabase() {
     try {
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:"));
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:")).init();
+
     } catch (SQLException throwables) {
       throw new IllegalStateException("Unable to create in-memory database", throwables);
     }
@@ -43,7 +51,7 @@ public class Mbtiles implements Closeable {
 
   public static Mbtiles newFileDatabase(Path path) {
     try {
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath()));
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath())).init();
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
     }
@@ -58,32 +66,68 @@ public class Mbtiles implements Closeable {
     }
   }
 
-  public void addIndex() {
+  private String pragma(SQLiteConfig.Pragma pragma, Object value) {
+    return "PRAGMA " + pragma.pragmaName + " = " + value + ";";
   }
 
-  public void setupSchema() {
+  private Mbtiles init() {
+    // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
+    return execute(pragma(SQLiteConfig.Pragma.APPLICATION_ID, "0x4d504258"));
   }
 
-  public void tuneForWrites() {
+  private Mbtiles execute(String... queries) {
+    for (String query : queries) {
+      try (var statement = connection.createStatement()) {
+        LOGGER.info("Executing: " + query);
+        statement.execute(query);
+      } catch (SQLException throwables) {
+        throw new IllegalStateException("Error executing queries " + Arrays.toString(queries), throwables);
+      }
+    }
+    return this;
   }
 
-  public void vacuumAnalyze() {
+  public Mbtiles addIndex() {
+    return execute(
+      "create unique index tile_index on " + TILES_TABLE
+        + " ("
+        + TILES_COL_Z + ", " + TILES_COL_X + ", " + TILES_COL_Y
+        + ");"
+    );
+  }
+
+  public Mbtiles setupSchema() {
+    return execute(
+      "create table " + METADATA_TABLE + " (" + METADATA_COL_NAME + " text, " + METADATA_COL_VALUE + " text);",
+      "create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");",
+      "create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " + TILES_COL_Y
+        + ", " + TILES_COL_DATA + " blob);"
+    );
+  }
+
+  public Mbtiles tuneForWrites() {
+    return execute(
+      pragma(SQLiteConfig.Pragma.SYNCHRONOUS, SQLiteConfig.SynchronousMode.OFF),
+      pragma(SQLiteConfig.Pragma.JOURNAL_MODE, SQLiteConfig.JournalMode.OFF),
+      pragma(SQLiteConfig.Pragma.LOCKING_MODE, SQLiteConfig.LockingMode.EXCLUSIVE),
+      pragma(SQLiteConfig.Pragma.PAGE_SIZE, 8192),
+      pragma(SQLiteConfig.Pragma.MMAP_SIZE, 30000000000L)
+    );
+  }
+
+  public Mbtiles vacuumAnalyze() {
+    return execute(
+      "VACUUM;",
+      "ANALYZE"
+    );
   }
 
   public BatchedTileWriter newBatchedTileWriter() {
     return new BatchedTileWriter();
   }
 
-  public class BatchedTileWriter implements AutoCloseable {
-
-    public void write(TileCoord tile, byte[] data) {
-
-    }
-
-    @Override
-    public void close() {
-
-    }
+  public Metadata metadata() {
+    return new Metadata();
   }
 
   public static record MetadataRow(String name, String value) {
@@ -151,8 +195,70 @@ public class Mbtiles implements Closeable {
     }
   }
 
-  public Metadata metadata() {
-    return new Metadata();
+  public class BatchedTileWriter implements AutoCloseable {
+
+    private final List<TileEntry> batch;
+    private final PreparedStatement batchStatement;
+    private final int batchLimit;
+
+    private BatchedTileWriter() {
+      batchLimit = 999 / 4;
+      batch = new ArrayList<>(batchLimit);
+      batchStatement = createBatchStatement(batchLimit);
+    }
+
+    private PreparedStatement createBatchStatement(int size) {
+      List<String> groups = new ArrayList<>();
+      for (int i = 0; i < size; i++) {
+        groups.add("(?,?,?,?)");
+      }
+      try {
+        return connection.prepareStatement(
+          "INSERT INTO " + TILES_TABLE + " (" + TILES_COL_Z + "," + TILES_COL_X + "," + TILES_COL_Y + ","
+            + TILES_COL_DATA
+            + ") VALUES " + String.join(", ", groups) + ";");
+      } catch (SQLException throwables) {
+        throw new IllegalStateException("Could not create prepared statement", throwables);
+      }
+    }
+
+    public void write(TileCoord tile, byte[] data) {
+      batch.add(new TileEntry(tile, data));
+      if (batch.size() >= batchLimit) {
+        flush(batchStatement);
+      }
+    }
+
+    private void flush(PreparedStatement statement) {
+      try {
+        int pos = 1;
+        for (TileEntry tile : batch) {
+          TileCoord coord = tile.tile();
+          statement.setInt(pos++, coord.z());
+          statement.setInt(pos++, coord.x());
+          statement.setInt(pos++, coord.y());
+          statement.setBytes(pos++, tile.bytes());
+        }
+        statement.execute();
+        batch.clear();
+      } catch (SQLException throwables) {
+        throw new IllegalStateException("Error flushing batch", throwables);
+      }
+    }
+
+    @Override
+    public void close() {
+      try {
+        if (batch.size() > 0) {
+          try (var lastBatch = createBatchStatement(batch.size())) {
+            flush(lastBatch);
+          }
+        }
+        batchStatement.close();
+      } catch (SQLException throwables) {
+        LOGGER.warn("Error closing prepared statement", throwables);
+      }
+    }
   }
 
   public class Metadata {
@@ -240,6 +346,41 @@ public class Mbtiles implements Closeable {
 
     public Map<String, String> getAll() {
       return Map.of();
+    }
+  }
+
+  public static record TileEntry(TileCoord tile, byte[] bytes) {
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      TileEntry tileEntry = (TileEntry) o;
+
+      if (!tile.equals(tileEntry.tile)) {
+        return false;
+      }
+      return Arrays.equals(bytes, tileEntry.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = tile.hashCode();
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "TileEntry{" +
+        "tile=" + tile +
+        ", bytes=" + Arrays.toString(bytes) +
+        '}';
     }
   }
 }
