@@ -11,12 +11,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import org.locationtech.jts.geom.Coordinate;
@@ -78,7 +81,7 @@ public record Mbtiles(Connection connection) implements Closeable {
   private Mbtiles execute(String... queries) {
     for (String query : queries) {
       try (var statement = connection.createStatement()) {
-        LOGGER.info("Executing: " + query);
+        LOGGER.info("Execute mbtiles: " + query);
         statement.execute(query);
       } catch (SQLException throwables) {
         throw new IllegalStateException("Error executing queries " + Arrays.toString(queries), throwables);
@@ -128,10 +131,6 @@ public record Mbtiles(Connection connection) implements Closeable {
 
   public Metadata metadata() {
     return new Metadata();
-  }
-
-  public static record MetadataRow(String name, String value) {
-
   }
 
   public static record MetadataJson(List<VectorLayer> vectorLayers) {
@@ -263,13 +262,27 @@ public record Mbtiles(Connection connection) implements Closeable {
 
   public class Metadata {
 
+    private static final NumberFormat nf = NumberFormat.getNumberInstance();
+
+    static {
+      nf.setMaximumFractionDigits(5);
+    }
+
     private static String join(double... items) {
-      return DoubleStream.of(items).mapToObj(Double::toString).collect(Collectors.joining(","));
+      return DoubleStream.of(items).mapToObj(nf::format).collect(Collectors.joining(","));
     }
 
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
-
+        LOGGER.info("Set mbtiles metadata: " + name + "=" + value);
+        try (PreparedStatement statement = connection.prepareStatement(
+          "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")) {
+          statement.setString(1, name);
+          statement.setString(2, value.toString());
+          statement.execute();
+        } catch (SQLException throwables) {
+          LOGGER.error("Error setting metadata " + name + "=" + value, throwables);
+        }
       }
       return this;
     }
@@ -300,7 +313,7 @@ public record Mbtiles(Connection connection) implements Closeable {
 
     public Metadata setCenter(Envelope envelope) {
       Coordinate center = envelope.centre();
-      double zoom = GeoUtils.getZoomFromLonLatBounds(envelope);
+      double zoom = Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope));
       return setCenter(center.x, center.y, zoom);
     }
 
@@ -309,7 +322,7 @@ public record Mbtiles(Connection connection) implements Closeable {
     }
 
     public Metadata setMaxzoom(int maxZoom) {
-      return setMetadata("minzoom", maxZoom);
+      return setMetadata("maxzoom", maxZoom);
     }
 
     public Metadata setAttribution(String value) {
@@ -345,7 +358,20 @@ public record Mbtiles(Connection connection) implements Closeable {
     }
 
     public Map<String, String> getAll() {
-      return Map.of();
+      TreeMap<String, String> result = new TreeMap<>();
+      try (Statement statement = connection.createStatement()) {
+        var resultSet = statement
+          .executeQuery("SELECT " + METADATA_COL_NAME + ", " + METADATA_COL_VALUE + " FROM " + METADATA_TABLE);
+        while (resultSet.next()) {
+          result.put(
+            resultSet.getString(METADATA_COL_NAME),
+            resultSet.getString(METADATA_COL_VALUE)
+          );
+        }
+      } catch (SQLException throwables) {
+        LOGGER.warn("Error retrieving metadata", throwables);
+      }
+      return result;
     }
   }
 
