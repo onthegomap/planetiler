@@ -107,13 +107,12 @@ public class OpenStreetMapReader implements Closeable {
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public long pass2(FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
+  public void pass2(FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
     AtomicLong nodesProcessed = new AtomicLong(0);
     AtomicLong waysProcessed = new AtomicLong(0);
     AtomicLong relsProcessed = new AtomicLong(0);
-    AtomicLong featuresWritten = new AtomicLong(0);
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
     var topology = Topology.start("osm_pass2", stats)
@@ -153,17 +152,14 @@ public class OpenStreetMapReader implements Closeable {
         // just in case a worker skipped over all relations
         waysDone.countDown();
       }).addBuffer("feature_queue", 50_000, 1_000)
-      .sinkToConsumer("write", 1, (item) -> {
-        featuresWritten.incrementAndGet();
-        writer.accept(item);
-      });
+      .sinkToConsumer("write", 1, writer);
 
     var logger = new ProgressLoggers("osm_pass2")
       .addRatePercentCounter("nodes", TOTAL_NODES.get(), nodesProcessed)
       .addFileSize(nodeDb.filePath())
       .addRatePercentCounter("ways", TOTAL_WAYS.get(), waysProcessed)
       .addRatePercentCounter("rels", TOTAL_RELATIONS.get(), relsProcessed)
-      .addRateCounter("features", featuresWritten)
+      .addRateCounter("features", () -> writer.sorter().size())
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
       .addInMemoryObject("hppc", this::getBigObjectSizeBytes)
@@ -171,8 +167,6 @@ public class OpenStreetMapReader implements Closeable {
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
-
-    return featuresWritten.get();
   }
 
   private long getBigObjectSizeBytes() {

@@ -4,6 +4,8 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +19,40 @@ public interface FeatureSort extends Iterable<FeatureSort.Entry> {
     return new ExternalMergeSort(dir, workers, chunkSizeLimit, stats);
   }
 
+  static FeatureSort newInMemory() {
+    List<Entry> list = new ArrayList<>();
+    return new FeatureSort() {
+      @Override
+      public void sort() {
+        list.sort(Comparator.naturalOrder());
+      }
+
+      @Override
+      public long size() {
+        return list.size();
+      }
+
+      @Override
+      public void add(Entry newEntry) {
+        list.add(newEntry);
+      }
+
+      @Override
+      public long getStorageSize() {
+        return 0;
+      }
+
+      @NotNull
+      @Override
+      public Iterator<Entry> iterator() {
+        return list.iterator();
+      }
+    };
+  }
+
   void sort();
+
+  long size();
 
   default List<Entry> toList() {
     List<Entry> list = new ArrayList<>();

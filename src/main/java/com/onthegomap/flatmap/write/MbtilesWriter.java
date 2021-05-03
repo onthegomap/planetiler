@@ -4,7 +4,6 @@ import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
-import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
@@ -31,19 +30,15 @@ public class MbtilesWriter {
   private final Profile profile;
   private final Stats stats;
 
-  private MbtilesWriter(Path path, CommonParams config, Profile profile, Stats stats) {
+  MbtilesWriter(Path path, CommonParams config, Profile profile, Stats stats) {
     this.path = path;
     this.config = config;
     this.profile = profile;
     this.stats = stats;
   }
 
-  private static record RenderedTile(TileCoord tile, byte[] contents) {
-
-  }
-
-  public static void writeOutput(long featureCount, FeatureGroup features, Path output, Profile profile,
-    CommonParams config, Stats stats) {
+  public static void writeOutput(FeatureGroup features, Path output, Profile profile, CommonParams config,
+    Stats stats) {
     try {
       Files.deleteIfExists(output);
     } catch (IOException e) {
@@ -59,7 +54,7 @@ public class MbtilesWriter {
       .sinkTo("writer", 1, writer::tileWriter);
 
     var loggers = new ProgressLoggers("mbtiles")
-      .addRatePercentCounter("features", featureCount, writer.featuresProcessed)
+      .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
       .addRateCounter("tiles", writer.tiles)
       .addFileSize(output)
       .add(" features ").addFileSize(features::getStorageSize)
@@ -69,7 +64,7 @@ public class MbtilesWriter {
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<RenderedTile> next) throws Exception {
+  void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<Mbtiles.TileEntry> next) throws IOException {
     FeatureGroup.TileFeatures tileFeatures, last = null;
     byte[] lastBytes = null, lastEncoded = null;
     while ((tileFeatures = prev.get()) != null) {
@@ -91,11 +86,11 @@ public class MbtilesWriter {
         }
       }
       stats.encodedTile(tileFeatures.coord().z(), encoded.length);
-      next.accept(new RenderedTile(tileFeatures.coord(), bytes));
+      next.accept(new Mbtiles.TileEntry(tileFeatures.coord(), bytes));
     }
   }
 
-  private void tileWriter(Supplier<RenderedTile> tiles) throws Exception {
+  private void tileWriter(Supplier<Mbtiles.TileEntry> tiles) throws Exception {
     try (Mbtiles db = Mbtiles.newFileDatabase(path)) {
       db.setupSchema();
       db.tuneForWrites();
@@ -118,9 +113,9 @@ public class MbtilesWriter {
         .setJson(stats.getTileStats());
 
       try (var batchedWriter = db.newBatchedTileWriter()) {
-        RenderedTile tile;
+        Mbtiles.TileEntry tile;
         while ((tile = tiles.get()) != null) {
-          batchedWriter.write(tile.tile(), tile.contents);
+          batchedWriter.write(tile.tile(), tile.bytes());
         }
       }
 

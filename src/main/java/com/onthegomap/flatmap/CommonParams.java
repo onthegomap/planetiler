@@ -25,6 +25,10 @@ public record CommonParams(
     }
   }
 
+  public static CommonParams defaultParams() {
+    return from(new Arguments(new String[]{}));
+  }
+
   public static CommonParams from(Arguments arguments) {
     return from(arguments, BoundsProvider.WORLD);
   }

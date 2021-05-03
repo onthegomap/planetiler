@@ -71,6 +71,10 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
     }
   }
 
+  public long numFeatures() {
+    return sorter.size();
+  }
+
   public FeatureSort.Entry encode(RenderedFeature feature) {
     return new FeatureSort.Entry(
       encodeSortKey(feature),
@@ -235,7 +239,7 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
     }
 
     public long getNumFeatures() {
-      return 0;
+      return entries.size();
     }
 
     public TileCoord coord() {

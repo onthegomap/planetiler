@@ -6,13 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -31,7 +29,7 @@ public class MbtilesTest {
       if (!deferIndexCreation) {
         db.addIndex();
       }
-      Set<Mbtiles.TileEntry> expected = new HashSet<>();
+      Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
           var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i, 14), new byte[]{
@@ -50,7 +48,7 @@ public class MbtilesTest {
       if (optimize) {
         db.vacuumAnalyze();
       }
-      var all = getAll(db);
+      var all = MbtilesTestUtils.getAll(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
     }
@@ -195,23 +193,5 @@ public class MbtilesTest {
         ]
       }
       """);
-  }
-
-  private static Set<Mbtiles.TileEntry> getAll(Mbtiles db) throws SQLException {
-    Set<Mbtiles.TileEntry> result = new HashSet<>();
-    try (Statement statement = db.connection().createStatement()) {
-      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
-      while (rs.next()) {
-        result.add(new Mbtiles.TileEntry(
-          TileCoord.ofXYZ(
-            rs.getInt("tile_column"),
-            rs.getInt("tile_row"),
-            rs.getInt("zoom_level")
-          ),
-          rs.getBytes("tile_data")
-        ));
-      }
-    }
-    return result;
   }
 }

@@ -12,13 +12,10 @@ import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -28,29 +25,7 @@ import org.locationtech.jts.geom.Geometry;
 
 public class FeatureGroupTest {
 
-  private final List<FeatureSort.Entry> list = new ArrayList<>();
-  private final FeatureSort sorter = new FeatureSort() {
-    @Override
-    public void sort() {
-      list.sort(Comparator.naturalOrder());
-    }
-
-    @Override
-    public void add(Entry newEntry) {
-      list.add(newEntry);
-    }
-
-    @Override
-    public long getStorageSize() {
-      return 0;
-    }
-
-    @NotNull
-    @Override
-    public Iterator<Entry> iterator() {
-      return list.iterator();
-    }
-  };
+  private final FeatureSort sorter = FeatureSort.newInMemory();
   private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile());
 
   @Test

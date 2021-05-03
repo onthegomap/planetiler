@@ -26,6 +26,7 @@ import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -377,7 +378,7 @@ public record Mbtiles(Connection connection) implements Closeable {
     }
   }
 
-  public static record TileEntry(TileCoord tile, byte[] bytes) {
+  public static record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
 
     @Override
     public boolean equals(Object o) {
@@ -409,6 +410,11 @@ public record Mbtiles(Connection connection) implements Closeable {
         "tile=" + tile +
         ", bytes=" + Arrays.toString(bytes) +
         '}';
+    }
+
+    @Override
+    public int compareTo(@NotNull TileEntry o) {
+      return tile.compareTo(o.tile);
     }
   }
 }

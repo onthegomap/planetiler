@@ -37,6 +37,7 @@ class ExternalMergeSort implements FeatureSort {
   private final Stats stats;
   private final int chunkSizeLimit;
   private final int workers;
+  private final AtomicLong features = new AtomicLong(0);
 
   private final List<Chunk> chunks = new ArrayList<>();
   private Chunk current;
@@ -78,6 +79,7 @@ class ExternalMergeSort implements FeatureSort {
   public void add(Entry item) {
     try {
       assert !sorted;
+      features.incrementAndGet();
       current.add(item);
       if (current.bytesInMemory > chunkSizeLimit) {
         newChunk();
@@ -148,6 +150,11 @@ class ExternalMergeSort implements FeatureSort {
       "s sort:" + Duration.ofNanos(sorting.get()).toSeconds() + "s");
   }
 
+  @Override
+  public long size() {
+    return features.get();
+  }
+
   @NotNull
   @Override
   public Iterator<Entry> iterator() {
@@ -187,7 +194,7 @@ class ExternalMergeSort implements FeatureSort {
     chunks.add(current = new Chunk(chunkPath));
   }
 
-  class Chunk implements Closeable {
+  private static class Chunk implements Closeable {
 
     private final Path path;
     private final DataOutputStream outputStream;
@@ -273,7 +280,7 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  class PeekableScanner implements Closeable, Comparable<PeekableScanner>, Iterator<Entry> {
+  private static class PeekableScanner implements Closeable, Comparable<PeekableScanner>, Iterator<Entry> {
 
     private final int count;
     private int read = 0;
