@@ -1,7 +1,11 @@
 package com.onthegomap.flatmap.write;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.io.Closeable;
@@ -41,7 +45,9 @@ public record Mbtiles(Connection connection) implements Closeable {
   public static final String METADATA_COL_VALUE = "value";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mbtiles.class);
-  private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static final ObjectMapper objectMapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
 
   public static Mbtiles newInMemoryDatabase() {
     try {
@@ -121,7 +127,7 @@ public record Mbtiles(Connection connection) implements Closeable {
   public Mbtiles vacuumAnalyze() {
     return execute(
       "VACUUM;",
-      "ANALYZE"
+      "ANALYZE;"
     );
   }
 
@@ -133,7 +139,14 @@ public record Mbtiles(Connection connection) implements Closeable {
     return new Metadata();
   }
 
-  public static record MetadataJson(List<VectorLayer> vectorLayers) {
+  public static record MetadataJson(
+    @JsonProperty("vector_layers")
+    List<VectorLayer> vectorLayers
+  ) {
+
+    public MetadataJson(VectorLayer... layers) {
+      this(List.of(layers));
+    }
 
     public static MetadataJson fromJson(String json) {
       try {
@@ -152,43 +165,32 @@ public record Mbtiles(Connection connection) implements Closeable {
     }
 
     public enum FieldType {
-      NUMBER("Number"),
-      BOOLEAN("Boolean"),
-      STRING("String");
-
-      private final String name;
-
-      FieldType(String name) {
-        this.name = name;
-      }
-
-      @Override
-      public String toString() {
-        return name;
-      }
+      @JsonProperty("Number") NUMBER,
+      @JsonProperty("Boolean") BOOLEAN,
+      @JsonProperty("String") STRING
     }
 
     public static record VectorLayer(
-      String id,
-      Map<String, FieldType> fields,
-      Optional<String> description,
-      OptionalInt minzoom,
-      OptionalInt maxzoom
+      @JsonProperty("id") String id,
+      @JsonProperty("fields") Map<String, FieldType> fields,
+      @JsonProperty("description") Optional<String> description,
+      @JsonProperty("minzoom") OptionalInt minzoom,
+      @JsonProperty("maxzoom") OptionalInt maxzoom
     ) {
 
       public VectorLayer(String id, Map<String, FieldType> fields) {
         this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty());
       }
 
-      public VectorLayer copyWithDescription(String newDescription) {
+      public VectorLayer withDescription(String newDescription) {
         return new VectorLayer(id, fields, Optional.of(newDescription), minzoom, maxzoom);
       }
 
-      public VectorLayer copyWithMinzoom(int newMinzoom) {
+      public VectorLayer withMinzoom(int newMinzoom) {
         return new VectorLayer(id, fields, description, OptionalInt.of(newMinzoom), maxzoom);
       }
 
-      public VectorLayer copyWithMaxzoom(int newMaxzoom) {
+      public VectorLayer withMaxzoom(int newMaxzoom) {
         return new VectorLayer(id, fields, description, minzoom, OptionalInt.of(newMaxzoom));
       }
     }

@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.write;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.io.IOException;
@@ -134,7 +135,67 @@ public class MbtilesTest {
     }
   }
 
-  // TODO: json encoding
+  private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
+    var objectMapper = new ObjectMapper();
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
+      var metadata = db.setupSchema().tuneForWrites().metadata();
+      metadata.setJson(object);
+      var actual = metadata.getAll().get("json");
+      assertEquals(
+        objectMapper.readTree(expected),
+        objectMapper.readTree(actual)
+      );
+    }
+  }
+
+  @Test
+  public void testMetadataJsonNoLayers() throws IOException {
+    testMetadataJson(new Mbtiles.MetadataJson(), """
+      {
+        "vector_layers": []
+      }
+      """);
+  }
+
+  @Test
+  public void testFullMetadataJson() throws IOException {
+    testMetadataJson(new Mbtiles.MetadataJson(
+      new Mbtiles.MetadataJson.VectorLayer(
+        "full",
+        Map.of(
+          "NUMBER_FIELD", Mbtiles.MetadataJson.FieldType.NUMBER,
+          "STRING_FIELD", Mbtiles.MetadataJson.FieldType.STRING,
+          "boolean field", Mbtiles.MetadataJson.FieldType.BOOLEAN
+        )
+      ).withDescription("full description")
+        .withMinzoom(0)
+        .withMaxzoom(5),
+      new Mbtiles.MetadataJson.VectorLayer(
+        "partial",
+        Map.of()
+      )
+    ), """
+      {
+        "vector_layers": [
+          {
+            "id": "full",
+            "description": "full description",
+            "minzoom": 0,
+            "maxzoom": 5,
+            "fields": {
+              "NUMBER_FIELD": "Number",
+              "STRING_FIELD": "String",
+              "boolean field": "Boolean"
+            }
+          },
+          {
+            "id": "partial",
+            "fields": {}
+          }
+        ]
+      }
+      """);
+  }
 
   private static Set<Mbtiles.TileEntry> getAll(Mbtiles db) throws SQLException {
     Set<Mbtiles.TileEntry> result = new HashSet<>();
