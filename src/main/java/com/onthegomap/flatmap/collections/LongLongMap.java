@@ -10,7 +10,7 @@ public interface LongLongMap extends Closeable {
 
   long get(long key);
 
-  Path filePath();
+  long fileSize();
 
   class MapdbSortedTable implements LongLongMap {
 
@@ -29,8 +29,8 @@ public interface LongLongMap extends Closeable {
     }
 
     @Override
-    public Path filePath() {
-      return null;
+    public long fileSize() {
+      return 0;
     }
 
     @Override

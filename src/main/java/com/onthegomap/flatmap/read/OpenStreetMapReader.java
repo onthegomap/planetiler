@@ -97,7 +97,7 @@ public class OpenStreetMapReader implements Closeable {
 
     var loggers = new ProgressLoggers("osm_pass1")
       .addRateCounter("nodes", TOTAL_NODES)
-      .addFileSize(nodeDb.filePath())
+      .addFileSize(nodeDb::fileSize)
       .addRateCounter("ways", TOTAL_WAYS)
       .addRateCounter("rels", TOTAL_RELATIONS)
       .addProcessStats()
@@ -156,7 +156,7 @@ public class OpenStreetMapReader implements Closeable {
 
     var logger = new ProgressLoggers("osm_pass2")
       .addRatePercentCounter("nodes", TOTAL_NODES.get(), nodesProcessed)
-      .addFileSize(nodeDb.filePath())
+      .addFileSize(nodeDb::fileSize)
       .addRatePercentCounter("ways", TOTAL_WAYS.get(), waysProcessed)
       .addRatePercentCounter("rels", TOTAL_RELATIONS.get(), relsProcessed)
       .addRateCounter("features", () -> writer.sorter().size())
