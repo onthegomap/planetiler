@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
+import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.monitoring.ProcessInfo;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -22,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +67,7 @@ class ExternalMergeSort implements FeatureSort {
     this.workers = workers;
     LOGGER.info("Using merge sort feature map, chunk size=" + (chunkSizeLimit / 1_000_000) + "mb workers=" + workers);
     try {
-      FileUtils.deleteDirectory(dir.toFile());
+      FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
       newChunk();
     } catch (IOException e) {
@@ -91,7 +91,7 @@ class ExternalMergeSort implements FeatureSort {
 
   @Override
   public long getStorageSize() {
-    return FileUtils.sizeOfDirectory(dir.toFile());
+    return FileUtils.directorySize(dir);
   }
 
   private static <T> T time(AtomicLong timer, Supplier<T> func) {

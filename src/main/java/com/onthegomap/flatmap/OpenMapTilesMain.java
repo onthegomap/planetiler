@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,9 +59,9 @@ public class OpenMapTilesMain {
     var translations = Translations.defaultProvider(languages);
     var profile = new OpenMapTilesProfile();
 
-    FileUtils.forceMkdir(tmpDir.toFile());
+    Files.createDirectories(tmpDir);
     Path nodeDb = tmpDir.resolve("node.db");
-    LongLongMap nodeLocations = new LongLongMap.MapdbSortedTable(nodeDb);
+    LongLongMap nodeLocations = LongLongMap.newFileBackedSortedTable(nodeDb);
     FeatureSort featureDb = FeatureSort.newExternalMergeSort(tmpDir.resolve("feature.db"), config.threads(), stats);
     FeatureGroup featureMap = new FeatureGroup(featureDb, profile);
     FeatureRenderer renderer = new FeatureRenderer(config);
