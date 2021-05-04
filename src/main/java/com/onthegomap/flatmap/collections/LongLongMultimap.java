@@ -3,17 +3,16 @@ package com.onthegomap.flatmap.collections;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.graphhopper.util.StopWatch;
+import com.onthegomap.flatmap.MemoryEstimator;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface LongLongMultimap {
+public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
   void put(long key, long value);
 
   LongArrayList get(long key);
-
-  long estimatedMemoryUsageBytes();
 
   default void putAll(long key, LongArrayList vals) {
     for (int i = 0; i < vals.size(); i++) {
@@ -122,8 +121,8 @@ public interface LongLongMultimap {
     }
 
     @Override
-    public long estimatedMemoryUsageBytes() {
-      return 24L + 8L * keys.buffer.length + 24L + 8L * values.buffer.length;
+    public long estimateMemoryUsageBytes() {
+      return MemoryEstimator.size(keys) + MemoryEstimator.size(values);
     }
   }
 
@@ -162,10 +161,8 @@ public interface LongLongMultimap {
     }
 
     @Override
-    public long estimatedMemoryUsageBytes() {
-      return 24L + 8L * keys.keys.length +
-        24L + 4L * keys.values.length +
-        24L + 8L * values.buffer.length;
+    public long estimateMemoryUsageBytes() {
+      return MemoryEstimator.size(keys) + MemoryEstimator.size(values);
     }
   }
 }

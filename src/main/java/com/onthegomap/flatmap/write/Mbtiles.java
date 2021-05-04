@@ -357,7 +357,7 @@ public record Mbtiles(Connection connection) implements Closeable {
     }
 
     public Metadata setJson(MetadataJson value) {
-      return setJson(value.toJson());
+      return value == null ? this : setJson(value.toJson());
     }
 
     public Map<String, String> getAll() {

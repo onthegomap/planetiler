@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.stream.Stream;
@@ -64,6 +65,8 @@ public class FileUtils {
       Files.walk(path)
         .sorted(Comparator.reverseOrder())
         .forEach(FileUtils::deleteFile);
+    } catch (NoSuchFileException e) {
+      // this is OK, file doesn't exist, so can't walk
     } catch (IOException e) {
       throw new IllegalStateException("Unable to delete " + path, e);
     }

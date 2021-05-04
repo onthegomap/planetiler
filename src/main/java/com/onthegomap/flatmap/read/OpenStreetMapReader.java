@@ -10,6 +10,7 @@ import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureRenderer;
+import com.onthegomap.flatmap.MemoryEstimator;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderableFeature;
 import com.onthegomap.flatmap.RenderableFeatures;
@@ -30,7 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
 
-public class OpenStreetMapReader implements Closeable {
+public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstimate {
 
   private final OsmInputFile osmInputFile;
   private final Stats stats;
@@ -77,7 +78,7 @@ public class OpenStreetMapReader implements Closeable {
           if (infos != null) {
             for (RelationInfo info : infos) {
               relationInfo.put(rel.getId(), info);
-              relationInfoSizes.addAndGet(info.sizeBytes());
+              relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
               for (ReaderRelation.Member member : rel.getMembers()) {
                 if (member.getType() == ReaderRelation.Member.WAY) {
                   wayToRelations.put(member.getRef(), rel.getId());
@@ -101,7 +102,7 @@ public class OpenStreetMapReader implements Closeable {
       .addRateCounter("ways", TOTAL_WAYS)
       .addRateCounter("rels", TOTAL_RELATIONS)
       .addProcessStats()
-      .addInMemoryObject("hppc", this::getBigObjectSizeBytes)
+      .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
@@ -162,15 +163,22 @@ public class OpenStreetMapReader implements Closeable {
       .addRateCounter("features", () -> writer.sorter().size())
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
-      .addInMemoryObject("hppc", this::getBigObjectSizeBytes)
+      .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
   }
 
-  private long getBigObjectSizeBytes() {
-    return 0;
+  @Override
+  public long estimateMemoryUsageBytes() {
+    long size = 0;
+    size += MemoryEstimator.size(waysInMultipolygon);
+    size += MemoryEstimator.size(multipolygonWayGeometries);
+    size += MemoryEstimator.size(wayToRelations);
+    size += MemoryEstimator.sizeWithoutValues(relationInfo);
+    size += relationInfoSizes.get();
+    return size;
   }
 
 
@@ -183,9 +191,10 @@ public class OpenStreetMapReader implements Closeable {
     nodeDb.close();
   }
 
-  public static class RelationInfo {
+  public static class RelationInfo implements MemoryEstimator.HasEstimate {
 
-    public long sizeBytes() {
+    @Override
+    public long estimateMemoryUsageBytes() {
       return 0;
     }
   }

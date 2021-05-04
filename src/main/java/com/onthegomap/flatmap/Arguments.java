@@ -56,7 +56,7 @@ public class Arguments {
   public Path file(String arg, String description, Path defaultValue) {
     String value = getArg(arg);
     Path file = value == null ? defaultValue : Path.of(value);
-    LOGGER.info(description + ": " + value);
+    LOGGER.info(description + ": " + file);
     return file;
   }
 

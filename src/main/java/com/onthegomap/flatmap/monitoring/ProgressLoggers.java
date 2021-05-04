@@ -8,6 +8,7 @@ import static com.onthegomap.flatmap.Format.padRight;
 
 import com.graphhopper.util.Helper;
 import com.onthegomap.flatmap.Format;
+import com.onthegomap.flatmap.MemoryEstimator;
 import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import com.onthegomap.flatmap.worker.Worker;
@@ -126,7 +127,7 @@ public class ProgressLoggers {
     return new Object() {
       @Override
       public String toString() {
-        return supplier.toString();
+        return supplier.get();
       }
     };
   }
@@ -209,8 +210,8 @@ public class ProgressLoggers {
     LOGGER.info(getLog());
   }
 
-  public ProgressLoggers addInMemoryObject(String name, LongSupplier getSize) {
-    loggers.add(new ProgressLogger(name, () -> formatStorage(getSize.getAsLong(), true)));
+  public ProgressLoggers addInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
+    loggers.add(new ProgressLogger(name, () -> formatStorage(object.estimateMemoryUsageBytes(), true)));
     return this;
   }
 

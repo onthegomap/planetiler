@@ -20,7 +20,7 @@ public record CommonParams(
     if (minzoom < 0) {
       throw new IllegalArgumentException("Minzoom must be >= 0, was " + minzoom);
     }
-    if (maxzoom >= 14) {
+    if (maxzoom > 14) {
       throw new IllegalArgumentException("Max zoom must be <= 14, was " + maxzoom);
     }
   }
