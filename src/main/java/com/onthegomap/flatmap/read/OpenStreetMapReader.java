@@ -47,12 +47,12 @@ public class OpenStreetMapReader implements Closeable {
   private GHLongObjectHashMap<RelationInfo> relationInfo = new GHLongObjectHashMap<>();
   private final AtomicLong relationInfoSizes = new AtomicLong(0);
   // ~800mb, ~1.6GB when sorting
-  private LongLongMultimap wayToRelations = new LongLongMultimap.FewUnorderedBinarySearchMultimap();
+  private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
   private LongHashSet waysInMultipolygon = new GHLongHashSet();
   // ~7GB
-  private LongLongMultimap multipolygonWayGeometries = new LongLongMultimap.ManyOrderedBinarySearchMultimap();
+  private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
 
   public OpenStreetMapReader(OsmInputFile osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
     this.osmInputFile = osmInputFile;
