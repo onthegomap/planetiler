@@ -50,6 +50,14 @@ public record Mbtiles(Connection connection) implements Closeable {
     .registerModules(new Jdk8Module())
     .setSerializationInclusion(NON_ABSENT);
 
+  static {
+    try {
+      Class.forName("org.sqlite.JDBC");
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("JDBC driver not found");
+    }
+  }
+
   public static Mbtiles newInMemoryDatabase() {
     try {
       return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:")).init();

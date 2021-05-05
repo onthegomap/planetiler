@@ -29,6 +29,14 @@ public class NaturalEarthReader extends Reader {
   private final Connection conn;
   private Path extracted;
 
+  static {
+    try {
+      Class.forName("org.sqlite.JDBC");
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("JDBC driver not found");
+    }
+  }
+
   public NaturalEarthReader(Path input, Profile profile, Stats stats) {
     this(input, null, profile, stats);
   }

@@ -39,7 +39,7 @@ public class OpenMapTilesMain {
     boolean useWikidata = arguments.get("use_wikidata", "use wikidata translations", true);
     Path wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file",
       Path.of("data", "sources", "wikidata_names.json"));
-    Path output = arguments.file("output", "mbtiles output file", Path.of("massachusetts.mbtiles"));
+    Path output = arguments.file("output", "mbtiles output file", Path.of("data", "massachusetts.mbtiles"));
     List<String> languages = arguments.get("name_languages", "languages to use",
       "en,ru,ar,zh,ja,ko,fr,de,fi,pl,es,be,br,he".split(","));
     CommonParams config = CommonParams.from(arguments, osmInputFile);
