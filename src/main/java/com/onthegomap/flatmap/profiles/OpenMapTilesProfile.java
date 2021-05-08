@@ -1,8 +1,8 @@
 package com.onthegomap.flatmap.profiles;
 
 import com.graphhopper.reader.ReaderRelation;
+import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -53,7 +53,7 @@ public class OpenMapTilesProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature,
-    RenderableFeatures features) {
+    FeatureCollector features) {
 
   }
 

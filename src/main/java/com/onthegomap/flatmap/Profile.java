@@ -8,7 +8,7 @@ public interface Profile {
 
   List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation);
 
-  void processFeature(SourceFeature sourceFeature, RenderableFeatures features);
+  void processFeature(SourceFeature sourceFeature, FeatureCollector features);
 
   void release();
 
@@ -37,7 +37,7 @@ public interface Profile {
     }
 
     @Override
-    public void processFeature(SourceFeature sourceFeature, RenderableFeatures features) {
+    public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
 
     }
 

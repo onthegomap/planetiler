@@ -7,6 +7,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -15,21 +18,47 @@ import org.slf4j.LoggerFactory;
 public class Arguments {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Arguments.class);
+  private final List<Function<String, String>> providers;
 
-  public Arguments(String[] args) {
+  private Arguments(List<Function<String, String>> providers) {
+    this.providers = providers;
+  }
+
+  public static Arguments fromJvmProperties() {
+    return new Arguments(List.of(System::getProperty));
+  }
+
+  public static Arguments empty() {
+    return new Arguments(List.of());
+  }
+
+  public static Arguments of(Map<String, String> map) {
+    return new Arguments(List.of(map::get));
+  }
+
+  public static Arguments of(String... args) {
+    Map<String, String> map = new TreeMap<>();
+    for (int i = 0; i < args.length; i += 2) {
+      map.put(args[i], args[i + 1]);
+    }
+    return of(map);
   }
 
   private String getArg(String key, String defaultValue) {
-    return System.getProperty(key, defaultValue).trim();
+    String value = getArg(key);
+    return value == null ? defaultValue : value;
   }
 
   private String getArg(String key) {
-    String value = System.getProperty(key);
+    String value = null;
+    for (int i = 0; i < providers.size() && value == null; i++) {
+      value = providers.get(i).apply(key);
+    }
     return value == null ? null : value.trim();
   }
 
   public Envelope bounds(String arg, String description, BoundsProvider defaultBounds) {
-    String input = System.getProperty(arg, null);
+    String input = getArg(arg);
     Envelope result;
     if (input == null) {
       // get from input file

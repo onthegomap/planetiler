@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.write;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.io.IOException;
@@ -48,7 +49,7 @@ public class MbtilesTest {
       if (optimize) {
         db.vacuumAnalyze();
       }
-      var all = MbtilesTestUtils.getAll(db);
+      var all = TestUtils.getAllTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
     }

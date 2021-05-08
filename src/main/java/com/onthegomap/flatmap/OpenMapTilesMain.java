@@ -21,7 +21,7 @@ public class OpenMapTilesMain {
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesMain.class);
 
   public static void main(String[] args) throws IOException {
-    Arguments arguments = new Arguments(args);
+    Arguments arguments = Arguments.fromJvmProperties();
     var stats = arguments.getStats();
     stats.startTimer("import");
     LOGGER.info("Arguments:");
@@ -43,6 +43,12 @@ public class OpenMapTilesMain {
     List<String> languages = arguments.get("name_languages", "languages to use",
       "en,ru,ar,zh,ja,ko,fr,de,fi,pl,es,be,br,he".split(","));
     CommonParams config = CommonParams.from(arguments, osmInputFile);
+
+    if (config.forceOverwrite()) {
+      FileUtils.deleteFile(output);
+    } else if (Files.exists(output)) {
+      throw new IllegalArgumentException(output + " already exists, use force to overwrite.");
+    }
 
     LOGGER.info("Building OpenMapTiles profile into " + output + " in these phases:");
     if (fetchWikidata) {
@@ -79,8 +85,9 @@ public class OpenMapTilesMain {
     stats.time("water_polygons", () ->
       ShapefileReader.process("water_polygons", waterPolygons, renderer, featureMap, config, profile, stats));
     stats.time("natural_earth", () ->
-      new NaturalEarthReader(naturalEarth, tmpDir.resolve("natearth.sqlite"), profile, stats)
-        .process("natural_earth", renderer, featureMap, config)
+      NaturalEarthReader
+        .process("natural_earth", naturalEarth, tmpDir.resolve("natearth.sqlite"), renderer, featureMap, config,
+          profile, stats)
     );
 
     try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, profile, stats)) {
@@ -93,7 +100,9 @@ public class OpenMapTilesMain {
     Files.delete(nodeDb);
 
     stats.time("sort", featureDb::sort);
-    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, profile, config, stats));
+
+    stats.time("mbtiles",
+      () -> MbtilesWriter.writeOutput(featureMap, output, profile, config, stats));
 
     stats.stopTimer("import");
 

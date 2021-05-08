@@ -10,8 +10,12 @@ public record CommonParams(
   int minzoom,
   int maxzoom,
   boolean deferIndexCreation,
-  boolean optimizeDb
+  boolean optimizeDb,
+  boolean forceOverwrite
 ) {
+
+  public static final int MIN_MINZOOM = 0;
+  public static final int MAX_MAXZOOM = 14;
 
   public CommonParams {
     if (minzoom > maxzoom) {
@@ -26,7 +30,7 @@ public record CommonParams(
   }
 
   public static CommonParams defaultParams() {
-    return from(new Arguments(new String[]{}));
+    return from(Arguments.empty());
   }
 
   public static CommonParams from(Arguments arguments) {
@@ -38,10 +42,11 @@ public record CommonParams(
       arguments.bounds("bounds", "bounds", defaultBounds),
       arguments.threads(),
       arguments.duration("loginterval", "time between logs", "10s"),
-      arguments.integer("minzoom", "minimum zoom level", 0),
-      arguments.integer("maxzoom", "maximum zoom level (limit 14)", 14),
+      arguments.integer("minzoom", "minimum zoom level", MIN_MINZOOM),
+      arguments.integer("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
       arguments.get("defer_mbtiles_index_creation", "add index to mbtiles file after finished writing", false),
-      arguments.get("optimize_db", "optimize mbtiles after writing", false)
+      arguments.get("optimize_db", "optimize mbtiles after writing", false),
+      arguments.get("force", "force overwriting output file", false)
     );
   }
 

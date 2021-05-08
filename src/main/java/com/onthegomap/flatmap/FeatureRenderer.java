@@ -22,11 +22,11 @@ public class FeatureRenderer {
     this.config = config;
   }
 
-  public void renderFeature(RenderableFeature feature, Consumer<FeatureSort.Entry> consumer) {
-    renderGeometry(feature.getGeometry(), feature, consumer);
+  public void renderFeature(FeatureCollector.Feature feature, Consumer<FeatureSort.Entry> consumer) {
+    renderGeometry(feature.geometry(), feature, consumer);
   }
 
-  public void renderGeometry(Geometry geom, RenderableFeature feature, Consumer<FeatureSort.Entry> consumer) {
+  public void renderGeometry(Geometry geom, FeatureCollector.Feature feature, Consumer<FeatureSort.Entry> consumer) {
     // TODO what about converting between area and line?
     if (geom instanceof Point point) {
       addPointFeature(feature, point, consumer);
@@ -44,15 +44,17 @@ public class FeatureRenderer {
     }
   }
 
-  private void addPointFeature(RenderableFeature feature, Point point, Consumer<FeatureSort.Entry> consumer) {
+  private void addPointFeature(FeatureCollector.Feature feature, Point point, Consumer<FeatureSort.Entry> consumer) {
     // TODO render features into tile
   }
 
-  private void addPointFeature(RenderableFeature feature, MultiPoint points, Consumer<FeatureSort.Entry> consumer) {
+  private void addPointFeature(FeatureCollector.Feature feature, MultiPoint points,
+    Consumer<FeatureSort.Entry> consumer) {
     // TODO render features into tile
   }
 
-  private void addLinearFeature(RenderableFeature feature, Geometry geom, Consumer<FeatureSort.Entry> consumer) {
+  private void addLinearFeature(FeatureCollector.Feature feature, Geometry geom,
+    Consumer<FeatureSort.Entry> consumer) {
     // TODO render lines / areas into tile
   }
 }

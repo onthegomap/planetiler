@@ -9,11 +9,10 @@ import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.MemoryEstimator;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.RenderableFeature;
-import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
@@ -120,7 +119,6 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .fromGenerator("pbf", osmInputFile.read(readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
-        RenderableFeatures features = new RenderableFeatures();
         ReaderElement readerElement;
         while ((readerElement = prev.get()) != null) {
           SourceFeature feature = null;
@@ -142,9 +140,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
             }
           }
           if (feature != null) {
-            features.reset(feature);
+            FeatureCollector features = FeatureCollector.from(feature);
             profile.processFeature(feature, features);
-            for (RenderableFeature renderable : features.all()) {
+            for (FeatureCollector.Feature renderable : features) {
               renderer.renderFeature(renderable, next);
             }
           }

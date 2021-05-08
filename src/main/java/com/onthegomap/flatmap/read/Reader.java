@@ -1,10 +1,9 @@
 package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.RenderableFeature;
-import com.onthegomap.flatmap.RenderableFeatures;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
@@ -39,14 +38,13 @@ public abstract class Reader implements Closeable {
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
-        RenderableFeatures features = new RenderableFeatures();
         SourceFeature sourceFeature;
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
-          features.reset(sourceFeature);
+          FeatureCollector features = FeatureCollector.from(sourceFeature);
           if (sourceFeature.geometry().getEnvelopeInternal().intersects(env)) {
             profile.processFeature(sourceFeature, features);
-            for (RenderableFeature renderable : features.all()) {
+            for (FeatureCollector.Feature renderable : features) {
               renderer.renderFeature(renderable, next);
             }
           }

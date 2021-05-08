@@ -1,8 +1,19 @@
 package com.onthegomap.flatmap;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.write.Mbtiles;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -61,5 +72,83 @@ public class TestUtils {
         return coords;
       }
     }.transform(input);
+  }
+
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException {
+    Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
+    for (var tile : getAllTiles(db)) {
+      var decoded = VectorTileEncoder.decode(tile.bytes()).stream()
+        .map(feature -> feature(feature.geometry().decode(), feature.attrs())).toList();
+      tiles.put(tile.tile(), decoded);
+    }
+    return tiles;
+  }
+
+  public static Set<Mbtiles.TileEntry> getAllTiles(Mbtiles db) throws SQLException {
+    Set<Mbtiles.TileEntry> result = new HashSet<>();
+    try (Statement statement = db.connection().createStatement()) {
+      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
+      while (rs.next()) {
+        result.add(new Mbtiles.TileEntry(
+          TileCoord.ofXYZ(
+            rs.getInt("tile_column"),
+            rs.getInt("tile_row"),
+            rs.getInt("zoom_level")
+          ),
+          rs.getBytes("tile_data")
+        ));
+      }
+    }
+    return result;
+  }
+
+  public static <K extends Comparable<? super K>, V> void assertMapEquals(Map<K, V> expected, Map<K, V> actual) {
+    assertEquals(new TreeMap<>(expected), actual);
+  }
+
+  public static <K extends Comparable<? super K>, V> void assertSubmap(Map<K, V> expectedSubmap, Map<K, V> actual) {
+    Map<K, V> actualFiltered = new TreeMap<>();
+    Map<K, V> others = new TreeMap<>();
+    for (K key : actual.keySet()) {
+      V value = actual.get(key);
+      if (expectedSubmap.containsKey(key)) {
+        actualFiltered.put(key, value);
+      } else {
+        others.put(key, value);
+      }
+    }
+    assertEquals(new TreeMap<>(expectedSubmap), actualFiltered, "others: " + others);
+  }
+
+  public interface GeometryComparision {
+
+    Geometry geom();
+  }
+
+  public static record ExactGeometry(Geometry geom) implements GeometryComparision {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof GeometryComparision that && geom.equalsExact(that.geom());
+    }
+  }
+
+  public static record TopoGeometry(Geometry geom) implements GeometryComparision {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof GeometryComparision that && geom.equalsTopo(that.geom());
+    }
+  }
+
+  public static record ComparableFeature(
+    GeometryComparision geometry,
+    Map<String, Object> attrs
+  ) {
+
+  }
+
+  public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
+    return new ComparableFeature(new TopoGeometry(geom), attrs);
   }
 }

@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.write;
 
 import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
@@ -9,10 +10,10 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 import org.slf4j.Logger;
@@ -25,25 +26,29 @@ public class MbtilesWriter {
   private final AtomicLong featuresProcessed = new AtomicLong(0);
   private final AtomicLong memoizedTiles = new AtomicLong(0);
   private final AtomicLong tiles = new AtomicLong(0);
-  private final Path path;
+  private final Mbtiles db;
   private final CommonParams config;
   private final Profile profile;
   private final Stats stats;
 
-  MbtilesWriter(Path path, CommonParams config, Profile profile, Stats stats) {
-    this.path = path;
+  MbtilesWriter(Mbtiles db, CommonParams config, Profile profile, Stats stats) {
+    this.db = db;
     this.config = config;
     this.profile = profile;
     this.stats = stats;
   }
 
-  public static void writeOutput(FeatureGroup features, Path output, Profile profile, CommonParams config,
+  public static void writeOutput(FeatureGroup features, Path outputPath, Profile profile, CommonParams config,
     Stats stats) {
-    try {
-      Files.deleteIfExists(output);
+    try (Mbtiles output = Mbtiles.newFileDatabase(outputPath)) {
+      writeOutput(features, output, () -> FileUtils.fileSize(outputPath), profile, config, stats);
     } catch (IOException e) {
-      throw new IllegalStateException("Unable to delete " + output);
+      throw new IllegalStateException("Unable to write to " + outputPath, e);
     }
+  }
+
+  public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
+    CommonParams config, Stats stats) {
     MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats);
 
     var topology = Topology.start("mbtiles", stats)
@@ -56,7 +61,7 @@ public class MbtilesWriter {
     var loggers = new ProgressLoggers("mbtiles")
       .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
       .addRateCounter("tiles", writer.tiles)
-      .addFileSize(output)
+      .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
       .addProcessStats()
       .addTopologyStats(topology);
@@ -91,40 +96,38 @@ public class MbtilesWriter {
   }
 
   private void tileWriter(Supplier<Mbtiles.TileEntry> tiles) throws Exception {
-    try (Mbtiles db = Mbtiles.newFileDatabase(path)) {
-      db.setupSchema();
-      db.tuneForWrites();
-      if (!config.deferIndexCreation()) {
-        db.addIndex();
-      } else {
-        LOGGER.info("Deferring index creation until after tiles are written.");
-      }
+    db.setupSchema();
+    db.tuneForWrites();
+    if (!config.deferIndexCreation()) {
+      db.addIndex();
+    } else {
+      LOGGER.info("Deferring index creation until after tiles are written.");
+    }
 
-      db.metadata()
-        .setName(profile.name())
-        .setFormat("pbf")
-        .setDescription(profile.description())
-        .setAttribution(profile.attribution())
-        .setVersion(profile.version())
-        .setTypeIsBaselayer()
-        .setBoundsAndCenter(config.bounds())
-        .setMinzoom(config.minzoom())
-        .setMaxzoom(config.maxzoom())
-        .setJson(stats.getTileStats());
+    db.metadata()
+      .setName(profile.name())
+      .setFormat("pbf")
+      .setDescription(profile.description())
+      .setAttribution(profile.attribution())
+      .setVersion(profile.version())
+      .setTypeIsBaselayer()
+      .setBoundsAndCenter(config.bounds())
+      .setMinzoom(config.minzoom())
+      .setMaxzoom(config.maxzoom())
+      .setJson(stats.getTileStats());
 
-      try (var batchedWriter = db.newBatchedTileWriter()) {
-        Mbtiles.TileEntry tile;
-        while ((tile = tiles.get()) != null) {
-          batchedWriter.write(tile.tile(), tile.bytes());
-        }
+    try (var batchedWriter = db.newBatchedTileWriter()) {
+      Mbtiles.TileEntry tile;
+      while ((tile = tiles.get()) != null) {
+        batchedWriter.write(tile.tile(), tile.bytes());
       }
+    }
 
-      if (config.deferIndexCreation()) {
-        db.addIndex();
-      }
-      if (config.optimizeDb()) {
-        db.vacuumAnalyze();
-      }
+    if (config.deferIndexCreation()) {
+      db.addIndex();
+    }
+    if (config.optimizeDb()) {
+      db.vacuumAnalyze();
     }
   }
 

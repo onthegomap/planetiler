@@ -1,8 +1,11 @@
 package com.onthegomap.flatmap.read;
 
+import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
@@ -37,16 +40,19 @@ public class NaturalEarthReader extends Reader {
     }
   }
 
-  public NaturalEarthReader(Path input, Profile profile, Stats stats) {
-    this(input, null, profile, stats);
-  }
-
   public NaturalEarthReader(Path input, Path tmpDir, Profile profile, Stats stats) {
     super(profile, stats);
     try {
       conn = open(input, tmpDir);
     } catch (IOException | SQLException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  public static void process(String name, Path input, Path tmpDir, FeatureRenderer renderer, FeatureGroup writer,
+    CommonParams config, Profile profile, Stats stats) {
+    try (var reader = new NaturalEarthReader(input, tmpDir, profile, stats)) {
+      reader.process(name, renderer, writer, config);
     }
   }
 
