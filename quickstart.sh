@@ -18,5 +18,6 @@ fi
 
 echo "Running..."
 java -Dinput="./data/sources/${AREA}.pbf" \
+  -Dforce=true \
   -cp "$JAR" \
   com.onthegomap.flatmap.OpenMapTilesMain

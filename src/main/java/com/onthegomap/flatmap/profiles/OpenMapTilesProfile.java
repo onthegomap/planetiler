@@ -54,7 +54,11 @@ public class OpenMapTilesProfile implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature,
     FeatureCollector features) {
-
+    if (sourceFeature.isPoint()) {
+      if (sourceFeature.hasTag("natural", "peak", "volcano")) {
+        features.point("mountain_peak")
+          .setAttr("name", sourceFeature.getTag("name"));
+      }
+    }
   }
-
 }

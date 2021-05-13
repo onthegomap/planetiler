@@ -1,8 +1,8 @@
 package com.onthegomap.flatmap.write;
 
+import static com.onthegomap.flatmap.TestUtils.assertSameJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
@@ -33,7 +33,7 @@ public class MbtilesTest {
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
-          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i, 14), new byte[]{
+          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
             (byte) howMany,
             (byte) (howMany >> 8),
             (byte) (howMany >> 16),
@@ -135,15 +135,11 @@ public class MbtilesTest {
   }
 
   private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
-    var objectMapper = new ObjectMapper();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       var metadata = db.setupSchema().tuneForWrites().metadata();
       metadata.setJson(object);
       var actual = metadata.getAll().get("json");
-      assertEquals(
-        objectMapper.readTree(expected),
-        objectMapper.readTree(actual)
-      );
+      assertSameJson(expected, actual);
     }
   }
 

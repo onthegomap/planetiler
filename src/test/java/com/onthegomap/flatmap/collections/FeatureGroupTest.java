@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +27,7 @@ import org.locationtech.jts.geom.Geometry;
 public class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
-  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile());
+  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), new Stats.InMemory());
 
   @Test
   public void testEmpty() {
@@ -62,7 +63,7 @@ public class FeatureGroupTest {
       zOrder,
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
-    features.accept(features.encode(feature));
+    features.accept(features.newRenderedFeatureEncoder().apply(feature));
   }
 
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
@@ -211,7 +212,7 @@ public class FeatureGroupTest {
         Collections.reverse(items);
         return items;
       }
-    });
+    }, new Stats.InMemory());
     int x = 5, y = 6;
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2

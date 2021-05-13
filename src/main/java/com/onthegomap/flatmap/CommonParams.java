@@ -1,10 +1,11 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.geo.GeoUtils;
 import java.time.Duration;
 import org.locationtech.jts.geom.Envelope;
 
 public record CommonParams(
-  Envelope bounds,
+  Envelope latLonBounds,
   int threads,
   Duration logInterval,
   int minzoom,
@@ -29,7 +30,7 @@ public record CommonParams(
     }
   }
 
-  public static CommonParams defaultParams() {
+  public static CommonParams defaults() {
     return from(Arguments.empty());
   }
 
@@ -50,4 +51,7 @@ public record CommonParams(
     );
   }
 
+  public Envelope worldBounds() {
+    return GeoUtils.toWorldBounds(latLonBounds);
+  }
 }

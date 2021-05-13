@@ -17,7 +17,7 @@ public class FeatureSortTest {
   Path tmpDir;
 
   private static FeatureSort.Entry newEntry(int i) {
-    return new FeatureSort.Entry(i, new byte[]{(byte) i});
+    return new FeatureSort.Entry(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit) {

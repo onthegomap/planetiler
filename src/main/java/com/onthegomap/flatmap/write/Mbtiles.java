@@ -19,6 +19,7 @@ import java.sql.Statement;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -176,7 +177,11 @@ public record Mbtiles(Connection connection) implements Closeable {
     public enum FieldType {
       @JsonProperty("Number") NUMBER,
       @JsonProperty("Boolean") BOOLEAN,
-      @JsonProperty("String") STRING
+      @JsonProperty("String") STRING;
+
+      public static FieldType merge(FieldType oldValue, FieldType newValue) {
+        return oldValue != newValue ? STRING : newValue;
+      }
     }
 
     public static record VectorLayer(
@@ -187,8 +192,16 @@ public record Mbtiles(Connection connection) implements Closeable {
       @JsonProperty("maxzoom") OptionalInt maxzoom
     ) {
 
+      public static VectorLayer forLayer(String id) {
+        return new VectorLayer(id, new HashMap<>());
+      }
+
       public VectorLayer(String id, Map<String, FieldType> fields) {
         this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty());
+      }
+
+      public VectorLayer(String id, Map<String, FieldType> fields, int minzoom, int maxzoom) {
+        this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom));
       }
 
       public VectorLayer withDescription(String newDescription) {
@@ -244,9 +257,13 @@ public record Mbtiles(Connection connection) implements Closeable {
         int pos = 1;
         for (TileEntry tile : batch) {
           TileCoord coord = tile.tile();
-          statement.setInt(pos++, coord.z());
-          statement.setInt(pos++, coord.x());
-          statement.setInt(pos++, coord.y());
+          int x = coord.x();
+          int y = coord.y();
+          int z = coord.z();
+          statement.setInt(pos++, z);
+          statement.setInt(pos++, x);
+          // flip Y
+          statement.setInt(pos++, (1 << z) - 1 - y);
           statement.setBytes(pos++, tile.bytes());
         }
         statement.execute();

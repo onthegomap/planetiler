@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.CommonParams;
-import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
@@ -49,10 +48,10 @@ public class NaturalEarthReader extends Reader {
     }
   }
 
-  public static void process(String name, Path input, Path tmpDir, FeatureRenderer renderer, FeatureGroup writer,
-    CommonParams config, Profile profile, Stats stats) {
+  public static void process(String name, Path input, Path tmpDir, FeatureGroup writer, CommonParams config,
+    Profile profile, Stats stats) {
     try (var reader = new NaturalEarthReader(input, tmpDir, profile, stats)) {
-      reader.process(name, renderer, writer, config);
+      reader.process(name, writer, config);
     }
   }
 
@@ -129,8 +128,8 @@ public class NaturalEarthReader extends Reader {
               if (geometry == null) {
                 continue;
               }
-              Geometry geom = GeoUtils.wkbReader.read(geometry);
-              SourceFeature readerGeometry = new ReaderFeature(geom, column.length - 1);
+              Geometry latLonGeometry = GeoUtils.wkbReader.read(geometry);
+              SourceFeature readerGeometry = new ReaderFeature(latLonGeometry, column.length - 1);
               for (int c = 0; c < column.length; c++) {
                 if (c != geometryColumn) {
                   Object value = rs.getObject(c + 1);

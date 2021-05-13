@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.write;
 
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
+import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
@@ -25,17 +26,19 @@ public class MbtilesWriter {
 
   private final AtomicLong featuresProcessed = new AtomicLong(0);
   private final AtomicLong memoizedTiles = new AtomicLong(0);
-  private final AtomicLong tiles = new AtomicLong(0);
+  private final AtomicLong tilesEmitted = new AtomicLong(0);
   private final Mbtiles db;
   private final CommonParams config;
   private final Profile profile;
   private final Stats stats;
+  private final LayerStats layerStats;
 
-  MbtilesWriter(Mbtiles db, CommonParams config, Profile profile, Stats stats) {
+  MbtilesWriter(Mbtiles db, CommonParams config, Profile profile, Stats stats, LayerStats layerStats) {
     this.db = db;
     this.config = config;
     this.profile = profile;
     this.stats = stats;
+    this.layerStats = layerStats;
   }
 
   public static void writeOutput(FeatureGroup features, Path outputPath, Profile profile, CommonParams config,
@@ -49,7 +52,7 @@ public class MbtilesWriter {
 
   public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
     CommonParams config, Stats stats) {
-    MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats);
+    MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats, features.layerStats());
 
     var topology = Topology.start("mbtiles", stats)
       .readFrom("reader", features)
@@ -60,7 +63,7 @@ public class MbtilesWriter {
 
     var loggers = new ProgressLoggers("mbtiles")
       .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
-      .addRateCounter("tiles", writer.tiles)
+      .addRateCounter("tiles", writer.tilesEmitted)
       .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
       .addProcessStats()
@@ -111,15 +114,16 @@ public class MbtilesWriter {
       .setAttribution(profile.attribution())
       .setVersion(profile.version())
       .setTypeIsBaselayer()
-      .setBoundsAndCenter(config.bounds())
+      .setBoundsAndCenter(config.latLonBounds())
       .setMinzoom(config.minzoom())
       .setMaxzoom(config.maxzoom())
-      .setJson(stats.getTileStats());
+      .setJson(layerStats.getTileStats());
 
     try (var batchedWriter = db.newBatchedTileWriter()) {
       Mbtiles.TileEntry tile;
       while ((tile = tiles.get()) != null) {
         batchedWriter.write(tile.tile(), tile.bytes());
+        tilesEmitted.incrementAndGet();
       }
     }
 

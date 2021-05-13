@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.monitoring;
 
 import com.graphhopper.util.StopWatch;
-import com.onthegomap.flatmap.write.Mbtiles;
 import java.util.Map;
 import java.util.TreeMap;
 import org.slf4j.Logger;
@@ -20,8 +19,6 @@ public interface Stats {
   void encodedTile(int zoom, int length);
 
   void gauge(String name, int value);
-
-  Mbtiles.MetadataJson getTileStats();
 
   class InMemory implements Stats {
 
@@ -59,11 +56,6 @@ public interface Stats {
     @Override
     public void gauge(String name, int value) {
 
-    }
-
-    @Override
-    public Mbtiles.MetadataJson getTileStats() {
-      return null;
     }
   }
 }

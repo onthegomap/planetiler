@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Puntal;
 
 public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
 
@@ -19,8 +22,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     this.config = config;
   }
 
-  public static FeatureCollector from(SourceFeature source, CommonParams config) {
-    return new FeatureCollector(source, config);
+
+  public static record Factory(CommonParams config) {
+
+    public FeatureCollector get(SourceFeature source) {
+      return new FeatureCollector(source, config);
+    }
   }
 
   @Override
@@ -29,7 +36,21 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
   }
 
   public PointFeature point(String layer) {
-    return new PointFeature(layer, source.geometry().getCentroid());
+    var feature = new PointFeature(layer, source.centroid());
+    output.add(feature);
+    return feature;
+  }
+
+  public LineFeature line(String layername) {
+    var feature = new LineFeature(layername, source.line());
+    output.add(feature);
+    return feature;
+  }
+
+  public PolygonFeature polygon(String layername) {
+    var feature = new PolygonFeature(layername, source.polygon());
+    output.add(feature);
+    return feature;
   }
 
   public class PointFeature extends Feature<PointFeature> {
@@ -37,19 +58,39 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     private static final double DEFAULT_LABEL_GRID_SIZE = 0;
     private static final int DEFAULT_LABEL_GRID_LIMIT = 0;
 
-    private ZoomDependent.DoubleValue labelGridSize = null;
-    private ZoomDependent.IntValue labelGridLimit = null;
+    private ZoomFunction<Number> labelGridPixelSize = null;
+    private ZoomFunction<Number> labelGridLimit = null;
 
     private PointFeature(String layer, Geometry geom) {
       super(layer, geom);
+      assert geom instanceof Puntal;
     }
 
-    public double getLabelGridSizeAtZoom(int zoom) {
-      return labelGridSize == null ? DEFAULT_LABEL_GRID_SIZE : labelGridSize.getDoubleValueAtZoom(zoom);
+    public double getLabelGridPixelSizeAtZoom(int zoom) {
+      return ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
     }
 
     public int getLabelGridLimitAtZoom(int zoom) {
-      return labelGridLimit == null ? DEFAULT_LABEL_GRID_LIMIT : labelGridLimit.getIntValueAtZoom(zoom);
+      return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
+    }
+
+    private PointFeature setLabelGridPixelSizeFunction(ZoomFunction<Number> labelGridSize) {
+      this.labelGridPixelSize = labelGridSize;
+      return this;
+    }
+
+    private PointFeature setLabelGridLimitFunction(ZoomFunction<Number> labelGridLimit) {
+      this.labelGridLimit = labelGridLimit;
+      return this;
+    }
+
+    public PointFeature setLabelGridPixelSize(int maxzoom, double size) {
+      return setLabelGridPixelSizeFunction(ZoomFunction.maxZoom(maxzoom, size));
+    }
+
+    public PointFeature setLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
+      return setLabelGridPixelSizeFunction(ZoomFunction.maxZoom(maxzoom, size))
+        .setLabelGridLimitFunction(ZoomFunction.maxZoom(maxzoom, limit));
     }
 
     @Override
@@ -61,14 +102,25 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
   public class LineFeature extends Feature<LineFeature> {
 
     private double defaultMinLength = 1;
-    private ZoomDependent.DoubleValue minLength = null;
+    private ZoomFunction<Number> minLength = null;
 
     private LineFeature(String layer, Geometry geom) {
       super(layer, geom);
+      assert geom instanceof Lineal;
     }
 
     public double getMinLengthAtZoom(int zoom) {
-      return minLength == null ? defaultMinLength : minLength.getDoubleValueAtZoom(zoom);
+      return ZoomFunction.applyAsDoubleOrElse(minLength, zoom, defaultMinLength);
+    }
+
+    public LineFeature setMinLength(double minLength) {
+      this.defaultMinLength = minLength;
+      return this;
+    }
+
+    public LineFeature setMinLengthBelowZoom(int zoom, double minLength) {
+      this.minLength = ZoomFunction.maxZoom(zoom, minLength);
+      return this;
     }
 
     @Override
@@ -80,14 +132,24 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
   public class PolygonFeature extends Feature<PolygonFeature> {
 
     private double defaultMinArea = 1;
-    private ZoomDependent.DoubleValue minArea = null;
+    private ZoomFunction<Number> minArea = null;
 
     private PolygonFeature(String layer, Geometry geom) {
       super(layer, geom);
     }
 
     public double getMinAreaAtZoom(int zoom) {
-      return minArea == null ? defaultMinArea : minArea.getDoubleValueAtZoom(zoom);
+      return ZoomFunction.applyAsDoubleOrElse(minArea, zoom, defaultMinArea);
+    }
+
+    public PolygonFeature setMinArea(double minArea) {
+      this.defaultMinArea = minArea;
+      return this;
+    }
+
+    public PolygonFeature setMinAreaBelowZoom(int zoom, double minArea) {
+      this.minArea = ZoomFunction.maxZoom(zoom, minArea);
+      return this;
     }
 
     @Override
@@ -105,7 +167,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
     private double defaultBuffer;
-    private ZoomDependent.DoubleValue bufferOverrides;
+    private ZoomFunction<Number> bufferOverrides;
+    private final Map<String, Object> attrs = new TreeMap<>();
 
     private Feature(String layer, Geometry geom) {
       this.layer = layer;
@@ -130,7 +193,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     }
 
     public T setMinZoom(int min) {
-      minzoom = min;
+      minzoom = Math.max(min, config.minzoom());
       return self();
     }
 
@@ -139,7 +202,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     }
 
     public T setMaxZoom(int max) {
-      maxzoom = max;
+      maxzoom = Math.min(max, config.maxzoom());
       return self();
     }
 
@@ -160,12 +223,31 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     }
 
     public double getBufferAtZoom(int zoom) {
-      return bufferOverrides == null ? defaultBuffer : bufferOverrides.getDoubleValueAtZoom(zoom);
+      return ZoomFunction.applyAsDoubleOrElse(bufferOverrides, zoom, defaultBuffer);
+    }
+
+    public T setBuffer(double buffer) {
+      defaultBuffer = buffer;
+      return self();
+    }
+
+    public T setBufferOverrides(ZoomFunction<Number> buffer) {
+      bufferOverrides = buffer;
+      return self();
     }
 
     public Map<String, Object> getAttrsAtZoom(int zoom) {
-      TODO want minzoom / maxzoom per attr
-      different values per attr by zoom
+      Map<String, Object> result = new TreeMap<>();
+      for (var entry : attrs.entrySet()) {
+        Object value = entry.getValue();
+        if (value instanceof ZoomFunction<?> fn) {
+          value = fn.apply(zoom);
+        }
+        if (value != null && !"".equals(value)) {
+          result.put(entry.getKey(), value);
+        }
+      }
+      return result;
     }
 
     public T inheritFromSource(String attr) {
@@ -173,7 +255,14 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     }
 
     public T setAttr(String key, Object value) {
+      attrs.put(key, value);
       return self();
     }
+
+    public T setAttrWithMinzoom(String key, Object value, int minzoom) {
+      attrs.put(key, ZoomFunction.minZoom(minzoom, value));
+      return self();
+    }
+
   }
 }

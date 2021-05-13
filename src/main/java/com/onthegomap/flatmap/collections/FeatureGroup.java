@@ -2,10 +2,12 @@ package com.onthegomap.flatmap.collections;
 
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.graphhopper.coll.GHLongLongHashMap;
+import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
@@ -24,19 +27,33 @@ import org.msgpack.value.ValueFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEncoder commonStrings)
-  implements Consumer<FeatureSort.Entry>, Iterable<FeatureGroup.TileFeatures> {
+public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable<FeatureGroup.TileFeatures> {
 
   public static final int Z_ORDER_BITS = 23;
   public static final int Z_ORDER_MAX = (1 << (Z_ORDER_BITS - 1)) - 1;
   public static final int Z_ORDER_MIN = -(1 << (Z_ORDER_BITS - 1));
   private static final int Z_ORDER_MASK = (1 << Z_ORDER_BITS) - 1;
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
-  private static final ThreadLocal<MessageBufferPacker> messagePackers = ThreadLocal
-    .withInitial(MessagePack::newDefaultBufferPacker);
+  private final FeatureSort sorter;
+  private final Profile profile;
+  private final CommonStringEncoder commonStrings;
+  private final Stats stats;
 
-  public FeatureGroup(FeatureSort sorter, Profile profile) {
-    this(sorter, profile, new CommonStringEncoder());
+  public FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEncoder commonStrings, Stats stats) {
+    this.sorter = sorter;
+    this.profile = profile;
+    this.commonStrings = commonStrings;
+    this.stats = stats;
+  }
+
+  private final LayerStats layerStats = new LayerStats();
+
+  public LayerStats layerStats() {
+    return layerStats;
+  }
+
+  public FeatureGroup(FeatureSort sorter, Profile profile, Stats stats) {
+    this(sorter, profile, new CommonStringEncoder(), stats);
   }
 
   static long encodeSortKey(int tile, byte layer, int zOrder, boolean hasGroup) {
@@ -75,10 +92,18 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
     return sorter.size();
   }
 
-  public FeatureSort.Entry encode(RenderedFeature feature) {
+  public Function<RenderedFeature, FeatureSort.Entry> newRenderedFeatureEncoder() {
+    var packer = MessagePack.newDefaultBufferPacker();
+    return feature -> {
+      layerStats.accept(feature);
+      return encode(feature, packer);
+    };
+  }
+
+  private FeatureSort.Entry encode(RenderedFeature feature, MessageBufferPacker packer) {
     return new FeatureSort.Entry(
       encodeSortKey(feature),
-      encodeValue(feature)
+      encodeValue(feature, packer)
     );
   }
 
@@ -93,8 +118,7 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
     );
   }
 
-  private byte[] encodeValue(RenderedFeature feature) {
-    MessageBufferPacker packer = messagePackers.get();
+  private byte[] encodeValue(RenderedFeature feature, MessageBufferPacker packer) {
     packer.clear();
     try {
       var groupInfoOption = feature.group();
@@ -225,6 +249,52 @@ public record FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEnco
   public long getStorageSize() {
     return sorter.getStorageSize();
   }
+
+  public FeatureSort sorter() {
+    return sorter;
+  }
+
+  public Profile profile() {
+    return profile;
+  }
+
+  public CommonStringEncoder commonStrings() {
+    return commonStrings;
+  }
+
+  public Stats stats() {
+    return stats;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == this) {
+      return true;
+    }
+    if (obj == null || obj.getClass() != this.getClass()) {
+      return false;
+    }
+    var that = (FeatureGroup) obj;
+    return Objects.equals(this.sorter, that.sorter) &&
+      Objects.equals(this.profile, that.profile) &&
+      Objects.equals(this.commonStrings, that.commonStrings) &&
+      Objects.equals(this.stats, that.stats);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(sorter, profile, commonStrings, stats);
+  }
+
+  @Override
+  public String toString() {
+    return "FeatureGroup[" +
+      "sorter=" + sorter + ", " +
+      "profile=" + profile + ", " +
+      "commonStrings=" + commonStrings + ", " +
+      "stats=" + stats + ']';
+  }
+
 
   public class TileFeatures implements Consumer<FeatureSort.Entry> {
 

@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.geo;
 
 import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -13,12 +14,56 @@ public class GeoUtils {
   public static final GeometryFactory gf = new GeometryFactory();
   public static final WKBReader wkbReader = new WKBReader(gf);
 
+  private static final double WORLD_RADIUS_METERS = 6_378_137;
+  private static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
   private static final double DEGREES_TO_RADIANS = Math.PI / 180;
   private static final double RADIANS_TO_DEGREES = 180 / Math.PI;
   private static final double MAX_LAT = getWorldLat(-0.1);
   private static final double MIN_LAT = getWorldLat(1.1);
   public static Envelope WORLD_BOUNDS = new Envelope(0, 1, 0, 1);
   public static Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
+  public static final GeometryTransformer UNPROJECT_WORLD_COORDS = new GeometryTransformer() {
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
+      if (coords.getDimension() != 2) {
+        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
+      }
+      if (coords.getMeasures() != 0) {
+        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
+      }
+      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
+      for (int i = 0; i < coords.size(); i++) {
+        copy.setOrdinate(i, 0, getWorldLon(coords.getX(i)));
+        copy.setOrdinate(i, 1, getWorldLat(coords.getY(i)));
+      }
+      return copy;
+    }
+  };
+  public static final GeometryTransformer PROJECT_WORLD_COORDS = new GeometryTransformer() {
+    @Override
+    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
+      if (coords.getDimension() != 2) {
+        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
+      }
+      if (coords.getMeasures() != 0) {
+        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
+      }
+      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
+      for (int i = 0; i < coords.size(); i++) {
+        copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));
+        copy.setOrdinate(i, 1, getWorldY(coords.getY(i)));
+      }
+      return copy;
+    }
+  };
+
+  public static Geometry latLonToWorldCoords(Geometry geom) {
+    return PROJECT_WORLD_COORDS.transform(geom);
+  }
+
+  public static Geometry worldToLatLonCoords(Geometry geom) {
+    return UNPROJECT_WORLD_COORDS.transform(geom);
+  }
 
   public static Envelope toLatLonBoundsBounds(Envelope worldBounds) {
     return new Envelope(
@@ -106,5 +151,25 @@ public class GeoUtils {
   public static double getZoomFromWorldBounds(Envelope worldBounds) {
     double maxEdge = Math.max(worldBounds.getWidth(), worldBounds.getHeight());
     return Math.max(0, -Math.log(maxEdge) / Math.log(2));
+  }
+
+  public static double metersPerPixelAtEquator(int zoom) {
+    return WORLD_CIRCUMFERENCE_METERS / Math.pow(2, zoom + 8);
+  }
+
+  public static long longPair(int a, int b) {
+    return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
+  }
+
+  public static int first(int pair) {
+    return pair >> 16;
+  }
+
+  public static int second(int pair) {
+    return (pair << 16) >> 16;
+  }
+
+  public static Geometry point(double x, double y) {
+    return gf.createPoint(new CoordinateXY(x, y));
   }
 }

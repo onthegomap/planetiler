@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.CommonParams;
-import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
@@ -31,18 +30,18 @@ public class ShapefileReader extends Reader implements Closeable {
   private final FeatureCollection<SimpleFeatureType, SimpleFeature> inputSource;
   private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
-  private MathTransform transform;
+  private MathTransform transformToLatLon;
 
-  public static void process(String sourceProjection, String name, Path input, FeatureRenderer renderer,
-    FeatureGroup writer, CommonParams config, Profile profile, Stats stats) {
+  public static void process(String sourceProjection, String name, Path input, FeatureGroup writer, CommonParams config,
+    Profile profile, Stats stats) {
     try (var reader = new ShapefileReader(sourceProjection, input, profile, stats)) {
-      reader.process(name, renderer, writer, config);
+      reader.process(name, writer, config);
     }
   }
 
-  public static void process(String name, Path input, FeatureRenderer renderer,
-    FeatureGroup writer, CommonParams config, Profile profile, Stats stats) {
-    process(null, name, input, renderer, writer, config, profile, stats);
+  public static void process(String name, Path input, FeatureGroup writer, CommonParams config, Profile profile,
+    Stats stats) {
+    process(null, name, input, writer, config, profile, stats);
   }
 
   public ShapefileReader(String sourceProjection, Path input, Profile profile, Stats stats) {
@@ -57,9 +56,9 @@ public class ShapefileReader extends Reader implements Closeable {
       CoordinateReferenceSystem src =
         sourceProjection == null ? source.getSchema().getCoordinateReferenceSystem() : CRS.decode(sourceProjection);
       CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
-      transform = CRS.findMathTransform(src, dest);
-      if (transform.isIdentity()) {
-        transform = null;
+      transformToLatLon = CRS.findMathTransform(src, dest);
+      if (transformToLatLon.isIdentity()) {
+        transformToLatLon = null;
       }
       attributeNames = new String[inputSource.getSchema().getAttributeCount()];
       for (int i = 0; i < attributeNames.length; i++) {
@@ -110,12 +109,12 @@ public class ShapefileReader extends Reader implements Closeable {
         while (iter.hasNext()) {
           SimpleFeature feature = iter.next();
           Geometry source = (Geometry) feature.getDefaultGeometry();
-          Geometry transformed = source;
-          if (transform != null) {
-            transformed = JTS.transform(source, transform);
+          Geometry latLonGeometry = source;
+          if (transformToLatLon != null) {
+            latLonGeometry = JTS.transform(source, transformToLatLon);
           }
-          if (transformed != null) {
-            SourceFeature geom = new ReaderFeature(transformed, attributeNames.length);
+          if (latLonGeometry != null) {
+            SourceFeature geom = new ReaderFeature(latLonGeometry, attributeNames.length);
             for (int i = 1; i < attributeNames.length; i++) {
               geom.setTag(attributeNames[i], feature.getAttribute(i));
             }

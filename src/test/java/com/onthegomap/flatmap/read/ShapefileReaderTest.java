@@ -44,7 +44,7 @@ public class ShapefileReaderTest {
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {
           assertTrue(elem.getTag("name") instanceof String);
-          points.add(elem.geometry());
+          points.add(elem.latLonGeometry());
         }).await();
       assertEquals(86, points.size());
       var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));

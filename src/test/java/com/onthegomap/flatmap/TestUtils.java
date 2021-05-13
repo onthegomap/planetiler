@@ -2,9 +2,13 @@ package com.onthegomap.flatmap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.write.Mbtiles;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -14,11 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.zip.GZIPInputStream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
@@ -41,6 +47,10 @@ public class TestUtils {
 
   public static Polygon newPolygon(double... coords) {
     return GeoUtils.gf.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
+  }
+
+  public static LineString newLineString(double... coords) {
+    return GeoUtils.gf.createLineString(newCoordinateList(coords).toArray(new Coordinate[0]));
   }
 
   public static Point newPoint(double x, double y) {
@@ -74,10 +84,17 @@ public class TestUtils {
     }.transform(input);
   }
 
-  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException {
+  private static byte[] gunzip(byte[] zipped) throws IOException {
+    try (var is = new GZIPInputStream(new ByteArrayInputStream(zipped))) {
+      return is.readAllBytes();
+    }
+  }
+
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException, IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
-      var decoded = VectorTileEncoder.decode(tile.bytes()).stream()
+      var bytes = gunzip(tile.bytes());
+      var decoded = VectorTileEncoder.decode(bytes).stream()
         .map(feature -> feature(feature.geometry().decode(), feature.attrs())).toList();
       tiles.put(tile.tile(), decoded);
     }
@@ -89,12 +106,11 @@ public class TestUtils {
     try (Statement statement = db.connection().createStatement()) {
       ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
       while (rs.next()) {
+        int z = rs.getInt("zoom_level");
+        int rawy = rs.getInt("tile_row");
+        int x = rs.getInt("tile_column");
         result.add(new Mbtiles.TileEntry(
-          TileCoord.ofXYZ(
-            rs.getInt("tile_column"),
-            rs.getInt("tile_row"),
-            rs.getInt("zoom_level")
-          ),
+          TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z),
           rs.getBytes("tile_data")
         ));
       }
@@ -106,18 +122,30 @@ public class TestUtils {
     assertEquals(new TreeMap<>(expected), actual);
   }
 
-  public static <K extends Comparable<? super K>, V> void assertSubmap(Map<K, V> expectedSubmap, Map<K, V> actual) {
-    Map<K, V> actualFiltered = new TreeMap<>();
-    Map<K, V> others = new TreeMap<>();
+  public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual) {
+    assertSubmap(expectedSubmap, actual, "");
+  }
+
+  public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual,
+    String message) {
+    Map<K, Object> actualFiltered = new TreeMap<>();
+    Map<K, Object> others = new TreeMap<>();
     for (K key : actual.keySet()) {
-      V value = actual.get(key);
+      Object value = actual.get(key);
       if (expectedSubmap.containsKey(key)) {
         actualFiltered.put(key, value);
       } else {
         others.put(key, value);
       }
     }
-    assertEquals(new TreeMap<>(expectedSubmap), actualFiltered, "others: " + others);
+    for (K key : expectedSubmap.keySet()) {
+      if ("<null>".equals(expectedSubmap.get(key))) {
+        if (!actual.containsKey(key)) {
+          actualFiltered.put(key, "<null>");
+        }
+      }
+    }
+    assertEquals(new TreeMap<>(expectedSubmap), actualFiltered, message + " others: " + others);
   }
 
   public interface GeometryComparision {
@@ -150,5 +178,37 @@ public class TestUtils {
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
     return new ComparableFeature(new TopoGeometry(geom), attrs);
+  }
+
+  public static Map<String, Object> toMap(FeatureCollector.Feature<?> feature, int zoom) {
+    TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
+    result.put("_minzoom", feature.getMinZoom());
+    result.put("_maxzoom", feature.getMaxZoom());
+    result.put("_buffer", feature.getBufferAtZoom(zoom));
+    result.put("_id", feature.getId());
+    result.put("_layer", feature.getLayer());
+    result.put("_zorder", feature.getZorder());
+    result.put("_geom", new TopoGeometry(feature.getGeometry()));
+    if (feature instanceof FeatureCollector.PointFeature pointFeature) {
+      result.put("_type", "point");
+      result.put("_labelgrid_limit", pointFeature.getLabelGridLimitAtZoom(zoom));
+      result.put("_labelgrid_size", pointFeature.getLabelGridPixelSizeAtZoom(zoom));
+    } else if (feature instanceof FeatureCollector.LineFeature lineFeature) {
+      result.put("_type", "line");
+      result.put("_minlength", lineFeature.getMinLengthAtZoom(zoom));
+    } else if (feature instanceof FeatureCollector.PolygonFeature polygonFeature) {
+      result.put("_type", "polygon");
+      result.put("_minarea", polygonFeature.getMinAreaAtZoom(zoom));
+    }
+    return result;
+  }
+
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
+  public static void assertSameJson(String expected, String actual) throws JsonProcessingException {
+    assertEquals(
+      objectMapper.readTree(expected),
+      objectMapper.readTree(actual)
+    );
   }
 }

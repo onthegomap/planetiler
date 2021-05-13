@@ -69,8 +69,7 @@ public class OpenMapTilesMain {
     Path nodeDb = tmpDir.resolve("node.db");
     LongLongMap nodeLocations = LongLongMap.newFileBackedSortedTable(nodeDb);
     FeatureSort featureDb = FeatureSort.newExternalMergeSort(tmpDir.resolve("feature.db"), config.threads(), stats);
-    FeatureGroup featureMap = new FeatureGroup(featureDb, profile);
-    FeatureRenderer renderer = new FeatureRenderer(config);
+    FeatureGroup featureMap = new FeatureGroup(featureDb, profile, stats);
 
     if (fetchWikidata) {
       stats.time("wikidata", () -> Wikidata.fetch(osmInputFile, wikidataNamesFile, config, profile, stats));
@@ -81,18 +80,18 @@ public class OpenMapTilesMain {
 
     stats.time("lake_centerlines", () ->
       ShapefileReader
-        .process("EPSG:3857", "lake_centerlines", centerlines, renderer, featureMap, config, profile, stats));
+        .process("EPSG:3857", "lake_centerlines", centerlines, featureMap, config, profile, stats));
     stats.time("water_polygons", () ->
-      ShapefileReader.process("water_polygons", waterPolygons, renderer, featureMap, config, profile, stats));
+      ShapefileReader.process("water_polygons", waterPolygons, featureMap, config, profile, stats));
     stats.time("natural_earth", () ->
       NaturalEarthReader
-        .process("natural_earth", naturalEarth, tmpDir.resolve("natearth.sqlite"), renderer, featureMap, config,
+        .process("natural_earth", naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap, config,
           profile, stats)
     );
 
     try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, profile, stats)) {
       stats.time("osm_pass1", () -> osmReader.pass1(config));
-      stats.time("osm_pass2", () -> osmReader.pass2(renderer, featureMap, config));
+      stats.time("osm_pass2", () -> osmReader.pass2(featureMap, config));
     }
 
     LOGGER.info("Deleting node.db to make room for mbtiles");

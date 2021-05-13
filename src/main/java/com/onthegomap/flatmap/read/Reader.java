@@ -27,10 +27,10 @@ public abstract class Reader implements Closeable {
     this.profile = profile;
   }
 
-  public final void process(String name, FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
+  public final void process(String name, FeatureGroup writer, CommonParams config) {
     long featureCount = getCount();
     int threads = config.threads();
-    Envelope env = config.bounds();
+    Envelope latLonBounds = config.latLonBounds();
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
@@ -39,13 +39,19 @@ public abstract class Reader implements Closeable {
       .addBuffer("read_queue", 1000)
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
         SourceFeature sourceFeature;
+        var featureCollectors = new FeatureCollector.Factory(config);
+        var encoder = writer.newRenderedFeatureEncoder();
+        FeatureRenderer renderer = new FeatureRenderer(
+          config,
+          rendered -> next.accept(encoder.apply(rendered))
+        );
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
-          FeatureCollector features = FeatureCollector.from(sourceFeature);
-          if (sourceFeature.geometry().getEnvelopeInternal().intersects(env)) {
+          FeatureCollector features = featureCollectors.get(sourceFeature);
+          if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
             profile.processFeature(sourceFeature, features);
-            for (FeatureCollector.Feature renderable : features) {
-              renderer.renderFeature(renderable, next);
+            for (FeatureCollector.Feature<?> renderable : features) {
+              renderer.renderFeature(renderable);
             }
           }
         }

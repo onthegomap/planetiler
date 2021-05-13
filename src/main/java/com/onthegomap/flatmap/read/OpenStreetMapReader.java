@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap.read;
 
+import com.carrotsearch.hppc.LongArrayList;
+import com.carrotsearch.hppc.LongDoubleHashMap;
 import com.carrotsearch.hppc.LongHashSet;
 import com.graphhopper.coll.GHLongHashSet;
 import com.graphhopper.coll.GHLongObjectHashMap;
@@ -25,10 +27,12 @@ import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
 public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstimate {
 
@@ -107,7 +111,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     topology.awaitAndLog(loggers, config.logInterval());
   }
 
-  public void pass2(FeatureRenderer renderer, FeatureGroup writer, CommonParams config) {
+  public void pass2(FeatureGroup writer, CommonParams config) {
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
     AtomicLong nodesProcessed = new AtomicLong(0);
@@ -120,6 +124,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         ReaderElement readerElement;
+        var featureCollectors = new FeatureCollector.Factory(config);
+        NodeGeometryCache nodeCache = new NodeGeometryCache();
+        var encoder = writer.newRenderedFeatureEncoder();
+        FeatureRenderer renderer = new FeatureRenderer(
+          config,
+          rendered -> next.accept(encoder.apply(rendered))
+        );
         while ((readerElement = prev.get()) != null) {
           SourceFeature feature = null;
           if (readerElement instanceof ReaderNode node) {
@@ -127,7 +138,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
             feature = new NodeSourceFeature(node);
           } else if (readerElement instanceof ReaderWay way) {
             waysProcessed.incrementAndGet();
-            feature = new WaySourceFeature(way);
+            feature = new WaySourceFeature(way, nodeCache);
           } else if (readerElement instanceof ReaderRelation rel) {
             // ensure all ways finished processing before we start relations
             if (waysDone.getCount() > 0) {
@@ -140,12 +151,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
             }
           }
           if (feature != null) {
-            FeatureCollector features = FeatureCollector.from(feature);
+            FeatureCollector features = featureCollectors.get(feature);
             profile.processFeature(feature, features);
-            for (FeatureCollector.Feature renderable : features) {
-              renderer.renderFeature(renderable, next);
+            for (FeatureCollector.Feature<?> renderable : features) {
+              renderer.renderFeature(renderable);
             }
           }
+          nodeCache.reset();
         }
 
         // just in case a worker skipped over all relations
@@ -197,41 +209,73 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private static abstract class ProxyFeature implements SourceFeature {
-
-    protected final Map<String, Object> tags;
+  private static abstract class ProxyFeature extends SourceFeature {
 
     public ProxyFeature(ReaderElement elem) {
-      tags = ReaderElementUtils.getProperties(elem);
+      super(ReaderElementUtils.getProperties(elem));
     }
 
+    private Geometry latLonGeom;
+
     @Override
-    public Map<String, Object> properties() {
-      return null;
+    public Geometry latLonGeometry() {
+      return latLonGeom != null ? latLonGeom : (latLonGeom = GeoUtils.latLonToWorldCoords(worldGeometry()));
     }
+
+    private Geometry worldGeom;
+
+    @Override
+    public Geometry worldGeometry() {
+      return worldGeom != null ? worldGeom : (worldGeom = computeWorldGeometry());
+    }
+
+    protected abstract Geometry computeWorldGeometry();
   }
 
   private static class NodeSourceFeature extends ProxyFeature {
 
-    public NodeSourceFeature(ReaderNode node) {
+    private final double lon;
+    private final double lat;
+
+    NodeSourceFeature(ReaderNode node) {
       super(node);
+      this.lon = node.getLon();
+      this.lat = node.getLat();
     }
 
     @Override
-    public Geometry geometry() {
-      return null;
+    protected Geometry computeWorldGeometry() {
+      return GeoUtils.gf.createPoint(new CoordinateXY(
+        GeoUtils.getWorldX(lon),
+        GeoUtils.getWorldY(lat)
+      ));
+    }
+
+    @Override
+    public boolean isPoint() {
+      return true;
     }
   }
 
   private static class WaySourceFeature extends ProxyFeature {
 
-    public WaySourceFeature(ReaderWay way) {
+    private final NodeGeometryCache nodeCache;
+    private final LongArrayList nodeIds;
+
+    public WaySourceFeature(ReaderWay way, NodeGeometryCache nodeCache) {
       super(way);
+      this.nodeIds = way.getNodes();
+      this.nodeCache = nodeCache;
     }
 
     @Override
-    public Geometry geometry() {
+    protected Geometry computeWorldGeometry() {
       return null;
+    }
+
+    @Override
+    public boolean isPoint() {
+      return false;
     }
   }
 
@@ -242,8 +286,45 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
 
     @Override
-    public Geometry geometry() {
+    protected Geometry computeWorldGeometry() {
       return null;
+    }
+
+    @Override
+    public boolean isPoint() {
+      return false;
+    }
+  }
+
+  private class NodeGeometryCache {
+
+    private final LongDoubleHashMap xs = new LongDoubleHashMap();
+    private final LongDoubleHashMap ys = new LongDoubleHashMap();
+
+    public CoordinateSequence getWayGeometry(LongArrayList nodeIds) {
+      int num = nodeIds.size();
+      CoordinateSequence seq = new PackedCoordinateSequence.Double(nodeIds.size(), 2, 0);
+
+      for (int i = 0; i < num; i++) {
+        long id = nodeIds.get(i);
+        double worldX, worldY;
+        worldX = xs.getOrDefault(id, Double.NaN);
+        if (Double.isNaN(worldX)) {
+          long encoded = nodeDb.get(id);
+          xs.put(id, worldX = GeoUtils.decodeWorldX(encoded));
+          ys.put(id, worldY = GeoUtils.decodeWorldY(encoded));
+        } else {
+          worldY = ys.get(id);
+        }
+        seq.setOrdinate(i, 0, worldX);
+        seq.setOrdinate(i, 1, worldY);
+      }
+      return seq;
+    }
+
+    public void reset() {
+      xs.clear();
+      ys.clear();
     }
   }
 }

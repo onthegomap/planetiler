@@ -36,7 +36,7 @@ public class NaturalEarthReaderTest {
           .sinkToConsumer("counter", 1, elem -> {
             Object elevation = elem.getTag("elevation");
             assertTrue(elevation instanceof Double, Objects.toString(elevation));
-            points.add(elem.geometry());
+            points.add(elem.latLonGeometry());
           }).await();
         assertEquals(19, points.size());
         var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
