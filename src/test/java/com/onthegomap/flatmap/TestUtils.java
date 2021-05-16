@@ -223,7 +223,7 @@ public class TestUtils {
   }
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
-    return new ComparableFeature(new TopoGeometry(geom), attrs);
+    return new ComparableFeature(new NormGeometry(geom), attrs);
   }
 
   public static Map<String, Object> toMap(FeatureCollector.Feature<?> feature, int zoom) {

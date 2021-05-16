@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import static com.onthegomap.flatmap.TestUtils.assertSameJson;
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
 import static com.onthegomap.flatmap.TestUtils.feature;
+import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -163,6 +164,57 @@ public class FlatMapTest {
         """,
       results.metadata.get("json")
     );
+  }
+
+  @Test
+  public void testMultiPoint() throws IOException, SQLException {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z13_WIDTH / 256d;
+    double y2 = y1 + Z13_WIDTH / 256d;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newMultiPoint(
+          newPoint(lng1, lat1),
+          newPoint(lng2, lat2)
+        ), Map.of(
+          "attr", "value"
+        ))
+      ),
+      (in, features) -> {
+        features.point("layer")
+          .setZoomRange(13, 14)
+          .setAttr("name", "name value")
+          .inheritFromSource("attr");
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newMultiPoint(
+          newPoint(128, 128),
+          newPoint(130, 130)
+        ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newMultiPoint(
+          newPoint(64, 64),
+          newPoint(65, 65)
+        ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
   }
 
   @Test
