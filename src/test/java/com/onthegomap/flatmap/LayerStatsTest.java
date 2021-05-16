@@ -86,7 +86,6 @@ public class LayerStatsTest {
     ), layerStats.getTileStats());
   }
 
-
   @Test
   public void testMergeFromMultipleThreads() throws InterruptedException {
     Thread t1 = new Thread(() -> {
@@ -103,7 +102,6 @@ public class LayerStatsTest {
       ));
     });
     t1.start();
-    t1.join();
     Thread t2 = new Thread(() -> {
       layerStats.accept(new RenderedFeature(
         TileCoord.ofXYZ(1, 2, 4),
@@ -118,6 +116,7 @@ public class LayerStatsTest {
       ));
     });
     t2.start();
+    t1.join();
     t2.join();
     assertEquals(new Mbtiles.MetadataJson(
       new Mbtiles.MetadataJson.VectorLayer("layer1", Map.of(

@@ -13,11 +13,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -148,24 +152,66 @@ public class TestUtils {
     assertEquals(new TreeMap<>(expectedSubmap), actualFiltered, message + " others: " + others);
   }
 
+  public static Geometry emptyGeometry() {
+    return GeoUtils.gf.createGeometryCollection();
+  }
+
   public interface GeometryComparision {
 
     Geometry geom();
   }
 
-  public static record ExactGeometry(Geometry geom) implements GeometryComparision {
+  private static record NormGeometry(Geometry geom) implements GeometryComparision {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof GeometryComparision that && geom.equalsNorm(that.geom());
+    }
+
+    @Override
+    public String toString() {
+      return "Norm{" + geom + '}';
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+  }
+
+  private static record ExactGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
       return o instanceof GeometryComparision that && geom.equalsExact(that.geom());
     }
+
+    @Override
+    public String toString() {
+      return "Exact{" + geom + '}';
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
   }
 
-  public static record TopoGeometry(Geometry geom) implements GeometryComparision {
+  private static record TopoGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
       return o instanceof GeometryComparision that && geom.equalsTopo(that.geom());
+    }
+
+    @Override
+    public String toString() {
+      return "Topo{" + geom + '}';
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
     }
   }
 
@@ -184,8 +230,7 @@ public class TestUtils {
     TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
     result.put("_minzoom", feature.getMinZoom());
     result.put("_maxzoom", feature.getMaxZoom());
-    result.put("_buffer", feature.getBufferAtZoom(zoom));
-    result.put("_id", feature.getId());
+    result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));
     result.put("_layer", feature.getLayer());
     result.put("_zorder", feature.getZorder());
     result.put("_geom", new TopoGeometry(feature.getGeometry()));
@@ -209,6 +254,47 @@ public class TestUtils {
     assertEquals(
       objectMapper.readTree(expected),
       objectMapper.readTree(actual)
+    );
+  }
+
+  public static <T> Map<TileCoord, Collection<T>> mapTileFeatures(Map<TileCoord, Collection<Geometry>> in,
+    Function<Geometry, T> fn) {
+    TreeMap<TileCoord, Collection<T>> out = new TreeMap<>();
+    for (var entry : in.entrySet()) {
+      out.put(entry.getKey(), entry.getValue().stream().map(fn)
+        .sorted(Comparator.comparing(Object::toString))
+        .collect(Collectors.toList()));
+    }
+    return out;
+  }
+
+  public static void assertExactSameFeatures(
+    Map<TileCoord, Collection<Geometry>> expected,
+    Map<TileCoord, Collection<Geometry>> actual
+  ) {
+    assertEquals(
+      mapTileFeatures(expected, ExactGeometry::new),
+      mapTileFeatures(actual, ExactGeometry::new)
+    );
+  }
+
+  public static void assertTopologicallyEquivalentFeatures(
+    Map<TileCoord, Collection<Geometry>> expected,
+    Map<TileCoord, Collection<Geometry>> actual
+  ) {
+    assertEquals(
+      mapTileFeatures(expected, TopoGeometry::new),
+      mapTileFeatures(actual, TopoGeometry::new)
+    );
+  }
+
+  public static void assertSameNormalizedFeatures(
+    Map<TileCoord, Collection<Geometry>> expected,
+    Map<TileCoord, Collection<Geometry>> actual
+  ) {
+    assertEquals(
+      mapTileFeatures(expected, NormGeometry::new),
+      mapTileFeatures(actual, NormGeometry::new)
     );
   }
 }

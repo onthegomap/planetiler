@@ -42,8 +42,8 @@ public class FeatureCollectorTest {
       .setZoomRange(12, 14)
       .setZorder(3)
       .setAttr("attr1", 2)
-      .setBuffer(10d)
-      .setBufferOverrides(ZoomFunction.maxZoom(12, 11d))
+      .setBufferPixels(10d)
+      .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 11d))
       .setLabelGridSizeAndLimit(12, 100, 10);
     assertFeatures(14, List.of(
       Map.of(

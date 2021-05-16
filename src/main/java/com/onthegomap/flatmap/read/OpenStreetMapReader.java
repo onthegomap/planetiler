@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
@@ -245,10 +244,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     @Override
     protected Geometry computeWorldGeometry() {
-      return GeoUtils.gf.createPoint(new CoordinateXY(
+      return GeoUtils.point(
         GeoUtils.getWorldX(lon),
         GeoUtils.getWorldY(lat)
-      ));
+      );
     }
 
     @Override

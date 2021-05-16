@@ -67,10 +67,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   @Override
   public String toString() {
-    return "[" +
-      z + "/" + x + "/" + y +
-      " (" + encoded +
-      ")]";
+    return "{x=" + x + " y=" + y + " z=" + z + '}';
   }
 
   @Override

@@ -1,10 +1,14 @@
 package com.onthegomap.flatmap.geo;
 
+import java.util.Collection;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
@@ -169,7 +173,20 @@ public class GeoUtils {
     return (pair << 16) >> 16;
   }
 
-  public static Geometry point(double x, double y) {
+  public static Point point(double x, double y) {
     return gf.createPoint(new CoordinateXY(x, y));
+  }
+
+  public static Point point(Coordinate coord) {
+    return gf.createPoint(coord);
+  }
+
+  public static MultiPoint multiPoint(Collection<Coordinate> coords) {
+    return gf.createMultiPointFromCoords(coords.toArray(new Coordinate[0]));
+  }
+
+  public static Geometry multiPoint(double... coords) {
+    assert coords.length % 2 == 0;
+    return gf.createMultiPoint(new PackedCoordinateSequence.Double(coords, 2, 0));
   }
 }

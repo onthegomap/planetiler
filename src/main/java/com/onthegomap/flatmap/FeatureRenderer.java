@@ -3,10 +3,15 @@ package com.onthegomap.flatmap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
@@ -19,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FeatureRenderer {
+
+  private static final AtomicLong idGen = new AtomicLong(0);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private final CommonParams config;
@@ -33,12 +40,14 @@ public class FeatureRenderer {
     renderGeometry(feature.getGeometry(), feature);
   }
 
-  public void renderGeometry(Geometry geom, FeatureCollector.Feature<?> feature) {
+  private void renderGeometry(Geometry geom, FeatureCollector.Feature<?> feature) {
     // TODO what about converting between area and line?
     // TODO generate ID in here?
-    if (feature instanceof FeatureCollector.PointFeature pointFeature) {
+    if (geom.isEmpty()) {
+      LOGGER.warn("Empty geometry " + feature);
+    } else if (feature instanceof FeatureCollector.PointFeature pointFeature) {
       if (geom instanceof Point point) {
-        addPointFeature(pointFeature, point);
+        addPointFeature(pointFeature, point.getCoordinates());
       } else if (geom instanceof MultiPoint points) {
         addPointFeature(pointFeature, points);
       } else {
@@ -82,7 +91,7 @@ public class FeatureRenderer {
 //    }
   }
 
-  private static double clip(double value, double max) {
+  private static int wrapInt(int value, int max) {
     value %= max;
     if (value < 0) {
       value += max;
@@ -90,55 +99,80 @@ public class FeatureRenderer {
     return value;
   }
 
-  private void addPointFeature(FeatureCollector.PointFeature feature, Point point) {
+  private static double wrapDouble(double value, double max) {
+    value %= max;
+    if (value < 0) {
+      value += max;
+    }
+    return value;
+  }
+
+  private void slicePoint(Map<TileCoord, Set<Coordinate>> output, int zoom, double buffer, Coordinate coord) {
+    int tilesAtZoom = 1 << zoom;
+    double worldX = coord.getX() * tilesAtZoom;
+    double worldY = coord.getY() * tilesAtZoom;
+    int minX = (int) Math.floor(worldX - buffer);
+    int maxX = (int) Math.floor(worldX + buffer);
+    int minY = Math.max(0, (int) Math.floor(worldY - buffer));
+    int maxY = Math.min(tilesAtZoom - 1, (int) Math.floor(worldY + buffer));
+    for (int x = minX; x <= maxX; x++) {
+      double tileX = worldX - x;
+      for (int y = minY; y <= maxY; y++) {
+        TileCoord tile = TileCoord.ofXYZ(wrapInt(x, tilesAtZoom), y, zoom);
+        double tileY = worldY - y;
+        Coordinate outCoordinate = new CoordinateXY(tileX * 256, tileY * 256);
+        output.computeIfAbsent(tile, t -> new HashSet<>()).add(outCoordinate);
+      }
+    }
+  }
+
+  private void addPointFeature(FeatureCollector.PointFeature feature, Coordinate... coords) {
+    long id = idGen.incrementAndGet();
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
+      Map<TileCoord, Set<Coordinate>> sliced = new HashMap<>();
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
-      double buffer = feature.getBufferAtZoom(zoom);
-      double tilesAtZoom = 1 << zoom;
-      double worldX = point.getX() * tilesAtZoom;
-      double worldY = point.getY() * tilesAtZoom;
+      double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
+      int tilesAtZoom = 1 << zoom;
+      for (Coordinate coord : coords) {
+        slicePoint(sliced, zoom, buffer, coord);
+      }
 
-      double labelGridTileSize = feature.getLabelGridPixelSizeAtZoom(zoom) / 256d;
-      Optional<RenderedFeature.Group> groupInfo = labelGridTileSize >= 1d / 4096d ?
-        Optional.of(new RenderedFeature.Group(GeoUtils.longPair(
-          (int) Math.floor(clip(worldX, tilesAtZoom) / labelGridTileSize),
-          (int) Math.floor(worldY / labelGridTileSize)
-        ), feature.getLabelGridLimitAtZoom(zoom))) : Optional.empty();
+      Optional<RenderedFeature.Group> groupInfo = Optional.empty();
+      if (feature.hasLabelGrid() && coords.length == 1) {
+        double labelGridTileSize = feature.getLabelGridPixelSizeAtZoom(zoom) / 256d;
+        groupInfo = labelGridTileSize >= 1d / 4096d ?
+          Optional.of(new RenderedFeature.Group(GeoUtils.longPair(
+            (int) Math.floor(wrapDouble(coords[0].getX() * tilesAtZoom, tilesAtZoom) / labelGridTileSize),
+            (int) Math.floor((coords[0].getY() * tilesAtZoom) / labelGridTileSize)
+          ), feature.getLabelGridLimitAtZoom(zoom))) : Optional.empty();
+      }
 
-      int minX = (int) (worldX - buffer);
-      int maxX = (int) (worldX + buffer);
-      int minY = (int) (worldY - buffer);
-      int maxY = (int) (worldY + buffer);
-
-      // TODO test (real, feature, unit)
-      // TODO wrap x at z0
-      // TODO multipoints?
-      // TODO factor-out rendered feature creation
-      for (int x = minX; x <= maxX; x++) {
-        for (int y = minY; y <= maxY; y++) {
-          TileCoord tile = TileCoord.ofXYZ(x, y, zoom);
-          double tileX = worldX - x;
-          double tileY = worldY - y;
-          consumer.accept(new RenderedFeature(
-            tile,
-            new VectorTileEncoder.Feature(
-              feature.getLayer(),
-              feature.getId(),
-              VectorTileEncoder.encodeGeometry(GeoUtils.point(tileX * 256, tileY * 256)),
-              attrs
-            ),
-            feature.getZorder(),
-            groupInfo
-          ));
-        }
+      for (var entry : sliced.entrySet()) {
+        Set<Coordinate> value = entry.getValue();
+        Geometry geom = value.size() == 1 ? GeoUtils.point(value.iterator().next()) : GeoUtils.multiPoint(value);
+        consumer.accept(new RenderedFeature(
+          entry.getKey(),
+          new VectorTileEncoder.Feature(
+            feature.getLayer(),
+            id,
+            VectorTileEncoder.encodeGeometry(geom),
+            attrs
+          ),
+          feature.getZorder(),
+          groupInfo
+        ));
       }
     }
   }
 
   private void addPointFeature(FeatureCollector.PointFeature feature, MultiPoint points) {
-    Map<TileCoord, List<Point>> tilePoints = new HashMap<>();
-
-    // TODO render features into tile
+    if (feature.hasLabelGrid()) {
+      for (Coordinate coord : points.getCoordinates()) {
+        addPointFeature(feature, coord);
+      }
+    } else {
+      addPointFeature(feature, points.getCoordinates());
+    }
   }
 
   private void addLinearFeature(FeatureCollector.Feature<?> feature, Geometry geom) {

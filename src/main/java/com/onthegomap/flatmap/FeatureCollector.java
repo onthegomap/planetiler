@@ -5,14 +5,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Puntal;
 
 public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
 
-  private static final AtomicLong idGen = new AtomicLong(0);
   private final SourceFeature source;
   private final List<Feature<?>> output = new ArrayList<>();
   private final CommonParams config;
@@ -36,7 +34,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
   }
 
   public PointFeature point(String layer) {
-    var feature = new PointFeature(layer, source.centroid());
+    var feature = new PointFeature(layer, source.isPoint() ? source.worldGeometry() : source.centroid());
     output.add(feature);
     return feature;
   }
@@ -96,6 +94,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
     @Override
     protected PointFeature self() {
       return this;
+    }
+
+    public boolean hasLabelGrid() {
+      return labelGridPixelSize != null || labelGridLimit != null;
     }
   }
 
@@ -162,18 +164,16 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
 
     private final String layer;
     private final Geometry geom;
-    private final long id;
     private int zOrder;
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
-    private double defaultBuffer;
-    private ZoomFunction<Number> bufferOverrides;
+    private double defaultBufferPixels = 4;
+    private ZoomFunction<Number> bufferPixelOverrides;
     private final Map<String, Object> attrs = new TreeMap<>();
 
     private Feature(String layer, Geometry geom) {
       this.layer = layer;
       this.geom = geom;
-      this.id = idGen.incrementAndGet();
       this.zOrder = 0;
     }
 
@@ -210,10 +210,6 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
       return maxzoom;
     }
 
-    public long getId() {
-      return id;
-    }
-
     public String getLayer() {
       return layer;
     }
@@ -222,17 +218,17 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
       return geom;
     }
 
-    public double getBufferAtZoom(int zoom) {
-      return ZoomFunction.applyAsDoubleOrElse(bufferOverrides, zoom, defaultBuffer);
+    public double getBufferPixelsAtZoom(int zoom) {
+      return ZoomFunction.applyAsDoubleOrElse(bufferPixelOverrides, zoom, defaultBufferPixels);
     }
 
-    public T setBuffer(double buffer) {
-      defaultBuffer = buffer;
+    public T setBufferPixels(double buffer) {
+      defaultBufferPixels = buffer;
       return self();
     }
 
-    public T setBufferOverrides(ZoomFunction<Number> buffer) {
-      bufferOverrides = buffer;
+    public T setBufferPixelOverrides(ZoomFunction<Number> buffer) {
+      bufferPixelOverrides = buffer;
       return self();
     }
 
@@ -264,5 +260,13 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature<?>> {
       return self();
     }
 
+    @Override
+    public String toString() {
+      return "Feature{" +
+        "layer='" + layer + '\'' +
+        ", geom=" + geom.getGeometryType() +
+        ", attrs=" + attrs +
+        '}';
+    }
   }
 }

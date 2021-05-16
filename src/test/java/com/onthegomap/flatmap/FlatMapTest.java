@@ -28,7 +28,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
-public class FeatureTest {
+/**
+ * In-memory tests with fake data and profiles to ensure all features work end-to-end.
+ */
+public class FlatMapTest {
 
   private static final String TEST_PROFILE_NAME = "test name";
   private static final String TEST_PROFILE_DESCRIPTION = "test description";
@@ -162,6 +165,46 @@ public class FeatureTest {
     );
   }
 
+  @Test
+  public void testLabelGridLimit() throws IOException, SQLException {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
+        new ReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
+        new ReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
+      ),
+      (in, features) -> {
+        features.point("layer")
+          .setZoomRange(13, 14)
+          .inheritFromSource("rank")
+          .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+          .setLabelGridSizeAndLimit(13, 128, 2);
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 128), Map.of("rank", "1")),
+        feature(newPoint(74, 128), Map.of("rank", "2")),
+        feature(newPoint(84, 128), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // omit rank=1 due to label grid size
+        feature(newPoint(37, 64), Map.of("rank", "2")),
+        feature(newPoint(42, 64), Map.of("rank", "3"))
+      )
+    ), results.tiles);
+  }
+
   private interface LayerPostprocessFunction {
 
     List<VectorTileEncoder.Feature> process(String layer, int zoom, List<VectorTileEncoder.Feature> items);
@@ -218,6 +261,4 @@ public class FeatureTest {
       return postprocessLayerFeatures.process(layer, zoom, items);
     }
   }
-
-  // TODO: refactor into parameterized test?
 }
