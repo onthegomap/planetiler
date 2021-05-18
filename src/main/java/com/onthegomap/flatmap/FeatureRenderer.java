@@ -4,12 +4,14 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -19,6 +21,9 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,12 +149,53 @@ public class FeatureRenderer {
     }
   }
 
-  private void addLinearFeature(FeatureCollector.Feature feature, Geometry geom) {
+  private void addLinearFeature(FeatureCollector.Feature feature, Geometry input) {
+    // TODO move to feature?
     double minSizeAtMaxZoom = 1d / 4096;
     double normalTolerance = 0.1 / 256;
     double toleranceAtMaxZoom = 1d / 4096;
 
+    boolean area = input instanceof Polygonal;
+    double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
+    for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
+      boolean isMaxZoom = feature.getMaxZoom() == 14;
+      double scale = 1 << z;
+      double tolerance = isMaxZoom ? toleranceAtMaxZoom : normalTolerance;
+      double minSize = isMaxZoom ? minSizeAtMaxZoom : (feature.getMinPixelSize(z) / 256);
+      if (area) {
+        minSize *= minSize;
+      } else if (worldLength > 0 && worldLength * scale < minSize) {
+        // skip linestring, too short
+        continue;
+      }
 
+      Geometry geom = AffineTransformation.scaleInstance(scale, scale).transform(input);
+      DouglasPeuckerSimplifier simplifier = new DouglasPeuckerSimplifier(geom);
+      simplifier.setEnsureValid(false);
+      simplifier.setDistanceTolerance(tolerance);
+      geom = simplifier.getResultGeometry();
+
+      List<List<CoordinateSequence>> groups = extractGroups(geom);
+      double buffer = feature.getBufferPixelsAtZoom(z);
+      TileExtents.ForZoom extents = config.extents().getForZoom(z);
+      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+      writeTileFeatures(feature, sliced);
+    }
   }
 
+  private void writeTileFeatures(FeatureCollector.Feature feature, TiledGeometry sliced) {
+    build polygons, enforce correctness
+    build linestrings
+    reduce precision
+    handle errors
+    fix orientation
+    write filled tiles
+    log stats
+  }
+
+  private List<List<CoordinateSequence>> extractGroups(Geometry geom) {
+    limit length
+    limit area
+    enforce orientation
+  }
 }

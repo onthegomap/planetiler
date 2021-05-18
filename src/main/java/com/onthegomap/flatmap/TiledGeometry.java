@@ -34,11 +34,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This class is adapted from the stripe clipping algorithm in https://github.com/mapbox/geojson-vt/ and modified so
- * that it eagerly produces all sliced tiles at every zoom level for each input geometry.
+ * that it eagerly produces all sliced tiles at a zoom level for each input geometry.
  */
-public class SlicedGeometry {
+public class TiledGeometry {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SlicedGeometry.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TiledGeometry.class);
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
   private final Map<Column, IntRange> filledRanges = new HashMap<>();
@@ -48,7 +48,7 @@ public class SlicedGeometry {
   private final boolean area;
   private final int max;
 
-  private SlicedGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
+  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
     this.extents = extents;
     this.buffer = buffer;
     this.z = z;
@@ -56,9 +56,10 @@ public class SlicedGeometry {
     this.max = 1 << z;
   }
 
-  public static SlicedGeometry slice(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
+  public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) {
-    SlicedGeometry result = new SlicedGeometry(extents, buffer, z, area);
+
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, 1);
