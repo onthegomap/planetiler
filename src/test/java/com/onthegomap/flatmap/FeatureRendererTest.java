@@ -2,6 +2,7 @@ package com.onthegomap.flatmap;
 
 import static com.onthegomap.flatmap.TestUtils.assertSameNormalizedFeatures;
 import static com.onthegomap.flatmap.TestUtils.emptyGeometry;
+import static com.onthegomap.flatmap.TestUtils.newLineString;
 import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,14 +32,14 @@ public class FeatureRendererTest {
     return new FeatureCollector.Factory(config).get(new ReaderFeature(latLonGeom, 0));
   }
 
-  private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature<?> feature) {
+  private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<Geometry>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
       .add(rendered.vectorTileFeature().geometry().decode())).renderFeature(feature);
     return result;
   }
 
-  private Map<TileCoord, Collection<RenderedFeature>> renderFeatures(FeatureCollector.Feature<?> feature) {
+  private Map<TileCoord, Collection<RenderedFeature>> renderFeatures(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<RenderedFeature>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
       .add(rendered)).renderFeature(feature);
@@ -208,22 +209,38 @@ public class FeatureRendererTest {
       .setZoomRange(0, 1)
       .setBufferPixels(64);
     var rendered = renderFeatures(feature);
-    System.err.println(rendered);
     var z0Feature = rendered.get(TileCoord.ofXYZ(0, 0, 0)).iterator().next();
     var z1Feature = rendered.get(TileCoord.ofXYZ(0, 0, 1)).iterator().next();
     assertEquals(Optional.of(new RenderedFeature.Group((1L << 32) - 1, 2)), z0Feature.group());
     assertEquals(Optional.of(new RenderedFeature.Group((1L << 32) - 1, 2)), z1Feature.group());
   }
 
-  private FeatureCollector.PointFeature pointFeature(Geometry geom) {
+  private FeatureCollector.Feature pointFeature(Geometry geom) {
     return collector(geom).point("layer");
   }
 
-  // happy tests:
-  // TODO: multipoint together?
-  // TODO: multipoint separate (if has group)? separate IDs?
-  // TODO: world wrap
+  private FeatureCollector.Feature lineFeature(Geometry geom) {
+    return collector(geom).line("layer");
+  }
 
+  @Test
+  public void testSplitLineFeatureSingleTile() {
+    double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
+    var feature = lineFeature(newLineString(
+      0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
+      0.5 + z14hypot * 3 / 4, 0.5 + z14hypot * 3 / 4
+    ))
+      .setZoomRange(14, 14)
+      .setBufferPixels(8);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        newPoint(64, 64),
+        newPoint(192, 192)
+      )
+    ), renderGeometry(feature));
+  }
+
+  // TODO: centroid
   // TODO: line
   // TODO: multilinestring
   // TODO: poly

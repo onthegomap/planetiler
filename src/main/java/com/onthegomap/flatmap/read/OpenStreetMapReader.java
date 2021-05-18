@@ -152,7 +152,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
           if (feature != null) {
             FeatureCollector features = featureCollectors.get(feature);
             profile.processFeature(feature, features);
-            for (FeatureCollector.Feature<?> renderable : features) {
+            for (FeatureCollector.Feature renderable : features) {
               renderer.renderFeature(renderable);
             }
           }

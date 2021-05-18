@@ -4,7 +4,6 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,59 +35,29 @@ public class FeatureRenderer {
     this.consumer = consumer;
   }
 
-  public void renderFeature(FeatureCollector.Feature<?> feature) {
+  public void renderFeature(FeatureCollector.Feature feature) {
     renderGeometry(feature.getGeometry(), feature);
   }
 
-  private void renderGeometry(Geometry geom, FeatureCollector.Feature<?> feature) {
+  private void renderGeometry(Geometry geom, FeatureCollector.Feature feature) {
     // TODO what about converting between area and line?
-    // TODO generate ID in here?
     if (geom.isEmpty()) {
       LOGGER.warn("Empty geometry " + feature);
-    } else if (feature instanceof FeatureCollector.PointFeature pointFeature) {
-      if (geom instanceof Point point) {
-        addPointFeature(pointFeature, point.getCoordinates());
-      } else if (geom instanceof MultiPoint points) {
-        addPointFeature(pointFeature, points);
-      } else {
-        LOGGER.warn("Unrecognized JTS geometry type for PointFeature:" + geom.getGeometryType());
-      }
+    } else if (geom instanceof Point point) {
+      addPointFeature(feature, point.getCoordinates());
+    } else if (geom instanceof MultiPoint points) {
+      addPointFeature(feature, points);
     } else if (geom instanceof Polygon || geom instanceof MultiPolygon || geom instanceof LineString
       || geom instanceof MultiLineString) {
       addLinearFeature(feature, geom);
     } else if (geom instanceof GeometryCollection collection) {
       for (int i = 0; i < collection.getNumGeometries(); i++) {
-        // TODO what about feature IDs
         renderGeometry(collection.getGeometryN(i), feature);
       }
     } else {
       LOGGER.warn(
         "Unrecognized JTS geometry type for " + feature.getClass().getSimpleName() + ": " + geom.getGeometryType());
     }
-  }
-
-  private void handlePointFeature(FeatureCollector.PointFeature feature, Point point,
-    Map<TileCoord, List<Point>> grouped) {
-
-  }
-
-  private void flushPoints(FeatureCollector.PointFeature feature, Map<TileCoord, List<Point>> grouped,
-    Consumer<RenderedFeature> consumer) {
-//    for (Map.Entry<TileCoord, List<Point>> entry : grouped.entrySet()) {
-//      List<Point> points = entry.getValue();
-//      RenderedFeature rendered = new RenderedFeature(
-//        entry.getKey(),
-//        new VectorTileEncoder.Feature(
-//          feature.getLayer(),
-//          feature.getId(),
-//          VectorTileEncoder.encodeGeometry(
-//            points.size() > 0 ? points.get(0) : GeoUtils.gf.createMultiPoint(points.toArray(new Point[0]))),
-//          feature.getAttrsAtZoom(0)
-//        ),
-//        feature.getZorder(),
-////        feature.ge
-//      )
-//    }
   }
 
   private static int wrapInt(int value, int max) {
@@ -126,7 +95,7 @@ public class FeatureRenderer {
     }
   }
 
-  private void addPointFeature(FeatureCollector.PointFeature feature, Coordinate... coords) {
+  private void addPointFeature(FeatureCollector.Feature feature, Coordinate... coords) {
     long id = idGen.incrementAndGet();
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
       Map<TileCoord, Set<Coordinate>> sliced = new HashMap<>();
@@ -165,7 +134,7 @@ public class FeatureRenderer {
     }
   }
 
-  private void addPointFeature(FeatureCollector.PointFeature feature, MultiPoint points) {
+  private void addPointFeature(FeatureCollector.Feature feature, MultiPoint points) {
     if (feature.hasLabelGrid()) {
       for (Coordinate coord : points.getCoordinates()) {
         addPointFeature(feature, coord);
@@ -175,7 +144,12 @@ public class FeatureRenderer {
     }
   }
 
-  private void addLinearFeature(FeatureCollector.Feature<?> feature, Geometry geom) {
-    // TODO render lines / areas into tile
+  private void addLinearFeature(FeatureCollector.Feature feature, Geometry geom) {
+    double minSizeAtMaxZoom = 1d / 4096;
+    double normalTolerance = 0.1 / 256;
+    double toleranceAtMaxZoom = 1d / 4096;
+
+
   }
+
 }

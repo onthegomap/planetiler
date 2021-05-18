@@ -50,7 +50,7 @@ public abstract class Reader implements Closeable {
           FeatureCollector features = featureCollectors.get(sourceFeature);
           if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
             profile.processFeature(sourceFeature, features);
-            for (FeatureCollector.Feature<?> renderable : features) {
+            for (FeatureCollector.Feature renderable : features) {
               renderer.renderFeature(renderable);
             }
           }

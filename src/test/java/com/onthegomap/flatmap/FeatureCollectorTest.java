@@ -18,7 +18,7 @@ public class FeatureCollectorTest {
   private FeatureCollector.Factory factory = new FeatureCollector.Factory(config);
 
   private static void assertFeatures(int zoom, List<Map<String, Object>> expected, FeatureCollector actual) {
-    List<FeatureCollector.Feature<?>> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
+    List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
     assertEquals(expected.size(), actualList.size(), "size");
     for (int i = 0; i < expected.size(); i++) {
       assertSubmap(expected.get(i), TestUtils.toMap(actualList.get(i), zoom));
@@ -101,22 +101,17 @@ public class FeatureCollectorTest {
       .setZoomRange(12, 14)
       .setZorder(3)
       .setAttr("attr1", 2)
-      .setMinLength(1)
-      .setMinLengthBelowZoom(12, 10);
+      .setMinPixelSize(1)
+      .setMinPixelSizeBelowZoom(12, 10);
     assertFeatures(14, List.of(
       Map.of(
         "_layer", "layername",
         "_minzoom", 12,
         "_maxzoom", 14,
         "_zorder", 3,
-        "_minlength", 1d,
+        "_minpixelsize", 1d,
         "attr1", 2,
         "_type", "line"
-      )
-    ), collector);
-    assertFeatures(12, List.of(
-      Map.of(
-        "_minlength", 10d
       )
     ), collector);
   }
@@ -137,23 +132,25 @@ public class FeatureCollectorTest {
       .setZorder(3)
       .setAttr("attr1", 2)
       .inheritFromSource("key")
-      .setMinArea(1)
-      .setMinAreaBelowZoom(12, 10);
+      .setMinPixelSize(1)
+      .setMinPixelSizeBelowZoom(12, 10);
     assertFeatures(14, List.of(
       Map.of(
         "_layer", "layername",
         "_minzoom", 12,
         "_maxzoom", 14,
         "_zorder", 3,
-        "_minarea", 1d,
+        "_minpixelsize", 1d,
         "attr1", 2,
         "_type", "polygon"
       )
     ), collector);
     assertFeatures(12, List.of(
       Map.of(
-        "_minarea", 10d
+        "_minpixelsize", 10d
       )
     ), collector);
   }
+
+  // TODO test shape coercion
 }

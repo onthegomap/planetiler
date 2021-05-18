@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import static com.onthegomap.flatmap.TestUtils.assertSameJson;
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
 import static com.onthegomap.flatmap.TestUtils.feature;
+import static com.onthegomap.flatmap.TestUtils.newLineString;
 import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -253,6 +254,44 @@ public class FlatMapTest {
         // omit rank=1 due to label grid size
         feature(newPoint(37, 64), Map.of("rank", "2")),
         feature(newPoint(42, 64), Map.of("rank", "3"))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testLineString() throws IOException, SQLException {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z14_WIDTH;
+    double y2 = y1 + Z14_WIDTH;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newLineString(lng1, lat1, lng2, lat2), Map.of(
+          "attr", "value"
+        ))
+      ),
+      (in, features) -> {
+        features.line("layer")
+          .setZoomRange(13, 14)
+          .setBufferPixels(4);
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(128, 128, 260, 260), Map.of())
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14), List.of(
+        feature(newLineString(-4, -4, 128, 128), Map.of())
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newLineString(64, 64, 192, 192), Map.of())
       )
     ), results.tiles);
   }

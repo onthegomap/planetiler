@@ -226,25 +226,17 @@ public class TestUtils {
     return new ComparableFeature(new NormGeometry(geom), attrs);
   }
 
-  public static Map<String, Object> toMap(FeatureCollector.Feature<?> feature, int zoom) {
+  public static Map<String, Object> toMap(FeatureCollector.Feature feature, int zoom) {
     TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
     result.put("_minzoom", feature.getMinZoom());
     result.put("_maxzoom", feature.getMaxZoom());
     result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));
     result.put("_layer", feature.getLayer());
     result.put("_zorder", feature.getZorder());
-    result.put("_geom", new TopoGeometry(feature.getGeometry()));
-    if (feature instanceof FeatureCollector.PointFeature pointFeature) {
-      result.put("_type", "point");
-      result.put("_labelgrid_limit", pointFeature.getLabelGridLimitAtZoom(zoom));
-      result.put("_labelgrid_size", pointFeature.getLabelGridPixelSizeAtZoom(zoom));
-    } else if (feature instanceof FeatureCollector.LineFeature lineFeature) {
-      result.put("_type", "line");
-      result.put("_minlength", lineFeature.getMinLengthAtZoom(zoom));
-    } else if (feature instanceof FeatureCollector.PolygonFeature polygonFeature) {
-      result.put("_type", "polygon");
-      result.put("_minarea", polygonFeature.getMinAreaAtZoom(zoom));
-    }
+    result.put("_geom", new NormGeometry(feature.getGeometry()));
+    result.put("_labelgrid_limit", feature.getLabelGridLimitAtZoom(zoom));
+    result.put("_labelgrid_size", feature.getLabelGridPixelSizeAtZoom(zoom));
+    result.put("_minpixelsize", feature.getMinPixelSize(zoom));
     return result;
   }
 

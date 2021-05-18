@@ -5,6 +5,7 @@ import java.time.Duration;
 import org.locationtech.jts.geom.Envelope;
 
 public record CommonParams(
+  // provided
   Envelope latLonBounds,
   int threads,
   Duration logInterval,
@@ -12,8 +13,38 @@ public record CommonParams(
   int maxzoom,
   boolean deferIndexCreation,
   boolean optimizeDb,
-  boolean forceOverwrite
+  boolean forceOverwrite,
+
+  // computed
+  Envelope worldBounds,
+  TileExtents extents
 ) {
+
+  public CommonParams(
+    Envelope latLonBounds,
+    int threads,
+    Duration logInterval,
+    int minzoom,
+    int maxzoom,
+    boolean deferIndexCreation,
+    boolean optimizeDb,
+    boolean forceOverwrite
+  ) {
+    this(
+      latLonBounds,
+      threads,
+      logInterval,
+      minzoom,
+      maxzoom,
+      deferIndexCreation,
+      optimizeDb,
+      forceOverwrite,
+
+      // computed
+      GeoUtils.toWorldBounds(latLonBounds),
+      TileExtents.computeFromWorldBounds(maxzoom, GeoUtils.toWorldBounds(latLonBounds))
+    );
+  }
 
   public static final int MIN_MINZOOM = 0;
   public static final int MAX_MAXZOOM = 14;
@@ -49,9 +80,5 @@ public record CommonParams(
       arguments.get("optimize_db", "optimize mbtiles after writing", false),
       arguments.get("force", "force overwriting output file", false)
     );
-  }
-
-  public Envelope worldBounds() {
-    return GeoUtils.toWorldBounds(latLonBounds);
   }
 }
