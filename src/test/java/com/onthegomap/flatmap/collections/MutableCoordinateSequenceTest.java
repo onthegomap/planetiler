@@ -1,8 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.carrotsearch.hppc.DoubleArrayList;
 import org.junit.jupiter.api.Test;
@@ -26,27 +24,21 @@ public class MutableCoordinateSequenceTest {
   }
 
   @Test
-  public void testOuter() {
-    assertTrue(new MutableCoordinateSequence(false).isInnerRing());
-    assertFalse(new MutableCoordinateSequence(true).isInnerRing());
-  }
-
-  @Test
   public void testEmpty() {
-    var seq = new MutableCoordinateSequence(false);
+    var seq = new MutableCoordinateSequence();
     assertEquals(0, seq.copy().size());
   }
 
   @Test
   public void testSingle() {
-    var seq = new MutableCoordinateSequence(false);
+    var seq = new MutableCoordinateSequence();
     seq.addPoint(1, 2);
     assertContents(seq, 1, 2);
   }
 
   @Test
   public void testTwoPoints() {
-    var seq = new MutableCoordinateSequence(false);
+    var seq = new MutableCoordinateSequence();
     seq.addPoint(1, 2);
     seq.addPoint(3, 4);
     assertContents(seq, 1, 2, 3, 4);
@@ -54,7 +46,7 @@ public class MutableCoordinateSequenceTest {
 
   @Test
   public void testClose() {
-    var seq = new MutableCoordinateSequence(false);
+    var seq = new MutableCoordinateSequence();
     seq.addPoint(1, 2);
     seq.addPoint(3, 4);
     seq.addPoint(0, 1);
@@ -64,7 +56,7 @@ public class MutableCoordinateSequenceTest {
 
   @Test
   public void testScaling() {
-    var seq = MutableCoordinateSequence.newScalingSequence(true, 1, 2, 3);
+    var seq = MutableCoordinateSequence.newScalingSequence(1, 2, 3);
     seq.addPoint(1, 2);
     seq.addPoint(3, 4);
     seq.addPoint(0, 1);

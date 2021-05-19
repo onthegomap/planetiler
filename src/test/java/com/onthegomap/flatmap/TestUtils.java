@@ -50,27 +50,27 @@ public class TestUtils {
   }
 
   public static Polygon newPolygon(double... coords) {
-    return GeoUtils.gf.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
+    return GeoUtils.JTS_FACTORY.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
   }
 
   public static LineString newLineString(double... coords) {
-    return GeoUtils.gf.createLineString(newCoordinateList(coords).toArray(new Coordinate[0]));
+    return GeoUtils.JTS_FACTORY.createLineString(newCoordinateList(coords).toArray(new Coordinate[0]));
   }
 
   public static Point newPoint(double x, double y) {
-    return GeoUtils.gf.createPoint(new CoordinateXY(x, y));
+    return GeoUtils.JTS_FACTORY.createPoint(new CoordinateXY(x, y));
   }
 
   public static MultiPoint newMultiPoint(Point... points) {
-    return GeoUtils.gf.createMultiPoint(points);
+    return GeoUtils.JTS_FACTORY.createMultiPoint(points);
   }
 
   public static MultiPolygon newMultiPolygon(Polygon... polys) {
-    return GeoUtils.gf.createMultiPolygon(polys);
+    return GeoUtils.JTS_FACTORY.createMultiPolygon(polys);
   }
 
   public static GeometryCollection newGeometryCollection(Geometry... geoms) {
-    return GeoUtils.gf.createGeometryCollection(geoms);
+    return GeoUtils.JTS_FACTORY.createGeometryCollection(geoms);
   }
 
   public static Geometry round(Geometry input) {
@@ -153,7 +153,7 @@ public class TestUtils {
   }
 
   public static Geometry emptyGeometry() {
-    return GeoUtils.gf.createGeometryCollection();
+    return GeoUtils.JTS_FACTORY.createGeometryCollection();
   }
 
   public interface GeometryComparision {

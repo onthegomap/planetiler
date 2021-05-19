@@ -42,8 +42,7 @@ public abstract class Reader implements Closeable {
         var featureCollectors = new FeatureCollector.Factory(config);
         var encoder = writer.newRenderedFeatureEncoder();
         FeatureRenderer renderer = new FeatureRenderer(
-          config,
-          rendered -> next.accept(encoder.apply(rendered))
+          config, encoder, next
         );
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();

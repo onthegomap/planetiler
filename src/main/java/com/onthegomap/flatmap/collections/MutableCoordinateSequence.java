@@ -9,21 +9,14 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 public class MutableCoordinateSequence extends PackedCoordinateSequence {
 
   private final DoubleArrayList points = new DoubleArrayList();
-  private final boolean inner;
 
-  public MutableCoordinateSequence(boolean outer) {
+  public MutableCoordinateSequence() {
     super(2, 0);
-    this.inner = !outer;
   }
 
-  public static MutableCoordinateSequence newScalingSequence(boolean outer, double relX, double relY, double scale) {
-    return new ScalingSequence(outer, scale, relX, relY);
+  public static MutableCoordinateSequence newScalingSequence(double relX, double relY, double scale) {
+    return new ScalingSequence(scale, relX, relY);
   }
-
-  public boolean isInnerRing() {
-    return inner;
-  }
-
 
   @Override
   public double getOrdinate(int index, int ordinateIndex) {
@@ -87,8 +80,7 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     private final double relX;
     private final double relY;
 
-    public ScalingSequence(boolean outer, double scale, double relX, double relY) {
-      super(outer);
+    public ScalingSequence(double scale, double relX, double relY) {
       this.scale = scale;
       this.relX = relX;
       this.relY = relY;

@@ -26,7 +26,10 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
@@ -41,7 +44,7 @@ public class TiledGeometry {
   private static final Logger LOGGER = LoggerFactory.getLogger(TiledGeometry.class);
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
-  private final Map<Column, IntRange> filledRanges = new HashMap<>();
+  private final SortedMap<Column, IntRange> filledRanges = new TreeMap<>();
   private final TileExtents.ForZoom extents;
   private final double buffer;
   private final int z;
@@ -58,18 +61,19 @@ public class TiledGeometry {
 
   public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) {
-
+    int worldExtent = 1 << z;
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
-      result.sliceWorldCopy(groups, 1);
-    } else if (wrapResult.contains(Direction.LEFT)) {
-      result.sliceWorldCopy(groups, -1);
+      result.sliceWorldCopy(groups, -worldExtent);
+    }
+    if (wrapResult.contains(Direction.LEFT)) {
+      result.sliceWorldCopy(groups, worldExtent);
     }
     return result;
   }
 
-  public Iterable<TileCoord> getFilledTiles() {
+  public Iterable<TileCoord> getFilledTilesOrderedByZXY() {
     return () -> filledRanges.entrySet().stream()
       .<TileCoord>mapMulti((entry, next) -> {
         Column column = entry.getKey();
@@ -125,7 +129,7 @@ public class TiledGeometry {
       for (int i = 0; i < group.size(); i++) {
         CoordinateSequence segment = group.get(i);
         boolean outer = i == 0;
-        IntObjectMap<List<MutableCoordinateSequence>> xSlices = sliceX(segment, outer);
+        IntObjectMap<List<MutableCoordinateSequence>> xSlices = sliceX(segment);
         if (z >= 6 && xSlices.size() >= Math.pow(2, z) - 1) {
           LOGGER.warn("Feature crosses world at z" + z + ": " + xSlices.size());
         }
@@ -173,7 +177,7 @@ public class TiledGeometry {
     }
   }
 
-  private IntObjectMap<List<MutableCoordinateSequence>> sliceX(CoordinateSequence segment, boolean outer) {
+  private IntObjectMap<List<MutableCoordinateSequence>> sliceX(CoordinateSequence segment) {
     int maxIndex = 1 << z;
     double k1 = -buffer;
     double k2 = 1 + buffer;
@@ -197,7 +201,7 @@ public class TiledGeometry {
         double bx = _bx - x;
         MutableCoordinateSequence slice = xSlices.get(x);
         if (slice == null) {
-          xSlices.put(x, slice = new MutableCoordinateSequence(outer));
+          xSlices.put(x, slice = new MutableCoordinateSequence());
           List<MutableCoordinateSequence> newGeom = newGeoms.get(x);
           if (newGeom == null) {
             newGeoms.put(x, newGeom = new ArrayList<>());
@@ -339,7 +343,7 @@ public class TiledGeometry {
             tiles.add(y);
           }
           // x is already relative to tile
-          ySlices.put(y, slice = MutableCoordinateSequence.newScalingSequence(outer, 0, y, 256));
+          ySlices.put(y, slice = MutableCoordinateSequence.newScalingSequence(0, y, 256));
           TileCoord tileID = TileCoord.ofXYZ(x, y, z);
           List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, tile -> new ArrayList<>());
 
@@ -450,7 +454,12 @@ public class TiledGeometry {
 
   private enum Direction {RIGHT, LEFT}
 
-  private static record Column(int z, int x) {
+  private static record Column(int z, int x) implements Comparable<Column> {
 
+    @Override
+    public int compareTo(@NotNull Column o) {
+      int result = Integer.compare(z, o.z);
+      return result == 0 ? Integer.compare(x, o.x) : result;
+    }
   }
 }

@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.msgpack.core.MessageBufferPacker;
@@ -93,18 +94,38 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
   }
 
   public Function<RenderedFeature, FeatureSort.Entry> newRenderedFeatureEncoder() {
+    /*
+     * Optimization: Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
+     */
     var packer = MessagePack.newDefaultBufferPacker();
-    return feature -> {
-      layerStats.accept(feature);
-      return encode(feature, packer);
-    };
-  }
 
-  private FeatureSort.Entry encode(RenderedFeature feature, MessageBufferPacker packer) {
-    return new FeatureSort.Entry(
-      encodeSortKey(feature),
-      encodeValue(feature, packer)
-    );
+    /*
+     * Optimization: Avoid re-encoding values for identical fill geometries (ie. in the ocean) by memoizing based on
+     * the input vector tile feature. FeatureRenderer ensures that all fill vector tile features use the same instance
+     * within a zoom level (and filled tiles are ordered by z, x, y).
+     */
+    return new Function<>() {
+      private VectorTileEncoder.Feature lastFeature = null;
+      private byte[] lastEncodedValue = null;
+
+      @Override
+      public FeatureSort.Entry apply(RenderedFeature feature) {
+        layerStats.accept(feature);
+        var group = feature.group();
+        var thisFeature = feature.vectorTileFeature();
+        byte[] encodedValue;
+        if (group.isEmpty()) { // don't bother memoizing if group is present
+          encodedValue = encodeValue(thisFeature, group, packer);
+        } else if (lastFeature == thisFeature) {
+          encodedValue = lastEncodedValue;
+        } else { // feature changed, memoize new value
+          lastFeature = thisFeature;
+          lastEncodedValue = encodedValue = encodeValue(feature.vectorTileFeature(), feature.group(), packer);
+        }
+
+        return new FeatureSort.Entry(encodeSortKey(feature), encodedValue);
+      }
+    };
   }
 
   private long encodeSortKey(RenderedFeature feature) {
@@ -118,16 +139,16 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
     );
   }
 
-  private byte[] encodeValue(RenderedFeature feature, MessageBufferPacker packer) {
+  private byte[] encodeValue(VectorTileEncoder.Feature vectorTileFeature, Optional<RenderedFeature.Group> group,
+    MessageBufferPacker packer) {
     packer.clear();
     try {
-      var groupInfoOption = feature.group();
+      var groupInfoOption = group;
       if (groupInfoOption.isPresent()) {
         var groupInfo = groupInfoOption.get();
         packer.packLong(groupInfo.group());
         packer.packInt(groupInfo.limit());
       }
-      var vectorTileFeature = feature.vectorTileFeature();
       packer.packLong(vectorTileFeature.id());
       packer.packByte(vectorTileFeature.geometry().geomType());
       var attrs = vectorTileFeature.attrs();

@@ -100,7 +100,7 @@ public class VectorTileEncoder {
 
   private static Geometry decodeCommands(byte geomTypeByte, int[] commands) {
     VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
-    GeometryFactory gf = GeoUtils.gf;
+    GeometryFactory gf = GeoUtils.JTS_FACTORY;
     int x = 0;
     int y = 0;
 

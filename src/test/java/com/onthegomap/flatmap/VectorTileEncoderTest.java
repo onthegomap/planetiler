@@ -24,7 +24,7 @@ import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.TestUtils.newPolygon;
-import static com.onthegomap.flatmap.geo.GeoUtils.gf;
+import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +57,7 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testToGeomType() {
-    Geometry geometry = gf.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
+    Geometry geometry = JTS_FACTORY.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
     assertEquals((byte) VectorTile.Tile.GeomType.LINESTRING.getNumber(),
       VectorTileEncoder.encodeGeometry(geometry).geomType());
   }
@@ -234,12 +234,12 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testRoundTripPoint() {
-    testRoundTripGeometry(gf.createPoint(new CoordinateXY(1, 2)));
+    testRoundTripGeometry(JTS_FACTORY.createPoint(new CoordinateXY(1, 2)));
   }
 
   @Test
   public void testRoundTripMultipoint() {
-    testRoundTripGeometry(gf.createMultiPointFromCoords(new Coordinate[]{
+    testRoundTripGeometry(JTS_FACTORY.createMultiPointFromCoords(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
     }));
@@ -247,7 +247,7 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testRoundTripLineString() {
-    testRoundTripGeometry(gf.createLineString(new Coordinate[]{
+    testRoundTripGeometry(JTS_FACTORY.createLineString(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
     }));
@@ -255,8 +255,8 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testRoundTripPolygon() {
-    testRoundTripGeometry(gf.createPolygon(
-      gf.createLinearRing(new Coordinate[]{
+    testRoundTripGeometry(JTS_FACTORY.createPolygon(
+      JTS_FACTORY.createLinearRing(new Coordinate[]{
         new CoordinateXY(0, 0),
         new CoordinateXY(4, 0),
         new CoordinateXY(4, 4),
@@ -264,7 +264,7 @@ public class VectorTileEncoderTest {
         new CoordinateXY(0, 0)
       }),
       new LinearRing[]{
-        gf.createLinearRing(new Coordinate[]{
+        JTS_FACTORY.createLinearRing(new Coordinate[]{
           new CoordinateXY(1, 1),
           new CoordinateXY(1, 2),
           new CoordinateXY(2, 2),
@@ -277,15 +277,15 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testRoundTripMultiPolygon() {
-    testRoundTripGeometry(gf.createMultiPolygon(new Polygon[]{
-      gf.createPolygon(new Coordinate[]{
+    testRoundTripGeometry(JTS_FACTORY.createMultiPolygon(new Polygon[]{
+      JTS_FACTORY.createPolygon(new Coordinate[]{
         new CoordinateXY(0, 0),
         new CoordinateXY(1, 0),
         new CoordinateXY(1, 1),
         new CoordinateXY(0, 1),
         new CoordinateXY(0, 0)
       }),
-      gf.createPolygon(new Coordinate[]{
+      JTS_FACTORY.createPolygon(new Coordinate[]{
         new CoordinateXY(3, 0),
         new CoordinateXY(4, 0),
         new CoordinateXY(4, 1),
@@ -308,7 +308,7 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testMultipleFeaturesMultipleLayer() {
-    Point point = gf.createPoint(new CoordinateXY(0, 0));
+    Point point = JTS_FACTORY.createPoint(new CoordinateXY(0, 0));
     Map<String, Object> attrs1 = Map.of("a", 1L, "b", 2L);
     Map<String, Object> attrs2 = Map.of("b", 3L, "c", 2L);
     byte[] encoded = new VectorTileEncoder().addLayerFeatures("layer1", List.of(
@@ -330,7 +330,7 @@ public class VectorTileEncoderTest {
   }
 
   private void testRoundTripAttrs(Map<String, Object> attrs) {
-    testRoundTrip(gf.createPoint(new CoordinateXY(0, 0)), "layer", attrs, 1);
+    testRoundTrip(JTS_FACTORY.createPoint(new CoordinateXY(0, 0)), "layer", attrs, 1);
   }
 
   private void testRoundTripGeometry(Geometry input) {

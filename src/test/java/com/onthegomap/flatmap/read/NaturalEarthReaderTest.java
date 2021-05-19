@@ -39,7 +39,7 @@ public class NaturalEarthReaderTest {
             points.add(elem.latLonGeometry());
           }).await();
         assertEquals(19, points.size());
-        var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
+        var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
         var centroid = gc.getCentroid();
         assertArrayEquals(
           new double[]{14.22422, 12.994629},

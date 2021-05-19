@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.collections.CacheByZoom;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -24,19 +25,19 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   public Feature point(String layer) {
-    var feature = new Feature(layer, source.isPoint() ? source.worldGeometry() : source.centroid());
+    var feature = new Feature(layer, source.isPoint() ? source.worldGeometry() : source.centroid(), false);
     output.add(feature);
     return feature;
   }
 
   public Feature line(String layername) {
-    var feature = new Feature(layername, source.line());
+    var feature = new Feature(layername, source.line(), false);
     output.add(feature);
     return feature;
   }
 
   public Feature polygon(String layername) {
-    var feature = new Feature(layername, source.polygon());
+    var feature = new Feature(layername, source.polygon(), true);
     output.add(feature);
     return feature;
   }
@@ -50,6 +51,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
   public final class Feature {
 
+    private final boolean area;
     private static final double DEFAULT_LABEL_GRID_SIZE = 0;
     private static final int DEFAULT_LABEL_GRID_LIMIT = 0;
     private final String layer;
@@ -64,11 +66,14 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> minPixelSize = null;
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
+    private boolean attrsChangeByZoom = false;
+    private CacheByZoom<Map<String, Object>> attrCache = null;
 
-    private Feature(String layer, Geometry geom) {
+    private Feature(String layer, Geometry geom, boolean area) {
       this.layer = layer;
       this.geom = geom;
       this.zOrder = 0;
+      this.area = area;
     }
 
     public int getZorder() {
@@ -169,7 +174,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return labelGridPixelSize != null || labelGridLimit != null;
     }
 
-    public Map<String, Object> getAttrsAtZoom(int zoom) {
+    private Map<String, Object> computeAttrsAtZoom(int zoom) {
       Map<String, Object> result = new TreeMap<>();
       for (var entry : attrs.entrySet()) {
         Object value = entry.getValue();
@@ -183,18 +188,34 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return result;
     }
 
+    public Map<String, Object> getAttrsAtZoom(int zoom) {
+      if (!attrsChangeByZoom) {
+        return attrs;
+      }
+      if (attrCache == null) {
+        attrCache = CacheByZoom.create(config, this::computeAttrsAtZoom);
+      }
+      return attrCache.get(zoom);
+    }
+
     public Feature inheritFromSource(String attr) {
       return setAttr(attr, source.getTag(attr));
     }
 
     public Feature setAttr(String key, Object value) {
+      if (value instanceof ZoomFunction) {
+        attrsChangeByZoom = true;
+      }
       attrs.put(key, value);
       return this;
     }
 
     public Feature setAttrWithMinzoom(String key, Object value, int minzoom) {
-      attrs.put(key, ZoomFunction.minZoom(minzoom, value));
-      return this;
+      return setAttr(key, ZoomFunction.minZoom(minzoom, value));
+    }
+
+    public boolean area() {
+      return area;
     }
 
     @Override

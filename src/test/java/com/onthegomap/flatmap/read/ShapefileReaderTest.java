@@ -47,7 +47,7 @@ public class ShapefileReaderTest {
           points.add(elem.latLonGeometry());
         }).await();
       assertEquals(86, points.size());
-      var gc = GeoUtils.gf.createGeometryCollection(points.toArray(new Geometry[0]));
+      var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
       var centroid = gc.getCentroid();
       assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
       assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);

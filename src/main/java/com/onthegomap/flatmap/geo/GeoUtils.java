@@ -1,12 +1,14 @@
 package com.onthegomap.flatmap.geo;
 
 import java.util.Collection;
+import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
@@ -15,8 +17,11 @@ import org.locationtech.jts.io.WKBReader;
 
 public class GeoUtils {
 
-  public static final GeometryFactory gf = new GeometryFactory();
-  public static final WKBReader wkbReader = new WKBReader(gf);
+  public static final GeometryFactory JTS_FACTORY = new GeometryFactory();
+  public static final WKBReader wkbReader = new WKBReader(JTS_FACTORY);
+
+  private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
+  private static final Coordinate[] EMPTY_COORD_ARRAY = new Coordinate[0];
 
   private static final double WORLD_RADIUS_METERS = 6_378_137;
   private static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
@@ -174,19 +179,23 @@ public class GeoUtils {
   }
 
   public static Point point(double x, double y) {
-    return gf.createPoint(new CoordinateXY(x, y));
+    return JTS_FACTORY.createPoint(new CoordinateXY(x, y));
   }
 
   public static Point point(Coordinate coord) {
-    return gf.createPoint(coord);
+    return JTS_FACTORY.createPoint(coord);
   }
 
   public static MultiPoint multiPoint(Collection<Coordinate> coords) {
-    return gf.createMultiPointFromCoords(coords.toArray(new Coordinate[0]));
+    return JTS_FACTORY.createMultiPointFromCoords(coords.toArray(EMPTY_COORD_ARRAY));
   }
 
   public static Geometry multiPoint(double... coords) {
     assert coords.length % 2 == 0;
-    return gf.createMultiPoint(new PackedCoordinateSequence.Double(coords, 2, 0));
+    return JTS_FACTORY.createMultiPoint(new PackedCoordinateSequence.Double(coords, 2, 0));
+  }
+
+  public static Geometry createMultiLineString(List<LineString> lineStrings) {
+    return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
 }
