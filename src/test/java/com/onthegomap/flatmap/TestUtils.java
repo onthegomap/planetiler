@@ -29,10 +29,12 @@ import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
@@ -228,15 +230,17 @@ public class TestUtils {
 
   public static Map<String, Object> toMap(FeatureCollector.Feature feature, int zoom) {
     TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
+    Geometry geom = feature.getGeometry();
     result.put("_minzoom", feature.getMinZoom());
     result.put("_maxzoom", feature.getMaxZoom());
     result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));
     result.put("_layer", feature.getLayer());
     result.put("_zorder", feature.getZorder());
-    result.put("_geom", new NormGeometry(feature.getGeometry()));
+    result.put("_geom", new NormGeometry(geom));
     result.put("_labelgrid_limit", feature.getLabelGridLimitAtZoom(zoom));
     result.put("_labelgrid_size", feature.getLabelGridPixelSizeAtZoom(zoom));
     result.put("_minpixelsize", feature.getMinPixelSize(zoom));
+    result.put("_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
     return result;
   }
 

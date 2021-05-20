@@ -100,8 +100,7 @@ public class OpenMapTilesMain {
 
     stats.time("sort", featureDb::sort);
 
-    stats.time("mbtiles",
-      () -> MbtilesWriter.writeOutput(featureMap, output, profile, config, stats));
+    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, profile, config, stats));
 
     stats.stopTimer("import");
 

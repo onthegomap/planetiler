@@ -2,13 +2,13 @@ package com.onthegomap.flatmap.read;
 
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.FeatureRenderer;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.render.FeatureRenderer;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;

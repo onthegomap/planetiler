@@ -7,10 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.RenderedFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.render.RenderedFeature;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

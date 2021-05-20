@@ -11,6 +11,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
@@ -197,5 +198,36 @@ public class GeoUtils {
 
   public static Geometry createMultiLineString(List<LineString> lineStrings) {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
+  }
+
+  public static Geometry fixPolygon(Geometry geom, int maxAttempts) throws GeometryException {
+    try {
+      int attempts;
+      for (attempts = 0; attempts < maxAttempts && !geom.isValid(); attempts++) {
+        geom = geom.buffer(0);
+      }
+
+      if (attempts == maxAttempts) {
+        throw new GeometryException("Geometry still invalid after 2 buffers");
+      }
+      return geom;
+    } catch (TopologyException e) {
+      throw new GeometryException("Unable to fix polygon: " + e);
+    }
+  }
+
+  private static double wrapDouble(double value, double max) {
+    value %= max;
+    if (value < 0) {
+      value += max;
+    }
+    return value;
+  }
+
+  public static long labelGridId(int tilesAtZoom, double labelGridTileSize, Coordinate coord) {
+    return GeoUtils.longPair(
+      (int) Math.floor(wrapDouble(coord.getX() * tilesAtZoom, tilesAtZoom) / labelGridTileSize),
+      (int) Math.floor((coord.getY() * tilesAtZoom) / labelGridTileSize)
+    );
   }
 }

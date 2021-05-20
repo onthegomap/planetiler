@@ -12,12 +12,13 @@
  * AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.render;
 
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import com.carrotsearch.hppc.cursors.IntObjectCursor;
 import com.graphhopper.coll.GHIntObjectHashMap;
+import com.onthegomap.flatmap.TileExtents;
 import com.onthegomap.flatmap.collections.IntRange;
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
 import com.onthegomap.flatmap.geo.TileCoord;
@@ -26,10 +27,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.TreeSet;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
@@ -39,12 +37,12 @@ import org.slf4j.LoggerFactory;
  * This class is adapted from the stripe clipping algorithm in https://github.com/mapbox/geojson-vt/ and modified so
  * that it eagerly produces all sliced tiles at a zoom level for each input geometry.
  */
-public class TiledGeometry {
+class TiledGeometry {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TiledGeometry.class);
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
-  private final SortedMap<Column, IntRange> filledRanges = new TreeMap<>();
+  private final Map<Integer, IntRange> filledRanges = new HashMap<>();
   private final TileExtents.ForZoom extents;
   private final double buffer;
   private final int z;
@@ -57,6 +55,10 @@ public class TiledGeometry {
     this.z = z;
     this.area = area;
     this.max = 1 << z;
+  }
+
+  public int zoomLevel() {
+    return z;
   }
 
   public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
@@ -73,11 +75,10 @@ public class TiledGeometry {
     return result;
   }
 
-  public Iterable<TileCoord> getFilledTilesOrderedByZXY() {
+  public Iterable<TileCoord> getFilledTiles() {
     return () -> filledRanges.entrySet().stream()
       .<TileCoord>mapMulti((entry, next) -> {
-        Column column = entry.getKey();
-        int x = column.x, z = column.z;
+        int x = entry.getKey();
         for (int y : entry.getValue()) {
           TileCoord coord = TileCoord.ofXYZ(x, y, z);
           if (!tileContents.containsKey(coord)) {
@@ -141,12 +142,12 @@ public class TiledGeometry {
             overflow.add(Direction.LEFT);
           } else {
             for (CoordinateSequence stripeSegment : xCursor.value) {
-              IntRange filled = sliceY(stripeSegment, x, outer, inProgressShapes);
-              if (area && filled != null) {
+              IntRange filledYRange = sliceY(stripeSegment, x, outer, inProgressShapes);
+              if (area && filledYRange != null) {
                 if (outer) {
-                  addFilledRange(z, x, filled);
+                  addFilledRange(x, filledYRange);
                 } else {
-                  removeFilledRange(z, x, filled);
+                  removeFilledRange(x, filledYRange);
                 }
               }
             }
@@ -428,38 +429,27 @@ public class TiledGeometry {
     return rightFilled != null ? rightFilled.intersect(leftFilled) : null;
   }
 
-  private void addFilledRange(int z, int x, IntRange range) {
-    if (range == null) {
+  private void addFilledRange(int x, IntRange yRange) {
+    if (yRange == null) {
       return;
     }
-    Column key = new Column(z, x);
-    IntRange existing = filledRanges.get(key);
+    IntRange existing = filledRanges.get(x);
     if (existing == null) {
-      filledRanges.put(key, range);
+      filledRanges.put(x, yRange);
     } else {
-      existing.addAll(range);
+      existing.addAll(yRange);
     }
   }
 
-  private void removeFilledRange(int z, int x, IntRange range) {
-    if (range == null) {
+  private void removeFilledRange(int x, IntRange yRange) {
+    if (yRange == null) {
       return;
     }
-    Column key = new Column(z, x);
-    IntRange existing = filledRanges.get(key);
+    IntRange existing = filledRanges.get(x);
     if (existing != null) {
-      existing.removeAll(range);
+      existing.removeAll(yRange);
     }
   }
 
   private enum Direction {RIGHT, LEFT}
-
-  private static record Column(int z, int x) implements Comparable<Column> {
-
-    @Override
-    public int compareTo(@NotNull Column o) {
-      int result = Integer.compare(z, o.z);
-      return result == 0 ? Integer.compare(x, o.x) : result;
-    }
-  }
 }

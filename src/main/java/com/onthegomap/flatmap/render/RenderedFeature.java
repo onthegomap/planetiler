@@ -1,5 +1,6 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.render;
 
+import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.Optional;
 

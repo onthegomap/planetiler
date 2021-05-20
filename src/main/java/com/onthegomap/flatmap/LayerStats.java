@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.render.RenderedFeature;
 import com.onthegomap.flatmap.write.Mbtiles;
 import java.util.ArrayList;
 import java.util.Collections;

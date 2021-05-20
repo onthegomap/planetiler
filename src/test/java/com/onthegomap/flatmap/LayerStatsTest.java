@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.render.RenderedFeature;
 import com.onthegomap.flatmap.write.Mbtiles;
 import java.util.Map;
 import java.util.Optional;

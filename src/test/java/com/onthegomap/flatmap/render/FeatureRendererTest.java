@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.render;
 
 import static com.onthegomap.flatmap.TestUtils.assertSameNormalizedFeatures;
 import static com.onthegomap.flatmap.TestUtils.emptyGeometry;
@@ -8,6 +8,8 @@ import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.read.ReaderFeature;
