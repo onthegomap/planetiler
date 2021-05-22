@@ -586,6 +586,99 @@ public class FeatureRendererTest {
     ), renderGeometry(feature));
   }
 
+  @Test
+  public void testOverlapTileVertical() {
+    var feature = polygonFeature(
+      rectangle(
+        0.5 + Z14_PX * 10,
+        0.5 + Z14_PX * 10,
+        0.5 + Z14_PX * 20,
+        0.5 + Z14_PX * 258
+      )
+    )
+      .setMinPixelSize(1)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        rectangle(10, 10, 20, 257)
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2 + 1, 14), List.of(
+        rectangle(10, -1, 20, 2)
+      )
+    ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testOverlapTileCorner() {
+    var feature = polygonFeature(
+      rectangle(
+        0.5 - Z14_PX * 10,
+        0.5 - Z14_PX * 10,
+        0.5 + Z14_PX * 10,
+        0.5 + Z14_PX * 10
+      )
+    )
+      .setMinPixelSize(1)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2 - 1, Z14_TILES / 2 - 1, 14), List.of(
+        rectangle(246, 257)
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2 - 1, 14), List.of(
+        rectangle(-1, 246, 10, 257)
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2 - 1, Z14_TILES / 2, 14), List.of(
+        rectangle(246, -1, 257, 10)
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        rectangle(-1, 10)
+      )
+    ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testFill() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testWorldFill() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testMultipolygon() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testMultipolygonFill() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testMultipolygonHoleInfersOuterFill() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testMultipolygonHoleBlocksFill() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testFixInvalidInputGeometry() {
+    throw new Error("TODO");
+  }
+
+  @Test
+  public void testFixInvalidOutputGeometry() {
+    // simplifying causes invalid
+    throw new Error("TODO");
+  }
+
   // TODO: centroid
   // TODO: poly
   // TODO: multipolygon

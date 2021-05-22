@@ -235,6 +235,7 @@ public class TestUtils {
   }
 
   public static void validateGeometry(Geometry g) {
+    assertTrue(g.isValid(), "JTS isValid()");
     if (g instanceof GeometryCollection gs) {
       for (int i = 0; i < gs.getNumGeometries(); i++) {
         validateGeometry(gs.getGeometryN(i));
