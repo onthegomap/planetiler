@@ -8,7 +8,6 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,7 +16,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
@@ -57,14 +55,6 @@ public class FeatureRenderer {
     this.consumer = consumer;
   }
 
-  private static int wrapInt(int value, int max) {
-    value %= max;
-    if (value < 0) {
-      value += max;
-    }
-    return value;
-  }
-
   public void renderFeature(FeatureCollector.Feature feature) {
     renderGeometry(feature.getGeometry(), feature);
   }
@@ -90,27 +80,6 @@ public class FeatureRenderer {
     }
   }
 
-  private void slicePoint(Map<TileCoord, Set<Coordinate>> output, int zoom, double buffer, Coordinate coord) {
-    // TODO put this into TiledGeometry
-    int tilesAtZoom = 1 << zoom;
-    double worldX = coord.getX() * tilesAtZoom;
-    double worldY = coord.getY() * tilesAtZoom;
-    int minX = (int) Math.floor(worldX - buffer);
-    int maxX = (int) Math.floor(worldX + buffer);
-    int minY = Math.max(0, (int) Math.floor(worldY - buffer));
-    int maxY = Math.min(tilesAtZoom - 1, (int) Math.floor(worldY + buffer));
-    for (int x = minX; x <= maxX; x++) {
-      double tileX = worldX - x;
-      for (int y = minY; y <= maxY; y++) {
-        TileCoord tile = TileCoord.ofXYZ(wrapInt(x, tilesAtZoom), y, zoom);
-        double tileY = worldY - y;
-        Coordinate outCoordinate = new CoordinateXY(tileX * 256, tileY * 256);
-        tilePrecision.makePrecise(outCoordinate);
-        output.computeIfAbsent(tile, t -> new HashSet<>()).add(outCoordinate);
-      }
-    }
-  }
-
   private void addPointFeature(FeatureCollector.Feature feature, Coordinate... coords) {
     long id = idGen.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
@@ -119,10 +88,8 @@ public class FeatureRenderer {
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
-      for (Coordinate coord : coords) {
-        // TODO TiledGeometry.sliceIntoTiles(...)
-        slicePoint(sliced, zoom, buffer, coord);
-      }
+      TileExtents.ForZoom extents = config.extents().getForZoom(zoom);
+      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
 
       RenderedFeature.Group groupInfo = null;
       if (hasLabelGrid && coords.length == 1) {
@@ -133,10 +100,10 @@ public class FeatureRenderer {
         );
       }
 
-      for (var entry : sliced.entrySet()) {
+      for (var entry : tiled.getTileData()) {
         TileCoord tile = entry.getKey();
-        Set<Coordinate> value = entry.getValue();
-        Geometry geom = value.size() == 1 ? GeoUtils.point(value.iterator().next()) : GeoUtils.multiPoint(value);
+        List<List<CoordinateSequence>> result = entry.getValue();
+        Geometry geom = CoordinateSequenceExtractor.reassemblePoints(result);
         // TODO stats
         // TODO writeTileFeatures
         emitFeature(feature, id, attrs, tile, geom, groupInfo);
@@ -197,7 +164,7 @@ public class FeatureRenderer {
       geom = simplifier.getResultGeometry();
 
       List<List<CoordinateSequence>> groups = CoordinateSequenceExtractor.extractGroups(geom, minSize);
-      double buffer = feature.getBufferPixelsAtZoom(z);
+      double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.extents().getForZoom(z);
       TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
       writeTileFeatures(id, feature, sliced);
@@ -213,10 +180,10 @@ public class FeatureRenderer {
 
         Geometry geom;
         if (feature.area()) {
-          geom = CoordinateSequenceExtractor.reassemblePolygon(feature, tile, geoms);
+          geom = CoordinateSequenceExtractor.reassemblePolygons(geoms);
           geom = GeoUtils.fixPolygon(geom, 2);
         } else {
-          geom = CoordinateSequenceExtractor.reassembleLineString(geoms);
+          geom = CoordinateSequenceExtractor.reassembleLineStrings(geoms);
         }
 
         try {

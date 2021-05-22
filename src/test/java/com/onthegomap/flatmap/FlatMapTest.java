@@ -3,9 +3,23 @@ package com.onthegomap.flatmap;
 import static com.onthegomap.flatmap.TestUtils.assertSameJson;
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
 import static com.onthegomap.flatmap.TestUtils.feature;
+import static com.onthegomap.flatmap.TestUtils.newCoordinateList;
 import static com.onthegomap.flatmap.TestUtils.newLineString;
+import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
 import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
+import static com.onthegomap.flatmap.TestUtils.newPolygon;
+import static com.onthegomap.flatmap.TestUtils.rectangle;
+import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
+import static com.onthegomap.flatmap.TestUtils.tileBottom;
+import static com.onthegomap.flatmap.TestUtils.tileBottomLeft;
+import static com.onthegomap.flatmap.TestUtils.tileBottomRight;
+import static com.onthegomap.flatmap.TestUtils.tileFill;
+import static com.onthegomap.flatmap.TestUtils.tileLeft;
+import static com.onthegomap.flatmap.TestUtils.tileRight;
+import static com.onthegomap.flatmap.TestUtils.tileTop;
+import static com.onthegomap.flatmap.TestUtils.tileTopLeft;
+import static com.onthegomap.flatmap.TestUtils.tileTopRight;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.graphhopper.reader.ReaderRelation;
@@ -29,6 +43,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
@@ -43,6 +58,8 @@ public class FlatMapTest {
   private static final double Z14_WIDTH = 1d / Z14_TILES;
   private static final int Z13_TILES = 1 << 13;
   private static final double Z13_WIDTH = 1d / Z13_TILES;
+  private static final int Z12_TILES = 1 << 12;
+  private static final double Z12_WIDTH = 1d / Z12_TILES;
   private final Stats stats = new Stats.InMemory();
 
   private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
@@ -83,7 +100,11 @@ public class FlatMapTest {
     featureGroup.sorter().sort();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, profile, config, stats);
-      return new FlatMapResults(TestUtils.getTileMap(db), db.metadata().getAll());
+      var tileMap = TestUtils.getTileMap(db);
+      tileMap.values().forEach(fs -> {
+        fs.forEach(f -> f.geometry().validate());
+      });
+      return new FlatMapResults(tileMap, db.metadata().getAll());
     }
   }
 
@@ -294,6 +315,179 @@ public class FlatMapTest {
         feature(newLineString(64, 64, 192, 192), Map.of())
       )
     ), results.tiles);
+  }
+
+  @Test
+  public void testMultiLineString() throws IOException, SQLException {
+    double x1 = 0.5 + Z14_WIDTH / 2;
+    double y1 = 0.5 + Z14_WIDTH / 2;
+    double x2 = x1 + Z14_WIDTH;
+    double y2 = y1 + Z14_WIDTH;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newMultiLineString(
+          newLineString(lng1, lat1, lng2, lat2),
+          newLineString(lng2, lat2, lng1, lat1)
+        ), Map.of(
+          "attr", "value"
+        ))
+      ),
+      (in, features) -> {
+        features.line("layer")
+          .setZoomRange(13, 14)
+          .setBufferPixels(4);
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newMultiLineString(
+          newLineString(128, 128, 260, 260),
+          newLineString(260, 260, 128, 128)
+        ), Map.of())
+      ),
+      TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14), List.of(
+        feature(newMultiLineString(
+          newLineString(-4, -4, 128, 128),
+          newLineString(128, 128, -4, -4)
+        ), Map.of())
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newMultiLineString(
+          newLineString(64, 64, 192, 192),
+          newLineString(192, 192, 64, 64)
+        ), Map.of())
+      )
+    ), results.tiles);
+  }
+
+  private List<Coordinate> z14CoordinateList(double... coords) {
+    List<Coordinate> points = newCoordinateList(coords);
+    points.forEach(c -> {
+      c.x = 0.5 + c.x * Z14_WIDTH;
+      c.y = 0.5 + c.y * Z14_WIDTH;
+    });
+    return points;
+  }
+
+  @Test
+  public void testPolygon() throws IOException, SQLException {
+    List<Coordinate> outerPoints = z14CoordinateList(
+      0.5, 0.5,
+      3.5, 0.5,
+      3.5, 2.5,
+      0.5, 2.5,
+      0.5, 0.5
+    );
+    List<Coordinate> innerPoints = z14CoordinateList(
+      1.25, 1.25,
+      1.75, 1.25,
+      1.75, 1.75,
+      1.25, 1.75,
+      1.25, 1.25
+    );
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newPolygon(
+          outerPoints,
+          List.of(innerPoints)
+        ), Map.of())
+      ),
+      (in, features) -> {
+        features.line("layer")
+          .setZoomRange(12, 14)
+          .setBufferPixels(4);
+      }
+    );
+
+    assertSubmap(Map.ofEntries(
+      // Z14 - row 1
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(tileBottomRight(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2, 14, List.of(
+        feature(tileBottom(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2, 14, List.of(
+        feature(tileBottom(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2, 14, List.of(
+        feature(tileBottomLeft(4), Map.of())
+      )),
+      // Z14 - row 2
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2 + 1, 14, List.of(
+        feature(tileRight(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14, List.of(
+        feature(newPolygon(
+          tileFill(5),
+          List.of(newCoordinateList(
+            64, 64,
+            192, 64,
+            192, 192,
+            64, 192,
+            64, 64
+          ))
+        ), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2 + 1, 14, List.of(
+        feature(newPolygon(tileFill(5), List.of()), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 1, 14, List.of(
+        feature(tileLeft(4), Map.of())
+      )),
+      // Z14 - row 3
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2 + 2, 14, List.of(
+        feature(tileTopRight(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 2, 14, List.of(
+        feature(tileTop(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2 + 2, 14, List.of(
+        feature(tileTop(4), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 2, 14, List.of(
+        feature(tileTopLeft(4), Map.of())
+      )),
+      // Z13
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPolygon(
+          rectangleCoordList(64, 256 + 4),
+          List.of(rectangleCoordList(128 + 64, 256 - 64)) // hole
+        ), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2, 13, List.of(
+        feature(rectangle(-4, 64, 256 - 64, 256 + 4), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2 + 1, 13, List.of(
+        feature(rectangle(64, -4, 256 + 4, 64), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2 + 1, 13, List.of(
+        feature(rectangle(-4, -4, 256 - 64, 64), Map.of())
+      )),
+      // Z12
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPolygon(
+          rectangleCoordList(32, 32, 256 - 32, 128 + 32),
+          List.of(
+            rectangleCoordList(64 + 32, 128 - 32) // hole
+          )
+        ), Map.of())
+      ))
+    ), results.tiles);
+  }
+
+  private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
+    List<TestUtils.ComparableFeature> features) {
+    return Map.entry(TileCoord.ofXYZ(x, y, z), features);
   }
 
   private interface LayerPostprocessFunction {

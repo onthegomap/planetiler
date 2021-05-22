@@ -47,7 +47,7 @@ public class TileExtentsTest {
   }
 
   @Test
-  public void bottomLeft() {
+  public void testBottomLeft() {
     TileExtents extents = TileExtents
       .computeFromWorldBounds(14, new Envelope(0, eps, 1 - eps, 1));
     for (int z = 0; z <= 14; z++) {

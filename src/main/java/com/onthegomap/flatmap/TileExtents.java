@@ -54,11 +54,11 @@ public class TileExtents implements Predicate<TileCoord> {
     }
 
     public boolean testX(int x) {
-      return x >= minX && x <= maxX;
+      return x >= minX && x < maxX;
     }
 
     public boolean testY(int y) {
-      return y >= minY && y <= maxY;
+      return y >= minY && y < maxY;
     }
   }
 }

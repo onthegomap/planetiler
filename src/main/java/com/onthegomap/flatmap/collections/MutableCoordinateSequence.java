@@ -51,7 +51,10 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
 
   @Override
   public Envelope expandEnvelope(Envelope env) {
-    return null;
+    for (int i = 0; i < points.size(); i += dimension) {
+      env.expandToInclude(points.get(i), points.get(i + 1));
+    }
+    return env;
   }
 
   public void addPoint(double x, double y) {

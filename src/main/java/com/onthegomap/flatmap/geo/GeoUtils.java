@@ -23,6 +23,7 @@ public class GeoUtils {
 
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
   private static final Coordinate[] EMPTY_COORD_ARRAY = new Coordinate[0];
+  private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
 
   private static final double WORLD_RADIUS_METERS = 6_378_137;
   private static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
@@ -191,11 +192,6 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiPointFromCoords(coords.toArray(EMPTY_COORD_ARRAY));
   }
 
-  public static Geometry multiPoint(double... coords) {
-    assert coords.length % 2 == 0;
-    return JTS_FACTORY.createMultiPoint(new PackedCoordinateSequence.Double(coords, 2, 0));
-  }
-
   public static Geometry createMultiLineString(List<LineString> lineStrings) {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
@@ -229,5 +225,13 @@ public class GeoUtils {
       (int) Math.floor(wrapDouble(coord.getX() * tilesAtZoom, tilesAtZoom) / labelGridTileSize),
       (int) Math.floor((coord.getY() * tilesAtZoom) / labelGridTileSize)
     );
+  }
+
+  public static CoordinateSequence coordinateSequence(double... coords) {
+    return new PackedCoordinateSequence.Double(coords, 2, 0);
+  }
+
+  public static Geometry createMultiPoint(List<Point> points) {
+    return JTS_FACTORY.createMultiPoint(points.toArray(EMPTY_POINT_ARRAY));
   }
 }

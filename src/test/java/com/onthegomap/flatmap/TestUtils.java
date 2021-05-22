@@ -1,6 +1,9 @@
 package com.onthegomap.flatmap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,6 +26,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -30,6 +34,8 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
@@ -55,8 +61,78 @@ public class TestUtils {
     return GeoUtils.JTS_FACTORY.createPolygon(newCoordinateList(coords).toArray(new Coordinate[0]));
   }
 
+  public static Polygon tileBottomRight(double buffer) {
+    return rectangle(128, 128, 256 + buffer, 256 + buffer);
+  }
+
+  public static Polygon tileBottom(double buffer) {
+    return rectangle(-buffer, 128, 256 + buffer, 256 + buffer);
+  }
+
+  public static Polygon tileBottomLeft(double buffer) {
+    return rectangle(-buffer, 128, 128, 256 + buffer);
+  }
+
+  public static Polygon tileLeft(double buffer) {
+    return rectangle(-buffer, -buffer, 128, 256 + buffer);
+  }
+
+  public static Polygon tileTopLeft(double buffer) {
+    return rectangle(-buffer, -buffer, 128, 128);
+  }
+
+  public static Polygon tileTop(double buffer) {
+    return rectangle(-buffer, -buffer, 256 + buffer, 128);
+  }
+
+  public static Polygon tileTopRight(double buffer) {
+    return rectangle(128, -buffer, 256 + buffer, 128);
+  }
+
+  public static Polygon tileRight(double buffer) {
+    return rectangle(128, -buffer, 256 + buffer, 256 + buffer);
+  }
+
+  public static List<Coordinate> tileFill(double buffer) {
+    return rectangleCoordList(-buffer, 256 + buffer);
+  }
+
+  public static List<Coordinate> rectangleCoordList(double minX, double minY, double maxX, double maxY) {
+    return newCoordinateList(
+      minX, minY,
+      maxX, minY,
+      maxX, maxY,
+      minX, maxY,
+      minX, minY
+    );
+  }
+
+  public static List<Coordinate> rectangleCoordList(double min, double max) {
+    return rectangleCoordList(min, min, max, max);
+  }
+
+  public static Polygon rectangle(double minX, double minY, double maxX, double maxY) {
+    return newPolygon(rectangleCoordList(minX, minY, maxX, maxY), List.of());
+  }
+
+  public static Polygon rectangle(double min, double max) {
+    return rectangle(min, min, max, max);
+  }
+
+  public static Polygon newPolygon(List<Coordinate> outer, List<List<Coordinate>> inner) {
+    return GeoUtils.JTS_FACTORY.createPolygon(
+      GeoUtils.JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
+      inner.stream().map(i -> GeoUtils.JTS_FACTORY.createLinearRing(i.toArray(new Coordinate[0])))
+        .toArray(LinearRing[]::new)
+    );
+  }
+
   public static LineString newLineString(double... coords) {
     return GeoUtils.JTS_FACTORY.createLineString(newCoordinateList(coords).toArray(new Coordinate[0]));
+  }
+
+  public static MultiLineString newMultiLineString(LineString... lineStrings) {
+    return GeoUtils.JTS_FACTORY.createMultiLineString(lineStrings);
   }
 
   public static Point newPoint(double x, double y) {
@@ -158,9 +234,39 @@ public class TestUtils {
     return GeoUtils.JTS_FACTORY.createGeometryCollection();
   }
 
+  public static void validateGeometry(Geometry g) {
+    if (g instanceof GeometryCollection gs) {
+      for (int i = 0; i < gs.getNumGeometries(); i++) {
+        validateGeometry(gs.getGeometryN(i));
+      }
+    } else if (g instanceof Point point) {
+      assertFalse(point.isEmpty(), "empty: " + point);
+    } else if (g instanceof LineString line) {
+      assertTrue(line.getNumPoints() >= 2, "too few points: " + line);
+    } else if (g instanceof Polygon poly) {
+      var outer = poly.getExteriorRing();
+      assertTrue(Orientation.isCCW(outer.getCoordinateSequence()), "outer not CCW: " + poly);
+      assertTrue(outer.getNumPoints() >= 4, "outer too few points: " + poly);
+      assertTrue(outer.isClosed(), "outer not closed: " + poly);
+      for (int i = 0; i < poly.getNumInteriorRing(); i++) {
+        var inner = poly.getInteriorRingN(i);
+        assertFalse(Orientation.isCCW(inner.getCoordinateSequence()),
+          "inner " + i + " not CW: " + poly);
+        assertTrue(outer.getNumPoints() >= 4, "inner " + i + " too few points: " + poly);
+        assertTrue(inner.isClosed(), "inner " + i + " not closed: " + poly);
+      }
+    } else {
+      fail("Unrecognized geometry: " + g);
+    }
+  }
+
   public interface GeometryComparision {
 
     Geometry geom();
+
+    default void validate() {
+      validateGeometry(geom());
+    }
   }
 
   private static record NormGeometry(Geometry geom) implements GeometryComparision {

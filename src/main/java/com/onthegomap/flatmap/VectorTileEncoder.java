@@ -196,6 +196,7 @@ public class VectorTileEncoder {
           if (first) {
             first = false;
             outerCCW = ccw;
+            assert outerCCW;
           }
           if (ccw == outerCCW) {
             ringsForCurrentPolygon = new ArrayList<>();

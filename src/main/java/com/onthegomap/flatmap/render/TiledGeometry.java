@@ -21,13 +21,16 @@ import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.TileExtents;
 import com.onthegomap.flatmap.collections.IntRange;
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
+import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
@@ -40,11 +43,13 @@ import org.slf4j.LoggerFactory;
 class TiledGeometry {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TiledGeometry.class);
+  private static final double NEIGHBOR_BUFFER_EPS = 0.1d / 4096;
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
-  private final Map<Integer, IntRange> filledRanges = new HashMap<>();
+  private Map<Integer, IntRange> filledRanges = null;
   private final TileExtents.ForZoom extents;
   private final double buffer;
+  private final double neighborBuffer;
   private final int z;
   private final boolean area;
   private final int max;
@@ -52,9 +57,49 @@ class TiledGeometry {
   private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
     this.extents = extents;
     this.buffer = buffer;
+    // make sure we inspect neighboring tiles when a line runs along an edge
+    this.neighborBuffer = buffer + NEIGHBOR_BUFFER_EPS;
     this.z = z;
     this.area = area;
     this.max = 1 << z;
+  }
+
+  public static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
+    Coordinate[] coords) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, false);
+    for (Coordinate coord : coords) {
+      result.slicePoint(coord);
+    }
+    return result;
+  }
+
+  private static int wrapInt(int value, int max) {
+    value %= max;
+    if (value < 0) {
+      value += max;
+    }
+    return value;
+  }
+
+  private void slicePoint(Coordinate coord) {
+    double worldX = coord.getX() * max;
+    double worldY = coord.getY() * max;
+    int minX = (int) Math.floor(worldX - neighborBuffer);
+    int maxX = (int) Math.floor(worldX + neighborBuffer);
+    int minY = Math.max(extents.minY(), (int) Math.floor(worldY - neighborBuffer));
+    int maxY = Math.min(extents.maxY() - 1, (int) Math.floor(worldY + neighborBuffer));
+    for (int x = minX; x <= maxX; x++) {
+      double tileX = worldX - x;
+      int wrappedX = wrapInt(x, max);
+      if (extents.testX(wrappedX)) {
+        for (int y = minY; y <= maxY; y++) {
+          TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
+          double tileY = worldY - y;
+          List<CoordinateSequence> points = tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>())).get(0);
+          points.add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
+        }
+      }
+    }
   }
 
   public int zoomLevel() {
@@ -76,7 +121,7 @@ class TiledGeometry {
   }
 
   public Iterable<TileCoord> getFilledTiles() {
-    return () -> filledRanges.entrySet().stream()
+    return filledRanges == null ? Collections.emptyList() : () -> filledRanges.entrySet().stream()
       .<TileCoord>mapMulti((entry, next) -> {
         int x = entry.getKey();
         for (int y : entry.getValue()) {
@@ -194,8 +239,8 @@ class TiledGeometry {
       double minX = Math.min(_ax, _bx);
       double maxX = Math.max(_ax, _bx);
 
-      int startX = (int) Math.floor(minX - buffer);
-      int endX = (int) Math.floor(maxX + buffer);
+      int startX = (int) Math.floor(minX - neighborBuffer);
+      int endX = (int) Math.floor(maxX + neighborBuffer);
 
       for (int x = startX; x <= endX; x++) {
         double ax = _ax - x;
@@ -244,8 +289,8 @@ class TiledGeometry {
     // add the last point
     double _ax = segment.getX(segment.size() - 1);
     double ay = segment.getY(segment.size() - 1);
-    int startX = (int) Math.floor(_ax - buffer);
-    int endX = (int) Math.floor(_ax + buffer);
+    int startX = (int) Math.floor(_ax - neighborBuffer);
+    int endX = (int) Math.floor(_ax + neighborBuffer);
 
     for (int x = startX - 1; x <= endX + 1; x++) {
       double ax = _ax - x;
@@ -297,10 +342,10 @@ class TiledGeometry {
 
       int extentMinY = extents.minY();
       int extentMaxY = extents.maxY();
-      int startY = Math.max(extentMinY, (int) Math.floor(minY - buffer));
-      int endStartY = Math.max(extentMinY, (int) Math.floor(minY + buffer));
-      int startEndY = Math.min(extentMaxY - 1, (int) Math.floor(maxY - buffer));
-      int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + buffer));
+      int startY = Math.max(extentMinY, (int) Math.floor(minY - neighborBuffer));
+      int endStartY = Math.max(extentMinY, (int) Math.floor(minY + neighborBuffer));
+      int startEndY = Math.min(extentMaxY - 1, (int) Math.floor(maxY - neighborBuffer));
+      int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + neighborBuffer));
 
       boolean onRightEdge = area && ax == bx && ax == rightEdge && by > ay;
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
@@ -409,8 +454,8 @@ class TiledGeometry {
     int last = stripeSegment.size() - 1;
     double ax = stripeSegment.getX(last);
     double ay = stripeSegment.getY(last);
-    int startY = (int) (ay - buffer);
-    int endY = (int) (ay + buffer);
+    int startY = (int) Math.floor(ay - neighborBuffer);
+    int endY = (int) Math.floor(ay + neighborBuffer);
 
     for (int y = startY - 1; y <= endY + 1; y++) {
       MutableCoordinateSequence slice = ySlices.get(y);
@@ -433,6 +478,9 @@ class TiledGeometry {
     if (yRange == null) {
       return;
     }
+    if (filledRanges == null) {
+      filledRanges = new HashMap<>();
+    }
     IntRange existing = filledRanges.get(x);
     if (existing == null) {
       filledRanges.put(x, yRange);
@@ -444,6 +492,9 @@ class TiledGeometry {
   private void removeFilledRange(int x, IntRange yRange) {
     if (yRange == null) {
       return;
+    }
+    if (filledRanges == null) {
+      filledRanges = new HashMap<>();
     }
     IntRange existing = filledRanges.get(x);
     if (existing != null) {
