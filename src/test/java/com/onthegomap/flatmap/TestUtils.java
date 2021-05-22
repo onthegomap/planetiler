@@ -270,7 +270,7 @@ public class TestUtils {
     }
   }
 
-  private static record NormGeometry(Geometry geom) implements GeometryComparision {
+  public static record NormGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
@@ -397,6 +397,20 @@ public class TestUtils {
   ) {
     assertEquals(
       mapTileFeatures(expected, NormGeometry::new),
+      mapTileFeatures(actual, NormGeometry::new)
+    );
+  }
+
+  public static void assertSameNormalizedFeature(Geometry expected, Geometry actual) {
+    assertEquals(new NormGeometry(expected), new NormGeometry(actual));
+  }
+
+  public static void assertNormalizedSubmap(
+    Map<TileCoord, Collection<Geometry>> expectedSubmap,
+    Map<TileCoord, Collection<Geometry>> actual
+  ) {
+    assertSubmap(
+      mapTileFeatures(expectedSubmap, NormGeometry::new),
       mapTileFeatures(actual, NormGeometry::new)
     );
   }
