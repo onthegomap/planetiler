@@ -540,7 +540,7 @@ public class FlatMapTest {
 
   @ParameterizedTest
   @CsvSource({
-    "chesapeake.wkb, 4077",
+    "chesapeake.wkb, 4076",
     "mdshore.wkb,    19904",
     "njshore.wkb,    10571"
   })
