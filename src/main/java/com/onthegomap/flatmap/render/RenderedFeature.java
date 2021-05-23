@@ -15,7 +15,5 @@ public record RenderedFeature(
     assert vectorTileFeature != null;
   }
 
-  public static record Group(long group, int limit) {
-
-  }
+  public static record Group(long group, int limit) {}
 }

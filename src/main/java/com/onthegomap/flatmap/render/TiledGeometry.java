@@ -330,9 +330,7 @@ class TiledGeometry {
     if (x < 0 || x >= max) {
       return null;
     }
-    record SkippedSegment(Direction side, int lo, int hi) {
-
-    }
+    record SkippedSegment(Direction side, int lo, int hi) {}
     List<SkippedSegment> skipped = null;
     for (int i = 0; i < stripeSegment.size() - 1; i++) {
       double ax = stripeSegment.getX(i);

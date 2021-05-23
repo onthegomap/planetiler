@@ -147,12 +147,8 @@ public class FeatureRendererTest {
   @TestFactory
   public List<DynamicTest> testProcessPointsNearInternationalDateLineAndPoles() {
     double d = 1d / 512;
-    record X(double x, double wrapped, double z1x0, double z1x1) {
-
-    }
-    record Y(double y, int z1ty, double tyoff) {
-
-    }
+    record X(double x, double wrapped, double z1x0, double z1x1) {}
+    record Y(double y, int z1ty, double tyoff) {}
     var xs = List.of(
       new X(-d, 1 - d, -1, 255),
       new X(d, 1 + d, 1, 257),

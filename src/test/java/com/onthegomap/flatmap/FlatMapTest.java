@@ -578,9 +578,7 @@ public class FlatMapTest {
 
   private static record FlatMapResults(
     Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata
-  ) {
-
-  }
+  ) {}
 
   private static record TestProfile(
     @Override String name,

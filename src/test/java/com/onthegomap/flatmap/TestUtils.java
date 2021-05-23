@@ -337,9 +337,7 @@ public class TestUtils {
   public static record ComparableFeature(
     GeometryComparision geometry,
     Map<String, Object> attrs
-  ) {
-
-  }
+  ) {}
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
     return new ComparableFeature(new NormGeometry(geom), attrs);
