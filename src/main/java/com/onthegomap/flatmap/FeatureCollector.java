@@ -63,11 +63,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double defaultBufferPixels = 4;
     private ZoomFunction<Number> bufferPixelOverrides;
     private double defaultMinPixelSize = 1;
+    private double minPixelSizeAtMaxZoom = 256d / 4096;
     private ZoomFunction<Number> minPixelSize = null;
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
     private boolean attrsChangeByZoom = false;
     private CacheByZoom<Map<String, Object>> attrCache = null;
+    private double defaultPixelTolerance = 0.1d;
+    private double pixelToleranceAtMaxZoom = 256d / 4096;
+    private ZoomFunction<Double> pixelTolerance = null;
 
     private Feature(String layer, Geometry geom, boolean area) {
       this.layer = layer;
@@ -130,7 +134,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     public double getMinPixelSize(int zoom) {
-      return ZoomFunction.applyAsDoubleOrElse(minPixelSize, zoom, defaultMinPixelSize);
+      return zoom == 14 ? minPixelSizeAtMaxZoom
+        : ZoomFunction.applyAsDoubleOrElse(minPixelSize, zoom, defaultMinPixelSize);
     }
 
     public Feature setMinPixelSize(double minPixelSize) {
@@ -141,6 +146,41 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setMinPixelSizeBelowZoom(int zoom, double minPixelSize) {
       this.minPixelSize = ZoomFunction.maxZoom(zoom, minPixelSize);
       return this;
+    }
+
+    public Feature setMinPixelSizeAtMaxZoom(double minPixelSize) {
+      this.minPixelSizeAtMaxZoom = minPixelSize;
+      return this;
+    }
+
+    public Feature setMinPixelSizeAtAllZooms(int minPixelSize) {
+      return setMinPixelSizeAtMaxZoom(minPixelSize)
+        .setMinPixelSize(minPixelSize);
+    }
+
+
+    public Feature setPixelTolerance(double tolerance) {
+      this.defaultPixelTolerance = tolerance;
+      return this;
+    }
+
+    public Feature setPixelToleranceAtMaxZoom(double tolerance) {
+      this.pixelToleranceAtMaxZoom = tolerance;
+      return this;
+    }
+
+    public Feature setPixelToleranceAtAllZooms(double tolerance) {
+      return setPixelToleranceAtMaxZoom(tolerance).setPixelTolerance(tolerance);
+    }
+
+    public Feature setPixelToleranceBelowZoom(int zoom, double tolerance) {
+      this.pixelTolerance = ZoomFunction.maxZoom(zoom, tolerance);
+      return this;
+    }
+
+    public double getPixelTolerance(int zoom) {
+      return zoom == 14 ? pixelToleranceAtMaxZoom
+        : ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
     }
 
     public double getLabelGridPixelSizeAtZoom(int zoom) {

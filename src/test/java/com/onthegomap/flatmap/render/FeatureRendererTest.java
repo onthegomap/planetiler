@@ -433,6 +433,29 @@ public class FeatureRendererTest {
     ), renderGeometry(feature));
   }
 
+  @Test
+  public void testDuplicatePointsRemovedAfterRounding() {
+    var eps = Z14_WIDTH / 4096;
+    var pixel = Z14_WIDTH / 256;
+    var feature = lineFeature(newLineString(
+      0.5 + pixel * 10, 0.5 + pixel * 10,
+      0.5 + pixel * 20, 0.5 + pixel * 10,
+      0.5 + pixel * 20, 0.5 + pixel * 10 + eps / 3
+    ))
+      .setMinPixelSize(1)
+      .setZoomRange(14, 14)
+      .setBufferPixels(0)
+      .setPixelToleranceAtAllZooms(0);
+    assertExactSameFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        newLineString(
+          10, 10,
+          20, 10
+        )
+      )
+    ), renderGeometry(feature));
+  }
+
   /*
    * POLYGON TESTS
    */

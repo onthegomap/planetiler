@@ -7,11 +7,9 @@ import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
@@ -84,7 +82,6 @@ public class FeatureRenderer {
     long id = idGen.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
-      Map<TileCoord, Set<Coordinate>> sliced = new HashMap<>();
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
@@ -138,18 +135,12 @@ public class FeatureRenderer {
 
   private void addLinearFeature(FeatureCollector.Feature feature, Geometry input) {
     long id = idGen.incrementAndGet();
-    // TODO move to feature?
-    double minSizeAtMaxZoom = 1d / 4096;
-    double normalTolerance = 0.1 / 256;
-    double toleranceAtMaxZoom = 1d / 4096;
-
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
-      boolean isMaxZoom = feature.getMaxZoom() == 14;
       double scale = 1 << z;
-      double tolerance = isMaxZoom ? toleranceAtMaxZoom : normalTolerance;
-      double minSize = isMaxZoom ? minSizeAtMaxZoom : (feature.getMinPixelSize(z) / 256);
+      double tolerance = feature.getPixelTolerance(z) / 256d;
+      double minSize = feature.getMinPixelSize(z) / 256d;
       if (area) {
         minSize *= minSize;
       } else if (worldLength > 0 && worldLength * scale < minSize) {
