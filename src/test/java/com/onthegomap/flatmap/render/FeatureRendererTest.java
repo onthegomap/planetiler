@@ -21,6 +21,7 @@ import static com.onthegomap.flatmap.TestUtils.tileTop;
 import static com.onthegomap.flatmap.TestUtils.tileTopLeft;
 import static com.onthegomap.flatmap.TestUtils.tileTopRight;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.DoubleStream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -894,25 +896,48 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testRoundingMakesOutputWrongWinding() {
+  public void testRoundingCollapsesPolygonToLine() {
     var feature = polygonFeature(
       newPolygon(
-        0.5 + Z13_PX * 10, 0.5 + Z13_PX * 10,
-        0.5 + Z13_PX * (10 + (256d / 4096 / 3)), 0.5 + Z13_PX * 11,
-        0.5 + Z13_PX * (10 + (256d / 4096)), 0.5 + Z13_PX * 200,
-        0.5 + Z13_PX * 10, 0.5 + Z13_PX * 10
+        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
+        0.5 + Z14_PX * (10 + 256d / 4096d), 0.5 + Z14_PX * 100,
+        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 200,
+        0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10
       )
     )
       .setMinPixelSize(1d / 4096)
       .setZoomRange(13, 13)
       .setBufferPixels(1);
+    assertSameNormalizedFeatures(Map.of(), renderGeometry(feature));
+  }
+
+  private double[] z14WorldCoords(double... coords) {
+    return DoubleStream.of(coords).map(c -> 0.5 + Z14_PX * c).toArray();
+  }
+
+  private static final double TILE_RESOLUTION_PX = 256d / 4096;
+
+  @Test
+  public void testRoundingMakesOutputInvalid() {
+    var feature = polygonFeature(
+      newPolygon(z14WorldCoords(
+        10, 10,
+        10 + TILE_RESOLUTION_PX, 200,
+        20, 200,
+        10 + TILE_RESOLUTION_PX / 3d, 11,
+        10, 10
+      ))
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
     assertSameNormalizedFeatures(Map.of(
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 14), List.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         newPolygon(
           // it's not perfect, but at least it doesn't have a self-intersection
           10, 10,
-          30, 10,
-          16.6875, 16.6875,
+          20, 200,
+          10.0625, 200,
           10, 10
         )
       )
@@ -921,14 +946,152 @@ public class FeatureRendererTest {
 
   @Test
   public void testSimplifyMakesOutputInvalid() {
-    // simplifying causes invalid
-    throw new Error("TODO");
+    var feature = polygonFeature(
+      newPolygon(z14WorldCoords(
+        10, 10,
+        20, 20,
+        10, 30,
+        20 - TILE_RESOLUTION_PX / 0.5, 30,
+        20 + TILE_RESOLUTION_PX / 10, 20,
+        20 - TILE_RESOLUTION_PX / 0.5, 10,
+        10, 10
+      ))
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        newMultiPolygon(
+          newPolygon(
+            19.875, 10,
+            20, 20,
+            10, 10,
+            19.875, 10
+          ),
+          newPolygon(
+            10, 30,
+            20, 20,
+            19.875, 30,
+            10, 30
+          )
+        )
+      )
+    ), renderGeometry(feature));
   }
 
   @Test
-  public void testRoundingMakesOutputInvalid() {
-    // simplifying causes invalid
-    throw new Error("TODO");
+  public void testNestedMultipolygon() {
+    var feature = polygonFeature(
+      newMultiPolygon(
+        newPolygon(rectangleCoordList(
+          0.5 + Z14_PX * 10,
+          0.5 + Z14_PX * 200
+        ), List.of(rectangleCoordList(
+          0.5 + Z14_PX * 20,
+          0.5 + Z14_PX * 190
+        ))),
+        rectangle(0.5 + Z14_PX * 30, 0.5 + Z14_PX * 180)
+      )
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        newMultiPolygon(
+          newPolygon(
+            rectangleCoordList(10, 200),
+            List.of(rectangleCoordList(20, 190))
+          ),
+          rectangle(30, 180)
+        )
+      )
+    ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testNestedMultipolygonFill() {
+    var feature = polygonFeature(
+      newMultiPolygon(
+        newPolygon(rectangleCoordList(
+          0.5 - Z14_PX * 30,
+          0.5 + Z14_PX * (256 + 30)
+        ), List.of(rectangleCoordList(
+          0.5 - Z14_PX * 20,
+          0.5 + Z14_PX * (256 + 20)
+        ))),
+        rectangle(0.5 - Z14_PX * 10, 0.5 + Z14_PX * (256 + 10))
+      )
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    var rendered = renderGeometry(feature);
+    var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
+    assertEquals(1, innerTile.size());
+    assertEquals(new TestUtils.NormGeometry(rectangle(-5, 256 + 5)),
+      new TestUtils.NormGeometry(innerTile.iterator().next()));
+  }
+
+  @Test
+  public void testNestedMultipolygonInfersOuterFill() {
+    var feature = polygonFeature(
+      newMultiPolygon(
+        newPolygon(rectangleCoordList(
+          0.5 - Z14_PX * 30,
+          0.5 + Z14_PX * (256 + 30)
+        ), List.of(rectangleCoordList(
+          0.5 - Z14_PX * 20,
+          0.5 + Z14_PX * (256 + 20)
+        ))),
+        newPolygon(rectangleCoordList(
+          0.5 - Z14_PX * 10,
+          0.5 + Z14_PX * (256 + 10)
+        ), List.of(rectangleCoordList(
+          0.5 + Z14_PX * 10,
+          0.5 + Z14_PX * (256 - 10)
+        )))
+      )
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    var rendered = renderGeometry(feature);
+    var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
+    assertEquals(1, innerTile.size());
+    assertEquals(new TestUtils.NormGeometry(newPolygon(
+      rectangleCoordList(-1 - TILE_RESOLUTION_PX, 256 + 1 + TILE_RESOLUTION_PX),
+      List.of(rectangleCoordList(10, 246))
+      )),
+      new TestUtils.NormGeometry(innerTile.iterator().next()));
+  }
+
+  @Test
+  public void testNestedMultipolygonCancelsOutInnerFill() {
+    var feature = polygonFeature(
+      newMultiPolygon(
+        newPolygon(rectangleCoordList(
+          0.5 - Z14_PX * 30,
+          0.5 + Z14_PX * (256 + 30)
+        ), List.of(rectangleCoordList(
+          0.5 - Z14_PX * 20,
+          0.5 + Z14_PX * (256 + 20)
+        ))),
+        newPolygon(rectangleCoordList(
+          0.5 - Z14_PX * 10,
+          0.5 + Z14_PX * (256 + 10)
+        ), List.of(rectangleCoordList(
+          0.5 - Z14_PX * 5,
+          0.5 + Z14_PX * (256 + 5)
+        )))
+      )
+    )
+      .setMinPixelSize(1d / 4096)
+      .setZoomRange(14, 14)
+      .setBufferPixels(1);
+    var rendered = renderGeometry(feature);
+    assertFalse(rendered.containsKey(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14)));
   }
 
   // TODO: centroid
