@@ -23,6 +23,8 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -98,137 +100,145 @@ public class VectorTileEncoder {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  private static Geometry decodeCommands(byte geomTypeByte, int[] commands) {
-    VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
-    GeometryFactory gf = GeoUtils.JTS_FACTORY;
-    int x = 0;
-    int y = 0;
+  private static Geometry decodeCommands(byte geomTypeByte, int[] commands) throws GeometryException {
+    try {
+      VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
+      GeometryFactory gf = GeoUtils.JTS_FACTORY;
+      int x = 0;
+      int y = 0;
 
-    List<DoubleArrayList> coordsList = new ArrayList<>();
-    DoubleArrayList coords = null;
+      List<DoubleArrayList> coordsList = new ArrayList<>();
+      DoubleArrayList coords = null;
 
-    int geometryCount = commands.length;
-    int length = 0;
-    int command = 0;
-    int i = 0;
-    while (i < geometryCount) {
+      int geometryCount = commands.length;
+      int length = 0;
+      int command = 0;
+      int i = 0;
+      while (i < geometryCount) {
 
-      if (length <= 0) {
-        length = commands[i++];
-        command = length & ((1 << 3) - 1);
-        length = length >> 3;
-      }
-
-      if (length > 0) {
-
-        if (command == Command.MOVE_TO.value) {
-          coords = new DoubleArrayList();
-          coordsList.add(coords);
-        } else {
-          Objects.requireNonNull(coords);
+        if (length <= 0) {
+          length = commands[i++];
+          command = length & ((1 << 3) - 1);
+          length = length >> 3;
         }
 
-        if (command == Command.CLOSE_PATH.value) {
-          if (geomType != VectorTile.Tile.GeomType.POINT && !coords.isEmpty()) {
-            coords.add(coords.get(0), coords.get(1));
+        if (length > 0) {
+
+          if (command == Command.MOVE_TO.value) {
+            coords = new DoubleArrayList();
+            coordsList.add(coords);
+          } else {
+            Objects.requireNonNull(coords);
           }
+
+          if (command == Command.CLOSE_PATH.value) {
+            if (geomType != VectorTile.Tile.GeomType.POINT && !coords.isEmpty()) {
+              coords.add(coords.get(0), coords.get(1));
+            }
+            length--;
+            continue;
+          }
+
+          int dx = commands[i++];
+          int dy = commands[i++];
+
           length--;
-          continue;
+
+          dx = zigZagDecode(dx);
+          dy = zigZagDecode(dy);
+
+          x = x + dx;
+          y = y + dy;
+
+          coords.add(x / SCALE, y / SCALE);
         }
 
-        int dx = commands[i++];
-        int dy = commands[i++];
-
-        length--;
-
-        dx = zigZagDecode(dx);
-        dy = zigZagDecode(dy);
-
-        x = x + dx;
-        y = y + dy;
-
-        coords.add(x / SCALE, y / SCALE);
       }
 
+      Geometry geometry = null;
+      boolean outerCCW = false;
+
+      switch (geomType) {
+        case LINESTRING:
+          List<LineString> lineStrings = new ArrayList<>(coordsList.size());
+          for (DoubleArrayList cs : coordsList) {
+            if (cs.size() <= 2) {
+              continue;
+            }
+            lineStrings.add(gf.createLineString(toCs(cs)));
+          }
+          if (lineStrings.size() == 1) {
+            geometry = lineStrings.get(0);
+          } else if (lineStrings.size() > 1) {
+            geometry = gf.createMultiLineString(lineStrings.toArray(new LineString[0]));
+          }
+          break;
+        case POINT:
+          CoordinateSequence cs = new PackedCoordinateSequence.Double(coordsList.size(), 2, 0);
+          for (int j = 0; j < coordsList.size(); j++) {
+            cs.setOrdinate(j, 0, coordsList.get(j).get(0));
+            cs.setOrdinate(j, 1, coordsList.get(j).get(1));
+          }
+          if (cs.size() == 1) {
+            geometry = gf.createPoint(cs);
+          } else if (cs.size() > 1) {
+            geometry = gf.createMultiPoint(cs);
+          }
+          break;
+        case POLYGON:
+          List<List<LinearRing>> polygonRings = new ArrayList<>();
+          List<LinearRing> ringsForCurrentPolygon = new ArrayList<>();
+          boolean first = true;
+          for (DoubleArrayList clist : coordsList) {
+            // skip hole with too few coordinates
+            if (ringsForCurrentPolygon.size() > 0 && clist.size() < 4) {
+              continue;
+            }
+            LinearRing ring = gf.createLinearRing(toCs(clist));
+            boolean ccw = Orientation.isCCW(ring.getCoordinates());
+            if (first) {
+              first = false;
+              outerCCW = ccw;
+              assert outerCCW;
+            }
+            if (ccw == outerCCW) {
+              ringsForCurrentPolygon = new ArrayList<>();
+              polygonRings.add(ringsForCurrentPolygon);
+            }
+            ringsForCurrentPolygon.add(ring);
+          }
+          List<Polygon> polygons = new ArrayList<>();
+          for (List<LinearRing> rings : polygonRings) {
+            LinearRing shell = rings.get(0);
+            LinearRing[] holes = rings.subList(1, rings.size()).toArray(new LinearRing[rings.size() - 1]);
+            polygons.add(gf.createPolygon(shell, holes));
+          }
+          if (polygons.size() == 1) {
+            geometry = polygons.get(0);
+          }
+          if (polygons.size() > 1) {
+            geometry = gf.createMultiPolygon(GeometryFactory.toPolygonArray(polygons));
+          }
+          break;
+        default:
+          break;
+      }
+
+      if (geometry == null) {
+        geometry = gf.createGeometryCollection(new Geometry[0]);
+      }
+
+      return geometry;
+    } catch (IllegalArgumentException e) {
+      throw new GeometryException("Unable to decode geometry", e);
     }
-
-    Geometry geometry = null;
-    boolean outerCCW = false;
-
-    switch (geomType) {
-      case LINESTRING:
-        List<LineString> lineStrings = new ArrayList<>(coordsList.size());
-        for (DoubleArrayList cs : coordsList) {
-          if (cs.size() <= 2) {
-            continue;
-          }
-          lineStrings.add(gf.createLineString(toCs(cs)));
-        }
-        if (lineStrings.size() == 1) {
-          geometry = lineStrings.get(0);
-        } else if (lineStrings.size() > 1) {
-          geometry = gf.createMultiLineString(lineStrings.toArray(new LineString[0]));
-        }
-        break;
-      case POINT:
-        CoordinateSequence cs = new PackedCoordinateSequence.Double(coordsList.size(), 2, 0);
-        for (int j = 0; j < coordsList.size(); j++) {
-          cs.setOrdinate(j, 0, coordsList.get(j).get(0));
-          cs.setOrdinate(j, 1, coordsList.get(j).get(1));
-        }
-        if (cs.size() == 1) {
-          geometry = gf.createPoint(cs);
-        } else if (cs.size() > 1) {
-          geometry = gf.createMultiPoint(cs);
-        }
-        break;
-      case POLYGON:
-        List<List<LinearRing>> polygonRings = new ArrayList<>();
-        List<LinearRing> ringsForCurrentPolygon = new ArrayList<>();
-        boolean first = true;
-        for (DoubleArrayList clist : coordsList) {
-          // skip hole with too few coordinates
-          if (ringsForCurrentPolygon.size() > 0 && clist.size() < 4) {
-            continue;
-          }
-          LinearRing ring = gf.createLinearRing(toCs(clist));
-          boolean ccw = Orientation.isCCW(ring.getCoordinates());
-          if (first) {
-            first = false;
-            outerCCW = ccw;
-            assert outerCCW;
-          }
-          if (ccw == outerCCW) {
-            ringsForCurrentPolygon = new ArrayList<>();
-            polygonRings.add(ringsForCurrentPolygon);
-          }
-          ringsForCurrentPolygon.add(ring);
-        }
-        List<Polygon> polygons = new ArrayList<>();
-        for (List<LinearRing> rings : polygonRings) {
-          LinearRing shell = rings.get(0);
-          LinearRing[] holes = rings.subList(1, rings.size()).toArray(new LinearRing[rings.size() - 1]);
-          polygons.add(gf.createPolygon(shell, holes));
-        }
-        if (polygons.size() == 1) {
-          geometry = polygons.get(0);
-        }
-        if (polygons.size() > 1) {
-          geometry = gf.createMultiPolygon(GeometryFactory.toPolygonArray(polygons));
-        }
-        break;
-      default:
-        break;
-    }
-
-    if (geometry == null) {
-      geometry = gf.createGeometryCollection(new Geometry[0]);
-    }
-
-    return geometry;
   }
 
   public static List<Feature> decode(byte[] encoded) {
+    return decode(TileCoord.ofXYZ(0, 0, 0), encoded);
+  }
+
+  public static List<Feature> decode(TileCoord tileID, byte[] encoded) {
     try {
       VectorTile.Tile tile = VectorTile.Tile.parseFrom(encoded);
       List<Feature> features = new ArrayList<>();
@@ -267,13 +277,17 @@ public class VectorTileEncoder {
             Object value = values.get(feature.getTags(tagIdx++));
             attrs.put(key, value);
           }
-          Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
-          features.add(new Feature(
-            layerName,
-            feature.getId(),
-            encodeGeometry(geometry),
-            attrs
-          ));
+          try {
+            Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
+            features.add(new Feature(
+              layerName,
+              feature.getId(),
+              encodeGeometry(geometry),
+              attrs
+            ));
+          } catch (GeometryException e) {
+            LOGGER.warn("Error decoding " + tileID + ": " + e);
+          }
         }
       }
       return features;
@@ -282,7 +296,7 @@ public class VectorTileEncoder {
     }
   }
 
-  private static Geometry decodeCommands(GeomType type, List<Integer> geometryList) {
+  private static Geometry decodeCommands(GeomType type, List<Integer> geometryList) throws GeometryException {
     return decodeCommands((byte) type.getNumber(), geometryList.stream().mapToInt(i -> i).toArray());
   }
 
@@ -387,7 +401,7 @@ public class VectorTileEncoder {
 
   public static record VectorGeometry(int[] commands, byte geomType) {
 
-    public Geometry decode() {
+    public Geometry decode() throws GeometryException {
       return decodeCommands(geomType, commands);
     }
 

@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.render;
 
 import static com.onthegomap.flatmap.TestUtils.assertExactSameFeatures;
 import static com.onthegomap.flatmap.TestUtils.assertSameNormalizedFeatures;
+import static com.onthegomap.flatmap.TestUtils.decodeSilently;
 import static com.onthegomap.flatmap.TestUtils.emptyGeometry;
 import static com.onthegomap.flatmap.TestUtils.newLineString;
 import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
@@ -60,7 +61,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<Geometry>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(rendered.vectorTileFeature().geometry().decode())).renderFeature(feature);
+      .add(decodeSilently(rendered.vectorTileFeature().geometry()))).renderFeature(feature);
     result.values().forEach(gs -> gs.forEach(TestUtils::validateGeometry));
     return result;
   }
@@ -70,7 +71,7 @@ public class FeatureRendererTest {
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
       .add(rendered)).renderFeature(feature);
     result.values()
-      .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(f.vectorTileFeature().geometry().decode())));
+      .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(decodeSilently(f.vectorTileFeature().geometry()))));
     return result;
   }
 
@@ -454,6 +455,21 @@ public class FeatureRendererTest {
         )
       )
     ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testLineStringCollapsesToPointWithRounding() {
+    var eps = Z14_WIDTH / 4096;
+    var pixel = Z14_WIDTH / 256;
+    var feature = lineFeature(newLineString(
+      0.5 + pixel * 10, 0.5 + pixel * 10,
+      0.5 + pixel * 10 + eps / 3, 0.5 + pixel * 10
+    ))
+      .setMinPixelSize(1)
+      .setZoomRange(14, 14)
+      .setBufferPixels(0)
+      .setPixelToleranceAtAllZooms(0);
+    assertExactSameFeatures(Map.of(), renderGeometry(feature));
   }
 
   /*

@@ -172,15 +172,13 @@ public class FeatureRenderer {
         if (feature.area()) {
           geom = CoordinateSequenceExtractor.reassemblePolygons(geoms);
           geom = GeoUtils.snapAndFixPolygon(geom, tilePrecision);
+          // JTS utilities "fix" the geometry to be clockwise outer/CCW inner
+          geom = geom.reverse();
         } else {
           geom = CoordinateSequenceExtractor.reassembleLineStrings(geoms);
         }
 
         if (!geom.isEmpty()) {
-          // JTS utilities "fix" the geometry to be clockwise outer/CCW inner
-          if (feature.area()) {
-            geom = geom.reverse();
-          }
           emitFeature(feature, id, attrs, tile, geom, null);
         }
       } catch (GeometryException e) {

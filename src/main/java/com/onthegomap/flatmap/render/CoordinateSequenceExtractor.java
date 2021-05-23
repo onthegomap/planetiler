@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.render;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -73,14 +74,16 @@ class CoordinateSequenceExtractor {
     List<LineString> lineStrings = new ArrayList<>();
     for (List<CoordinateSequence> inner : geoms) {
       for (CoordinateSequence coordinateSequence : inner) {
-        lineStrings.add(GeoUtils.JTS_FACTORY.createLineString(coordinateSequence));
+        if (coordinateSequence.size() > 1) {
+          lineStrings.add(GeoUtils.JTS_FACTORY.createLineString(coordinateSequence));
+        }
       }
     }
     return lineStrings.size() == 1 ? lineStrings.get(0) : GeoUtils.createMultiLineString(lineStrings);
   }
 
   @NotNull
-  static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups) {
+  static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups) throws GeometryException {
     int numGeoms = groups.size();
     if (numGeoms == 1) {
       return reassemblePolygon(groups.get(0));
@@ -93,15 +96,19 @@ class CoordinateSequenceExtractor {
     }
   }
 
-  private static Polygon reassemblePolygon(List<CoordinateSequence> group) {
-    LinearRing first = GeoUtils.JTS_FACTORY.createLinearRing(group.get(0));
-    LinearRing[] rest = new LinearRing[group.size() - 1];
-    for (int j = 1; j < group.size(); j++) {
-      CoordinateSequence seq = group.get(j);
-      CoordinateSequences.reverse(seq);
-      rest[j - 1] = GeoUtils.JTS_FACTORY.createLinearRing(seq);
+  private static Polygon reassemblePolygon(List<CoordinateSequence> group) throws GeometryException {
+    try {
+      LinearRing first = GeoUtils.JTS_FACTORY.createLinearRing(group.get(0));
+      LinearRing[] rest = new LinearRing[group.size() - 1];
+      for (int j = 1; j < group.size(); j++) {
+        CoordinateSequence seq = group.get(j);
+        CoordinateSequences.reverse(seq);
+        rest[j - 1] = GeoUtils.JTS_FACTORY.createLinearRing(seq);
+      }
+      return GeoUtils.JTS_FACTORY.createPolygon(first, rest);
+    } catch (IllegalArgumentException e) {
+      throw new GeometryException("Could not build polygon", e);
     }
-    return GeoUtils.JTS_FACTORY.createPolygon(first, rest);
   }
 
   static Geometry reassemblePoints(List<List<CoordinateSequence>> result) {

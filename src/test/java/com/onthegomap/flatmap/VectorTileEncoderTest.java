@@ -19,6 +19,7 @@
 package com.onthegomap.flatmap;
 
 import static com.onthegomap.flatmap.TestUtils.TRANSFORM_TO_TILE;
+import static com.onthegomap.flatmap.TestUtils.decodeSilently;
 import static com.onthegomap.flatmap.TestUtils.newGeometryCollection;
 import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
 import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.primitives.Ints;
+import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +120,7 @@ public class VectorTileEncoderTest {
     byte[] encoded = vtm.encode();
     assertNotSame(0, encoded.length);
 
-    var decoded = VectorTileEncoder.decode(encoded);
+    var decoded = VectorTileEncoder.decode(TileCoord.ofXYZ(0, 0, 0), encoded);
     assertEquals(List
       .of(new VectorTileEncoder.Feature("DEPCNT", 1, VectorTileEncoder.encodeGeometry(newPoint(3, 6)), Map.of(
         "key1", "value1",
@@ -209,7 +211,7 @@ public class VectorTileEncoderTest {
 
     var features = VectorTileEncoder.decode(encoded);
     assertEquals(1, features.size());
-    MultiPolygon mp2 = (MultiPolygon) features.get(0).geometry().decode();
+    MultiPolygon mp2 = (MultiPolygon) decodeSilently(features.get(0).geometry());
     assertEquals(mp.getNumGeometries(), mp2.getNumGeometries());
   }
 
@@ -339,7 +341,7 @@ public class VectorTileEncoderTest {
 
   private void testRoundTrip(Geometry input, String layer, Map<String, Object> attrs, long id) {
     VectorTileEncoder.VectorGeometry encodedGeom = VectorTileEncoder.encodeGeometry(input);
-    Geometry output = encodedGeom.decode();
+    Geometry output = decodeSilently(encodedGeom);
     assertTrue(input.equalsExact(output), "\n" + input + "\n!=\n" + output);
 
     byte[] encoded = new VectorTileEncoder().addLayerFeatures(layer, List.of(
@@ -354,6 +356,6 @@ public class VectorTileEncoderTest {
   }
 
   private void assertSameGeometries(List<Geometry> expected, List<VectorTileEncoder.Feature> actual) {
-    assertEquals(expected, actual.stream().map(d -> d.geometry().decode()).toList());
+    assertEquals(expected, actual.stream().map(d -> decodeSilently(d.geometry())).toList());
   }
 }

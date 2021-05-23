@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
+import static com.onthegomap.flatmap.TestUtils.decodeSilently;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -69,10 +70,10 @@ public class FeatureGroupTest {
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
     Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
     for (FeatureGroup.TileFeatures tile : features) {
-      for (var feature : VectorTileEncoder.decode(tile.getTile().encode())) {
+      for (var feature : VectorTileEncoder.decode(tile.coord(), tile.getTile().encode())) {
         map.computeIfAbsent(tile.coord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
-          .add(new Feature(feature.attrs(), feature.geometry().decode()));
+          .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
       }
     }
     return map;

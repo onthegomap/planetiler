@@ -231,20 +231,20 @@ class TiledGeometry {
     IntObjectMap<MutableCoordinateSequence> xSlices = new GHIntObjectHashMap<>();
     int end = segment.size() - 1;
     for (int i = 0; i < end; i++) {
-      double _ax = segment.getX(i);
+      double ax = segment.getX(i);
       double ay = segment.getY(i);
-      double _bx = segment.getX(i + 1);
+      double bx = segment.getX(i + 1);
       double by = segment.getY(i + 1);
 
-      double minX = Math.min(_ax, _bx);
-      double maxX = Math.max(_ax, _bx);
+      double minX = Math.min(ax, bx);
+      double maxX = Math.max(ax, bx);
 
       int startX = (int) Math.floor(minX - neighborBuffer);
       int endX = (int) Math.floor(maxX + neighborBuffer);
 
       for (int x = startX; x <= endX; x++) {
-        double ax = _ax - x;
-        double bx = _bx - x;
+        double axTile = ax - x;
+        double bxTile = bx - x;
         MutableCoordinateSequence slice = xSlices.get(x);
         if (slice == null) {
           xSlices.put(x, slice = new MutableCoordinateSequence());
@@ -257,27 +257,27 @@ class TiledGeometry {
 
         boolean exited = false;
 
-        if (ax < k1) {
+        if (axTile < k1) {
           // ---|-->  | (line enters the clip region from the left)
-          if (bx > k1) {
-            intersectX(slice, ax, ay, bx, by, k1);
+          if (bxTile > k1) {
+            intersectX(slice, axTile, ay, bxTile, by, k1);
           }
-        } else if (ax > k2) {
+        } else if (axTile > k2) {
           // |  <--|--- (line enters the clip region from the right)
-          if (bx < k2) {
-            intersectX(slice, ax, ay, bx, by, k2);
+          if (bxTile < k2) {
+            intersectX(slice, axTile, ay, bxTile, by, k2);
           }
         } else {
-          slice.addPoint(ax, ay);
+          slice.addPoint(axTile, ay);
         }
-        if (bx < k1 && ax >= k1) {
+        if (bxTile < k1 && axTile >= k1) {
           // <--|---  | or <--|-----|--- (line exits the clip region on the left)
-          intersectX(slice, ax, ay, bx, by, k1);
+          intersectX(slice, axTile, ay, bxTile, by, k1);
           exited = true;
         }
-        if (bx > k2 && ax <= k2) {
+        if (bxTile > k2 && axTile <= k2) {
           // |  ---|--> or ---|-----|--> (line exits the clip region on the right)
-          intersectX(slice, ax, ay, bx, by, k2);
+          intersectX(slice, axTile, ay, bxTile, by, k2);
           exited = true;
         }
 
@@ -287,16 +287,16 @@ class TiledGeometry {
       }
     }
     // add the last point
-    double _ax = segment.getX(segment.size() - 1);
+    double ax = segment.getX(segment.size() - 1);
     double ay = segment.getY(segment.size() - 1);
-    int startX = (int) Math.floor(_ax - neighborBuffer);
-    int endX = (int) Math.floor(_ax + neighborBuffer);
+    int startX = (int) Math.floor(ax - neighborBuffer);
+    int endX = (int) Math.floor(ax + neighborBuffer);
 
     for (int x = startX - 1; x <= endX + 1; x++) {
-      double ax = _ax - x;
+      double axTile = ax - x;
       MutableCoordinateSequence slice = xSlices.get(x);
-      if (slice != null && ax >= k1 && ax <= k2) {
-        slice.addPoint(ax, ay);
+      if (slice != null && axTile >= k1 && axTile <= k2) {
+        slice.addPoint(axTile, ay);
       }
     }
 

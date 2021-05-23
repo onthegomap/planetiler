@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.write.Mbtiles;
 import java.io.ByteArrayInputStream;
@@ -176,11 +177,19 @@ public class TestUtils {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
       var bytes = gunzip(tile.bytes());
-      var decoded = VectorTileEncoder.decode(bytes).stream()
-        .map(feature -> feature(feature.geometry().decode(), feature.attrs())).toList();
+      var decoded = VectorTileEncoder.decode(tile.tile(), bytes).stream()
+        .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
       tiles.put(tile.tile(), decoded);
     }
     return tiles;
+  }
+
+  public static Geometry decodeSilently(VectorTileEncoder.VectorGeometry geom) {
+    try {
+      return geom.decode();
+    } catch (GeometryException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static Set<Mbtiles.TileEntry> getAllTiles(Mbtiles db) throws SQLException {
