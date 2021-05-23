@@ -11,10 +11,11 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.TopologyException;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class GeoUtils {
 
@@ -196,19 +197,24 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
 
-  public static Geometry fixPolygon(Geometry geom, int maxAttempts) throws GeometryException {
+  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
     try {
-      int attempts;
-      for (attempts = 0; attempts < maxAttempts && !geom.isValid(); attempts++) {
+      return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+    } catch (IllegalArgumentException e) {
+      // precision reduction fails if geometry is invalid, so attempt
+      // to fix it then try again
+      geom = geom.buffer(0);
+      try {
+        return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+      } catch (IllegalArgumentException e2) {
+        // give it one last try, just in case
         geom = geom.buffer(0);
+        try {
+          return GeometryPrecisionReducer.reduce(geom, tilePrecision);
+        } catch (IllegalArgumentException e3) {
+          throw new GeometryException("Error reducing precision");
+        }
       }
-
-      if (attempts == maxAttempts) {
-        throw new GeometryException("Geometry still invalid after 2 buffers");
-      }
-      return geom;
-    } catch (TopologyException e) {
-      throw new GeometryException("Unable to fix polygon: " + e);
     }
   }
 

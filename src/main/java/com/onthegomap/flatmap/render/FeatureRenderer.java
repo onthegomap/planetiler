@@ -26,7 +26,6 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,15 +171,9 @@ public class FeatureRenderer {
         Geometry geom;
         if (feature.area()) {
           geom = CoordinateSequenceExtractor.reassemblePolygons(geoms);
-          geom = GeoUtils.fixPolygon(geom, 2);
+          geom = GeoUtils.snapAndFixPolygon(geom, tilePrecision);
         } else {
           geom = CoordinateSequenceExtractor.reassembleLineStrings(geoms);
-        }
-
-        try {
-          geom = GeometryPrecisionReducer.reduce(geom, tilePrecision);
-        } catch (IllegalArgumentException e) {
-          throw new GeometryException("Error reducing precision");
         }
 
         if (!geom.isEmpty()) {
