@@ -235,26 +235,27 @@ public class TestUtils {
   }
 
   public static void validateGeometry(Geometry g) {
-    assertTrue(g.isValid(), "JTS isValid()");
+    assertTrue(g.isSimple(), "JTS isValid()");
     if (g instanceof GeometryCollection gs) {
       for (int i = 0; i < gs.getNumGeometries(); i++) {
         validateGeometry(gs.getGeometryN(i));
       }
     } else if (g instanceof Point point) {
-      assertFalse(point.isEmpty(), "empty: " + point);
+      assertFalse(point.isEmpty(), () -> "empty: " + point);
     } else if (g instanceof LineString line) {
-      assertTrue(line.getNumPoints() >= 2, "too few points: " + line);
+      assertTrue(line.getNumPoints() >= 2, () -> "too few points: " + line);
     } else if (g instanceof Polygon poly) {
       var outer = poly.getExteriorRing();
-      assertTrue(Orientation.isCCW(outer.getCoordinateSequence()), "outer not CCW: " + poly);
-      assertTrue(outer.getNumPoints() >= 4, "outer too few points: " + poly);
-      assertTrue(outer.isClosed(), "outer not closed: " + poly);
+      assertTrue(Orientation.isCCW(outer.getCoordinateSequence()), () -> "outer not CCW: " + poly);
+      assertTrue(outer.getNumPoints() >= 4, () -> "outer too few points: " + poly);
+      assertTrue(outer.isClosed(), () -> "outer not closed: " + poly);
       for (int i = 0; i < poly.getNumInteriorRing(); i++) {
+        int _i = i;
         var inner = poly.getInteriorRingN(i);
         assertFalse(Orientation.isCCW(inner.getCoordinateSequence()),
-          "inner " + i + " not CW: " + poly);
-        assertTrue(outer.getNumPoints() >= 4, "inner " + i + " too few points: " + poly);
-        assertTrue(inner.isClosed(), "inner " + i + " not closed: " + poly);
+          () -> "inner " + _i + " not CW: " + poly);
+        assertTrue(outer.getNumPoints() >= 4, () -> "inner " + _i + " too few points: " + poly);
+        assertTrue(inner.isClosed(), () -> "inner " + _i + " not closed: " + poly);
       }
     } else {
       fail("Unrecognized geometry: " + g);
@@ -279,7 +280,7 @@ public class TestUtils {
 
     @Override
     public String toString() {
-      return "Norm{" + geom + '}';
+      return "Norm{" + geom.norm() + '}';
     }
 
     @Override

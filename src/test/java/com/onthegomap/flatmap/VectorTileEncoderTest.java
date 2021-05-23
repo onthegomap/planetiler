@@ -196,7 +196,7 @@ public class VectorTileEncoderTest {
     MultiPolygon mp = newMultiPolygon(
       (Polygon) newPoint(13, 16).buffer(3),
       (Polygon) newPoint(24, 25).buffer(5)
-    );
+    ).reverse(); // ensure outer CCW, inner CW winding
     assertTrue(mp.isValid());
 
     Map<String, Object> attrs = Map.of("key1", "value1");

@@ -1093,16 +1093,4 @@ public class FeatureRendererTest {
     var rendered = renderGeometry(feature);
     assertFalse(rendered.containsKey(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14)));
   }
-
-  // TODO: centroid
-  // TODO: poly
-  // TODO: multipolygon
-  // TODO: geometry collection
-
-  // sad tests:
-  // TODO: invalid line
-  // TODO: invalid poly
-  // TODO: coerce poly -> line
-  // TODO: coerce line -> poly
-  // TODO: wrong types: point/line/poly -> point/line/poly
 }

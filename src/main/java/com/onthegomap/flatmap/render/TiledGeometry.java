@@ -315,6 +315,9 @@ class TiledGeometry {
 
   private IntRange sliceY(CoordinateSequence stripeSegment, int x, boolean outer,
     Map<TileCoord, List<CoordinateSequence>> inProgressShapes) {
+    if (stripeSegment.size() == 0) {
+      return null;
+    }
     double leftEdge = -buffer;
     double rightEdge = 1 + buffer;
 

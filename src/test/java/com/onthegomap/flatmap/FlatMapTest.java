@@ -21,6 +21,7 @@ import static com.onthegomap.flatmap.TestUtils.tileTop;
 import static com.onthegomap.flatmap.TestUtils.tileTopLeft;
 import static com.onthegomap.flatmap.TestUtils.tileTopRight;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.collections.FeatureGroup;
@@ -37,13 +38,21 @@ import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.write.Mbtiles;
 import com.onthegomap.flatmap.write.MbtilesWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.io.InputStreamInStream;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBReader;
 
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
@@ -60,6 +69,7 @@ public class FlatMapTest {
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
   private static final double Z12_WIDTH = 1d / Z12_TILES;
+  private static final int Z4_TILES = 1 << 4;
   private final Stats stats = new Stats.InMemory();
 
   private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
@@ -367,17 +377,26 @@ public class FlatMapTest {
     ), results.tiles);
   }
 
+  private List<Coordinate> worldCoordinateList(double... coords) {
+    List<Coordinate> points = newCoordinateList(coords);
+    points.forEach(c -> {
+      c.x = GeoUtils.getWorldLon(c.x);
+      c.y = GeoUtils.getWorldLat(c.y);
+    });
+    return points;
+  }
+
   private List<Coordinate> z14CoordinateList(double... coords) {
     List<Coordinate> points = newCoordinateList(coords);
     points.forEach(c -> {
-      c.x = 0.5 + c.x * Z14_WIDTH;
-      c.y = 0.5 + c.y * Z14_WIDTH;
+      c.x = GeoUtils.getWorldLon(0.5 + c.x * Z14_WIDTH);
+      c.y = GeoUtils.getWorldLat(0.5 + c.y * Z14_WIDTH);
     });
     return points;
   }
 
   @Test
-  public void testPolygon() throws IOException, SQLException {
+  public void testPolygonWithHoleSpanningMultipleTiles() throws IOException, SQLException {
     List<Coordinate> outerPoints = z14CoordinateList(
       0.5, 0.5,
       3.5, 0.5,
@@ -402,13 +421,40 @@ public class FlatMapTest {
         ), Map.of())
       ),
       (in, features) -> {
-        features.line("layer")
+        features.polygon("layer")
           .setZoomRange(12, 14)
           .setBufferPixels(4);
       }
     );
 
-    assertSubmap(Map.ofEntries(
+    assertEquals(Map.ofEntries(
+      // Z12
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPolygon(
+          rectangleCoordList(32, 32, 256 - 32, 128 + 32),
+          List.of(
+            rectangleCoordList(64 + 16, 128 - 16) // hole
+          )
+        ), Map.of())
+      )),
+
+      // Z13
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPolygon(
+          rectangleCoordList(64, 256 + 4),
+          List.of(rectangleCoordList(128 + 32, 256 - 32)) // hole
+        ), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2, 13, List.of(
+        feature(rectangle(-4, 64, 256 - 64, 256 + 4), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2 + 1, 13, List.of(
+        feature(rectangle(64, -4, 256 + 4, 64), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2 + 1, 13, List.of(
+        feature(rectangle(-4, -4, 256 - 64, 64), Map.of())
+      )),
+
       // Z14 - row 1
       newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
         feature(tileBottomRight(4), Map.of())
@@ -428,7 +474,7 @@ public class FlatMapTest {
       )),
       newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14, List.of(
         feature(newPolygon(
-          tileFill(5),
+          tileFill(4 + 256d / 4096),
           List.of(newCoordinateList(
             64, 64,
             192, 64,
@@ -456,33 +502,68 @@ public class FlatMapTest {
       )),
       newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 2, 14, List.of(
         feature(tileTopLeft(4), Map.of())
-      )),
-      // Z13
-      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
-        feature(newPolygon(
-          rectangleCoordList(64, 256 + 4),
-          List.of(rectangleCoordList(128 + 64, 256 - 64)) // hole
-        ), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2, 13, List.of(
-        feature(rectangle(-4, 64, 256 - 64, 256 + 4), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2, Z13_TILES / 2 + 1, 13, List.of(
-        feature(rectangle(64, -4, 256 + 4, 64), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2 + 1, 13, List.of(
-        feature(rectangle(-4, -4, 256 - 64, 64), Map.of())
-      )),
-      // Z12
-      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
-        feature(newPolygon(
-          rectangleCoordList(32, 32, 256 - 32, 128 + 32),
-          List.of(
-            rectangleCoordList(64 + 32, 128 - 32) // hole
-          )
-        ), Map.of())
       ))
     ), results.tiles);
+  }
+
+  @Test
+  public void testOceanPolygon() throws IOException, SQLException {
+    List<Coordinate> outerPoints = worldCoordinateList(
+      Z14_WIDTH / 2, Z14_WIDTH / 2,
+      1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
+      1 - Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
+      Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
+      Z14_WIDTH / 2, Z14_WIDTH / 2
+    );
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newPolygon(
+          outerPoints,
+          List.of()
+        ), Map.of())
+      ),
+      (in, features) -> {
+        features.polygon("layer")
+          .setZoomRange(0, 6)
+          .setBufferPixels(4);
+      }
+    );
+
+    assertEquals(5461, results.tiles.size());
+    // spot-check one filled tile
+    assertEquals(List.of(rectangle(-5, 256 + 5).norm()), results.tiles.get(TileCoord.ofXYZ(
+      Z4_TILES / 2, Z4_TILES / 2, 4
+    )).stream().map(d -> d.geometry().geom().norm()).toList());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "chesapeake.wkb, 4077",
+    "mdshore.wkb,    19904",
+    "njshore.wkb,    10571"
+  })
+  public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
+    throws IOException, SQLException, ParseException {
+    MultiPolygon geometry = (MultiPolygon) new WKBReader()
+      .read(new InputStreamInStream(Files.newInputStream(Path.of("src", "test", "resources", fileName))));
+    assertNotNull(geometry);
+
+    // automatically checks for self-intersections
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(geometry, Map.of())
+      ),
+      (in, features) -> {
+        features.polygon("layer")
+          .setZoomRange(0, 14)
+          .setBufferPixels(4);
+      }
+    );
+
+    assertEquals(expected, results.tiles.size());
   }
 
   private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
