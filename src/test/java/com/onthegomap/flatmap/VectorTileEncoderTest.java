@@ -55,7 +55,7 @@ public class VectorTileEncoderTest {
   public void testToGeomType() {
     Geometry geometry = JTS_FACTORY.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
     assertEquals((byte) VectorTile.Tile.GeomType.LINESTRING.getNumber(),
-      VectorTileEncoder.encodeGeometry(geometry).geomType());
+      VectorTileEncoder.encodeGeometry(geometry).geomType().asByte());
   }
 
   @Test

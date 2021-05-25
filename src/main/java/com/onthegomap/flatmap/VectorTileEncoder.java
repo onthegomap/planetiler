@@ -49,7 +49,6 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTile;
-import vector_tile.VectorTile.Tile.GeomType;
 
 /**
  * This class is copied from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileEncoder.java
@@ -75,17 +74,6 @@ public class VectorTileEncoder {
     return encoder.result.toArray();
   }
 
-  private static VectorTile.Tile.GeomType toGeomType(Geometry geometry) {
-    if (geometry instanceof Point || geometry instanceof MultiPoint) {
-      return VectorTile.Tile.GeomType.POINT;
-    } else if (geometry instanceof LineString || geometry instanceof MultiLineString) {
-      return VectorTile.Tile.GeomType.LINESTRING;
-    } else if (geometry instanceof Polygon || geometry instanceof MultiPolygon) {
-      return VectorTile.Tile.GeomType.POLYGON;
-    }
-    return VectorTile.Tile.GeomType.UNKNOWN;
-  }
-
   private static CoordinateSequence toCs(DoubleArrayList seq) {
     return new PackedCoordinateSequence.Double(seq.toArray(), 2, 0);
   }
@@ -100,9 +88,8 @@ public class VectorTileEncoder {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  private static Geometry decodeCommands(byte geomTypeByte, int[] commands) throws GeometryException {
+  private static Geometry decodeCommands(GeometryType geomType, int[] commands) throws GeometryException {
     try {
-      VectorTile.Tile.GeomType geomType = Objects.requireNonNull(VectorTile.Tile.GeomType.forNumber(geomTypeByte));
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
       int x = 0;
       int y = 0;
@@ -132,7 +119,7 @@ public class VectorTileEncoder {
           }
 
           if (command == Command.CLOSE_PATH.value) {
-            if (geomType != VectorTile.Tile.GeomType.POINT && !coords.isEmpty()) {
+            if (geomType != GeometryType.POINT && !coords.isEmpty()) {
               coords.add(coords.get(0), coords.get(1));
             }
             length--;
@@ -159,7 +146,7 @@ public class VectorTileEncoder {
       boolean outerCCW = false;
 
       switch (geomType) {
-        case LINESTRING:
+        case LINE:
           List<LineString> lineStrings = new ArrayList<>(coordsList.size());
           for (DoubleArrayList cs : coordsList) {
             if (cs.size() <= 2) {
@@ -278,7 +265,7 @@ public class VectorTileEncoder {
             attrs.put(key, value);
           }
           try {
-            Geometry geometry = decodeCommands(feature.getType(), feature.getGeometryList());
+            Geometry geometry = decodeCommands(GeometryType.valueOf(feature.getType()), feature.getGeometryList());
             features.add(new Feature(
               layerName,
               feature.getId(),
@@ -296,12 +283,12 @@ public class VectorTileEncoder {
     }
   }
 
-  private static Geometry decodeCommands(GeomType type, List<Integer> geometryList) throws GeometryException {
-    return decodeCommands((byte) type.getNumber(), geometryList.stream().mapToInt(i -> i).toArray());
+  private static Geometry decodeCommands(GeometryType type, List<Integer> geometryList) throws GeometryException {
+    return decodeCommands(type, geometryList.stream().mapToInt(i -> i).toArray());
   }
 
   public static VectorGeometry encodeGeometry(Geometry geometry) {
-    return new VectorGeometry(getCommands(geometry), (byte) toGeomType(geometry).getNumber());
+    return new VectorGeometry(getCommands(geometry), GeometryType.valueOf(geometry));
   }
 
   public VectorTileEncoder addLayerFeatures(String layerName, List<? extends Feature> features) {
@@ -378,7 +365,7 @@ public class VectorTileEncoder {
           featureBuilder.setId(feature.id);
         }
 
-        featureBuilder.setType(VectorTile.Tile.GeomType.forNumber(feature.geometry().geomType()));
+        featureBuilder.setType(feature.geometry().geomType().asProtobufType());
         featureBuilder.addAllGeometry(Ints.asList(feature.geometry().commands()));
         tileLayer.addFeatures(featureBuilder.build());
       }
@@ -399,7 +386,7 @@ public class VectorTileEncoder {
     }
   }
 
-  public static record VectorGeometry(int[] commands, byte geomType) {
+  public static record VectorGeometry(int[] commands, GeometryType geomType) {
 
     public Geometry decode() throws GeometryException {
       return decodeCommands(geomType, commands);
@@ -425,7 +412,7 @@ public class VectorTileEncoder {
     @Override
     public int hashCode() {
       int result = Arrays.hashCode(commands);
-      result = 31 * result + (int) geomType;
+      result = 31 * result + geomType.hashCode();
       return result;
     }
 
@@ -434,8 +421,7 @@ public class VectorTileEncoder {
       return "VectorGeometry[" +
         "commands=int[" + commands.length +
         "], geomType=" + geomType +
-        " (" + GeomType.forNumber(geomType) +
-        ")]";
+        " (" + geomType.asByte() + ")]";
     }
   }
 

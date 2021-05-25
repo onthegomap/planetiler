@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.collections;
 
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.graphhopper.coll.GHLongLongHashMap;
+import com.onthegomap.flatmap.GeometryType;
 import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
@@ -150,7 +151,7 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
         packer.packInt(groupInfo.limit());
       }
       packer.packLong(vectorTileFeature.id());
-      packer.packByte(vectorTileFeature.geometry().geomType());
+      packer.packByte(vectorTileFeature.geometry().geomType().asByte());
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
@@ -217,7 +218,7 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
       return new VectorTileEncoder.Feature(
         commonStrings.decode(extractLayerIdFromSortKey(entry.sortKey())),
         id,
-        new VectorTileEncoder.VectorGeometry(commands, geomType),
+        new VectorTileEncoder.VectorGeometry(commands, GeometryType.valueOf(geomType)),
         attrs
       );
     } catch (IOException e) {
