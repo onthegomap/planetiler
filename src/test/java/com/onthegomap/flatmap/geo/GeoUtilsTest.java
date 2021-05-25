@@ -1,19 +1,7 @@
 package com.onthegomap.flatmap.geo;
 
-import static com.onthegomap.flatmap.TestUtils.newLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPolygon;
-import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
-import static com.onthegomap.flatmap.TestUtils.round;
-import static com.onthegomap.flatmap.geo.GeoUtils.ProjectWorldCoords;
-import static com.onthegomap.flatmap.geo.GeoUtils.decodeWorldX;
-import static com.onthegomap.flatmap.geo.GeoUtils.decodeWorldY;
-import static com.onthegomap.flatmap.geo.GeoUtils.encodeFlatLocation;
-import static com.onthegomap.flatmap.geo.GeoUtils.getWorldX;
-import static com.onthegomap.flatmap.geo.GeoUtils.getWorldY;
+import static com.onthegomap.flatmap.TestUtils.*;
+import static com.onthegomap.flatmap.geo.GeoUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;

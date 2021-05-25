@@ -9,11 +9,13 @@ import org.locationtech.jts.geom.Lineal;
 public abstract class SourceFeature {
 
   private final Map<String, Object> properties;
-  private String source;
-  private String sourceLayer;
+  private final String source;
+  private final String sourceLayer;
 
-  protected SourceFeature(Map<String, Object> properties) {
+  protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer) {
     this.properties = properties;
+    this.source = source;
+    this.sourceLayer = sourceLayer;
   }
 
   public abstract Geometry latLonGeometry() throws GeometryException;
@@ -117,13 +119,5 @@ public abstract class SourceFeature {
 
   public String getSourceLayer() {
     return sourceLayer;
-  }
-
-  public void setSource(String source) {
-    this.source = source;
-  }
-
-  public void setSourceLayer(String sourceLayer) {
-    this.sourceLayer = sourceLayer;
   }
 }

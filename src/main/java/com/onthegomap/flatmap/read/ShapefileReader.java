@@ -31,20 +31,21 @@ public class ShapefileReader extends Reader implements Closeable {
   private final ShapefileDataStore dataStore;
   private MathTransform transformToLatLon;
 
-  public static void process(String sourceProjection, String name, Path input, FeatureGroup writer, CommonParams config,
+  public static void process(String sourceProjection, String sourceName, Path input, FeatureGroup writer,
+    CommonParams config,
     Profile profile, Stats stats) {
-    try (var reader = new ShapefileReader(sourceProjection, input, profile, stats)) {
-      reader.process(name, writer, config);
+    try (var reader = new ShapefileReader(sourceName, sourceProjection, input, profile, stats)) {
+      reader.process(writer, config);
     }
   }
 
-  public static void process(String name, Path input, FeatureGroup writer, CommonParams config, Profile profile,
+  public static void process(String sourceName, Path input, FeatureGroup writer, CommonParams config, Profile profile,
     Stats stats) {
-    process(null, name, input, writer, config, profile, stats);
+    process(null, sourceName, input, writer, config, profile, stats);
   }
 
-  public ShapefileReader(String sourceProjection, Path input, Profile profile, Stats stats) {
-    super(profile, stats);
+  public ShapefileReader(String sourceProjection, String sourceName, Path input, Profile profile, Stats stats) {
+    super(profile, stats, sourceName);
     dataStore = decode(input);
     try {
       String typeName = dataStore.getTypeNames()[0];
@@ -92,8 +93,8 @@ public class ShapefileReader extends Reader implements Closeable {
     }
   }
 
-  public ShapefileReader(Path input, Profile profile, Stats stats) {
-    this(null, input, profile, stats);
+  public ShapefileReader(String name, Path input, Profile profile, Stats stats) {
+    this(null, name, input, profile, stats);
   }
 
   @Override
@@ -113,7 +114,7 @@ public class ShapefileReader extends Reader implements Closeable {
             latLonGeometry = JTS.transform(source, transformToLatLon);
           }
           if (latLonGeometry != null) {
-            ReaderFeature geom = new ReaderFeature(latLonGeometry, attributeNames.length);
+            ReaderFeature geom = new ReaderFeature(latLonGeometry, attributeNames.length, sourceName, null);
             for (int i = 1; i < attributeNames.length; i++) {
               geom.setTag(attributeNames[i], feature.getAttribute(i));
             }

@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.read;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.Profile;
@@ -18,6 +19,7 @@ import org.locationtech.jts.geom.Geometry;
 public class ShapefileReaderTest {
 
   private ShapefileReader reader = new ShapefileReader(
+    "test",
     Path.of("src", "test", "resources", "shapefile.zip"),
     new Profile.NullProfile(),
     new Stats.InMemory()
@@ -44,6 +46,8 @@ public class ShapefileReaderTest {
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {
           assertTrue(elem.getTag("name") instanceof String);
+          assertEquals("test", elem.getSource());
+          assertNull(elem.getSourceLayer());
           points.add(elem.latLonGeometry());
         }).await();
       assertEquals(86, points.size());

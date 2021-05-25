@@ -13,28 +13,27 @@ import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Envelope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class Reader implements Closeable {
 
   protected final Stats stats;
-  private final Logger LOGGER = LoggerFactory.getLogger(getClass());
   private final Profile profile;
+  protected final String sourceName;
 
-  public Reader(Profile profile, Stats stats) {
+  public Reader(Profile profile, Stats stats, String sourceName) {
     this.stats = stats;
     this.profile = profile;
+    this.sourceName = sourceName;
   }
 
-  public final void process(String name, FeatureGroup writer, CommonParams config) {
+  public final void process(FeatureGroup writer, CommonParams config) {
     long featureCount = getCount();
     int threads = config.threads();
     Envelope latLonBounds = config.latLonBounds();
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
-    var topology = Topology.start(name, stats)
+    var topology = Topology.start(sourceName, stats)
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
@@ -47,7 +46,6 @@ public abstract class Reader implements Closeable {
         );
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
-          sourceFeature.setSource(name);
           FeatureCollector features = featureCollectors.get(sourceFeature);
           if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
             profile.processFeature(sourceFeature, features);
@@ -63,7 +61,7 @@ public abstract class Reader implements Closeable {
         writer.accept(item);
       });
 
-    var loggers = new ProgressLoggers(name)
+    var loggers = new ProgressLoggers(sourceName)
       .addRatePercentCounter("read", featureCount, featuresRead)
       .addRateCounter("write", featuresWritten)
       .addFileSize(writer::getStorageSize)

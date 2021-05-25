@@ -1,25 +1,6 @@
 package com.onthegomap.flatmap;
 
-import static com.onthegomap.flatmap.TestUtils.assertSameJson;
-import static com.onthegomap.flatmap.TestUtils.assertSubmap;
-import static com.onthegomap.flatmap.TestUtils.feature;
-import static com.onthegomap.flatmap.TestUtils.newCoordinateList;
-import static com.onthegomap.flatmap.TestUtils.newLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPolygon;
-import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
-import static com.onthegomap.flatmap.TestUtils.tileBottom;
-import static com.onthegomap.flatmap.TestUtils.tileBottomLeft;
-import static com.onthegomap.flatmap.TestUtils.tileBottomRight;
-import static com.onthegomap.flatmap.TestUtils.tileFill;
-import static com.onthegomap.flatmap.TestUtils.tileLeft;
-import static com.onthegomap.flatmap.TestUtils.tileRight;
-import static com.onthegomap.flatmap.TestUtils.tileTop;
-import static com.onthegomap.flatmap.TestUtils.tileTopLeft;
-import static com.onthegomap.flatmap.TestUtils.tileTopRight;
+import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -74,7 +55,7 @@ public class FlatMapTest {
 
   private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
     List<? extends SourceFeature> features) {
-    new Reader(profile, stats) {
+    new Reader(profile, stats, "test") {
 
       @Override
       public long getCount() {
@@ -89,9 +70,7 @@ public class FlatMapTest {
       @Override
       public void close() {
       }
-    }.process(
-      "test", featureGroup, config
-    );
+    }.process(featureGroup, config);
   }
 
   private FlatMapResults runWithReaderFeatures(

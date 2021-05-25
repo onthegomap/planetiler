@@ -1,15 +1,6 @@
 package com.onthegomap.flatmap;
 
-import static com.onthegomap.flatmap.TestUtils.assertSubmap;
-import static com.onthegomap.flatmap.TestUtils.newCoordinateList;
-import static com.onthegomap.flatmap.TestUtils.newLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPolygon;
-import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
-import static com.onthegomap.flatmap.TestUtils.round;
+import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

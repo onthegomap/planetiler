@@ -218,7 +218,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final boolean point;
 
     public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon) {
-      super(ReaderElementUtils.getProperties(elem));
+      super(ReaderElementUtils.getProperties(elem), null, null);
       this.point = point;
       this.line = line;
       this.polygon = polygon;

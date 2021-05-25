@@ -15,13 +15,17 @@ public class ReaderFeature extends SourceFeature {
   private final Map<String, Object> properties;
 
   public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties) {
-    super(properties);
+    this(latLonGeometry, properties, null, null);
+  }
+
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer) {
+    super(properties, source, sourceLayer);
     this.latLonGeometry = latLonGeometry;
     this.properties = properties;
   }
 
-  public ReaderFeature(Geometry latLonGeometry, int numProperties) {
-    this(latLonGeometry, new HashMap<>(numProperties));
+  public ReaderFeature(Geometry latLonGeometry, int numProperties, String source, String sourceLayer) {
+    this(latLonGeometry, new HashMap<>(numProperties), source, sourceLayer);
   }
 
   @Override

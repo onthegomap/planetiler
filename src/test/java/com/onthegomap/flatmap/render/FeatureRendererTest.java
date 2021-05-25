@@ -1,26 +1,6 @@
 package com.onthegomap.flatmap.render;
 
-import static com.onthegomap.flatmap.TestUtils.assertExactSameFeatures;
-import static com.onthegomap.flatmap.TestUtils.assertSameNormalizedFeatures;
-import static com.onthegomap.flatmap.TestUtils.decodeSilently;
-import static com.onthegomap.flatmap.TestUtils.emptyGeometry;
-import static com.onthegomap.flatmap.TestUtils.newLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
-import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPolygon;
-import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
-import static com.onthegomap.flatmap.TestUtils.tileBottom;
-import static com.onthegomap.flatmap.TestUtils.tileBottomLeft;
-import static com.onthegomap.flatmap.TestUtils.tileBottomRight;
-import static com.onthegomap.flatmap.TestUtils.tileFill;
-import static com.onthegomap.flatmap.TestUtils.tileLeft;
-import static com.onthegomap.flatmap.TestUtils.tileRight;
-import static com.onthegomap.flatmap.TestUtils.tileTop;
-import static com.onthegomap.flatmap.TestUtils.tileTopLeft;
-import static com.onthegomap.flatmap.TestUtils.tileTopRight;
+import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -55,7 +35,7 @@ public class FeatureRendererTest {
 
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
-    return new FeatureCollector.Factory(config).get(new ReaderFeature(latLonGeom, 0));
+    return new FeatureCollector.Factory(config).get(new ReaderFeature(latLonGeom, 0, null, null));
   }
 
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {

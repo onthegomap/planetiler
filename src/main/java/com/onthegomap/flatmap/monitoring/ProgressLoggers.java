@@ -1,10 +1,6 @@
 package com.onthegomap.flatmap.monitoring;
 
-import static com.onthegomap.flatmap.Format.formatNumeric;
-import static com.onthegomap.flatmap.Format.formatPercent;
-import static com.onthegomap.flatmap.Format.formatStorage;
-import static com.onthegomap.flatmap.Format.padLeft;
-import static com.onthegomap.flatmap.Format.padRight;
+import static com.onthegomap.flatmap.Format.*;
 
 import com.graphhopper.util.Helper;
 import com.onthegomap.flatmap.Format;

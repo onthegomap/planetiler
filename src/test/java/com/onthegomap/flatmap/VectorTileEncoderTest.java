@@ -18,13 +18,7 @@
  ****************************************************************/
 package com.onthegomap.flatmap;
 
-import static com.onthegomap.flatmap.TestUtils.TRANSFORM_TO_TILE;
-import static com.onthegomap.flatmap.TestUtils.decodeSilently;
-import static com.onthegomap.flatmap.TestUtils.newGeometryCollection;
-import static com.onthegomap.flatmap.TestUtils.newMultiPoint;
-import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.newPolygon;
+import static com.onthegomap.flatmap.TestUtils.*;
 import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;

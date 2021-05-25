@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 public class NaturalEarthReader extends Reader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NaturalEarthReader.class);
-
   private final Connection conn;
   private Path extracted;
 
@@ -38,8 +37,8 @@ public class NaturalEarthReader extends Reader {
     }
   }
 
-  public NaturalEarthReader(Path input, Path tmpDir, Profile profile, Stats stats) {
-    super(profile, stats);
+  public NaturalEarthReader(String sourceName, Path input, Path tmpDir, Profile profile, Stats stats) {
+    super(profile, stats, sourceName);
     try {
       conn = open(input, tmpDir);
     } catch (IOException | SQLException e) {
@@ -47,10 +46,10 @@ public class NaturalEarthReader extends Reader {
     }
   }
 
-  public static void process(String name, Path input, Path tmpDir, FeatureGroup writer, CommonParams config,
+  public static void process(String sourceName, Path input, Path tmpDir, FeatureGroup writer, CommonParams config,
     Profile profile, Stats stats) {
-    try (var reader = new NaturalEarthReader(input, tmpDir, profile, stats)) {
-      reader.process(name, writer, config);
+    try (var reader = new NaturalEarthReader(sourceName, input, tmpDir, profile, stats)) {
+      reader.process(writer, config);
     }
   }
 
@@ -128,8 +127,7 @@ public class NaturalEarthReader extends Reader {
                 continue;
               }
               Geometry latLonGeometry = GeoUtils.wkbReader.read(geometry);
-              ReaderFeature readerGeometry = new ReaderFeature(latLonGeometry, column.length - 1);
-              readerGeometry.setSourceLayer(table);
+              ReaderFeature readerGeometry = new ReaderFeature(latLonGeometry, column.length - 1, sourceName, table);
               for (int c = 0; c < column.length; c++) {
                 if (c != geometryColumn) {
                   Object value = rs.getObject(c + 1);
