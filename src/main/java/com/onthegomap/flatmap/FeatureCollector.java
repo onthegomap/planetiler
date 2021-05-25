@@ -1,14 +1,21 @@
 package com.onthegomap.flatmap;
 
 import com.onthegomap.flatmap.collections.CacheByZoom;
+import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
+
+  private static final Geometry EMPTY_GEOM = GeoUtils.JTS_FACTORY.createGeometryCollection();
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureCollector.class);
 
   private final SourceFeature source;
   private final List<Feature> output = new ArrayList<>();
@@ -24,22 +31,58 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return output.iterator();
   }
 
+  public Feature geometry(String layer, Geometry geometry) {
+    Feature feature = new Feature(layer, geometry);
+    output.add(feature);
+    return feature;
+  }
+
   public Feature point(String layer) {
-    var feature = new Feature(layer, source.isPoint() ? source.worldGeometry() : source.centroid(), false);
-    output.add(feature);
-    return feature;
+    try {
+      if (!source.isPoint()) {
+        throw new GeometryException("not a point");
+      }
+      return geometry(layer, source.worldGeometry());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error getting point geometry for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
   }
 
-  public Feature line(String layername) {
-    var feature = new Feature(layername, source.line(), false);
-    output.add(feature);
-    return feature;
+  public Feature centroid(String layer) {
+    try {
+      return geometry(layer, source.centroid());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error getting centroid for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
   }
 
-  public Feature polygon(String layername) {
-    var feature = new Feature(layername, source.polygon(), true);
-    output.add(feature);
-    return feature;
+  public Feature line(String layer) {
+    try {
+      return geometry(layer, source.line());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error constructing line for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
+  }
+
+  public Feature polygon(String layer) {
+    try {
+      return geometry(layer, source.polygon());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error constructing polygon for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
+  }
+
+  public Feature pointOnSurface(String layer) {
+    try {
+      return geometry(layer, source.pointOnSurface());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error constructing point on surface for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
   }
 
   public static record Factory(CommonParams config) {
@@ -51,12 +94,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
   public final class Feature {
 
-    private final boolean area;
     private static final double DEFAULT_LABEL_GRID_SIZE = 0;
     private static final int DEFAULT_LABEL_GRID_LIMIT = 0;
     private final String layer;
     private final Geometry geom;
     private final Map<String, Object> attrs = new TreeMap<>();
+    private final GeometryType geometryType;
     private int zOrder;
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
@@ -73,11 +116,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double pixelToleranceAtMaxZoom = 256d / 4096;
     private ZoomFunction<Double> pixelTolerance = null;
 
-    private Feature(String layer, Geometry geom, boolean area) {
+    private Feature(String layer, Geometry geom) {
       this.layer = layer;
       this.geom = geom;
       this.zOrder = 0;
-      this.area = area;
+      this.geometryType = GeometryType.valueOf(geom);
     }
 
     public int getZorder() {
@@ -254,8 +297,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return setAttr(key, ZoomFunction.minZoom(minzoom, value));
     }
 
+    public GeometryType getGeometryType() {
+      return geometryType;
+    }
+
     public boolean area() {
-      return area;
+      return geometryType == GeometryType.POLYGON;
     }
 
     @Override

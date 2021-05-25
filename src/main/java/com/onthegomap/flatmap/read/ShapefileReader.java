@@ -3,7 +3,6 @@ package com.onthegomap.flatmap.read;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
@@ -103,7 +102,7 @@ public class ShapefileReader extends Reader implements Closeable {
   }
 
   @Override
-  public Topology.SourceStep<SourceFeature> read() {
+  public Topology.SourceStep<ReaderFeature> read() {
     return next -> {
       try (var iter = inputSource.features()) {
         while (iter.hasNext()) {
@@ -114,7 +113,7 @@ public class ShapefileReader extends Reader implements Closeable {
             latLonGeometry = JTS.transform(source, transformToLatLon);
           }
           if (latLonGeometry != null) {
-            SourceFeature geom = new ReaderFeature(latLonGeometry, attributeNames.length);
+            ReaderFeature geom = new ReaderFeature(latLonGeometry, attributeNames.length);
             for (int i = 1; i < attributeNames.length; i++) {
               geom.setTag(attributeNames[i], feature.getAttribute(i));
             }

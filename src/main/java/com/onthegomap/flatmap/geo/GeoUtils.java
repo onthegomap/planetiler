@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.geo;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.locationtech.jts.geom.Coordinate;
@@ -7,10 +8,13 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
@@ -239,5 +243,36 @@ public class GeoUtils {
 
   public static Geometry createMultiPoint(List<Point> points) {
     return JTS_FACTORY.createMultiPoint(points.toArray(EMPTY_POINT_ARRAY));
+  }
+
+  public static Geometry polygonToLineString(Geometry world) throws GeometryException {
+    List<LineString> lineStrings = new ArrayList<>();
+    getLineStrings(world, lineStrings);
+    if (lineStrings.size() == 0) {
+      throw new GeometryException("No line strings");
+    } else if (lineStrings.size() == 1) {
+      return lineStrings.get(0);
+    } else {
+      return createMultiLineString(lineStrings);
+    }
+  }
+
+  private static void getLineStrings(Geometry input, List<LineString> output) throws GeometryException {
+    if (input instanceof LinearRing linearRing) {
+      output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
+    } else if (input instanceof LineString lineString) {
+      output.add(lineString);
+    } else if (input instanceof Polygon polygon) {
+      getLineStrings(polygon.getExteriorRing(), output);
+      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+        getLineStrings(polygon.getInteriorRingN(i), output);
+      }
+    } else if (input instanceof GeometryCollection gc) {
+      for (int i = 0; i < gc.getNumGeometries(); i++) {
+        getLineStrings(gc.getGeometryN(i), output);
+      }
+    } else {
+      throw new GeometryException("unrecognized geometry type: " + input.getGeometryType());
+    }
   }
 }

@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 
 public class ReaderFeature extends SourceFeature {
@@ -42,6 +43,16 @@ public class ReaderFeature extends SourceFeature {
   @Override
   public boolean isPoint() {
     return latLonGeometry instanceof Puntal;
+  }
+
+  @Override
+  public boolean canBePolygon() {
+    return latLonGeometry instanceof Polygonal;
+  }
+
+  @Override
+  public boolean canBeLine() {
+    return !isPoint();
   }
 
   @Override

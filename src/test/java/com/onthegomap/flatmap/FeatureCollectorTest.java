@@ -1,17 +1,29 @@
 package com.onthegomap.flatmap;
 
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
+import static com.onthegomap.flatmap.TestUtils.newCoordinateList;
 import static com.onthegomap.flatmap.TestUtils.newLineString;
+import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
+import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.TestUtils.newPolygon;
 import static com.onthegomap.flatmap.TestUtils.rectangle;
+import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
+import static com.onthegomap.flatmap.TestUtils.round;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.ReaderFeature;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class FeatureCollectorTest {
 
@@ -247,5 +259,349 @@ public class FeatureCollectorTest {
     assertEquals(2d, poly.getPixelTolerance(14));
   }
 
-  // TODO test shape coercion
+  /*
+   * SHAPE COERCION TESTS
+   */
+  @Test
+  public void testPointReaderFeatureCoercion() throws GeometryException {
+    var pointSourceFeature = new ReaderFeature(newPoint(0, 0), Map.of());
+    assertEquals(0, pointSourceFeature.area());
+    assertEquals(0, pointSourceFeature.length());
+
+    var fc = factory.get(pointSourceFeature);
+    fc.line("layer").setZoomRange(0, 10);
+    fc.polygon("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to line/polygon");
+    fc.point("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+    for (int i = 0; i < 3; i++) {
+      assertTrue(iter.hasNext(), "item " + i);
+      var item = iter.next();
+      assertEquals(GeometryType.POINT, item.getGeometryType());
+      assertEquals(newPoint(0.5, 0.5), item.getGeometry());
+    }
+
+    assertFalse(iter.hasNext());
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {2, 3, 4})
+  public void testLineWithSamePointsReaderFeatureCoercion(int nPoints) throws GeometryException {
+    double[] coords = new double[nPoints * 2];
+    Arrays.fill(coords, 0d);
+    double[] worldCoords = new double[nPoints * 2];
+    Arrays.fill(worldCoords, 0.5d);
+    var sourceLine = new ReaderFeature(newLineString(coords), Map.of());
+    assertEquals(0, sourceLine.length());
+    assertEquals(0, sourceLine.area());
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    fc.polygon("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point/polygon");
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(newLineString(worldCoords), item.getGeometry());
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(newPoint(0.5, 0.5), item.getGeometry());
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(newPoint(0.5, 0.5), item.getGeometry());
+
+    assertFalse(iter.hasNext());
+  }
+
+  private static double[] worldToLatLon(double... coords) {
+    double[] result = new double[coords.length];
+    for (int i = 0; i < coords.length; i += 2) {
+      result[i] = GeoUtils.getWorldLon(coords[i]);
+      result[i + 1] = GeoUtils.getWorldLat(coords[i + 1]);
+    }
+    return result;
+  }
+
+  @Test
+  public void testNonZeroLineStringReaderFeatureCoercion() throws GeometryException {
+    var sourceLine = new ReaderFeature(newLineString(worldToLatLon(
+      0.2, 0.2,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.2, 0.2
+    )), Map.of());
+    assertEquals(0, sourceLine.area());
+    assertEquals(1.83008, sourceLine.length(), 1e-5);
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    fc.polygon("layer").setZoomRange(0, 10);
+
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point/polygon");
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(round(newLineString(
+      0.2, 0.2,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.2, 0.2
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.40639, 0.55013)), round(item.getGeometry()), "centroid");
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(newPoint(0.25, 0.75), item.getGeometry(), "point on surface");
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testPolygonReaderFeatureCoercion() throws GeometryException {
+    var sourceLine = new ReaderFeature(newPolygon(worldToLatLon(
+      0.25, 0.25,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.25, 0.25
+    )), Map.of());
+    assertEquals(0.125, sourceLine.area());
+    assertEquals(1.7071067811865475, sourceLine.length(), 1e-5);
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+
+    fc.polygon("layer").setZoomRange(0, 10);
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POLYGON, item.getGeometryType());
+    assertEquals(round(newPolygon(
+      0.25, 0.25,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.25, 0.25
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(round(newLineString(
+      0.25, 0.25,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.25, 0.25
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.4166667, 0.5833333)), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.375, 0.5)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testPolygonWithHoleCoercion() throws GeometryException {
+    var sourceLine = new ReaderFeature(newPolygon(newCoordinateList(worldToLatLon(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    )), List.of(newCoordinateList(worldToLatLon(
+      0.25, 0.25,
+      0.75, 0.25,
+      0.75, 0.75,
+      0.25, 0.75,
+      0.25, 0.25
+    )))), Map.of());
+    assertEquals(0.75, sourceLine.area(), 1e-5);
+    assertEquals(6, sourceLine.length(), 1e-5);
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+
+    fc.polygon("layer").setZoomRange(0, 10);
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POLYGON, item.getGeometryType());
+    assertEquals(round(newPolygon(
+      rectangleCoordList(0, 1),
+      List.of(rectangleCoordList(0.25, 0.75))
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(round(newMultiLineString(
+      newLineString(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
+      newLineString(0.25, 0.25, 0.75, 0.25, 0.75, 0.75, 0.25, 0.75, 0.25, 0.25)
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.5, 0.5)), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.125, 0.5)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testPointOnSurface() {
+    var sourceLine = new ReaderFeature(newPolygon(worldToLatLon(
+      0, 0,
+      1, 0,
+      1, 0.25,
+      0.25, 0.25,
+      0.25, 0.75,
+      1, 0.75,
+      1, 1,
+      0, 1,
+      0, 0
+    )), Map.of());
+
+    var fc = factory.get(sourceLine);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.425, 0.5)), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.125, 0.5)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testMultiPolygonCoercion() throws GeometryException {
+    var sourceLine = new ReaderFeature(newMultiPolygon(
+      newPolygon(worldToLatLon(
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+        0, 0
+      )), newPolygon(worldToLatLon(
+        2, 0,
+        3, 0,
+        3, 1,
+        2, 1,
+        2, 0
+      ))), Map.of());
+    assertEquals(2, sourceLine.area(), 1e-5);
+    assertEquals(8, sourceLine.length(), 1e-5);
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+
+    fc.polygon("layer").setZoomRange(0, 10);
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POLYGON, item.getGeometryType());
+    assertEquals(round(newMultiPolygon(
+      rectangle(0, 1),
+      rectangle(2, 0, 3, 1)
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(round(newMultiLineString(
+      newLineString(rectangleCoordList(0, 1)),
+      newLineString(rectangleCoordList(2, 0, 3, 1))
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(1.5, 0.5)), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.5, 0.5)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testMultiLineStringCoercion() throws GeometryException {
+    var sourceLine = new ReaderFeature(newMultiLineString(
+      newLineString(worldToLatLon(
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+        0, 0
+      )), newLineString(worldToLatLon(
+        2, 0,
+        3, 0,
+        3, 1,
+        2, 1,
+        2, 0
+      ))), Map.of());
+    assertEquals(0, sourceLine.area(), 1e-5);
+    assertEquals(8, sourceLine.length(), 1e-5);
+
+    var fc = factory.get(sourceLine);
+    fc.point("layer").setZoomRange(0, 10);
+    fc.polygon("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point/polygon");
+
+    fc.line("layer").setZoomRange(0, 10);
+    fc.centroid("layer").setZoomRange(0, 10);
+    fc.pointOnSurface("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.LINE, item.getGeometryType());
+    assertEquals(round(newMultiLineString(
+      newLineString(rectangleCoordList(0, 1)),
+      newLineString(rectangleCoordList(2, 0, 3, 1))
+    )), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(1.5, 0.5)), round(item.getGeometry()));
+
+    item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(1, 0)), round(item.getGeometry()));
+
+    assertFalse(iter.hasNext());
+  }
 }

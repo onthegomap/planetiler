@@ -129,7 +129,11 @@ public class TestUtils {
   }
 
   public static LineString newLineString(double... coords) {
-    return GeoUtils.JTS_FACTORY.createLineString(newCoordinateList(coords).toArray(new Coordinate[0]));
+    return newLineString(newCoordinateList(coords));
+  }
+
+  public static LineString newLineString(List<Coordinate> coords) {
+    return GeoUtils.JTS_FACTORY.createLineString(coords.toArray(new Coordinate[0]));
   }
 
   public static MultiLineString newMultiLineString(LineString... lineStrings) {

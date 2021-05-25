@@ -1,6 +1,12 @@
 package com.onthegomap.flatmap.geo;
 
+import static com.onthegomap.flatmap.TestUtils.newLineString;
+import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
+import static com.onthegomap.flatmap.TestUtils.newMultiPolygon;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
+import static com.onthegomap.flatmap.TestUtils.newPolygon;
+import static com.onthegomap.flatmap.TestUtils.rectangle;
+import static com.onthegomap.flatmap.TestUtils.rectangleCoordList;
 import static com.onthegomap.flatmap.TestUtils.round;
 import static com.onthegomap.flatmap.geo.GeoUtils.ProjectWorldCoords;
 import static com.onthegomap.flatmap.geo.GeoUtils.decodeWorldX;
@@ -10,6 +16,8 @@ import static com.onthegomap.flatmap.geo.GeoUtils.getWorldX;
 import static com.onthegomap.flatmap.geo.GeoUtils.getWorldY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.List;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
@@ -36,5 +44,68 @@ public class GeoUtilsTest {
     Point expected = newPoint(worldX, worldY);
     Geometry actual = ProjectWorldCoords.transform(input);
     assertEquals(round(expected), round(actual));
+  }
+
+  @Test
+  public void testPolygonToLineString() throws GeometryException {
+    assertEquals(newLineString(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ), GeoUtils.polygonToLineString(rectangle(
+      0, 1
+    )));
+  }
+
+  @Test
+  public void testMultiPolygonToLineString() throws GeometryException {
+    assertEquals(newLineString(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ), GeoUtils.polygonToLineString(newMultiPolygon(rectangle(
+      0, 1
+    ))));
+  }
+
+  @Test
+  public void testLineRingToLineString() throws GeometryException {
+    assertEquals(newLineString(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ), GeoUtils.polygonToLineString(rectangle(
+      0, 1
+    ).getExteriorRing()));
+  }
+
+  @Test
+  public void testComplexPolygonToLineString() throws GeometryException {
+    assertEquals(newMultiLineString(
+      newLineString(
+        0, 0,
+        3, 0,
+        3, 3,
+        0, 3,
+        0, 0
+      ), newLineString(
+        1, 1,
+        2, 1,
+        2, 2,
+        1, 2,
+        1, 1
+      )
+    ), GeoUtils.polygonToLineString(newPolygon(
+      rectangleCoordList(
+        0, 3
+      ), List.of(rectangleCoordList(
+        1, 2
+      )))));
   }
 }

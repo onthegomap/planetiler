@@ -3,7 +3,6 @@ package com.onthegomap.flatmap.read;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -104,7 +103,7 @@ public class NaturalEarthReader extends Reader {
   }
 
   @Override
-  public Topology.SourceStep<SourceFeature> read() {
+  public Topology.SourceStep<ReaderFeature> read() {
     return next -> {
       var tables = tableNames();
       for (int i = 0; i < tables.size(); i++) {
@@ -129,7 +128,8 @@ public class NaturalEarthReader extends Reader {
                 continue;
               }
               Geometry latLonGeometry = GeoUtils.wkbReader.read(geometry);
-              SourceFeature readerGeometry = new ReaderFeature(latLonGeometry, column.length - 1);
+              ReaderFeature readerGeometry = new ReaderFeature(latLonGeometry, column.length - 1);
+              readerGeometry.setSourceLayer(table);
               for (int c = 0; c < column.length; c++) {
                 if (c != geometryColumn) {
                   Object value = rs.getObject(c + 1);

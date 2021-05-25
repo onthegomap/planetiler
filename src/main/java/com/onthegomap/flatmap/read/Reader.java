@@ -47,6 +47,7 @@ public abstract class Reader implements Closeable {
         );
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
+          sourceFeature.setSource(name);
           FeatureCollector features = featureCollectors.get(sourceFeature);
           if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
             profile.processFeature(sourceFeature, features);
@@ -74,7 +75,7 @@ public abstract class Reader implements Closeable {
 
   public abstract long getCount();
 
-  public abstract Topology.SourceStep<SourceFeature> read();
+  public abstract Topology.SourceStep<? extends SourceFeature> read();
 
   @Override
   public abstract void close();

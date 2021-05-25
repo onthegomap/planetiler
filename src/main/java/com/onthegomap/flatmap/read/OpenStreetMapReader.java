@@ -137,7 +137,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
             feature = new NodeSourceFeature(node);
           } else if (readerElement instanceof ReaderWay way) {
             waysProcessed.incrementAndGet();
-            feature = new WaySourceFeature(way, nodeCache);
+            LongArrayList nodes = way.getNodes();
+            boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
+            String area = way.getTag("area");
+            feature = new WaySourceFeature(way, closed, area, nodeCache);
           } else if (readerElement instanceof ReaderRelation rel) {
             // ensure all ways finished processing before we start relations
             if (waysDone.getCount() > 0) {
@@ -210,8 +213,15 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
   private static abstract class ProxyFeature extends SourceFeature {
 
-    public ProxyFeature(ReaderElement elem) {
+    private final boolean polygon;
+    private final boolean line;
+    private final boolean point;
+
+    public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon) {
       super(ReaderElementUtils.getProperties(elem));
+      this.point = point;
+      this.line = line;
+      this.polygon = polygon;
     }
 
     private Geometry latLonGeom;
@@ -229,6 +239,21 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
 
     protected abstract Geometry computeWorldGeometry();
+
+    @Override
+    public boolean isPoint() {
+      return point;
+    }
+
+    @Override
+    public boolean canBeLine() {
+      return line;
+    }
+
+    @Override
+    public boolean canBePolygon() {
+      return polygon;
+    }
   }
 
   private static class NodeSourceFeature extends ProxyFeature {
@@ -237,7 +262,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final double lat;
 
     NodeSourceFeature(ReaderNode node) {
-      super(node);
+      super(node, true, false, false);
       this.lon = node.getLon();
       this.lat = node.getLat();
     }
@@ -261,8 +286,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final NodeGeometryCache nodeCache;
     private final LongArrayList nodeIds;
 
-    public WaySourceFeature(ReaderWay way, NodeGeometryCache nodeCache) {
-      super(way);
+    public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeGeometryCache nodeCache) {
+      super(way, false, !closed || !"yes".equals(area), closed && !"no".equals(area));
       this.nodeIds = way.getNodes();
       this.nodeCache = nodeCache;
     }
@@ -281,7 +306,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   private static class MultipolygonSourceFeature extends ProxyFeature {
 
     public MultipolygonSourceFeature(ReaderRelation relation) {
-      super(relation);
+      super(relation, false, false, true);
     }
 
     @Override
