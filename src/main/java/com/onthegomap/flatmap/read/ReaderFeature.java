@@ -37,7 +37,8 @@ public class ReaderFeature extends SourceFeature {
 
   @Override
   public Geometry worldGeometry() {
-    return worldGeometry != null ? worldGeometry : (worldGeometry = GeoUtils.latLonToWorldCoords(latLonGeometry));
+    return worldGeometry != null ? worldGeometry
+      : (worldGeometry = GeoUtils.ensureDescendingPolygonsSizes(GeoUtils.latLonToWorldCoords(latLonGeometry)));
   }
 
   public Map<String, Object> properties() {

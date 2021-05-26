@@ -3,6 +3,9 @@ package com.onthegomap.flatmap.geo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
+import org.jetbrains.annotations.NotNull;
+import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -13,6 +16,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
@@ -122,24 +126,6 @@ public class GeoUtils {
     return 0.5 - 0.25 * Math.log((1 + sin) / (1 - sin)) / Math.PI;
   }
 
-  public static final GeometryTransformer ProjectWorldCoords = new GeometryTransformer() {
-    @Override
-    protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
-      if (coords.getDimension() != 2) {
-        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
-      }
-      if (coords.getMeasures() != 0) {
-        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
-      }
-      CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
-      for (int i = 0; i < coords.size(); i++) {
-        copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));
-        copy.setOrdinate(i, 1, getWorldY(coords.getY(i)));
-      }
-      return copy;
-    }
-  };
-
   private static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
   private static final long LOWER_32_BIT_MASK = (1L << 32) - 1L;
 
@@ -175,14 +161,6 @@ public class GeoUtils {
 
   public static long longPair(int a, int b) {
     return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
-  }
-
-  public static int first(int pair) {
-    return pair >> 16;
-  }
-
-  public static int second(int pair) {
-    return (pair << 16) >> 16;
   }
 
   public static Point point(double x, double y) {
@@ -273,6 +251,32 @@ public class GeoUtils {
       }
     } else {
       throw new GeometryException("unrecognized geometry type: " + input.getGeometryType());
+    }
+  }
+
+  private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
+
+    PolyAndArea(Polygon poly) {
+      this(poly, Area.ofRing(poly.getExteriorRing().getCoordinateSequence()));
+    }
+
+    @Override
+    public int compareTo(@NotNull PolyAndArea o) {
+      return -Double.compare(area, o.area);
+    }
+  }
+
+  public static Geometry ensureDescendingPolygonsSizes(Geometry geometry) {
+    if (geometry instanceof MultiPolygon multiPolygon) {
+      PolyAndArea[] areas = new PolyAndArea[multiPolygon.getNumGeometries()];
+      for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
+        areas[i] = new PolyAndArea((Polygon) multiPolygon.getGeometryN(i));
+      }
+      return JTS_FACTORY.createMultiPolygon(
+        Stream.of(areas).sorted().map(d -> d.poly).toArray(Polygon[]::new)
+      );
+    } else {
+      return geometry;
     }
   }
 }

@@ -41,6 +41,7 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryTransformer;
@@ -168,7 +169,7 @@ public class TestUtils {
         }
         return coords;
       }
-    }.transform(input);
+    }.transform(input.copy());
   }
 
   private static byte[] gunzip(byte[] zipped) throws IOException {
@@ -247,8 +248,7 @@ public class TestUtils {
     return GeoUtils.JTS_FACTORY.createGeometryCollection();
   }
 
-  public static void validateGeometry(Geometry g) {
-    assertTrue(g.isSimple(), "JTS isValid()");
+  private static void validateGeometryRecursive(Geometry g) {
     if (g instanceof GeometryCollection gs) {
       for (int i = 0; i < gs.getNumGeometries(); i++) {
         validateGeometry(gs.getGeometryN(i));
@@ -273,6 +273,13 @@ public class TestUtils {
     } else {
       fail("Unrecognized geometry: " + g);
     }
+  }
+
+  public static void validateGeometry(Geometry g) {
+    if (g instanceof Polygonal) {
+      assertTrue(g.isSimple(), "JTS isValid()");
+    }
+    validateGeometryRecursive(g);
   }
 
   public interface GeometryComparision {
@@ -426,4 +433,24 @@ public class TestUtils {
       mapTileFeatures(actual, NormGeometry::new)
     );
   }
+
+  public static List<Coordinate> worldCoordinateList(double... coords) {
+    List<Coordinate> points = newCoordinateList(coords);
+    points.forEach(c -> {
+      c.x = GeoUtils.getWorldLon(c.x);
+      c.y = GeoUtils.getWorldLat(c.y);
+    });
+    return points;
+  }
+
+  public static List<Coordinate> worldRectangle(double min, double max) {
+    return worldCoordinateList(
+      min, min,
+      max, min,
+      max, max,
+      min, max,
+      min, min
+    );
+  }
+
 }

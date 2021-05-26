@@ -30,8 +30,11 @@ public class GeoUtilsTest {
 
     Point input = newPoint(lon, lat);
     Point expected = newPoint(worldX, worldY);
-    Geometry actual = ProjectWorldCoords.transform(input);
+    Geometry actual = latLonToWorldCoords(input);
     assertEquals(round(expected), round(actual));
+
+    Geometry roundTripped = worldToLatLonCoords(actual);
+    assertEquals(round(input), round(roundTripped));
   }
 
   @Test
@@ -95,5 +98,15 @@ public class GeoUtilsTest {
       ), List.of(rectangleCoordList(
         1, 2
       )))));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 156543",
+    "8, 611",
+    "14, 9",
+  })
+  public void testMetersPerPixel(int zoom, double meters) {
+    assertEquals(meters, metersPerPixelAtEquator(zoom), 1);
   }
 }

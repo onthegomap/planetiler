@@ -448,6 +448,28 @@ public class FeatureRendererTest {
     assertExactSameFeatures(Map.of(), renderGeometry(feature));
   }
 
+  @Test
+  public void testSelfIntersectingLineStringOK() {
+    var feature = lineFeature(newLineString(z14WorldCoords(
+      10, 10,
+      20, 20,
+      10, 20,
+      20, 10,
+      10, 10
+    )))
+      .setMinPixelSize(1)
+      .setZoomRange(14, 14);
+    assertExactSameFeatures(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(newLineString(
+        10, 10,
+        20, 20,
+        10, 20,
+        20, 10,
+        10, 10
+      ))
+    ), renderGeometry(feature));
+  }
+
   /*
    * POLYGON TESTS
    */

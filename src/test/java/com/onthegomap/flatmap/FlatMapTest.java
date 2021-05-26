@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.collections.FeatureGroup;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.io.InputStreamInStream;
 import org.locationtech.jts.io.ParseException;
@@ -356,16 +358,7 @@ public class FlatMapTest {
     ), results.tiles);
   }
 
-  private List<Coordinate> worldCoordinateList(double... coords) {
-    List<Coordinate> points = newCoordinateList(coords);
-    points.forEach(c -> {
-      c.x = GeoUtils.getWorldLon(c.x);
-      c.y = GeoUtils.getWorldLat(c.y);
-    });
-    return points;
-  }
-
-  private List<Coordinate> z14CoordinateList(double... coords) {
+  public List<Coordinate> z14CoordinateList(double... coords) {
     List<Coordinate> points = newCoordinateList(coords);
     points.forEach(c -> {
       c.x = GeoUtils.getWorldLon(0.5 + c.x * Z14_WIDTH);
@@ -486,7 +479,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testOceanPolygon() throws IOException, SQLException {
+  public void testFullWorldPolygon() throws IOException, SQLException {
     List<Coordinate> outerPoints = worldCoordinateList(
       Z14_WIDTH / 2, Z14_WIDTH / 2,
       1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
@@ -543,6 +536,44 @@ public class FlatMapTest {
     );
 
     assertEquals(expected, results.tiles.size());
+  }
+
+  @Test
+  public void testReorderNestedMultipolygons() throws IOException, SQLException {
+    List<Coordinate> outerPoints1 = worldRectangle(10d / 256, 240d / 256);
+    List<Coordinate> innerPoints1 = worldRectangle(20d / 256, 230d / 256);
+    List<Coordinate> outerPoints2 = worldRectangle(30d / 256, 220d / 256);
+    List<Coordinate> innerPoints2 = worldRectangle(40d / 256, 210d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newMultiPolygon(
+          newPolygon(outerPoints2, List.of(innerPoints2)),
+          newPolygon(outerPoints1, List.of(innerPoints1))
+        ), Map.of())
+      ),
+      (in, features) -> {
+        features.polygon("layer")
+          .setZoomRange(0, 0)
+          .setBufferPixels(0);
+      }
+    );
+
+    var tileContents = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
+    assertEquals(1, tileContents.size());
+    Geometry geom = tileContents.get(0).geometry().geom();
+    assertTrue(geom instanceof MultiPolygon, geom.toString());
+    MultiPolygon multiPolygon = (MultiPolygon) geom;
+    assertSameNormalizedFeature(newPolygon(
+      rectangleCoordList(10, 240),
+      List.of(rectangleCoordList(20, 230))
+    ), multiPolygon.getGeometryN(0));
+    assertSameNormalizedFeature(newPolygon(
+      rectangleCoordList(30, 220),
+      List.of(rectangleCoordList(40, 210))
+    ), multiPolygon.getGeometryN(1));
+    assertEquals(2, multiPolygon.getNumGeometries());
   }
 
   private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
