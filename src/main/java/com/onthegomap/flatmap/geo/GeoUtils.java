@@ -45,12 +45,6 @@ public class GeoUtils {
   public static final GeometryTransformer UNPROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
-      if (coords.getDimension() != 2) {
-        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
-      }
-      if (coords.getMeasures() != 0) {
-        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
-      }
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
         copy.setOrdinate(i, 0, getWorldLon(coords.getX(i)));
@@ -62,12 +56,6 @@ public class GeoUtils {
   public static final GeometryTransformer PROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
-      if (coords.getDimension() != 2) {
-        throw new IllegalArgumentException("Dimension must be 2, was: " + coords.getDimension());
-      }
-      if (coords.getMeasures() != 0) {
-        throw new IllegalArgumentException("Measures must be 0, was: " + coords.getMeasures());
-      }
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
       for (int i = 0; i < coords.size(); i++) {
         copy.setOrdinate(i, 0, getWorldX(coords.getX(i)));

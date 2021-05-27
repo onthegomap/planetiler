@@ -80,12 +80,15 @@ public class OpenMapTilesMain {
 
     stats.time("lake_centerlines", () ->
       ShapefileReader
-        .process("EPSG:3857", "lake_centerlines", centerlines, featureMap, config, profile, stats));
+        .process("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE, centerlines, featureMap, config, profile,
+          stats));
     stats.time("water_polygons", () ->
-      ShapefileReader.process("water_polygons", waterPolygons, featureMap, config, profile, stats));
+      ShapefileReader
+        .process(OpenMapTilesProfile.WATER_POLYGON_SOURCE, waterPolygons, featureMap, config, profile, stats));
     stats.time("natural_earth", () ->
       NaturalEarthReader
-        .process("natural_earth", naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap, config,
+        .process(OpenMapTilesProfile.NATURAL_EARTH_SOURCE, naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap,
+          config,
           profile, stats)
     );
 

@@ -15,6 +15,7 @@ import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class FeatureRendererTest {
 
@@ -470,6 +477,61 @@ public class FeatureRendererTest {
     ), renderGeometry(feature));
   }
 
+  @Test
+  public void testLineWrap() {
+    var feature = lineFeature(newLineString(
+      -1d / 256, -1d / 256,
+      257d / 256, 257d / 256
+    ))
+      .setMinPixelSize(1)
+      .setBufferPixels(4)
+      .setZoomRange(0, 1);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(newMultiLineString(
+        newLineString(
+          -1, -1,
+          257, 257
+        ),
+        newLineString(
+          -4, 252,
+          1, 257
+        ),
+        newLineString(
+          255, -1,
+          260, 4
+        )
+      )),
+      TileCoord.ofXYZ(0, 0, 1), List.of(newLineString(
+        -2, -2,
+        260, 260
+      )),
+      TileCoord.ofXYZ(1, 0, 1), List.of(newMultiLineString(
+        newLineString(
+          -4, 252,
+          4, 260
+        ),
+        newLineString(
+          254, -2,
+          260, 4
+        )
+      )),
+      TileCoord.ofXYZ(0, 1, 1), List.of(newMultiLineString(
+        newLineString(
+          252, -4,
+          260, 4
+        ),
+        newLineString(
+          -4, 252,
+          2, 258
+        )
+      )),
+      TileCoord.ofXYZ(1, 1, 1), List.of(newLineString(
+        -4, -4,
+        258, 258
+      ))
+    ), renderGeometry(feature));
+  }
+
   /*
    * POLYGON TESTS
    */
@@ -798,7 +860,7 @@ public class FeatureRendererTest {
       ),
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         // the filled tile with a hole!
-        newPolygon(tileFill(1 + 256d / 4096), List.of(rectangleCoordList(10, 250)))
+        newPolygon(tileFill(1), List.of(rectangleCoordList(10, 250)))
       ),
       TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2, 14), List.of(
         tileLeft(1)
@@ -1098,7 +1160,7 @@ public class FeatureRendererTest {
     var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
     assertEquals(1, innerTile.size());
     assertEquals(new TestUtils.NormGeometry(newPolygon(
-      rectangleCoordList(-1 - TILE_RESOLUTION_PX, 256 + 1 + TILE_RESOLUTION_PX),
+      rectangleCoordList(-1, 256 + 1),
       List.of(rectangleCoordList(10, 246))
       )),
       new TestUtils.NormGeometry(innerTile.iterator().next()));
@@ -1129,5 +1191,197 @@ public class FeatureRendererTest {
       .setBufferPixels(1);
     var rendered = renderGeometry(feature);
     assertFalse(rendered.containsKey(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14)));
+  }
+
+  @Test
+  public void testOverlappingMultipolygon() {
+    var feature = polygonFeature(newMultiPolygon(
+      rectangle(10d / 256, 10d / 256, 30d / 256, 30d / 256),
+      rectangle(20d / 256, 20d / 256, 40d / 256, 40d / 256)
+    ))
+      .setMinPixelSize(1)
+      .setBufferPixels(4)
+      .setZoomRange(0, 0);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(newPolygon(
+        10, 10,
+        30, 10,
+        30, 20,
+        40, 20,
+        40, 40,
+        20, 40,
+        20, 30,
+        10, 30,
+        10, 10
+      ))
+    ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testOverlappingMultipolygonSideBySide() {
+    var feature = polygonFeature(newMultiPolygon(
+      rectangle(10d / 256, 10d / 256, 20d / 256, 20d / 256),
+      rectangle(15d / 256, 10d / 256, 25d / 256, 20d / 256)
+    ))
+      .setMinPixelSize(1)
+      .setBufferPixels(4)
+      .setZoomRange(0, 0);
+    assertTopologicallyEquivalentFeatures(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(rectangle(
+        10, 10,
+        25, 20
+      ))
+    ), renderGeometry(feature));
+  }
+
+  @Test
+  public void testPolygonWrap() {
+    var feature = polygonFeature(rectangle(
+      -1d / 256, -1d / 256, 257d / 256, 1d / 256
+    ))
+      .setMinPixelSize(1)
+      .setBufferPixels(4)
+      .setZoomRange(0, 1);
+    assertTopologicallyEquivalentFeatures(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        rectangle(-4, -1, 260, 1)
+      ),
+      TileCoord.ofXYZ(0, 0, 1), List.of(
+        rectangle(-4, -2, 260, 2)
+      ),
+      TileCoord.ofXYZ(1, 0, 1), List.of(
+        rectangle(-4, -2, 260, 2)
+      )
+    ), renderGeometry(feature));
+  }
+
+  private static Geometry rotateWorld(Geometry geom, double degrees) {
+    return AffineTransformation.rotationInstance(-Math.PI * degrees / 180, 0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2)
+      .transform(geom);
+  }
+
+  private static Geometry rotateTile(Geometry geom, double degrees) {
+    return AffineTransformation.rotationInstance(-Math.PI * degrees / 180, 128, 128)
+      .transform(geom);
+  }
+
+  private void testClipWithRotation(double rotation, Geometry inputTile) {
+    Geometry input = new AffineTransformation()
+      .scale(1d / 256 / Z14_TILES, 1d / 256 / Z14_TILES)
+      .translate(0.5, 0.5)
+      .transform(inputTile);
+    Geometry expectedOutput = inputTile.intersection(rectangle(-4, 260));
+
+    var feature = polygonFeature(rotateWorld(input, rotation))
+      .setBufferPixels(4)
+      .setZoomRange(14, 14);
+    var geom = renderGeometry(feature)
+      .get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
+      .iterator().next();
+
+    assertTopologicallyEquivalentFeature(
+      round(rotateTile(expectedOutput, rotation)),
+      round(geom)
+    );
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 90, 180, -90})
+  public void testBackAndForthsOutsideTile(int rotation) {
+    testClipWithRotation(rotation, newPolygon(
+      300, -10,
+      310, 300,
+      320, -10,
+      330, 300,
+      340, 400,
+      128, 400,
+      128, 128,
+      128, -10,
+      300, -10
+    ));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 90, 180, -90})
+  public void testReplayEdgesOuterPoly(int rotation) {
+    testClipWithRotation(rotation, newPolygon(
+      130, -10,
+      270, -10,
+      270, 270,
+      -10, 270,
+      -10, -10,
+      120, -10,
+      120, 10,
+      130, 10,
+      130, -10
+    ));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 90, 180, -90})
+  public void testReplayEdgesInnerPoly(int rotation) {
+    var innerShape = newCoordinateList(
+      130, -10,
+      270, -10,
+      270, 270,
+      -10, 270,
+      -10, -10,
+      120, -10,
+      120, 10,
+      130, 10,
+      130, -10
+    );
+    Collections.reverse(innerShape);
+    testClipWithRotation(rotation, newPolygon(
+      rectangleCoordList(-20, 300),
+      List.of(innerShape)
+    ));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 0",
+    "0.5, 0",
+    "0.5, 0.5",
+    "0, 0.5",
+    "-0.5, 0.5",
+    "-0.5, 0",
+    "-0.5, -0.5",
+    "0, -0.5",
+    "0.5, -0.5"
+  })
+  public void testSpiral(double dx, double dy) {
+    // generate spirals at different offsets and make sure that tile clipping
+    // returns the same result as JTS intersection with the tile's boundary
+    List<Coordinate> coords = new ArrayList<>();
+    int outerRadius = 300;
+    int iters = 25;
+    for (int i = 0; i < iters; i++) {
+      int radius = outerRadius - i * 10;
+      coords.add(new CoordinateXY(-radius, 0));
+      coords.add(new CoordinateXY(0, -radius));
+      coords.add(new CoordinateXY(radius, 0));
+      coords.add(new CoordinateXY(0, radius));
+    }
+    Geometry poly = newLineString(coords).buffer(1, 1);
+    poly = AffineTransformation.translationInstance(128 + dx * 256, 128 + dy * 256).transform(poly);
+
+    Geometry input = new AffineTransformation()
+      .scale(1d / 256d / Z14_TILES, 1d / 256d / Z14_TILES)
+      .translate(0.5, 0.5)
+      .transform(poly);
+    Geometry expectedOutput = poly.intersection(rectangle(-4, 260));
+
+    var feature = polygonFeature(input)
+      .setBufferPixels(4)
+      .setZoomRange(14, 14);
+    var actual = renderGeometry(feature)
+      .get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14))
+      .iterator().next();
+
+    assertTopologicallyEquivalentFeature(
+      GeometryPrecisionReducer.reduce(expectedOutput, new PrecisionModel(4096d / 256d)),
+      actual
+    );
   }
 }

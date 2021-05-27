@@ -446,7 +446,7 @@ public class FlatMapTest {
       )),
       newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14, List.of(
         feature(newPolygon(
-          tileFill(4 + 256d / 4096),
+          tileFill(4),
           List.of(newCoordinateList(
             64, 64,
             192, 64,

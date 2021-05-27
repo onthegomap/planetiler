@@ -57,16 +57,15 @@ public class FeatureRenderer {
   }
 
   private void renderGeometry(Geometry geom, FeatureCollector.Feature feature) {
-    // TODO what about converting between area and line?
     if (geom.isEmpty()) {
       LOGGER.warn("Empty geometry " + feature);
     } else if (geom instanceof Point point) {
-      addPointFeature(feature, point.getCoordinates());
+      renderPoint(feature, point.getCoordinates());
     } else if (geom instanceof MultiPoint points) {
-      addPointFeature(feature, points);
+      renderPoint(feature, points);
     } else if (geom instanceof Polygon || geom instanceof MultiPolygon || geom instanceof LineString
       || geom instanceof MultiLineString) {
-      addLinearFeature(feature, geom);
+      renderLineOrPolygon(feature, geom);
     } else if (geom instanceof GeometryCollection collection) {
       for (int i = 0; i < collection.getNumGeometries(); i++) {
         renderGeometry(collection.getGeometryN(i), feature);
@@ -77,7 +76,7 @@ public class FeatureRenderer {
     }
   }
 
-  private void addPointFeature(FeatureCollector.Feature feature, Coordinate... coords) {
+  private void renderPoint(FeatureCollector.Feature feature, Coordinate... coords) {
     long id = idGen.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
@@ -122,17 +121,17 @@ public class FeatureRenderer {
     ));
   }
 
-  private void addPointFeature(FeatureCollector.Feature feature, MultiPoint points) {
+  private void renderPoint(FeatureCollector.Feature feature, MultiPoint points) {
     if (feature.hasLabelGrid()) {
       for (Coordinate coord : points.getCoordinates()) {
-        addPointFeature(feature, coord);
+        renderPoint(feature, coord);
       }
     } else {
-      addPointFeature(feature, points.getCoordinates());
+      renderPoint(feature, points.getCoordinates());
     }
   }
 
-  private void addLinearFeature(FeatureCollector.Feature feature, Geometry input) {
+  private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
     long id = idGen.incrementAndGet();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();

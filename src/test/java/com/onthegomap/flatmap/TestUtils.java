@@ -157,19 +157,23 @@ public class TestUtils {
     return GeoUtils.JTS_FACTORY.createGeometryCollection(geoms);
   }
 
-  public static Geometry round(Geometry input) {
+  public static Geometry round(Geometry input, double delta) {
     return new GeometryTransformer() {
       @Override
       protected CoordinateSequence transformCoordinates(
         CoordinateSequence coords, Geometry parent) {
         for (int i = 0; i < coords.size(); i++) {
           for (int j = 0; j < coords.getDimension(); j++) {
-            coords.setOrdinate(i, j, Math.round(coords.getOrdinate(i, j) * 1e5) / 1e5);
+            coords.setOrdinate(i, j, Math.round(coords.getOrdinate(i, j) * delta) / delta);
           }
         }
         return coords;
       }
     }.transform(input.copy());
+  }
+
+  public static Geometry round(Geometry input) {
+    return round(input, 1e5);
   }
 
   private static byte[] gunzip(byte[] zipped) throws IOException {
@@ -400,16 +404,6 @@ public class TestUtils {
     );
   }
 
-  public static void assertTopologicallyEquivalentFeatures(
-    Map<TileCoord, Collection<Geometry>> expected,
-    Map<TileCoord, Collection<Geometry>> actual
-  ) {
-    assertEquals(
-      mapTileFeatures(expected, TopoGeometry::new),
-      mapTileFeatures(actual, TopoGeometry::new)
-    );
-  }
-
   public static void assertSameNormalizedFeatures(
     Map<TileCoord, Collection<Geometry>> expected,
     Map<TileCoord, Collection<Geometry>> actual
@@ -422,6 +416,20 @@ public class TestUtils {
 
   public static void assertSameNormalizedFeature(Geometry expected, Geometry actual) {
     assertEquals(new NormGeometry(expected), new NormGeometry(actual));
+  }
+
+  public static void assertTopologicallyEquivalentFeatures(
+    Map<TileCoord, Collection<Geometry>> expected,
+    Map<TileCoord, Collection<Geometry>> actual
+  ) {
+    assertEquals(
+      mapTileFeatures(expected, TopoGeometry::new),
+      mapTileFeatures(actual, TopoGeometry::new)
+    );
+  }
+
+  public static void assertTopologicallyEquivalentFeature(Geometry expected, Geometry actual) {
+    assertEquals(new TopoGeometry(expected), new TopoGeometry(actual));
   }
 
   public static void assertNormalizedSubmap(

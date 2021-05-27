@@ -34,7 +34,7 @@ public class ShapefileReader extends Reader implements Closeable {
   public static void process(String sourceProjection, String sourceName, Path input, FeatureGroup writer,
     CommonParams config,
     Profile profile, Stats stats) {
-    try (var reader = new ShapefileReader(sourceName, sourceProjection, input, profile, stats)) {
+    try (var reader = new ShapefileReader(sourceProjection, sourceName, input, profile, stats)) {
       reader.process(writer, config);
     }
   }

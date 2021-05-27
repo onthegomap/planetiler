@@ -156,7 +156,6 @@ class TiledGeometry {
   }
 
   private static CoordinateSequence fill(double buffer) {
-    buffer += 1d / 4096;
     double min = -256d * buffer;
     double max = 256d - min;
     return new PackedCoordinateSequence.Double(new double[]{

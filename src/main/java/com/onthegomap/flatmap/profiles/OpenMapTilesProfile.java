@@ -12,6 +12,9 @@ import org.slf4j.LoggerFactory;
 
 public class OpenMapTilesProfile implements Profile {
 
+  public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
+  public static final String WATER_POLYGON_SOURCE = "water_polygons";
+  public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
 
   @Override
@@ -52,12 +55,30 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public void processFeature(SourceFeature sourceFeature,
-    FeatureCollector features) {
+  public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.isPoint()) {
       if (sourceFeature.hasTag("natural", "peak", "volcano")) {
         features.point("mountain_peak")
-          .setAttr("name", sourceFeature.getTag("name"));
+          .setAttr("name", sourceFeature.getTag("name"))
+          .setLabelGridSizeAndLimit(13, 100, 5);
+      }
+    }
+
+    if (WATER_POLYGON_SOURCE.equals(sourceFeature.getSource())) {
+      features.polygon("water").setZoomRange(6, 14).setAttr("class", "ocean");
+    } else if (NATURAL_EARTH_SOURCE.equals(sourceFeature.getSource())) {
+      String sourceLayer = sourceFeature.getSourceLayer();
+      boolean lake = sourceLayer.endsWith("_lakes");
+      switch (sourceLayer) {
+        case "ne_10m_lakes", "ne_10m_ocean" -> features.polygon("water")
+          .setZoomRange(4, 5)
+          .setAttr("class", lake ? "lake" : "ocean");
+        case "ne_50m_lakes", "ne_50m_ocean" -> features.polygon("water")
+          .setZoomRange(2, 3)
+          .setAttr("class", lake ? "lake" : "ocean");
+        case "ne_110m_lakes", "ne_110m_ocean" -> features.polygon("water")
+          .setZoomRange(0, 1)
+          .setAttr("class", lake ? "lake" : "ocean");
       }
     }
   }
