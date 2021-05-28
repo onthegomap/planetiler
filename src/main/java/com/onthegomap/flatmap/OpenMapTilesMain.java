@@ -92,7 +92,8 @@ public class OpenMapTilesMain {
           profile, stats)
     );
 
-    try (var osmReader = new OpenStreetMapReader(osmInputFile, nodeLocations, profile, stats)) {
+    try (var osmReader = new OpenStreetMapReader(OpenMapTilesProfile.OSM_SOURCE, osmInputFile, nodeLocations, profile,
+      stats)) {
       stats.time("osm_pass1", () -> osmReader.pass1(config));
       stats.time("osm_pass2", () -> osmReader.pass2(featureMap, config));
     }

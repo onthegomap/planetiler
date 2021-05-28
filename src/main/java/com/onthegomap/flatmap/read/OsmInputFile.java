@@ -24,7 +24,7 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBBox;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
 import org.openstreetmap.osmosis.osmbinary.file.FileFormatException;
 
-public class OsmInputFile implements BoundsProvider {
+public class OsmInputFile implements BoundsProvider, OsmSource {
 
   private final Path path;
 
@@ -83,6 +83,7 @@ public class OsmInputFile implements BoundsProvider {
     }
   }
 
+  @Override
   public Topology.SourceStep<ReaderElement> read(int threads) {
     return next -> readTo(next, threads);
   }

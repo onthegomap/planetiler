@@ -30,7 +30,7 @@ import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FeatureRenderer {
+public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
 
   private static final AtomicLong idGen = new AtomicLong(0);
 
@@ -52,7 +52,8 @@ public class FeatureRenderer {
     this.consumer = consumer;
   }
 
-  public void renderFeature(FeatureCollector.Feature feature) {
+  @Override
+  public void accept(FeatureCollector.Feature feature) {
     renderGeometry(feature.getGeometry(), feature);
   }
 

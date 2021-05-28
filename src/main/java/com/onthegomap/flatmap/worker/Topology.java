@@ -160,4 +160,5 @@ public record Topology<T>(
       });
     }
   }
+
 }

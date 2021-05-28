@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
+import com.graphhopper.coll.GHLongLongHashMap;
 import com.onthegomap.flatmap.FileUtils;
 import java.io.Closeable;
 import java.io.IOException;
@@ -13,6 +14,8 @@ import org.mapdb.volume.MappedFileVol;
 import org.mapdb.volume.Volume;
 
 public interface LongLongMap extends Closeable {
+
+  long MISSING_VALUE = Long.MIN_VALUE;
 
   void put(long key, long value);
 
@@ -52,6 +55,34 @@ public interface LongLongMap extends Closeable {
     return new MapdbSortedTable(volume, () -> 0);
   }
 
+  static LongLongMap newInMemoryHashMap() {
+    return new HppcMap();
+  }
+
+  class HppcMap implements LongLongMap {
+
+    private final com.carrotsearch.hppc.LongLongMap underlying = new GHLongLongHashMap();
+
+    @Override
+    public void put(long key, long value) {
+      underlying.put(key, value);
+    }
+
+    @Override
+    public long get(long key) {
+      return underlying.getOrDefault(key, MISSING_VALUE);
+    }
+
+    @Override
+    public long fileSize() {
+      return 0;
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+  }
+
   class MapdbSortedTable implements LongLongMap {
 
     private final SortedTableMap.Sink<Long, Long> mapSink;
@@ -88,7 +119,7 @@ public interface LongLongMap extends Closeable {
 
     @Override
     public long get(long key) {
-      return getMap().getOrDefault(key, Long.MIN_VALUE);
+      return getMap().getOrDefault(key, MISSING_VALUE);
     }
 
     @Override

@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.graphhopper.reader.ReaderElement;
+import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
+import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
@@ -14,6 +17,7 @@ import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import com.onthegomap.flatmap.read.OsmSource;
 import com.onthegomap.flatmap.read.Reader;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import com.onthegomap.flatmap.worker.Topology;
@@ -22,10 +26,10 @@ import com.onthegomap.flatmap.write.MbtilesWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -75,11 +79,32 @@ public class FlatMapTest {
     }.process(featureGroup, config);
   }
 
-  private FlatMapResults runWithReaderFeatures(
+  private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
+    List<? extends ReaderElement> osmElements) throws IOException {
+    OsmSource elems = threads -> next -> {
+      // process the same order they come in from an OSM file
+      osmElements.stream().filter(e -> e.getType() == ReaderElement.FILEHEADER).forEachOrdered(next);
+      osmElements.stream().filter(e -> e.getType() == ReaderElement.NODE).forEachOrdered(next);
+      osmElements.stream().filter(e -> e.getType() == ReaderElement.WAY).forEachOrdered(next);
+      osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
+    };
+    var nodeMap = LongLongMap.newInMemorySortedTable();
+    try (var reader = new OpenStreetMapReader(elems, nodeMap, profile, new Stats.InMemory())) {
+      reader.pass1(config);
+      reader.pass2(featureGroup, config);
+    }
+  }
+
+  private interface Runner {
+
+    void run(FeatureGroup featureGroup, Profile profile, CommonParams config) throws Exception;
+  }
+
+  private FlatMapResults run(
     Map<String, String> args,
-    List<ReaderFeature> features,
+    Runner runner,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws IOException, SQLException {
+  ) throws Exception {
     CommonParams config = CommonParams.from(Arguments.of(args));
     var translations = Translations.defaultProvider(List.of());
     var profile1 = new OpenMapTilesProfile();
@@ -87,7 +112,7 @@ public class FlatMapTest {
     FeatureSort featureDb = FeatureSort.newInMemory();
     FeatureGroup featureGroup = new FeatureGroup(featureDb, profile1, stats);
     var profile = TestProfile.processSourceFeatures(profileFunction);
-    processReaderFeatures(featureGroup, profile, config, features);
+    runner.run(featureGroup, profile, config);
     featureGroup.sorter().sort();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, profile, config, stats);
@@ -99,8 +124,32 @@ public class FlatMapTest {
     }
   }
 
+  private FlatMapResults runWithReaderFeatures(
+    Map<String, String> args,
+    List<ReaderFeature> features,
+    BiConsumer<SourceFeature, FeatureCollector> profileFunction
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
+      profileFunction
+    );
+  }
+
+  private FlatMapResults runWithOsmElements(
+    Map<String, String> args,
+    List<ReaderElement> features,
+    BiConsumer<SourceFeature, FeatureCollector> profileFunction
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
+      profileFunction
+    );
+  }
+
   @Test
-  public void testMetadataButNoPoints() throws IOException, SQLException {
+  public void testMetadataButNoPoints() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(),
@@ -132,7 +181,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testSinglePoint() throws IOException, SQLException {
+  public void testSinglePoint() throws Exception {
     double x = 0.5 + Z14_WIDTH / 2;
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
@@ -180,7 +229,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testMultiPoint() throws IOException, SQLException {
+  public void testMultiPoint() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z13_WIDTH / 256d;
@@ -231,7 +280,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testLabelGridLimit() throws IOException, SQLException {
+  public void testLabelGridLimit() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -271,7 +320,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testLineString() throws IOException, SQLException {
+  public void testLineString() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -309,7 +358,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testMultiLineString() throws IOException, SQLException {
+  public void testMultiLineString() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -368,7 +417,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testPolygonWithHoleSpanningMultipleTiles() throws IOException, SQLException {
+  public void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
     List<Coordinate> outerPoints = z14CoordinateList(
       0.5, 0.5,
       3.5, 0.5,
@@ -479,7 +528,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testFullWorldPolygon() throws IOException, SQLException {
+  public void testFullWorldPolygon() throws Exception {
     List<Coordinate> outerPoints = worldCoordinateList(
       Z14_WIDTH / 2, Z14_WIDTH / 2,
       1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
@@ -517,7 +566,7 @@ public class FlatMapTest {
     "njshore.wkb,    10571"
   })
   public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
-    throws IOException, SQLException, ParseException {
+    throws Exception, ParseException {
     MultiPolygon geometry = (MultiPolygon) new WKBReader()
       .read(new InputStreamInStream(Files.newInputStream(Path.of("src", "test", "resources", fileName))));
     assertNotNull(geometry);
@@ -539,7 +588,7 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testReorderNestedMultipolygons() throws IOException, SQLException {
+  public void testReorderNestedMultipolygons() throws Exception {
     List<Coordinate> outerPoints1 = worldRectangle(10d / 256, 240d / 256);
     List<Coordinate> innerPoints1 = worldRectangle(20d / 256, 230d / 256);
     List<Coordinate> outerPoints2 = worldRectangle(30d / 256, 220d / 256);
@@ -574,6 +623,180 @@ public class FlatMapTest {
       List.of(rectangleCoordList(40, 210))
     ), multiPolygon.getGeometryN(1));
     assertEquals(2, multiPolygon.getNumGeometries());
+  }
+
+  @Test
+  public void testOsmPoint() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+      ),
+      (in, features) -> {
+        if (in.isPoint()) {
+          features.point("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value")
+            .inheritFromSource("attr");
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newPoint(128, 128), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  private static <T extends ReaderElement> T with(T elem, Consumer<T> fn) {
+    fn.accept(elem);
+    return elem;
+  }
+
+  @Test
+  public void testOsmLine() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderNode(1, 0, 0),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        with(new ReaderWay(3), way -> {
+          way.setTag("attr", "value");
+          way.getNodes().add(1, 2);
+        })
+      ),
+      (in, features) -> {
+        if (in.canBeLine()) {
+          features.line("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value")
+            .inheritFromSource("attr");
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newLineString(128, 128, 192, 192), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testOsmLineOrPolygon() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderNode(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(5, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        with(new ReaderWay(6), way -> {
+          way.setTag("attr", "value");
+          way.getNodes().add(1, 2, 3, 4, 5);
+        })
+      ),
+      (in, features) -> {
+        if (in.canBeLine()) {
+          features.line("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value1")
+            .inheritFromSource("attr");
+        }
+        if (in.canBePolygon()) {
+          features.polygon("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value2")
+            .inheritFromSource("attr");
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newLineString(
+          128, 128,
+          192, 128,
+          192, 192,
+          128, 192,
+          128, 128
+        ), Map.of(
+          "attr", "value",
+          "name", "name value1"
+        )),
+        feature(rectangle(128, 192), Map.of(
+          "attr", "value",
+          "name", "name value2"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testOsmMultipolygon() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderNode(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(5, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+
+        new ReaderNode(6, GeoUtils.getWorldLat(0.3), GeoUtils.getWorldLon(0.3)),
+        new ReaderNode(7, GeoUtils.getWorldLat(0.3), GeoUtils.getWorldLon(0.7)),
+        new ReaderNode(8, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.7)),
+        new ReaderNode(9, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.3)),
+        new ReaderNode(10, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.3)),
+
+        new ReaderNode(11, GeoUtils.getWorldLat(0.4), GeoUtils.getWorldLon(0.4)),
+        new ReaderNode(12, GeoUtils.getWorldLat(0.4), GeoUtils.getWorldLon(0.6)),
+        new ReaderNode(13, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.6)),
+        new ReaderNode(14, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.4)),
+        new ReaderNode(15, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.4)),
+
+        with(new ReaderWay(16), way -> way.getNodes().add(1, 2, 3, 4, 5)),
+        with(new ReaderWay(17), way -> way.getNodes().add(6, 7, 8, 9, 10)),
+        with(new ReaderWay(18), way -> way.getNodes().add(11, 12, 13, 14, 15)),
+
+        with(new ReaderRelation(19), rel -> {
+          rel.setTag("type", "multipolygon");
+          rel.setTag("attr", "value");
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "outer"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 17, "inner"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 18, "outer"));
+        })
+      ),
+      (in, features) -> {
+        if (in.canBePolygon()) {
+          features.polygon("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value")
+            .inheritFromSource("attr");
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newMultiPolygon(
+          rectangle(0.25 * 256, 0.75 * 256),
+          rectangle(0.3 * 256, 0.7 * 256),
+          rectangle(0.4 * 256, 0.6 * 256)
+        ), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
   }
 
   private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,

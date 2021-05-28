@@ -48,7 +48,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<Geometry>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(decodeSilently(rendered.vectorTileFeature().geometry()))).renderFeature(feature);
+      .add(decodeSilently(rendered.vectorTileFeature().geometry()))).accept(feature);
     result.values().forEach(gs -> gs.forEach(TestUtils::validateGeometry));
     return result;
   }
@@ -56,7 +56,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<RenderedFeature>> renderFeatures(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<RenderedFeature>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(rendered)).renderFeature(feature);
+      .add(rendered)).accept(feature);
     result.values()
       .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(decodeSilently(f.vectorTileFeature().geometry()))));
     return result;
@@ -807,7 +807,7 @@ public class FeatureRendererTest {
       .setBufferPixels(0);
     AtomicLong num = new AtomicLong(0);
     new FeatureRenderer(config, rendered1 -> num.incrementAndGet())
-      .renderFeature(feature);
+      .accept(feature);
     assertEquals(num.get(), Math.pow(4, maxZoom));
   }
 

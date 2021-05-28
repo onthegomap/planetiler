@@ -20,6 +20,7 @@ import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.collections.LongLongMultimap;
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.render.FeatureRenderer;
@@ -35,13 +36,14 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
 public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstimate {
 
-  private final OsmInputFile osmInputFile;
+  private final OsmSource osmInputFile;
   private final Stats stats;
   private final LongLongMap nodeDb;
-  private final AtomicLong TOTAL_NODES = new AtomicLong(0);
-  private final AtomicLong TOTAL_WAYS = new AtomicLong(0);
-  private final AtomicLong TOTAL_RELATIONS = new AtomicLong(0);
+  private final AtomicLong PASS1_NODES = new AtomicLong(0);
+  private final AtomicLong PASS1_WAYS = new AtomicLong(0);
+  private final AtomicLong PASS1_RELATIONS = new AtomicLong(0);
   private final Profile profile;
+  private final String name;
 
   // need a few large objects to process ways in relations, should be small enough to keep in memory
   // for routes (750k rels 40m ways) and boundaries (650k rels, 8m ways)
@@ -57,7 +59,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
 
-  public OpenStreetMapReader(OsmInputFile osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
+  public OpenStreetMapReader(OsmSource osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
+    this("osm", osmInputFile, nodeDb, profile, stats);
+  }
+
+  public OpenStreetMapReader(String name, OsmSource osmInputFile, LongLongMap nodeDb, Profile profile,
+    Stats stats) {
+    this.name = name;
     this.osmInputFile = osmInputFile;
     this.nodeDb = nodeDb;
     this.stats = stats;
@@ -68,46 +76,48 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     var topology = Topology.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read(config.threads() - 1))
       .addBuffer("reader_queue", 50_000, 10_000)
-      .sinkToConsumer("process", 1, (readerElement) -> {
-        if (readerElement instanceof ReaderNode node) {
-          TOTAL_NODES.incrementAndGet();
-          nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
-        } else if (readerElement instanceof ReaderWay) {
-          TOTAL_WAYS.incrementAndGet();
-        } else if (readerElement instanceof ReaderRelation rel) {
-          TOTAL_RELATIONS.incrementAndGet();
-          List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
-          if (infos != null) {
-            for (RelationInfo info : infos) {
-              relationInfo.put(rel.getId(), info);
-              relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-              for (ReaderRelation.Member member : rel.getMembers()) {
-                if (member.getType() == ReaderRelation.Member.WAY) {
-                  wayToRelations.put(member.getRef(), rel.getId());
-                }
-              }
-            }
-          }
-          if (rel.hasTag("type", "multipolygon")) {
-            for (ReaderRelation.Member member : rel.getMembers()) {
-              if (member.getType() == ReaderRelation.Member.WAY) {
-                waysInMultipolygon.add(member.getRef());
-              }
-            }
-          }
-        }
-      });
+      .sinkToConsumer("process", 1, this::processPass1);
 
     var loggers = new ProgressLoggers("osm_pass1")
-      .addRateCounter("nodes", TOTAL_NODES)
+      .addRateCounter("nodes", PASS1_NODES)
       .addFileSize(nodeDb::fileSize)
-      .addRateCounter("ways", TOTAL_WAYS)
-      .addRateCounter("rels", TOTAL_RELATIONS)
+      .addRateCounter("ways", PASS1_WAYS)
+      .addRateCounter("rels", PASS1_RELATIONS)
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
+  }
+
+  void processPass1(ReaderElement readerElement) {
+    if (readerElement instanceof ReaderNode node) {
+      PASS1_NODES.incrementAndGet();
+      nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
+    } else if (readerElement instanceof ReaderWay) {
+      PASS1_WAYS.incrementAndGet();
+    } else if (readerElement instanceof ReaderRelation rel) {
+      PASS1_RELATIONS.incrementAndGet();
+      List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
+      if (infos != null) {
+        for (RelationInfo info : infos) {
+          relationInfo.put(rel.getId(), info);
+          relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
+          for (ReaderRelation.Member member : rel.getMembers()) {
+            if (member.getType() == ReaderRelation.Member.WAY) {
+              wayToRelations.put(member.getRef(), rel.getId());
+            }
+          }
+        }
+      }
+      if (rel.hasTag("type", "multipolygon")) {
+        for (ReaderRelation.Member member : rel.getMembers()) {
+          if (member.getType() == ReaderRelation.Member.WAY) {
+            waysInMultipolygon.add(member.getRef());
+          }
+        }
+      }
+    }
   }
 
   public void pass2(FeatureGroup writer, CommonParams config) {
@@ -124,7 +134,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         ReaderElement readerElement;
         var featureCollectors = new FeatureCollector.Factory(config);
-        NodeGeometryCache nodeCache = new NodeGeometryCache();
+        NodeGeometryCache nodeCache = newNodeGeometryCache();
         var encoder = writer.newRenderedFeatureEncoder();
         FeatureRenderer renderer = new FeatureRenderer(
           config,
@@ -134,13 +144,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
           SourceFeature feature = null;
           if (readerElement instanceof ReaderNode node) {
             nodesProcessed.incrementAndGet();
-            feature = new NodeSourceFeature(node);
+            feature = processNodePass2(node);
           } else if (readerElement instanceof ReaderWay way) {
             waysProcessed.incrementAndGet();
-            LongArrayList nodes = way.getNodes();
-            boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
-            String area = way.getTag("area");
-            feature = new WaySourceFeature(way, closed, area, nodeCache);
+            feature = processWayPass2(nodeCache, way);
           } else if (readerElement instanceof ReaderRelation rel) {
             // ensure all ways finished processing before we start relations
             if (waysDone.getCount() > 0) {
@@ -148,15 +155,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
               waysDone.await();
             }
             relsProcessed.incrementAndGet();
-            if (rel.hasTag("type", "multipolygon")) {
-              feature = new MultipolygonSourceFeature(rel);
-            }
+            feature = processRelationPass2(rel);
           }
           if (feature != null) {
             FeatureCollector features = featureCollectors.get(feature);
             profile.processFeature(feature, features);
             for (FeatureCollector.Feature renderable : features) {
-              renderer.renderFeature(renderable);
+              renderer.accept(renderable);
             }
           }
           nodeCache.reset();
@@ -168,10 +173,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .sinkToConsumer("write", 1, writer);
 
     var logger = new ProgressLoggers("osm_pass2")
-      .addRatePercentCounter("nodes", TOTAL_NODES.get(), nodesProcessed)
+      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed)
       .addFileSize(nodeDb::fileSize)
-      .addRatePercentCounter("ways", TOTAL_WAYS.get(), waysProcessed)
-      .addRatePercentCounter("rels", TOTAL_RELATIONS.get(), relsProcessed)
+      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed)
+      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
       .addRateCounter("features", () -> writer.sorter().size())
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
@@ -180,6 +185,21 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
+  }
+
+  SourceFeature processRelationPass2(ReaderRelation rel) {
+    return rel.hasTag("type", "multipolygon") ? new MultipolygonSourceFeature(rel) : null;
+  }
+
+  SourceFeature processWayPass2(NodeGeometryCache nodeCache, ReaderWay way) {
+    LongArrayList nodes = way.getNodes();
+    boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
+    String area = way.getTag("area");
+    return new WaySourceFeature(way, closed, area, nodeCache);
+  }
+
+  SourceFeature processNodePass2(ReaderNode node) {
+    return new NodeSourceFeature(node);
   }
 
   @Override
@@ -211,34 +231,36 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private static abstract class ProxyFeature extends SourceFeature {
+  private abstract class ProxyFeature extends SourceFeature {
 
-    private final boolean polygon;
-    private final boolean line;
-    private final boolean point;
+    final boolean polygon;
+    final boolean line;
+    final boolean point;
+    final long osmId;
 
     public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon) {
-      super(ReaderElementUtils.getProperties(elem), null, null);
+      super(ReaderElementUtils.getProperties(elem), name, null);
       this.point = point;
       this.line = line;
       this.polygon = polygon;
+      this.osmId = elem.getId();
     }
 
     private Geometry latLonGeom;
 
     @Override
-    public Geometry latLonGeometry() {
-      return latLonGeom != null ? latLonGeom : (latLonGeom = GeoUtils.latLonToWorldCoords(worldGeometry()));
+    public Geometry latLonGeometry() throws GeometryException {
+      return latLonGeom != null ? latLonGeom : (latLonGeom = GeoUtils.worldToLatLonCoords(worldGeometry()));
     }
 
     private Geometry worldGeom;
 
     @Override
-    public Geometry worldGeometry() {
+    public Geometry worldGeometry() throws GeometryException {
       return worldGeom != null ? worldGeom : (worldGeom = computeWorldGeometry());
     }
 
-    protected abstract Geometry computeWorldGeometry();
+    protected abstract Geometry computeWorldGeometry() throws GeometryException;
 
     @Override
     public boolean isPoint() {
@@ -256,7 +278,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private static class NodeSourceFeature extends ProxyFeature {
+  private class NodeSourceFeature extends ProxyFeature {
 
     private final double lon;
     private final double lat;
@@ -281,20 +303,43 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private static class WaySourceFeature extends ProxyFeature {
+  private class WaySourceFeature extends ProxyFeature {
 
     private final NodeGeometryCache nodeCache;
     private final LongArrayList nodeIds;
 
     public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeGeometryCache nodeCache) {
-      super(way, false, !closed || !"yes".equals(area), closed && !"no".equals(area));
+      super(way, false,
+        (!closed || !"yes".equals(area)) && way.getNodes().size() >= 2,
+        (closed && !"no".equals(area)) && way.getNodes().size() >= 4
+      );
       this.nodeIds = way.getNodes();
       this.nodeCache = nodeCache;
     }
 
     @Override
-    protected Geometry computeWorldGeometry() {
-      return null;
+    protected Geometry computeLine() throws GeometryException {
+      try {
+        CoordinateSequence coords = nodeCache.getWayGeometry(nodeIds);
+        return GeoUtils.JTS_FACTORY.createLineString(coords);
+      } catch (IllegalArgumentException e) {
+        throw new GeometryException("Error building line for way " + osmId + ": " + e);
+      }
+    }
+
+    @Override
+    protected Geometry computePolygon() throws GeometryException {
+      try {
+        CoordinateSequence coords = nodeCache.getWayGeometry(nodeIds);
+        return GeoUtils.JTS_FACTORY.createPolygon(coords);
+      } catch (IllegalArgumentException e) {
+        throw new GeometryException("Error building polygon for way " + osmId + ": " + e);
+      }
+    }
+
+    @Override
+    protected Geometry computeWorldGeometry() throws GeometryException {
+      return canBePolygon() ? polygon() : line();
     }
 
     @Override
@@ -303,7 +348,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private static class MultipolygonSourceFeature extends ProxyFeature {
+  private class MultipolygonSourceFeature extends ProxyFeature {
 
     public MultipolygonSourceFeature(ReaderRelation relation) {
       super(relation, false, false, true);
@@ -320,7 +365,11 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
   }
 
-  private class NodeGeometryCache {
+  NodeGeometryCache newNodeGeometryCache() {
+    return new NodeGeometryCache();
+  }
+
+  class NodeGeometryCache {
 
     private final LongDoubleHashMap xs = new LongDoubleHashMap();
     private final LongDoubleHashMap ys = new LongDoubleHashMap();
@@ -335,6 +384,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         worldX = xs.getOrDefault(id, Double.NaN);
         if (Double.isNaN(worldX)) {
           long encoded = nodeDb.get(id);
+          if (encoded == LongLongMap.MISSING_VALUE) {
+            throw new IllegalArgumentException("Missing location for node: " + id);
+          }
+
           xs.put(id, worldX = GeoUtils.decodeWorldX(encoded));
           ys.put(id, worldY = GeoUtils.decodeWorldY(encoded));
         } else {

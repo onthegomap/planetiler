@@ -15,6 +15,7 @@ public class OpenMapTilesProfile implements Profile {
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
+  public static final String OSM_SOURCE = "osm";
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
 
   @Override

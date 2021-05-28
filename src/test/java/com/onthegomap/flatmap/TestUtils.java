@@ -414,8 +414,18 @@ public class TestUtils {
     );
   }
 
-  public static void assertSameNormalizedFeature(Geometry expected, Geometry actual) {
-    assertEquals(new NormGeometry(expected), new NormGeometry(actual));
+  public static void assertSameNormalizedFeature(Geometry expected, Geometry actual, Geometry... otherActuals) {
+    assertEquals(new NormGeometry(expected), new NormGeometry(actual), "arg 2 != arg 1");
+    if (otherActuals != null && otherActuals.length > 0) {
+      for (int i = 0; i < otherActuals.length; i++) {
+        assertEquals(new NormGeometry(expected), new NormGeometry(otherActuals[i]),
+          "arg " + Integer.toString(i + 3) + " != arg 1");
+      }
+    }
+  }
+
+  public static void assertPointOnSurface(Geometry surface, Geometry actual) {
+    assertTrue(surface.covers(actual), actual + "\nis not inside\n" + surface);
   }
 
   public static void assertTopologicallyEquivalentFeatures(

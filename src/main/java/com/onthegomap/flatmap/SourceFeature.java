@@ -50,24 +50,33 @@ public abstract class SourceFeature {
 
   private Geometry linearGeometry = null;
 
-  public Geometry line() throws GeometryException {
+  protected Geometry computeLine() throws GeometryException {
+    Geometry world = worldGeometry();
+    return world instanceof Lineal ? world : GeoUtils.polygonToLineString(world);
+  }
+
+  public final Geometry line() throws GeometryException {
     if (!canBeLine()) {
       throw new GeometryException("cannot be line");
     }
     if (linearGeometry == null) {
-      Geometry world = worldGeometry();
-      linearGeometry = world instanceof Lineal ? world : GeoUtils.polygonToLineString(world);
+      linearGeometry = computeLine();
     }
     return linearGeometry;
   }
 
+
   private Geometry polygonGeometry = null;
 
-  public Geometry polygon() throws GeometryException {
+  protected Geometry computePolygon() throws GeometryException {
+    return worldGeometry();
+  }
+
+  public final Geometry polygon() throws GeometryException {
     if (!canBePolygon()) {
       throw new GeometryException("cannot be polygon");
     }
-    return polygonGeometry != null ? polygonGeometry : (polygonGeometry = worldGeometry());
+    return polygonGeometry != null ? polygonGeometry : (polygonGeometry = computePolygon());
   }
 
   private double area = Double.NaN;
@@ -79,7 +88,8 @@ public abstract class SourceFeature {
   private double length = Double.NaN;
 
   public double length() throws GeometryException {
-    return Double.isNaN(length) ? (length = worldGeometry().getLength()) : length;
+    return Double.isNaN(length) ? (length =
+      (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
   public Object getTag(String key) {
