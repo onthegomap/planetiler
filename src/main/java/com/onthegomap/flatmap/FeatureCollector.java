@@ -76,6 +76,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  public Feature validatedPolygon(String layer) {
+    try {
+      return geometry(layer, source.validatedPolygon());
+    } catch (GeometryException e) {
+      LOGGER.warn("Error constructing validated polygon for " + source + ": " + e);
+      return new Feature(layer, EMPTY_GEOM);
+    }
+  }
+
   public Feature pointOnSurface(String layer) {
     try {
       return geometry(layer, source.pointOnSurface());

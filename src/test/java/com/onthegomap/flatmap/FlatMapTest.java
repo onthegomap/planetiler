@@ -26,8 +26,10 @@ import com.onthegomap.flatmap.write.MbtilesWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -698,10 +700,9 @@ public class FlatMapTest {
         new ReaderNode(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
         new ReaderNode(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
         new ReaderNode(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
-        new ReaderNode(5, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
         with(new ReaderWay(6), way -> {
           way.setTag("attr", "value");
-          way.getNodes().add(1, 2, 3, 4, 5);
+          way.getNodes().add(1, 2, 3, 4, 1);
         })
       ),
       (in, features) -> {
@@ -720,24 +721,33 @@ public class FlatMapTest {
       }
     );
 
-    assertSubmap(Map.of(
+    assertSubmap(sortListValues(Map.of(
       TileCoord.ofXYZ(0, 0, 0), List.of(
         feature(newLineString(
-          128, 128,
-          192, 128,
+          64, 64,
+          192, 64,
           192, 192,
-          128, 192,
-          128, 128
+          64, 192,
+          64, 64
         ), Map.of(
           "attr", "value",
           "name", "name value1"
         )),
-        feature(rectangle(128, 192), Map.of(
+        feature(rectangle(64, 192), Map.of(
           "attr", "value",
           "name", "name value2"
         ))
       )
-    ), results.tiles);
+    )), sortListValues(results.tiles));
+  }
+
+  private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
+    Map<K, List<?>> result = new TreeMap<>();
+    for (var entry : input.entrySet()) {
+      List<?> sorted = entry.getValue().stream().sorted(Comparator.comparing(Object::toString)).toList();
+      result.put(entry.getKey(), sorted);
+    }
+    return result;
   }
 
   @Test
@@ -745,38 +755,37 @@ public class FlatMapTest {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new ReaderNode(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
-        new ReaderNode(5, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(1, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.125)),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.875)),
+        new ReaderNode(3, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.875)),
+        new ReaderNode(4, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.125)),
 
-        new ReaderNode(6, GeoUtils.getWorldLat(0.3), GeoUtils.getWorldLon(0.3)),
-        new ReaderNode(7, GeoUtils.getWorldLat(0.3), GeoUtils.getWorldLon(0.7)),
-        new ReaderNode(8, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.7)),
-        new ReaderNode(9, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.3)),
-        new ReaderNode(10, GeoUtils.getWorldLat(0.7), GeoUtils.getWorldLon(0.3)),
+        new ReaderNode(5, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+        new ReaderNode(6, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(7, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        new ReaderNode(8, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
 
-        new ReaderNode(11, GeoUtils.getWorldLat(0.4), GeoUtils.getWorldLon(0.4)),
-        new ReaderNode(12, GeoUtils.getWorldLat(0.4), GeoUtils.getWorldLon(0.6)),
-        new ReaderNode(13, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.6)),
-        new ReaderNode(14, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.4)),
-        new ReaderNode(15, GeoUtils.getWorldLat(0.6), GeoUtils.getWorldLon(0.4)),
+        new ReaderNode(9, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.375)),
+        new ReaderNode(10, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.625)),
+        new ReaderNode(11, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.625)),
+        new ReaderNode(12, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.375)),
+        new ReaderNode(13, GeoUtils.getWorldLat(0.375 + 1e-12), GeoUtils.getWorldLon(0.375)),
 
-        with(new ReaderWay(16), way -> way.getNodes().add(1, 2, 3, 4, 5)),
-        with(new ReaderWay(17), way -> way.getNodes().add(6, 7, 8, 9, 10)),
-        with(new ReaderWay(18), way -> way.getNodes().add(11, 12, 13, 14, 15)),
+        with(new ReaderWay(14), way -> way.getNodes().add(1, 2, 3, 4, 1)),
+        with(new ReaderWay(15), way -> way.getNodes().add(5, 6, 7, 8, 5)),
+        with(new ReaderWay(16), way -> way.getNodes().add(9, 10, 11, 12, 13)),
 
-        with(new ReaderRelation(19), rel -> {
+        with(new ReaderRelation(17), rel -> {
           rel.setTag("type", "multipolygon");
           rel.setTag("attr", "value");
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "outer"));
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 17, "inner"));
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 18, "outer"));
+          rel.setTag("should_emit", "yes");
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 14, "outer"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 15, "inner"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "inner")); // incorrect
         })
       ),
       (in, features) -> {
-        if (in.canBePolygon()) {
+        if (in.hasTag("should_emit")) {
           features.polygon("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
@@ -788,9 +797,13 @@ public class FlatMapTest {
     assertSubmap(Map.of(
       TileCoord.ofXYZ(0, 0, 0), List.of(
         feature(newMultiPolygon(
-          rectangle(0.25 * 256, 0.75 * 256),
-          rectangle(0.3 * 256, 0.7 * 256),
-          rectangle(0.4 * 256, 0.6 * 256)
+          newPolygon(
+            rectangleCoordList(0.125 * 256, 0.875 * 256),
+            List.of(
+              rectangleCoordList(0.25 * 256, 0.75 * 256)
+            )
+          ),
+          rectangle(0.375 * 256, 0.625 * 256)
         ), Map.of(
           "attr", "value",
           "name", "name value"

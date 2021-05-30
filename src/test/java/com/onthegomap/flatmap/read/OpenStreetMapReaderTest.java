@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
@@ -19,8 +20,7 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.Disabled;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 public class OpenStreetMapReaderTest {
@@ -42,12 +42,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPoint() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var node = new ReaderNode(1, 0, 0);
     node.setTag("key", "value");
     reader.processPass1(node);
@@ -71,12 +66,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testLine() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = new ReaderNode(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
@@ -116,12 +106,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonAreaNotSpecified() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -164,12 +149,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonAreaYes() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -209,12 +189,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonAreaNo() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -254,12 +229,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testLineWithTooFewPoints() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var way = new ReaderWay(3);
     way.getNodes().add(1);
@@ -284,12 +254,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonWithTooFewPoints() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
     var way = new ReaderWay(3);
@@ -326,12 +291,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testInvalidPolygon() throws GeometryException {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
 
     reader.processPass1(node(1, 0.5, 0.5));
     reader.processPass1(node(2, 0.75, 0.5));
@@ -369,20 +329,13 @@ public class OpenStreetMapReaderTest {
     assertEquals(1.207, feature.length(), 1e-2);
   }
 
-  @NotNull
   private ReaderNode node(long id, double x, double y) {
     return new ReaderNode(id, GeoUtils.getWorldLat(y), GeoUtils.getWorldLon(x));
   }
 
   @Test
-  @Disabled
   public void testLineReferencingNonexistentNode() {
-    OpenStreetMapReader reader = new OpenStreetMapReader(
-      osmSource,
-      longLongMap,
-      profile,
-      stats
-    );
+    OpenStreetMapReader reader = newOsmReader();
     var way = new ReaderWay(321);
     way.getNodes().add(123, 2222, 333, 444, 123);
     reader.processPass1(way);
@@ -404,27 +357,300 @@ public class OpenStreetMapReaderTest {
     assertThrows(GeometryException.class, feature::length);
   }
 
+  private final Function<ReaderElement, Stream<ReaderNode>> nodes = elem ->
+    elem instanceof ReaderNode node ? Stream.of(node) : Stream.empty();
+
+  private final Function<ReaderElement, Stream<ReaderWay>> ways = elem ->
+    elem instanceof ReaderWay way ? Stream.of(way) : Stream.empty();
+
+  private final Function<ReaderElement, Stream<ReaderRelation>> rels = elem ->
+    elem instanceof ReaderRelation rel ? Stream.of(rel) : Stream.empty();
+
   @Test
-  @Disabled
-  public void testMultiPolygon() {
+  public void testMultiPolygon() throws GeometryException {
+    OpenStreetMapReader reader = newOsmReader();
+    var outerway = new ReaderWay(9);
+    outerway.getNodes().add(1, 2, 3, 4, 1);
+    var innerway = new ReaderWay(10);
+    innerway.getNodes().add(5, 6, 7, 8, 5);
+
+    var relation = new ReaderRelation(11);
+    relation.setTag("type", "multipolygon");
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+
+    List<ReaderElement> elements = List.of(
+      node(1, 0.1, 0.1),
+      node(2, 0.9, 0.1),
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+      node(5, 0.2, 0.2),
+      node(6, 0.8, 0.2),
+      node(7, 0.8, 0.8),
+      node(8, 0.2, 0.8),
+
+      outerway,
+      innerway,
+
+      relation
+    );
+
+    elements.forEach(reader::processPass1);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeGeometryCache();
+    elements.stream().flatMap(ways).forEach(way -> {
+      reader.processWayPass2(nodeCache, way);
+      nodeCache.reset();
+    });
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertFalse(feature.canBeLine());
+    assertFalse(feature.isPoint());
+    assertTrue(feature.canBePolygon());
+
+    assertSameNormalizedFeature(
+      newPolygon(
+        rectangleCoordList(0.1, 0.9),
+        List.of(rectangleCoordList(0.2, 0.8))
+      ),
+      round(feature.worldGeometry()),
+      round(feature.polygon()),
+      round(feature.validatedPolygon()),
+      round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry()))
+    );
+    assertThrows(GeometryException.class, feature::line);
+    assertSameNormalizedFeature(
+      newPoint(0.5, 0.5),
+      round(feature.centroid())
+    );
+    assertPointOnSurface(feature);
+
+    assertEquals(0.28, feature.area(), 1e-5);
+    assertEquals(5.6, feature.length(), 1e-2);
   }
 
   @Test
-  @Disabled
-  public void testMultiPolygonInfersCorrectParents() {
+  public void testMultipolygonInfersCorrectParent() throws GeometryException {
+    OpenStreetMapReader reader = newOsmReader();
+    var outerway = new ReaderWay(13);
+    outerway.getNodes().add(1, 2, 3, 4, 1);
+    var innerway = new ReaderWay(14);
+    innerway.getNodes().add(5, 6, 7, 8, 5);
+    var innerinnerway = new ReaderWay(15);
+    innerinnerway.getNodes().add(9, 10, 11, 12, 9);
+
+    var relation = new ReaderRelation(16);
+    relation.setTag("type", "multipolygon");
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+    // nested hole marked as inner, but should actually be outer
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerinnerway.getId(), "inner"));
+
+    List<ReaderElement> elements = List.of(
+      node(1, 0.1, 0.1),
+      node(2, 0.9, 0.1),
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+      node(5, 0.2, 0.2),
+      node(6, 0.8, 0.2),
+      node(7, 0.8, 0.8),
+      node(8, 0.2, 0.8),
+
+      node(9, 0.3, 0.3),
+      node(10, 0.7, 0.3),
+      node(11, 0.7, 0.7),
+      node(12, 0.3, 0.7),
+
+      outerway,
+      innerway,
+      innerinnerway,
+
+      relation
+    );
+
+    elements.forEach(reader::processPass1);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeGeometryCache();
+    elements.stream().flatMap(ways).forEach(way -> {
+      reader.processWayPass2(nodeCache, way);
+      nodeCache.reset();
+    });
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertFalse(feature.canBeLine());
+    assertFalse(feature.isPoint());
+    assertTrue(feature.canBePolygon());
+
+    assertSameNormalizedFeature(
+      newMultiPolygon(
+        newPolygon(
+          rectangleCoordList(0.1, 0.9),
+          List.of(rectangleCoordList(0.2, 0.8))
+        ),
+        rectangle(0.3, 0.7)
+      ),
+      round(feature.worldGeometry()),
+      round(feature.polygon()),
+      round(feature.validatedPolygon()),
+      round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry()))
+    );
   }
 
   @Test
-  @Disabled
-  public void testInvalidMultiPolygon() {
+  public void testInvalidMultipolygon() throws GeometryException {
+    OpenStreetMapReader reader = newOsmReader();
+    var outerway = new ReaderWay(13);
+    outerway.getNodes().add(1, 2, 3, 4, 1);
+    var innerway = new ReaderWay(14);
+    innerway.getNodes().add(5, 6, 7, 8, 5);
+    var innerinnerway = new ReaderWay(15);
+    innerinnerway.getNodes().add(9, 10, 11, 12, 9);
+
+    var relation = new ReaderRelation(16);
+    relation.setTag("type", "multipolygon");
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+    // nested hole marked as inner, but should actually be outer
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerinnerway.getId(), "inner"));
+
+    List<ReaderElement> elements = List.of(
+      node(1, 0.1, 0.1),
+      node(2, 0.9, 0.1),
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+      node(5, 0.2, 0.3),
+      node(6, 0.8, 0.3),
+      node(7, 0.8, 0.8),
+      node(8, 0.2, 0.8),
+
+      node(9, 0.2, 0.2),
+      node(10, 0.8, 0.2),
+      node(11, 0.8, 0.7),
+      node(12, 0.2, 0.7),
+
+      outerway,
+      innerway,
+      innerinnerway,
+
+      relation
+    );
+
+    elements.forEach(reader::processPass1);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeGeometryCache();
+    elements.stream().flatMap(ways).forEach(way -> {
+      reader.processWayPass2(nodeCache, way);
+      nodeCache.reset();
+    });
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertFalse(feature.canBeLine());
+    assertFalse(feature.isPoint());
+    assertTrue(feature.canBePolygon());
+
+    assertTopologicallyEquivalentFeature(
+      newPolygon(
+        rectangleCoordList(0.1, 0.9),
+        List.of(rectangleCoordList(0.2, 0.8))
+      ),
+      round(feature.validatedPolygon())
+    );
+    assertSameNormalizedFeature(
+      newPolygon(
+        rectangleCoordList(0.1, 0.9),
+        List.of(
+          rectangleCoordList(0.2, 0.3, 0.8, 0.8),
+          rectangleCoordList(0.2, 0.2, 0.8, 0.7)
+        )
+      ),
+      round(feature.polygon())
+    );
   }
 
   @Test
-  @Disabled
+  public void testMultiPolygonRefersToNonexistentNode() {
+    OpenStreetMapReader reader = newOsmReader();
+    var outerway = new ReaderWay(5);
+    outerway.getNodes().add(1, 2, 3, 4, 1);
+
+    var relation = new ReaderRelation(6);
+    relation.setTag("type", "multipolygon");
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
+
+    List<ReaderElement> elements = List.of(
+      node(1, 0.1, 0.1),
+//      node(2, 0.9, 0.1), MISSING!
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+      outerway,
+
+      relation
+    );
+
+    elements.forEach(reader::processPass1);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeGeometryCache();
+    elements.stream().flatMap(ways).forEach(way -> {
+      reader.processWayPass2(nodeCache, way);
+      nodeCache.reset();
+    });
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertThrows(GeometryException.class, feature::worldGeometry);
+    assertThrows(GeometryException.class, feature::polygon);
+    assertThrows(GeometryException.class, feature::validatedPolygon);
+  }
+
+  @Test
   public void testMultiPolygonRefersToNonexistentWay() {
+    OpenStreetMapReader reader = newOsmReader();
+
+    var relation = new ReaderRelation(6);
+    relation.setTag("type", "multipolygon");
+    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, 5, "outer"));
+
+    List<ReaderElement> elements = List.of(
+      node(1, 0.1, 0.1),
+      node(2, 0.9, 0.1),
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+//      outerway, // missing!
+
+      relation
+    );
+
+    elements.forEach(reader::processPass1);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeGeometryCache();
+    elements.stream().flatMap(ways).forEach(way -> {
+      reader.processWayPass2(nodeCache, way);
+      nodeCache.reset();
+    });
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertThrows(GeometryException.class, feature::worldGeometry);
+    assertThrows(GeometryException.class, feature::polygon);
+    assertThrows(GeometryException.class, feature::validatedPolygon);
   }
 
-  // TODO what about:
-  // - relation info / storage size
-  // - multilevel multipolygon relationship containers
+  private OpenStreetMapReader newOsmReader() {
+    return new OpenStreetMapReader(
+      osmSource,
+      longLongMap,
+      profile,
+      stats
+    );
+  }
+
+  // TODO: relation info / storage size
 }

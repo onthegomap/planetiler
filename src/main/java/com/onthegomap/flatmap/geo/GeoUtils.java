@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
@@ -35,7 +36,7 @@ public class GeoUtils {
   private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
 
   private static final double WORLD_RADIUS_METERS = 6_378_137;
-  private static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
+  public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
   private static final double DEGREES_TO_RADIANS = Math.PI / 180;
   private static final double RADIANS_TO_DEGREES = 180 / Math.PI;
   private static final double MAX_LAT = getWorldLat(-0.1);
@@ -167,18 +168,26 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
 
+  public static Geometry fixPolygon(Geometry geom) throws GeometryException {
+    try {
+      return geom.buffer(0);
+    } catch (TopologyException e) {
+      throw new GeometryException("robustness error fixing polygon: " + e);
+    }
+  }
+
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
     try {
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
     } catch (IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
-      geom = geom.buffer(0);
+      geom = fixPolygon(geom);
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
       } catch (IllegalArgumentException e2) {
         // give it one last try, just in case
-        geom = geom.buffer(0);
+        geom = fixPolygon(geom);
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
         } catch (IllegalArgumentException e3) {

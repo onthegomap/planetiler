@@ -79,6 +79,23 @@ public abstract class SourceFeature {
     return polygonGeometry != null ? polygonGeometry : (polygonGeometry = computePolygon());
   }
 
+  private Geometry validPolygon = null;
+
+  private Geometry computeValidPolygon() throws GeometryException {
+    Geometry polygon = polygon();
+    if (!polygon.isValid()) {
+      polygon = GeoUtils.fixPolygon(polygon);
+    }
+    return polygon;
+  }
+
+  public final Geometry validatedPolygon() throws GeometryException {
+    if (!canBePolygon()) {
+      throw new GeometryException("cannot be polygon");
+    }
+    return validPolygon != null ? validPolygon : (validPolygon = computeValidPolygon());
+  }
+
   private double area = Double.NaN;
 
   public double area() throws GeometryException {
