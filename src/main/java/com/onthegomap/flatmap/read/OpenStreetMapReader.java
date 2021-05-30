@@ -318,9 +318,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     @Override
     public String toString() {
-      return "NodeSourceFeature{" +
-        "node=" + osmId +
-        '}';
+      return "OsmNode[" + osmId + ']';
     }
   }
 
@@ -365,9 +363,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     @Override
     public String toString() {
-      return "WaySourceFeature{" +
-        "way=" + osmId +
-        '}';
+      return "OsmWay[" + osmId + ']';
     }
   }
 
@@ -386,12 +382,14 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     protected Geometry computeWorldGeometry() throws GeometryException {
       List<LongArrayList> rings = new ArrayList<>(relation.getMembers().size());
       for (ReaderRelation.Member member : relation.getMembers()) {
+        String role = member.getRole();
         LongArrayList poly = multipolygonWayGeometries.get(member.getRef());
-        if (poly != null && !poly.isEmpty()) {
-          rings.add(poly);
-        } else {
-          LOGGER
-            .warn("Missing " + member.getRole() + " way " + member.getRef() + " for multipolygon relation " + osmId);
+        if ("outer".equals(role) || "inner".equals(role)) {
+          if (poly != null && !poly.isEmpty()) {
+            rings.add(poly);
+          } else {
+            LOGGER.warn("Missing " + role + " OsmWay[" + member.getRef() + "] for multipolygon " + this);
+          }
         }
       }
       return OsmMultipolygon.build(rings, nodeCache, osmId);
@@ -399,9 +397,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     @Override
     public String toString() {
-      return "MultipolygonSourceFeature{" +
-        "rel=" + osmId +
-        '}';
+      return "OsmRelation[" + osmId + ']';
     }
   }
 
