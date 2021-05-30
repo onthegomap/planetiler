@@ -315,6 +315,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     public boolean isPoint() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return "NodeSourceFeature{" +
+        "node=" + osmId +
+        '}';
+    }
   }
 
   private class WaySourceFeature extends ProxyFeature {
@@ -355,6 +362,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     protected Geometry computeWorldGeometry() throws GeometryException {
       return canBePolygon() ? polygon() : line();
     }
+
+    @Override
+    public String toString() {
+      return "WaySourceFeature{" +
+        "way=" + osmId +
+        '}';
+    }
   }
 
   private class MultipolygonSourceFeature extends ProxyFeature {
@@ -381,6 +395,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         }
       }
       return OsmMultipolygon.build(rings, nodeCache, osmId);
+    }
+
+    @Override
+    public String toString() {
+      return "MultipolygonSourceFeature{" +
+        "rel=" + osmId +
+        '}';
     }
   }
 

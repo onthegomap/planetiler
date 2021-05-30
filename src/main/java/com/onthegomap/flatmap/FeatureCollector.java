@@ -44,7 +44,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
-      LOGGER.warn("Error getting point geometry for " + source + ": " + e);
+      LOGGER.warn("Error getting point geometry for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
@@ -53,7 +53,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
-      LOGGER.warn("Error getting centroid for " + source + ": " + e);
+      LOGGER.warn("Error getting centroid for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
@@ -62,7 +62,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
-      LOGGER.warn("Error constructing line for " + source + ": " + e);
+      LOGGER.warn("Error constructing line for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
@@ -71,7 +71,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
-      LOGGER.warn("Error constructing polygon for " + source + ": " + e);
+      LOGGER.warn("Error constructing polygon for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
@@ -80,7 +80,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.validatedPolygon());
     } catch (GeometryException e) {
-      LOGGER.warn("Error constructing validated polygon for " + source + ": " + e);
+      LOGGER.warn("Error constructing validated polygon for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
@@ -89,7 +89,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
-      LOGGER.warn("Error constructing point on surface for " + source + ": " + e);
+      LOGGER.warn("Error constructing point on surface for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }

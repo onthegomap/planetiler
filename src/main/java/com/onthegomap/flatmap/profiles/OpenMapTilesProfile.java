@@ -82,5 +82,15 @@ public class OpenMapTilesProfile implements Profile {
           .setAttr("class", lake ? "lake" : "ocean");
       }
     }
+
+    if (OSM_SOURCE.equals(sourceFeature.getSource())) {
+      if (sourceFeature.canBePolygon()) {
+        if (sourceFeature.hasTag("building")) {
+          features.polygon("building")
+            .setZoomRange(13, 14)
+            .setMinPixelSize(4);
+        }
+      }
+    }
   }
 }
