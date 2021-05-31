@@ -643,6 +643,47 @@ public class OpenStreetMapReaderTest {
     assertThrows(GeometryException.class, feature::validatedPolygon);
   }
 
+  @Test
+  public void testWayInRelation() {
+    record OtherRelInfo() implements OpenStreetMapReader.RelationInfo {}
+    record TestRelInfo(String name) implements OpenStreetMapReader.RelationInfo {
+
+      @Override
+      public long estimateMemoryUsageBytes() {
+        return 10 + name.length();
+      }
+    }
+    OpenStreetMapReader reader = new OpenStreetMapReader(
+      osmSource,
+      longLongMap,
+      new Profile.NullProfile() {
+        @Override
+        public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+          return List.of(new TestRelInfo("name"));
+        }
+      },
+      stats
+    );
+    var nodeCache = reader.newNodeGeometryCache();
+    var node1 = new ReaderNode(1, 0, 0);
+    var node2 = node(2, 0.75, 0.75);
+    var way = new ReaderWay(3);
+    way.getNodes().add(node1.getId(), node2.getId());
+    way.setTag("key", "value");
+    var relation = new ReaderRelation(4);
+    relation.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 3, ""));
+
+    reader.processPass1(node1);
+    reader.processPass1(node2);
+    reader.processPass1(way);
+    reader.processPass1(relation);
+
+    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+
+    assertEquals(List.of(), feature.relationInfo(OtherRelInfo.class));
+    assertEquals(List.of(new TestRelInfo("name")), feature.relationInfo(TestRelInfo.class));
+  }
+
   private OpenStreetMapReader newOsmReader() {
     return new OpenStreetMapReader(
       osmSource,

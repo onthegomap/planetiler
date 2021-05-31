@@ -61,6 +61,11 @@ public class FlatMapTest {
   private static final int Z4_TILES = 1 << 4;
   private final Stats stats = new Stats.InMemory();
 
+  private static <T extends ReaderElement> T with(T elem, Consumer<T> fn) {
+    fn.accept(elem);
+    return elem;
+  }
+
   private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
     List<? extends SourceFeature> features) {
     new Reader(profile, stats, "test") {
@@ -97,15 +102,10 @@ public class FlatMapTest {
     }
   }
 
-  private interface Runner {
-
-    void run(FeatureGroup featureGroup, Profile profile, CommonParams config) throws Exception;
-  }
-
   private FlatMapResults run(
     Map<String, String> args,
     Runner runner,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
+    Profile profile
   ) throws Exception {
     CommonParams config = CommonParams.from(Arguments.of(args));
     var translations = Translations.defaultProvider(List.of());
@@ -113,7 +113,6 @@ public class FlatMapTest {
     LongLongMap nodeLocations = LongLongMap.newInMemorySortedTable();
     FeatureSort featureDb = FeatureSort.newInMemory();
     FeatureGroup featureGroup = new FeatureGroup(featureDb, profile1, stats);
-    var profile = TestProfile.processSourceFeatures(profileFunction);
     runner.run(featureGroup, profile, config);
     featureGroup.sorter().sort();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
@@ -134,7 +133,7 @@ public class FlatMapTest {
     return run(
       args,
       (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
-      profileFunction
+      TestProfile.processSourceFeatures(profileFunction)
     );
   }
 
@@ -146,7 +145,20 @@ public class FlatMapTest {
     return run(
       args,
       (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      profileFunction
+      TestProfile.processSourceFeatures(profileFunction)
+    );
+  }
+
+  private FlatMapResults runWithOsmElements(
+    Map<String, String> args,
+    List<ReaderElement> features,
+    Function<ReaderRelation, List<OpenStreetMapReader.RelationInfo>> preprocessOsmRelation,
+    BiConsumer<SourceFeature, FeatureCollector> profileFunction
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
+      new TestProfile(profileFunction, preprocessOsmRelation, (a, b, c) -> null)
     );
   }
 
@@ -654,11 +666,6 @@ public class FlatMapTest {
     ), results.tiles);
   }
 
-  private static <T extends ReaderElement> T with(T elem, Consumer<T> fn) {
-    fn.accept(elem);
-    return elem;
-  }
-
   @Test
   public void testOsmLine() throws Exception {
     var results = runWithOsmElements(
@@ -741,15 +748,6 @@ public class FlatMapTest {
     )), sortListValues(results.tiles));
   }
 
-  private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
-    Map<K, List<?>> result = new TreeMap<>();
-    for (var entry : input.entrySet()) {
-      List<?> sorted = entry.getValue().stream().sorted(Comparator.comparing(Object::toString)).toList();
-      result.put(entry.getKey(), sorted);
-    }
-    return result;
-  }
-
   @Test
   public void testOsmMultipolygon() throws Exception {
     var results = runWithOsmElements(
@@ -812,9 +810,78 @@ public class FlatMapTest {
     ), results.tiles);
   }
 
+  @Test
+  public void testOsmLineInRelation() throws Exception {
+    record TestRelationInfo(String name) implements OpenStreetMapReader.RelationInfo {}
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderNode(1, 0, 0),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.375), 0),
+        new ReaderNode(3, GeoUtils.getWorldLat(0.25), 0),
+        new ReaderNode(4, GeoUtils.getWorldLat(0.125), 0),
+        with(new ReaderWay(5), way -> {
+          way.setTag("attr", "value1");
+          way.getNodes().add(1, 2);
+        }),
+        with(new ReaderWay(6), way -> {
+          way.setTag("attr", "value2");
+          way.getNodes().add(3, 4);
+        }),
+        with(new ReaderRelation(6), rel -> {
+          rel.setTag("name", "relation name");
+          rel.add(new ReaderRelation.Member(ReaderRelation.WAY, 6, "role"));
+        })
+      ),
+      (relation) -> {
+        if (relation.hasTag("name", "relation name")) {
+          return List.of(new TestRelationInfo(relation.getTag("name")));
+        }
+        return null;
+      }, (in, features) -> {
+        List<TestRelationInfo> relationInfos = in.relationInfo(TestRelationInfo.class);
+        if (in.canBeLine()) {
+          features.line("layer")
+            .setZoomRange(0, 0)
+            .setAttr("relname", relationInfos.stream()
+              .findFirst().map(TestRelationInfo::name)
+              .orElse(null))
+            .inheritFromSource("attr");
+        }
+      }
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newLineString(128, 128, 128, 0.375 * 256), Map.of(
+          "attr", "value1"
+        )),
+        feature(newLineString(128, 0.25 * 256, 128, 0.125 * 256), Map.of(
+          "attr", "value2",
+          "relname", "relation name"
+        ))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+
+  private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
+    Map<K, List<?>> result = new TreeMap<>();
+    for (var entry : input.entrySet()) {
+      List<?> sorted = entry.getValue().stream().sorted(Comparator.comparing(Object::toString)).toList();
+      result.put(entry.getKey(), sorted);
+    }
+    return result;
+  }
+
   private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
     List<TestUtils.ComparableFeature> features) {
     return Map.entry(TileCoord.ofXYZ(x, y, z), features);
+  }
+
+  private interface Runner {
+
+    void run(FeatureGroup featureGroup, Profile profile, CommonParams config) throws Exception;
   }
 
   private interface LayerPostprocessFunction {

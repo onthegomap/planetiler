@@ -209,7 +209,18 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     String area = way.getTag("area");
-    return new WaySourceFeature(way, closed, area, nodeCache);
+    LongArrayList relationIds = wayToRelations.get(way.getId());
+    List<RelationInfo> rels = null;
+    if (!relationIds.isEmpty()) {
+      rels = new ArrayList<>(relationIds.size());
+      for (int r = 0; r < relationIds.size(); r++) {
+        RelationInfo rel = relationInfo.get(relationIds.get(r));
+        if (rel != null) {
+          rels.add(rel);
+        }
+      }
+    }
+    return new WaySourceFeature(way, closed, area, nodeCache, rels);
   }
 
   SourceFeature processNodePass2(ReaderNode node) {
@@ -237,10 +248,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     nodeDb.close();
   }
 
-  public static class RelationInfo implements MemoryEstimator.HasEstimate {
+  public interface RelationInfo extends MemoryEstimator.HasEstimate {
 
     @Override
-    public long estimateMemoryUsageBytes() {
+    default long estimateMemoryUsageBytes() {
       return 0;
     }
   }
@@ -252,8 +263,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     final boolean point;
     final long osmId;
 
-    public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon) {
-      super(ReaderElementUtils.getProperties(elem), name, null);
+    public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon,
+      List<RelationInfo> relationInfo) {
+      super(ReaderElementUtils.getProperties(elem), name, null, relationInfo);
       this.point = point;
       this.line = line;
       this.polygon = polygon;
@@ -298,7 +310,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final double lat;
 
     NodeSourceFeature(ReaderNode node) {
-      super(node, true, false, false);
+      super(node, true, false, false, null);
       this.lon = node.getLon();
       this.lat = node.getLat();
     }
@@ -327,10 +339,12 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final NodeLocationProvider nodeCache;
     private final LongArrayList nodeIds;
 
-    public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeCache) {
+    public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeCache,
+      List<RelationInfo> relationInfo) {
       super(way, false,
         (!closed || !"yes".equals(area)) && way.getNodes().size() >= 2,
-        (closed && !"no".equals(area)) && way.getNodes().size() >= 4
+        (closed && !"no".equals(area)) && way.getNodes().size() >= 4,
+        relationInfo
       );
       this.nodeIds = way.getNodes();
       this.nodeCache = nodeCache;
@@ -373,7 +387,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final NodeLocationProvider nodeCache;
 
     public MultipolygonSourceFeature(ReaderRelation relation, NodeLocationProvider nodeCache) {
-      super(relation, false, false, true);
+      super(relation, false, false, true, null);
       this.relation = relation;
       this.nodeCache = nodeCache;
     }

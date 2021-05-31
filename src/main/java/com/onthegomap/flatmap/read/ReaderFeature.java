@@ -19,7 +19,7 @@ public class ReaderFeature extends SourceFeature {
   }
 
   public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer) {
-    super(properties, source, sourceLayer);
+    super(properties, source, sourceLayer, null);
     this.latLonGeometry = latLonGeometry;
     this.properties = properties;
   }

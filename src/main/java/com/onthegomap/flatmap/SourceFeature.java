@@ -2,6 +2,9 @@ package com.onthegomap.flatmap;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
@@ -11,11 +14,14 @@ public abstract class SourceFeature {
   private final Map<String, Object> properties;
   private final String source;
   private final String sourceLayer;
+  private final List<OpenStreetMapReader.RelationInfo> relationInfos;
 
-  protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer) {
+  protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer,
+    List<OpenStreetMapReader.RelationInfo> relationInfos) {
     this.properties = properties;
     this.source = source;
     this.sourceLayer = sourceLayer;
+    this.relationInfos = relationInfos;
   }
 
   public abstract Geometry latLonGeometry() throws GeometryException;
@@ -146,5 +152,20 @@ public abstract class SourceFeature {
 
   public String getSourceLayer() {
     return sourceLayer;
+  }
+
+  public <T extends OpenStreetMapReader.RelationInfo> List<T> relationInfo(Class<T> relationInfoClass) {
+    List<T> result = null;
+    if (relationInfos != null) {
+      for (OpenStreetMapReader.RelationInfo info : relationInfos) {
+        if (relationInfoClass.isInstance(info)) {
+          if (result == null) {
+            result = new ArrayList<>();
+          }
+          result.add(relationInfoClass.cast(info));
+        }
+      }
+    }
+    return result == null ? List.of() : result;
   }
 }
