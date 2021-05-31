@@ -115,7 +115,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         feature.getLayer(),
         id,
         VectorTileEncoder.encodeGeometry(geom),
-        attrs
+        attrs,
+        groupInfo == null ? VectorTileEncoder.Feature.NO_GROUP : groupInfo.group()
       ),
       feature.getZorder(),
       Optional.ofNullable(groupInfo)

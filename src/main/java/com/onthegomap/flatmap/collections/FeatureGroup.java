@@ -189,9 +189,12 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
 
   private VectorTileEncoder.Feature decodeVectorTileFeature(FeatureSort.Entry entry) {
     try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
+      long group;
       if (extractHasGroupFromSortKey(entry.sortKey())) {
-        unpacker.unpackLong(); // group
+        group = unpacker.unpackLong(); // group
         unpacker.unpackInt(); // groupLimit
+      } else {
+        group = VectorTileEncoder.Feature.NO_GROUP;
       }
       long id = unpacker.unpackLong();
       byte geomType = unpacker.unpackByte();
@@ -219,7 +222,8 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
         commonStrings.decode(extractLayerIdFromSortKey(entry.sortKey())),
         id,
         new VectorTileEncoder.VectorGeometry(commands, GeometryType.valueOf(geomType)),
-        attrs
+        attrs,
+        group
       );
     } catch (IOException e) {
       throw new IllegalStateException(e);

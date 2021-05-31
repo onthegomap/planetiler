@@ -32,6 +32,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -429,15 +431,39 @@ public class VectorTileEncoder {
     String layer,
     long id,
     VectorGeometry geometry,
-    Map<String, Object> attrs
+    Map<String, Object> attrs,
+    long group
   ) {
+
+    public Feature(
+      String layer,
+      long id,
+      VectorGeometry geometry,
+      Map<String, Object> attrs
+    ) {
+      this(layer, id, geometry, attrs, NO_GROUP);
+    }
+
+    public static final long NO_GROUP = Long.MIN_VALUE;
 
     public Feature copyWithNewGeometry(Geometry newGeometry) {
       return new Feature(
         layer,
         id,
         encodeGeometry(newGeometry),
-        attrs
+        attrs,
+        group
+      );
+    }
+
+    public Feature copyWithExtraAttrs(Map<String, Object> extraAttrs) {
+      return new Feature(
+        layer,
+        id,
+        geometry,
+        Stream.concat(attrs.entrySet().stream(), extraAttrs.entrySet().stream())
+          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+        group
       );
     }
   }

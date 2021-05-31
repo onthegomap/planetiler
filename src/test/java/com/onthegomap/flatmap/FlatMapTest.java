@@ -15,7 +15,6 @@ import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import com.onthegomap.flatmap.read.OsmSource;
 import com.onthegomap.flatmap.read.Reader;
@@ -26,7 +25,9 @@ import com.onthegomap.flatmap.write.MbtilesWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -109,10 +110,9 @@ public class FlatMapTest {
   ) throws Exception {
     CommonParams config = CommonParams.from(Arguments.of(args));
     var translations = Translations.defaultProvider(List.of());
-    var profile1 = new OpenMapTilesProfile();
     LongLongMap nodeLocations = LongLongMap.newInMemorySortedTable();
     FeatureSort featureDb = FeatureSort.newInMemory();
-    FeatureGroup featureGroup = new FeatureGroup(featureDb, profile1, stats);
+    FeatureGroup featureGroup = new FeatureGroup(featureDb, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.sorter().sort();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
@@ -134,6 +134,19 @@ public class FlatMapTest {
       args,
       (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
       TestProfile.processSourceFeatures(profileFunction)
+    );
+  }
+
+  private FlatMapResults runWithReaderFeatures(
+    Map<String, String> args,
+    List<ReaderFeature> features,
+    BiConsumer<SourceFeature, FeatureCollector> profileFunction,
+    LayerPostprocessFunction postProcess
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
+      new TestProfile(profileFunction, a -> null, postProcess)
     );
   }
 
@@ -864,6 +877,61 @@ public class FlatMapTest {
     )), sortListValues(results.tiles));
   }
 
+  @Test
+  public void testPostProcessNodeUseLabelGridRank() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        new ReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
+        new ReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
+        new ReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
+      ),
+      (in, features) -> {
+        features.point("layer")
+          .setZoomRange(13, 14)
+          .inheritFromSource("rank")
+          .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+          .setLabelGridPixelSize(13, 8);
+      },
+      (layer, zoom, items) -> {
+        if ("layer".equals(layer) && zoom == 13) {
+          List<VectorTileEncoder.Feature> result = new ArrayList<>(items.size());
+          Map<Long, Integer> rankInGroup = new HashMap<>();
+          for (int i = items.size() - 1; i >= 0; i--) {
+            var item = items.get(i);
+            result.add(item.copyWithExtraAttrs(Map.of(
+              "grouprank", rankInGroup.merge(item.group(), 1, Integer::sum)
+            )));
+          }
+          return result;
+        } else {
+          return items;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 128), Map.of("rank", "1")),
+        feature(newPoint(74, 128), Map.of("rank", "2")),
+        feature(newPoint(84, 128), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L)),
+        // separate group
+        feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 1L)),
+        feature(newPoint(32, 64), Map.of("rank", "1", "grouprank", 2L))
+      )
+    ), results.tiles);
+  }
 
   private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
     Map<K, List<?>> result = new TreeMap<>();
