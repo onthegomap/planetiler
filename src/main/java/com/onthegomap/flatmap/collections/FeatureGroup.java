@@ -6,6 +6,7 @@ import com.onthegomap.flatmap.GeometryType;
 import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.render.RenderedFeature;
@@ -371,21 +372,24 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
         if (currentLayer == null) {
           currentLayer = layer;
         } else if (!currentLayer.equals(layer)) {
-          encoder.addLayerFeatures(
-            currentLayer,
-            profile.postProcessLayerFeatures(currentLayer, tile.z(), items)
-          );
+          emitLayer(encoder, items, currentLayer);
           currentLayer = layer;
           items.clear();
         }
 
         items.add(feature);
       }
-      encoder.addLayerFeatures(
-        currentLayer,
-        profile.postProcessLayerFeatures(currentLayer, tile.z(), items)
-      );
+      emitLayer(encoder, items, currentLayer);
       return encoder;
+    }
+
+    private void emitLayer(VectorTileEncoder encoder, List<VectorTileEncoder.Feature> items, String currentLayer) {
+      try {
+        items = profile.postProcessLayerFeatures(currentLayer, tile.z(), items);
+      } catch (GeometryException e) {
+        LOGGER.warn("error postprocessing features for " + currentLayer + " layer on " + tile + ": " + e.getMessage());
+      }
+      encoder.addLayerFeatures(currentLayer, items);
     }
 
     @Override

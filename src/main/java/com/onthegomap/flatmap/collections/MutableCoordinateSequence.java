@@ -77,6 +77,10 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     }
   }
 
+  public boolean isEmpty() {
+    return points.isEmpty();
+  }
+
   private static class ScalingSequence extends MutableCoordinateSequence {
 
     private final double scale;

@@ -13,6 +13,7 @@ import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -34,6 +35,7 @@ import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -171,7 +173,7 @@ public class FlatMapTest {
     return run(
       args,
       (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      new TestProfile(profileFunction, preprocessOsmRelation, (a, b, c) -> null)
+      new TestProfile(profileFunction, preprocessOsmRelation, (a, b, c) -> c)
     );
   }
 
@@ -933,6 +935,104 @@ public class FlatMapTest {
     ), results.tiles);
   }
 
+  @Test
+  public void testMergeLineStrings() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+    double lng4 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 30d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        // merge at z13 (same "group"):
+        new ReaderFeature(newLineString(
+          lng1, lat,
+          lng2, lat
+        ), Map.of("group", "1", "other", "1")),
+        new ReaderFeature(newLineString(
+          lng2, lat,
+          lng3, lat
+        ), Map.of("group", "1", "other", "2")),
+        // don't merge at z13:
+        new ReaderFeature(newLineString(
+          lng3, lat,
+          lng4, lat
+        ), Map.of("group", "2", "other", "3"))
+      ),
+      (in, features) -> {
+        features.line("layer")
+          .setZoomRange(13, 14)
+          .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
+          .inheritFromSource("group");
+      },
+      (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(64, 128, 74, 128), Map.of("group", "1", "z14attr", "1")),
+        feature(newLineString(74, 128, 84, 128), Map.of("group", "1", "z14attr", "2")),
+        feature(newLineString(84, 128, 94, 128), Map.of("group", "2", "z14attr", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // merge 32->37 and 37->42 since they have same attrs
+        feature(newLineString(32, 64, 42, 64), Map.of("group", "1")),
+        feature(newLineString(42, 64, 47, 64), Map.of("group", "2"))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
+  @Disabled
+  public void testMergePolygons() throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        // merge at z13 (same "group"):
+        new ReaderFeature(newLineString(z14CoordinateList(
+          10, 10,
+          20, 10,
+          20, 20,
+          10, 20,
+          10, 10
+        )), Map.of("group", "1")),
+        new ReaderFeature(newLineString(
+          20.5, 10,
+          30, 10,
+          30, 20,
+          20.5, 20,
+          20.5, 10
+        ), Map.of("group", "1")),
+        // don't merge at z13:
+        new ReaderFeature(newLineString(
+          10, 20.5,
+          20, 20.5,
+          20, 30,
+          10, 30,
+          10, 20.5
+        ), Map.of("group", "2"))
+      ),
+      (in, features) -> {
+        features.line("layer")
+          .setZoomRange(14, 14)
+          .inheritFromSource("group");
+      },
+      (layer, zoom, items) -> FeatureMerge.mergePolygons(items, 0, 1, 1)
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(rectangle(10, 10, 30, 20), Map.of("group", "1")),
+        feature(rectangle(10, 20.5, 20, 30), Map.of("group", "2"))
+      )
+    )), sortListValues(results.tiles));
+  }
+
   private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
     Map<K, List<?>> result = new TreeMap<>();
     for (var entry : input.entrySet()) {
@@ -954,7 +1054,8 @@ public class FlatMapTest {
 
   private interface LayerPostprocessFunction {
 
-    List<VectorTileEncoder.Feature> process(String layer, int zoom, List<VectorTileEncoder.Feature> items);
+    List<VectorTileEncoder.Feature> process(String layer, int zoom, List<VectorTileEncoder.Feature> items)
+      throws GeometryException;
   }
 
   private static record FlatMapResults(
@@ -982,7 +1083,7 @@ public class FlatMapTest {
     }
 
     static TestProfile processSourceFeatures(BiConsumer<SourceFeature, FeatureCollector> processFeature) {
-      return new TestProfile(processFeature, (a) -> null, (a, b, c) -> null);
+      return new TestProfile(processFeature, (a) -> null, (a, b, c) -> c);
     }
 
     @Override
@@ -1002,7 +1103,7 @@ public class FlatMapTest {
 
     @Override
     public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-      List<VectorTileEncoder.Feature> items) {
+      List<VectorTileEncoder.Feature> items) throws GeometryException {
       return postprocessLayerFeatures.process(layer, zoom, items);
     }
   }

@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap;
 
 import com.graphhopper.reader.ReaderRelation;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import java.util.List;
 
@@ -13,7 +14,7 @@ public interface Profile {
   void release();
 
   List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-    List<VectorTileEncoder.Feature> items);
+    List<VectorTileEncoder.Feature> items) throws GeometryException;
 
   String name();
 
