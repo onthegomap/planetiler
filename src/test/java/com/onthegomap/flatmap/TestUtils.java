@@ -121,6 +121,10 @@ public class TestUtils {
     return rectangle(min, min, max, max);
   }
 
+  public static Polygon newPolygon(List<Coordinate> outer) {
+    return newPolygon(outer, List.of());
+  }
+
   public static Polygon newPolygon(List<Coordinate> outer, List<List<Coordinate>> inner) {
     return GeoUtils.JTS_FACTORY.createPolygon(
       GeoUtils.JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
@@ -281,7 +285,7 @@ public class TestUtils {
 
   public static void validateGeometry(Geometry g) {
     if (g instanceof Polygonal) {
-      assertTrue(g.isSimple(), "JTS isValid()");
+      assertTrue(g.isSimple(), "JTS isSimple()");
     }
     validateGeometryRecursive(g);
   }
@@ -331,7 +335,7 @@ public class TestUtils {
     }
   }
 
-  private static record TopoGeometry(Geometry geom) implements GeometryComparision {
+  public static record TopoGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {

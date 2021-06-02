@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap.render;
 
+import static com.onthegomap.flatmap.geo.GeoUtils.TILE_PRECISON;
+
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TileExtents;
@@ -23,7 +25,6 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
@@ -35,7 +36,6 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   private static final AtomicLong idGen = new AtomicLong(0);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
-  private static final PrecisionModel tilePrecision = new PrecisionModel(4096d / 256d);
   private static final VectorTileEncoder.VectorGeometry FILL = VectorTileEncoder.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
       -5, -5,
@@ -172,7 +172,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         Geometry geom;
         if (feature.area()) {
           geom = CoordinateSequenceExtractor.reassemblePolygons(geoms);
-          geom = GeoUtils.snapAndFixPolygon(geom, tilePrecision);
+          geom = GeoUtils.snapAndFixPolygon(geom, TILE_PRECISON);
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner
           geom = geom.reverse();
         } else {

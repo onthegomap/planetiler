@@ -32,6 +32,7 @@ public class GeoUtils {
   public static final WKBReader wkbReader = new WKBReader(JTS_FACTORY);
 
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
+  private static final Polygon[] EMPTY_POLYGON_ARRAY = new Polygon[0];
   private static final Coordinate[] EMPTY_COORD_ARRAY = new Coordinate[0];
   private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
 
@@ -168,12 +169,35 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
 
+  public static Geometry createMultiPolygon(List<Polygon> polygon) {
+    return JTS_FACTORY.createMultiPolygon(polygon.toArray(EMPTY_POLYGON_ARRAY));
+  }
+
   public static Geometry fixPolygon(Geometry geom) throws GeometryException {
     try {
       return geom.buffer(0);
     } catch (TopologyException e) {
       throw new GeometryException("robustness error fixing polygon: " + e);
     }
+  }
+
+  public static Geometry combineLineStrings(List<LineString> lineStrings) {
+    return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
+  }
+
+  public static Geometry combinePolygons(List<Polygon> polys) {
+    return polys.size() == 1 ? polys.get(0) : createMultiPolygon(polys);
+  }
+
+  public static Geometry combinePoints(List<Point> points) {
+    return points.size() == 1 ? points.get(0) : createMultiPoint(points);
+  }
+
+
+  public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
+
+  public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
+    return snapAndFixPolygon(geom, TILE_PRECISON);
   }
 
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
@@ -249,6 +273,10 @@ public class GeoUtils {
     } else {
       throw new GeometryException("unrecognized geometry type: " + input.getGeometryType());
     }
+  }
+
+  public static Geometry createGeometryCollection(List<Geometry> polygonGroup) {
+    return JTS_FACTORY.createGeometryCollection(polygonGroup.toArray(Geometry[]::new));
   }
 
   private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {

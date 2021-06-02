@@ -1,11 +1,11 @@
 package com.onthegomap.flatmap;
 
-import static com.onthegomap.flatmap.TestUtils.newLineString;
-import static com.onthegomap.flatmap.TestUtils.newMultiLineString;
-import static com.onthegomap.flatmap.TestUtils.newPoint;
-import static com.onthegomap.flatmap.TestUtils.rectangle;
+import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.carrotsearch.hppc.IntArrayList;
+import com.carrotsearch.hppc.IntObjectMap;
+import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.List;
 import java.util.Map;
@@ -220,6 +220,303 @@ public class FeatureMergeTest {
         0,
         0
       )
+    );
+  }
+
+  /*
+   * POLYGON MERGE TESTS
+   */
+
+  @Test
+  public void mergePolygonEmptyList() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(),
+      FeatureMerge.mergePolygons(
+        List.of(),
+        0,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void dontMergeDisconnectedPolygons() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newMultiPolygon(
+          rectangle(10, 20),
+          rectangle(22, 10, 30, 20)
+        ), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(22, 10, 30, 20), Map.of("a", 1))
+        ),
+        0,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void dontMergeConnectedPolygonsWithDifferentAttrs() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 20), Map.of("a", 1)),
+        feature(2, rectangle(20, 10, 30, 20), Map.of("b", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(20, 10, 30, 20), Map.of("b", 1))
+        ),
+        0,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void mergeConnectedPolygonsWithSameAttrs() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(20, 10, 30, 20), Map.of("a", 1))
+        ),
+        0,
+        0,
+        1
+      )
+    );
+  }
+
+  @Test
+  public void mergeMultiPolygons() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 10, 40, 20), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, newMultiPolygon(
+            rectangle(10, 20),
+            rectangle(30, 10, 40, 20)
+          ), Map.of("a", 1)),
+          feature(2, rectangle(15, 10, 35, 20), Map.of("a", 1))
+        ),
+        0,
+        0,
+        1
+      )
+    );
+  }
+
+  @Test
+  public void mergePolygonsIgnoreNonPolygons() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(2, newLineString(20, 10, 30, 20), Map.of("a", 1)),
+        feature(1, rectangle(10, 20), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, newLineString(20, 10, 30, 20), Map.of("a", 1))
+        ),
+        0,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void mergePolygonsWithinMinDist() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(20.9, 10, 30, 20), Map.of("a", 1))
+        ),
+        0,
+        1,
+        1
+      )
+    );
+  }
+
+  @Test
+  public void dontMergePolygonsAboveMinDist() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newMultiPolygon(
+          rectangle(10, 20),
+          rectangle(21.1, 10, 30, 20)
+        ), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(21.1, 10, 30, 20), Map.of("a", 1))
+        ),
+        0,
+        1,
+        1
+      )
+    );
+  }
+
+  @Test
+  public void removePolygonsBelowMinSize() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(30, 10, 36, 20), Map.of("a", 1)),
+          feature(3, rectangle(35, 10, 40, 20), Map.of("a", 1))
+        ),
+        101,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void allowPolygonsAboveMinSize() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, newMultiPolygon(
+          rectangle(10, 20),
+          rectangle(30, 10, 40, 20)
+        ), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 20), Map.of("a", 1)),
+          feature(2, rectangle(30, 10, 36, 20), Map.of("a", 1)),
+          feature(3, rectangle(35, 10, 40, 20), Map.of("a", 1))
+        ),
+        99,
+        0,
+        1
+      )
+    );
+  }
+
+  private static void assertEquivalentFeatures(List<VectorTileEncoder.Feature> expected,
+    List<VectorTileEncoder.Feature> actual) throws GeometryException {
+    for (var feature : actual) {
+      Geometry geom = feature.geometry().decode();
+      TestUtils.validateGeometry(geom);
+    }
+    assertEquals(
+      expected.stream().map(f -> f.copyWithNewGeometry(newPoint(0, 0))).toList(),
+      actual.stream().map(f -> f.copyWithNewGeometry(newPoint(0, 0))).toList(),
+      "comparison without geometries"
+    );
+    assertEquals(
+      expected.stream().map(f -> new NormGeometry(silence(() -> f.geometry().decode()))).toList(),
+      actual.stream().map(f -> new NormGeometry(silence(() -> f.geometry().decode()))).toList(),
+      "geometry comparison"
+    );
+  }
+
+  private interface SupplierThatThrows<T> {
+
+    T get() throws Exception;
+  }
+
+  private static <T> T silence(SupplierThatThrows<T> fn) {
+    try {
+      return fn.get();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @SafeVarargs
+  private static IntObjectMap<IntArrayList> adjacencyListFromGroups(List<Integer>... groups) {
+    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    for (List<Integer> group : groups) {
+      for (int i = 0; i < group.size(); i++) {
+        Integer a = group.get(i);
+        for (int j = 0; j < i; j++) {
+          Integer b = group.get(j);
+          var aval = result.getOrDefault(a, new IntArrayList());
+          aval.add(b);
+          result.put(a, aval);
+
+          var bval = result.getOrDefault(b, new IntArrayList());
+          bval.add(a);
+          result.put(b, bval);
+        }
+      }
+    }
+    return result;
+  }
+
+  @Test
+  public void testExtractConnectedComponentsEmpty() {
+    assertEquals(
+      List.of(), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 0)
+    );
+  }
+
+  @Test
+  public void testExtractConnectedComponentsOne() {
+    assertEquals(
+      List.of(
+        IntArrayList.from(0)
+      ), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 1)
+    );
+  }
+
+  @Test
+  public void testExtractConnectedComponentsTwoDisconnected() {
+    assertEquals(
+      List.of(
+        IntArrayList.from(0),
+        IntArrayList.from(1)
+      ), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 2)
+    );
+  }
+
+  @Test
+  public void testExtractConnectedComponentsTwoConnected() {
+    assertEquals(
+      List.of(
+        IntArrayList.from(0, 1)
+      ), FeatureMerge.extractConnectedComponents(adjacencyListFromGroups(
+        List.of(0, 1)
+      ), 2)
+    );
+  }
+
+  @Test
+  public void testExtractConnectedComponents() {
+    assertEquals(
+      List.of(
+        IntArrayList.from(0, 1, 2, 3),
+        IntArrayList.from(4),
+        IntArrayList.from(5, 6)
+      ), FeatureMerge.extractConnectedComponents(adjacencyListFromGroups(
+        List.of(0, 1, 2, 3),
+        List.of(4),
+        List.of(5, 6)
+      ), 7)
     );
   }
 }

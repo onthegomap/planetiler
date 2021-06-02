@@ -35,7 +35,7 @@ import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.junit.jupiter.api.Disabled;
+import java.util.stream.DoubleStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -43,7 +43,6 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.io.InputStreamInStream;
-import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 
 /**
@@ -445,6 +444,10 @@ public class FlatMapTest {
     return points;
   }
 
+  public List<Coordinate> z14CoordinatePixelList(double... coords) {
+    return z14CoordinateList(DoubleStream.of(coords).map(c -> c / 256d).toArray());
+  }
+
   @Test
   public void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
     List<Coordinate> outerPoints = z14CoordinateList(
@@ -595,7 +598,7 @@ public class FlatMapTest {
     "njshore.wkb,    10571"
   })
   public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
-    throws Exception, ParseException {
+    throws Exception {
     MultiPolygon geometry = (MultiPolygon) new WKBReader()
       .read(new InputStreamInStream(Files.newInputStream(Path.of("src", "test", "resources", fileName))));
     assertNotNull(geometry);
@@ -988,37 +991,36 @@ public class FlatMapTest {
   }
 
   @Test
-  @Disabled
   public void testMergePolygons() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(
-        // merge at z13 (same "group"):
-        new ReaderFeature(newLineString(z14CoordinateList(
+        // merge same group:
+        new ReaderFeature(newPolygon(z14CoordinatePixelList(
           10, 10,
           20, 10,
           20, 20,
           10, 20,
           10, 10
         )), Map.of("group", "1")),
-        new ReaderFeature(newLineString(
+        new ReaderFeature(newPolygon(z14CoordinatePixelList(
           20.5, 10,
           30, 10,
           30, 20,
           20.5, 20,
           20.5, 10
-        ), Map.of("group", "1")),
-        // don't merge at z13:
-        new ReaderFeature(newLineString(
+        )), Map.of("group", "1")),
+        // don't merge - different group:
+        new ReaderFeature(newPolygon(z14CoordinatePixelList(
           10, 20.5,
           20, 20.5,
           20, 30,
           10, 30,
           10, 20.5
-        ), Map.of("group", "2"))
+        )), Map.of("group", "2"))
       ),
       (in, features) -> {
-        features.line("layer")
+        features.polygon("layer")
           .setZoomRange(14, 14)
           .inheritFromSource("group");
       },

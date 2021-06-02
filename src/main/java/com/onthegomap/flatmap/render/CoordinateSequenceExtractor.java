@@ -79,7 +79,7 @@ class CoordinateSequenceExtractor {
         }
       }
     }
-    return lineStrings.size() == 1 ? lineStrings.get(0) : GeoUtils.createMultiLineString(lineStrings);
+    return GeoUtils.combineLineStrings(lineStrings);
   }
 
   @NotNull
@@ -120,6 +120,6 @@ class CoordinateSequenceExtractor {
         }
       }
     }
-    return points.size() == 1 ? points.get(0) : GeoUtils.createMultiPoint(points);
+    return GeoUtils.combinePoints(points);
   }
 }

@@ -1,17 +1,27 @@
 package com.onthegomap.flatmap;
 
+import com.carrotsearch.hppc.IntArrayList;
+import com.carrotsearch.hppc.IntObjectMap;
+import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.operation.buffer.BufferOp;
+import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
@@ -30,19 +40,8 @@ public class FeatureMerge {
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double clip)
     throws GeometryException {
     List<VectorTileEncoder.Feature> result = new ArrayList<>(features.size());
-    LinkedHashMap<Map<String, Object>, List<VectorTileEncoder.Feature>> groupedByAttrs = new LinkedHashMap<>();
-    for (VectorTileEncoder.Feature feature : features) {
-      if (feature.geometry().geomType() != GeometryType.LINE) {
-        // just ignore and pass through non-linestring features
-        result.add(feature);
-      } else {
-        groupedByAttrs
-          .computeIfAbsent(feature.attrs(), k -> new ArrayList<>())
-          .add(feature);
-      }
-    }
-    for (var entry : groupedByAttrs.entrySet()) {
-      List<VectorTileEncoder.Feature> groupedFeatures = entry.getValue();
+    var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
+    for (List<VectorTileEncoder.Feature> groupedFeatures : groupedByAttrs) {
       VectorTileEncoder.Feature feature1 = groupedFeatures.get(0);
       double lengthLimit = lengthLimitCalculator.apply(feature1.attrs());
 
@@ -82,10 +81,7 @@ public class FeatureMerge {
         if (outputSegments.size() == 0) {
           // no segments to output - skip this feature
         } else {
-          Geometry newGeometry =
-            outputSegments.size() == 1 ?
-              outputSegments.get(0) :
-              GeoUtils.createMultiLineString(outputSegments);
+          Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
           result.add(feature1.copyWithNewGeometry(newGeometry));
         }
       }
@@ -129,8 +125,195 @@ public class FeatureMerge {
     }
   }
 
-  public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> items, double minSize,
-    double minDist, double buffer) {
-    return items;
+  private static final BufferParameters bufferOps = new BufferParameters();
+
+  static {
+    bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
+  }
+
+  public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> features, double minArea,
+    double minDist, double buffer) throws GeometryException {
+    List<VectorTileEncoder.Feature> result = new ArrayList<>(features.size());
+    Collection<List<VectorTileEncoder.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
+    for (List<VectorTileEncoder.Feature> groupedFeatures : groupedByAttrs) {
+      List<Polygon> outPolygons = new ArrayList<>();
+      VectorTileEncoder.Feature feature1 = groupedFeatures.get(0);
+      List<Geometry> geometries = new ArrayList<>(groupedFeatures.size());
+      for (var feature : groupedFeatures) {
+        geometries.add(feature.geometry().decode());
+      }
+      Collection<List<Geometry>> groupedByProximity = groupPolygonsByProximity(geometries, minDist);
+      for (List<Geometry> polygonGroup : groupedByProximity) {
+        Geometry merged;
+        if (polygonGroup.size() > 1) {
+          merged = GeoUtils.createGeometryCollection(polygonGroup);
+          merged = new BufferOp(merged, bufferOps).getResultGeometry(buffer);
+          if (buffer > 0) {
+            merged = new BufferOp(merged, bufferOps).getResultGeometry(-buffer);
+          }
+          if (!(merged instanceof Polygon poly)
+            || Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) < minArea) {
+            continue;
+          }
+          merged = GeoUtils.snapAndFixPolygon(merged).reverse();
+        } else {
+          merged = polygonGroup.get(0);
+          if (!(merged instanceof Polygon poly)
+            || Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) < minArea) {
+            continue;
+          }
+        }
+        // TODO VW simplify?
+        // TODO limit inner ring area
+        extractPolygons(merged, outPolygons);
+      }
+      if (!outPolygons.isEmpty()) {
+        Geometry combined = GeoUtils.combinePolygons(outPolygons);
+        result.add(feature1.copyWithNewGeometry(combined));
+      }
+      // TODO:
+      // - for each geom, find all other geoms within minDist distance
+      // - grow the groups
+      // - for each group, buffer/unbuffer
+
+//      STRtree
+//      for (int i = 0; i < groupedFeatures.size(); i++) {
+//        Geometry poly = allGeoms[i] = groupedFeatures.get(i).geometry().decode();
+//        Envelope env = poly.getEnvelopeInternal();
+//        env.expandBy(buffer);
+//        index.add(envs[i] = env);
+//      }
+//      index.finish();
+//      IntSet visited = new IntHashSet();
+//      IntArrayDeque queue = new IntArrayDeque();
+//      for (int i = 0; i < groupedFeatures.size(); i++) {
+//        if (!visited.contains(i)) {
+//          List<Geometry> thisGroup = new ArrayList<>();
+//          queue.addFirst(i);
+//          visited.add(i);
+//          while (!queue.isEmpty()) {
+//            int toVisit = queue.removeLast();
+//            thisGroup.add(allGeoms[toVisit]);
+//            IntArrayList matches = index.search(envs[toVisit]);
+//            for (int k = 0; k < matches.size(); k++) {
+//              int match = matches.get(k);
+//              // TODO test if distance < epsilon
+//              if (!visited.contains(match)) {
+//                visited.add(match);
+//                queue.addFirst(match);
+//              }
+//            }
+//          }
+//
+//          Geometry geom;
+//          if (thisGroup.size() > 1) {
+//            geom = OSMToVectorTiles.gf.createGeometryCollection(GeometryFactory.toGeometryArray(thisGroup));
+//            geom = new BufferOp(geom, bufferOps).getResultGeometry(buffer).union();
+//            if (buffer > 0) {
+//              geom = new BufferOp(geom, bufferOps).getResultGeometry(-buffer);
+//            }
+//          } else {
+//            geom = thisGroup.get(0);
+//          }
+//          // TODO VW simplify
+//          // TODO limit inner ring area
+//          extractPolygons(feature1, result, geom, minSize);
+//        }
+//      }
+    }
+    return result;
+  }
+
+  private static void extractPolygons(Geometry geom, List<Polygon> result) {
+    if (geom instanceof Polygon poly) {
+      result.add(poly);
+    } else if (geom instanceof GeometryCollection) {
+      for (int i = 0; i < geom.getNumGeometries(); i++) {
+        extractPolygons(geom.getGeometryN(i), result);
+      }
+    }
+  }
+
+  private static IntObjectMap<IntArrayList> extractAdjacencyList(List<Geometry> geometries, double minDist) {
+    // TODO use spatial index
+    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    for (int i = 0; i < geometries.size(); i++) {
+      Geometry a = geometries.get(i);
+      for (int j = 0; j < i; j++) {
+        Geometry b = geometries.get(j);
+        if (a.isWithinDistance(b, minDist)) {
+          put(result, i, j);
+          put(result, j, i);
+        }
+      }
+    }
+    return result;
+  }
+
+  private static void put(IntObjectMap<IntArrayList> result, int from, int to) {
+    IntArrayList ilist = result.get(from);
+    if (ilist == null) {
+      result.put(from, ilist = new IntArrayList());
+    }
+    ilist.add(to);
+  }
+
+  static List<IntArrayList> extractConnectedComponents(IntObjectMap<IntArrayList> adjacencyList, int numItems) {
+    List<IntArrayList> result = new ArrayList<>();
+    BitSet visited = new BitSet(numItems);
+
+    for (int i = 0; i < numItems; i++) {
+      if (!visited.get(i)) {
+        visited.set(i, true);
+        IntArrayList group = new IntArrayList();
+        group.add(i);
+        result.add(group);
+        dfs(i, group, adjacencyList, visited);
+      }
+    }
+    return result;
+  }
+
+  private static void dfs(int start, IntArrayList group, IntObjectMap<IntArrayList> adjacencyList, BitSet visited) {
+    IntArrayList adjacent = adjacencyList.get(start);
+    if (adjacent != null) {
+      for (var cursor : adjacent) {
+        int index = cursor.value;
+        if (!visited.get(index)) {
+          visited.set(index, true);
+          group.add(index);
+          dfs(index, group, adjacencyList, visited);
+        }
+      }
+    }
+  }
+
+  private static Collection<List<Geometry>> groupPolygonsByProximity(List<Geometry> geometries, double minDist) {
+    IntObjectMap<IntArrayList> adjacencyList = extractAdjacencyList(geometries, minDist);
+    List<IntArrayList> groups = extractConnectedComponents(adjacencyList, geometries.size());
+    return groups.stream().map(ids -> {
+      List<Geometry> geomsInGroup = new ArrayList<>(ids.size());
+      for (var cursor : ids) {
+        geomsInGroup.add(geometries.get(cursor.value));
+      }
+      return geomsInGroup;
+    }).toList();
+  }
+
+
+  private static Collection<List<VectorTileEncoder.Feature>> groupByAttrs(
+    List<VectorTileEncoder.Feature> features, List<VectorTileEncoder.Feature> result, GeometryType geometryType) {
+    LinkedHashMap<Map<String, Object>, List<VectorTileEncoder.Feature>> groupedByAttrs = new LinkedHashMap<>();
+    for (VectorTileEncoder.Feature feature : features) {
+      if (feature.geometry().geomType() != geometryType) {
+        // just ignore and pass through non-polygon features
+        result.add(feature);
+      } else {
+        groupedByAttrs
+          .computeIfAbsent(feature.attrs(), k -> new ArrayList<>())
+          .add(feature);
+      }
+    }
+    return groupedByAttrs.values();
   }
 }

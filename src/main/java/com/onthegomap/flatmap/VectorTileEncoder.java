@@ -188,7 +188,7 @@ public class VectorTileEncoder {
             if (first) {
               first = false;
               outerCCW = ccw;
-              assert outerCCW;
+              assert outerCCW : "outer ring is not counter-clockwise";
             }
             if (ccw == outerCCW) {
               ringsForCurrentPolygon = new ArrayList<>();
