@@ -7,9 +7,14 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.write.Mbtiles;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
 
 public class FeatureMergeTest {
@@ -518,5 +523,28 @@ public class FeatureMergeTest {
         List.of(5, 6)
       ), 7)
     );
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "2477, 3028, 13, 876",
+    "2481, 3026, 13, 806",
+    "2479, 3028, 13, 884"
+  })
+  public void testMergeManyPolygons(int x, int y, int z, int expected)
+    throws IOException, GeometryException {
+    try (var db = Mbtiles.newFileDatabase(Path.of("src", "test", "resources", "bostonbuildings.mbtiles"))) {
+      byte[] tileData = db.getTile(x, y, z);
+      byte[] gunzipped = TestUtils.gunzip(tileData);
+      List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);
+      List<VectorTileEncoder.Feature> merged = FeatureMerge.mergePolygons(features, 1, 1, 1);
+      int total = 0;
+      for (var feature : merged) {
+        Geometry geometry = feature.geometry().decode();
+        total += geometry.getNumGeometries();
+        TestUtils.validateGeometry(geometry);
+      }
+      assertEquals(expected, total);
+    }
   }
 }

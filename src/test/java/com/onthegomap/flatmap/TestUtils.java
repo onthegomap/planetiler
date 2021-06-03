@@ -180,7 +180,7 @@ public class TestUtils {
     return round(input, 1e5);
   }
 
-  private static byte[] gunzip(byte[] zipped) throws IOException {
+  public static byte[] gunzip(byte[] zipped) throws IOException {
     try (var is = new GZIPInputStream(new ByteArrayInputStream(zipped))) {
       return is.readAllBytes();
     }

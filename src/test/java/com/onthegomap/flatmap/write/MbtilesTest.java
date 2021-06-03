@@ -1,7 +1,9 @@
 package com.onthegomap.flatmap.write;
 
 import static com.onthegomap.flatmap.TestUtils.assertSameJson;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
@@ -30,6 +32,7 @@ public class MbtilesTest {
       if (!deferIndexCreation) {
         db.addIndex();
       }
+      assertNull(db.getTile(0, 0, 0));
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
@@ -52,6 +55,11 @@ public class MbtilesTest {
       var all = TestUtils.getAllTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
+      for (var expectedEntry : expected) {
+        var tile = expectedEntry.tile();
+        byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
+        assertArrayEquals(expectedEntry.bytes(), data);
+      }
     }
   }
 

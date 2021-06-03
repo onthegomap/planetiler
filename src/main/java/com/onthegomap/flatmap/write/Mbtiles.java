@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.NumberFormat;
@@ -34,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
-public record Mbtiles(Connection connection) implements Closeable {
+public final class Mbtiles implements Closeable {
 
   public static final String TILES_TABLE = "tiles";
   public static final String TILES_COL_X = "tile_column";
@@ -50,6 +51,11 @@ public record Mbtiles(Connection connection) implements Closeable {
   private static final ObjectMapper objectMapper = new ObjectMapper()
     .registerModules(new Jdk8Module())
     .setSerializationInclusion(NON_ABSENT);
+  private final Connection connection;
+
+  public Mbtiles(Connection connection) {
+    this.connection = connection;
+  }
 
   static {
     try {
@@ -147,6 +153,39 @@ public record Mbtiles(Connection connection) implements Closeable {
 
   public Metadata metadata() {
     return new Metadata();
+  }
+
+  private PreparedStatement newGetTileStatement() {
+    try {
+      return connection.prepareStatement("""
+        SELECT tile_data FROM %s
+        WHERE tile_column=?
+        AND tile_row=?
+        AND zoom_level=?
+        """.formatted(TILES_TABLE));
+    } catch (SQLException throwables) {
+      throw new IllegalStateException(throwables);
+    }
+  }
+
+  private ThreadLocal<PreparedStatement> getTileStatementCache = ThreadLocal.withInitial(this::newGetTileStatement);
+
+  public byte[] getTile(int x, int y, int z) {
+    try {
+      PreparedStatement stmt = getTileStatementCache.get();
+      stmt.setInt(1, x);
+      stmt.setInt(2, (1 << z) - 1 - y);
+      stmt.setInt(3, z);
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getBytes("tile_data") : null;
+      }
+    } catch (SQLException throwables) {
+      throw new IllegalStateException("Could not get tile", throwables);
+    }
+  }
+
+  public Connection connection() {
+    return connection;
   }
 
   public static record MetadataJson(
