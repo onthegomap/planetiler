@@ -88,8 +88,7 @@ public class OpenMapTilesMain {
     stats.time("natural_earth", () ->
       NaturalEarthReader
         .process(OpenMapTilesProfile.NATURAL_EARTH_SOURCE, naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap,
-          config,
-          profile, stats)
+          config, profile, stats)
     );
 
     try (var osmReader = new OpenStreetMapReader(OpenMapTilesProfile.OSM_SOURCE, osmInputFile, nodeLocations, profile,
