@@ -31,11 +31,6 @@ import org.slf4j.LoggerFactory;
 public class FeatureMerge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMerge.class);
-  private static final BufferParameters bufferOps = new BufferParameters();
-
-  static {
-    bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
-  }
 
   public static List<VectorTileEncoder.Feature> mergeLineStrings(List<VectorTileEncoder.Feature> items,
     double minLength, double tolerance, double clip) throws GeometryException {
@@ -129,6 +124,12 @@ public class FeatureMerge {
     if (!current.isEmpty()) {
       output.add(GeoUtils.JTS_FACTORY.createLineString(current));
     }
+  }
+
+  private static final BufferParameters bufferOps = new BufferParameters();
+
+  static {
+    bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
   }
 
   public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> features, double minArea,

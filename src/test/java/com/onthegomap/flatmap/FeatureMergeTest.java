@@ -527,9 +527,9 @@ public class FeatureMergeTest {
 
   @ParameterizedTest
   @CsvSource({
-    "2477, 3028, 13, 876",
-    "2481, 3026, 13, 806",
-    "2479, 3028, 13, 884"
+    "2477, 3028, 13, 1026",
+    "2481, 3026, 13, 789",
+    "2479, 3028, 13, 963"
   })
   public void testMergeManyPolygons(int x, int y, int z, int expected)
     throws IOException, GeometryException {
@@ -537,7 +537,7 @@ public class FeatureMergeTest {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
       List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);
-      List<VectorTileEncoder.Feature> merged = FeatureMerge.mergePolygons(features, 1, 1, 1);
+      List<VectorTileEncoder.Feature> merged = FeatureMerge.mergePolygons(features, 4, 0.5, 0.5);
       int total = 0;
       for (var feature : merged) {
         Geometry geometry = feature.geometry().decode();
