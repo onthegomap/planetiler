@@ -22,13 +22,15 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class GeoUtils {
 
-  public static final GeometryFactory JTS_FACTORY = new GeometryFactory();
+  public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
+  public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
   public static final WKBReader wkbReader = new WKBReader(JTS_FACTORY);
 
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
@@ -192,9 +194,6 @@ public class GeoUtils {
   public static Geometry combinePoints(List<Point> points) {
     return points.size() == 1 ? points.get(0) : createMultiPoint(points);
   }
-
-
-  public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
 
   public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
     return snapAndFixPolygon(geom, TILE_PRECISON);

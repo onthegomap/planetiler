@@ -20,6 +20,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.linemerge.LineMerger;
@@ -30,6 +31,11 @@ import org.slf4j.LoggerFactory;
 public class FeatureMerge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMerge.class);
+  private static final BufferParameters bufferOps = new BufferParameters();
+
+  static {
+    bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
+  }
 
   public static List<VectorTileEncoder.Feature> mergeLineStrings(List<VectorTileEncoder.Feature> items,
     double minLength, double tolerance, double clip) throws GeometryException {
@@ -125,12 +131,6 @@ public class FeatureMerge {
     }
   }
 
-  private static final BufferParameters bufferOps = new BufferParameters();
-
-  static {
-    bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
-  }
-
   public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> features, double minArea,
     double minDist, double buffer) throws GeometryException {
     List<VectorTileEncoder.Feature> result = new ArrayList<>(features.size());
@@ -171,55 +171,6 @@ public class FeatureMerge {
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
         result.add(feature1.copyWithNewGeometry(combined));
       }
-      // TODO:
-      // - for each geom, find all other geoms within minDist distance
-      // - grow the groups
-      // - for each group, buffer/unbuffer
-
-//      STRtree
-//      for (int i = 0; i < groupedFeatures.size(); i++) {
-//        Geometry poly = allGeoms[i] = groupedFeatures.get(i).geometry().decode();
-//        Envelope env = poly.getEnvelopeInternal();
-//        env.expandBy(buffer);
-//        index.add(envs[i] = env);
-//      }
-//      index.finish();
-//      IntSet visited = new IntHashSet();
-//      IntArrayDeque queue = new IntArrayDeque();
-//      for (int i = 0; i < groupedFeatures.size(); i++) {
-//        if (!visited.contains(i)) {
-//          List<Geometry> thisGroup = new ArrayList<>();
-//          queue.addFirst(i);
-//          visited.add(i);
-//          while (!queue.isEmpty()) {
-//            int toVisit = queue.removeLast();
-//            thisGroup.add(allGeoms[toVisit]);
-//            IntArrayList matches = index.search(envs[toVisit]);
-//            for (int k = 0; k < matches.size(); k++) {
-//              int match = matches.get(k);
-//              // TODO test if distance < epsilon
-//              if (!visited.contains(match)) {
-//                visited.add(match);
-//                queue.addFirst(match);
-//              }
-//            }
-//          }
-//
-//          Geometry geom;
-//          if (thisGroup.size() > 1) {
-//            geom = OSMToVectorTiles.gf.createGeometryCollection(GeometryFactory.toGeometryArray(thisGroup));
-//            geom = new BufferOp(geom, bufferOps).getResultGeometry(buffer).union();
-//            if (buffer > 0) {
-//              geom = new BufferOp(geom, bufferOps).getResultGeometry(-buffer);
-//            }
-//          } else {
-//            geom = thisGroup.get(0);
-//          }
-//          // TODO VW simplify
-//          // TODO limit inner ring area
-//          extractPolygons(feature1, result, geom, minSize);
-//        }
-//      }
     }
     return result;
   }
@@ -235,17 +186,26 @@ public class FeatureMerge {
   }
 
   private static IntObjectMap<IntArrayList> extractAdjacencyList(List<Geometry> geometries, double minDist) {
-    // TODO use spatial index
-    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    STRtree envelopeIndex = new STRtree();
     for (int i = 0; i < geometries.size(); i++) {
       Geometry a = geometries.get(i);
-      for (int j = 0; j < i; j++) {
-        Geometry b = geometries.get(j);
-        if (a.isWithinDistance(b, minDist)) {
-          put(result, i, j);
-          put(result, j, i);
+      Envelope env = a.getEnvelopeInternal().copy();
+      env.expandBy(minDist);
+      envelopeIndex.insert(env, i);
+    }
+    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    for (int _i = 0; _i < geometries.size(); _i++) {
+      int i = _i;
+      Geometry a = geometries.get(i);
+      envelopeIndex.query(a.getEnvelopeInternal(), object -> {
+        if (object instanceof Integer j) {
+          Geometry b = geometries.get(j);
+          if (a.isWithinDistance(b, minDist)) {
+            put(result, i, j);
+            put(result, j, i);
+          }
         }
-      }
+      });
     }
     return result;
   }

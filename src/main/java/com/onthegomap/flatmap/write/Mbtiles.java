@@ -82,6 +82,18 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+  public static Mbtiles newReadOnlyDatabase(Path path) {
+    try {
+      SQLiteConfig config = new SQLiteConfig();
+      config.setReadOnly(true);
+      Connection connection = DriverManager
+        .getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties());
+      return new Mbtiles(connection);
+    } catch (SQLException throwables) {
+      throw new IllegalArgumentException("Unable to open " + path, throwables);
+    }
+  }
+
   @Override
   public void close() throws IOException {
     try {

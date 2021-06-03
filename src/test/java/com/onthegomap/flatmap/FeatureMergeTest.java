@@ -533,7 +533,7 @@ public class FeatureMergeTest {
   })
   public void testMergeManyPolygons(int x, int y, int z, int expected)
     throws IOException, GeometryException {
-    try (var db = Mbtiles.newFileDatabase(Path.of("src", "test", "resources", "bostonbuildings.mbtiles"))) {
+    try (var db = Mbtiles.newReadOnlyDatabase(Path.of("src", "test", "resources", "bostonbuildings.mbtiles"))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
       List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);
