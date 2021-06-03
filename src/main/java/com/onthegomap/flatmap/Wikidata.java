@@ -110,7 +110,7 @@ public class Wikidata {
       }
       JsonNode label = row.get("label");
       map.put(
-        "name:" + label.get("xml:lang").asText(),
+        label.get("xml:lang").asText(),
         label.get("value").asText()
       );
     });

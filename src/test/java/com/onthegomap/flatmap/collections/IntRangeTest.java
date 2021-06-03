@@ -137,24 +137,4 @@ public class IntRangeTest {
     range.intersect(range2);
     assertEquals(List.of(3, 5), getInts(range));
   }
-
-  @Test
-  public void testNextEmpty() {
-    IntRange range = new IntRange();
-    assertEquals(1, range.nextInRange(0, 1));
-  }
-
-  @Test
-  public void testNextInRange() {
-    IntRange range = new IntRange();
-    range.add(0, 2);
-    assertEquals(0, range.nextInRange(0, 1));
-  }
-
-  @Test
-  public void testNextBelowInRange() {
-    IntRange range = new IntRange();
-    range.add(2, 4);
-    assertEquals(2, range.nextInRange(1, 3));
-  }
 }

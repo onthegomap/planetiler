@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
 import com.google.common.collect.Range;
-import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
@@ -42,15 +41,6 @@ public class IntRange implements Iterable<Integer> {
   public IntRange intersect(IntRange other) {
     rangeSet.removeAll(other.rangeSet.complement());
     return this;
-  }
-
-  public int nextInRange(int lo, int hi) {
-    RangeSet<Integer> subset = rangeSet.subRangeSet(Range.closed(lo, hi));
-    if (subset.isEmpty()) {
-      return hi;
-    } else {
-      return subset.span().lowerEndpoint();
-    }
   }
 
   private static class Iter implements PrimitiveIterator.OfInt {

@@ -112,8 +112,8 @@ public class WikidataTest {
       }),
       dynamicTest("can load serialized data", () -> {
         var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
-        assertEquals(Map.of("name:en", "en name", "name:es", "es name"), translations.get(1));
-        assertEquals(Map.of("name:es", "es name2"), translations.get(2));
+        assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
+        assertEquals(Map.of("es", "es name2"), translations.get(2));
       }),
       dynamicTest("do not re-request on subsequent loads", () -> {
         StringWriter writer2 = new StringWriter();
