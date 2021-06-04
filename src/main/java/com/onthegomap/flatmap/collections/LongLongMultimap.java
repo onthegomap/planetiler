@@ -70,11 +70,11 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     private void doPrepare() {
       StopWatch watch = new StopWatch().start();
 
-      LOGGER.info("Sorting long long multimap keys...");
+      LOGGER.debug("Sorting long long multimap keys...");
       long[] sortedKeys = keys.toArray();
       Arrays.parallelSort(sortedKeys);
 
-      LOGGER.info("Sorted keys, now values...");
+      LOGGER.debug("Sorted keys, now values...");
       long[] sortedValues = new long[sortedKeys.length];
       int from = 0;
       while (from < keys.size()) {
@@ -97,7 +97,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       }
       keys.buffer = sortedKeys;
       values.buffer = sortedValues;
-      LOGGER.info("Sorted long long multimap " + watch.stop());
+      LOGGER.debug("Sorted long long multimap " + watch.stop());
     }
 
     @Override

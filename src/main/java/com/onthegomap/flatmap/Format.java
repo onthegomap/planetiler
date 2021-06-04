@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap;
 
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
@@ -23,12 +24,13 @@ public class Format {
   ));
 
   private static final NumberFormat pf = NumberFormat.getPercentInstance();
-
   private static final NumberFormat nf = NumberFormat.getNumberInstance();
+  private static final NumberFormat intF = NumberFormat.getNumberInstance();
 
   static {
     pf.setMaximumFractionDigits(0);
     nf.setMaximumFractionDigits(1);
+    intF.setMaximumFractionDigits(0);
   }
 
   public static String padRight(String str, int size) {
@@ -79,5 +81,14 @@ public class Format {
 
   public static String formatDecimal(double value) {
     return nf.format(value);
+  }
+
+  public static String formatInteger(Number value) {
+    return intF.format(value);
+  }
+
+  public static String formatSeconds(Duration duration) {
+    double seconds = duration.toNanos() * 1d / Duration.ofSeconds(1).toNanos();
+    return formatDecimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";
   }
 }

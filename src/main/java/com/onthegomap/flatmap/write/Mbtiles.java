@@ -122,7 +122,7 @@ public final class Mbtiles implements Closeable {
   private Mbtiles execute(String... queries) {
     for (String query : queries) {
       try (var statement = connection.createStatement()) {
-        LOGGER.info("Execute mbtiles: " + query);
+        LOGGER.debug("Execute mbtiles: " + query);
         statement.execute(query);
       } catch (SQLException throwables) {
         throw new IllegalStateException("Error executing queries " + Arrays.toString(queries), throwables);
@@ -369,7 +369,7 @@ public final class Mbtiles implements Closeable {
 
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
-        LOGGER.info("Set mbtiles metadata: " + name + "=" + value);
+        LOGGER.debug("Set mbtiles metadata: " + name + "=" + value);
         try (PreparedStatement statement = connection.prepareStatement(
           "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")) {
           statement.setString(1, name);

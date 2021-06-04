@@ -119,7 +119,7 @@ public class Wikidata {
 
   public static void fetch(OsmInputFile infile, Path outfile, CommonParams config, Profile profile, Stats stats) {
     int threads = config.threads();
-    stats.startTimer("wikidata");
+    var timer = stats.startTimer("wikidata");
     int readerThreads = Math.max(1, Math.min(4, threads * 3 / 4));
     int processThreads = Math.max(1, Math.min(4, threads / 4));
     LOGGER
@@ -160,7 +160,7 @@ public class Wikidata {
       throw new RuntimeException(e);
     }
 
-    stats.stopTimer("wikidata");
+    timer.stop();
   }
 
   public static WikidataTranslations load(Path path) {

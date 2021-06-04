@@ -8,15 +8,17 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 public class ProcessInfo {
 
-  public static Duration getProcessCpuTime() {
+  public static Optional<Duration> getProcessCpuTime() {
     try {
-      return Duration.ofNanos(callLongGetter("getProcessCpuTime", ManagementFactory.getOperatingSystemMXBean()));
+      return Optional
+        .of(Duration.ofNanos(callLongGetter("getProcessCpuTime", ManagementFactory.getOperatingSystemMXBean())));
     } catch (NoSuchMethodException | InvocationTargetException e) {
-      return Duration.ZERO;
+      return Optional.empty();
     }
   }
 

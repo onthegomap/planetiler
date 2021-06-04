@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -134,12 +135,17 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addProcessStats() {
-    addDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
+    addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
     addDeltaLogger("gc", ProcessInfo::getGcTime, Format::formatPercent);
     loggers.add(new ProgressLogger("mem",
       () -> padLeft(formatMB(Helper.getUsedMB(), false) + " / " + formatMB(Helper.getTotalMB(), false), 7)));
 
     return this;
+  }
+
+  private void addOptionalDeltaLogger(String name, Supplier<Optional<Duration>> supplier,
+    DoubleFunction<String> format) {
+    addDeltaLogger(name, () -> supplier.get().orElse(Duration.ZERO), format);
   }
 
   private void addDeltaLogger(String name, Supplier<Duration> supplier, DoubleFunction<String> format) {

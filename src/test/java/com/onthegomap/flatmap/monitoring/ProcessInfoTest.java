@@ -14,7 +14,7 @@ public class ProcessInfoTest {
 
   @Test
   public void testCPU() {
-    assertTrue(ProcessInfo.getProcessCpuTime().toNanos() > 0);
+    assertFalse(ProcessInfo.getProcessCpuTime().isEmpty());
   }
 
   @Test

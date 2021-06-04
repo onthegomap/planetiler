@@ -23,7 +23,7 @@ public class OpenMapTilesMain {
   public static void main(String[] args) throws IOException {
     Arguments arguments = Arguments.fromJvmProperties();
     var stats = arguments.getStats();
-    stats.startTimer("import");
+    var overallTimer = stats.startTimer("full import");
     LOGGER.info("Arguments:");
     Path sourcesDir = Path.of("data", "sources");
     OsmInputFile osmInputFile = new OsmInputFile(
@@ -105,7 +105,7 @@ public class OpenMapTilesMain {
 
     stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, output, profile, config, stats));
 
-    stats.stopTimer("import");
+    overallTimer.stop();
 
     LOGGER.info("FINISHED!");
 

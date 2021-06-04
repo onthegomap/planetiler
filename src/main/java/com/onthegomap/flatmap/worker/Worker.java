@@ -55,7 +55,7 @@ public class Worker {
     for (int i = 0; i < threads; i++) {
       es.submit(() -> {
         String id = Thread.currentThread().getName();
-        LOGGER.debug("Starting worker");
+        LOGGER.trace("Starting worker");
         try {
           task.run();
         } catch (Throwable e) {
@@ -63,7 +63,7 @@ public class Worker {
           e.printStackTrace();
           System.exit(1);
         } finally {
-          LOGGER.debug("Finished worker");
+          LOGGER.trace("Finished worker");
         }
       });
     }

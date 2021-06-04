@@ -72,20 +72,20 @@ public class Arguments {
       }
       result = new Envelope(bounds[0], bounds[2], bounds[1], bounds[3]);
     }
-    LOGGER.info(description + ": " + result);
+    LOGGER.debug(description + ": " + result);
     return result;
   }
 
   public String get(String arg, String description, String defaultValue) {
     String value = getArg(arg, defaultValue);
-    LOGGER.info(description + ": " + value);
+    LOGGER.debug(description + ": " + value);
     return value;
   }
 
   public Path file(String arg, String description, Path defaultValue) {
     String value = getArg(arg);
     Path file = value == null ? defaultValue : Path.of(value);
-    LOGGER.info(description + ": " + file);
+    LOGGER.debug(description + ": " + file);
     return file;
   }
 
@@ -99,21 +99,21 @@ public class Arguments {
 
   public boolean get(String arg, String description, boolean defaultValue) {
     boolean value = "true".equalsIgnoreCase(getArg(arg, Boolean.toString(defaultValue)));
-    LOGGER.info(description + ": " + value);
+    LOGGER.debug(description + ": " + value);
     return value;
   }
 
   public List<String> get(String arg, String description, String[] defaultValue) {
     String value = getArg(arg, String.join(",", defaultValue));
     List<String> results = List.of(value.split("[\\s,]+"));
-    LOGGER.info(description + ": " + value);
+    LOGGER.debug(description + ": " + value);
     return results;
   }
 
   public int threads() {
     String value = getArg("threads", Integer.toString(Runtime.getRuntime().availableProcessors()));
     int threads = Math.max(2, Integer.parseInt(value));
-    LOGGER.info("num threads: " + threads);
+    LOGGER.debug("num threads: " + threads);
     return threads;
   }
 
@@ -124,14 +124,14 @@ public class Arguments {
   public int integer(String key, String description, int defaultValue) {
     String value = getArg(key, Integer.toString(defaultValue));
     int parsed = Integer.parseInt(value);
-    LOGGER.info(description + ": " + parsed);
+    LOGGER.debug(description + ": " + parsed);
     return parsed;
   }
 
   public Duration duration(String key, String description, String defaultValue) {
     String value = getArg(key, defaultValue);
     Duration parsed = Duration.parse("PT" + value);
-    LOGGER.info(description + ": " + parsed.get(ChronoUnit.SECONDS) + " seconds");
+    LOGGER.debug(description + ": " + parsed.get(ChronoUnit.SECONDS) + " seconds");
     return parsed;
   }
 }
