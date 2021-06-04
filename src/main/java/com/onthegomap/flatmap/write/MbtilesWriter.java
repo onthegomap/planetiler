@@ -43,7 +43,7 @@ public class MbtilesWriter {
 
   public static void writeOutput(FeatureGroup features, Path outputPath, Profile profile, CommonParams config,
     Stats stats) {
-    try (Mbtiles output = Mbtiles.newFileDatabase(outputPath)) {
+    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
       writeOutput(features, output, () -> FileUtils.fileSize(outputPath), profile, config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + outputPath, e);
@@ -100,7 +100,6 @@ public class MbtilesWriter {
 
   private void tileWriter(Supplier<Mbtiles.TileEntry> tiles) throws Exception {
     db.setupSchema();
-    db.tuneForWrites();
     if (!config.deferIndexCreation()) {
       db.addIndex();
     } else {

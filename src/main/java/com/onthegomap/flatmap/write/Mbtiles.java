@@ -37,6 +37,9 @@ import org.sqlite.SQLiteConfig;
 
 public final class Mbtiles implements Closeable {
 
+  // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
+  private static final int MBTILES_APPLICATION_ID = 0x4d504258;
+
   public static final String TILES_TABLE = "tiles";
   public static final String TILES_COL_X = "tile_column";
   public static final String TILES_COL_Y = "tile_row";
@@ -67,16 +70,24 @@ public final class Mbtiles implements Closeable {
 
   public static Mbtiles newInMemoryDatabase() {
     try {
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:")).init();
-
+      SQLiteConfig config = new SQLiteConfig();
+      config.setApplicationId(MBTILES_APPLICATION_ID);
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:", config.toProperties()));
     } catch (SQLException throwables) {
       throw new IllegalStateException("Unable to create in-memory database", throwables);
     }
   }
 
-  public static Mbtiles newFileDatabase(Path path) {
+  public static Mbtiles newWriteToFileDatabase(Path path) {
     try {
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath())).init();
+      SQLiteConfig config = new SQLiteConfig();
+      config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
+      config.setJournalMode(SQLiteConfig.JournalMode.OFF);
+      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+      config.setApplicationId(MBTILES_APPLICATION_ID);
+      config.setPageSize(8_192);
+      config.setPragma(SQLiteConfig.Pragma.MMAP_SIZE, "30000000000");
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()));
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
     }
@@ -86,6 +97,11 @@ public final class Mbtiles implements Closeable {
     try {
       SQLiteConfig config = new SQLiteConfig();
       config.setReadOnly(true);
+      config.setCacheSize(100_000);
+      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+      config.setPageSize(32_768);
+      // helps with 3 or more threads concurrently accessing:
+      // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
       Connection connection = DriverManager
         .getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties());
       return new Mbtiles(connection);
@@ -101,15 +117,6 @@ public final class Mbtiles implements Closeable {
     } catch (SQLException throwables) {
       throw new IOException(throwables);
     }
-  }
-
-  private String pragma(SQLiteConfig.Pragma pragma, Object value) {
-    return "PRAGMA " + pragma.pragmaName + " = " + value + ";";
-  }
-
-  private Mbtiles init() {
-    // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
-    return execute(pragma(SQLiteConfig.Pragma.APPLICATION_ID, "0x4d504258"));
   }
 
   private Mbtiles execute(String... queries) {
@@ -142,16 +149,6 @@ public final class Mbtiles implements Closeable {
     );
   }
 
-  public Mbtiles tuneForWrites() {
-    return execute(
-      pragma(SQLiteConfig.Pragma.SYNCHRONOUS, SQLiteConfig.SynchronousMode.OFF),
-      pragma(SQLiteConfig.Pragma.JOURNAL_MODE, SQLiteConfig.JournalMode.OFF),
-      pragma(SQLiteConfig.Pragma.LOCKING_MODE, SQLiteConfig.LockingMode.EXCLUSIVE),
-      pragma(SQLiteConfig.Pragma.PAGE_SIZE, 8192),
-      pragma(SQLiteConfig.Pragma.MMAP_SIZE, 30000000000L)
-    );
-  }
-
   public Mbtiles vacuumAnalyze() {
     return execute(
       "VACUUM;",
@@ -167,24 +164,27 @@ public final class Mbtiles implements Closeable {
     return new Metadata();
   }
 
-  private PreparedStatement newGetTileStatement() {
-    try {
-      return connection.prepareStatement("""
-        SELECT tile_data FROM %s
-        WHERE tile_column=?
-        AND tile_row=?
-        AND zoom_level=?
-        """.formatted(TILES_TABLE));
-    } catch (SQLException throwables) {
-      throw new IllegalStateException(throwables);
-    }
-  }
+  private PreparedStatement getTileStatement = null;
 
-  private ThreadLocal<PreparedStatement> getTileStatementCache = ThreadLocal.withInitial(this::newGetTileStatement);
+  private PreparedStatement getTileStatement() {
+    if (getTileStatement == null) {
+      try {
+        getTileStatement = connection.prepareStatement("""
+          SELECT tile_data FROM %s
+          WHERE tile_column=?
+          AND tile_row=?
+          AND zoom_level=?
+          """.formatted(TILES_TABLE));
+      } catch (SQLException throwables) {
+        throw new IllegalStateException(throwables);
+      }
+    }
+    return getTileStatement;
+  }
 
   public byte[] getTile(int x, int y, int z) {
     try {
-      PreparedStatement stmt = getTileStatementCache.get();
+      PreparedStatement stmt = getTileStatement();
       stmt.setInt(1, x);
       stmt.setInt(2, (1 << z) - 1 - y);
       stmt.setInt(3, z);
@@ -194,6 +194,22 @@ public final class Mbtiles implements Closeable {
     } catch (SQLException throwables) {
       throw new IllegalStateException("Could not get tile", throwables);
     }
+  }
+
+  public List<TileCoord> getAllTileCoords() {
+    List<TileCoord> result = new ArrayList<>();
+    try (Statement statement = connection.createStatement()) {
+      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
+      while (rs.next()) {
+        int z = rs.getInt("zoom_level");
+        int rawy = rs.getInt("tile_row");
+        int x = rs.getInt("tile_column");
+        result.add(TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z));
+      }
+    } catch (SQLException throwables) {
+      throw new IllegalStateException("Could not get all tile coordinates", throwables);
+    }
+    return result;
   }
 
   public Connection connection() {
