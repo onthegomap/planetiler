@@ -23,7 +23,7 @@ public class OpenMapTilesMain {
   public static void main(String[] args) throws IOException {
     Arguments arguments = Arguments.fromJvmProperties();
     var stats = arguments.getStats();
-    var overallTimer = stats.startTimer("full import");
+    var overallTimer = stats.startTimer("openmaptiles");
     LOGGER.info("Arguments:");
     Path sourcesDir = Path.of("data", "sources");
     OsmInputFile osmInputFile = new OsmInputFile(
