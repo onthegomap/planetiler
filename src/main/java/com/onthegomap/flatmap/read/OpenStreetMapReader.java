@@ -79,11 +79,12 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     this.nodeDb = nodeDb;
     this.stats = stats;
     this.profile = profile;
+    stats.monitorInMemoryObject("osm_relations", this);
   }
 
   public void pass1(CommonParams config) {
     var topology = Topology.start("osm_pass1", stats)
-      .fromGenerator("pbf", osmInputFile.read(config.threads() - 1))
+      .fromGenerator("pbf", osmInputFile.read("pbfpass1", config.threads() - 1))
       .addBuffer("reader_queue", 50_000, 10_000)
       .sinkToConsumer("process", 1, this::processPass1);
 
@@ -138,7 +139,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
     var topology = Topology.start("osm_pass2", stats)
-      .fromGenerator("pbf", osmInputFile.read(readerThreads))
+      .fromGenerator("pbf", osmInputFile.read("pbfpass2", readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         ReaderElement readerElement;

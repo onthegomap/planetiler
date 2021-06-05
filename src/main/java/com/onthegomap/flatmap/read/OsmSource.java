@@ -5,5 +5,5 @@ import com.onthegomap.flatmap.worker.Topology;
 
 public interface OsmSource {
 
-  Topology.SourceStep<ReaderElement> read(int threads);
+  Topology.SourceStep<ReaderElement> read(String poolName, int threads);
 }

@@ -57,9 +57,9 @@ public class ProcessInfo {
   }
 
 
-  public static record ThreadState(String name, long cpuTimeNanos, long id) {
+  public static record ThreadState(String name, long cpuTimeNanos, long userTimeNanos, long id) {
 
-    public static final ThreadState DEFAULT = new ThreadState("", 0, -1);
+    public static final ThreadState DEFAULT = new ThreadState("", 0, 0, -1);
 
   }
 
@@ -77,8 +77,12 @@ public class ProcessInfo {
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     for (ThreadInfo thread : threadMXBean.dumpAllThreads(false, false)) {
       threadState.put(thread.getThreadId(),
-        new ThreadState(thread.getThreadName(), threadMXBean.getThreadCpuTime(thread.getThreadId()),
-          thread.getThreadId()));
+        new ThreadState(
+          thread.getThreadName(),
+          threadMXBean.getThreadCpuTime(thread.getThreadId()),
+          threadMXBean.getThreadUserTime(thread.getThreadId()),
+          thread.getThreadId()
+        ));
     }
     return threadState;
   }

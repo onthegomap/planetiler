@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.monitoring;
 
 import com.onthegomap.flatmap.Format;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -9,7 +10,7 @@ import org.slf4j.LoggerFactory;
 public class Timers {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Stats.InMemory.class);
-  private final Map<String, Timer> timers = new LinkedHashMap<>();
+  private final Map<String, Timer> timers = Collections.synchronizedMap(new LinkedHashMap<>());
 
   public void time(String name, Runnable task) {
     Finishable timer = startTimer(name);
@@ -30,6 +31,10 @@ public class Timers {
     timers.put(name, timer);
     LOGGER.info("[" + name + "] Starting...");
     return () -> LOGGER.info("[" + name + "] Finished in " + timers.get(name).stop());
+  }
+
+  public Map<String, Timer> all() {
+    return new LinkedHashMap<>(timers);
   }
 
   public interface Finishable {

@@ -132,7 +132,7 @@ public class Wikidata {
       fetcher.loadExisting(oldMappings);
 
       var topology = Topology.start("wikidata", stats)
-        .fromGenerator("pbf", infile.read(readerThreads))
+        .fromGenerator("pbf", infile.read("pbfwikidata", readerThreads))
         .addBuffer("reader_queue", 50_000, 10_000)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 50_000)

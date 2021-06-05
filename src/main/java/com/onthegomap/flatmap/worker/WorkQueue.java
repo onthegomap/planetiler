@@ -19,6 +19,10 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   private final int batchSize;
   private final ConcurrentHashMap<Long, Queue<T>> queues = new ConcurrentHashMap<>();
   private final int pendingBatchesCapacity;
+  private final Stats.StatCounter enqueueCountStat;
+  private final Stats.StatCounter enqueueBlockTimeNanos;
+  private final Stats.StatCounter dequeueCountStat;
+  private final Stats.StatCounter dequeueBlockTimeNanos;
   private volatile boolean hasIncomingData = true;
   private final AtomicInteger pendingCount = new AtomicInteger(0);
 
@@ -26,6 +30,16 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     this.pendingBatchesCapacity = capacity / maxBatch;
     this.batchSize = maxBatch;
     itemQueue = new ArrayBlockingQueue<>(pendingBatchesCapacity);
+
+    stats.gauge(name + "_blocking_queue_capacity", () -> pendingBatchesCapacity);
+    stats.gauge(name + "_blocking_queue_size", itemQueue::size);
+    stats.gauge(name + "_capacity", this::getCapacity);
+    stats.gauge(name + "_size", this::getPending);
+
+    this.enqueueCountStat = stats.longCounter(name + "_enqueue_count");
+    this.enqueueBlockTimeNanos = stats.nanoCounter(name + "_enqueue_block_time_seconds");
+    this.dequeueCountStat = stats.longCounter(name + "_dequeue_count");
+    this.dequeueBlockTimeNanos = stats.nanoCounter(name + "_dequeue_block_time_seconds");
   }
 
   @Override
@@ -58,6 +72,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     if (writeBatch.size() >= batchSize) {
       flushWrites();
     }
+    enqueueCountStat.inc();
   }
 
   private void flushWrites() {
@@ -68,7 +83,9 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
         queues.remove(Thread.currentThread().getId());
         // blocks if full
         if (!itemQueue.offer(writeBatch)) {
+          long start = System.nanoTime();
           itemQueue.put(writeBatch);
+          enqueueBlockTimeNanos.inc(System.nanoTime() - start);
         }
       } catch (InterruptedException ex) {
         throw new RuntimeException(ex);
@@ -81,6 +98,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     Queue<T> itemBatch = itemReadBatchProvider.get();
 
     if (itemBatch == null || itemBatch.isEmpty()) {
+      long start = System.nanoTime();
       do {
         if (!hasIncomingData && itemQueue.isEmpty()) {
           break;
@@ -99,12 +117,14 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
         }
       } while (itemBatch == null);
       itemReadBatchProvider.set(itemBatch);
+      dequeueBlockTimeNanos.inc(System.nanoTime() - start);
     }
 
     T result = itemBatch == null ? null : itemBatch.poll();
     if (result != null) {
       pendingCount.decrementAndGet();
     }
+    dequeueCountStat.inc();
     return result;
   }
 

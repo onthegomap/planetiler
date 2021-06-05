@@ -9,30 +9,30 @@ import com.carrotsearch.hppc.LongObjectHashMap;
 public class MemoryEstimator {
 
   public static long size(HasEstimate object) {
-    return object.estimateMemoryUsageBytes();
+    return object == null ? 0 : object.estimateMemoryUsageBytes();
   }
 
   public static long size(LongHashSet object) {
-    return 24L + 8L * object.keys.length;
+    return object == null ? 0 : 24L + 8L * object.keys.length;
   }
 
   public static long size(LongLongHashMap object) {
-    return 24L + 8L * object.keys.length +
-      24L + 8L * object.values.length;
+    return object == null ? 0 : (24L + 8L * object.keys.length +
+      24L + 8L * object.values.length);
   }
 
   public static <T> long sizeWithoutValues(LongObjectHashMap<T> object) {
-    return 24L + 8L * object.keys.length +
-      24L + 8L * object.values.length;
+    return object == null ? 0 : (24L + 8L * object.keys.length +
+      24L + 8L * object.values.length);
   }
 
   public static long size(LongIntHashMap object) {
-    return 24L + 8L * object.keys.length +
-      24L + 4L * object.values.length;
+    return object == null ? 0 : (24L + 8L * object.keys.length +
+      24L + 4L * object.values.length);
   }
 
   public static long size(LongArrayList object) {
-    return 24L + 8L * object.buffer.length;
+    return object == null ? 0 : (24L + 8L * object.buffer.length);
   }
 
   public interface HasEstimate {

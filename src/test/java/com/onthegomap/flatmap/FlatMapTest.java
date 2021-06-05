@@ -90,7 +90,7 @@ public class FlatMapTest {
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
     List<? extends ReaderElement> osmElements) throws IOException {
-    OsmSource elems = threads -> next -> {
+    OsmSource elems = (name, threads) -> next -> {
       // process the same order they come in from an OSM file
       osmElements.stream().filter(e -> e.getType() == ReaderElement.FILEHEADER).forEachOrdered(next);
       osmElements.stream().filter(e -> e.getType() == ReaderElement.NODE).forEachOrdered(next);

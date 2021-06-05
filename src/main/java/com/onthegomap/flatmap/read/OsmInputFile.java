@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -71,8 +72,13 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
     }
   }
 
-  public void readTo(Consumer<ReaderElement> next, int threads) throws IOException {
-    ExecutorService executorService = Executors.newFixedThreadPool(threads);
+  public void readTo(Consumer<ReaderElement> next, String poolName, int threads) throws IOException {
+    ThreadFactory threadFactory = Executors.defaultThreadFactory();
+    ExecutorService executorService = Executors.newFixedThreadPool(threads, (runnable) -> {
+      Thread thread = threadFactory.newThread(runnable);
+      thread.setName(poolName + "-" + thread.getName());
+      return thread;
+    });
     try (var stream = new BufferedInputStream(Files.newInputStream(path), 50_000)) {
       PbfStreamSplitter streamSplitter = new PbfStreamSplitter(new DataInputStream(stream));
       var sink = new ReaderElementSink(next);
@@ -84,8 +90,8 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
   }
 
   @Override
-  public Topology.SourceStep<ReaderElement> read(int threads) {
-    return next -> readTo(next, threads);
+  public Topology.SourceStep<ReaderElement> read(String poolName, int threads) {
+    return next -> readTo(next, poolName, threads);
   }
 
   private static record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {

@@ -14,6 +14,10 @@ public class Timer {
     return this;
   }
 
+  public boolean running() {
+    return end == null;
+  }
+
   public ProcessTime elapsed() {
     return (end == null ? ProcessTime.now() : end).minus(start);
   }

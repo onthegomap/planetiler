@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 
 public class OpenStreetMapReaderTest {
 
-  public final OsmSource osmSource = threads -> next -> {
+  public final OsmSource osmSource = (name, threads) -> next -> {
   };
   private final Stats stats = new Stats.InMemory();
   private final Profile profile = new Profile.NullProfile();
