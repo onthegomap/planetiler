@@ -4,7 +4,7 @@ import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
 import com.onthegomap.flatmap.MemoryEstimator;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public interface Stats extends AutoCloseable {
@@ -23,9 +23,7 @@ public interface Stats extends AutoCloseable {
 
   void gauge(String name, Supplier<Number> value);
 
-  void emittedFeature(int z, String layer, int coveringTiles);
-
-  void encodedTile(int zoom, int length);
+  void emittedFeatures(int z, String layer, int coveringTiles);
 
   void wroteTile(int zoom, int bytes);
 
@@ -37,51 +35,26 @@ public interface Stats extends AutoCloseable {
 
   void counter(String name, Supplier<Number> supplier);
 
-  default StatCounter longCounter(String name) {
-    StatCounter.AtomicCounter counter = new StatCounter.AtomicCounter();
+  default Counter.Readable longCounter(String name) {
+    Counter.Readable counter = Counter.newMultiThreadCounter();
     counter(name, counter::get);
     return counter;
   }
 
-  default StatCounter nanoCounter(String name) {
-    StatCounter.AtomicCounter counter = new StatCounter.AtomicCounter();
+  default Counter nanoCounter(String name) {
+    Counter.Readable counter = Counter.newMultiThreadCounter();
     counter(name, () -> counter.get() / NANOSECONDS_PER_SECOND);
     return counter;
   }
 
-  interface StatCounter {
+  void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values);
 
-    void inc(long v);
+  void processedElement(String elemType, String layer);
 
-    default void inc() {
-      inc(1);
-    }
-
-    class NoopCounter implements StatCounter {
-
-      @Override
-      public void inc(long v) {
-      }
-    }
-
-    class AtomicCounter implements StatCounter {
-
-      private final AtomicLong counter = new AtomicLong(0);
-
-      @Override
-      public void inc(long v) {
-        counter.addAndGet(v);
-      }
-
-      public long get() {
-        return counter.get();
-      }
-    }
-  }
+  void dataError(String stat);
 
   class InMemory implements Stats {
 
-    private static final StatCounter NOOP_COUNTER = new StatCounter.NoopCounter();
     private final Timers timers = new Timers();
 
     @Override
@@ -92,11 +65,6 @@ public interface Stats extends AutoCloseable {
     @Override
     public Timers.Finishable startTimer(String name) {
       return timers.startTimer(name);
-    }
-
-    @Override
-    public void encodedTile(int zoom, int length) {
-
     }
 
     @Override
@@ -121,13 +89,25 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public StatCounter longCounter(String name) {
-      return NOOP_COUNTER;
+    public Counter.Readable longCounter(String name) {
+      return Counter.noop();
     }
 
     @Override
-    public StatCounter nanoCounter(String name) {
-      return NOOP_COUNTER;
+    public Counter nanoCounter(String name) {
+      return Counter.noop();
+    }
+
+    @Override
+    public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {
+    }
+
+    @Override
+    public void processedElement(String elemType, String layer) {
+    }
+
+    @Override
+    public void dataError(String stat) {
     }
 
     @Override
@@ -135,7 +115,7 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void emittedFeature(int z, String layer, int coveringTiles) {
+    public void emittedFeatures(int z, String layer, int coveringTiles) {
     }
 
     @Override

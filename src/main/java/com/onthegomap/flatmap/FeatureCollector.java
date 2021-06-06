@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import com.onthegomap.flatmap.collections.CacheByZoom;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -20,10 +21,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   private final SourceFeature source;
   private final List<Feature> output = new ArrayList<>();
   private final CommonParams config;
+  private final Stats stats;
 
-  private FeatureCollector(SourceFeature source, CommonParams config) {
+  private FeatureCollector(SourceFeature source, CommonParams config, Stats stats) {
     this.source = source;
     this.config = config;
+    this.stats = stats;
   }
 
   @Override
@@ -40,10 +43,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   public Feature point(String layer) {
     try {
       if (!source.isPoint()) {
-        throw new GeometryException("not a point");
+        throw new GeometryException("feature_not_point", "not a point");
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
+      stats.dataError("feature_point_" + e.stat());
       LOGGER.warn("Error getting point geometry for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
@@ -53,6 +57,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
+      stats.dataError("feature_centroid_" + e.stat());
       LOGGER.warn("Error getting centroid for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
@@ -62,6 +67,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
+      stats.dataError("feature_line_" + e.stat());
       LOGGER.warn("Error constructing line for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
@@ -71,6 +77,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
+      stats.dataError("feature_polygon_" + e.stat());
       LOGGER.warn("Error constructing polygon for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
@@ -80,6 +87,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.validatedPolygon());
     } catch (GeometryException e) {
+      stats.dataError("feature_validated_polygon_" + e.stat());
       LOGGER.warn("Error constructing validated polygon for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
@@ -89,15 +97,16 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
+      stats.dataError("feature_point_on_surface_" + e.stat());
       LOGGER.warn("Error constructing point on surface for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM);
     }
   }
 
-  public static record Factory(CommonParams config) {
+  public static record Factory(CommonParams config, Stats stats) {
 
     public FeatureCollector get(SourceFeature source) {
-      return new FeatureCollector(source, config);
+      return new FeatureCollector(source, config, stats);
     }
   }
 

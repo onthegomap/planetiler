@@ -2,16 +2,19 @@ package com.onthegomap.flatmap.geo;
 
 public class GeometryException extends Exception {
 
-  public GeometryException(Throwable cause) {
-    super(cause);
-  }
+  private final String stat;
 
-  public GeometryException(String message, Throwable cause) {
+  public GeometryException(String stat, String message, Throwable cause) {
     super(message, cause);
+    this.stat = stat;
   }
 
-  public GeometryException(String message) {
+  public GeometryException(String stat, String message) {
     super(message);
+    this.stat = stat;
   }
 
+  public String stat() {
+    return stat;
+  }
 }

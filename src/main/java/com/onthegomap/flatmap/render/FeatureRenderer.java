@@ -9,6 +9,7 @@ import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,10 +47,12 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
     }, 2, 0))));
   private final CommonParams config;
   private final Consumer<RenderedFeature> consumer;
+  private final Stats stats;
 
-  public FeatureRenderer(CommonParams config, Consumer<RenderedFeature> consumer) {
+  public FeatureRenderer(CommonParams config, Consumer<RenderedFeature> consumer, Stats stats) {
     this.config = config;
     this.consumer = consumer;
+    this.stats = stats;
   }
 
   @Override
@@ -96,15 +99,18 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         );
       }
 
+      int emitted = 0;
       for (var entry : tiled.getTileData()) {
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
         Geometry geom = CoordinateSequenceExtractor.reassemblePoints(result);
-        // TODO stats
-        // TODO writeTileFeatures
         emitFeature(feature, id, attrs, tile, geom, groupInfo);
+        emitted++;
       }
+      stats.emittedFeatures(zoom, feature.getLayer(), emitted);
     }
+
+    stats.processedElement("point", feature.getLayer());
   }
 
   private void emitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs, TileCoord tile,
@@ -158,12 +164,15 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.extents().getForZoom(z);
       TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
-      writeTileFeatures(id, feature, sliced);
+      writeTileFeatures(z, id, feature, sliced);
     }
+
+    stats.processedElement(area ? "polygon" : "line", feature.getLayer());
   }
 
-  private void writeTileFeatures(long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
+  private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
     Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
+    int emitted = 0;
     for (var entry : sliced.getTileData()) {
       TileCoord tile = entry.getKey();
       try {
@@ -181,19 +190,22 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
 
         if (!geom.isEmpty()) {
           emitFeature(feature, id, attrs, tile, geom, null);
+          emitted++;
         }
       } catch (GeometryException e) {
+        stats.dataError("write_tile_features_" + e.stat());
         LOGGER.warn(e.getMessage() + ": " + tile + " " + feature);
       }
     }
 
     if (feature.area()) {
-      emitFilledTiles(id, feature, sliced);
+      emitted += emitFilledTiles(id, feature, sliced);
     }
-    // TODO log stats
+
+    stats.emittedFeatures(zoom, feature.getLayer(), emitted);
   }
 
-  private void emitFilledTiles(long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
+  private int emitFilledTiles(long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
     /*
      * Optimization: large input polygons that generate many filled interior tiles (ie. the ocean), the encoder avoids
      * re-encoding if groupInfo and vector tile feature are == to previous values.
@@ -206,6 +218,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       feature.getAttrsAtZoom(sliced.zoomLevel())
     );
 
+    int emitted = 0;
     for (TileCoord tile : sliced.getFilledTiles()) {
       consumer.accept(new RenderedFeature(
         tile,
@@ -213,6 +226,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         feature.getZorder(),
         groupInfo
       ));
+      emitted++;
     }
+    return emitted;
   }
 }

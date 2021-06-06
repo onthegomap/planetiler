@@ -7,18 +7,21 @@ import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
+import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,18 +30,17 @@ public class MbtilesWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
 
-  private final AtomicLong featuresProcessed = new AtomicLong(0);
-  private final AtomicLong memoizedTiles = new AtomicLong(0);
-  private final AtomicLong tilesEmitted = new AtomicLong(0);
+  private final Counter.Readable featuresProcessed;
+  private final Counter memoizedTiles;
   private final Mbtiles db;
   private final CommonParams config;
   private final Profile profile;
   private final Stats stats;
   private final LayerStats layerStats;
 
-  private final AtomicLong[] tilesByZoom;
-  private final AtomicLong[] totalTileSizesByZoom;
-  private final AtomicInteger[] maxTileSizesByZoom;
+  private final Counter.Readable[] tilesByZoom;
+  private final Counter.Readable[] totalTileSizesByZoom;
+  private final LongAccumulator[] maxTileSizesByZoom;
 
   MbtilesWriter(Mbtiles db, CommonParams config, Profile profile, Stats stats, LayerStats layerStats) {
     this.db = db;
@@ -46,11 +48,19 @@ public class MbtilesWriter {
     this.profile = profile;
     this.stats = stats;
     this.layerStats = layerStats;
-    tilesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(AtomicLong::new).toArray(AtomicLong[]::new);
-    totalTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(AtomicLong::new)
-      .toArray(AtomicLong[]::new);
-    maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(AtomicInteger::new)
-      .toArray(AtomicInteger[]::new);
+    tilesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(i -> Counter.newSingleThreadCounter())
+      .toArray(Counter.Readable[]::new);
+    totalTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(i -> Counter.newMultiThreadCounter())
+      .toArray(Counter.Readable[]::new);
+    maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom()).mapToObj(i -> new LongAccumulator(Long::max, 0))
+      .toArray(LongAccumulator[]::new);
+    memoizedTiles = stats.longCounter("mbtiles_memoized_tiles");
+    featuresProcessed = stats.longCounter("mbtiles_features_processed");
+    Map<String, Counter.Readable> countsByZoom = new LinkedHashMap<>();
+    for (int zoom = config.minzoom(); zoom <= config.maxzoom(); zoom++) {
+      countsByZoom.put(Integer.toString(zoom), tilesByZoom[zoom]);
+    }
+    stats.counter("mbtiles_tiles_written", "zoom", () -> countsByZoom);
   }
 
 
@@ -76,7 +86,7 @@ public class MbtilesWriter {
 
     var loggers = new ProgressLoggers("mbtiles")
       .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
-      .addRateCounter("tiles", writer.tilesEmitted)
+      .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
       .addProcessStats()
@@ -89,12 +99,12 @@ public class MbtilesWriter {
     FeatureGroup.TileFeatures tileFeatures, last = null;
     byte[] lastBytes = null, lastEncoded = null;
     while ((tileFeatures = prev.get()) != null) {
-      featuresProcessed.addAndGet(tileFeatures.getNumFeatures());
+      featuresProcessed.incBy(tileFeatures.getNumFeatures());
       byte[] bytes, encoded;
       if (tileFeatures.hasSameContents(last)) {
         bytes = lastBytes;
         encoded = lastEncoded;
-        memoizedTiles.incrementAndGet();
+        memoizedTiles.inc();
       } else {
         VectorTileEncoder en = tileFeatures.getTile();
         encoded = en.encode();
@@ -108,10 +118,8 @@ public class MbtilesWriter {
       }
       int zoom = tileFeatures.coord().z();
       int encodedLength = encoded.length;
-      tilesByZoom[zoom].incrementAndGet();
-      totalTileSizesByZoom[zoom].addAndGet(encodedLength);
-      maxTileSizesByZoom[zoom].accumulateAndGet(encodedLength, Integer::max);
-      stats.encodedTile(tileFeatures.coord().z(), encodedLength);
+      totalTileSizesByZoom[zoom].incBy(encodedLength);
+      maxTileSizesByZoom[zoom].accumulate(encodedLength);
       next.accept(new Mbtiles.TileEntry(tileFeatures.coord(), bytes));
     }
   }
@@ -141,7 +149,7 @@ public class MbtilesWriter {
       while ((tile = tiles.get()) != null) {
         batchedWriter.write(tile.tile(), tile.bytes());
         stats.wroteTile(tile.tile().z(), tile.bytes().length);
-        tilesEmitted.incrementAndGet();
+        tilesByZoom[tile.tile().z()].inc();
       }
     }
 
@@ -173,8 +181,12 @@ public class MbtilesWriter {
     LOGGER.debug("all" +
       " avg:" + Format.formatStorage(sumSize / Math.max(sumCount, 1), false) +
       " max:" + Format.formatStorage(maxMax, false));
-    LOGGER.debug(" # features: " + Format.formatInteger(featuresProcessed));
-    LOGGER.debug("    # tiles: " + Format.formatInteger(tilesEmitted));
+    LOGGER.debug(" # features: " + Format.formatInteger(featuresProcessed.get()));
+    LOGGER.debug("    # tiles: " + Format.formatInteger(this.tilesEmitted()));
+  }
+
+  private long tilesEmitted() {
+    return Stream.of(tilesByZoom).mapToLong(Counter.Readable::get).sum();
   }
 
   private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {

@@ -21,6 +21,7 @@ import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.collections.LongLongMultimap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.render.FeatureRenderer;
@@ -29,6 +30,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Coordinate;
@@ -48,9 +50,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   private final OsmSource osmInputFile;
   private final Stats stats;
   private final LongLongMap nodeDb;
-  private final AtomicLong PASS1_NODES = new AtomicLong(0);
-  private final AtomicLong PASS1_WAYS = new AtomicLong(0);
-  private final AtomicLong PASS1_RELATIONS = new AtomicLong(0);
+  private final Counter.Readable PASS1_NODES = Counter.newSingleThreadCounter();
+  private final Counter.Readable PASS1_WAYS = Counter.newSingleThreadCounter();
+  private final Counter.Readable PASS1_RELATIONS = Counter.newSingleThreadCounter();
   private final Profile profile;
   private final String name;
 
@@ -80,6 +82,11 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     this.stats = stats;
     this.profile = profile;
     stats.monitorInMemoryObject("osm_relations", this);
+    stats.counter("osm_pass1_elements_processed", "type", () -> Map.of(
+      "nodes", PASS1_NODES,
+      "ways", PASS1_WAYS,
+      "relations", PASS1_RELATIONS
+    ));
   }
 
   public void pass1(CommonParams config) {
@@ -102,12 +109,12 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
   void processPass1(ReaderElement readerElement) {
     if (readerElement instanceof ReaderNode node) {
-      PASS1_NODES.incrementAndGet();
+      PASS1_NODES.inc();
       nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
     } else if (readerElement instanceof ReaderWay) {
-      PASS1_WAYS.incrementAndGet();
+      PASS1_WAYS.inc();
     } else if (readerElement instanceof ReaderRelation rel) {
-      PASS1_RELATIONS.incrementAndGet();
+      PASS1_RELATIONS.inc();
       List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
       if (infos != null) {
         for (RelationInfo info : infos) {
@@ -133,30 +140,41 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   public void pass2(FeatureGroup writer, CommonParams config) {
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
-    AtomicLong nodesProcessed = new AtomicLong(0);
-    AtomicLong waysProcessed = new AtomicLong(0);
-    AtomicLong relsProcessed = new AtomicLong(0);
+    Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
+    Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
+    Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
+    stats.counter("osm_pass2_elements_processed", "type", () -> Map.of(
+      "nodes", nodesProcessed,
+      "ways", waysProcessed,
+      "relations", relsProcessed
+    ));
+
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
     var topology = Topology.start("osm_pass2", stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass2", readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
+        Counter nodes = nodesProcessed.counterForThread();
+        Counter ways = waysProcessed.counterForThread();
+        Counter rels = relsProcessed.counterForThread();
+
         ReaderElement readerElement;
-        var featureCollectors = new FeatureCollector.Factory(config);
+        var featureCollectors = new FeatureCollector.Factory(config, stats);
         NodeLocationProvider nodeCache = newNodeGeometryCache();
         var encoder = writer.newRenderedFeatureEncoder();
         FeatureRenderer renderer = new FeatureRenderer(
           config,
-          rendered -> next.accept(encoder.apply(rendered))
+          rendered -> next.accept(encoder.apply(rendered)),
+          stats
         );
         while ((readerElement = prev.get()) != null) {
           SourceFeature feature = null;
           if (readerElement instanceof ReaderNode node) {
-            nodesProcessed.incrementAndGet();
+            nodes.inc();
             feature = processNodePass2(node);
           } else if (readerElement instanceof ReaderWay way) {
-            waysProcessed.incrementAndGet();
+            ways.inc();
             feature = processWayPass2(nodeCache, way);
           } else if (readerElement instanceof ReaderRelation rel) {
             // ensure all ways finished processing before we start relations
@@ -164,7 +182,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
               waysDone.countDown();
               waysDone.await();
             }
-            relsProcessed.incrementAndGet();
+            rels.inc();
             feature = processRelationPass2(rel, nodeCache);
           }
           if (feature != null) {
@@ -357,7 +375,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         CoordinateSequence coords = nodeCache.getWayGeometry(nodeIds);
         return GeoUtils.JTS_FACTORY.createLineString(coords);
       } catch (IllegalArgumentException e) {
-        throw new GeometryException("Error building line for way " + osmId + ": " + e);
+        throw new GeometryException("osm_invalid_line", "Error building line for way " + osmId + ": " + e);
       }
     }
 
@@ -367,7 +385,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         CoordinateSequence coords = nodeCache.getWayGeometry(nodeIds);
         return GeoUtils.JTS_FACTORY.createPolygon(coords);
       } catch (IllegalArgumentException e) {
-        throw new GeometryException("Error building polygon for way " + osmId + ": " + e);
+        throw new GeometryException("osm_invalid_polygon", "Error building polygon for way " + osmId + ": " + e);
       }
     }
 

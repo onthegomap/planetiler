@@ -12,6 +12,7 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,16 +40,17 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 public class FeatureRendererTest {
 
   private CommonParams config = CommonParams.defaults();
+  private final Stats stats = new Stats.InMemory();
 
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
-    return new FeatureCollector.Factory(config).get(new ReaderFeature(latLonGeom, 0, null, null));
+    return new FeatureCollector.Factory(config, stats).get(new ReaderFeature(latLonGeom, 0, null, null));
   }
 
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<Geometry>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(decodeSilently(rendered.vectorTileFeature().geometry()))).accept(feature);
+      .add(decodeSilently(rendered.vectorTileFeature().geometry())), new Stats.InMemory()).accept(feature);
     result.values().forEach(gs -> gs.forEach(TestUtils::validateGeometry));
     return result;
   }
@@ -56,7 +58,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<RenderedFeature>> renderFeatures(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<RenderedFeature>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(rendered)).accept(feature);
+      .add(rendered), new Stats.InMemory()).accept(feature);
     result.values()
       .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(decodeSilently(f.vectorTileFeature().geometry()))));
     return result;
@@ -806,7 +808,7 @@ public class FeatureRendererTest {
       .setZoomRange(maxZoom, maxZoom)
       .setBufferPixels(0);
     AtomicLong num = new AtomicLong(0);
-    new FeatureRenderer(config, rendered1 -> num.incrementAndGet())
+    new FeatureRenderer(config, rendered1 -> num.incrementAndGet(), new Stats.InMemory())
       .accept(feature);
     assertEquals(num.get(), Math.pow(4, maxZoom));
   }

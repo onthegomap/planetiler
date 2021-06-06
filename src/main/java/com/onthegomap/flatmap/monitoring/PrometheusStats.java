@@ -6,6 +6,7 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.CounterMetricFamily;
 import io.prometheus.client.GaugeMetricFamily;
+import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
 import io.prometheus.client.exporter.PushGateway;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -36,6 +37,7 @@ public class PrometheusStats implements Stats {
 
   private final CollectorRegistry registry = new CollectorRegistry();
   private final Timers timers = new Timers();
+  private static final String NAMESPACE = "flatmap";
   private static final String BASE = "flatmap_";
   private final PushGateway pg;
   private final ScheduledExecutorService executor;
@@ -102,19 +104,45 @@ public class PrometheusStats implements Stats {
     }.register(registry);
   }
 
-  @Override
-  public void emittedFeature(int z, String layer, int coveringTiles) {
+  private final io.prometheus.client.Counter processedElements = io.prometheus.client.Counter
+    .build(BASE + "renderer_elements_processed", "Number of source elements processed")
+    .labelNames("type", "layer")
+    .register(registry);
 
+  @Override
+  public void processedElement(String elemType, String layer) {
+    processedElements.labels(elemType, layer).inc();
   }
 
-  @Override
-  public void encodedTile(int zoom, int length) {
+  private final io.prometheus.client.Counter dataErrors = io.prometheus.client.Counter
+    .build(BASE + "bad_input_data", "Number of data inconsistencies encountered in source data")
+    .labelNames("type")
+    .register(registry);
 
+  @Override
+  public void dataError(String stat) {
+    dataErrors.labels(stat).inc();
   }
+
+  private final io.prometheus.client.Counter emittedFeatures = io.prometheus.client.Counter
+    .build(BASE + "renderer_features_emitted", "Features enqueued for writing to feature DB")
+    .labelNames("zoom", "layer")
+    .register(registry);
+
+  @Override
+  public void emittedFeatures(int z, String layer, int number) {
+    emittedFeatures.labels(Integer.toString(z), layer).inc(number);
+  }
+
+  private final Histogram tilesWrittenBytes = Histogram
+    .build(BASE + "mbtiles_tile_written_bytes", "Written tile sizes by zoom level")
+    .buckets(1_000, 10_000, 100_000, 500_000)
+    .labelNames("zoom")
+    .register(registry);
 
   @Override
   public void wroteTile(int zoom, int bytes) {
-
+    tilesWrittenBytes.labels(Integer.toString(zoom)).observe(bytes);
   }
 
   @Override
@@ -137,7 +165,23 @@ public class PrometheusStats implements Stats {
     new Collector() {
       @Override
       public List<MetricFamilySamples> collect() {
-        return List.of(new GaugeMetricFamily(BASE + sanitizeMetricName(name), "", supplier.get().doubleValue()));
+        return List.of(new CounterMetricFamily(BASE + sanitizeMetricName(name), "", supplier.get().doubleValue()));
+      }
+    }.register(registry);
+  }
+
+  @Override
+  public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {
+    new Collector() {
+      @Override
+      public List<MetricFamilySamples> collect() {
+        List<MetricFamilySamples> result = new ArrayList<>();
+        CounterMetricFamily family = new CounterMetricFamily(BASE + sanitizeMetricName(name), "", List.of(label));
+        result.add(family);
+        for (var entry : values.get().entrySet()) {
+          family.addMetric(List.of(entry.getKey()), entry.getValue().get());
+        }
+        return result;
       }
     }.register(registry);
   }

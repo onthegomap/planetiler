@@ -63,7 +63,7 @@ public abstract class SourceFeature {
 
   public final Geometry line() throws GeometryException {
     if (!canBeLine()) {
-      throw new GeometryException("cannot be line");
+      throw new GeometryException("feature_not_line", "cannot be line");
     }
     if (linearGeometry == null) {
       linearGeometry = computeLine();
@@ -80,7 +80,7 @@ public abstract class SourceFeature {
 
   public final Geometry polygon() throws GeometryException {
     if (!canBePolygon()) {
-      throw new GeometryException("cannot be polygon");
+      throw new GeometryException("feature_not_polygon", "cannot be polygon");
     }
     return polygonGeometry != null ? polygonGeometry : (polygonGeometry = computePolygon());
   }
@@ -97,7 +97,7 @@ public abstract class SourceFeature {
 
   public final Geometry validatedPolygon() throws GeometryException {
     if (!canBePolygon()) {
-      throw new GeometryException("cannot be polygon");
+      throw new GeometryException("feature_not_polygon", "cannot be polygon");
     }
     return validPolygon != null ? validPolygon : (validPolygon = computeValidPolygon());
   }

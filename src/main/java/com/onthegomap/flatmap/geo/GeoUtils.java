@@ -179,7 +179,7 @@ public class GeoUtils {
     try {
       return geom.buffer(0);
     } catch (TopologyException e) {
-      throw new GeometryException("robustness error fixing polygon: " + e);
+      throw new GeometryException("fix_polygon_topology_error", "robustness error fixing polygon: " + e);
     }
   }
 
@@ -214,7 +214,7 @@ public class GeoUtils {
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
         } catch (IllegalArgumentException e3) {
-          throw new GeometryException("Error reducing precision");
+          throw new GeometryException("snap_third_time_failed", "Error reducing precision");
         }
       }
     }
@@ -247,7 +247,7 @@ public class GeoUtils {
     List<LineString> lineStrings = new ArrayList<>();
     getLineStrings(world, lineStrings);
     if (lineStrings.size() == 0) {
-      throw new GeometryException("No line strings");
+      throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
       return lineStrings.get(0);
     } else {
@@ -270,7 +270,8 @@ public class GeoUtils {
         getLineStrings(gc.getGeometryN(i), output);
       }
     } else {
-      throw new GeometryException("unrecognized geometry type: " + input.getGeometryType());
+      throw new GeometryException("get_line_strings_bad_type",
+        "unrecognized geometry type: " + input.getGeometryType());
     }
   }
 

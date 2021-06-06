@@ -107,7 +107,7 @@ class CoordinateSequenceExtractor {
       }
       return GeoUtils.JTS_FACTORY.createPolygon(first, rest);
     } catch (IllegalArgumentException e) {
-      throw new GeometryException("Could not build polygon", e);
+      throw new GeometryException("reassemble_polygon_failed", "Could not build polygon", e);
     }
   }
 

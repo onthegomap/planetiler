@@ -75,7 +75,8 @@ class OsmMultipolygon {
   ) throws GeometryException {
     try {
       if (rings.size() == 0) {
-        throw new IllegalArgumentException("no rings to process");
+        throw new GeometryException("osm_invalid_multipolygon_empty",
+          "error building multipolygon " + osmId + ": no rings to process");
       }
       List<LongArrayList> idSegments = connectPolygonSegments(rings);
       List<Ring> polygons = new ArrayList<>(idSegments.size());
@@ -91,7 +92,8 @@ class OsmMultipolygon {
       polygons.sort(BY_AREA_DESCENDING);
       Set<Ring> shells = groupParentChildShells(polygons);
       if (shells.size() == 0) {
-        throw new IllegalArgumentException("multipolygon not closed");
+        throw new GeometryException("osm_invalid_multipolygon_not_closed",
+          "error building multipolygon " + osmId + ": multipolygon not closed");
       } else if (shells.size() == 1) {
         return shells.iterator().next().toPolygon();
       } else {
@@ -99,7 +101,7 @@ class OsmMultipolygon {
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
       }
     } catch (IllegalArgumentException e) {
-      throw new GeometryException("error building multipolygon " + osmId + ": " + e);
+      throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
     }
   }
 

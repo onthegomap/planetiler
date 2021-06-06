@@ -219,7 +219,7 @@ public class VectorTileEncoder {
 
       return geometry;
     } catch (IllegalArgumentException e) {
-      throw new GeometryException("Unable to decode geometry", e);
+      throw new GeometryException("decode_vector_tile", "Unable to decode geometry", e);
     }
   }
 

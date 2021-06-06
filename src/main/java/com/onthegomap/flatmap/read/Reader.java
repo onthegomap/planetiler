@@ -38,11 +38,12 @@ public abstract class Reader implements Closeable {
       .addBuffer("read_queue", 1000)
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
         SourceFeature sourceFeature;
-        var featureCollectors = new FeatureCollector.Factory(config);
+        var featureCollectors = new FeatureCollector.Factory(config, stats);
         var encoder = writer.newRenderedFeatureEncoder();
         FeatureRenderer renderer = new FeatureRenderer(
           config,
-          rendered -> next.accept(encoder.apply(rendered))
+          rendered -> next.accept(encoder.apply(rendered)),
+          stats
         );
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();

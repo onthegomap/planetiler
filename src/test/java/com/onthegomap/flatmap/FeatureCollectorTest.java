@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.Arrays;
 import java.util.List;
@@ -19,7 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class FeatureCollectorTest {
 
   private CommonParams config = CommonParams.defaults();
-  private FeatureCollector.Factory factory = new FeatureCollector.Factory(config);
+  private FeatureCollector.Factory factory = new FeatureCollector.Factory(config, new Stats.InMemory());
 
   private static void assertFeatures(int zoom, List<Map<String, Object>> expected, FeatureCollector actual) {
     List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
