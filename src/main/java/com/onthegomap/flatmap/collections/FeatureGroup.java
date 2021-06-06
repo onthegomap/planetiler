@@ -327,16 +327,16 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
 
     private final TileCoord tile;
     private final List<FeatureSort.Entry> entries = new ArrayList<>();
-
     private LongLongHashMap counts = null;
     private byte layer = Byte.MAX_VALUE;
+    private long numFeaturesProcessed = 0;
 
     public TileFeatures(int tile) {
       this.tile = TileCoord.decode(tile);
     }
 
     public long getNumFeatures() {
-      return entries.size();
+      return numFeaturesProcessed;
     }
 
     public TileCoord coord() {
@@ -395,6 +395,7 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
 
     @Override
     public void accept(FeatureSort.Entry entry) {
+      numFeaturesProcessed++;
       long sortKey = entry.sortKey();
       if (extractHasGroupFromSortKey(sortKey)) {
         byte thisLayer = extractLayerIdFromSortKey(sortKey);

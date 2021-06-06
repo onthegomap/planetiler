@@ -16,7 +16,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 29,
-  "iteration": 1622894339083,
+  "iteration": 1623008536252,
   "links": [],
   "panels": [
     {
@@ -81,13 +81,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass1_osm_elements_processed",
+          "expr": "flatmap_osm_pass1_elements_processed_total",
           "interval": "",
           "legendFormat": "pass1 {{type}}",
           "refId": "A"
         },
         {
-          "expr": "flatmap_osm_pass2_osm_elements_processed",
+          "expr": "flatmap_osm_pass2_elements_processed_total",
           "interval": "",
           "legendFormat": "pass2 {{type}}",
           "refId": "B"
@@ -144,7 +144,15 @@
         "defaults": {
           "custom": {}
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "_running$"
+            },
+            "properties": []
+          }
+        ]
       },
       "fill": 1,
       "fillGradient": 0,
@@ -176,22 +184,43 @@
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
-      "seriesOverrides": [],
+      "seriesOverrides": [
+        {
+          "alias": "/_running$/",
+          "linewidth": 0
+        },
+        {
+          "alias": "/.*/",
+          "fill": 0
+        },
+        {
+          "alias": "/_running$/",
+          "fill": 1
+        }
+      ],
       "spaceLength": 10,
       "stack": false,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass2_osm_elements_processed\n/\nflatmap_osm_pass1_osm_elements_processed",
+          "expr": "flatmap_osm_pass2_elements_processed_total\n/\nflatmap_osm_pass1_elements_processed_total",
+          "instant": false,
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
         },
         {
-          "expr": "flatmap_mbtiles_features_processed",
+          "expr": "sum(flatmap_mbtiles_features_processed_total) / sum(flatmap_renderer_features_emitted_total)",
           "interval": "",
           "legendFormat": "mbtiles features",
           "refId": "B"
+        },
+        {
+          "expr": "{__name__=~\"^flatmap_.*running$\"}>0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{__name__}}",
+          "refId": "C"
         }
       ],
       "thresholds": [],
@@ -283,31 +312,31 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_osm_pass1_osm_elements_processed[$interval])",
+          "expr": "rate(flatmap_osm_pass1_elements_processed_total[$interval])",
           "interval": "",
           "legendFormat": "pass1 {{type}}",
           "refId": "A"
         },
         {
-          "expr": "rate(flatmap_osm_pass2_osm_elements_processed[$interval])",
+          "expr": "rate(flatmap_osm_pass2_elements_processed_total[$interval])",
           "interval": "",
           "legendFormat": "pass2 {{type}}",
           "refId": "B"
         },
         {
-          "expr": "rate(flatmap_mbtiles_features_processed[$interval])",
+          "expr": "rate(flatmap_mbtiles_features_processed_total[$interval])",
           "interval": "",
           "legendFormat": "mbtiles features processed",
           "refId": "C"
         },
         {
-          "expr": "sum(rate(flatmap_osm_pass2_features_emitted[$interval])) by (layer)",
+          "expr": "sum(rate(flatmap_renderer_features_emitted_total[$interval])) by (layer)",
           "interval": "",
           "legendFormat": "pass2 emitted {{layer}} feature",
           "refId": "D"
         },
         {
-          "expr": "sum(rate(flatmap_mbtiles_tiles_written_count[$interval])) by (zoom)",
+          "expr": "sum(rate(flatmap_mbtiles_tiles_written_total[$interval])) by (zoom)",
           "interval": "",
           "legendFormat": "z{{zoom}} tiles written",
           "refId": "E"
@@ -822,13 +851,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "(sum(rate(flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"})) * sum(flatmap_osm_pass1_running) > 0",
+          "expr": "(sum(rate(flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"}))",
           "interval": "",
           "legendFormat": "blocked enqueueing",
           "refId": "B"
         },
         {
-          "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^pbfpass1.*$\"}[$interval])) * sum(flatmap_osm_pass1_running) > 0",
+          "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^pbfpass1.*$\"}[$interval]))",
           "interval": "",
           "legendFormat": "PBF reader",
           "refId": "C"
@@ -929,13 +958,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds[$interval]))\n* sum(flatmap_osm_pass1_running) > 0",
+          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds_total[$interval]))",
           "interval": "",
           "legendFormat": "blocked dequeueing",
           "refId": "B"
         },
         {
-          "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_process.*$\"}[$interval])) * sum(flatmap_osm_pass1_running) > 0",
+          "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_process.*$\"}[$interval]))",
           "interval": "",
           "legendFormat": "process CPU",
           "refId": "C"
@@ -1030,13 +1059,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count)",
+          "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count)",
+          "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -1131,13 +1160,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -1333,13 +1362,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds",
+          "expr": "flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "enqueue",
           "refId": "A"
         },
         {
-          "expr": "flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds",
+          "expr": "flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "dequeue",
           "refId": "B"
@@ -1448,7 +1477,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "(sum(rate(flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}))\n* sum(flatmap_osm_pass2_running) > 0",
+          "expr": "(sum(rate(flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}))\n* sum(flatmap_osm_pass2_running) > 0",
           "interval": "",
           "legendFormat": "blocked enqueueing",
           "refId": "B"
@@ -1555,13 +1584,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
           "interval": "",
           "legendFormat": "blocked dequeueing",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
           "interval": "",
           "legendFormat": "blocked enqueueing",
           "refId": "B"
@@ -1668,7 +1697,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds[$interval])\n/\nflatmap_osm_pass2_write_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_write_threads) * (sum(flatmap_osm_pass2_running) > 0)",
           "interval": "",
           "legendFormat": "blocked dequeueing",
           "refId": "A"
@@ -1775,13 +1804,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(flatmap_osm_pass2_reader_queue_enqueue_count)",
+          "expr": "sum(flatmap_osm_pass2_reader_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_osm_pass2_reader_queue_dequeue_count)",
+          "expr": "sum(flatmap_osm_pass2_reader_queue_dequeue_count_total)",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -1876,13 +1905,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_enqueue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -2078,13 +2107,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds",
+          "expr": "flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "enqueue",
           "refId": "A"
         },
         {
-          "expr": "flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds",
+          "expr": "flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "dequeue",
           "refId": "B"
@@ -2179,13 +2208,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(flatmap_osm_pass2_feature_queue_enqueue_count)",
+          "expr": "sum(flatmap_osm_pass2_feature_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_osm_pass2_feature_queue_dequeue_count)",
+          "expr": "sum(flatmap_osm_pass2_feature_queue_dequeue_count_total)",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -2280,13 +2309,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_count[$interval]))",
+          "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -2482,13 +2511,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds",
+          "expr": "flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "enqueue",
           "refId": "A"
         },
         {
-          "expr": "flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds",
+          "expr": "flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "dequeue",
           "refId": "B"
@@ -2597,7 +2626,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_mbtiles_writer_queue_enqueue_block_time_seconds[$interval])\n/\nflatmap_mbtiles_encoder_threads",
+          "expr": "rate(flatmap_mbtiles_writer_queue_enqueue_block_time_seconds_total[$interval])\n/\nflatmap_mbtiles_encoder_threads",
           "interval": "",
           "legendFormat": "blocked enqueueing",
           "refId": "B"
@@ -2704,7 +2733,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_mbtiles_writer_queue_dequeue_block_time_seconds[$interval])\n/\nflatmap_mbtiles_writer_threads",
+          "expr": "rate(flatmap_mbtiles_writer_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_mbtiles_writer_threads",
           "interval": "",
           "legendFormat": "blocked dequeueing",
           "refId": "B"
@@ -2811,13 +2840,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(flatmap_mbtiles_reader_queue_enqueue_count)",
+          "expr": "sum(flatmap_mbtiles_reader_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_mbtiles_reader_queue_dequeue_count)",
+          "expr": "sum(flatmap_mbtiles_reader_queue_dequeue_count_total)",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -2912,13 +2941,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_mbtiles_reader_queue_enqueue_count[$interval]))",
+          "expr": "sum(rate(flatmap_mbtiles_reader_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_mbtiles_reader_queue_dequeue_count[$interval]))",
+          "expr": "sum(rate(flatmap_mbtiles_reader_queue_dequeue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -3114,13 +3143,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_mbtiles_reader_queue_enqueue_block_time_seconds",
+          "expr": "flatmap_mbtiles_reader_queue_enqueue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "enqueue",
           "refId": "A"
         },
         {
-          "expr": "flatmap_mbtiles_reader_queue_dequeue_block_time_seconds",
+          "expr": "flatmap_mbtiles_reader_queue_dequeue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "dequeue",
           "refId": "B"
@@ -3838,12 +3867,12 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "flatmap",
   "uid": "scLmtpaMz",
-  "version": 53
+  "version": 64
 }
