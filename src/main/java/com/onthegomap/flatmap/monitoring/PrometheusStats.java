@@ -9,8 +9,10 @@ import io.prometheus.client.GaugeMetricFamily;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
 import io.prometheus.client.exporter.PushGateway;
+import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.net.URL;
@@ -37,24 +39,26 @@ public class PrometheusStats implements Stats {
 
   private final CollectorRegistry registry = new CollectorRegistry();
   private final Timers timers = new Timers();
-  private static final String NAMESPACE = "flatmap";
   private static final String BASE = "flatmap_";
-  private final PushGateway pg;
-  private final ScheduledExecutorService executor;
+  private PushGateway pg;
+  private ScheduledExecutorService executor;
   private final String job;
   private final Map<String, Path> filesToMonitor = Collections.synchronizedMap(new LinkedHashMap<>());
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = Collections
     .synchronizedMap(new LinkedHashMap<>());
 
-  public PrometheusStats(String destination, String job, Duration interval) {
+  public PrometheusStats(String job) {
     this.job = job;
-    try {
-      DefaultExports.register(registry);
-      new ThreadDetailsExports().register(registry);
-      new InProgressTasks().register(registry);
-      new FileSizeCollector().register(registry);
-      new HeapObjectSizeCollector().register(registry);
+    DefaultExports.register(registry);
+    new ThreadDetailsExports().register(registry);
+    new InProgressTasks().register(registry);
+    new FileSizeCollector().register(registry);
+    new HeapObjectSizeCollector().register(registry);
+  }
 
+  public PrometheusStats(String destination, String job, Duration interval) {
+    this(job);
+    try {
       URL url = new URL(destination);
       pg = new PushGateway(url);
       if (url.getUserInfo() != null) {
@@ -132,6 +136,15 @@ public class PrometheusStats implements Stats {
   @Override
   public void emittedFeatures(int z, String layer, int number) {
     emittedFeatures.labels(Integer.toString(z), layer).inc(number);
+  }
+
+  public String getMetricsAsString() {
+    try (StringWriter writer = new StringWriter()) {
+      TextFormat.write004(writer, registry.metricFamilySamples());
+      return writer.toString();
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   private final Histogram tilesWrittenBytes = Histogram
