@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -ex
 
-protoc --java_out=src/main/java/ src/main/resources/vector_tile.proto
+protoc --java_out=core/src/main/java/ core/src/main/resources/vector_tile.proto
