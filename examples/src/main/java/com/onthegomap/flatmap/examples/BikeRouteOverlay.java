@@ -39,7 +39,13 @@ public class BikeRouteOverlay implements Profile {
           relation.getTag("name"),
           relation.getTag("ref"),
           type,
-          relation.getTag("network", "")
+          switch (relation.getTag("network", "")) {
+            case "icn" -> "international";
+            case "ncn" -> "national";
+            case "rcn" -> "regional";
+            case "lcn" -> "local";
+            default -> "other";
+          }
         ));
       }
     }
@@ -50,15 +56,10 @@ public class BikeRouteOverlay implements Profile {
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.canBeLine()) {
       for (RouteRelationInfo routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class)) {
-        int minzoom = switch (routeInfo.network) {
-          case "icn", "ncn" -> 0;
-          case "rcn" -> 10;
-          default -> 12;
-        };
-        features.line("bikeroutes-" + routeInfo.route + "-" + routeInfo.network)
+        features.line(routeInfo.route + "-route-" + routeInfo.network)
           .setAttr("name", routeInfo.name)
           .setAttr("ref", routeInfo.ref)
-          .setZoomRange(minzoom, 14)
+          .setZoomRange(0, 14)
           .setMinPixelSize(0);
       }
     }
@@ -67,7 +68,7 @@ public class BikeRouteOverlay implements Profile {
   @Override
   public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTileEncoder.Feature> items) throws GeometryException {
-    return FeatureMerge.mergeLineStrings(items, 0.1, 0.1, 4);
+    return FeatureMerge.mergeLineStrings(items, 0.5, 0.1, 4);
   }
 
   @Override

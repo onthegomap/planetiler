@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.monitoring;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -124,7 +125,9 @@ public class PrometheusStatsTest {
       "value1", counterAt(1),
       "value2", counterAt(2)
     ));
-    stats.longCounter("long").incBy(100);
+    var longCounter = stats.longCounter("long");
+    longCounter.incBy(100);
+    assertEquals(100, longCounter.get());
     stats.nanoCounter("nanos").incBy((long) (NANOSECONDS_PER_SECOND / 2));
     assertContainsStat("^flatmap_counter1_total 1", stats);
     assertContainsStat("^flatmap_counter2_total\\{.*label=\"value1\".* 1", stats);

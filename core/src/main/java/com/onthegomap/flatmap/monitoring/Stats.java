@@ -90,7 +90,7 @@ public interface Stats extends AutoCloseable {
 
     @Override
     public Counter.Readable longCounter(String name) {
-      return Counter.noop();
+      return Counter.newSingleThreadCounter();
     }
 
     @Override
