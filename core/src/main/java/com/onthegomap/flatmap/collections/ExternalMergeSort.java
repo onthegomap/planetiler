@@ -113,7 +113,7 @@ class ExternalMergeSort implements FeatureSort {
         // ok
       }
     }
-    long start = System.nanoTime();
+    var timer = stats.startTimer("sort");
     AtomicLong reading = new AtomicLong(0);
     AtomicLong writing = new AtomicLong(0);
     AtomicLong sorting = new AtomicLong(0);
@@ -144,8 +144,8 @@ class ExternalMergeSort implements FeatureSort {
     topology.await();
 
     sorted = true;
-    LOGGER.info("Sorted all chunks " + Duration.ofNanos(System.nanoTime() - start).toSeconds() +
-      "s read:" + Duration.ofNanos(reading.get()).toSeconds() +
+    timer.stop();
+    LOGGER.info("read:" + Duration.ofNanos(reading.get()).toSeconds() +
       "s write:" + Duration.ofNanos(writing.get()).toSeconds() +
       "s sort:" + Duration.ofNanos(sorting.get()).toSeconds() + "s");
   }

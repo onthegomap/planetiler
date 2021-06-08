@@ -1,5 +1,11 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.openmaptiles;
 
+import com.onthegomap.flatmap.Arguments;
+import com.onthegomap.flatmap.CommonParams;
+import com.onthegomap.flatmap.FileUtils;
+import com.onthegomap.flatmap.OpenMapTilesMain;
+import com.onthegomap.flatmap.Translations;
+import com.onthegomap.flatmap.Wikidata;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.collections.LongLongMap;
@@ -15,7 +21,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpenMapTilesMain {
+public class Main {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesMain.class);
 
@@ -75,38 +81,34 @@ public class OpenMapTilesMain {
     stats.monitorFile("mbtiles", mbtilesOutputPath);
 
     if (fetchWikidata) {
-      stats.time("wikidata", () -> Wikidata.fetch(osmInputFile, wikidataNamesFile, config, profile, stats));
+      Wikidata.fetch(osmInputFile, wikidataNamesFile, config, profile, stats);
     }
     if (useWikidata) {
       translations.addTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
 
-    stats.time("lake_centerlines", () ->
-      ShapefileReader
-        .process("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE, centerlines, featureMap, config, profile,
-          stats));
-    stats.time("water_polygons", () ->
-      ShapefileReader
-        .process(OpenMapTilesProfile.WATER_POLYGON_SOURCE, waterPolygons, featureMap, config, profile, stats));
-    stats.time("natural_earth", () ->
-      NaturalEarthReader
-        .process(OpenMapTilesProfile.NATURAL_EARTH_SOURCE, naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap,
-          config, profile, stats)
-    );
+    ShapefileReader
+      .process("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE, centerlines, featureMap, config, profile,
+        stats);
+    ShapefileReader
+      .process(OpenMapTilesProfile.WATER_POLYGON_SOURCE, waterPolygons, featureMap, config, profile, stats);
+    NaturalEarthReader
+      .process(OpenMapTilesProfile.NATURAL_EARTH_SOURCE, naturalEarth, tmpDir.resolve("natearth.sqlite"), featureMap,
+        config, profile, stats);
 
     try (var osmReader = new OpenStreetMapReader(OpenMapTilesProfile.OSM_SOURCE, osmInputFile, nodeLocations, profile,
       stats)) {
-      stats.time("osm_pass1", () -> osmReader.pass1(config));
-      stats.time("osm_pass2", () -> osmReader.pass2(featureMap, config));
+      osmReader.pass1(config);
+      osmReader.pass2(featureMap, config);
     }
 
     LOGGER.info("Deleting node.db to make room for mbtiles");
     profile.release();
     Files.delete(nodeDbPath);
 
-    stats.time("sort", featureDb::sort);
+    featureDb.sort();
 
-    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, mbtilesOutputPath, profile, config, stats));
+    MbtilesWriter.writeOutput(featureMap, mbtilesOutputPath, profile, config, stats);
 
     overallTimer.stop();
 

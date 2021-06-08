@@ -13,12 +13,6 @@ public class TimersTest {
     assertTrue(timers.all().isEmpty());
     timers.printSummary();
 
-    timers.time("task1", () -> {
-      assertTrue(timers.all().get("task1").running());
-    });
-
-    assertFalse(timers.all().get("task1").running());
-
     var finish = timers.startTimer("task2");
     assertTrue(timers.all().get("task2").running());
     finish.stop();

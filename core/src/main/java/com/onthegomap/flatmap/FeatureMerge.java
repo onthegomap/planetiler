@@ -107,7 +107,9 @@ public class FeatureMerge {
       } else { // out
         // wait to flush until 2 consecutive outs
         if (!current.isEmpty()) {
-          output.add(GeoUtils.JTS_FACTORY.createLineString(current));
+          if (current.size() >= 2) {
+            output.add(GeoUtils.JTS_FACTORY.createLineString(current));
+          }
           current = new MutableCoordinateSequence();
         }
       }

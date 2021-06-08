@@ -75,6 +75,7 @@ public class MbtilesWriter {
 
   public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
     CommonParams config, Stats stats) {
+    var timer = stats.startTimer("mbtiles");
     MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats, features.layerStats());
 
     var topology = Topology.start("mbtiles", stats)
@@ -93,6 +94,7 @@ public class MbtilesWriter {
       .addTopologyStats(topology);
 
     topology.awaitAndLog(loggers, config.logInterval());
+    timer.stop();
   }
 
   void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<Mbtiles.TileEntry> next) throws IOException {

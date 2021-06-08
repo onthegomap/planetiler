@@ -12,12 +12,6 @@ public class Timers {
   private static final Logger LOGGER = LoggerFactory.getLogger(Stats.InMemory.class);
   private final Map<String, Timer> timers = Collections.synchronizedMap(new LinkedHashMap<>());
 
-  public void time(String name, Runnable task) {
-    Finishable timer = startTimer(name);
-    task.run();
-    timer.stop();
-  }
-
   public void printSummary() {
     LOGGER.info("-".repeat(50));
     int pad = 1 + timers.keySet().stream().mapToInt(String::length).max().orElse("# features".length());

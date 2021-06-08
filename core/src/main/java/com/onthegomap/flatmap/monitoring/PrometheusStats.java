@@ -89,11 +89,6 @@ public class PrometheusStats implements Stats {
   }
 
   @Override
-  public void time(String name, Runnable task) {
-    timers.time(name, task);
-  }
-
-  @Override
   public Timers.Finishable startTimer(String name) {
     return timers.startTimer(name);
   }

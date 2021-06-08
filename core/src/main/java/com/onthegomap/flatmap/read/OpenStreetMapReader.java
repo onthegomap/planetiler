@@ -90,6 +90,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass1(CommonParams config) {
+    var timer = stats.startTimer(name + "_pass1");
     var topology = Topology.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass1", config.threads() - 1))
       .addBuffer("reader_queue", 50_000, 10_000)
@@ -105,6 +106,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addThreadPoolStats("parse", "pool-")
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
+    timer.stop();
   }
 
   void processPass1(ReaderElement readerElement) {
@@ -138,6 +140,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass2(FeatureGroup writer, CommonParams config) {
+    var timer = stats.startTimer(name + "_pass2");
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
@@ -213,6 +216,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
+    timer.stop();
   }
 
   SourceFeature processRelationPass2(ReaderRelation rel, NodeLocationProvider nodeCache) {

@@ -9,8 +9,6 @@ import java.util.function.Supplier;
 
 public interface Stats extends AutoCloseable {
 
-  void time(String name, Runnable task);
-
   default void printSummary() {
     timers().printSummary();
   }
@@ -56,11 +54,6 @@ public interface Stats extends AutoCloseable {
   class InMemory implements Stats {
 
     private final Timers timers = new Timers();
-
-    @Override
-    public void time(String name, Runnable task) {
-      timers.time(name, task);
-    }
 
     @Override
     public Timers.Finishable startTimer(String name) {

@@ -119,12 +119,12 @@ public class BikeRouteOverlay implements Profile {
 
     try (var osmReader = new OpenStreetMapReader(OpenMapTilesProfile.OSM_SOURCE, osmInputFile, nodeLocations, profile,
       stats)) {
-      stats.time("osm_pass1", () -> osmReader.pass1(config));
-      stats.time("osm_pass2", () -> osmReader.pass2(featureMap, config));
+      osmReader.pass1(config);
+      osmReader.pass2(featureMap, config);
     }
 
-    stats.time("sort", featureDb::sort);
-    stats.time("mbtiles", () -> MbtilesWriter.writeOutput(featureMap, mbtilesOutputPath, profile, config, stats));
+    featureDb.sort();
+    MbtilesWriter.writeOutput(featureMap, mbtilesOutputPath, profile, config, stats);
 
     overallTimer.stop();
 
