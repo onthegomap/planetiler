@@ -1,31 +1,18 @@
 package com.onthegomap.flatmap.examples;
 
 import com.graphhopper.reader.ReaderRelation;
-import com.onthegomap.flatmap.Arguments;
-import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.FileUtils;
+import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.collections.FeatureGroup;
-import com.onthegomap.flatmap.collections.FeatureSort;
-import com.onthegomap.flatmap.collections.LongLongMap;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.profiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
-import com.onthegomap.flatmap.read.OsmInputFile;
-import com.onthegomap.flatmap.write.MbtilesWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class BikeRouteOverlay implements Profile {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(BikeRouteOverlay.class);
 
   private static record RouteRelationInfo(String name, String ref, String route, String network) implements
     OpenStreetMapReader.RelationInfo {}
@@ -94,43 +81,10 @@ public class BikeRouteOverlay implements Profile {
   }
 
   public static void main(String[] args) throws Exception {
-    Arguments arguments = Arguments.fromJvmProperties();
-    var stats = arguments.getStats();
-    var overallTimer = stats.startTimer("overall");
-    Path sourcesDir = Path.of("data", "sources");
-    OsmInputFile osmInputFile = new OsmInputFile(
-      arguments.inputFile("input", "OSM input file", sourcesDir.resolve("north-america_us_massachusetts.pbf")));
-    Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
-    Path mbtilesOutputPath = arguments.file("output", "mbtiles output file", Path.of("data", "bikeroutes.mbtiles"));
-    CommonParams config = CommonParams.from(arguments, osmInputFile);
-
-    FileUtils.deleteFile(mbtilesOutputPath);
-
-    LOGGER.info("Building Bike path overlay example into " + mbtilesOutputPath);
-
-    var profile = new BikeRouteOverlay();
-
-    Files.createDirectories(tmpDir);
-    Path nodeDbPath = tmpDir.resolve("node.db");
-    LongLongMap nodeLocations = LongLongMap.newFileBackedSortedTable(nodeDbPath);
-    Path featureDbPath = tmpDir.resolve("feature.db");
-    FeatureSort featureDb = FeatureSort.newExternalMergeSort(featureDbPath, config.threads(), stats);
-    FeatureGroup featureMap = new FeatureGroup(featureDb, profile, stats);
-
-    try (var osmReader = new OpenStreetMapReader(OpenMapTilesProfile.OSM_SOURCE, osmInputFile, nodeLocations, profile,
-      stats)) {
-      osmReader.pass1(config);
-      osmReader.pass2(featureMap, config);
-    }
-
-    featureDb.sort();
-    MbtilesWriter.writeOutput(featureMap, mbtilesOutputPath, profile, config, stats);
-
-    overallTimer.stop();
-
-    LOGGER.info("FINISHED!");
-
-    stats.printSummary();
-    stats.close();
+    FlatMapRunner.create()
+      .setProfile(new BikeRouteOverlay())
+      .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))
+      .overwriteOutput("mbtiles", Path.of("data", "bikeroutes.mbtiles"))
+      .run();
   }
 }

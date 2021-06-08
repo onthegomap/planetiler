@@ -61,7 +61,7 @@ public class Arguments {
   public Envelope bounds(String arg, String description, BoundsProvider defaultBounds) {
     String input = getArg(arg);
     Envelope result;
-    if (input == null) {
+    if (input == null && defaultBounds != null) {
       // get from input file
       result = defaultBounds.getBounds();
     } else if ("world".equalsIgnoreCase(input)) {

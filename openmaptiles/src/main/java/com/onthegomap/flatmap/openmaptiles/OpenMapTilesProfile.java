@@ -1,10 +1,11 @@
-package com.onthegomap.flatmap.profiles;
+package com.onthegomap.flatmap.openmaptiles;
 
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -21,6 +22,10 @@ public class OpenMapTilesProfile implements Profile {
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
+
+  public OpenMapTilesProfile(Translations translations) {
+
+  }
 
   @Override
   public void release() {

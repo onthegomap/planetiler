@@ -27,6 +27,7 @@ public abstract class Reader implements Closeable {
   }
 
   public final void process(FeatureGroup writer, CommonParams config) {
+    var timer = stats.startTimer(sourceName);
     long featureCount = getCount();
     int threads = config.threads();
     Envelope latLonBounds = config.latLonBounds();
@@ -70,6 +71,7 @@ public abstract class Reader implements Closeable {
       .addTopologyStats(topology);
 
     topology.awaitAndLog(loggers, config.logInterval());
+    timer.stop();
   }
 
   public abstract long getCount();

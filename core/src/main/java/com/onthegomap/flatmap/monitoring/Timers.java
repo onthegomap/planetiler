@@ -24,7 +24,7 @@ public class Timers {
     Timer timer = new Timer().start();
     timers.put(name, timer);
     LOGGER.info("[" + name + "] Starting...");
-    return () -> LOGGER.info("[" + name + "] Finished in " + timers.get(name).stop());
+    return () -> LOGGER.info("[" + name + "] Finished in " + timers.get(name).stop() + "\n");
   }
 
   public Map<String, Timer> all() {
