@@ -16,7 +16,6 @@
     <graphhopper.version>2.3</graphhopper.version>
     <geotools.version>25.0</geotools.version>
     <junit.version>5.7.1</junit.version>
-    <jackson.version>2.12.3</jackson.version>
     <log4j.version>2.14.1</log4j.version>
     <prometheus.version>0.11.0</prometheus.version>
   </properties>
