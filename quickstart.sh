@@ -4,7 +4,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-JAR="target/flatmap-0.1-SNAPSHOT-jar-with-dependencies.jar"
+JAR="openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-jar-with-dependencies.jar"
 
 echo "Downloading data..."
 AREA="${1:-north-america_us_massachusetts}"
@@ -13,11 +13,11 @@ AREA="${1:-north-america_us_massachusetts}"
 
 if [ ! -f "$JAR" ]; then
   echo "Building..."
-  mvn -DskipTests=true package
+  mvn -DskipTests=true --projects openmaptiles -am clean package
 fi
 
 echo "Running..."
 java -Dinput="./data/sources/${AREA}.pbf" \
   -Dforce=true \
   -cp "$JAR" \
-  com.onthegomap.flatmap.OpenMapTilesMain
+  com.onthegomap.flatmap.openmaptiles.OpenMaptilesMain
