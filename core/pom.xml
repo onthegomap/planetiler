@@ -15,7 +15,6 @@
   <properties>
     <graphhopper.version>2.3</graphhopper.version>
     <geotools.version>25.0</geotools.version>
-    <junit.version>5.7.1</junit.version>
     <log4j.version>2.14.1</log4j.version>
     <prometheus.version>0.11.0</prometheus.version>
   </properties>
@@ -110,31 +109,6 @@
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
       <version>${prometheus.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <version>3.9.0</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

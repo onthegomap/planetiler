@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 public class OpenMapTilesProfile implements Profile {
 
-  private static boolean MERGE_Z13_BUILDINGS = false;
+  private static final boolean MERGE_Z13_BUILDINGS = false;
 
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";

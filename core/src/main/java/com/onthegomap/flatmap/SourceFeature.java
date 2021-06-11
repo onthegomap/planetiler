@@ -174,4 +174,25 @@ public abstract class SourceFeature {
   public final long id() {
     return id;
   }
+
+  public String getString(String key) {
+    Object value = getTag(key);
+    return value == null ? null : value.toString();
+  }
+
+  public boolean getBoolean(String key) {
+    return Parse.bool(getTag(key));
+  }
+
+  public long getLong(String key) {
+    return Parse.parseLong(getTag(key));
+  }
+
+  public int getDirection(String key) {
+    return Parse.direction(getTag(key));
+  }
+
+  public int getWayZorder() {
+    return Parse.wayzorder(properties);
+  }
 }

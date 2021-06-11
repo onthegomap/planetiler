@@ -19,9 +19,9 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>1.29</version>
     </dependency>
   </dependencies>
 
