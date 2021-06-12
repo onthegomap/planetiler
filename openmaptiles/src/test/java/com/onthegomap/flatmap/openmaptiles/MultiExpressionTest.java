@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.openmaptiles;
 import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -158,11 +159,23 @@ public class MultiExpressionTest {
         matchAny("key3", "val3")
       )
     )).index();
-//    assertSameElements(List.of("a"), index.getMatches(Map.of("key1", "val1")));
-    // TODO: match {key1=val1} => "key1"
+    assertSameElements(List.of(new MultiExpression.MultiExpressionIndex.MatchWithTriggers<>(
+      "a", List.of("key1")
+    )), index.getMatchesWithTriggers(Map.of("key1", "val1")));
+    assertSameElements(List.of(new MultiExpression.MultiExpressionIndex.MatchWithTriggers<>(
+      "a", List.of("key2")
+    ), new MultiExpression.MultiExpressionIndex.MatchWithTriggers<>(
+      "b", List.of("key2")
+    )), index.getMatchesWithTriggers(Map.of("key2", "val2")));
+    assertSameElements(List.of(new MultiExpression.MultiExpressionIndex.MatchWithTriggers<>(
+      "b", List.of("key3")
+    )), index.getMatchesWithTriggers(Map.of("key3", "val3")));
   }
 
-  private static void assertSameElements(List<String> a, List<String> b) {
-    assertEquals(a.stream().sorted().toList(), b.stream().sorted().toList());
+  private static <T> void assertSameElements(List<T> a, List<T> b) {
+    assertEquals(
+      a.stream().sorted(Comparator.comparing(Object::toString)).toList(),
+      b.stream().sorted(Comparator.comparing(Object::toString)).toList()
+    );
   }
 }

@@ -57,7 +57,7 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       }
     }
 
-    private static boolean evaluate(Expression expr, Map<String, Object> input) {
+    private static boolean evaluate(Expression expr, Map<String, Object> input, List<String> matchKeys) {
       // optimization: since this is evaluated for every input element, use
       // simple for loops instead of enhanced to avoid overhead of generating the
       // iterator (~30% speedup)
@@ -69,24 +69,27 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
         } else {
           String str = value.toString();
           if (match.exactMatches().contains(str)) {
+            matchKeys.add(match.field());
             return true;
           }
           List<String> wildcards = match.wildcards();
           for (int i = 0; i < wildcards.size(); i++) {
             var target = wildcards.get(i);
             if (str.contains(target)) {
+              matchKeys.add(match.field());
               return true;
             }
           }
           return false;
         }
       } else if (expr instanceof Expression.MatchField match) {
+        matchKeys.add(match.field());
         return input.containsKey(match.field());
       } else if (expr instanceof Expression.Or or) {
         List<Expression> children = or.children();
         for (int i = 0; i < children.size(); i++) {
           Expression child = children.get(i);
-          if (evaluate(child, input)) {
+          if (evaluate(child, input, matchKeys)) {
             return true;
           }
         }
@@ -95,20 +98,22 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
         List<Expression> children = and.children();
         for (int i = 0; i < children.size(); i++) {
           Expression child = children.get(i);
-          if (!evaluate(child, input)) {
+          if (!evaluate(child, input, matchKeys)) {
             return false;
           }
         }
         return true;
       } else if (expr instanceof Expression.Not not) {
-        return !evaluate(not.child(), input);
+        return !evaluate(not.child(), input, new ArrayList<>());
       } else {
         throw new IllegalArgumentException("Unrecognized expression: " + expr);
       }
     }
 
-    public List<T> getMatches(Map<String, Object> input) {
-      List<T> result = new ArrayList<>();
+    public static record MatchWithTriggers<T>(T match, List<String> keys) {}
+
+    public List<MatchWithTriggers<T>> getMatchesWithTriggers(Map<String, Object> input) {
+      List<MatchWithTriggers<T>> result = new ArrayList<>();
       BitSet visited = new BitSet(ids.get());
       if (input.size() < keyToExpressionsMap.size()) {
         for (String inputKey : input.keySet()) {
@@ -129,7 +134,12 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       return result;
     }
 
-    private void visitExpression(Map<String, Object> input, List<T> result, BitSet visited,
+    public List<T> getMatches(Map<String, Object> input) {
+      List<MatchWithTriggers<T>> matches = getMatchesWithTriggers(input);
+      return matches.stream().map(d -> d.match).toList();
+    }
+
+    private void visitExpression(Map<String, Object> input, List<MatchWithTriggers<T>> result, BitSet visited,
       List<ExpressionValue<T>> expressionValues) {
       if (expressionValues != null) {
         // optimization: since this is evaluated for every element, generating an iterator
@@ -138,8 +148,9 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
           var expressionValue = expressionValues.get(i);
           if (!visited.get(expressionValue.id)) {
             visited.set(expressionValue.id);
-            if (evaluate(expressionValue.exp(), input)) {
-              result.add(expressionValue.result);
+            List<String> matchKeys = new ArrayList<>();
+            if (evaluate(expressionValue.exp(), input, matchKeys)) {
+              result.add(new MatchWithTriggers<>(expressionValue.result, matchKeys));
             }
           }
         }
