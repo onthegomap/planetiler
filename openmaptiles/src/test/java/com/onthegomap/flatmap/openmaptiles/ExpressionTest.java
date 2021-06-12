@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.openmaptiles;
 
 import static com.onthegomap.flatmap.openmaptiles.Expression.and;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchAny;
+import static com.onthegomap.flatmap.openmaptiles.Expression.not;
 import static com.onthegomap.flatmap.openmaptiles.Expression.or;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -9,42 +10,57 @@ import org.junit.jupiter.api.Test;
 
 public class ExpressionTest {
 
+  public static final Expression.MatchAny matchAB = matchAny("a", "b");
+  public static final Expression.MatchAny matchCD = matchAny("c", "d");
+  public static final Expression.MatchAny matchBC = matchAny("b", "c");
+
   @Test
   public void testSimplify() {
-    assertEquals(matchAny("a", "b"), matchAny("a", "b").simplify());
+    assertEquals(matchAB, matchAB.simplify());
   }
 
   @Test
   public void testSimplifyAdjacentOrs() {
-    assertEquals(or(matchAny("a", "b"), matchAny("c", "d")),
-      or(or(matchAny("a", "b")), or(matchAny("c", "d"))).simplify()
+    assertEquals(or(matchAB, matchCD),
+      or(or(matchAB), or(matchCD)).simplify()
     );
   }
 
   @Test
   public void testSimplifyOrWithOneChild() {
-    assertEquals(matchAny("a", "b"), or(matchAny("a", "b")).simplify());
+    assertEquals(matchAB, or(matchAB).simplify());
   }
 
   @Test
   public void testSimplifyOAndWithOneChild() {
-    assertEquals(matchAny("a", "b"), and(matchAny("a", "b")).simplify());
+    assertEquals(matchAB, and(matchAB).simplify());
   }
 
   @Test
   public void testSimplifyDeeplyNested() {
-    assertEquals(matchAny("a", "b"), or(or(and(and(matchAny("a", "b"))))).simplify());
+    assertEquals(matchAB, or(or(and(and(matchAB)))).simplify());
   }
 
   @Test
   public void testSimplifyDeeplyNested2() {
-    assertEquals(or(matchAny("a", "b"), matchAny("b", "c")),
-      or(or(and(and(matchAny("a", "b"))), matchAny("b", "c"))).simplify());
+    assertEquals(or(matchAB, matchBC),
+      or(or(and(and(matchAB)), matchBC)).simplify());
   }
 
   @Test
   public void testSimplifyDeeplyNested3() {
-    assertEquals(or(and(matchAny("a", "b"), matchAny("c", "d")), matchAny("b", "c")),
-      or(or(and(and(matchAny("a", "b")), matchAny("c", "d")), matchAny("b", "c"))).simplify());
+    assertEquals(or(and(matchAB, matchCD), matchBC),
+      or(or(and(and(matchAB), matchCD), matchBC)).simplify());
+  }
+
+  @Test
+  public void testNotNot() {
+    assertEquals(matchAB, not(not(matchAB)).simplify());
+  }
+
+  @Test
+  public void testDemorgans() {
+    assertEquals(or(not(matchAB), not(matchBC)), not(and(matchAB, matchBC)).simplify());
+    assertEquals(and(not(matchAB), not(matchBC)), not(or(matchAB, matchBC)).simplify());
   }
 }

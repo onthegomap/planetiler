@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.openmaptiles;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,6 +23,10 @@ public interface Expression {
 
   static Or or(List<Expression> children) {
     return new Or(children);
+  }
+
+  static Not not(Expression child) {
+    return new Not(child);
   }
 
   static MatchAny matchAny(String field, String... values) {
@@ -45,7 +50,16 @@ public interface Expression {
   }
 
   private static Expression simplifyOnce(Expression expression) {
-    if (expression instanceof Or or) {
+    if (expression instanceof Not not) {
+      if (not.child instanceof Or or) {
+        return and(or.children.stream().<Expression>map(Expression::not).toList());
+      } else if (not.child instanceof And and) {
+        return or(and.children.stream().<Expression>map(Expression::not).toList());
+      } else if (not.child instanceof Not not2) {
+        return not2.child;
+      }
+      return not;
+    } else if (expression instanceof Or or) {
       if (or.children.size() == 1) {
         return simplifyOnce(or.children.get(0));
       }
@@ -95,15 +109,31 @@ public interface Expression {
     }
   }
 
-  record MatchExact(String field, String value) implements Expression {
+  record Not(Expression child) implements Expression {
 
     @Override
     public String toString() {
-      return "matchExact(" + Generate.quote(field) + ", " + Generate.quote(value) + ")";
+      return "not(" + child + ")";
     }
   }
 
-  record MatchAny(String field, List<String> values) implements Expression {
+  record MatchAny(String field, List<String> values, Set<String> exactMatches, List<String> wildcards) implements
+    Expression {
+
+    private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
+
+    MatchAny(String field, List<String> values) {
+      this(field, values,
+        values.stream().filter(v -> !v.contains("%")).collect(Collectors.toSet()),
+        values.stream().filter(v -> v.contains("%")).map(val -> {
+          var matcher = containsPattern.matcher(val);
+          if (!matcher.matches()) {
+            throw new IllegalArgumentException("wildcards must start/end with %: " + val);
+          }
+          return matcher.group(1);
+        }).toList()
+      );
+    }
 
     @Override
     public String toString() {
@@ -117,14 +147,6 @@ public interface Expression {
     @Override
     public String toString() {
       return "matchField(" + Generate.quote(field) + ")";
-    }
-  }
-
-  record MatchWildcard(String field, String wildcard) implements Expression {
-
-    @Override
-    public String toString() {
-      return "matchWildcard(" + Generate.quote(field) + ", " + Generate.quote(wildcard) + ")";
     }
   }
 }

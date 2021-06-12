@@ -1,9 +1,6 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import static com.onthegomap.flatmap.openmaptiles.Expression.and;
-import static com.onthegomap.flatmap.openmaptiles.Expression.matchAny;
-import static com.onthegomap.flatmap.openmaptiles.Expression.matchField;
-import static com.onthegomap.flatmap.openmaptiles.Expression.or;
+import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 import static java.util.stream.Collectors.joining;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -75,9 +72,9 @@ public class Generate {
     boolean from_member
   ) {}
 
-  private static record Imposm3Filters(
-    Map<String, List<String>> reject,
-    Map<String, List<String>> require
+  static record Imposm3Filters(
+    JsonNode reject,
+    JsonNode require
   ) {}
 
   private static record Imposm3Table(
@@ -117,7 +114,7 @@ public class Generate {
   }
 
   static JsonNode parseYaml(String string) {
-    return parseYaml(string, JsonNode.class);
+    return string == null ? null : parseYaml(string, JsonNode.class);
   }
 
   public static void main(String[] args) throws IOException {
@@ -173,41 +170,73 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
-      import com.onthegomap.flatmap.openmaptiles.FieldMapping;
-      import java.util.List;
+      import com.onthegomap.flatmap.openmaptiles.Expression;
+      import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import java.util.Map;
 
       public class Tables {
+        public interface Table {}
       """.formatted(packageName));
 
+    List<String> classNames = new ArrayList<>();
     for (var entry : tables.entrySet()) {
       String key = entry.getKey();
       Imposm3Table table = entry.getValue();
       List<OsmTableField> fields = getFields(table);
+      Expression mappingExpression = parseImposm3MappingExpression(table.mapping, table.filters);
+      String mapping = "public static final Expression MAPPING = %s;".formatted(
+        mappingExpression
+      );
+      String className = lowerUnderscoreToUpperCamel("osm_" + key);
+      classNames.add(className);
       if (fields.size() <= 1) {
-        tablesClass.append("public static record %s(%s) {}".formatted(
-          lowerUnderscoreToUpperCamel("osm_" + key),
+        tablesClass.append("""
+          public static record %s(%s) implements Table {
+            %s
+          }
+          """.formatted(
+          className,
           fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
-            .collect(joining(", "))).indent(2));
+            .collect(joining(", ")),
+          mapping
+        ).indent(2));
       } else {
         tablesClass.append("""
-          public static record %s(%s) {
+          public static record %s(%s) implements Table {
             public %s(com.onthegomap.flatmap.SourceFeature source) {
               this(%s);
             }
+            %s
           }
           """.formatted(
-          lowerUnderscoreToUpperCamel("osm_" + key),
+          className,
           fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
             .collect(joining(", ")),
-          lowerUnderscoreToUpperCamel("osm_" + key),
-          fields.stream().map(c -> c.extractCode).collect(joining(", "))
+          className,
+          fields.stream().map(c -> c.extractCode).collect(joining(", ")),
+          mapping
         ).indent(2));
       }
     }
 
+    tablesClass.append("""
+      public static final MultiExpression<java.util.function.Function<com.onthegomap.flatmap.SourceFeature, Table>> MAPPINGS = MultiExpression.of(Map.ofEntries(
+        %s
+      ));
+      """.formatted(
+      classNames.stream().map(className -> "Map.entry(%s::new, %s.MAPPING)".formatted(className, className))
+        .collect(joining(",\n")).indent(2).strip()
+    ).indent(2));
     tablesClass.append("}");
     Files.writeString(output.resolve("Tables.java"), tablesClass);
+  }
+
+  static Expression parseImposm3MappingExpression(JsonNode mapping, Imposm3Filters filters) {
+    return and(
+      or(parseExpression(mapping).toList()),
+      and(filters == null || filters.require == null ? List.of() : parseExpression(filters.require).toList()),
+      not(or(filters == null || filters.reject == null ? List.of() : parseExpression(filters.reject).toList()))
+    ).simplify();
   }
 
   private static List<OsmTableField> getFields(Imposm3Table tableDefinition) {
@@ -220,7 +249,7 @@ public class Generate {
           // do nothing - already on source feature
         }
         case "member_id", "member_role", "member_type", "member_index" -> {
-
+          // TODO
         }
         case "mapping_key" -> {
           // TODO?
@@ -260,7 +289,7 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
-      import com.onthegomap.flatmap.openmaptiles.FieldMapping;
+      import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import java.util.List;
       import java.util.Map;
 
@@ -319,8 +348,8 @@ public class Generate {
         }
 
         if (valuesNode != null && valuesNode.isObject()) {
-          FieldMapping mapping = generateFieldMapping(valuesNode);
-          fieldMappings.append("    public static final FieldMapping %s = %s;\n"
+          MultiExpression<String> mapping = generateFieldMapping(valuesNode);
+          fieldMappings.append("    public static final MultiExpression<String> %s = %s;\n"
             .formatted(lowerUnderscoreToUpperCamel(name), generateCode(mapping)));
         }
       });
@@ -355,14 +384,14 @@ public class Generate {
     Files.writeString(output.resolve("Layers.java"), layersClass);
   }
 
-  static FieldMapping generateFieldMapping(JsonNode valuesNode) {
-    FieldMapping mapping = new FieldMapping(new LinkedHashMap<>());
+  static MultiExpression<String> generateFieldMapping(JsonNode valuesNode) {
+    MultiExpression<String> mapping = MultiExpression.of(new LinkedHashMap<>());
     valuesNode.fields().forEachRemaining(entry -> {
       String field = entry.getKey();
       JsonNode node = entry.getValue();
       Expression expression = or(parseExpression(node).toList()).simplify();
       if (!expression.equals(or()) && !expression.equals(and())) {
-        mapping.mappings().put(field, expression);
+        mapping.expressions().put(field, expression);
       }
     });
     return mapping;
@@ -385,7 +414,7 @@ public class Generate {
         return iterToList(node.fields()).stream().map(entry -> {
           String field = entry.getKey();
           List<String> value = toFlatList(entry.getValue()).map(JsonNode::textValue).filter(Objects::nonNull).toList();
-          return value.isEmpty() ? matchField(field) : matchAny(field, value);
+          return value.isEmpty() || value.contains("__any__") ? matchField(field) : matchAny(field, value);
         });
       }
     } else if (node.isArray()) {
@@ -401,8 +430,8 @@ public class Generate {
     return node.isArray() ? iterToList(node.elements()).stream().flatMap(Generate::toFlatList) : Stream.of(node);
   }
 
-  private static String generateCode(FieldMapping mapping) {
-    return "new FieldMapping(Map.ofEntries(" + mapping.mappings().entrySet().stream()
+  private static String generateCode(MultiExpression<String> mapping) {
+    return "MultiExpression.of(Map.ofEntries(" + mapping.expressions().entrySet().stream()
       .map(s -> "Map.entry(%s, %s)".formatted(quote(s.getKey()), s.getValue()))
       .collect(joining(", ")) + "))";
   }
