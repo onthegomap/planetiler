@@ -172,6 +172,25 @@ public class MultiExpressionTest {
     )), index.getMatchesWithTriggers(Map.of("key3", "val3")));
   }
 
+  @Test
+  public void testTracksMatchingKeyFromCorrectPath() {
+    var index = MultiExpression.of(Map.of(
+      "a", or(
+        and(
+          matchAny("key3", "val3"),
+          matchAny("key2", "val2")
+        ),
+        and(
+          matchAny("key1", "val1"),
+          matchAny("key3", "val3")
+        )
+      )
+    )).index();
+    assertSameElements(List.of(new MultiExpression.MultiExpressionIndex.MatchWithTriggers<>(
+      "a", List.of("key1", "key3")
+    )), index.getMatchesWithTriggers(Map.of("key1", "val1", "key3", "val3")));
+  }
+
   private static <T> void assertSameElements(List<T> a, List<T> b) {
     assertEquals(
       a.stream().sorted(Comparator.comparing(Object::toString)).toList(),

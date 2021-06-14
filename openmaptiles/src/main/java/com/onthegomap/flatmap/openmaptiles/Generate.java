@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.apache.commons.text.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -43,6 +44,8 @@ public class Generate {
     List<String> layers,
     String version,
     String attribution,
+    String name,
+    String description,
     List<String> languages
   ) {}
 
@@ -77,13 +80,13 @@ public class Generate {
     JsonNode require
   ) {}
 
-  private static record Imposm3Table(
+  static record Imposm3Table(
     String type,
     @JsonProperty("_resolve_wikidata") boolean resolveWikidata,
     List<Imposm3Column> columns,
     Imposm3Filters filters,
     JsonNode mapping,
-    Map<String, Map<String, List<String>>> type_mappings
+    Map<String, JsonNode> type_mappings
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -155,7 +158,7 @@ public class Generate {
     FileUtils.deleteDirectory(output);
     Files.createDirectories(output);
 
-    emitLayerDefinitions(layers, packageName, output);
+    emitLayerDefinitions(config.tileset, layers, packageName, output);
     emitTableDefinitions(tables, packageName, output);
 
 //    layers.forEach((layer) -> LOGGER.info("layer: " + layer.layer.id));
@@ -170,12 +173,24 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
+
       import com.onthegomap.flatmap.openmaptiles.Expression;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+      import com.onthegomap.flatmap.FeatureCollector;
+      import com.onthegomap.flatmap.SourceFeature;
+      import java.util.ArrayList;
+      import java.util.HashMap;
+      import java.util.List;
       import java.util.Map;
 
       public class Tables {
-        public interface Table {}
+        public interface Row {}
+        public interface Constructor {
+          Row create(SourceFeature source, String mappingKey);
+        }
+        public interface RowHandler<T extends Row> {
+          void process(T element, FeatureCollector features);
+        }
       """.formatted(packageName));
 
     List<String> classNames = new ArrayList<>();
@@ -183,7 +198,7 @@ public class Generate {
       String key = entry.getKey();
       Imposm3Table table = entry.getValue();
       List<OsmTableField> fields = getFields(table);
-      Expression mappingExpression = parseImposm3MappingExpression(table.mapping, table.filters);
+      Expression mappingExpression = parseImposm3MappingExpression(table);
       String mapping = "public static final Expression MAPPING = %s;".formatted(
         mappingExpression
       );
@@ -191,22 +206,29 @@ public class Generate {
       classNames.add(className);
       if (fields.size() <= 1) {
         tablesClass.append("""
-          public static record %s(%s) implements Table {
+          public static record %s(%s) implements Row {
             %s
+            public interface Handler {
+              void process(%s element, FeatureCollector features);
+            }
           }
           """.formatted(
           className,
           fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
             .collect(joining(", ")),
-          mapping
+          mapping,
+          className
         ).indent(2));
       } else {
         tablesClass.append("""
-          public static record %s(%s) implements Table {
-            public %s(com.onthegomap.flatmap.SourceFeature source) {
+          public static record %s(%s) implements Row {
+            public %s(SourceFeature source, String mappingKey) {
               this(%s);
             }
             %s
+            public interface Handler {
+              void process(%s element, FeatureCollector features);
+            }
           }
           """.formatted(
           className,
@@ -214,34 +236,62 @@ public class Generate {
             .collect(joining(", ")),
           className,
           fields.stream().map(c -> c.extractCode).collect(joining(", ")),
-          mapping
+          mapping,
+          className
         ).indent(2));
       }
     }
 
     tablesClass.append("""
-      public static final MultiExpression<java.util.function.Function<com.onthegomap.flatmap.SourceFeature, Table>> MAPPINGS = MultiExpression.of(Map.ofEntries(
+      public static final MultiExpression<Constructor> MAPPINGS = MultiExpression.of(Map.ofEntries(
         %s
       ));
       """.formatted(
       classNames.stream().map(className -> "Map.entry(%s::new, %s.MAPPING)".formatted(className, className))
         .collect(joining(",\n")).indent(2).strip()
     ).indent(2));
-    tablesClass.append("}");
+    String handlerCondition = classNames.stream().map(className ->
+      """
+        if (handler instanceof %s.Handler typedHandler) {
+          result.computeIfAbsent(%s.class, cls -> new ArrayList<>()).add((RowHandler<%s>) typedHandler::process);
+        }""".formatted(className, className, className)
+    ).collect(joining(" else "));
+    tablesClass.append("""
+        public static Map<Class<? extends Row>, List<RowHandler<? extends Row>>> generateDispatchMap(List<?> handlers) {
+          Map<Class<? extends Row>, List<RowHandler<? extends Row>>> result = new HashMap<>();
+          for (var handler : handlers) {
+            %s
+          }
+          return result;
+        }
+      }
+      """.formatted(handlerCondition.indent(6).trim()));
     Files.writeString(output.resolve("Tables.java"), tablesClass);
   }
 
-  static Expression parseImposm3MappingExpression(JsonNode mapping, Imposm3Filters filters) {
+  static Expression parseImposm3MappingExpression(Imposm3Table table) {
+    if (table.type_mappings != null) {
+      return or(
+        table.type_mappings.entrySet().stream().map(entry ->
+          parseImposm3MappingExpression(entry.getKey(), entry.getValue(), table.filters)
+        ).toList()
+      ).simplify();
+    } else {
+      return parseImposm3MappingExpression(table.type, table.mapping, table.filters);
+    }
+  }
+
+  static Expression parseImposm3MappingExpression(String type, JsonNode mapping, Imposm3Filters filters) {
     return and(
       or(parseExpression(mapping).toList()),
       and(filters == null || filters.require == null ? List.of() : parseExpression(filters.require).toList()),
-      not(or(filters == null || filters.reject == null ? List.of() : parseExpression(filters.reject).toList()))
+      not(or(filters == null || filters.reject == null ? List.of() : parseExpression(filters.reject).toList())),
+      "geometry".equals(type) ? and() : matchAny("__" + type, "true")
     ).simplify();
   }
 
   private static List<OsmTableField> getFields(Imposm3Table tableDefinition) {
     List<OsmTableField> result = new ArrayList<>();
-    result.add(new OsmTableField("com.onthegomap.flatmap.SourceFeature", "source", "source"));
     // TODO columns used, and from_member
     for (Imposm3Column col : tableDefinition.columns) {
       switch (col.type) {
@@ -251,12 +301,10 @@ public class Generate {
         case "member_id", "member_role", "member_type", "member_index" -> {
           // TODO
         }
-        case "mapping_key" -> {
-          // TODO?
-        }
-        case "mapping_value" -> {
-          // TODO??
-        }
+        case "mapping_key" -> result
+          .add(new OsmTableField("String", col.name, "mappingKey"));
+        case "mapping_value" -> result
+          .add(new OsmTableField("String", col.name, "source.getString(mappingKey)"));
         case "string" -> result
           .add(new OsmTableField("String", col.name,
             "source.getString(\"%s\")".formatted(Objects.requireNonNull(col.key, col.toString()))));
@@ -272,6 +320,7 @@ public class Generate {
         default -> throw new IllegalArgumentException("Unhandled column: " + col.type);
       }
     }
+    result.add(new OsmTableField("com.onthegomap.flatmap.SourceFeature", "source", "source"));
     return result;
   }
 
@@ -281,7 +330,8 @@ public class Generate {
     String extractCode
   ) {}
 
-  private static void emitLayerDefinitions(List<LayerConfig> layers, String packageName, Path output)
+  private static void emitLayerDefinitions(OpenmaptilesTileSet info, List<LayerConfig> layers, String packageName,
+    Path output)
     throws IOException {
     StringBuilder layersClass = new StringBuilder();
     layersClass.append("""
@@ -290,11 +340,35 @@ public class Generate {
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+      import com.onthegomap.flatmap.openmaptiles.Layer;
       import java.util.List;
       import java.util.Map;
 
       public class Layers {
-      """.formatted(packageName));
+        public static final String NAME = %s;
+        public static final String DESCRIPTION = %s;
+        public static final String VERSION = %s;
+        public static final String ATTRIBUTION = %s;
+
+        public static List<Layer> createInstances() {
+          return List.of(
+            %s
+          );
+        }
+      """
+      .formatted(
+        packageName,
+        quote(info.name),
+        quote(info.description),
+        quote(info.version),
+        quote(info.attribution),
+        layers.stream()
+          .map(
+            l -> "new com.onthegomap.flatmap.openmaptiles.layers.%s()"
+              .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
+          .collect(joining(",\n"))
+          .indent(6).trim()
+      ));
     for (var layer : layers) {
       String layerName = layer.layer.id;
       String className = lowerUnderscoreToUpperCamel(layerName);
@@ -356,16 +430,20 @@ public class Generate {
 
       layersClass.append("""
         /** %s */
-        public static class %s {
-          public static final double BUFFER_SIZE = %s;
-          public static final String NAME = %s;
-          public static final class Fields {
+        public interface %s extends Layer {
+          double BUFFER_SIZE = %s;
+          String LAYER_NAME = %s;
+          @Override
+          default String name() {
+            return LAYER_NAME;
+          }
+          final class Fields {
             %s
           }
-          public static final class FieldValues {
+          final class FieldValues {
             %s
           }
-          public static final class FieldMappings {
+          final class FieldMappings {
             %s
           }
         }
@@ -466,9 +544,6 @@ public class Generate {
     if (other == null) {
       return "null";
     }
-    if (other.contains("\"")) {
-      throw new IllegalStateException("cannot quote: " + other);
-    }
-    return '"' + other + '"';
+    return '"' + StringEscapeUtils.escapeJava(other) + '"';
   }
 }

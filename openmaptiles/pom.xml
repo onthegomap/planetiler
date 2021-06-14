@@ -23,6 +23,13 @@
       <artifactId>snakeyaml</artifactId>
       <version>1.29</version>
     </dependency>
+    <dependency>
+      <groupId>com.onthegomap</groupId>
+      <artifactId>flatmap-core</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

@@ -4,6 +4,7 @@ import com.carrotsearch.hppc.ObjectIntMap;
 import com.graphhopper.coll.GHObjectIntHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class Parse {
 
@@ -20,6 +21,20 @@ public class Parse {
       return tag == null ? 0 : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
       return 0;
+    }
+  }
+
+  private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
+
+  public static Integer parseIntSubstring(String tag) {
+    if (tag == null) {
+      return null;
+    }
+    try {
+      var matcher = INT_SUBSTRING_PATTERN.matcher(tag);
+      return matcher.find() ? Integer.parseInt(matcher.group(1)) : null;
+    } catch (NumberFormatException e) {
+      return null;
     }
   }
 

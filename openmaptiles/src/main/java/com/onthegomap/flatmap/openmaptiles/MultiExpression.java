@@ -99,6 +99,7 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
         for (int i = 0; i < children.size(); i++) {
           Expression child = children.get(i);
           if (!evaluate(child, input, matchKeys)) {
+            matchKeys.clear();
             return false;
           }
         }

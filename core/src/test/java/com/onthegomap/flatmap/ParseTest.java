@@ -50,6 +50,21 @@ public class ParseTest {
     assertEquals(out, Parse.direction(in));
   }
 
+  @ParameterizedTest
+  @CsvSource(value = {
+    "1, 1",
+    "0, 0",
+    "-1, -1",
+    "1.1, 1",
+    "-1.1, -1",
+    "-1.23 m, -1",
+    "one meter, null",
+    "null, null"
+  }, nullValues = {"null"})
+  public void testIntSubstring(String in, Integer out) {
+    assertEquals(out, Parse.parseIntSubstring(in));
+  }
+
   @TestFactory
   public Stream<DynamicTest> testWayzorder() {
     return Stream.<Map.Entry<Map<String, Object>, Integer>>of(

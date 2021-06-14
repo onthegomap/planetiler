@@ -8,8 +8,12 @@ import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,13 +26,25 @@ public class OpenMapTilesProfile implements Profile {
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
+  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmMappings;
+  private final List<Layer> layers;
+  private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
 
   public OpenMapTilesProfile(Translations translations) {
-
+    this.osmMappings = Tables.MAPPINGS.index();
+    this.layers = Layers.createInstances();
+    osmDispatchMap = new HashMap<>();
+    Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
+      osmDispatchMap.put(clazz, handlers.stream().map(handler -> {
+        @SuppressWarnings("unchecked") Tables.RowHandler<Tables.Row> rawHandler = (Tables.RowHandler<Tables.Row>) handler;
+        return rawHandler;
+      }).toList());
+    });
   }
 
   @Override
   public void release() {
+    layers.forEach(Layer::release);
   }
 
   @Override
@@ -41,68 +57,95 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public String name() {
-    return "OpenMapTiles";
-  }
-
-  @Override
-  public String description() {
-    return "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";
-  }
-
-  @Override
-  public String attribution() {
-    return """
-      <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
-      """.trim();
-  }
-
-  @Override
-  public String version() {
-    return "3.12.1";
-  }
-
-  @Override
   public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
     return null;
   }
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    if (sourceFeature.isPoint()) {
-      if (sourceFeature.hasTag("natural", "peak", "volcano")) {
-        features.point("mountain_peak")
-          .setAttr("name", sourceFeature.getTag("name"))
-          .setLabelGridSizeAndLimit(13, 100, 5);
-      }
-    }
-
-    if (WATER_POLYGON_SOURCE.equals(sourceFeature.getSource())) {
-      features.polygon("water").setZoomRange(6, 14).setAttr("class", "ocean");
-    } else if (NATURAL_EARTH_SOURCE.equals(sourceFeature.getSource())) {
-      String sourceLayer = sourceFeature.getSourceLayer();
-      boolean lake = sourceLayer.endsWith("_lakes");
-      switch (sourceLayer) {
-        case "ne_10m_lakes", "ne_10m_ocean" -> features.polygon("water")
-          .setZoomRange(4, 5)
-          .setAttr("class", lake ? "lake" : "ocean");
-        case "ne_50m_lakes", "ne_50m_ocean" -> features.polygon("water")
-          .setZoomRange(2, 3)
-          .setAttr("class", lake ? "lake" : "ocean");
-        case "ne_110m_lakes", "ne_110m_ocean" -> features.polygon("water")
-          .setZoomRange(0, 1)
-          .setAttr("class", lake ? "lake" : "ocean");
-      }
-    }
-
     if (OSM_SOURCE.equals(sourceFeature.getSource())) {
+      if (sourceFeature.canBeLine()) {
+        sourceFeature.properties().put("__linestring", "true");
+      }
       if (sourceFeature.canBePolygon()) {
-        if (sourceFeature.hasTag("building")) {
-          features.polygon("building")
-            .setZoomRange(13, 14)
-            .setMinPixelSize(MERGE_Z13_BUILDINGS ? 0 : 4);
+        sourceFeature.properties().put("__polygon", "true");
+      }
+      if (sourceFeature.isPoint()) {
+        sourceFeature.properties().put("__point", "true");
+      }
+      for (var match : osmMappings.getMatchesWithTriggers(sourceFeature.properties())) {
+        var row = match.match().create(sourceFeature, match.keys().get(0));
+        var handlers = osmDispatchMap.get(row.getClass());
+        for (Tables.RowHandler<Tables.Row> handler : handlers) {
+          handler.process(row, features);
         }
       }
     }
+//
+//    if (sourceFeature.isPoint()) {
+//      if (sourceFeature.hasTag("natural", "peak", "volcano")) {
+//        features.point("mountain_peak")
+//          .setAttr("name", sourceFeature.getTag("name"))
+//          .setLabelGridSizeAndLimit(13, 100, 5);
+//      }
+//    }
+//
+//    if (WATER_POLYGON_SOURCE.equals(sourceFeature.getSource())) {
+//      features.polygon("water").setZoomRange(6, 14).setAttr("class", "ocean");
+//    } else if (NATURAL_EARTH_SOURCE.equals(sourceFeature.getSource())) {
+//      String sourceLayer = sourceFeature.getSourceLayer();
+//      boolean lake = sourceLayer.endsWith("_lakes");
+//      switch (sourceLayer) {
+//        case "ne_10m_lakes", "ne_10m_ocean" -> features.polygon("water")
+//          .setZoomRange(4, 5)
+//          .setAttr("class", lake ? "lake" : "ocean");
+//        case "ne_50m_lakes", "ne_50m_ocean" -> features.polygon("water")
+//          .setZoomRange(2, 3)
+//          .setAttr("class", lake ? "lake" : "ocean");
+//        case "ne_110m_lakes", "ne_110m_ocean" -> features.polygon("water")
+//          .setZoomRange(0, 1)
+//          .setAttr("class", lake ? "lake" : "ocean");
+//      }
+//    }
+//
+//    if (OSM_SOURCE.equals(sourceFeature.getSource())) {
+//      if (sourceFeature.canBePolygon()) {
+//        if (sourceFeature.hasTag("building")) {
+//          features.polygon("building")
+//            .setZoomRange(13, 14)
+//            .setMinPixelSize(MERGE_Z13_BUILDINGS ? 0 : 4);
+//        }
+//      }
+//    }
+  }
+
+  public interface SourceFeatureProcessors {
+
+    void process(SourceFeature feature, FeatureCollector features);
+  }
+
+  public interface FeaturePostProcessor {
+
+    void postProcess(int zoom, List<VectorTileEncoder.Feature> items);
+  }
+
+  @Override
+  public String name() {
+    return Layers.NAME;
+  }
+
+  @Override
+  public String description() {
+    return Layers.DESCRIPTION;
+  }
+
+  @Override
+  public String attribution() {
+    return Layers.ATTRIBUTION;
+  }
+
+  @Override
+  public String version() {
+    return Layers.VERSION;
   }
 }

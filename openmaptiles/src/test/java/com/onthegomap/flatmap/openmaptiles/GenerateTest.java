@@ -1,9 +1,12 @@
 package com.onthegomap.flatmap.openmaptiles;
 
 import static com.onthegomap.flatmap.openmaptiles.Expression.*;
+import static com.onthegomap.flatmap.openmaptiles.Generate.parseYaml;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -15,7 +18,7 @@ public class GenerateTest {
 
   @Test
   public void testParseSimple() {
-    MultiExpression<String> parsed = Generate.generateFieldMapping(Generate.parseYaml("""
+    MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         key: value
         key2:
@@ -32,7 +35,7 @@ public class GenerateTest {
 
   @Test
   public void testParseAnd() {
-    MultiExpression<String> parsed = Generate.generateFieldMapping(Generate.parseYaml("""
+    MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         __AND__:
           key1: val1
@@ -48,7 +51,7 @@ public class GenerateTest {
 
   @Test
   public void testParseAndWithOthers() {
-    MultiExpression<String> parsed = Generate.generateFieldMapping(Generate.parseYaml("""
+    MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         - key0: val0
         - __AND__:
@@ -68,7 +71,7 @@ public class GenerateTest {
 
   @Test
   public void testParseAndContainingOthers() {
-    MultiExpression<String> parsed = Generate.generateFieldMapping(Generate.parseYaml("""
+    MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         __AND__:
           - key1: val1
@@ -89,7 +92,7 @@ public class GenerateTest {
 
   @Test
   public void testParseContainsKey() {
-    MultiExpression<String> parsed = Generate.generateFieldMapping(Generate.parseYaml("""
+    MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         key1: val1
         key2:
@@ -170,12 +173,53 @@ public class GenerateTest {
       )
     ).stream().map(test -> dynamicTest(test.name, () -> {
       Expression parsed = Generate
-        .parseImposm3MappingExpression(Generate.parseYaml(test.mapping), new Generate.Imposm3Filters(
-          Generate.parseYaml(test.reject),
-          Generate.parseYaml(test.require)
+        .parseImposm3MappingExpression("geometry", parseYaml(test.mapping), new Generate.Imposm3Filters(
+          parseYaml(test.reject),
+          parseYaml(test.require)
         ));
       assertEquals(test.expected, parsed);
     }));
   }
 
+  @Test
+  public void testTypeMappingTopLevelType() {
+    Expression parsed = Generate
+      .parseImposm3MappingExpression("point", parseYaml("""
+        key: val
+        """), new Generate.Imposm3Filters(null, null));
+    assertEquals(and(
+      matchAny("key", "val"),
+      matchAny("__point", "true")
+    ), parsed);
+  }
+
+  @Test
+  public void testTypeMappings() {
+    Map<String, JsonNode> props = new LinkedHashMap<>();
+    props.put("point", parseYaml("""
+      key: val
+      """));
+    props.put("polygon", parseYaml("""
+      key2: val2
+      """));
+    Expression parsed = Generate
+      .parseImposm3MappingExpression(new Generate.Imposm3Table(
+        "geometry",
+        false,
+        List.of(),
+        null,
+        null,
+        props
+      ));
+    assertEquals(or(
+      and(
+        matchAny("key", "val"),
+        matchAny("__point", "true")
+      ),
+      and(
+        matchAny("key2", "val2"),
+        matchAny("__polygon", "true")
+      )
+    ), parsed);
+  }
 }
