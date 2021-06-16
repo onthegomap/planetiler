@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderNode;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -16,6 +14,7 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,11 +36,11 @@ public class WikidataTest {
     translations.put(1, "en", "en value");
     translations.put(1, "es", "es value");
     assertEquals(expected, translations.get(1));
-    ReaderElement elem = new ReaderNode(2, 2, 2);
+    Map<String, Object> elem = new HashMap<>();
     assertNull(translations.getNameTranslations(elem));
-    elem.setTag("wikidata", "Qgarbage");
+    elem.put("wikidata", "Qgarbage");
     assertNull(translations.getNameTranslations(elem));
-    elem.setTag("wikidata", "Q1");
+    elem.put("wikidata", "Q1");
     assertEquals(expected, translations.getNameTranslations(elem));
   }
 
@@ -160,7 +159,6 @@ public class WikidataTest {
         stringSubscriber.onComplete();
       }
     }));
-    String body = stringSubscriber.getBody().toCompletableFuture().join();
-    return body;
+    return stringSubscriber.getBody().toCompletableFuture().join();
   }
 }

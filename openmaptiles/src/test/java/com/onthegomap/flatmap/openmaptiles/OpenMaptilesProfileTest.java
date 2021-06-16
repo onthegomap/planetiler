@@ -6,11 +6,13 @@ import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.Translations;
+import com.onthegomap.flatmap.Wikidata;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.HashMap;
@@ -21,8 +23,16 @@ import org.junit.jupiter.api.Test;
 
 public class OpenMaptilesProfileTest {
 
-  private final OpenMapTilesProfile profile = new OpenMapTilesProfile(Translations.defaultTranslationProvider());
+  private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"));
+  private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
+
+  {
+    translations.addTranslationProvider(wikidataTranslations);
+  }
+
   private final CommonParams params = CommonParams.defaults();
+  private final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, Arguments.of(),
+    new Stats.InMemory());
   private final Stats stats = new Stats.InMemory();
   private final FeatureCollector.Factory featureCollectorFactory = new FeatureCollector.Factory(params, stats);
 
@@ -66,8 +76,14 @@ public class OpenMaptilesProfileTest {
       "ele", "100"
     ))));
 
+    // no elevation
     assertFeatures(14, List.of(), process(pointFeature(Map.of(
       "natural", "volcano"
+    ))));
+    // bogus elevation
+    assertFeatures(14, List.of(), process(pointFeature(Map.of(
+      "natural", "volcano",
+      "ele", "11000"
     ))));
   }
 
@@ -103,6 +119,27 @@ public class OpenMaptilesProfileTest {
       "name", "name",
       "ele", "100"
     ))));
+  }
+
+  @Test
+  public void testMountainPeakNameTranslations() {
+    wikidataTranslations.put(123, "en", "wikidata en");
+    wikidataTranslations.put(123, "es", "wikidata es");
+    wikidataTranslations.put(123, "de", "wikidata de");
+    var feature = process(pointFeature(Map.of(
+      "natural", "peak",
+      "name", "name",
+      "name:en", "english name",
+      "name:de", "german name",
+      "wikidata", "Q123",
+      "ele", "100"
+    )));
+    assertFeatures(14, List.of(Map.of(
+      "name", "name",
+      "name_en", "english name",
+      "name_de", "german name",
+      "name:es", "wikidata es"
+    )), feature);
   }
 
   @Test

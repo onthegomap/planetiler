@@ -5,6 +5,9 @@ import static com.onthegomap.flatmap.openmaptiles.Expression.and;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchAny;
 import static com.onthegomap.flatmap.openmaptiles.Expression.or;
 
+import com.onthegomap.flatmap.Arguments;
+import com.onthegomap.flatmap.Translations;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.Layer;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import java.util.List;
@@ -16,25 +19,31 @@ public class Layers {
   public static final String DESCRIPTION = "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";
   public static final String VERSION = "3.12.1";
   public static final String ATTRIBUTION = "<a href=\"https://www.openmaptiles.org/\" target=\"_blank\">&copy; OpenMapTiles</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>";
+  public static final List<String> LANGUAGES = List
+    .of("am", "ar", "az", "be", "bg", "br", "bs", "ca", "co", "cs", "cy", "da", "de", "el", "en", "eo", "es", "et",
+      "eu", "fi", "fr", "fy", "ga", "gd", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "ja_kana", "ja_rm",
+      "ja-Latn", "ja-Hira", "ka", "kk", "kn", "ko", "ko-Latn", "ku", "la", "lb", "lt", "lv", "mk", "mt", "ml", "nl",
+      "no", "oc", "pl", "pt", "rm", "ro", "ru", "sk", "sl", "sq", "sr", "sr-Latn", "sv", "ta", "te", "th", "tr", "uk",
+      "zh");
 
-  public static List<Layer> createInstances() {
+  public static List<Layer> createInstances(Translations translations, Arguments args, Stats stats) {
     return List.of(
-      new com.onthegomap.flatmap.openmaptiles.layers.Water(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Waterway(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Landcover(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Landuse(),
-      new com.onthegomap.flatmap.openmaptiles.layers.MountainPeak(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Park(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Boundary(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Aeroway(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Transportation(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Building(),
-      new com.onthegomap.flatmap.openmaptiles.layers.WaterName(),
-      new com.onthegomap.flatmap.openmaptiles.layers.TransportationName(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Place(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Housenumber(),
-      new com.onthegomap.flatmap.openmaptiles.layers.Poi(),
-      new com.onthegomap.flatmap.openmaptiles.layers.AerodromeLabel()
+      new com.onthegomap.flatmap.openmaptiles.layers.Water(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Waterway(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Landcover(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Landuse(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.MountainPeak(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Park(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Boundary(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Aeroway(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Transportation(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Building(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.WaterName(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.TransportationName(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Place(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Housenumber(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Poi(translations, args, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.AerodromeLabel(translations, args, stats)
     );
   }
 

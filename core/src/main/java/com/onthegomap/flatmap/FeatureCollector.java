@@ -332,5 +332,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         ", attrs=" + attrs +
         '}';
     }
+
+    public Feature setAttrs(Map<String, Object> names) {
+      attrs.putAll(names);
+      return this;
+    }
   }
 }

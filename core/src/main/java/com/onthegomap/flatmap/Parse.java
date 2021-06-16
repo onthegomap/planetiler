@@ -51,7 +51,9 @@ public class Parse {
   private static final Set<String> forwardDirections = Set.of("1", "yes", "true");
 
   public static int direction(Object string) {
-    if (forwardDirections.contains(string(string))) {
+    if (string == null) {
+      return 0;
+    } else if (forwardDirections.contains(string(string))) {
       return 1;
     } else if ("-1".equals(string)) {
       return -1;

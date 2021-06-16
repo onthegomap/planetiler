@@ -339,8 +339,11 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
+      import com.onthegomap.flatmap.Arguments;
+      import com.onthegomap.flatmap.monitoring.Stats;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import com.onthegomap.flatmap.openmaptiles.Layer;
+      import com.onthegomap.flatmap.Translations;
       import java.util.List;
       import java.util.Map;
 
@@ -349,8 +352,9 @@ public class Generate {
         public static final String DESCRIPTION = %s;
         public static final String VERSION = %s;
         public static final String ATTRIBUTION = %s;
+        public static final List<String> LANGUAGES = List.of(%s);
 
-        public static List<Layer> createInstances() {
+        public static List<Layer> createInstances(Translations translations, Arguments args, Stats stats) {
           return List.of(
             %s
           );
@@ -362,9 +366,10 @@ public class Generate {
         quote(info.description),
         quote(info.version),
         quote(info.attribution),
+        info.languages.stream().map(Generate::quote).collect(joining(", ")),
         layers.stream()
           .map(
-            l -> "new com.onthegomap.flatmap.openmaptiles.layers.%s()"
+            l -> "new com.onthegomap.flatmap.openmaptiles.layers.%s(translations, args, stats)"
               .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
           .collect(joining(",\n"))
           .indent(6).trim()

@@ -24,6 +24,12 @@
       <version>1.29</version>
     </dependency>
     <dependency>
+      <groupId>com.ibm.icu</groupId>
+      <artifactId>icu4j</artifactId>
+      <version>69.1</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.onthegomap</groupId>
       <artifactId>flatmap-core</artifactId>
       <version>${project.parent.version}</version>

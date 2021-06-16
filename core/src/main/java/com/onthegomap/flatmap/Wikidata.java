@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.reader.ReaderElement;
+import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -199,10 +200,10 @@ public class Wikidata {
     }
   }
 
-  public static long parseQid(String qid) {
+  public static long parseQid(Object qid) {
     long result = 0;
-    if (qid != null) {
-      Matcher matcher = qidPattern.matcher(qid);
+    if (qid instanceof String qidString) {
+      Matcher matcher = qidPattern.matcher(qidString);
       if (matcher.matches()) {
         String idString = matcher.group(1);
         result = Parse.parseLong(idString);
@@ -223,7 +224,7 @@ public class Wikidata {
       if (elem.hasTag("wikidata")) {
         qidTracker.qid = 0;
         // TODO send reader element through profile
-        qidTracker.getNameTranslations(elem);
+        qidTracker.getNameTranslations(ReaderElementUtils.getProperties(elem));
         if (qidTracker.qid > 0) {
           next.accept(qidTracker.qid);
         }
@@ -326,8 +327,8 @@ public class Wikidata {
     }
 
     @Override
-    public Map<String, String> getNameTranslations(ReaderElement elem) {
-      long wikidataId = parseQid(elem.getTag("wikidata"));
+    public Map<String, String> getNameTranslations(Map<String, Object> elem) {
+      long wikidataId = parseQid(elem.get("wikidata"));
       if (wikidataId > 0) {
         return get(wikidataId);
       }

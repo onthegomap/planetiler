@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.openmaptiles;
 
 import com.graphhopper.reader.ReaderRelation;
+import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Profile;
@@ -8,6 +9,7 @@ import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.generated.Layers;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -30,9 +32,9 @@ public class OpenMapTilesProfile implements Profile {
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
 
-  public OpenMapTilesProfile(Translations translations) {
+  public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
     this.osmMappings = Tables.MAPPINGS.index();
-    this.layers = Layers.createInstances();
+    this.layers = Layers.createInstances(translations, arguments, stats);
     osmDispatchMap = new HashMap<>();
     Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
       osmDispatchMap.put(clazz, handlers.stream().map(handler -> {
@@ -76,8 +78,10 @@ public class OpenMapTilesProfile implements Profile {
       for (var match : osmMappings.getMatchesWithTriggers(sourceFeature.properties())) {
         var row = match.match().create(sourceFeature, match.keys().get(0));
         var handlers = osmDispatchMap.get(row.getClass());
-        for (Tables.RowHandler<Tables.Row> handler : handlers) {
-          handler.process(row, features);
+        if (handlers != null) {
+          for (Tables.RowHandler<Tables.Row> handler : handlers) {
+            handler.process(row, features);
+          }
         }
       }
     }
