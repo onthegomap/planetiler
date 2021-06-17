@@ -41,7 +41,7 @@ public class Tables {
       or(matchAny("landuse", "reservoir", "basin", "salt_pond"), matchAny("leisure", "swimming_pool"),
         matchAny("natural", "water", "bay"),
         matchAny("waterway", "river", "riverbank", "stream", "canal", "drain", "ditch", "dock")),
-      not(matchAny("covered", "yes")), matchAny("__polygon", "true"));
+      not(matchAny("covered", "yes")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -61,7 +61,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("waterway", "stream", "river", "canal", "drain", "ditch"),
-      matchAny("__linestring", "true"));
+      matchField("__linestring"));
 
     public interface Handler {
 
@@ -83,7 +83,7 @@ public class Tables {
       matchAny("natural", "wood", "wetland", "fell", "grassland", "heath", "scrub", "tundra", "glacier", "bare_rock",
         "scree", "beach", "sand", "dune"), matchAny("leisure", "park", "garden", "golf_course"),
       matchAny("wetland", "bog", "swamp", "wet_meadow", "marsh", "reedbed", "saltern", "tidalflat", "saltmarsh",
-        "mangrove")), matchAny("__polygon", "true"));
+        "mangrove")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -106,8 +106,7 @@ public class Tables {
         "retail"),
       matchAny("amenity", "bus_station", "school", "university", "kindergarten", "college", "library", "hospital"),
       matchAny("leisure", "stadium", "pitch", "playground", "track"), matchAny("tourism", "theme_park", "zoo"),
-      matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")),
-      matchAny("__polygon", "true"));
+      matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -124,7 +123,7 @@ public class Tables {
         source.getString("wikipedia"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano"), matchAny("__point", "true"));
+    public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano"), matchField("__point"));
 
     public interface Handler {
 
@@ -145,7 +144,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       or(matchAny("leisure", "nature_reserve"), matchAny("boundary", "national_park", "protected_area")),
-      matchAny("__polygon", "true"));
+      matchField("__polygon"));
 
     public interface Handler {
 
@@ -164,7 +163,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("type", "boundary"), matchField("admin_level"),
-      matchField("claimed_by"), matchAny("__relation_member", "true"));
+      matchField("claimed_by"), matchField("__relation_member"));
 
     public interface Handler {
 
@@ -183,7 +182,7 @@ public class Tables {
     public static final Expression MAPPING = and(
       or(matchAny("aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron"),
         matchAny("area:aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron")),
-      matchAny("__polygon", "true"));
+      matchField("__polygon"));
 
     public interface Handler {
 
@@ -199,8 +198,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"),
-      matchAny("__linestring", "true"));
+    public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"), matchField("__linestring"));
 
     public interface Handler {
 
@@ -216,7 +214,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchAny("__point", "true"));
+    public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchField("__point"));
 
     public interface Handler {
 
@@ -248,7 +246,7 @@ public class Tables {
         "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
         "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
         "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")),
-      matchAny("__linestring", "true"));
+      matchField("__linestring"));
 
     public interface Handler {
 
@@ -273,7 +271,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       matchAny("railway", "rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram"),
-      matchAny("__linestring", "true"));
+      matchField("__linestring"));
 
     public interface Handler {
 
@@ -296,7 +294,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("aerialway", "cable_car", "gondola"),
-      matchAny("__linestring", "true"));
+      matchField("__linestring"));
 
     public interface Handler {
 
@@ -318,7 +316,7 @@ public class Tables {
         source.getString("usage"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("route", "ferry"), matchAny("__linestring", "true"));
+    public static final Expression MAPPING = and(matchAny("route", "ferry"), matchField("__linestring"));
 
     public interface Handler {
 
@@ -339,8 +337,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       or(matchAny("highway", "path", "cycleway", "bridleway", "footway", "corridor", "pedestrian", "steps"),
-        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")),
-      matchAny("__polygon", "true"));
+        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -356,7 +353,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("network"), source.getString("name"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("route", "road"), matchAny("__relation_member", "true"));
+    public static final Expression MAPPING = and(matchAny("route", "road"), matchField("__relation_member"));
 
     public interface Handler {
 
@@ -380,7 +377,7 @@ public class Tables {
     public static final Expression MAPPING = and(
       or(matchField("building:part"), matchField("building"), matchAny("aeroway", "terminal", "hangar")),
       not(matchAny("building", "no", "none", "No")), not(matchAny("building:part", "no", "none", "No")),
-      not(matchAny("man_made", "bridge")), matchAny("__polygon", "true"));
+      not(matchAny("man_made", "bridge")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -406,7 +403,7 @@ public class Tables {
         source.getString("building:min_level"), source.getString("min_level"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("type", "building"), matchAny("__relation_member", "true"));
+    public static final Expression MAPPING = and(matchAny("type", "building"), matchField("__relation_member"));
 
     public interface Handler {
 
@@ -425,7 +422,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "ocean", "sea"), matchField("name"),
-      matchAny("__point", "true"));
+      matchField("__point"));
 
     public interface Handler {
 
@@ -442,7 +439,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "continent"), matchField("name"),
-      matchAny("__point", "true"));
+      matchField("__point"));
 
     public interface Handler {
 
@@ -462,7 +459,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "country"), matchField("name"),
-      matchAny("__point", "true"));
+      matchField("__point"));
 
     public interface Handler {
 
@@ -480,7 +477,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"),
-      matchAny("__polygon", "true"));
+      matchField("__polygon"));
 
     public interface Handler {
 
@@ -498,7 +495,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"),
-      matchAny("__point", "true"));
+      matchField("__point"));
 
     public interface Handler {
 
@@ -517,8 +514,7 @@ public class Tables {
         source.getLong("rank"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("place", "state"), matchField("name"),
-      matchAny("__point", "true"));
+    public static final Expression MAPPING = and(matchAny("place", "state"), matchField("name"), matchField("__point"));
 
     public interface Handler {
 
@@ -539,7 +535,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       matchAny("place", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood", "isolated_dwelling"),
-      matchField("name"), matchAny("__point", "true"));
+      matchField("name"), matchField("__point"));
 
     public interface Handler {
 
@@ -554,8 +550,8 @@ public class Tables {
       this(source.getString("addr:housenumber"), source);
     }
 
-    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchAny("__points", "true")),
-      and(matchField("addr:housenumber"), matchAny("__polygons", "true")));
+    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchField("__point")),
+      and(matchField("addr:housenumber"), matchField("__polygon")));
 
     public interface Handler {
 
@@ -614,7 +610,7 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchAny("__point", "true"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchField("__point"));
 
     public interface Handler {
 
@@ -673,7 +669,7 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchAny("__polygon", "true"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchField("__polygon"));
 
     public interface Handler {
 
@@ -692,8 +688,8 @@ public class Tables {
         source.getString("iata"), source.getString("icao"), source.getString("ele"), source);
     }
 
-    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchAny("__points", "true")),
-      and(matchAny("aeroway", "aerodrome"), matchAny("__polygons", "true")));
+    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchField("__point")),
+      and(matchAny("aeroway", "aerodrome"), matchField("__polygon")));
 
     public interface Handler {
 
@@ -739,88 +735,116 @@ public class Tables {
       if (handler instanceof OsmWaterPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmWaterPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmWaterPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmWaterwayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmWaterwayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmWaterwayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmWaterwayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmLandcoverPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmLandcoverPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmLandcoverPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmLandcoverPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmLandusePolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmLandusePolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmLandusePolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmLandusePolygon>) typedHandler::process);
-      } else if (handler instanceof OsmPeakPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmPeakPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmPeakPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmPeakPoint>) typedHandler::process);
-      } else if (handler instanceof OsmParkPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmParkPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmParkPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmParkPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmBorderDispRelation.Handler typedHandler) {
+      }
+      if (handler instanceof OsmBorderDispRelation.Handler typedHandler) {
         result.computeIfAbsent(OsmBorderDispRelation.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmBorderDispRelation>) typedHandler::process);
-      } else if (handler instanceof OsmAerowayPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmAerowayPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmAerowayPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerowayPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmAerowayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmAerowayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmAerowayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerowayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmAerowayPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmAerowayPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmAerowayPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerowayPoint>) typedHandler::process);
-      } else if (handler instanceof OsmHighwayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmHighwayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmHighwayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmHighwayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmRailwayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmRailwayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmRailwayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmRailwayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmAerialwayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmAerialwayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmAerialwayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerialwayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmShipwayLinestring.Handler typedHandler) {
+      }
+      if (handler instanceof OsmShipwayLinestring.Handler typedHandler) {
         result.computeIfAbsent(OsmShipwayLinestring.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmShipwayLinestring>) typedHandler::process);
-      } else if (handler instanceof OsmHighwayPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmHighwayPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmHighwayPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmHighwayPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmRouteMember.Handler typedHandler) {
+      }
+      if (handler instanceof OsmRouteMember.Handler typedHandler) {
         result.computeIfAbsent(OsmRouteMember.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmRouteMember>) typedHandler::process);
-      } else if (handler instanceof OsmBuildingPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmBuildingPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmBuildingPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmBuildingPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmBuildingRelation.Handler typedHandler) {
+      }
+      if (handler instanceof OsmBuildingRelation.Handler typedHandler) {
         result.computeIfAbsent(OsmBuildingRelation.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmBuildingRelation>) typedHandler::process);
-      } else if (handler instanceof OsmMarinePoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmMarinePoint.Handler typedHandler) {
         result.computeIfAbsent(OsmMarinePoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmMarinePoint>) typedHandler::process);
-      } else if (handler instanceof OsmContinentPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmContinentPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmContinentPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmContinentPoint>) typedHandler::process);
-      } else if (handler instanceof OsmCountryPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmCountryPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmCountryPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmCountryPoint>) typedHandler::process);
-      } else if (handler instanceof OsmIslandPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmIslandPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmIslandPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmIslandPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmIslandPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmIslandPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmIslandPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmIslandPoint>) typedHandler::process);
-      } else if (handler instanceof OsmStatePoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmStatePoint.Handler typedHandler) {
         result.computeIfAbsent(OsmStatePoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmStatePoint>) typedHandler::process);
-      } else if (handler instanceof OsmCityPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmCityPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmCityPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmCityPoint>) typedHandler::process);
-      } else if (handler instanceof OsmHousenumberPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmHousenumberPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmHousenumberPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmHousenumberPoint>) typedHandler::process);
-      } else if (handler instanceof OsmPoiPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmPoiPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmPoiPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmPoiPoint>) typedHandler::process);
-      } else if (handler instanceof OsmPoiPolygon.Handler typedHandler) {
+      }
+      if (handler instanceof OsmPoiPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmPoiPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmPoiPolygon>) typedHandler::process);
-      } else if (handler instanceof OsmAerodromeLabelPoint.Handler typedHandler) {
+      }
+      if (handler instanceof OsmAerodromeLabelPoint.Handler typedHandler) {
         result.computeIfAbsent(OsmAerodromeLabelPoint.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerodromeLabelPoint>) typedHandler::process);
       }

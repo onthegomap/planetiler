@@ -383,10 +383,10 @@ public class FeatureCollectorTest {
 
     var fc = factory.get(sourceLine);
     fc.point("layer").setZoomRange(0, 10);
-    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+    fc.line("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point or line");
 
     fc.polygon("layer").setZoomRange(0, 10);
-    fc.line("layer").setZoomRange(0, 10);
     fc.centroid("layer").setZoomRange(0, 10);
     fc.pointOnSurface("layer").setZoomRange(0, 10);
     var iter = fc.iterator();
@@ -394,15 +394,6 @@ public class FeatureCollectorTest {
     var item = iter.next();
     assertEquals(GeometryType.POLYGON, item.getGeometryType());
     assertEquals(round(newPolygon(
-      0.25, 0.25,
-      0.75, 0.75,
-      0.25, 0.75,
-      0.25, 0.25
-    )), round(item.getGeometry()));
-
-    item = iter.next();
-    assertEquals(GeometryType.LINE, item.getGeometryType());
-    assertEquals(round(newLineString(
       0.25, 0.25,
       0.75, 0.75,
       0.25, 0.75,
@@ -440,10 +431,10 @@ public class FeatureCollectorTest {
 
     var fc = factory.get(sourceLine);
     fc.point("layer").setZoomRange(0, 10);
-    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+    fc.line("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point or line");
 
     fc.polygon("layer").setZoomRange(0, 10);
-    fc.line("layer").setZoomRange(0, 10);
     fc.centroid("layer").setZoomRange(0, 10);
     fc.pointOnSurface("layer").setZoomRange(0, 10);
     var iter = fc.iterator();
@@ -453,13 +444,6 @@ public class FeatureCollectorTest {
     assertEquals(round(newPolygon(
       rectangleCoordList(0, 1),
       List.of(rectangleCoordList(0.25, 0.75))
-    )), round(item.getGeometry()));
-
-    item = iter.next();
-    assertEquals(GeometryType.LINE, item.getGeometryType());
-    assertEquals(round(newMultiLineString(
-      newLineString(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
-      newLineString(0.25, 0.25, 0.75, 0.25, 0.75, 0.75, 0.25, 0.75, 0.25, 0.25)
     )), round(item.getGeometry()));
 
     item = iter.next();
@@ -524,7 +508,8 @@ public class FeatureCollectorTest {
 
     var fc = factory.get(sourceLine);
     fc.point("layer").setZoomRange(0, 10);
-    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point");
+    fc.line("layer").setZoomRange(0, 10);
+    assertFalse(fc.iterator().hasNext(), "silently fail coercing to point or line");
 
     fc.polygon("layer").setZoomRange(0, 10);
     fc.line("layer").setZoomRange(0, 10);
@@ -537,13 +522,6 @@ public class FeatureCollectorTest {
     assertEquals(round(newMultiPolygon(
       rectangle(0, 1),
       rectangle(2, 0, 3, 1)
-    )), round(item.getGeometry()));
-
-    item = iter.next();
-    assertEquals(GeometryType.LINE, item.getGeometryType());
-    assertEquals(round(newMultiLineString(
-      newLineString(rectangleCoordList(0, 1)),
-      newLineString(rectangleCoordList(2, 0, 3, 1))
     )), round(item.getGeometry()));
 
     item = iter.next();

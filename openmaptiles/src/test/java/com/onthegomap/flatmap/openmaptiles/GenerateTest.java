@@ -189,17 +189,17 @@ public class GenerateTest {
         """), new Generate.Imposm3Filters(null, null));
     assertEquals(and(
       matchAny("key", "val"),
-      matchAny("__point", "true")
+      matchField("__point")
     ), parsed);
   }
 
   @Test
   public void testTypeMappings() {
     Map<String, JsonNode> props = new LinkedHashMap<>();
-    props.put("point", parseYaml("""
+    props.put("points", parseYaml("""
       key: val
       """));
-    props.put("polygon", parseYaml("""
+    props.put("polygons", parseYaml("""
       key2: val2
       """));
     Expression parsed = Generate
@@ -214,11 +214,11 @@ public class GenerateTest {
     assertEquals(or(
       and(
         matchAny("key", "val"),
-        matchAny("__point", "true")
+        matchField("__point")
       ),
       and(
         matchAny("key2", "val2"),
-        matchAny("__polygon", "true")
+        matchField("__polygon")
       )
     ), parsed);
   }

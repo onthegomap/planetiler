@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.openmaptiles;
 
+import com.onthegomap.flatmap.Parse;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -39,5 +40,10 @@ public class Utils {
       "ele", meters,
       "ele_ft", (int) Math.round(meters * 3.2808399)
     );
+  }
+
+  public static Map<String, Object> elevationTags(String meters) {
+    Integer ele = Parse.parseIntSubstring(meters);
+    return ele == null ? Map.of() : elevationTags(ele);
   }
 }

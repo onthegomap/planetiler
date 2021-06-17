@@ -255,7 +255,7 @@ public class Generate {
         if (handler instanceof %s.Handler typedHandler) {
           result.computeIfAbsent(%s.class, cls -> new ArrayList<>()).add((RowHandler<%s>) typedHandler::process);
         }""".formatted(className, className, className)
-    ).collect(joining(" else "));
+    ).collect(joining("\n"));
     tablesClass.append("""
         public static Map<Class<? extends Row>, List<RowHandler<? extends Row>>> generateDispatchMap(List<?> handlers) {
           Map<Class<? extends Row>, List<RowHandler<? extends Row>>> result = new HashMap<>();
@@ -286,7 +286,7 @@ public class Generate {
       or(parseExpression(mapping).toList()),
       and(filters == null || filters.require == null ? List.of() : parseExpression(filters.require).toList()),
       not(or(filters == null || filters.reject == null ? List.of() : parseExpression(filters.reject).toList())),
-      "geometry".equals(type) ? and() : matchAny("__" + type, "true")
+      "geometry".equals(type) ? and() : matchField("__" + type.replaceAll("s$", ""))
     ).simplify();
   }
 

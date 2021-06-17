@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.openmaptiles;
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
 import static com.onthegomap.flatmap.TestUtils.newLineString;
 import static com.onthegomap.flatmap.TestUtils.newPoint;
+import static com.onthegomap.flatmap.TestUtils.newPolygon;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -29,12 +30,9 @@ import org.junit.jupiter.api.TestFactory;
 
 public class OpenMaptilesProfileTest {
 
-  private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"));
   private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
-
-  {
-    translations.addTranslationProvider(wikidataTranslations);
-  }
+  private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
+    .addTranslationProvider(wikidataTranslations);
 
   private final CommonParams params = CommonParams.defaults();
   private final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, Arguments.of(),
@@ -192,6 +190,196 @@ public class OpenMaptilesProfileTest {
     )));
   }
 
+  @TestFactory
+  public List<DynamicTest> aerodromeLabel() {
+    wikidataTranslations.put(123, "es", "es wd name");
+    return List.of(
+      dynamicTest("happy path point", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "international",
+          "ele", 100,
+          "ele_ft", 328,
+          "name", "osm name",
+          "name:es", "es wd name",
+
+          "_layer", "aerodrome_label",
+          "_type", "point",
+          "_minzoom", 10,
+          "_maxzoom", 14,
+          "_buffer", 64d
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "name", "osm name",
+          "wikidata", "Q123",
+          "ele", "100",
+          "aerodrome", "international",
+          "iata", "123",
+          "icao", "1234"
+        ))));
+      }),
+
+      dynamicTest("international", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "international",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome_type", "international"
+        ))));
+      }),
+
+      dynamicTest("public", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "public",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome_type", "public airport"
+        ))));
+        assertFeatures(14, List.of(Map.of(
+          "class", "public",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome_type", "civil"
+        ))));
+      }),
+
+      dynamicTest("military", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "military",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome_type", "military airport"
+        ))));
+        assertFeatures(14, List.of(Map.of(
+          "class", "military",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "military", "airfield"
+        ))));
+      }),
+
+      dynamicTest("private", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "private",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome_type", "private"
+        ))));
+        assertFeatures(14, List.of(Map.of(
+          "class", "private",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome",
+          "aerodrome", "private"
+        ))));
+      }),
+
+      dynamicTest("other", () -> {
+        assertFeatures(14, List.of(Map.of(
+          "class", "other",
+          "_layer", "aerodrome_label"
+        )), process(pointFeature(Map.of(
+          "aeroway", "aerodrome"
+        ))));
+      }),
+
+      dynamicTest("ignore non-points", () -> {
+        assertFeatures(14, List.of(), process(lineFeature(Map.of(
+          "aeroway", "aerodrome"
+        ))));
+      })
+    );
+  }
+
+  @Test
+  public void aerowayGate() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "gate",
+      "ref", "123",
+
+      "_layer", "aeroway",
+      "_type", "point",
+      "_minzoom", 14,
+      "_maxzoom", 14,
+      "_buffer", 4d
+    )), process(pointFeature(Map.of(
+      "aeroway", "gate",
+      "ref", "123"
+    ))));
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "aeroway", "gate"
+    ))));
+    assertFeatures(14, List.of(), process(polygonFeature(Map.of(
+      "aeroway", "gate"
+    ))));
+  }
+
+  @Test
+  public void aerowayLine() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "runway",
+      "ref", "123",
+
+      "_layer", "aeroway",
+      "_type", "line",
+      "_minzoom", 10,
+      "_maxzoom", 14,
+      "_buffer", 4d
+    )), process(lineFeature(Map.of(
+      "aeroway", "runway",
+      "ref", "123"
+    ))));
+    assertFeatures(14, List.of(), process(pointFeature(Map.of(
+      "aeroway", "runway"
+    ))));
+  }
+
+  @Test
+  public void aerowayPolygon() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "runway",
+      "ref", "123",
+
+      "_layer", "aeroway",
+      "_type", "polygon",
+      "_minzoom", 10,
+      "_maxzoom", 14,
+      "_buffer", 4d
+    )), process(polygonFeature(Map.of(
+      "aeroway", "runway",
+      "ref", "123"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "class", "runway",
+      "ref", "123",
+      "_layer", "aeroway",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "area:aeroway", "runway",
+      "ref", "123"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "class", "heliport",
+      "ref", "123",
+      "_layer", "aeroway",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "aeroway", "heliport",
+      "ref", "123"
+    ))));
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "aeroway", "heliport"
+    ))));
+    assertFeatures(14, List.of(), process(pointFeature(Map.of(
+      "aeroway", "heliport"
+    ))));
+  }
+
   private VectorTileEncoder.Feature pointFeature(String layer, Map<String, Object> map, int group) {
     return new VectorTileEncoder.Feature(
       layer,
@@ -221,6 +409,16 @@ public class OpenMaptilesProfileTest {
   private SourceFeature lineFeature(Map<String, Object> props) {
     return new ReaderFeature(
       newLineString(0, 0, 1, 1),
+      new HashMap<>(props),
+      OSM_SOURCE,
+      null,
+      0
+    );
+  }
+
+  private SourceFeature polygonFeature(Map<String, Object> props) {
+    return new ReaderFeature(
+      newPolygon(0, 0, 1, 0, 1, -1, 0, -1, 0, 0),
       new HashMap<>(props),
       OSM_SOURCE,
       null,

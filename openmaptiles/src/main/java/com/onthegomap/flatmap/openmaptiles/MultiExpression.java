@@ -140,6 +140,11 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       return matches.stream().map(d -> d.match).toList();
     }
 
+    public T getOrElse(Map<String, Object> input, T defaultValue) {
+      List<T> matches = getMatches(input);
+      return matches.isEmpty() ? defaultValue : matches.get(0);
+    }
+
     private void visitExpression(Map<String, Object> input, List<MatchWithTriggers<T>> result, BitSet visited,
       List<ExpressionValue<T>> expressionValues) {
       if (expressionValues != null) {

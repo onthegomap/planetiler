@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.openmaptiles;
 
+import com.google.common.collect.ForwardingMap;
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
@@ -15,6 +16,7 @@ import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +61,10 @@ public class OpenMapTilesProfile implements Profile {
   public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTileEncoder.Feature> items) throws GeometryException {
     FeaturePostProcessor postProcesor = postProcessors.get(layer);
-    List<VectorTileEncoder.Feature> result = postProcesor.postProcess(zoom, items);
+    List<VectorTileEncoder.Feature> result = null;
+    if (postProcesor != null) {
+      result = postProcesor.postProcess(zoom, items);
+    }
 //    if (MERGE_Z13_BUILDINGS && "building".equals(layer) && zoom == 13) {
 //      return FeatureMerge.mergePolygons(items, 4, 0.5, 0.5);
 //    }
@@ -71,19 +76,37 @@ public class OpenMapTilesProfile implements Profile {
     return null;
   }
 
+  static class MapWithType extends ForwardingMap<String, Object> {
+
+    private final Map<String, Object> properties;
+    private final SourceFeature source;
+
+    MapWithType(SourceFeature sourceFeature) {
+      this.properties = sourceFeature.properties();
+      this.source = sourceFeature;
+    }
+
+    @Override
+    protected Map<String, Object> delegate() {
+      return properties;
+    }
+
+    @Override
+    public boolean containsKey(@Nullable Object key) {
+      return key instanceof String str && switch (str) {
+        case "__point" -> source.isPoint();
+        case "__linestring" -> source.canBeLine();
+        case "__polygon" -> source.canBePolygon();
+        default -> properties.containsKey(key);
+      };
+    }
+  }
+
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (OSM_SOURCE.equals(sourceFeature.getSource())) {
-      if (sourceFeature.canBeLine()) {
-        sourceFeature.properties().put("__linestring", "true");
-      }
-      if (sourceFeature.canBePolygon()) {
-        sourceFeature.properties().put("__polygon", "true");
-      }
-      if (sourceFeature.isPoint()) {
-        sourceFeature.properties().put("__point", "true");
-      }
-      for (var match : osmMappings.getMatchesWithTriggers(sourceFeature.properties())) {
+      var input = new MapWithType(sourceFeature);
+      for (var match : osmMappings.getMatchesWithTriggers(input)) {
         var row = match.match().create(sourceFeature, match.keys().get(0));
         var handlers = osmDispatchMap.get(row.getClass());
         if (handlers != null) {
