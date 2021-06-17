@@ -2,8 +2,10 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.openmaptiles.LanguageUtils.getNames;
 import static com.onthegomap.flatmap.openmaptiles.Utils.elevationTags;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIf;
+import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
+import com.carrotsearch.hppc.LongIntHashMap;
+import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.Parse;
@@ -37,8 +39,8 @@ public class MountainPeak implements
         .setBufferPixels(BUFFER_SIZE)
         .setZorder(
           meters +
-            (nullIf(element.wikipedia(), "") == null ? 10_000 : 0) +
-            (nullIf(element.name(), "") == null ? 10_000 : 0)
+            (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0) +
+            (nullIfEmpty(element.name()) != null ? 10_000 : 0)
         )
         .setZoomRange(7, 14)
         .setLabelGridSizeAndLimit(13, 100, 5);
@@ -46,7 +48,16 @@ public class MountainPeak implements
   }
 
   @Override
-  public void postProcess(int zoom, List<VectorTileEncoder.Feature> items) {
-
+  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items) {
+    LongIntMap groupCounts = new LongIntHashMap();
+    for (int i = items.size() - 1; i >= 0; i--) {
+      VectorTileEncoder.Feature feature = items.get(i);
+      int gridrank = groupCounts.getOrDefault(feature.group(), 1);
+      groupCounts.put(feature.group(), gridrank + 1);
+      if (!feature.attrs().containsKey(Fields.RANK)) {
+        feature.attrs().put(Fields.RANK, gridrank);
+      }
+    }
+    return items;
   }
 }

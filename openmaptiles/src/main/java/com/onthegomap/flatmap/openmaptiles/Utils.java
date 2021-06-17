@@ -30,6 +30,10 @@ public class Utils {
     return nullValue.equals(a) ? null : a;
   }
 
+  public static String nullIfEmpty(String a) {
+    return (a == null || a.isEmpty()) ? null : a;
+  }
+
   public static Map<String, Object> elevationTags(int meters) {
     return Map.of(
       "ele", meters,

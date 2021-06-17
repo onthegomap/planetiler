@@ -306,7 +306,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setAttr(String key, Object value) {
       if (value instanceof ZoomFunction) {
         attrsChangeByZoom = true;
-      } else if (value != null) {
+      }
+      if (value != null) {
         attrs.put(key, value);
       }
       return this;

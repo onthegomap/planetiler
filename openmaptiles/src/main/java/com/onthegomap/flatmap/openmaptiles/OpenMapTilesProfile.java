@@ -3,7 +3,6 @@ package com.onthegomap.flatmap.openmaptiles;
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.Translations;
@@ -31,6 +30,7 @@ public class OpenMapTilesProfile implements Profile {
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmMappings;
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
+  private final Map<String, FeaturePostProcessor> postProcessors;
 
   public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
     this.osmMappings = Tables.MAPPINGS.index();
@@ -42,6 +42,12 @@ public class OpenMapTilesProfile implements Profile {
         return rawHandler;
       }).toList());
     });
+    postProcessors = new HashMap<>();
+    for (Layer layer : layers) {
+      if (layer instanceof FeaturePostProcessor postProcessor) {
+        postProcessors.put(layer.name(), postProcessor);
+      }
+    }
   }
 
   @Override
@@ -52,10 +58,12 @@ public class OpenMapTilesProfile implements Profile {
   @Override
   public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
     List<VectorTileEncoder.Feature> items) throws GeometryException {
-    if (MERGE_Z13_BUILDINGS && "building".equals(layer) && zoom == 13) {
-      return FeatureMerge.mergePolygons(items, 4, 0.5, 0.5);
-    }
-    return items;
+    FeaturePostProcessor postProcesor = postProcessors.get(layer);
+    List<VectorTileEncoder.Feature> result = postProcesor.postProcess(zoom, items);
+//    if (MERGE_Z13_BUILDINGS && "building".equals(layer) && zoom == 13) {
+//      return FeatureMerge.mergePolygons(items, 4, 0.5, 0.5);
+//    }
+    return result == null ? items : result;
   }
 
   @Override
@@ -130,7 +138,8 @@ public class OpenMapTilesProfile implements Profile {
 
   public interface FeaturePostProcessor {
 
-    void postProcess(int zoom, List<VectorTileEncoder.Feature> items);
+    List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
+      throws GeometryException;
   }
 
   @Override

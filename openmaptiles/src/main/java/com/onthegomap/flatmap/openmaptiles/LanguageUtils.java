@@ -2,7 +2,7 @@ package com.onthegomap.flatmap.openmaptiles;
 
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesceLazy;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIf;
+import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
 import com.ibm.icu.text.Transliterator;
 import com.onthegomap.flatmap.Translations;
@@ -22,7 +22,7 @@ public class LanguageUtils {
   }
 
   private static String string(Object obj) {
-    return nullIf(obj == null ? null : obj.toString(), "");
+    return nullIfEmpty(obj == null ? null : obj.toString());
   }
 
   private static final Pattern NONLATIN = Pattern
