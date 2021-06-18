@@ -6,8 +6,11 @@ import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.TestUtils.newPolygon;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import com.graphhopper.reader.ReaderNode;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
@@ -378,6 +381,16 @@ public class OpenMaptilesProfileTest {
     assertFeatures(14, List.of(), process(pointFeature(Map.of(
       "aeroway", "heliport"
     ))));
+  }
+
+  @Test
+  public void testCaresAboutWikidata() {
+    var node = new ReaderNode(1, 1, 1);
+    node.setTag("aeroway", "gate");
+    assertTrue(profile.caresAboutWikidataTranslation(node));
+
+    node.setTag("aeroway", "other");
+    assertFalse(profile.caresAboutWikidataTranslation(node));
   }
 
   private VectorTileEncoder.Feature pointFeature(String layer, Map<String, Object> map, int group) {

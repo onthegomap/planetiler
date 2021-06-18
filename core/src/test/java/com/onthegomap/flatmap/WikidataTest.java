@@ -28,6 +28,8 @@ import org.mockito.Mockito;
 
 public class WikidataTest {
 
+  Profile profile = new Profile.NullProfile();
+
   @Test
   public void testWikidataTranslations() {
     var expected = Map.of("en", "en value", "es", "es value");
@@ -48,7 +50,7 @@ public class WikidataTest {
   public List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
     Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-    Wikidata fixture = new Wikidata(writer, client, 2);
+    Wikidata fixture = new Wikidata(writer, client, 2, profile);
     fixture.fetch(1L);
     Mockito.verifyNoInteractions(client);
     Mockito.when(client.send(Mockito.any())).thenReturn(new ByteArrayInputStream("""
@@ -117,7 +119,7 @@ public class WikidataTest {
       dynamicTest("do not re-request on subsequent loads", () -> {
         StringWriter writer2 = new StringWriter();
         Wikidata.Client client2 = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
-        Wikidata fixture2 = new Wikidata(writer2, client2, 2);
+        Wikidata fixture2 = new Wikidata(writer2, client2, 2, profile);
         fixture2.loadExisting(Wikidata.load(new BufferedReader(new StringReader(writer.toString()))));
         fixture2.fetch(1L);
         fixture2.fetch(2L);

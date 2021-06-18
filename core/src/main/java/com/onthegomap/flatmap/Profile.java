@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -37,6 +38,10 @@ public interface Profile {
 
   default boolean isOverlay() {
     return false;
+  }
+
+  default boolean caresAboutWikidataTranslation(ReaderElement elem) {
+    return true;
   }
 
   class NullProfile implements Profile {

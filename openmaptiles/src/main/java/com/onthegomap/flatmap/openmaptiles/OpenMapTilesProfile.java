@@ -4,6 +4,8 @@ import static com.onthegomap.flatmap.openmaptiles.Expression.FALSE;
 import static com.onthegomap.flatmap.openmaptiles.Expression.TRUE;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchType;
 
+import com.graphhopper.reader.ReaderElement;
+import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
@@ -176,6 +178,17 @@ public class OpenMapTilesProfile implements Profile {
 
     List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
       throws GeometryException;
+  }
+
+  @Override
+  public boolean caresAboutWikidataTranslation(ReaderElement elem) {
+    var tags = ReaderElementUtils.getProperties(elem);
+    return switch (elem.getType()) {
+      case ReaderElement.WAY -> osmPolygonMappings.matches(tags) || osmLineMappings.matches(tags);
+      case ReaderElement.NODE -> osmPointMappings.matches(tags);
+      case ReaderElement.RELATION -> osmPolygonMappings.matches(tags);
+      default -> false;
+    };
   }
 
   @Override

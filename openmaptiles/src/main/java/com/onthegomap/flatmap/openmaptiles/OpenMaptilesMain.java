@@ -1,17 +1,25 @@
 package com.onthegomap.flatmap.openmaptiles;
 
 import com.onthegomap.flatmap.Arguments;
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.read.OsmInputFile;
 import java.nio.file.Path;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OpenMaptilesMain {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMaptilesMain.class);
+  private static final String fallbackOsmFile = "north-america_us_massachusetts.pbf";
+  private static final Path sourcesDir = Path.of("data", "sources");
+
   public static void main(String[] args) throws Exception {
-    Path sourcesDir = Path.of("data", "sources");
 
     FlatMapRunner runner = FlatMapRunner.create();
 
@@ -23,23 +31,34 @@ public class OpenMaptilesMain {
 //        sourcesDir.resolve("water-polygons-split-3857.zip"))
 //      .addNaturalEarthSource(OpenMapTilesProfile.NATURAL_EARTH_SOURCE,
 //        sourcesDir.resolve("natural_earth_vector.sqlite.zip"))
-      .addOsmSource(OpenMapTilesProfile.OSM_SOURCE, sourcesDir.resolve("north-america_us_massachusetts.pbf"))
+      .addOsmSource(OpenMapTilesProfile.OSM_SOURCE, sourcesDir.resolve(fallbackOsmFile))
       .setOutput("mbtiles", Path.of("data", "massachusetts.mbtiles"))
       .run();
   }
 
-  private static OpenMapTilesProfile createProfileWithWikidataTranslations(FlatMapRunner runner) {
+  private static OpenMapTilesProfile createProfileWithWikidataTranslations(FlatMapRunner runner) throws Exception {
     Arguments arguments = runner.arguments();
-    boolean fetchWikidata = arguments.get("fetch_wikidata", "fetch wikidata translations", false);
+    boolean fetchWikidata = arguments.get("fetch_wikidata", "fetch wikidata translations then continue", false);
+    boolean onlyFetchWikidata = arguments.get("only_fetch_wikidata", "fetch wikidata translations then quit", false);
     boolean useWikidata = arguments.get("use_wikidata", "use wikidata translations", true);
     boolean transliterate = arguments.get("transliterate", "attempt to transliterate latin names", true);
     Path wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file",
       Path.of("data", "sources", "wikidata_names.json"));
     // most common languages: "en,ru,ar,zh,ja,ko,fr,de,fi,pl,es,be,br,he"
-    List<String> languages = arguments.get("name_languages", "languages to use",
-      Layers.LANGUAGES.toArray(String[]::new));
+    List<String> languages = arguments
+      .get("name_languages", "languages to use", Layers.LANGUAGES.toArray(String[]::new));
     var translations = Translations.defaultProvider(languages).setShouldTransliterate(transliterate);
     var profile = new OpenMapTilesProfile(translations, arguments, runner.stats());
+
+    if (onlyFetchWikidata) {
+      LOGGER.info("Will fetch wikidata translations then quit...");
+      var osmInput = new OsmInputFile(
+        arguments.inputFile(OpenMapTilesProfile.OSM_SOURCE, "input file", sourcesDir.resolve(fallbackOsmFile)));
+      Wikidata
+        .fetch(osmInput, wikidataNamesFile, CommonParams.from(arguments, osmInput), profile, new Stats.InMemory());
+      translations.addTranslationProvider(Wikidata.load(wikidataNamesFile));
+      System.exit(0);
+    }
 
     if (useWikidata) {
       if (fetchWikidata) {

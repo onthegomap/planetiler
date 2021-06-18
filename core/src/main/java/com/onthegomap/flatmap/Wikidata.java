@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
@@ -63,11 +62,13 @@ public class Wikidata {
   private final Writer writer;
   private final Client client;
   private final int batchSize;
+  private final Profile profile;
 
-  public Wikidata(Writer writer, Client client, int batchSize) {
+  public Wikidata(Writer writer, Client client, int batchSize, Profile profile) {
     this.writer = writer;
     this.client = client;
     this.batchSize = batchSize;
+    this.profile = profile;
     qidsToFetch = new ArrayList<>(batchSize);
   }
 
@@ -129,7 +130,7 @@ public class Wikidata {
     WikidataTranslations oldMappings = load(outfile);
     try (Writer writer = Files.newBufferedWriter(outfile)) {
       HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
-      Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000);
+      Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile);
       fetcher.loadExisting(oldMappings);
 
       var topology = Topology.start("wikidata", stats)
@@ -213,7 +214,6 @@ public class Wikidata {
   }
 
   private void filter(Supplier<ReaderElement> prev, Consumer<Long> next) {
-    TrackUsageMapping qidTracker = new TrackUsageMapping();
     ReaderElement elem;
     while ((elem = prev.get()) != null) {
       switch (elem.getType()) {
@@ -221,12 +221,13 @@ public class Wikidata {
         case ReaderElement.WAY -> ways.incrementAndGet();
         case ReaderElement.RELATION -> rels.incrementAndGet();
       }
-      if (elem.hasTag("wikidata")) {
-        qidTracker.qid = 0;
-        // TODO send reader element through profile
-        qidTracker.getNameTranslations(ReaderElementUtils.getProperties(elem));
-        if (qidTracker.qid > 0) {
-          next.accept(qidTracker.qid);
+      Object wikidata = elem.getTag("wikidata");
+      if (wikidata instanceof String wikidataString) {
+        if (profile.caresAboutWikidataTranslation(elem)) {
+          long qid = parseQid(wikidataString);
+          if (qid > 0) {
+            next.accept(qid);
+          }
         }
       }
     }
@@ -332,17 +333,6 @@ public class Wikidata {
       if (wikidataId > 0) {
         return get(wikidataId);
       }
-      return null;
-    }
-  }
-
-  private static class TrackUsageMapping extends WikidataTranslations {
-
-    public long qid = 0;
-
-    @Override
-    public Map<String, String> get(long qid) {
-      this.qid = qid;
       return null;
     }
   }

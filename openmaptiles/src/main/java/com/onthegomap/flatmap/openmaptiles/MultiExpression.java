@@ -147,6 +147,10 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       }
     }
 
+    public boolean matches(Map<String, Object> input) {
+      return !getMatchesWithTriggers(input).isEmpty();
+    }
+
     public static record MatchWithTriggers<T>(T match, List<String> keys) {}
 
     public List<MatchWithTriggers<T>> getMatchesWithTriggers(Map<String, Object> input) {
