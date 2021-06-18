@@ -4,9 +4,11 @@ import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
+import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.OsmInputFile;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -19,6 +21,7 @@ import org.locationtech.jts.geom.Geometry;
 public class BenchmarkMapping {
 
   public static void main(String[] args) throws IOException {
+    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), Arguments.of(), new Stats.InMemory());
     var random = new Random(0);
     var input = new OsmInputFile(Path.of("data", "sources", "north-america_us_massachusetts.pbf"));
     List<SourceFeature> inputs = new ArrayList<>();
@@ -56,7 +59,6 @@ public class BenchmarkMapping {
         });
       }
     }, "reader", 3);
-    var mappings = Tables.MAPPINGS.index();
 
     System.err.println("read " + inputs.size() + " elems");
 
@@ -67,8 +69,7 @@ public class BenchmarkMapping {
       long start = System.nanoTime();
       int i = 0;
       for (SourceFeature in : inputs) {
-        OpenMapTilesProfile.MapWithType wrapped = new OpenMapTilesProfile.MapWithType(in);
-        i += mappings.getMatchesWithTriggers(wrapped).size();
+        i += profile.getTableMatches(in).size();
       }
       if (count == 0) {
         startStart = System.nanoTime();

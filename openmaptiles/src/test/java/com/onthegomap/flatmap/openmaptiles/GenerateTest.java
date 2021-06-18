@@ -173,11 +173,11 @@ public class GenerateTest {
       )
     ).stream().map(test -> dynamicTest(test.name, () -> {
       Expression parsed = Generate
-        .parseImposm3MappingExpression("geometry", parseYaml(test.mapping), new Generate.Imposm3Filters(
+        .parseImposm3MappingExpression("point", parseYaml(test.mapping), new Generate.Imposm3Filters(
           parseYaml(test.reject),
           parseYaml(test.require)
         ));
-      assertEquals(test.expected, parsed);
+      assertEquals(test.expected, parsed.replace(matchType("point"), TRUE).simplify());
     }));
   }
 
@@ -189,7 +189,7 @@ public class GenerateTest {
         """), new Generate.Imposm3Filters(null, null));
     assertEquals(and(
       matchAny("key", "val"),
-      matchField("__point")
+      matchType("point")
     ), parsed);
   }
 
@@ -214,11 +214,11 @@ public class GenerateTest {
     assertEquals(or(
       and(
         matchAny("key", "val"),
-        matchField("__point")
+        matchType("point")
       ),
       and(
         matchAny("key2", "val2"),
-        matchField("__polygon")
+        matchType("polygon")
       )
     ), parsed);
   }

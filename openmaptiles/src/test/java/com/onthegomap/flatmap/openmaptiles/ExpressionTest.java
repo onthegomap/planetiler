@@ -1,11 +1,9 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import static com.onthegomap.flatmap.openmaptiles.Expression.and;
-import static com.onthegomap.flatmap.openmaptiles.Expression.matchAny;
-import static com.onthegomap.flatmap.openmaptiles.Expression.not;
-import static com.onthegomap.flatmap.openmaptiles.Expression.or;
+import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 public class ExpressionTest {
@@ -62,5 +60,35 @@ public class ExpressionTest {
   public void testDemorgans() {
     assertEquals(or(not(matchAB), not(matchBC)), not(and(matchAB, matchBC)).simplify());
     assertEquals(and(not(matchAB), not(matchBC)), not(or(matchAB, matchBC)).simplify());
+  }
+
+  @Test
+  public void testSimplifyFalse() {
+    assertEquals(FALSE, and(FALSE).simplify());
+    assertEquals(FALSE, and(FALSE, matchAB).simplify());
+    assertEquals(FALSE, or(FALSE).simplify());
+  }
+
+  @Test
+  public void testSimplifyTrue() {
+    assertEquals(TRUE, and(TRUE).simplify());
+    assertEquals(matchAB, and(TRUE, matchAB).simplify());
+    assertEquals(TRUE, or(TRUE, matchAB).simplify());
+  }
+
+  @Test
+  public void testReplace() {
+    assertEquals(
+      or(not(matchCD), matchCD, and(matchCD, matchBC)),
+      or(not(matchAB), matchAB, and(matchAB, matchBC))
+        .replace(matchAB, matchCD));
+  }
+
+  @Test
+  public void testReplacePredicate() {
+    assertEquals(
+      or(not(matchCD), matchCD, and(matchCD, matchCD)),
+      or(not(matchCD), matchCD, and(matchCD, matchCD))
+        .replace(e -> Set.of(matchAB, matchBC).contains(e), matchCD));
   }
 }

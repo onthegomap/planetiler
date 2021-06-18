@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.openmaptiles;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +42,15 @@ public interface Expression {
     return new MatchField(field);
   }
 
+  Set<String> supportedTypes = Set.of("linestring", "point", "polygon", "relation_member");
+
+  static MatchType matchType(String type) {
+    if (!supportedTypes.contains(type)) {
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
+    return new MatchType(type);
+  }
+
   private static String listToString(List<?> items) {
     return items.stream().map(Object::toString).collect(Collectors.joining(", "));
   }
@@ -57,23 +67,41 @@ public interface Expression {
         return or(and.children.stream().<Expression>map(Expression::not).toList());
       } else if (not.child instanceof Not not2) {
         return not2.child;
+      } else if (not.child == TRUE) {
+        return FALSE;
+      } else if (not.child == FALSE) {
+        return TRUE;
       }
       return not;
     } else if (expression instanceof Or or) {
+      if (or.children.isEmpty()) {
+        return FALSE;
+      }
       if (or.children.size() == 1) {
         return simplifyOnce(or.children.get(0));
+      }
+      if (or.children.contains(TRUE)) {
+        return TRUE;
       }
       return or(or.children.stream()
         // hoist children
         .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
+        .filter(child -> child != FALSE)
         .map(Expression::simplifyOnce).toList());
     } else if (expression instanceof And and) {
+      if (and.children.isEmpty()) {
+        return FALSE;
+      }
       if (and.children.size() == 1) {
         return simplifyOnce(and.children.get(0));
+      }
+      if (and.children.contains(FALSE)) {
+        return FALSE;
       }
       return and(and.children.stream()
         // hoist children
         .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
+        .filter(child -> child != TRUE)
         .map(Expression::simplifyOnce).toList());
     } else {
       return expression;
@@ -90,6 +118,24 @@ public interface Expression {
         return simplified;
       }
       seen.add(simplified);
+    }
+  }
+
+  default Expression replace(Expression a, Expression b) {
+    return replace(a::equals, b);
+  }
+
+  default Expression replace(Predicate<Expression> replace, Expression b) {
+    if (replace.test(this)) {
+      return b;
+    } else if (this instanceof Not not) {
+      return new Not(not.child.replace(replace, b));
+    } else if (this instanceof Or or) {
+      return new Or(or.children.stream().map(child -> child.replace(replace, b)).toList());
+    } else if (this instanceof And and) {
+      return new And(and.children.stream().map(child -> child.replace(replace, b)).toList());
+    } else {
+      return this;
     }
   }
 
@@ -116,6 +162,18 @@ public interface Expression {
       return "not(" + child + ")";
     }
   }
+
+  Expression TRUE = new Expression() {
+    public String toString() {
+      return "TRUE";
+    }
+  };
+
+  Expression FALSE = new Expression() {
+    public String toString() {
+      return "FALSE";
+    }
+  };
 
   record MatchAny(String field, List<String> values, Set<String> exactMatches, List<String> wildcards) implements
     Expression {
@@ -147,6 +205,14 @@ public interface Expression {
     @Override
     public String toString() {
       return "matchField(" + Generate.quote(field) + ")";
+    }
+  }
+
+  record MatchType(String type) implements Expression {
+
+    @Override
+    public String toString() {
+      return "matchType(" + Generate.quote(type) + ")";
     }
   }
 }

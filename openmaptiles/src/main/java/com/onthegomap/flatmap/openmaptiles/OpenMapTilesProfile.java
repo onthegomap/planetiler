@@ -1,6 +1,9 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import com.google.common.collect.ForwardingMap;
+import static com.onthegomap.flatmap.openmaptiles.Expression.FALSE;
+import static com.onthegomap.flatmap.openmaptiles.Expression.TRUE;
+import static com.onthegomap.flatmap.openmaptiles.Expression.matchType;
+
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
@@ -13,10 +16,10 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.generated.Layers;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,13 +32,28 @@ public class OpenMapTilesProfile implements Profile {
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmMappings;
+  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPointMappings;
+  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmLineMappings;
+  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPolygonMappings;
+  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmRelationMemberMappings;
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
   private final Map<String, FeaturePostProcessor> postProcessors;
 
+  private MultiExpression.MultiExpressionIndex<Tables.Constructor> indexForType(String type) {
+    return Tables.MAPPINGS
+      .filterKeys(constructor -> {
+        // exclude any mapping that generates a class we don't have a handler for
+        var clz = constructor.create(new ReaderFeature(null, Map.of(), 0), "").getClass();
+        return !osmDispatchMap.getOrDefault(clz, List.of()).isEmpty();
+      })
+      .replace(matchType(type), TRUE)
+      .replace(e -> e instanceof Expression.MatchType, FALSE)
+      .simplify()
+      .index();
+  }
+
   public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
-    this.osmMappings = Tables.MAPPINGS.index();
     this.layers = Layers.createInstances(translations, arguments, stats);
     osmDispatchMap = new HashMap<>();
     Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
@@ -44,6 +62,10 @@ public class OpenMapTilesProfile implements Profile {
         return rawHandler;
       }).toList());
     });
+    this.osmPointMappings = indexForType("point");
+    this.osmLineMappings = indexForType("linestring");
+    this.osmPolygonMappings = indexForType("polygon");
+    this.osmRelationMemberMappings = indexForType("relation_member");
     postProcessors = new HashMap<>();
     for (Layer layer : layers) {
       if (layer instanceof FeaturePostProcessor postProcessor) {
@@ -76,37 +98,10 @@ public class OpenMapTilesProfile implements Profile {
     return null;
   }
 
-  static class MapWithType extends ForwardingMap<String, Object> {
-
-    private final Map<String, Object> properties;
-    private final SourceFeature source;
-
-    MapWithType(SourceFeature sourceFeature) {
-      this.properties = sourceFeature.properties();
-      this.source = sourceFeature;
-    }
-
-    @Override
-    protected Map<String, Object> delegate() {
-      return properties;
-    }
-
-    @Override
-    public boolean containsKey(@Nullable Object key) {
-      return key instanceof String str && switch (str) {
-        case "__point" -> source.isPoint();
-        case "__linestring" -> source.canBeLine();
-        case "__polygon" -> source.canBePolygon();
-        default -> properties.containsKey(key);
-      };
-    }
-  }
-
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (OSM_SOURCE.equals(sourceFeature.getSource())) {
-      var input = new MapWithType(sourceFeature);
-      for (var match : osmMappings.getMatchesWithTriggers(input)) {
+      for (var match : getTableMatches(sourceFeature)) {
         var row = match.match().create(sourceFeature, match.keys().get(0));
         var handlers = osmDispatchMap.get(row.getClass());
         if (handlers != null) {
@@ -152,6 +147,24 @@ public class OpenMapTilesProfile implements Profile {
 //        }
 //      }
 //    }
+  }
+
+  List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> getTableMatches(
+    SourceFeature sourceFeature) {
+    List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> result = null;
+    if (sourceFeature.isPoint()) {
+      result = osmPointMappings.getMatchesWithTriggers(sourceFeature.properties());
+    } else {
+      if (sourceFeature.canBeLine()) {
+        result = osmLineMappings.getMatchesWithTriggers(sourceFeature.properties());
+        if (sourceFeature.canBePolygon()) {
+          result.addAll(osmPolygonMappings.getMatchesWithTriggers(sourceFeature.properties()));
+        }
+      } else if (sourceFeature.canBePolygon()) {
+        result = osmPolygonMappings.getMatchesWithTriggers(sourceFeature.properties());
+      }
+    }
+    return result == null ? List.of() : result;
   }
 
   public interface SourceFeatureProcessors {

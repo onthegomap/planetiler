@@ -286,7 +286,7 @@ public class Generate {
       or(parseExpression(mapping).toList()),
       and(filters == null || filters.require == null ? List.of() : parseExpression(filters.require).toList()),
       not(or(filters == null || filters.reject == null ? List.of() : parseExpression(filters.reject).toList())),
-      "geometry".equals(type) ? and() : matchField("__" + type.replaceAll("s$", ""))
+      matchType(type.replaceAll("s$", ""))
     ).simplify();
   }
 

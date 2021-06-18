@@ -9,6 +9,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public record MultiExpression<T>(Map<T, Expression> expressions) {
 
@@ -18,6 +21,35 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
 
   public MultiExpressionIndex<T> index() {
     return new MultiExpressionIndex<>(this);
+  }
+
+  public MultiExpression<T> map(Function<Expression, Expression> mapper) {
+    return new MultiExpression<>(
+      expressions.entrySet().stream()
+        .map(entry -> Map.entry(entry.getKey(), mapper.apply(entry.getValue())))
+        .filter(entry -> entry.getValue() != Expression.FALSE)
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+    );
+  }
+
+  public MultiExpression<T> replace(Predicate<Expression> test, Expression b) {
+    return map(e -> e.replace(test, b));
+  }
+
+  public MultiExpression<T> replace(Expression a, Expression b) {
+    return map(e -> e.replace(a, b));
+  }
+
+  public MultiExpression<T> simplify() {
+    return map(e -> e.simplify());
+  }
+
+  public MultiExpression<T> filterKeys(Predicate<T> accept) {
+    return new MultiExpression<>(
+      expressions.entrySet().stream()
+        .filter(entry -> accept.test(entry.getKey()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+    );
   }
 
   public static class MultiExpressionIndex<T> {
@@ -62,7 +94,11 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       // simple for loops instead of enhanced to avoid overhead of generating the
       // iterator (~30% speedup)
 
-      if (expr instanceof Expression.MatchAny match) {
+      if (expr == Expression.FALSE) {
+        return false;
+      } else if (expr == Expression.TRUE) {
+        return true;
+      } else if (expr instanceof Expression.MatchAny match) {
         Object value = input.get(match.field());
         if (value == null) {
           return false;

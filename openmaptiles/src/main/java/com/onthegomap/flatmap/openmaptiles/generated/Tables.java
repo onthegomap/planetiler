@@ -41,7 +41,7 @@ public class Tables {
       or(matchAny("landuse", "reservoir", "basin", "salt_pond"), matchAny("leisure", "swimming_pool"),
         matchAny("natural", "water", "bay"),
         matchAny("waterway", "river", "riverbank", "stream", "canal", "drain", "ditch", "dock")),
-      not(matchAny("covered", "yes")), matchField("__polygon"));
+      not(matchAny("covered", "yes")), matchType("polygon"));
 
     public interface Handler {
 
@@ -61,7 +61,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("waterway", "stream", "river", "canal", "drain", "ditch"),
-      matchField("__linestring"));
+      matchType("linestring"));
 
     public interface Handler {
 
@@ -83,7 +83,7 @@ public class Tables {
       matchAny("natural", "wood", "wetland", "fell", "grassland", "heath", "scrub", "tundra", "glacier", "bare_rock",
         "scree", "beach", "sand", "dune"), matchAny("leisure", "park", "garden", "golf_course"),
       matchAny("wetland", "bog", "swamp", "wet_meadow", "marsh", "reedbed", "saltern", "tidalflat", "saltmarsh",
-        "mangrove")), matchField("__polygon"));
+        "mangrove")), matchType("polygon"));
 
     public interface Handler {
 
@@ -106,7 +106,7 @@ public class Tables {
         "retail"),
       matchAny("amenity", "bus_station", "school", "university", "kindergarten", "college", "library", "hospital"),
       matchAny("leisure", "stadium", "pitch", "playground", "track"), matchAny("tourism", "theme_park", "zoo"),
-      matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")), matchField("__polygon"));
+      matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")), matchType("polygon"));
 
     public interface Handler {
 
@@ -123,7 +123,7 @@ public class Tables {
         source.getString("wikipedia"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano"), matchField("__point"));
+    public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano"), matchType("point"));
 
     public interface Handler {
 
@@ -144,7 +144,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       or(matchAny("leisure", "nature_reserve"), matchAny("boundary", "national_park", "protected_area")),
-      matchField("__polygon"));
+      matchType("polygon"));
 
     public interface Handler {
 
@@ -163,7 +163,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("type", "boundary"), matchField("admin_level"),
-      matchField("claimed_by"), matchField("__relation_member"));
+      matchField("claimed_by"), matchType("relation_member"));
 
     public interface Handler {
 
@@ -182,7 +182,7 @@ public class Tables {
     public static final Expression MAPPING = and(
       or(matchAny("aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron"),
         matchAny("area:aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron")),
-      matchField("__polygon"));
+      matchType("polygon"));
 
     public interface Handler {
 
@@ -198,7 +198,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"), matchField("__linestring"));
+    public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"), matchType("linestring"));
 
     public interface Handler {
 
@@ -214,7 +214,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchField("__point"));
+    public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchType("point"));
 
     public interface Handler {
 
@@ -246,7 +246,7 @@ public class Tables {
         "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
         "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
         "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")),
-      matchField("__linestring"));
+      matchType("linestring"));
 
     public interface Handler {
 
@@ -271,7 +271,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       matchAny("railway", "rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram"),
-      matchField("__linestring"));
+      matchType("linestring"));
 
     public interface Handler {
 
@@ -294,7 +294,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("aerialway", "cable_car", "gondola"),
-      matchField("__linestring"));
+      matchType("linestring"));
 
     public interface Handler {
 
@@ -316,7 +316,7 @@ public class Tables {
         source.getString("usage"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("route", "ferry"), matchField("__linestring"));
+    public static final Expression MAPPING = and(matchAny("route", "ferry"), matchType("linestring"));
 
     public interface Handler {
 
@@ -337,7 +337,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       or(matchAny("highway", "path", "cycleway", "bridleway", "footway", "corridor", "pedestrian", "steps"),
-        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchField("__polygon"));
+        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchType("polygon"));
 
     public interface Handler {
 
@@ -353,7 +353,7 @@ public class Tables {
       this(source.getString("ref"), source.getString("network"), source.getString("name"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("route", "road"), matchField("__relation_member"));
+    public static final Expression MAPPING = and(matchAny("route", "road"), matchType("relation_member"));
 
     public interface Handler {
 
@@ -377,7 +377,7 @@ public class Tables {
     public static final Expression MAPPING = and(
       or(matchField("building:part"), matchField("building"), matchAny("aeroway", "terminal", "hangar")),
       not(matchAny("building", "no", "none", "No")), not(matchAny("building:part", "no", "none", "No")),
-      not(matchAny("man_made", "bridge")), matchField("__polygon"));
+      not(matchAny("man_made", "bridge")), matchType("polygon"));
 
     public interface Handler {
 
@@ -403,7 +403,7 @@ public class Tables {
         source.getString("building:min_level"), source.getString("min_level"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("type", "building"), matchField("__relation_member"));
+    public static final Expression MAPPING = and(matchAny("type", "building"), matchType("relation_member"));
 
     public interface Handler {
 
@@ -422,7 +422,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "ocean", "sea"), matchField("name"),
-      matchField("__point"));
+      matchType("point"));
 
     public interface Handler {
 
@@ -439,7 +439,7 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(matchAny("place", "continent"), matchField("name"),
-      matchField("__point"));
+      matchType("point"));
 
     public interface Handler {
 
@@ -458,8 +458,7 @@ public class Tables {
         source.getString("ISO3166-1"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("place", "country"), matchField("name"),
-      matchField("__point"));
+    public static final Expression MAPPING = and(matchAny("place", "country"), matchField("name"), matchType("point"));
 
     public interface Handler {
 
@@ -476,8 +475,7 @@ public class Tables {
         source);
     }
 
-    public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"),
-      matchField("__polygon"));
+    public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("polygon"));
 
     public interface Handler {
 
@@ -494,8 +492,7 @@ public class Tables {
         source);
     }
 
-    public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"),
-      matchField("__point"));
+    public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("point"));
 
     public interface Handler {
 
@@ -514,7 +511,7 @@ public class Tables {
         source.getLong("rank"), source);
     }
 
-    public static final Expression MAPPING = and(matchAny("place", "state"), matchField("name"), matchField("__point"));
+    public static final Expression MAPPING = and(matchAny("place", "state"), matchField("name"), matchType("point"));
 
     public interface Handler {
 
@@ -535,7 +532,7 @@ public class Tables {
 
     public static final Expression MAPPING = and(
       matchAny("place", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood", "isolated_dwelling"),
-      matchField("name"), matchField("__point"));
+      matchField("name"), matchType("point"));
 
     public interface Handler {
 
@@ -550,8 +547,8 @@ public class Tables {
       this(source.getString("addr:housenumber"), source);
     }
 
-    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchField("__point")),
-      and(matchField("addr:housenumber"), matchField("__polygon")));
+    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchType("point")),
+      and(matchField("addr:housenumber"), matchType("polygon")));
 
     public interface Handler {
 
@@ -610,7 +607,7 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchField("__point"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("point"));
 
     public interface Handler {
 
@@ -669,7 +666,7 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchField("__polygon"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("polygon"));
 
     public interface Handler {
 
@@ -688,8 +685,8 @@ public class Tables {
         source.getString("iata"), source.getString("icao"), source.getString("ele"), source);
     }
 
-    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchField("__point")),
-      and(matchAny("aeroway", "aerodrome"), matchField("__polygon")));
+    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchType("point")),
+      and(matchAny("aeroway", "aerodrome"), matchType("polygon")));
 
     public interface Handler {
 
