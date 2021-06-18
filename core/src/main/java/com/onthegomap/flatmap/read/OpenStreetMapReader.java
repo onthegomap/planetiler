@@ -1,10 +1,14 @@
 package com.onthegomap.flatmap.read;
 
+import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongDoubleHashMap;
 import com.carrotsearch.hppc.LongHashSet;
+import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.graphhopper.coll.GHIntObjectHashMap;
 import com.graphhopper.coll.GHLongHashSet;
 import com.graphhopper.coll.GHLongObjectHashMap;
+import com.graphhopper.coll.GHObjectIntHashMap;
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
@@ -124,7 +128,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
           relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
           for (ReaderRelation.Member member : rel.getMembers()) {
             if (member.getType() == ReaderRelation.Member.WAY) {
-              wayToRelations.put(member.getRef(), rel.getId());
+              wayToRelations.put(member.getRef(), new RelationMembership(member.getRole(), rel.getId()).encode());
             }
           }
         }
@@ -233,13 +237,15 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     String area = way.getTag("area");
     LongArrayList relationIds = wayToRelations.get(way.getId());
-    List<RelationInfo> rels = null;
+    List<RelationMember<?>> rels = null;
     if (!relationIds.isEmpty()) {
       rels = new ArrayList<>(relationIds.size());
       for (int r = 0; r < relationIds.size(); r++) {
-        RelationInfo rel = relationInfo.get(relationIds.get(r));
+        long encoded = relationIds.get(r);
+        RelationMembership parsed = RelationMembership.parse(encoded);
+        RelationInfo rel = relationInfo.get(parsed.relationId);
         if (rel != null) {
-          rels.add(rel);
+          rels.add(new RelationMember<>(parsed.role, rel));
         }
       }
     }
@@ -257,6 +263,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     size += MemoryEstimator.size(multipolygonWayGeometries);
     size += MemoryEstimator.size(wayToRelations);
     size += MemoryEstimator.sizeWithoutValues(relationInfo);
+    size += MemoryEstimator.sizeWithoutValues(roleIdsReverse);
+    size += MemoryEstimator.sizeWithoutKeys(roleIds);
+    size += roleSizes.get();
     size += relationInfoSizes.get();
     return size;
   }
@@ -268,10 +277,47 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     wayToRelations = null;
     waysInMultipolygon = null;
     relationInfo = null;
+    roleIds.release();
+    roleIdsReverse.release();
     nodeDb.close();
   }
 
+  public static record RelationMember<T extends RelationInfo>(String role, T relation) {}
+
+  private static final ObjectIntHashMap<String> roleIds = new GHObjectIntHashMap<>();
+  private static final IntObjectHashMap<String> roleIdsReverse = new GHIntObjectHashMap<>();
+  private static final AtomicLong roleSizes = new AtomicLong(0);
+  private static final int ROLE_BITS = 16;
+  private static final int MAX_ROLES = (1 << ROLE_BITS) - 10;
+  private static final int ROLE_SHIFT = 64 - ROLE_BITS;
+  private static final int ROLE_MASK = (1 << ROLE_BITS) - 1;
+  private static final long NOT_ROLE_MASK = (1L << ROLE_SHIFT) - 1L;
+
+  private record RelationMembership(String role, long relationId) {
+
+    public static RelationMembership parse(long encoded) {
+      int role = (int) ((encoded >>> ROLE_SHIFT) & ROLE_MASK);
+      return new RelationMembership(roleIdsReverse.get(role), encoded & NOT_ROLE_MASK);
+    }
+
+    public long encode() {
+      int roleId = roleIds.getOrDefault(role, -1);
+      if (roleId == -1) {
+        roleSizes.addAndGet(MemoryEstimator.size(role));
+        roleId = roleIds.size() + 1;
+        roleIds.put(role, roleId);
+        roleIdsReverse.put(roleId, role);
+        if (roleId > MAX_ROLES) {
+          throw new IllegalStateException("Too many roles to encode: " + role);
+        }
+      }
+      return relationId | ((long) roleId << ROLE_SHIFT);
+    }
+  }
+
   public interface RelationInfo extends MemoryEstimator.HasEstimate {
+
+    long id();
 
     @Override
     default long estimateMemoryUsageBytes() {
@@ -286,7 +332,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     final boolean point;
 
     public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon,
-      List<RelationInfo> relationInfo) {
+      List<RelationMember<?>> relationInfo) {
       super(ReaderElementUtils.getProperties(elem), name, null, relationInfo, elem.getId());
       this.point = point;
       this.line = line;
@@ -361,7 +407,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final LongArrayList nodeIds;
 
     public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeCache,
-      List<RelationInfo> relationInfo) {
+      List<RelationMember<?>> relationInfo) {
       super(way, false,
         (!closed || !"yes".equals(area)) && way.getNodes().size() >= 2,
         (closed && !"no".equals(area)) && way.getNodes().size() >= 4,

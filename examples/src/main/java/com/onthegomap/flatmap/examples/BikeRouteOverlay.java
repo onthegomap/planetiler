@@ -14,8 +14,8 @@ import java.util.List;
 
 public class BikeRouteOverlay implements Profile {
 
-  private static record RouteRelationInfo(String name, String ref, String route, String network) implements
-    OpenStreetMapReader.RelationInfo {}
+  private static record RouteRelationInfo(long id, String name, String ref, String route, String network)
+    implements OpenStreetMapReader.RelationInfo {}
 
   @Override
   public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
@@ -23,6 +23,7 @@ public class BikeRouteOverlay implements Profile {
       String type = relation.getTag("route");
       if ("mtb".equals(type) || "bicycle".equals(type)) {
         return List.of(new RouteRelationInfo(
+          relation.getId(),
           relation.getTag("name"),
           relation.getTag("ref"),
           type,
@@ -42,10 +43,11 @@ public class BikeRouteOverlay implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.canBeLine()) {
-      for (RouteRelationInfo routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class)) {
-        features.line(routeInfo.route + "-route-" + routeInfo.network)
-          .setAttr("name", routeInfo.name)
-          .setAttr("ref", routeInfo.ref)
+      for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class)) {
+        RouteRelationInfo relation = routeInfo.relation();
+        features.line(relation.route + "-route-" + relation.network)
+          .setAttr("name", relation.name)
+          .setAttr("ref", relation.ref)
           .setZoomRange(0, 14)
           .setMinPixelSize(0);
       }

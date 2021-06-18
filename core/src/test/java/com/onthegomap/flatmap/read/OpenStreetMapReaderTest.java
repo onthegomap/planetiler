@@ -645,21 +645,15 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testWayInRelation() {
-    record OtherRelInfo() implements OpenStreetMapReader.RelationInfo {}
-    record TestRelInfo(String name) implements OpenStreetMapReader.RelationInfo {
-
-      @Override
-      public long estimateMemoryUsageBytes() {
-        return 10 + name.length();
-      }
-    }
+    record OtherRelInfo(long id) implements OpenStreetMapReader.RelationInfo {}
+    record TestRelInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
     OpenStreetMapReader reader = new OpenStreetMapReader(
       osmSource,
       longLongMap,
       new Profile.NullProfile() {
         @Override
         public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
-          return List.of(new TestRelInfo("name"));
+          return List.of(new TestRelInfo(1, "name"));
         }
       },
       stats
@@ -671,7 +665,7 @@ public class OpenStreetMapReaderTest {
     way.getNodes().add(node1.getId(), node2.getId());
     way.setTag("key", "value");
     var relation = new ReaderRelation(4);
-    relation.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 3, ""));
+    relation.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 3, "rolename"));
 
     reader.processPass1(node1);
     reader.processPass1(node2);
@@ -681,7 +675,8 @@ public class OpenStreetMapReaderTest {
     SourceFeature feature = reader.processWayPass2(nodeCache, way);
 
     assertEquals(List.of(), feature.relationInfo(OtherRelInfo.class));
-    assertEquals(List.of(new TestRelInfo("name")), feature.relationInfo(TestRelInfo.class));
+    assertEquals(List.of(new OpenStreetMapReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
+      feature.relationInfo(TestRelInfo.class));
   }
 
   private OpenStreetMapReader newOsmReader() {

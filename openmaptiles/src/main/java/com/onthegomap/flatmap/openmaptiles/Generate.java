@@ -160,9 +160,6 @@ public class Generate {
 
     emitLayerDefinitions(config.tileset, layers, packageName, output);
     emitTableDefinitions(tables, packageName, output);
-
-//    layers.forEach((layer) -> LOGGER.info("layer: " + layer.layer.id));
-//    tables.forEach((key, val) -> LOGGER.info("table: " + key));
   }
 
   private static void emitTableDefinitions(Map<String, Imposm3Table> tables, String packageName, Path output)

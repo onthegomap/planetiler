@@ -836,7 +836,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmLineInRelation() throws Exception {
-    record TestRelationInfo(String name) implements OpenStreetMapReader.RelationInfo {}
+    record TestRelationInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -859,18 +859,18 @@ public class FlatMapTest {
       ),
       (relation) -> {
         if (relation.hasTag("name", "relation name")) {
-          return List.of(new TestRelationInfo(relation.getTag("name")));
+          return List.of(new TestRelationInfo(relation.getId(), relation.getTag("name")));
         }
         return null;
       }, (in, features) -> {
-        List<TestRelationInfo> relationInfos = in.relationInfo(TestRelationInfo.class);
+        var relationInfos = in.relationInfo(TestRelationInfo.class);
+        var firstRelation = relationInfos.stream().findFirst();
         if (in.canBeLine()) {
           features.line("layer")
             .setZoomRange(0, 0)
-            .setAttr("relname", relationInfos.stream()
-              .findFirst().map(TestRelationInfo::name)
-              .orElse(null))
-            .inheritFromSource("attr");
+            .setAttr("relname", firstRelation.map(d -> d.relation().name).orElse(null))
+            .inheritFromSource("attr")
+            .setAttr("relrole", firstRelation.map(OpenStreetMapReader.RelationMember::role).orElse(null));
         }
       }
     );
@@ -882,7 +882,8 @@ public class FlatMapTest {
         )),
         feature(newLineString(128, 0.25 * 256, 128, 0.125 * 256), Map.of(
           "attr", "value2",
-          "relname", "relation name"
+          "relname", "relation name",
+          "relrole", "role"
         ))
       )
     )), sortListValues(results.tiles));

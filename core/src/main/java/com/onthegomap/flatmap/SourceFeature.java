@@ -14,11 +14,11 @@ public abstract class SourceFeature {
   private final Map<String, Object> properties;
   private final String source;
   private final String sourceLayer;
-  private final List<OpenStreetMapReader.RelationInfo> relationInfos;
+  private final List<OpenStreetMapReader.RelationMember<?>> relationInfos;
   private final long id;
 
   protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer,
-    List<OpenStreetMapReader.RelationInfo> relationInfos, long id) {
+    List<OpenStreetMapReader.RelationMember<?>> relationInfos, long id) {
     this.properties = properties;
     this.source = source;
     this.sourceLayer = sourceLayer;
@@ -156,15 +156,18 @@ public abstract class SourceFeature {
     return sourceLayer;
   }
 
-  public <T extends OpenStreetMapReader.RelationInfo> List<T> relationInfo(Class<T> relationInfoClass) {
-    List<T> result = null;
+  public <T extends OpenStreetMapReader.RelationInfo> List<OpenStreetMapReader.RelationMember<T>> relationInfo(
+    Class<T> relationInfoClass) {
+    List<OpenStreetMapReader.RelationMember<T>> result = null;
     if (relationInfos != null) {
-      for (OpenStreetMapReader.RelationInfo info : relationInfos) {
-        if (relationInfoClass.isInstance(info)) {
+      for (OpenStreetMapReader.RelationMember<?> info : relationInfos) {
+        if (relationInfoClass.isInstance(info.relation())) {
           if (result == null) {
             result = new ArrayList<>();
           }
-          result.add(relationInfoClass.cast(info));
+          @SuppressWarnings("unchecked")
+          OpenStreetMapReader.RelationMember<T> casted = (OpenStreetMapReader.RelationMember<T>) info;
+          result.add(casted);
         }
       }
     }
