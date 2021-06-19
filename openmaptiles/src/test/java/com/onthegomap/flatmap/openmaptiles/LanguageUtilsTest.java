@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.openmaptiles;
 
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
-import static com.onthegomap.flatmap.openmaptiles.LanguageUtils.getNames;
 import static com.onthegomap.flatmap.openmaptiles.LanguageUtils.isLatin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,7 +26,7 @@ public class LanguageUtilsTest {
       "name", "name",
       "name_en", "english name",
       "name_de", "german name"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "name:en", "english name",
       "name:de", "german name"
@@ -37,7 +36,7 @@ public class LanguageUtilsTest {
       "name", "name",
       "name_en", "name",
       "name_de", "german name"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "name:de", "german name"
     ), translations));
@@ -46,7 +45,7 @@ public class LanguageUtilsTest {
       "name", "name",
       "name_en", "english name",
       "name_de", "name"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "name:en", "english name"
     ), translations));
@@ -72,7 +71,7 @@ public class LanguageUtilsTest {
     if (!isLatin) {
       assertFalse(isLatin(in));
     } else {
-      assertEquals(isLatin ? in : null, getNames(Map.of(
+      assertEquals(isLatin ? in : null, LanguageUtils.getNames(Map.of(
         "name", in
       ), translations).get("name:latin"));
     }
@@ -90,7 +89,7 @@ public class LanguageUtilsTest {
     "Japan / 日本 / Japan  , 日本",
   }, nullValues = "null")
   public void testRemoveNonLatin(String in, String out) {
-    assertEquals(out, getNames(Map.of(
+    assertEquals(out, LanguageUtils.getNames(Map.of(
       "name", in
     ), translations).get("name:nonlatin"));
   }
@@ -111,7 +110,7 @@ public class LanguageUtilsTest {
     "name:jp_rm, a, true",
   })
   public void testLatinFallbacks(String key, String value, boolean use) {
-    assertEquals(use ? value : null, getNames(Map.of(
+    assertEquals(use ? value : null, LanguageUtils.getNames(Map.of(
       key, value
     ), translations).get("name:latin"));
   }
@@ -123,11 +122,11 @@ public class LanguageUtilsTest {
     "биологическом, biologičeskom",
   })
   public void testTransliterate(String in, String out) {
-    assertEquals(out, getNames(Map.of(
+    assertEquals(out, LanguageUtils.getNames(Map.of(
       "name", in
     ), translations).get("name:latin"));
     translations.setShouldTransliterate(false);
-    assertNull(getNames(Map.of(
+    assertNull(LanguageUtils.getNames(Map.of(
       "name", in
     ), translations).get("name:latin"));
   }
@@ -137,7 +136,7 @@ public class LanguageUtilsTest {
     wikidataTranslations.put(123, "es", "es name");
     assertSubmap(Map.of(
       "name:es", "es name"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "wikidata", "Q123"
     ), translations));
@@ -147,7 +146,7 @@ public class LanguageUtilsTest {
   public void testUseOsm() {
     assertSubmap(Map.of(
       "name:es", "es name osm"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "wikidata", "Q123",
       "name:es", "es name osm"
@@ -160,7 +159,7 @@ public class LanguageUtilsTest {
     assertSubmap(Map.of(
       "name:es", "wd es name",
       "name:de", "de name osm"
-    ), getNames(Map.of(
+    ), LanguageUtils.getNames(Map.of(
       "name", "name",
       "wikidata", "Q123",
       "name:es", "es name osm",
@@ -170,7 +169,7 @@ public class LanguageUtilsTest {
 
   @Test
   public void testDontUseTranslationsWhenNotSpecified() {
-    var result = getNames(Map.of(
+    var result = LanguageUtils.getNamesWithoutTranslations(Map.of(
       "name", "name",
       "wikidata", "Q123",
       "name:es", "es name osm",
@@ -184,7 +183,7 @@ public class LanguageUtilsTest {
   @Test
   public void testIgnoreLanguages() {
     wikidataTranslations.put(123, "ja", "ja name wd");
-    var result = getNames(Map.of(
+    var result = LanguageUtils.getNamesWithoutTranslations(Map.of(
       "name", "name",
       "wikidata", "Q123",
       "name:ja", "ja name osm"

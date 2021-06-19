@@ -1,6 +1,5 @@
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.LanguageUtils.getNames;
 import static com.onthegomap.flatmap.openmaptiles.Utils.elevationTags;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
@@ -12,13 +11,14 @@ import com.onthegomap.flatmap.Parse;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
-import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import java.util.List;
 
 public class MountainPeak implements
-  Layers.MountainPeak,
+  OpenMapTilesSchema.MountainPeak,
   Tables.OsmPeakPoint.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
 
@@ -34,7 +34,7 @@ public class MountainPeak implements
     if (meters != null && Math.abs(meters) < 10_000) {
       features.point(LAYER_NAME)
         .setAttr(Fields.CLASS, element.source().getTag("natural"))
-        .setAttrs(getNames(element.source().properties(), translations))
+        .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
         .setAttrs(elevationTags(meters))
         .setBufferPixels(BUFFER_SIZE)
         .setZorder(

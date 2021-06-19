@@ -15,10 +15,11 @@ import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import com.onthegomap.flatmap.read.ReaderFeature;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class OpenMapTilesProfile implements Profile {
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
   private final Map<String, FeaturePostProcessor> postProcessors;
+  private final List<FeatureProcessor> rawProcessors;
 
   private MultiExpression.MultiExpressionIndex<Tables.Constructor> indexForType(String type) {
     return Tables.MAPPINGS
@@ -56,7 +58,7 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
-    this.layers = Layers.createInstances(translations, arguments, stats);
+    this.layers = OpenMapTilesSchema.createInstances(translations, arguments, stats);
     osmDispatchMap = new HashMap<>();
     Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
       osmDispatchMap.put(clazz, handlers.stream().map(handler -> {
@@ -69,9 +71,13 @@ public class OpenMapTilesProfile implements Profile {
     this.osmPolygonMappings = indexForType("polygon");
     this.osmRelationMemberMappings = indexForType("relation_member");
     postProcessors = new HashMap<>();
+    rawProcessors = new ArrayList<>();
     for (Layer layer : layers) {
       if (layer instanceof FeaturePostProcessor postProcessor) {
         postProcessors.put(layer.name(), postProcessor);
+      }
+      if (layer instanceof FeatureProcessor processor) {
+        rawProcessors.add(processor);
       }
     }
   }
@@ -112,6 +118,10 @@ public class OpenMapTilesProfile implements Profile {
           }
         }
       }
+    }
+
+    for (int i = 0; i < rawProcessors.size(); i++) {
+      rawProcessors.get(i).process(sourceFeature, features);
     }
 //
 //    if (sourceFeature.isPoint()) {
@@ -169,7 +179,7 @@ public class OpenMapTilesProfile implements Profile {
     return result == null ? List.of() : result;
   }
 
-  public interface SourceFeatureProcessors {
+  public interface FeatureProcessor {
 
     void process(SourceFeature feature, FeatureCollector features);
   }
@@ -193,21 +203,21 @@ public class OpenMapTilesProfile implements Profile {
 
   @Override
   public String name() {
-    return Layers.NAME;
+    return OpenMapTilesSchema.NAME;
   }
 
   @Override
   public String description() {
-    return Layers.DESCRIPTION;
+    return OpenMapTilesSchema.DESCRIPTION;
   }
 
   @Override
   public String attribution() {
-    return Layers.ATTRIBUTION;
+    return OpenMapTilesSchema.ATTRIBUTION;
   }
 
   @Override
   public String version() {
-    return Layers.VERSION;
+    return OpenMapTilesSchema.VERSION;
   }
 }

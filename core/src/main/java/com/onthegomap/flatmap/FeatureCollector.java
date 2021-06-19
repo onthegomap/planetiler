@@ -204,6 +204,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
+    public Feature setMinPixelSizeThresholds(ZoomFunction<Number> levels) {
+      this.minPixelSize = levels;
+      return this;
+    }
+
     public Feature setMinPixelSizeBelowZoom(int zoom, double minPixelSize) {
       this.minPixelSize = ZoomFunction.maxZoom(zoom, minPixelSize);
       return this;

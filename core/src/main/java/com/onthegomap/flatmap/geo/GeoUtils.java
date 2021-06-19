@@ -151,6 +151,10 @@ public class GeoUtils {
     return WORLD_CIRCUMFERENCE_METERS / Math.pow(2, zoom + 8);
   }
 
+  public static double metersToPixelAtEquator(int zoom, double meters) {
+    return meters / metersPerPixelAtEquator(zoom);
+  }
+
   public static long longPair(int a, int b) {
     return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
   }

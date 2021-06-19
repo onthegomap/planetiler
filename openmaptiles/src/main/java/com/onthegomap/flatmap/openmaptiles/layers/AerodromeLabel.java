@@ -9,10 +9,10 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.Utils;
-import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 
-public class AerodromeLabel implements Layers.AerodromeLabel, Tables.OsmAerodromeLabelPoint.Handler {
+public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables.OsmAerodromeLabelPoint.Handler {
 
   private final MultiExpression.MultiExpressionIndex<String> classLookup;
   private final Translations translations;

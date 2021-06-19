@@ -14,7 +14,7 @@ import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import java.util.List;
 import java.util.Map;
 
-public class Layers {
+public class OpenMapTilesSchema {
 
   public static final String NAME = "OpenMapTiles";
   public static final String DESCRIPTION = "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";

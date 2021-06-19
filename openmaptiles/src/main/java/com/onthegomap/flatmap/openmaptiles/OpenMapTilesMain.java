@@ -6,16 +6,16 @@ import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.openmaptiles.generated.Layers;
+import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.read.OsmInputFile;
 import java.nio.file.Path;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpenMaptilesMain {
+public class OpenMapTilesMain {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMaptilesMain.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesMain.class);
   private static final String fallbackOsmFile = "north-america_us_massachusetts.pbf";
   private static final Path sourcesDir = Path.of("data", "sources");
 
@@ -25,12 +25,12 @@ public class OpenMaptilesMain {
 
     runner
       .setProfile(createProfileWithWikidataTranslations(runner))
-//      .addShapefileSource("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE,
-//        sourcesDir.resolve("lake_centerline.shp.zip"))
-//      .addShapefileSource(OpenMapTilesProfile.WATER_POLYGON_SOURCE,
-//        sourcesDir.resolve("water-polygons-split-3857.zip"))
-//      .addNaturalEarthSource(OpenMapTilesProfile.NATURAL_EARTH_SOURCE,
-//        sourcesDir.resolve("natural_earth_vector.sqlite.zip"))
+      .addShapefileSource("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE,
+        sourcesDir.resolve("lake_centerline.shp.zip"))
+      .addShapefileSource(OpenMapTilesProfile.WATER_POLYGON_SOURCE,
+        sourcesDir.resolve("water-polygons-split-3857.zip"))
+      .addNaturalEarthSource(OpenMapTilesProfile.NATURAL_EARTH_SOURCE,
+        sourcesDir.resolve("natural_earth_vector.sqlite.zip"))
       .addOsmSource(OpenMapTilesProfile.OSM_SOURCE, sourcesDir.resolve(fallbackOsmFile))
       .setOutput("mbtiles", Path.of("data", "massachusetts.mbtiles"))
       .run();
@@ -46,7 +46,7 @@ public class OpenMaptilesMain {
       Path.of("data", "sources", "wikidata_names.json"));
     // most common languages: "en,ru,ar,zh,ja,ko,fr,de,fi,pl,es,be,br,he"
     List<String> languages = arguments
-      .get("name_languages", "languages to use", Layers.LANGUAGES.toArray(String[]::new));
+      .get("name_languages", "languages to use", OpenMapTilesSchema.LANGUAGES.toArray(String[]::new));
     var translations = Translations.defaultProvider(languages).setShouldTransliterate(transliterate);
     var profile = new OpenMapTilesProfile(translations, arguments, runner.stats());
 

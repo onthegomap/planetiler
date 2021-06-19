@@ -80,7 +80,7 @@ public class LanguageUtils {
     return name.trim();
   }
 
-  public static Map<String, Object> getNames(Map<String, Object> properties) {
+  public static Map<String, Object> getNamesWithoutTranslations(Map<String, Object> properties) {
     return getNames(properties, null);
   }
 
