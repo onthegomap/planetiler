@@ -46,4 +46,8 @@ public class Utils {
     Integer ele = Parse.parseIntSubstring(meters);
     return ele == null ? Map.of() : elevationTags(ele);
   }
+
+  public static String brunnel(boolean isBridge, boolean isTunnel) {
+    return isBridge ? "bridge" : isTunnel ? "tunnel" : null;
+  }
 }

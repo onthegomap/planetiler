@@ -42,7 +42,10 @@ public class OpenMapTilesProfile implements Profile {
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
   private final Map<String, FeaturePostProcessor> postProcessors;
-  private final List<FeatureProcessor> rawProcessors;
+  private final List<NaturalEarthProcessor> naturalEarthProcessors;
+  private final List<OsmWaterPolygonProcessor> osmWaterProcessors;
+  private final List<LakeCenterlineProcessor> lakeCenterlineProcessors;
+  private final List<OsmAllProcessor> osmAllProcessors;
 
   private MultiExpression.MultiExpressionIndex<Tables.Constructor> indexForType(String type) {
     return Tables.MAPPINGS
@@ -71,13 +74,25 @@ public class OpenMapTilesProfile implements Profile {
     this.osmPolygonMappings = indexForType("polygon");
     this.osmRelationMemberMappings = indexForType("relation_member");
     postProcessors = new HashMap<>();
-    rawProcessors = new ArrayList<>();
+    osmAllProcessors = new ArrayList<>();
+    lakeCenterlineProcessors = new ArrayList<>();
+    naturalEarthProcessors = new ArrayList<>();
+    osmWaterProcessors = new ArrayList<>();
     for (Layer layer : layers) {
       if (layer instanceof FeaturePostProcessor postProcessor) {
         postProcessors.put(layer.name(), postProcessor);
       }
-      if (layer instanceof FeatureProcessor processor) {
-        rawProcessors.add(processor);
+      if (layer instanceof OsmAllProcessor processor) {
+        osmAllProcessors.add(processor);
+      }
+      if (layer instanceof OsmWaterPolygonProcessor processor) {
+        osmWaterProcessors.add(processor);
+      }
+      if (layer instanceof LakeCenterlineProcessor processor) {
+        lakeCenterlineProcessors.add(processor);
+      }
+      if (layer instanceof NaturalEarthProcessor processor) {
+        naturalEarthProcessors.add(processor);
       }
     }
   }
@@ -108,21 +123,38 @@ public class OpenMapTilesProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    if (OSM_SOURCE.equals(sourceFeature.getSource())) {
-      for (var match : getTableMatches(sourceFeature)) {
-        var row = match.match().create(sourceFeature, match.keys().get(0));
-        var handlers = osmDispatchMap.get(row.getClass());
-        if (handlers != null) {
-          for (Tables.RowHandler<Tables.Row> handler : handlers) {
-            handler.process(row, features);
+    switch (sourceFeature.getSource()) {
+      case OSM_SOURCE -> {
+        for (var match : getTableMatches(sourceFeature)) {
+          var row = match.match().create(sourceFeature, match.keys().get(0));
+          var handlers = osmDispatchMap.get(row.getClass());
+          if (handlers != null) {
+            for (Tables.RowHandler<Tables.Row> handler : handlers) {
+              handler.process(row, features);
+            }
           }
+        }
+        for (int i = 0; i < osmAllProcessors.size(); i++) {
+          osmAllProcessors.get(i).processAllOsm(sourceFeature, features);
+        }
+      }
+      case LAKE_CENTERLINE_SOURCE -> {
+        for (LakeCenterlineProcessor lakeCenterlineProcessor : lakeCenterlineProcessors) {
+          lakeCenterlineProcessor.processLakeCenterline(sourceFeature, features);
+        }
+      }
+      case NATURAL_EARTH_SOURCE -> {
+        for (NaturalEarthProcessor naturalEarthProcessor : naturalEarthProcessors) {
+          naturalEarthProcessor.processNaturalEarth(sourceFeature.getSourceLayer(), sourceFeature, features);
+        }
+      }
+      case WATER_POLYGON_SOURCE -> {
+        for (OsmWaterPolygonProcessor osmWaterProcessor : osmWaterProcessors) {
+          osmWaterProcessor.processOsmWater(sourceFeature, features);
         }
       }
     }
 
-    for (int i = 0; i < rawProcessors.size(); i++) {
-      rawProcessors.get(i).process(sourceFeature, features);
-    }
 //
 //    if (sourceFeature.isPoint()) {
 //      if (sourceFeature.hasTag("natural", "peak", "volcano")) {
@@ -179,9 +211,24 @@ public class OpenMapTilesProfile implements Profile {
     return result == null ? List.of() : result;
   }
 
-  public interface FeatureProcessor {
+  public interface NaturalEarthProcessor {
 
-    void process(SourceFeature feature, FeatureCollector features);
+    void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features);
+  }
+
+  public interface LakeCenterlineProcessor {
+
+    void processLakeCenterline(SourceFeature feature, FeatureCollector features);
+  }
+
+  public interface OsmWaterPolygonProcessor {
+
+    void processOsmWater(SourceFeature feature, FeatureCollector features);
+  }
+
+  public interface OsmAllProcessor {
+
+    void processAllOsm(SourceFeature feature, FeatureCollector features);
   }
 
   public interface FeaturePostProcessor {

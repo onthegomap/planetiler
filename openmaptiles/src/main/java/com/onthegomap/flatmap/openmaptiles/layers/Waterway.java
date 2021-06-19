@@ -13,13 +13,14 @@ import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
+import com.onthegomap.flatmap.openmaptiles.Utils;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import java.util.List;
 import java.util.Map;
 
 public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterwayLinestring.Handler,
-  OpenMapTilesProfile.FeaturePostProcessor, OpenMapTilesProfile.FeatureProcessor {
+  OpenMapTilesProfile.FeaturePostProcessor, OpenMapTilesProfile.NaturalEarthProcessor {
 
   private final Translations translations;
 
@@ -53,18 +54,17 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
       .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
       .setZoomRange(minzoom, 14)
       // details only at higher zoom levels
-      .setAttrWithMinzoom(Fields.BRUNNEL, element.isBridge() ? "bridge" : element.isTunnel() ? "tunnel" : null, 12)
+      .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
       .setAttrWithMinzoom(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0, 12)
       // at lower zoom levels, we'll merge linestrings and limit length/clip afterwards
       .setBufferPixelOverrides(minPixelSizeThresholds).setMinPixelSizeBelowZoom(11, 0);
   }
 
-  private static record ZoomRange(int min, int max) {}
-
   @Override
-  public void process(SourceFeature feature, FeatureCollector features) {
-    if (OpenMapTilesProfile.NATURAL_EARTH_SOURCE.equals(feature.getSource()) && feature.hasTag("featurecla", "River")) {
-      ZoomRange zoom = switch (feature.getSourceLayer()) {
+  public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
+    if (feature.hasTag("featurecla", "River")) {
+      record ZoomRange(int min, int max) {}
+      ZoomRange zoom = switch (table) {
         case "ne_10m_rivers_lake_centerlines" -> new ZoomRange(6, 8);
         case "ne_50m_rivers_lake_centerlines" -> new ZoomRange(4, 5);
         case "ne_110m_rivers_lake_centerlines" -> new ZoomRange(3, 3);
