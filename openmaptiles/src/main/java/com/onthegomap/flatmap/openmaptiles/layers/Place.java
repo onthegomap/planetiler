@@ -9,4 +9,6 @@ public class Place implements OpenMapTilesSchema.Place {
 
   public Place(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

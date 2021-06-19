@@ -14,8 +14,6 @@ import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.Handler,
   OpenMapTilesProfile.NaturalEarthProcessor, OpenMapTilesProfile.OsmWaterPolygonProcessor {
 
-  private static final String OCEAN = "ocean";
-  private static final String LAKE = "lake";
   private final MultiExpression.MultiExpressionIndex<String> classMapping;
 
   public Water(Translations translations, Arguments args, Stats stats) {
@@ -31,7 +29,7 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
         .setZoomRange(6, 14)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
         .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source().properties(), "river"));
+        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source().properties(), FieldValues.CLASS_RIVER));
     }
   }
 
@@ -39,13 +37,13 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     record WaterInfo(int minZoom, int maxZoom, String clazz) {}
     WaterInfo info = switch (table) {
-      case "ne_10m_ocean" -> new WaterInfo(5, 5, OCEAN);
-      case "ne_50m_ocean" -> new WaterInfo(2, 4, OCEAN);
-      case "ne_110m_ocean" -> new WaterInfo(0, 1, OCEAN);
+      case "ne_10m_ocean" -> new WaterInfo(5, 5, FieldValues.CLASS_OCEAN);
+      case "ne_50m_ocean" -> new WaterInfo(2, 4, FieldValues.CLASS_OCEAN);
+      case "ne_110m_ocean" -> new WaterInfo(0, 1, FieldValues.CLASS_OCEAN);
 
-      case "ne_10m_lakes" -> new WaterInfo(4, 5, LAKE);
-      case "ne_50m_lakes" -> new WaterInfo(2, 3, LAKE);
-      case "ne_110m_lakes" -> new WaterInfo(0, 1, LAKE);
+      case "ne_10m_lakes" -> new WaterInfo(4, 5, FieldValues.CLASS_LAKE);
+      case "ne_50m_lakes" -> new WaterInfo(2, 3, FieldValues.CLASS_LAKE);
+      case "ne_110m_lakes" -> new WaterInfo(0, 1, FieldValues.CLASS_LAKE);
       default -> null;
     };
     if (info != null) {
@@ -60,7 +58,7 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
   public void processOsmWater(SourceFeature feature, FeatureCollector features) {
     features.polygon(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, OCEAN)
+      .setAttr(Fields.CLASS, FieldValues.CLASS_OCEAN)
       .setZoomRange(6, 14);
   }
 }

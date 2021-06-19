@@ -410,17 +410,11 @@ public class Generate {
             .map(t -> t.replaceAll(" .*", "")).toList() :
           iterToList(valuesNode.fieldNames());
         if (values.size() > 0) {
-          fieldValues.append("""
-            public static final class %s {
-              %s
-            }
-            """.formatted(
-            lowerUnderscoreToUpperCamel(name),
-            values.stream()
-              .map(v -> "public static final String %s = %s;"
-                .formatted(v.toUpperCase(Locale.ROOT).replace('-', '_'), quote(v)))
-              .collect(joining("\n")).indent(2).strip()
-          ).indent(4));
+          fieldValues.append(values.stream()
+            .map(v -> "public static final String %s = %s;"
+              .formatted(name.toUpperCase(Locale.ROOT) + "_" + v.toUpperCase(Locale.ROOT).replace('-', '_'), quote(v)))
+            .collect(joining("\n")).indent(2).strip()
+            .indent(4));
         }
 
         if (valuesNode != null && valuesNode.isObject()) {
@@ -455,7 +449,7 @@ public class Generate {
         layer.layer.buffer_size,
         quote(layerName),
         fields.toString().strip(),
-        "// TODO", // fieldValues.toString().strip(),
+        fieldValues.toString().strip(),
         fieldMappings.toString().strip()
       ).indent(2));
     }

@@ -9,4 +9,6 @@ public class Poi implements OpenMapTilesSchema.Poi {
 
   public Poi(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

@@ -9,4 +9,6 @@ public class Landcover implements OpenMapTilesSchema.Landcover {
 
   public Landcover(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

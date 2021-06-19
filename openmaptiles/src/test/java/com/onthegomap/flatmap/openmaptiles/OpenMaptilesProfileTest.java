@@ -647,7 +647,7 @@ public class OpenMaptilesProfileTest {
       "water", "reservoir"
     ))));
     assertFeatures(14, List.of(Map.of(
-      "class", "lake", // TODO matches, but doesn't look right?
+      "class", "lake",
 
       "_layer", "water",
       "_type", "polygon",

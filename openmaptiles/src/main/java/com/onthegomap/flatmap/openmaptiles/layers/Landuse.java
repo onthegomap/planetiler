@@ -9,4 +9,6 @@ public class Landuse implements OpenMapTilesSchema.Landuse {
 
   public Landuse(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

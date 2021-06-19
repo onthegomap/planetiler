@@ -9,4 +9,6 @@ public class Park implements OpenMapTilesSchema.Park {
 
   public Park(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

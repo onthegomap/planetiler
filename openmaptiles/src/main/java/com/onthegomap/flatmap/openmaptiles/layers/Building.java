@@ -9,4 +9,6 @@ public class Building implements OpenMapTilesSchema.Building {
 
   public Building(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

@@ -73,7 +73,7 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
       if (zoom != null) {
         features.line(LAYER_NAME)
           .setBufferPixels(BUFFER_SIZE)
-          .setAttr(Fields.CLASS, "river")
+          .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
           .setZoomRange(zoom.min, zoom.max);
       }
     }

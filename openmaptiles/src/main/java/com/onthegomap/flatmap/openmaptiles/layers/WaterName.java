@@ -128,7 +128,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
           minzoom = Math.min(14, Math.max(9, minzoom));
         }
         feature
-          .setAttr(Fields.CLASS, "lake")
+          .setAttr(Fields.CLASS, FieldValues.CLASS_LAKE)
           .setBufferPixels(BUFFER_SIZE)
           .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)

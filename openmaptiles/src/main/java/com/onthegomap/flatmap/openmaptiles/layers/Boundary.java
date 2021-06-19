@@ -9,4 +9,6 @@ public class Boundary implements OpenMapTilesSchema.Boundary {
 
   public Boundary(Translations translations, Arguments args, Stats stats) {
   }
+
+  // TODO implement
 }

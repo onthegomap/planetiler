@@ -31,6 +31,6 @@ public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables
       .setAttrs(Utils.elevationTags(element.ele()))
       .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
       .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
-      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().properties(), "other"));
+      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().properties(), FieldValues.CLASS_OTHER));
   }
 }

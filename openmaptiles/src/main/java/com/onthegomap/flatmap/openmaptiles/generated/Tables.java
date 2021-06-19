@@ -3,697 +3,284 @@ package com.onthegomap.flatmap.openmaptiles.generated;
 
 import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 
-import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.openmaptiles.Expression;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+import com.onthegomap.flatmap.FeatureCollector;
+import com.onthegomap.flatmap.SourceFeature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Tables {
-
   public interface Row {}
-
   public interface Constructor {
-
     Row create(SourceFeature source, String mappingKey);
   }
-
   public interface RowHandler<T extends Row> {
-
     void process(T element, FeatureCollector features);
   }
-
-  public static record OsmWaterPolygon(
-    String name, String nameEn, String nameDe, String natural, String landuse, String waterway, boolean isIntermittent,
-    boolean isTunnel, boolean isBridge, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmWaterPolygon(String name, String nameEn, String nameDe, String natural, String landuse, String waterway, boolean isIntermittent, boolean isTunnel, boolean isBridge, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmWaterPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("natural"), source.getString("landuse"), source.getString("waterway"),
-        source.getBoolean("intermittent"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("natural"), source.getString("landuse"), source.getString("waterway"), source.getBoolean("intermittent"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source);
     }
-
-    public static final Expression MAPPING = and(
-      or(matchAny("landuse", "reservoir", "basin", "salt_pond"), matchAny("leisure", "swimming_pool"),
-        matchAny("natural", "water", "bay"),
-        matchAny("waterway", "river", "riverbank", "stream", "canal", "drain", "ditch", "dock")),
-      not(matchAny("covered", "yes")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("landuse", "reservoir", "basin", "salt_pond"), matchAny("leisure", "swimming_pool"), matchAny("natural", "water", "bay"), matchAny("waterway", "river", "riverbank", "stream", "canal", "drain", "ditch", "dock")), not(matchAny("covered", "yes")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmWaterPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmWaterwayLinestring(
-    String waterway, String name, String nameEn, String nameDe, boolean isTunnel, boolean isBridge,
-    boolean isIntermittent, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmWaterwayLinestring(String waterway, String name, String nameEn, String nameDe, boolean isTunnel, boolean isBridge, boolean isIntermittent, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmWaterwayLinestring(SourceFeature source, String mappingKey) {
-      this(source.getString("waterway"), source.getString("name"), source.getString("name:en"),
-        source.getString("name:de"), source.getBoolean("tunnel"), source.getBoolean("bridge"),
-        source.getBoolean("intermittent"), source);
+      this(source.getString("waterway"), source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("intermittent"), source);
     }
-
-    public static final Expression MAPPING = and(matchAny("waterway", "stream", "river", "canal", "drain", "ditch"),
-      matchType("linestring"));
-
+    public static final Expression MAPPING = and(matchAny("waterway", "stream", "river", "canal", "drain", "ditch"), matchType("linestring"));
     public interface Handler {
-
       void process(OsmWaterwayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmLandcoverPolygon(
-    String subclass, String mappingKey, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmLandcoverPolygon(String subclass, String mappingKey, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmLandcoverPolygon(SourceFeature source, String mappingKey) {
       this(source.getString(mappingKey), mappingKey, source);
     }
-
-    public static final Expression MAPPING = and(or(
-      matchAny("landuse", "allotments", "farm", "farmland", "orchard", "plant_nursery", "vineyard", "grass",
-        "grassland", "meadow", "forest", "village_green", "recreation_ground", "park"),
-      matchAny("natural", "wood", "wetland", "fell", "grassland", "heath", "scrub", "tundra", "glacier", "bare_rock",
-        "scree", "beach", "sand", "dune"), matchAny("leisure", "park", "garden", "golf_course"),
-      matchAny("wetland", "bog", "swamp", "wet_meadow", "marsh", "reedbed", "saltern", "tidalflat", "saltmarsh",
-        "mangrove")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("landuse", "allotments", "farm", "farmland", "orchard", "plant_nursery", "vineyard", "grass", "grassland", "meadow", "forest", "village_green", "recreation_ground", "park"), matchAny("natural", "wood", "wetland", "fell", "grassland", "heath", "scrub", "tundra", "glacier", "bare_rock", "scree", "beach", "sand", "dune"), matchAny("leisure", "park", "garden", "golf_course"), matchAny("wetland", "bog", "swamp", "wet_meadow", "marsh", "reedbed", "saltern", "tidalflat", "saltmarsh", "mangrove")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmLandcoverPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmLandusePolygon(
-    String landuse, String amenity, String leisure, String tourism, String place, String waterway,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmLandusePolygon(String landuse, String amenity, String leisure, String tourism, String place, String waterway, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmLandusePolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("landuse"), source.getString("amenity"), source.getString("leisure"),
-        source.getString("tourism"), source.getString("place"), source.getString("waterway"), source);
+      this(source.getString("landuse"), source.getString("amenity"), source.getString("leisure"), source.getString("tourism"), source.getString("place"), source.getString("waterway"), source);
     }
-
-    public static final Expression MAPPING = and(or(
-      matchAny("landuse", "railway", "cemetery", "military", "residential", "commercial", "industrial", "garages",
-        "retail"),
-      matchAny("amenity", "bus_station", "school", "university", "kindergarten", "college", "library", "hospital"),
-      matchAny("leisure", "stadium", "pitch", "playground", "track"), matchAny("tourism", "theme_park", "zoo"),
-      matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("landuse", "railway", "cemetery", "military", "residential", "commercial", "industrial", "garages", "retail"), matchAny("amenity", "bus_station", "school", "university", "kindergarten", "college", "library", "hospital"), matchAny("leisure", "stadium", "pitch", "playground", "track"), matchAny("tourism", "theme_park", "zoo"), matchAny("place", "suburb", "quarter", "neighbourhood"), matchAny("waterway", "dam")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmLandusePolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmPeakPoint(
-    String name, String nameEn, String nameDe, String ele, String wikipedia, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmPeakPoint(String name, String nameEn, String nameDe, String ele, String wikipedia, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmPeakPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("ele"),
-        source.getString("wikipedia"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("ele"), source.getString("wikipedia"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano"), matchType("point"));
-
     public interface Handler {
-
       void process(OsmPeakPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmParkPolygon(
-    String name, String nameEn, String nameDe, String landuse, String leisure, String boundary, String protectionTitle,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmParkPolygon(String name, String nameEn, String nameDe, String landuse, String leisure, String boundary, String protectionTitle, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmParkPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("landuse"), source.getString("leisure"), source.getString("boundary"),
-        source.getString("protection_title"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("landuse"), source.getString("leisure"), source.getString("boundary"), source.getString("protection_title"), source);
     }
-
-    public static final Expression MAPPING = and(
-      or(matchAny("leisure", "nature_reserve"), matchAny("boundary", "national_park", "protected_area")),
-      matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("leisure", "nature_reserve"), matchAny("boundary", "national_park", "protected_area")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmParkPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmBorderDispRelation(
-    String name, String boundary, long adminLevel, String claimedBy, String disputedBy, boolean maritime,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmBorderDispRelation(String name, String boundary, long adminLevel, String claimedBy, String disputedBy, boolean maritime, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmBorderDispRelation(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("boundary"), source.getLong("admin_level"),
-        source.getString("claimed_by"), source.getString("disputed_by"), source.getBoolean("maritime"), source);
+      this(source.getString("name"), source.getString("boundary"), source.getLong("admin_level"), source.getString("claimed_by"), source.getString("disputed_by"), source.getBoolean("maritime"), source);
     }
-
-    public static final Expression MAPPING = and(matchAny("type", "boundary"), matchField("admin_level"),
-      matchField("claimed_by"), matchType("relation_member"));
-
+    public static final Expression MAPPING = and(matchAny("type", "boundary"), matchField("admin_level"), matchField("claimed_by"), matchType("relation_member"));
     public interface Handler {
-
       void process(OsmBorderDispRelation element, FeatureCollector features);
     }
   }
-
-  public static record OsmAerowayPolygon(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmAerowayPolygon(String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmAerowayPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString(mappingKey), source);
     }
-
-    public static final Expression MAPPING = and(
-      or(matchAny("aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron"),
-        matchAny("area:aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron")),
-      matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron"), matchAny("area:aeroway", "aerodrome", "heliport", "runway", "helipad", "taxiway", "apron")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmAerowayPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmAerowayLinestring(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmAerowayLinestring(String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmAerowayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"), matchType("linestring"));
-
     public interface Handler {
-
       void process(OsmAerowayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmAerowayPoint(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmAerowayPoint(String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmAerowayPoint(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString("aeroway"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchType("point"));
-
     public interface Handler {
-
       void process(OsmAerowayPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmHighwayLinestring(
-    String highway, String construction, String ref, String network, int zOrder, long layer, long level, boolean indoor,
-    String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp,
-    boolean isFord, int isOneway, boolean isArea, String service, String usage, String publicTransport, String manMade,
-    String bicycle, String foot, String horse, String mtbScale, String surface,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmHighwayLinestring(String highway, String construction, String ref, String network, int zOrder, long layer, long level, boolean indoor, String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service, String usage, String publicTransport, String manMade, String bicycle, String foot, String horse, String mtbScale, String surface, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmHighwayLinestring(SourceFeature source, String mappingKey) {
-      this(source.getString("highway"), source.getString("construction"), source.getString("ref"),
-        source.getString("network"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"),
-        source.getBoolean("indoor"), source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("short_name"), source.getBoolean("tunnel"), source.getBoolean("bridge"),
-        source.getBoolean("ramp"), source.getBoolean("ford"), source.getDirection("oneway"), source.getBoolean("area"),
-        source.getString("service"), source.getString("usage"), source.getString("public_transport"),
-        source.getString("man_made"), source.getString("bicycle"), source.getString("foot"), source.getString("horse"),
-        source.getString("mtb:scale"), source.getString("surface"), source);
+      this(source.getString("highway"), source.getString("construction"), source.getString("ref"), source.getString("network"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"), source.getBoolean("indoor"), source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("short_name"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"), source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"), source.getString("usage"), source.getString("public_transport"), source.getString("man_made"), source.getString("bicycle"), source.getString("foot"), source.getString("horse"), source.getString("mtb:scale"), source.getString("surface"), source);
     }
-
-    public static final Expression MAPPING = and(or(
-      matchAny("highway", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
-        "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
-        "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
-        "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")),
-      matchType("linestring"));
-
+    public static final Expression MAPPING = and(or(matchAny("highway", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway", "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")), matchType("linestring"));
     public interface Handler {
-
       void process(OsmHighwayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmRailwayLinestring(
-    String railway, String ref, String network, int zOrder, long layer, long level, boolean indoor, String name,
-    String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord,
-    int isOneway, boolean isArea, String service, String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmRailwayLinestring(String railway, String ref, String network, int zOrder, long layer, long level, boolean indoor, String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service, String usage, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmRailwayLinestring(SourceFeature source, String mappingKey) {
-      this(source.getString("railway"), source.getString("ref"), source.getString("network"), source.getWayZorder(),
-        source.getLong("layer"), source.getLong("level"), source.getBoolean("indoor"), source.getString("name"),
-        source.getString("name:en"), source.getString("name:de"), source.getString("short_name"),
-        source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"),
-        source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"),
-        source.getString("usage"), source);
+      this(source.getString("railway"), source.getString("ref"), source.getString("network"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"), source.getBoolean("indoor"), source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("short_name"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"), source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"), source.getString("usage"), source);
     }
-
-    public static final Expression MAPPING = and(
-      matchAny("railway", "rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram"),
-      matchType("linestring"));
-
+    public static final Expression MAPPING = and(matchAny("railway", "rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram"), matchType("linestring"));
     public interface Handler {
-
       void process(OsmRailwayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmAerialwayLinestring(
-    String aerialway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName,
-    boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service,
-    String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmAerialwayLinestring(String aerialway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service, String usage, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmAerialwayLinestring(SourceFeature source, String mappingKey) {
-      this(source.getString("aerialway"), source.getWayZorder(), source.getLong("layer"), source.getString("name"),
-        source.getString("name:en"), source.getString("name:de"), source.getString("short_name"),
-        source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"),
-        source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"),
-        source.getString("usage"), source);
+      this(source.getString("aerialway"), source.getWayZorder(), source.getLong("layer"), source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("short_name"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"), source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"), source.getString("usage"), source);
     }
-
-    public static final Expression MAPPING = and(matchAny("aerialway", "cable_car", "gondola"),
-      matchType("linestring"));
-
+    public static final Expression MAPPING = and(matchAny("aerialway", "cable_car", "gondola"), matchType("linestring"));
     public interface Handler {
-
       void process(OsmAerialwayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmShipwayLinestring(
-    String shipway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName,
-    boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service,
-    String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmShipwayLinestring(String shipway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service, String usage, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmShipwayLinestring(SourceFeature source, String mappingKey) {
-      this(source.getString("route"), source.getWayZorder(), source.getLong("layer"), source.getString("name"),
-        source.getString("name:en"), source.getString("name:de"), source.getString("short_name"),
-        source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"),
-        source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"),
-        source.getString("usage"), source);
+      this(source.getString("route"), source.getWayZorder(), source.getLong("layer"), source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("short_name"), source.getBoolean("tunnel"), source.getBoolean("bridge"), source.getBoolean("ramp"), source.getBoolean("ford"), source.getDirection("oneway"), source.getBoolean("area"), source.getString("service"), source.getString("usage"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("route", "ferry"), matchType("linestring"));
-
     public interface Handler {
-
       void process(OsmShipwayLinestring element, FeatureCollector features);
     }
   }
-
-  public static record OsmHighwayPolygon(
-    String highway, int zOrder, long layer, long level, boolean indoor, boolean isArea, String publicTransport,
-    String manMade, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmHighwayPolygon(String highway, int zOrder, long layer, long level, boolean indoor, boolean isArea, String publicTransport, String manMade, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmHighwayPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("highway"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"),
-        source.getBoolean("indoor"), source.getBoolean("area"), source.getString("public_transport"),
-        source.getString("man_made"), source);
+      this(source.getString("highway"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"), source.getBoolean("indoor"), source.getBoolean("area"), source.getString("public_transport"), source.getString("man_made"), source);
     }
-
-    public static final Expression MAPPING = and(
-      or(matchAny("highway", "path", "cycleway", "bridleway", "footway", "corridor", "pedestrian", "steps"),
-        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("highway", "path", "cycleway", "bridleway", "footway", "corridor", "pedestrian", "steps"), matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmHighwayPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmRouteMember(
-    String ref, String network, String name, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmRouteMember(String ref, String network, String name, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmRouteMember(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString("network"), source.getString("name"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("route", "road"), matchType("relation_member"));
-
     public interface Handler {
-
       void process(OsmRouteMember element, FeatureCollector features);
     }
   }
-
-  public static record OsmBuildingPolygon(
-    String material, String colour, String building, String buildingpart, String buildingheight,
-    String buildingminHeight, String buildinglevels, String buildingminLevel, String height, String minHeight,
-    String levels, String minLevel, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmBuildingPolygon(String material, String colour, String building, String buildingpart, String buildingheight, String buildingminHeight, String buildinglevels, String buildingminLevel, String height, String minHeight, String levels, String minLevel, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmBuildingPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("building:material"), source.getString("building:colour"), source.getString("building"),
-        source.getString("building:part"), source.getString("building:height"), source.getString("building:min_height"),
-        source.getString("building:levels"), source.getString("building:min_level"), source.getString("height"),
-        source.getString("min_height"), source.getString("levels"), source.getString("min_level"), source);
+      this(source.getString("building:material"), source.getString("building:colour"), source.getString("building"), source.getString("building:part"), source.getString("building:height"), source.getString("building:min_height"), source.getString("building:levels"), source.getString("building:min_level"), source.getString("height"), source.getString("min_height"), source.getString("levels"), source.getString("min_level"), source);
     }
-
-    public static final Expression MAPPING = and(
-      or(matchField("building:part"), matchField("building"), matchAny("aeroway", "terminal", "hangar")),
-      not(matchAny("building", "no", "none", "No")), not(matchAny("building:part", "no", "none", "No")),
-      not(matchAny("man_made", "bridge")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchField("building:part"), matchField("building"), matchAny("aeroway", "terminal", "hangar")), not(matchAny("building", "no", "none", "No")), not(matchAny("building:part", "no", "none", "No")), not(matchAny("man_made", "bridge")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmBuildingPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmBuildingRelation(
-    String building, String material, String colour, String buildingpart, String buildingheight, String height,
-    String buildingminHeight, String minHeight, String buildinglevels, String levels, String buildingminLevel,
-    String minLevel, String relbuildingheight, String relheight, String relbuildingminHeight, String relminHeight,
-    String relbuildinglevels, String rellevels, String relbuildingminLevel, String relminLevel,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmBuildingRelation(String building, String material, String colour, String buildingpart, String buildingheight, String height, String buildingminHeight, String minHeight, String buildinglevels, String levels, String buildingminLevel, String minLevel, String relbuildingheight, String relheight, String relbuildingminHeight, String relminHeight, String relbuildinglevels, String rellevels, String relbuildingminLevel, String relminLevel, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmBuildingRelation(SourceFeature source, String mappingKey) {
-      this(source.getString("building"), source.getString("building:material"), source.getString("building:colour"),
-        source.getString("building:part"), source.getString("building:height"), source.getString("height"),
-        source.getString("building:min_height"), source.getString("min_height"), source.getString("building:levels"),
-        source.getString("levels"), source.getString("building:min_level"), source.getString("min_level"),
-        source.getString("building:height"), source.getString("height"), source.getString("building:min_height"),
-        source.getString("min_height"), source.getString("building:levels"), source.getString("levels"),
-        source.getString("building:min_level"), source.getString("min_level"), source);
+      this(source.getString("building"), source.getString("building:material"), source.getString("building:colour"), source.getString("building:part"), source.getString("building:height"), source.getString("height"), source.getString("building:min_height"), source.getString("min_height"), source.getString("building:levels"), source.getString("levels"), source.getString("building:min_level"), source.getString("min_level"), source.getString("building:height"), source.getString("height"), source.getString("building:min_height"), source.getString("min_height"), source.getString("building:levels"), source.getString("levels"), source.getString("building:min_level"), source.getString("min_level"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("type", "building"), matchType("relation_member"));
-
     public interface Handler {
-
       void process(OsmBuildingRelation element, FeatureCollector features);
     }
   }
-
-  public static record OsmMarinePoint(
-    String name, String nameEn, String nameDe, String place, long rank, boolean isIntermittent,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmMarinePoint(String name, String nameEn, String nameDe, String place, long rank, boolean isIntermittent, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmMarinePoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("place"), source.getLong("rank"), source.getBoolean("intermittent"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("place"), source.getLong("rank"), source.getBoolean("intermittent"), source);
     }
-
-    public static final Expression MAPPING = and(matchAny("place", "ocean", "sea"), matchField("name"),
-      matchType("point"));
-
+    public static final Expression MAPPING = and(matchAny("place", "ocean", "sea"), matchField("name"), matchType("point"));
     public interface Handler {
-
       void process(OsmMarinePoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmContinentPoint(
-    String name, String nameEn, String nameDe, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmContinentPoint(String name, String nameEn, String nameDe, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmContinentPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source);
     }
-
-    public static final Expression MAPPING = and(matchAny("place", "continent"), matchField("name"),
-      matchType("point"));
-
+    public static final Expression MAPPING = and(matchAny("place", "continent"), matchField("name"), matchType("point"));
     public interface Handler {
-
       void process(OsmContinentPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmCountryPoint(
-    String name, String nameEn, String nameDe, long rank, String countryCodeIso31661Alpha2, String iso31661Alpha2,
-    String iso31661, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmCountryPoint(String name, String nameEn, String nameDe, long rank, String countryCodeIso31661Alpha2, String iso31661Alpha2, String iso31661, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmCountryPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
-        source.getString("country_code_iso3166_1_alpha_2"), source.getString("ISO3166-1:alpha2"),
-        source.getString("ISO3166-1"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"), source.getString("country_code_iso3166_1_alpha_2"), source.getString("ISO3166-1:alpha2"), source.getString("ISO3166-1"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("place", "country"), matchField("name"), matchType("point"));
-
     public interface Handler {
-
       void process(OsmCountryPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmIslandPolygon(
-    String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmIslandPolygon(String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmIslandPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
-        source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("polygon"));
-
     public interface Handler {
-
       void process(OsmIslandPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmIslandPoint(
-    String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmIslandPoint(String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmIslandPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
-        source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("point"));
-
     public interface Handler {
-
       void process(OsmIslandPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmStatePoint(
-    String name, String nameEn, String nameDe, String isInCountry, String isInCountryCode, String ref, long rank,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmStatePoint(String name, String nameEn, String nameDe, String isInCountry, String isInCountryCode, String ref, long rank, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmStatePoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("is_in:country"), source.getString("is_in:country_code"), source.getString("ref"),
-        source.getLong("rank"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("is_in:country"), source.getString("is_in:country_code"), source.getString("ref"), source.getLong("rank"), source);
     }
-
     public static final Expression MAPPING = and(matchAny("place", "state"), matchField("name"), matchType("point"));
-
     public interface Handler {
-
       void process(OsmStatePoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmCityPoint(
-    String name, String nameEn, String nameDe, String place, long population, String capital, long rank,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmCityPoint(String name, String nameEn, String nameDe, String place, long population, String capital, long rank, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmCityPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("place"), source.getLong("population"), source.getString("capital"), source.getLong("rank"),
-        source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("place"), source.getLong("population"), source.getString("capital"), source.getLong("rank"), source);
     }
-
-    public static final Expression MAPPING = and(
-      matchAny("place", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood", "isolated_dwelling"),
-      matchField("name"), matchType("point"));
-
+    public static final Expression MAPPING = and(matchAny("place", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood", "isolated_dwelling"), matchField("name"), matchType("point"));
     public interface Handler {
-
       void process(OsmCityPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmHousenumberPoint(String housenumber, com.onthegomap.flatmap.SourceFeature source) implements
-    Row {
-
+  public static record OsmHousenumberPoint(String housenumber, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmHousenumberPoint(SourceFeature source, String mappingKey) {
       this(source.getString("addr:housenumber"), source);
     }
-
-    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchType("point")),
-      and(matchField("addr:housenumber"), matchType("polygon")));
-
+    public static final Expression MAPPING = or(and(matchField("addr:housenumber"), matchType("point")), and(matchField("addr:housenumber"), matchType("polygon")));
     public interface Handler {
-
       void process(OsmHousenumberPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmPoiPoint(
-    String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular,
-    String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmPoiPoint(String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular, String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmPoiPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString(mappingKey), mappingKey, source.getString("station"), source.getString("funicular"),
-        source.getString("information"), source.getString("uic_ref"), source.getString("religion"),
-        source.getLong("level"), source.getBoolean("indoor"), source.getLong("layer"), source.getString("sport"),
-        source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString(mappingKey), mappingKey, source.getString("station"), source.getString("funicular"), source.getString("information"), source.getString("uic_ref"), source.getString("religion"), source.getLong("level"), source.getBoolean("indoor"), source.getLong("layer"), source.getString("sport"), source);
     }
-
-    public static final Expression MAPPING = and(or(matchAny("aerialway", "station"),
-      matchAny("amenity", "arts_centre", "bank", "bar", "bbq", "bicycle_parking", "bicycle_rental", "biergarten",
-        "bus_station", "cafe", "cinema", "clinic", "college", "community_centre", "courthouse", "dentist", "doctors",
-        "drinking_water", "embassy", "fast_food", "ferry_terminal", "fire_station", "food_court", "fuel", "grave_yard",
-        "hospital", "ice_cream", "kindergarten", "library", "marketplace", "motorcycle_parking", "nightclub",
-        "nursing_home", "parking", "pharmacy", "place_of_worship", "police", "post_box", "post_office", "prison", "pub",
-        "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone",
-        "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"),
-      matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile",
-        "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
-      matchAny("historic", "monument", "castle", "ruins"),
-      matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"),
-      matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina",
-        "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool",
-        "water_park"), matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"),
-      matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages",
-        "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity",
-        "chemist", "chocolate", "clothes", "coffee", "computer", "confectionery", "convenience", "copyshop",
-        "cosmetics", "deli", "delicatessen", "department_store", "doityourself", "dry_cleaning", "electronics",
-        "erotic", "fabric", "florist", "frozen_food", "furniture", "garden_centre", "general", "gift", "greengrocer",
-        "hairdresser", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk",
-        "lamps", "laundry", "mall", "massage", "mobile_phone", "motorcycle", "music", "musical_instrument", "newsagent",
-        "optician", "outdoor", "perfume", "perfumery", "pet", "photo", "second_hand", "shoes", "sports", "stationery",
-        "supermarket", "tailor", "tattoo", "ticket", "tobacco", "toys", "travel_agency", "video", "video_games",
-        "watches", "weapons", "wholesale", "wine"),
-      matchAny("sport", "american_football", "archery", "athletics", "australian_football", "badminton", "baseball",
-        "basketball", "beachvolleyball", "billiards", "bmx", "boules", "bowls", "boxing", "canadian_football", "canoe",
-        "chess", "climbing", "climbing_adventure", "cricket", "cricket_nets", "croquet", "curling", "cycling",
-        "disc_golf", "diving", "dog_racing", "equestrian", "fatsal", "field_hockey", "free_flying", "gaelic_games",
-        "golf", "gymnastics", "handball", "hockey", "horse_racing", "horseshoes", "ice_hockey", "ice_stock", "judo",
-        "karting", "korfball", "long_jump", "model_aerodrome", "motocross", "motor", "multi", "netball", "orienteering",
-        "paddle_tennis", "paintball", "paragliding", "pelota", "racquet", "rc_car", "rowing", "rugby", "rugby_league",
-        "rugby_union", "running", "sailing", "scuba_diving", "shooting", "shooting_range", "skateboard", "skating",
-        "skiing", "soccer", "surfing", "swimming", "table_soccer", "table_tennis", "team_handball", "tennis",
-        "toboggan", "volleyball", "water_ski", "yoga"),
-      matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
-        "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("point"));
-
+    public static final Expression MAPPING = and(or(matchAny("aerialway", "station"), matchAny("amenity", "arts_centre", "bank", "bar", "bbq", "bicycle_parking", "bicycle_rental", "biergarten", "bus_station", "cafe", "cinema", "clinic", "college", "community_centre", "courthouse", "dentist", "doctors", "drinking_water", "embassy", "fast_food", "ferry_terminal", "fire_station", "food_court", "fuel", "grave_yard", "hospital", "ice_cream", "kindergarten", "library", "marketplace", "motorcycle_parking", "nightclub", "nursing_home", "parking", "pharmacy", "place_of_worship", "police", "post_box", "post_office", "prison", "pub", "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone", "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"), matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile", "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"), matchAny("historic", "monument", "castle", "ruins"), matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"), matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina", "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool", "water_park"), matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"), matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages", "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity", "chemist", "chocolate", "clothes", "coffee", "computer", "confectionery", "convenience", "copyshop", "cosmetics", "deli", "delicatessen", "department_store", "doityourself", "dry_cleaning", "electronics", "erotic", "fabric", "florist", "frozen_food", "furniture", "garden_centre", "general", "gift", "greengrocer", "hairdresser", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk", "lamps", "laundry", "mall", "massage", "mobile_phone", "motorcycle", "music", "musical_instrument", "newsagent", "optician", "outdoor", "perfume", "perfumery", "pet", "photo", "second_hand", "shoes", "sports", "stationery", "supermarket", "tailor", "tattoo", "ticket", "tobacco", "toys", "travel_agency", "video", "video_games", "watches", "weapons", "wholesale", "wine"), matchAny("sport", "american_football", "archery", "athletics", "australian_football", "badminton", "baseball", "basketball", "beachvolleyball", "billiards", "bmx", "boules", "bowls", "boxing", "canadian_football", "canoe", "chess", "climbing", "climbing_adventure", "cricket", "cricket_nets", "croquet", "curling", "cycling", "disc_golf", "diving", "dog_racing", "equestrian", "fatsal", "field_hockey", "free_flying", "gaelic_games", "golf", "gymnastics", "handball", "hockey", "horse_racing", "horseshoes", "ice_hockey", "ice_stock", "judo", "karting", "korfball", "long_jump", "model_aerodrome", "motocross", "motor", "multi", "netball", "orienteering", "paddle_tennis", "paintball", "paragliding", "pelota", "racquet", "rc_car", "rowing", "rugby", "rugby_league", "rugby_union", "running", "sailing", "scuba_diving", "shooting", "shooting_range", "skateboard", "skating", "skiing", "soccer", "surfing", "swimming", "table_soccer", "table_tennis", "team_handball", "tennis", "toboggan", "volleyball", "water_ski", "yoga"), matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site", "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum", "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("point"));
     public interface Handler {
-
       void process(OsmPoiPoint element, FeatureCollector features);
     }
   }
-
-  public static record OsmPoiPolygon(
-    String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular,
-    String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmPoiPolygon(String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular, String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmPoiPolygon(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString(mappingKey), mappingKey, source.getString("station"), source.getString("funicular"),
-        source.getString("information"), source.getString("uic_ref"), source.getString("religion"),
-        source.getLong("level"), source.getBoolean("indoor"), source.getLong("layer"), source.getString("sport"),
-        source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString(mappingKey), mappingKey, source.getString("station"), source.getString("funicular"), source.getString("information"), source.getString("uic_ref"), source.getString("religion"), source.getLong("level"), source.getBoolean("indoor"), source.getLong("layer"), source.getString("sport"), source);
     }
-
-    public static final Expression MAPPING = and(or(matchAny("aerialway", "station"),
-      matchAny("amenity", "arts_centre", "bank", "bar", "bbq", "bicycle_parking", "bicycle_rental", "biergarten",
-        "bus_station", "cafe", "cinema", "clinic", "college", "community_centre", "courthouse", "dentist", "doctors",
-        "drinking_water", "embassy", "fast_food", "ferry_terminal", "fire_station", "food_court", "fuel", "grave_yard",
-        "hospital", "ice_cream", "kindergarten", "library", "marketplace", "motorcycle_parking", "nightclub",
-        "nursing_home", "parking", "pharmacy", "place_of_worship", "police", "post_box", "post_office", "prison", "pub",
-        "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone",
-        "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"),
-      matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile",
-        "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
-      matchAny("historic", "monument", "castle", "ruins"),
-      matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"),
-      matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina",
-        "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool",
-        "water_park"), matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"),
-      matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages",
-        "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity",
-        "chemist", "chocolate", "clothes", "coffee", "computer", "confectionery", "convenience", "copyshop",
-        "cosmetics", "deli", "delicatessen", "department_store", "doityourself", "dry_cleaning", "electronics",
-        "erotic", "fabric", "florist", "frozen_food", "furniture", "garden_centre", "general", "gift", "greengrocer",
-        "hairdresser", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk",
-        "lamps", "laundry", "mall", "massage", "mobile_phone", "motorcycle", "music", "musical_instrument", "newsagent",
-        "optician", "outdoor", "perfume", "perfumery", "pet", "photo", "second_hand", "shoes", "sports", "stationery",
-        "supermarket", "tailor", "tattoo", "ticket", "tobacco", "toys", "travel_agency", "video", "video_games",
-        "watches", "weapons", "wholesale", "wine"),
-      matchAny("sport", "american_football", "archery", "athletics", "australian_football", "badminton", "baseball",
-        "basketball", "beachvolleyball", "billiards", "bmx", "boules", "bowls", "boxing", "canadian_football", "canoe",
-        "chess", "climbing", "climbing_adventure", "cricket", "cricket_nets", "croquet", "curling", "cycling",
-        "disc_golf", "diving", "dog_racing", "equestrian", "fatsal", "field_hockey", "free_flying", "gaelic_games",
-        "golf", "gymnastics", "handball", "hockey", "horse_racing", "horseshoes", "ice_hockey", "ice_stock", "judo",
-        "karting", "korfball", "long_jump", "model_aerodrome", "motocross", "motor", "multi", "netball", "orienteering",
-        "paddle_tennis", "paintball", "paragliding", "pelota", "racquet", "rc_car", "rowing", "rugby", "rugby_league",
-        "rugby_union", "running", "sailing", "scuba_diving", "shooting", "shooting_range", "skateboard", "skating",
-        "skiing", "soccer", "surfing", "swimming", "table_soccer", "table_tennis", "team_handball", "tennis",
-        "toboggan", "volleyball", "water_ski", "yoga"),
-      matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
-        "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("polygon"));
-
+    public static final Expression MAPPING = and(or(matchAny("aerialway", "station"), matchAny("amenity", "arts_centre", "bank", "bar", "bbq", "bicycle_parking", "bicycle_rental", "biergarten", "bus_station", "cafe", "cinema", "clinic", "college", "community_centre", "courthouse", "dentist", "doctors", "drinking_water", "embassy", "fast_food", "ferry_terminal", "fire_station", "food_court", "fuel", "grave_yard", "hospital", "ice_cream", "kindergarten", "library", "marketplace", "motorcycle_parking", "nightclub", "nursing_home", "parking", "pharmacy", "place_of_worship", "police", "post_box", "post_office", "prison", "pub", "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone", "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"), matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile", "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"), matchAny("historic", "monument", "castle", "ruins"), matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"), matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina", "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool", "water_park"), matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"), matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages", "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity", "chemist", "chocolate", "clothes", "coffee", "computer", "confectionery", "convenience", "copyshop", "cosmetics", "deli", "delicatessen", "department_store", "doityourself", "dry_cleaning", "electronics", "erotic", "fabric", "florist", "frozen_food", "furniture", "garden_centre", "general", "gift", "greengrocer", "hairdresser", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk", "lamps", "laundry", "mall", "massage", "mobile_phone", "motorcycle", "music", "musical_instrument", "newsagent", "optician", "outdoor", "perfume", "perfumery", "pet", "photo", "second_hand", "shoes", "sports", "stationery", "supermarket", "tailor", "tattoo", "ticket", "tobacco", "toys", "travel_agency", "video", "video_games", "watches", "weapons", "wholesale", "wine"), matchAny("sport", "american_football", "archery", "athletics", "australian_football", "badminton", "baseball", "basketball", "beachvolleyball", "billiards", "bmx", "boules", "bowls", "boxing", "canadian_football", "canoe", "chess", "climbing", "climbing_adventure", "cricket", "cricket_nets", "croquet", "curling", "cycling", "disc_golf", "diving", "dog_racing", "equestrian", "fatsal", "field_hockey", "free_flying", "gaelic_games", "golf", "gymnastics", "handball", "hockey", "horse_racing", "horseshoes", "ice_hockey", "ice_stock", "judo", "karting", "korfball", "long_jump", "model_aerodrome", "motocross", "motor", "multi", "netball", "orienteering", "paddle_tennis", "paintball", "paragliding", "pelota", "racquet", "rc_car", "rowing", "rugby", "rugby_league", "rugby_union", "running", "sailing", "scuba_diving", "shooting", "shooting_range", "skateboard", "skating", "skiing", "soccer", "surfing", "swimming", "table_soccer", "table_tennis", "team_handball", "tennis", "toboggan", "volleyball", "water_ski", "yoga"), matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site", "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum", "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("polygon"));
     public interface Handler {
-
       void process(OsmPoiPolygon element, FeatureCollector features);
     }
   }
-
-  public static record OsmAerodromeLabelPoint(
-    String name, String nameEn, String nameDe, String aerodromeType, String aerodrome, String military, String iata,
-    String icao, String ele, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
+  public static record OsmAerodromeLabelPoint(String name, String nameEn, String nameDe, String aerodromeType, String aerodrome, String military, String iata, String icao, String ele, com.onthegomap.flatmap.SourceFeature source) implements Row {
     public OsmAerodromeLabelPoint(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
-        source.getString("aerodrome:type"), source.getString("aerodrome"), source.getString("military"),
-        source.getString("iata"), source.getString("icao"), source.getString("ele"), source);
+      this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("aerodrome:type"), source.getString("aerodrome"), source.getString("military"), source.getString("iata"), source.getString("icao"), source.getString("ele"), source);
     }
-
-    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchType("point")),
-      and(matchAny("aeroway", "aerodrome"), matchType("polygon")));
-
+    public static final Expression MAPPING = or(and(matchAny("aeroway", "aerodrome"), matchType("point")), and(matchAny("aeroway", "aerodrome"), matchType("polygon")));
     public interface Handler {
-
       void process(OsmAerodromeLabelPoint element, FeatureCollector features);
     }
   }
-
   public static final MultiExpression<Constructor> MAPPINGS = MultiExpression.of(Map.ofEntries(
     Map.entry(OsmWaterPolygon::new, OsmWaterPolygon.MAPPING),
     Map.entry(OsmWaterwayLinestring::new, OsmWaterwayLinestring.MAPPING),
@@ -725,125 +312,95 @@ public class Tables {
     Map.entry(OsmPoiPolygon::new, OsmPoiPolygon.MAPPING),
     Map.entry(OsmAerodromeLabelPoint::new, OsmAerodromeLabelPoint.MAPPING)
   ));
-
   public static Map<Class<? extends Row>, List<RowHandler<? extends Row>>> generateDispatchMap(List<?> handlers) {
     Map<Class<? extends Row>, List<RowHandler<? extends Row>>> result = new HashMap<>();
     for (var handler : handlers) {
       if (handler instanceof OsmWaterPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmWaterPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmWaterPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmWaterPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmWaterPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmWaterwayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmWaterwayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmWaterwayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmWaterwayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmWaterwayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmLandcoverPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmLandcoverPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmLandcoverPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmLandcoverPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmLandcoverPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmLandusePolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmLandusePolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmLandusePolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmLandusePolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmLandusePolygon>) typedHandler::process);
       }
       if (handler instanceof OsmPeakPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmPeakPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmPeakPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmPeakPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmPeakPoint>) typedHandler::process);
       }
       if (handler instanceof OsmParkPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmParkPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmParkPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmParkPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmParkPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmBorderDispRelation.Handler typedHandler) {
-        result.computeIfAbsent(OsmBorderDispRelation.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmBorderDispRelation>) typedHandler::process);
+        result.computeIfAbsent(OsmBorderDispRelation.class, cls -> new ArrayList<>()).add((RowHandler<OsmBorderDispRelation>) typedHandler::process);
       }
       if (handler instanceof OsmAerowayPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmAerowayPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmAerowayPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmAerowayPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmAerowayPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmAerowayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmAerowayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmAerowayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmAerowayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmAerowayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmAerowayPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmAerowayPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmAerowayPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmAerowayPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmAerowayPoint>) typedHandler::process);
       }
       if (handler instanceof OsmHighwayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmHighwayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmHighwayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmHighwayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmHighwayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmRailwayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmRailwayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmRailwayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmRailwayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmRailwayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmAerialwayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmAerialwayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmAerialwayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmAerialwayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmAerialwayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmShipwayLinestring.Handler typedHandler) {
-        result.computeIfAbsent(OsmShipwayLinestring.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmShipwayLinestring>) typedHandler::process);
+        result.computeIfAbsent(OsmShipwayLinestring.class, cls -> new ArrayList<>()).add((RowHandler<OsmShipwayLinestring>) typedHandler::process);
       }
       if (handler instanceof OsmHighwayPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmHighwayPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmHighwayPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmHighwayPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmHighwayPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmRouteMember.Handler typedHandler) {
-        result.computeIfAbsent(OsmRouteMember.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmRouteMember>) typedHandler::process);
+        result.computeIfAbsent(OsmRouteMember.class, cls -> new ArrayList<>()).add((RowHandler<OsmRouteMember>) typedHandler::process);
       }
       if (handler instanceof OsmBuildingPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmBuildingPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmBuildingPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmBuildingPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmBuildingPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmBuildingRelation.Handler typedHandler) {
-        result.computeIfAbsent(OsmBuildingRelation.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmBuildingRelation>) typedHandler::process);
+        result.computeIfAbsent(OsmBuildingRelation.class, cls -> new ArrayList<>()).add((RowHandler<OsmBuildingRelation>) typedHandler::process);
       }
       if (handler instanceof OsmMarinePoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmMarinePoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmMarinePoint>) typedHandler::process);
+        result.computeIfAbsent(OsmMarinePoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmMarinePoint>) typedHandler::process);
       }
       if (handler instanceof OsmContinentPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmContinentPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmContinentPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmContinentPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmContinentPoint>) typedHandler::process);
       }
       if (handler instanceof OsmCountryPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmCountryPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmCountryPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmCountryPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmCountryPoint>) typedHandler::process);
       }
       if (handler instanceof OsmIslandPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmIslandPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmIslandPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmIslandPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmIslandPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmIslandPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmIslandPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmIslandPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmIslandPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmIslandPoint>) typedHandler::process);
       }
       if (handler instanceof OsmStatePoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmStatePoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmStatePoint>) typedHandler::process);
+        result.computeIfAbsent(OsmStatePoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmStatePoint>) typedHandler::process);
       }
       if (handler instanceof OsmCityPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmCityPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmCityPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmCityPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmCityPoint>) typedHandler::process);
       }
       if (handler instanceof OsmHousenumberPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmHousenumberPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmHousenumberPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmHousenumberPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmHousenumberPoint>) typedHandler::process);
       }
       if (handler instanceof OsmPoiPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmPoiPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmPoiPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmPoiPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmPoiPoint>) typedHandler::process);
       }
       if (handler instanceof OsmPoiPolygon.Handler typedHandler) {
-        result.computeIfAbsent(OsmPoiPolygon.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmPoiPolygon>) typedHandler::process);
+        result.computeIfAbsent(OsmPoiPolygon.class, cls -> new ArrayList<>()).add((RowHandler<OsmPoiPolygon>) typedHandler::process);
       }
       if (handler instanceof OsmAerodromeLabelPoint.Handler typedHandler) {
-        result.computeIfAbsent(OsmAerodromeLabelPoint.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmAerodromeLabelPoint>) typedHandler::process);
+        result.computeIfAbsent(OsmAerodromeLabelPoint.class, cls -> new ArrayList<>()).add((RowHandler<OsmAerodromeLabelPoint>) typedHandler::process);
       }
     }
     return result;
