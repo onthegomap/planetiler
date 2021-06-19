@@ -61,18 +61,24 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
     private final Map<String, List<ExpressionValue<T>>> keyToExpressionsMap;
     // same thing as a list (optimized for iteration when # source feature keys > # tags we care about)
     private final List<Map.Entry<String, List<ExpressionValue<T>>>> keyToExpressionsList;
+    private final List<Map.Entry<String, List<ExpressionValue<T>>>> missingKeyToExpressionList;
 
     private MultiExpressionIndex(MultiExpression<T> expressions) {
       Map<String, Set<ExpressionValue<T>>> keyToExpressions = new HashMap<>();
+      Map<String, Set<ExpressionValue<T>>> missingKeyToExpressions = new HashMap<>();
       for (var entry : expressions.expressions.entrySet()) {
         T result = entry.getKey();
         Expression exp = entry.getValue();
         ExpressionValue<T> expressionValue = new ExpressionValue<>(exp, result);
         getRelevantKeys(exp, key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
+        getRelevantMissingKeys(exp,
+          key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
       }
       keyToExpressionsMap = new HashMap<>();
       keyToExpressions.forEach((key, value) -> keyToExpressionsMap.put(key, value.stream().toList()));
       keyToExpressionsList = keyToExpressionsMap.entrySet().stream().toList();
+      missingKeyToExpressionList = missingKeyToExpressions.entrySet().stream()
+        .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList())).toList();
     }
 
     private static void getRelevantKeys(Expression exp, Consumer<String> acceptKey) {
@@ -89,6 +95,18 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       }
     }
 
+    private static void getRelevantMissingKeys(Expression exp, Consumer<String> acceptKey) {
+      if (exp instanceof Expression.And and) {
+        and.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      } else if (exp instanceof Expression.Or or) {
+        or.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      } else if (exp instanceof Expression.Not) {
+        // ignore anything that's purely used as a filter
+      } else if (exp instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+        acceptKey.accept(any.field());
+      }
+    }
+
     private static boolean evaluate(Expression expr, Map<String, Object> input, List<String> matchKeys) {
       // optimization: since this is evaluated for every input element, use
       // simple for loops instead of enhanced to avoid overhead of generating the
@@ -101,7 +119,7 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
       } else if (expr instanceof Expression.MatchAny match) {
         Object value = input.get(match.field());
         if (value == null) {
-          return false;
+          return match.matchWhenMissing();
         } else {
           String str = value.toString();
           if (match.exactMatches().contains(str)) {
@@ -156,19 +174,23 @@ public record MultiExpression<T>(Map<T, Expression> expressions) {
     public List<MatchWithTriggers<T>> getMatchesWithTriggers(Map<String, Object> input) {
       List<MatchWithTriggers<T>> result = new ArrayList<>();
       BitSet visited = new BitSet(ids.get());
+      for (int i = 0; i < missingKeyToExpressionList.size(); i++) {
+        var entry = missingKeyToExpressionList.get(i);
+        if (!input.containsKey(entry.getKey())) {
+          visitExpression(input, result, visited, entry.getValue());
+        }
+      }
       if (input.size() < keyToExpressionsMap.size()) {
         for (String inputKey : input.keySet()) {
-          var expressionValues = keyToExpressionsMap.get(inputKey);
-          visitExpression(input, result, visited, expressionValues);
+          visitExpression(input, result, visited, keyToExpressionsMap.get(inputKey));
         }
       } else {
         // optimization: since this is evaluated for every element, generating an iterator
         // for enhanced for loop becomes a bottleneck so use simple for loop over list instead
         for (int i = 0; i < keyToExpressionsList.size(); i++) {
           var entry = keyToExpressionsList.get(i);
-          var expressionValues = entry.getValue();
           if (input.containsKey(entry.getKey())) {
-            visitExpression(input, result, visited, expressionValues);
+            visitExpression(input, result, visited, entry.getValue());
           }
         }
       }

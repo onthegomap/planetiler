@@ -175,8 +175,9 @@ public interface Expression {
     }
   };
 
-  record MatchAny(String field, List<String> values, Set<String> exactMatches, List<String> wildcards) implements
-    Expression {
+  record MatchAny(
+    String field, List<String> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing
+  ) implements Expression {
 
     private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
 
@@ -189,7 +190,8 @@ public interface Expression {
             throw new IllegalArgumentException("wildcards must start/end with %: " + val);
           }
           return matcher.group(1);
-        }).toList()
+        }).toList(),
+        values.contains("")
       );
     }
 

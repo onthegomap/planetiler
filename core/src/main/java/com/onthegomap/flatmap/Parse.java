@@ -38,6 +38,20 @@ public class Parse {
     }
   }
 
+  public static Integer parseIntOrNull(Object tag) {
+    if (tag instanceof Number num) {
+      return num.intValue();
+    }
+    if (!(tag instanceof String)) {
+      return null;
+    }
+    try {
+      return Integer.parseInt(tag.toString());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
   private static final Set<String> booleanFalseValues = Set.of("", "0", "false", "no");
 
   public static boolean bool(Object tag) {

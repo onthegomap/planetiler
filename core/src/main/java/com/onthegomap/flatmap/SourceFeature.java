@@ -183,6 +183,11 @@ public abstract class SourceFeature {
     return value == null ? null : value.toString();
   }
 
+  public String getString(String key, String defaultValue) {
+    Object value = getTag(key, defaultValue);
+    return value == null ? null : value.toString();
+  }
+
   public boolean getBoolean(String key) {
     return Parse.bool(getTag(key));
   }

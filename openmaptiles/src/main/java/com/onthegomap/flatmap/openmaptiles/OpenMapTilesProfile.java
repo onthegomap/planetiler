@@ -23,18 +23,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class OpenMapTilesProfile implements Profile {
-
-  private static final boolean MERGE_Z13_BUILDINGS = false;
 
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
-  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPointMappings;
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmLineMappings;
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPolygonMappings;
@@ -110,9 +105,6 @@ public class OpenMapTilesProfile implements Profile {
     if (postProcesor != null) {
       result = postProcesor.postProcess(zoom, items);
     }
-//    if (MERGE_Z13_BUILDINGS && "building".equals(layer) && zoom == 13) {
-//      return FeatureMerge.mergePolygons(items, 4, 0.5, 0.5);
-//    }
     return result == null ? items : result;
   }
 
@@ -154,43 +146,6 @@ public class OpenMapTilesProfile implements Profile {
         }
       }
     }
-
-//
-//    if (sourceFeature.isPoint()) {
-//      if (sourceFeature.hasTag("natural", "peak", "volcano")) {
-//        features.point("mountain_peak")
-//          .setAttr("name", sourceFeature.getTag("name"))
-//          .setLabelGridSizeAndLimit(13, 100, 5);
-//      }
-//    }
-//
-//    if (WATER_POLYGON_SOURCE.equals(sourceFeature.getSource())) {
-//      features.polygon("water").setZoomRange(6, 14).setAttr("class", "ocean");
-//    } else if (NATURAL_EARTH_SOURCE.equals(sourceFeature.getSource())) {
-//      String sourceLayer = sourceFeature.getSourceLayer();
-//      boolean lake = sourceLayer.endsWith("_lakes");
-//      switch (sourceLayer) {
-//        case "ne_10m_lakes", "ne_10m_ocean" -> features.polygon("water")
-//          .setZoomRange(4, 5)
-//          .setAttr("class", lake ? "lake" : "ocean");
-//        case "ne_50m_lakes", "ne_50m_ocean" -> features.polygon("water")
-//          .setZoomRange(2, 3)
-//          .setAttr("class", lake ? "lake" : "ocean");
-//        case "ne_110m_lakes", "ne_110m_ocean" -> features.polygon("water")
-//          .setZoomRange(0, 1)
-//          .setAttr("class", lake ? "lake" : "ocean");
-//      }
-//    }
-//
-//    if (OSM_SOURCE.equals(sourceFeature.getSource())) {
-//      if (sourceFeature.canBePolygon()) {
-//        if (sourceFeature.hasTag("building")) {
-//          features.polygon("building")
-//            .setZoomRange(13, 14)
-//            .setMinPixelSize(MERGE_Z13_BUILDINGS ? 0 : 4);
-//        }
-//      }
-//    }
   }
 
   List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> getTableMatches(

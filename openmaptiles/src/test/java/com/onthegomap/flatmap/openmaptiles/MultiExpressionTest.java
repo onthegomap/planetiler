@@ -31,6 +31,20 @@ public class MultiExpressionTest {
   }
 
   @Test
+  public void testBlankStringTreatedAsNotMatch() {
+    var index = MultiExpression.of(Map.of(
+      "a", matchAny("key", "value", "")
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(Map.of("key", "value")));
+    assertSameElements(List.of("a"), index.getMatches(Map.of("key", "")));
+    assertSameElements(List.of("a"), index.getMatches(Map.of()));
+    assertSameElements(List.of("a"), index.getMatches(Map.of("otherkey", "othervalue")));
+    assertSameElements(List.of("a"), index.getMatches(Map.of("key2", "value", "key3", "value")));
+    assertSameElements(List.of("a"), index.getMatches(Map.of("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(Map.of("key", "no")));
+  }
+
+  @Test
   public void testSingleMatchField() {
     var index = MultiExpression.of(Map.of(
       "a", matchField("key")
