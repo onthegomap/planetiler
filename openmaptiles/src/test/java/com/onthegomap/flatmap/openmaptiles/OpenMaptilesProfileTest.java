@@ -834,6 +834,28 @@ public class OpenMaptilesProfileTest {
   }
 
   @Test
+  public void testHousenumber() {
+    assertFeatures(14, List.of(Map.of(
+      "_layer", "housenumber",
+      "_type", "point",
+      "_minzoom", 14,
+      "_maxzoom", 14,
+      "_buffer", 8d
+    )), process(pointFeature(Map.of(
+      "addr:housenumber", "10"
+    ))));
+    assertFeatures(15, List.of(Map.of(
+      "_layer", "housenumber",
+      "_type", "point",
+      "_minzoom", 14,
+      "_maxzoom", 14,
+      "_buffer", 8d
+    )), process(polygonFeature(Map.of(
+      "addr:housenumber", "10"
+    ))));
+  }
+
+  @Test
   public void testCaresAboutWikidata() {
     var node = new ReaderNode(1, 1, 1);
     node.setTag("aeroway", "gate");
