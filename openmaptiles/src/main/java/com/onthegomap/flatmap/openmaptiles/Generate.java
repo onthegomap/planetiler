@@ -26,6 +26,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.commons.text.StringEscapeUtils;
+import org.commonmark.node.Node;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -343,6 +346,7 @@ public class Generate {
       import com.onthegomap.flatmap.Translations;
       import java.util.List;
       import java.util.Map;
+      import java.util.Set;
 
       public class OpenMapTilesSchema {
         public static final String NAME = %s;
@@ -415,6 +419,10 @@ public class Generate {
               .formatted(name.toUpperCase(Locale.ROOT) + "_" + v.toUpperCase(Locale.ROOT).replace('-', '_'), quote(v)))
             .collect(joining("\n")).indent(2).strip()
             .indent(4));
+          fieldValues.append("public static final Set<String> %s = Set.of(%s);".formatted(
+            name.toUpperCase(Locale.ROOT) + "_VALUES",
+            values.stream().map(Generate::quote).collect(joining(", "))
+          ).indent(4));
         }
 
         if (valuesNode != null && valuesNode.isObject()) {
@@ -524,8 +532,12 @@ public class Generate {
     return result;
   }
 
+  private static final Parser parser = Parser.builder().build();
+  private static final HtmlRenderer renderer = HtmlRenderer.builder().build();
+
   private static String escapeJavadoc(String description) {
-    return description.replaceAll("[\n\r*\\s]+", " ");
+    Node document = parser.parse(description);
+    return renderer.render(document).replaceAll("[\n\r*\\s]+", " ");
   }
 
   private static String getFieldDescription(JsonNode value) {

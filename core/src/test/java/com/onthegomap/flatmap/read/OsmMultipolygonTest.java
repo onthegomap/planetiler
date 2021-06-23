@@ -165,6 +165,15 @@ public class OsmMultipolygonTest {
   }
 
   @Test
+  public void testBuildMultipolygonFromGeometries() throws GeometryException {
+    Geometry actual = OsmMultipolygon.build(List.of(
+      newLineString(0.2, 0.2, 0.4, 0.2, 0.4, 0.4).getCoordinateSequence(),
+      newLineString(0.4, 0.4, 0.2, 0.4, 0.2, 0.2).getCoordinateSequence()
+    ));
+    assertSameNormalizedFeature(rectangle(0.2, 0.4), actual);
+  }
+
+  @Test
   public void testThrowWhenNoClosed() {
     var node1 = node(0.5, 0.5);
     var node1a = node(0.5 + 1e-1, 0.5);

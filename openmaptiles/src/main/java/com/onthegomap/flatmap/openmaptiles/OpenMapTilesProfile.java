@@ -23,8 +23,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OpenMapTilesProfile implements Profile {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
 
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";
@@ -41,6 +46,8 @@ public class OpenMapTilesProfile implements Profile {
   private final List<OsmWaterPolygonProcessor> osmWaterProcessors;
   private final List<LakeCenterlineProcessor> lakeCenterlineProcessors;
   private final List<OsmAllProcessor> osmAllProcessors;
+  private final List<OsmRelationPreprocessor> osmRelationPreprocessors;
+  private final List<FinishHandler> finishHandlers;
 
   private MultiExpression.MultiExpressionIndex<Tables.Constructor> indexForType(String type) {
     return Tables.MAPPINGS
@@ -73,6 +80,8 @@ public class OpenMapTilesProfile implements Profile {
     lakeCenterlineProcessors = new ArrayList<>();
     naturalEarthProcessors = new ArrayList<>();
     osmWaterProcessors = new ArrayList<>();
+    osmRelationPreprocessors = new ArrayList<>();
+    finishHandlers = new ArrayList<>();
     for (Layer layer : layers) {
       if (layer instanceof FeaturePostProcessor postProcessor) {
         postProcessors.put(layer.name(), postProcessor);
@@ -88,6 +97,12 @@ public class OpenMapTilesProfile implements Profile {
       }
       if (layer instanceof NaturalEarthProcessor processor) {
         naturalEarthProcessors.add(processor);
+      }
+      if (layer instanceof OsmRelationPreprocessor processor) {
+        osmRelationPreprocessors.add(processor);
+      }
+      if (layer instanceof FinishHandler processor) {
+        finishHandlers.add(processor);
       }
     }
   }
@@ -110,7 +125,19 @@ public class OpenMapTilesProfile implements Profile {
 
   @Override
   public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
-    return null;
+    List<OpenStreetMapReader.RelationInfo> result = null;
+    for (int i = 0; i < osmRelationPreprocessors.size(); i++) {
+      List<OpenStreetMapReader.RelationInfo> thisResult = osmRelationPreprocessors.get(i)
+        .preprocessOsmRelation(relation);
+      if (thisResult != null) {
+        if (result == null) {
+          result = new ArrayList<>(thisResult);
+        } else {
+          result.addAll(thisResult);
+        }
+      }
+    }
+    return result;
   }
 
   @Override
@@ -166,6 +193,14 @@ public class OpenMapTilesProfile implements Profile {
     return result == null ? List.of() : result;
   }
 
+  @Override
+  public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
+    Consumer<FeatureCollector.Feature> next) {
+    for (var handler : finishHandlers) {
+      handler.finish(sourceName, featureCollectors, next);
+    }
+  }
+
   public interface NaturalEarthProcessor {
 
     void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features);
@@ -184,6 +219,17 @@ public class OpenMapTilesProfile implements Profile {
   public interface OsmAllProcessor {
 
     void processAllOsm(SourceFeature feature, FeatureCollector features);
+  }
+
+  public interface FinishHandler {
+
+    void finish(String sourceName, FeatureCollector.Factory featureCollectors,
+      Consumer<FeatureCollector.Feature> next);
+  }
+
+  public interface OsmRelationPreprocessor {
+
+    List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation);
   }
 
   public interface FeaturePostProcessor {

@@ -24,6 +24,11 @@
       <version>1.29</version>
     </dependency>
     <dependency>
+      <groupId>org.commonmark</groupId>
+      <artifactId>commonmark</artifactId>
+      <version>0.17.2</version>
+    </dependency>
+    <dependency>
       <groupId>com.ibm.icu</groupId>
       <artifactId>icu4j</artifactId>
       <version>69.1</version>

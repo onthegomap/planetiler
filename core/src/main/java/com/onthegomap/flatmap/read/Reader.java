@@ -12,6 +12,8 @@ import com.onthegomap.flatmap.render.FeatureRenderer;
 import com.onthegomap.flatmap.worker.Topology;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Envelope;
 
 public abstract class Reader implements Closeable {
@@ -40,12 +42,7 @@ public abstract class Reader implements Closeable {
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
         SourceFeature sourceFeature;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
-        var encoder = writer.newRenderedFeatureEncoder();
-        FeatureRenderer renderer = new FeatureRenderer(
-          config,
-          rendered -> next.accept(encoder.apply(rendered)),
-          stats
-        );
+        FeatureRenderer renderer = getFeatureRenderer(writer, config, next);
         while ((sourceFeature = prev.get()) != null) {
           featuresRead.incrementAndGet();
           FeatureCollector features = featureCollectors.get(sourceFeature);
@@ -71,7 +68,23 @@ public abstract class Reader implements Closeable {
       .addTopologyStats(topology);
 
     topology.awaitAndLog(loggers, config.logInterval());
+
+    profile.finish(sourceName,
+      new FeatureCollector.Factory(config, stats),
+      getFeatureRenderer(writer, config, writer)
+    );
     timer.stop();
+  }
+
+  @NotNull
+  private FeatureRenderer getFeatureRenderer(FeatureGroup writer, CommonParams config,
+    Consumer<FeatureSort.Entry> next) {
+    var encoder = writer.newRenderedFeatureEncoder();
+    return new FeatureRenderer(
+      config,
+      rendered -> next.accept(encoder.apply(rendered)),
+      stats
+    );
   }
 
   public abstract long getCount();

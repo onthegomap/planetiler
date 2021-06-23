@@ -46,6 +46,7 @@ class TiledGeometry {
   private static final double NEIGHBOR_BUFFER_EPS = 0.1d / 4096;
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
+  private final long id;
   private Map<Integer, IntRange> filledRanges = null;
   private final TileExtents.ForZoom extents;
   private final double buffer;
@@ -54,7 +55,8 @@ class TiledGeometry {
   private final boolean area;
   private final int max;
 
-  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
+  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, long id) {
+    this.id = id;
     this.extents = extents;
     this.buffer = buffer;
     // make sure we inspect neighboring tiles when a line runs along an edge
@@ -65,8 +67,8 @@ class TiledGeometry {
   }
 
   public static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
-    Coordinate[] coords) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, false);
+    Coordinate[] coords, long id) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, false, id);
     for (Coordinate coord : coords) {
       result.slicePoint(coord);
     }
@@ -107,9 +109,9 @@ class TiledGeometry {
   }
 
   public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents) {
+    TileExtents.ForZoom extents, long id) {
     int worldExtent = 1 << z;
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, area, id);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -worldExtent);
@@ -176,7 +178,7 @@ class TiledGeometry {
         boolean outer = i == 0;
         IntObjectMap<List<MutableCoordinateSequence>> xSlices = sliceX(segment);
         if (z >= 6 && xSlices.size() >= Math.pow(2, z) - 1) {
-          LOGGER.warn("Feature crosses world at z" + z + ": " + xSlices.size());
+          LOGGER.warn("Feature " + id + " crosses world at z" + z + ": " + xSlices.size());
         }
         for (IntObjectCursor<List<MutableCoordinateSequence>> xCursor : xSlices) {
           int x = xCursor.key + xOffset;

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -169,12 +170,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         ReaderElement readerElement;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         NodeLocationProvider nodeCache = newNodeGeometryCache();
-        var encoder = writer.newRenderedFeatureEncoder();
-        FeatureRenderer renderer = new FeatureRenderer(
-          config,
-          rendered -> next.accept(encoder.apply(rendered)),
-          stats
-        );
+        FeatureRenderer renderer = getFeatureRenderer(writer, config, next);
         while ((readerElement = prev.get()) != null) {
           SourceFeature feature = null;
           if (readerElement instanceof ReaderNode node) {
@@ -220,7 +216,21 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
+
+    profile.finish(name,
+      new FeatureCollector.Factory(config, stats),
+      getFeatureRenderer(writer, config, writer));
     timer.stop();
+  }
+
+  private FeatureRenderer getFeatureRenderer(FeatureGroup writer, CommonParams config,
+    Consumer<FeatureSort.Entry> next) {
+    var encoder = writer.newRenderedFeatureEncoder();
+    return new FeatureRenderer(
+      config,
+      rendered -> next.accept(encoder.apply(rendered)),
+      stats
+    );
   }
 
   SourceFeature processRelationPass2(ReaderRelation rel, NodeLocationProvider nodeCache) {
@@ -237,7 +247,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     String area = way.getTag("area");
     LongArrayList relationIds = wayToRelations.get(way.getId());
-    List<RelationMember<?>> rels = null;
+    List<RelationMember<RelationInfo>> rels = null;
     if (!relationIds.isEmpty()) {
       rels = new ArrayList<>(relationIds.size());
       for (int r = 0; r < relationIds.size(); r++) {
@@ -332,7 +342,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     final boolean point;
 
     public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon,
-      List<RelationMember<?>> relationInfo) {
+      List<RelationMember<RelationInfo>> relationInfo) {
       super(ReaderElementUtils.getProperties(elem), name, null, relationInfo, elem.getId());
       this.point = point;
       this.line = line;
@@ -407,7 +417,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final LongArrayList nodeIds;
 
     public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeCache,
-      List<RelationMember<?>> relationInfo) {
+      List<RelationMember<RelationInfo>> relationInfo) {
       super(way, false,
         (!closed || !"yes".equals(area)) && way.getNodes().size() >= 2,
         (closed && !"no".equals(area)) && way.getNodes().size() >= 4,

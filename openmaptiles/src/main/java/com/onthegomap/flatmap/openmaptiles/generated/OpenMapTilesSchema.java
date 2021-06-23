@@ -13,6 +13,7 @@ import com.onthegomap.flatmap.openmaptiles.Layer;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class OpenMapTilesSchema {
 
@@ -49,12 +50,12 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Water polygons representing oceans and lakes. Covered watered areas are excluded (`covered=yes`). On low zoom
-   * levels all water originates from Natural Earth. To get a more correct display of the south pole you should also
-   * style the covering ice shelves over the water. On higher zoom levels water polygons from
-   * [OpenStreetMapData](http://osmdata.openstreetmap.de/) are used. The polygons are split into many smaller polygons
-   * to improve rendering performance. This however can lead to less rendering options in clients since these boundaries
-   * show up. So you might not be able to use border styling for ocean water features.
+   * <p>Water polygons representing oceans and lakes. Covered watered areas are excluded (<code>covered=yes</code>). On
+   * low zoom levels all water originates from Natural Earth. To get a more correct display of the south pole you should
+   * also style the covering ice shelves over the water. On higher zoom levels water polygons from <a
+   * href="http://osmdata.openstreetmap.de/">OpenStreetMapData</a> are used. The polygons are split into many smaller
+   * polygons to improve rendering performance. This however can lead to less rendering options in clients since these
+   * boundaries show up. So you might not be able to use border styling for ocean water features.</p>
    */
   public interface Water extends Layer {
 
@@ -69,9 +70,9 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * All water polygons from [OpenStreetMapData](http://osmdata.openstreetmap.de/) have the class `ocean`. Water
-       * bodies are classified as `lake` or `river` for water bodies with the [`waterway`](http://wiki.openstreetmap.org/wiki/Key:waterway)
-       * tag.
+       * <p>All water polygons from <a href="http://osmdata.openstreetmap.de/">OpenStreetMapData</a> have the class
+       * <code>ocean</code>. Water bodies are classified as <code>lake</code> or <code>river</code> for water bodies
+       * with the <a href="http://wiki.openstreetmap.org/wiki/Key:waterway"><code>waterway</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -84,7 +85,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Mark with `1` if it is an [intermittent](http://wiki.openstreetmap.org/wiki/Key:intermittent) water polygon.
+       * <p>Mark with <code>1</code> if it is an <a href="http://wiki.openstreetmap.org/wiki/Key:intermittent">intermittent</a>
+       * water polygon.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -95,7 +97,7 @@ public class OpenMapTilesSchema {
       public static final String INTERMITTENT = "intermittent";
 
       /**
-       * Identifies the type of crossing as either a bridge or a tunnel.
+       * <p>Identifies the type of crossing as either a bridge or a tunnel.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -112,8 +114,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_DOCK = "dock";
       public static final String CLASS_RIVER = "river";
       public static final String CLASS_OCEAN = "ocean";
+      public static final Set<String> CLASS_VALUES = Set.of("lake", "dock", "river", "ocean");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
+      public static final Set<String> BRUNNEL_VALUES = Set.of("bridge", "tunnel");
     }
 
     final class FieldMappings {
@@ -125,11 +129,11 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * OpenStreetMap [waterways](https://wiki.openstreetmap.org/wiki/Waterways) for higher zoom levels (z9 and more) and
-   * Natural Earth rivers and lake centerlines for low zoom levels (z3 - z8). Linestrings without a name or which are
-   * too short are filtered out at low zoom levels. Till z11 there is `river` class only, in z12 there is also `canal`
-   * generated, starting z13 there is no generalization according to `class` field applied. Waterways do not have a
-   * `subclass` field.
+   * <p>OpenStreetMap <a href="https://wiki.openstreetmap.org/wiki/Waterways">waterways</a> for higher zoom levels (z9
+   * and more) and Natural Earth rivers and lake centerlines for low zoom levels (z3 - z8). Linestrings without a name
+   * or which are too short are filtered out at low zoom levels. Till z11 there is <code>river</code> class only, in z12
+   * there is also <code>canal</code> generated, starting z13 there is no generalization according to <code>class</code>
+   * field applied. Waterways do not have a <code>subclass</code> field.</p>
    */
   public interface Waterway extends Layer {
 
@@ -144,21 +148,22 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the waterway. The `name` field may be
-       * empty for NaturalEarth data or at lower zoom levels.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the waterway.
+       * The <code>name</code> field may be empty for NaturalEarth data or at lower zoom levels.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * The original value of the [`waterway`](http://wiki.openstreetmap.org/wiki/Key:waterway) tag.
+       * <p>The original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:waterway"><code>waterway</code></a>
+       * tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -172,7 +177,7 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Mark whether way is a tunnel or bridge.
+       * <p>Mark whether way is a tunnel or bridge.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -183,7 +188,8 @@ public class OpenMapTilesSchema {
       public static final String BRUNNEL = "brunnel";
 
       /**
-       * Mark with `1` if it is an [intermittent](http://wiki.openstreetmap.org/wiki/Key:intermittent) waterway.
+       * <p>Mark with <code>1</code> if it is an <a href="http://wiki.openstreetmap.org/wiki/Key:intermittent">intermittent</a>
+       * waterway.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -201,8 +207,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_CANAL = "canal";
       public static final String CLASS_DRAIN = "drain";
       public static final String CLASS_DITCH = "ditch";
+      public static final Set<String> CLASS_VALUES = Set.of("stream", "river", "canal", "drain", "ditch");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
+      public static final Set<String> BRUNNEL_VALUES = Set.of("bridge", "tunnel");
     }
 
     final class FieldMappings {
@@ -211,10 +219,10 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Landcover is used to describe the physical material at the surface of the earth. At lower zoom levels this is from
-   * Natural Earth data for glaciers and ice shelves and at higher zoom levels the landcover is [implied by OSM
-   * tags](http://wiki.openstreetmap.org/wiki/Landcover). The most common use case for this layer is to style wood
-   * (`class=wood`) and grass (`class=grass`) areas.
+   * <p>Landcover is used to describe the physical material at the surface of the earth. At lower zoom levels this is
+   * from Natural Earth data for glaciers and ice shelves and at higher zoom levels the landcover is <a
+   * href="http://wiki.openstreetmap.org/wiki/Landcover">implied by OSM tags</a>. The most common use case for this
+   * layer is to style wood (<code>class=wood</code>) and grass (<code>class=grass</code>) areas.</p>
    */
   public interface Landcover extends Layer {
 
@@ -229,7 +237,7 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * Use the class to assign natural colors for landcover .
+       * <p>Use the <strong>class</strong> to assign natural colors for <strong>landcover</strong>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -245,9 +253,11 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Use subclass to do more precise styling. Original value of either the [`natural`](http://wiki.openstreetmap.org/wiki/Key:natural),
-       * [`landuse`](http://wiki.openstreetmap.org/wiki/Key:landuse), [`leisure`](http://wiki.openstreetmap.org/wiki/Key:leisure),
-       * or [`wetland`](http://wiki.openstreetmap.org/wiki/Key:wetland) tag.
+       * <p>Use <strong>subclass</strong> to do more precise styling. Original value of either the <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:natural"><code>natural</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:landuse"><code>landuse</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:leisure"><code>leisure</code></a>, or <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:wetland"><code>wetland</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -301,6 +311,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_GRASS = "grass";
       public static final String CLASS_WETLAND = "wetland";
       public static final String CLASS_SAND = "sand";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("farmland", "ice", "wood", "rock", "grass", "wetland", "sand");
       public static final String SUBCLASS_ALLOTMENTS = "allotments";
       public static final String SUBCLASS_BARE_ROCK = "bare_rock";
       public static final String SUBCLASS_BEACH = "beach";
@@ -337,6 +349,11 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_WET_MEADOW = "wet_meadow";
       public static final String SUBCLASS_WETLAND = "wetland";
       public static final String SUBCLASS_WOOD = "wood";
+      public static final Set<String> SUBCLASS_VALUES = Set
+        .of("allotments", "bare_rock", "beach", "bog", "dune", "scrub", "farm", "farmland", "fell", "forest", "garden",
+          "glacier", "grass", "grassland", "golf_course", "heath", "mangrove", "marsh", "meadow", "orchard", "park",
+          "plant_nursery", "recreation_ground", "reedbed", "saltern", "saltmarsh", "sand", "scree", "swamp",
+          "tidalflat", "tundra", "village_green", "vineyard", "wet_meadow", "wetland", "wood");
     }
 
     final class FieldMappings {
@@ -354,8 +371,8 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Landuse is used to describe use of land by humans. At lower zoom levels this is from Natural Earth data for
-   * residential (urban) areas and at higher zoom levels mostly OSM `landuse` tags.
+   * <p>Landuse is used to describe use of land by humans. At lower zoom levels this is from Natural Earth data for
+   * residential (urban) areas and at higher zoom levels mostly OSM <code>landuse</code> tags.</p>
    */
   public interface Landuse extends Layer {
 
@@ -370,11 +387,13 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * Use the class to assign special colors to areas. Original value of either the
-       * [`landuse`](http://wiki.openstreetmap.org/wiki/Key:landuse), [`amenity`](http://wiki.openstreetmap.org/wiki/Key:amenity),
-       * [`leisure`](http://wiki.openstreetmap.org/wiki/Key:leisure), [`tourism`](http://wiki.openstreetmap.org/wiki/Key:tourism),
-       * [`place`](http://wiki.openstreetmap.org/wiki/Key:place) or [`waterway`](http://wiki.openstreetmap.org/wiki/Key:waterway)
-       * tag.
+       * <p>Use the <strong>class</strong> to assign special colors to areas. Original value of either the <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:landuse"><code>landuse</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:amenity"><code>amenity</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:leisure"><code>leisure</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:tourism"><code>tourism</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:place"><code>place</code></a> or <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:waterway"><code>waterway</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -435,6 +454,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_QUARTER = "quarter";
       public static final String CLASS_NEIGHBOURHOOD = "neighbourhood";
       public static final String CLASS_DAM = "dam";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("railway", "cemetery", "military", "residential", "commercial", "industrial", "garages", "retail",
+          "bus_station", "school", "university", "kindergarten", "college", "library", "hospital", "stadium", "pitch",
+          "playground", "track", "theme_park", "zoo", "suburb", "quarter", "neighbourhood", "dam");
     }
 
     final class FieldMappings {
@@ -443,7 +466,7 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * [Natural peaks](http://wiki.openstreetmap.org/wiki/Tag:natural%3Dpeak)
+   * <p><a href="http://wiki.openstreetmap.org/wiki/Tag:natural%3Dpeak">Natural peaks</a></p>
    */
   public interface MountainPeak extends Layer {
 
@@ -458,20 +481,20 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the peak.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the peak.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * Use the class to differentiate between mountain peak and volcano.
+       * <p>Use the <strong>class</strong> to differentiate between mountain peak and volcano.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -481,15 +504,15 @@ public class OpenMapTilesSchema {
        */
       public static final String CLASS = "class";
       /**
-       * Elevation (`ele`) in meters.
+       * <p>Elevation (<code>ele</code>) in meters.</p>
        */
       public static final String ELE = "ele";
       /**
-       * Elevation (`ele`) in feets.
+       * <p>Elevation (<code>ele</code>) in feets.</p>
        */
       public static final String ELE_FT = "ele_ft";
       /**
-       * Rank of the peak within one tile (starting at 1 that is the most important peak).
+       * <p>Rank of the peak within one tile (starting at 1 that is the most important peak).</p>
        */
       public static final String RANK = "rank";
     }
@@ -498,6 +521,7 @@ public class OpenMapTilesSchema {
 
       public static final String CLASS_PEAK = "peak";
       public static final String CLASS_VOLCANO = "volcano";
+      public static final Set<String> CLASS_VALUES = Set.of("peak", "volcano");
     }
 
     final class FieldMappings {
@@ -506,9 +530,9 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * The park layer contains parks from OpenStreetMap tagged with [`boundary=national_park`](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dnational_park),
-   * [`boundary=protected_area`](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dprotected_area), or
-   * [`leisure=nature_reserve`](http://wiki.openstreetmap.org/wiki/Tag:leisure%3Dnature_reserve).
+   * <p>The park layer contains parks from OpenStreetMap tagged with <a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dnational_park"><code>boundary=national_park</code></a>,
+   * <a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dprotected_area"><code>boundary=protected_area</code></a>,
+   * or <a href="http://wiki.openstreetmap.org/wiki/Tag:leisure%3Dnature_reserve"><code>leisure=nature_reserve</code></a>.</p>
    */
   public interface Park extends Layer {
 
@@ -523,28 +547,32 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * Use the class to differentiate between different parks. The class for `boundary=protected_area` parks is the
-       * lower-case of the [`protection_title`](http://wiki.openstreetmap.org/wiki/key:protection_title) value with
-       * blanks replaced by `_`. `national_park` is the class of `protection_title=National Park` and
-       * `boundary=national_park`. `nature_reserve` is the class of `protection_title=Nature Reserve` and
-       * `leisure=nature_reserve`. The class for other [`protection_title`](http://wiki.openstreetmap.org/wiki/key:protection_title)
-       * values is similarly assigned.
+       * <p>Use the <strong>class</strong> to differentiate between different parks. The class for
+       * <code>boundary=protected_area</code> parks is the lower-case of the <a href="http://wiki.openstreetmap.org/wiki/key:protection_title"><code>protection_title</code></a>
+       * value with blanks replaced by <code>_</code>. <code>national_park</code> is the class of
+       * <code>protection_title=National Park</code> and <code>boundary=national_park</code>.
+       * <code>nature_reserve</code> is the class of <code>protection_title=Nature Reserve</code> and
+       * <code>leisure=nature_reserve</code>. The class for other <a href="http://wiki.openstreetmap.org/wiki/key:protection_title"><code>protection_title</code></a>
+       * values is similarly assigned.</p>
        */
       public static final String CLASS = "class";
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the park (point features only).
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the park
+       * (point
+       * features only).</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name` (point features only).
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code> (point features only).</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en` (point features only).
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code> (point
+       * features only).</p>
        */
       public static final String NAME_DE = "name_de";
       /**
-       * Rank of the park within one tile, starting at 1 that is the most important park (point features only).
+       * <p>Rank of the park within one tile, starting at 1 that is the most important park (point features only).</p>
        */
       public static final String RANK = "rank";
     }
@@ -559,11 +587,11 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Contains administrative boundaries as linestrings. Until z4 [Natural Earth data](http://www.naturalearthdata.com/downloads/)
-   * is used after which OSM boundaries ([`boundary=administrative`](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative))
-   * are present from z5 to z14 (also for maritime boundaries with `admin_level <= 2` at z4). OSM data contains several
-   * [`admin_level`](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level) but for most styles
-   * it makes sense to just style `admin_level=2` and `admin_level=4`.
+   * <p>Contains administrative boundaries as linestrings. Until z4 <a href="http://www.naturalearthdata.com/downloads/">Natural
+   * Earth data</a> is used after which OSM boundaries (<a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative"><code>boundary=administrative</code></a>)
+   * are present from z5 to z14 (also for maritime boundaries with <code>admin_level &lt;= 2</code> at z4). OSM data
+   * contains several <a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level"><code>admin_level</code></a>
+   * but for most styles it makes sense to just style <code>admin_level=2</code> and <code>admin_level=4</code>.</p>
    */
   public interface Boundary extends Layer {
 
@@ -578,22 +606,23 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * OSM [admin_level](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level) indicating the
-       * level of importance of this boundary. The `admin_level` corresponds to the lowest `admin_level` the line
-       * participates in. At low zoom levels the Natural Earth boundaries are mapped to the equivalent admin levels.
+       * <p>OSM <a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level">admin_level</a>
+       * indicating the level of importance of this boundary. The <code>admin_level</code> corresponds to the lowest
+       * <code>admin_level</code> the line participates in. At low zoom levels the Natural Earth boundaries are mapped
+       * to the equivalent admin levels.</p>
        */
       public static final String ADMIN_LEVEL = "admin_level";
       /**
-       * State name on the left of the border. For country boundaries only (`admin_level = 2`).
+       * <p>State name on the left of the border. For country boundaries only (<code>admin_level = 2</code>).</p>
        */
       public static final String ADM0_L = "adm0_l";
       /**
-       * State name on the right of the border. For country boundaries only (`admin_level = 2`).
+       * <p>State name on the right of the border. For country boundaries only (<code>admin_level = 2</code>).</p>
        */
       public static final String ADM0_R = "adm0_r";
 
       /**
-       * Mark with `1` if the border is disputed.
+       * <p>Mark with <code>1</code> if the border is disputed.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -604,8 +633,8 @@ public class OpenMapTilesSchema {
       public static final String DISPUTED = "disputed";
 
       /**
-       * Field containing name of the disputed area (extracted from border relation in OSM, without spaces). For country
-       * boundaries only (`admin_level = 2`). Value examples from Asian OSM pbf extract
+       * <p>Field containing name of the disputed area (extracted from border relation in OSM, without spaces). For
+       * country boundaries only (<code>admin_level = 2</code>). Value examples from Asian OSM pbf extract</p>
        * <p>
        * allowed values:
        * <ul>
@@ -624,12 +653,14 @@ public class OpenMapTilesSchema {
        */
       public static final String DISPUTED_NAME = "disputed_name";
       /**
-       * ISO2 code of country, which wants to see the boundary line. For country boundaries only (`admin_level = 2`).
+       * <p>ISO2 code of country, which wants to see the boundary line. For country boundaries only (<code>admin_level
+       * =
+       * 2</code>).</p>
        */
       public static final String CLAIMED_BY = "claimed_by";
 
       /**
-       * Mark with `1` if it is a maritime border.
+       * <p>Mark with <code>1</code> if it is a maritime border.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -653,6 +684,9 @@ public class OpenMapTilesSchema {
       public static final String DISPUTED_NAME_PAKISTANICLAIM = "PakistaniClaim";
       public static final String DISPUTED_NAME_SAMDUVALLEYS = "SamduValleys";
       public static final String DISPUTED_NAME_TIRPANIVALLEYS = "TirpaniValleys";
+      public static final Set<String> DISPUTED_NAME_VALUES = Set
+        .of("AbuMusaIsland", "BaraHotiiValleys", "ChineseClaim", "Crimea", "Demchok", "Dokdo", "IndianClaim-North",
+          "IndianClaimwesternKashmir", "PakistaniClaim", "SamduValleys", "TirpaniValleys");
     }
 
     final class FieldMappings {
@@ -661,8 +695,9 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Aeroway polygons based of OpenStreetMap [aeroways](http://wiki.openstreetmap.org/wiki/Aeroways). Airport buildings
-   * are contained in the building layer but all other airport related polygons can be found in the aeroway layer.
+   * <p>Aeroway polygons based of OpenStreetMap <a href="http://wiki.openstreetmap.org/wiki/Aeroways">aeroways</a>.
+   * Airport buildings are contained in the <strong>building</strong> layer but all other airport related polygons can
+   * be found in the <strong>aeroway</strong> layer.</p>
    */
   public interface Aeroway extends Layer {
 
@@ -677,12 +712,14 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`ref`](http://wiki.openstreetmap.org/wiki/Key:ref) tag of the runway/taxiway.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:ref"><code>ref</code></a> tag of the
+       * runway/taxiway.</p>
        */
       public static final String REF = "ref";
 
       /**
-       * The original value of [`aeroway`](http://wiki.openstreetmap.org/wiki/Key:aeroway) or `area:aeroway` tag.
+       * <p>The original value of <a href="http://wiki.openstreetmap.org/wiki/Key:aeroway"><code>aeroway</code></a> or
+       * <code>area:aeroway</code> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -707,6 +744,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_TAXIWAY = "taxiway";
       public static final String CLASS_APRON = "apron";
       public static final String CLASS_GATE = "gate";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("aerodrome", "heliport", "runway", "helipad", "taxiway", "apron", "gate");
     }
 
     final class FieldMappings {
@@ -715,10 +754,11 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * transportation contains roads, railways, aerial ways, and shipping lines. This layer is directly derived from the
-   * OSM road hierarchy. At lower zoom levels major highways from Natural Earth are used. It contains all roads from
-   * motorways to primary, secondary and tertiary roads to residential roads and foot paths. Styling the roads is the
-   * most essential part of the map. The `transportation` layer also contains polygons for features like plazas.
+   * <p><strong>transportation</strong> contains roads, railways, aerial ways, and shipping lines. This layer is
+   * directly derived from the OSM road hierarchy. At lower zoom levels major highways from Natural Earth are used. It
+   * contains all roads from motorways to primary, secondary and tertiary roads to residential roads and foot paths.
+   * Styling the roads is the most essential part of the map. The <code>transportation</code> layer also contains
+   * polygons for features like plazas.</p>
    */
   public interface Transportation extends Layer {
 
@@ -733,11 +773,14 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * Distinguish between more and less important roads or railways and roads under construction. Class is derived
-       * from the value of the [`highway`](http://wiki.openstreetmap.org/wiki/Key:highway),
-       * [`construction`](http://wiki.openstreetmap.org/wiki/Key:construction), [`railway`](http://wiki.openstreetmap.org/wiki/Key:railway),
-       * [`aerialway`](http://wiki.openstreetmap.org/wiki/Key:aerialway), [`route`](http://wiki.openstreetmap.org/wiki/Key:route)
-       * tag (for shipping ways), or [`man_made`](http://wiki.openstreetmap.org/wiki/Key:route).
+       * <p>Distinguish between more and less important roads or railways and roads under construction. Class is
+       * derived
+       * from the value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:construction"><code>construction</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:railway"><code>railway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:aerialway"><code>aerialway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:route"><code>route</code></a> tag (for shipping ways), or <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:route"><code>man_made</code></a>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -766,10 +809,11 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Distinguish more specific classes of railway and path: Subclass is value of the
-       * [`railway`](http://wiki.openstreetmap.org/wiki/Key:railway), [`highway`](http://wiki.openstreetmap.org/wiki/Key:highway)
-       * (for paths), or [`public_transport`](http://wiki.openstreetmap.org/wiki/Key:public_transport) (for platforms)
-       * tag.
+       * <p>Distinguish more specific classes of railway and path: Subclass is value of the <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:railway"><code>railway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a> (for paths), or <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:public_transport"><code>public_transport</code></a> (for
+       * platforms) tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -794,7 +838,7 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS = "subclass";
 
       /**
-       * Mark whether way is a tunnel or bridge.
+       * <p>Mark whether way is a tunnel or bridge.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -806,8 +850,8 @@ public class OpenMapTilesSchema {
       public static final String BRUNNEL = "brunnel";
 
       /**
-       * Mark with `1` whether way is a oneway in the direction of the way, with `-1` whether way is a oneway in the
-       * opposite direction of the way or not a oneway with `0`.
+       * <p>Mark with <code>1</code> whether way is a oneway in the direction of the way, with <code>-1</code> whether
+       * way is a oneway in the opposite direction of the way or not a oneway with <code>0</code>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -819,7 +863,7 @@ public class OpenMapTilesSchema {
       public static final String ONEWAY = "oneway";
 
       /**
-       * Mark with `1` whether way is a ramp (link or steps) or not with `0`.
+       * <p>Mark with <code>1</code> whether way is a ramp (link or steps) or not with <code>0</code>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -830,7 +874,8 @@ public class OpenMapTilesSchema {
       public static final String RAMP = "ramp";
 
       /**
-       * Original value of the [`service`](http://wiki.openstreetmap.org/wiki/Key:service) tag.
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:service"><code>service</code></a>
+       * tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -845,18 +890,19 @@ public class OpenMapTilesSchema {
        */
       public static final String SERVICE = "service";
       /**
-       * Original value of the [`layer`](http://wiki.openstreetmap.org/wiki/Key:layer) tag.
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:layer"><code>layer</code></a>
+       * tag.</p>
        */
       public static final String LAYER = "layer";
       /**
-       * Experimental feature! Filled only for steps and footways. Original value of the
-       * [`level`](http://wiki.openstreetmap.org/wiki/Key:level) tag.
+       * <p>Experimental feature! Filled only for steps and footways. Original value of the <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:level"><code>level</code></a> tag.</p>
        */
       public static final String LEVEL = "level";
 
       /**
-       * Experimental feature! Filled only for steps and footways. Original value of the
-       * [`indoor`](http://wiki.openstreetmap.org/wiki/Key:indoor) tag.
+       * <p>Experimental feature! Filled only for steps and footways. Original value of the <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:indoor"><code>indoor</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -865,27 +911,32 @@ public class OpenMapTilesSchema {
        */
       public static final String INDOOR = "indoor";
       /**
-       * Original value of the [`bicycle`](http://wiki.openstreetmap.org/wiki/Key:bicycle) tag (highways only).
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:bicycle"><code>bicycle</code></a> tag
+       * (highways only).</p>
        */
       public static final String BICYCLE = "bicycle";
       /**
-       * Original value of the [`foot`](http://wiki.openstreetmap.org/wiki/Key:foot) tag (highways only).
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:foot"><code>foot</code></a> tag
+       * (highways only).</p>
        */
       public static final String FOOT = "foot";
       /**
-       * Original value of the [`horse`](http://wiki.openstreetmap.org/wiki/Key:horse) tag (highways only).
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:horse"><code>horse</code></a> tag
+       * (highways only).</p>
        */
       public static final String HORSE = "horse";
       /**
-       * Original value of the [`mtb:scale`](http://wiki.openstreetmap.org/wiki/Key:mtb:scale) tag (highways only).
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:mtb:scale"><code>mtb:scale</code></a>
+       * tag (highways only).</p>
        */
       public static final String MTB_SCALE = "mtb_scale";
 
       /**
-       * Values of [`surface`](https://wiki.openstreetmap.org/wiki/Key:surface) tag devided into 2 groups `paved`
-       * (paved, asphalt, cobblestone, concrete, concrete:lanes, concrete:plates, metal, paving_stones, sett,
-       * unhewn_cobblestone, wood) and `unpaved` (unpaved, compacted, dirt, earth, fine_gravel, grass, grass_paver,
-       * gravel, gravel_turf, ground, ice, mud, pebblestone, salt, sand, snow, woodchips).
+       * <p>Values of <a href="https://wiki.openstreetmap.org/wiki/Key:surface"><code>surface</code></a> tag devided
+       * into 2 groups <code>paved</code> (paved, asphalt, cobblestone, concrete, concrete:lanes, concrete:plates,
+       * metal, paving_stones, sett, unhewn_cobblestone, wood) and <code>unpaved</code> (unpaved, compacted, dirt,
+       * earth, fine_gravel, grass, grass_paver, gravel, gravel_turf, ground, ice, mud, pebblestone, salt, sand, snow,
+       * woodchips).</p>
        * <p>
        * allowed values:
        * <ul>
@@ -918,6 +969,11 @@ public class OpenMapTilesSchema {
       public static final String CLASS_SERVICE_CONSTRUCTION = "service_construction";
       public static final String CLASS_TRACK_CONSTRUCTION = "track_construction";
       public static final String CLASS_RACEWAY_CONSTRUCTION = "raceway_construction";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("motorway", "trunk", "primary", "secondary", "tertiary", "minor", "path", "service", "track", "raceway",
+          "motorway_construction", "trunk_construction", "primary_construction", "secondary_construction",
+          "tertiary_construction", "minor_construction", "path_construction", "service_construction",
+          "track_construction", "raceway_construction");
       public static final String SUBCLASS_RAIL = "rail";
       public static final String SUBCLASS_NARROW_GAUGE = "narrow_gauge";
       public static final String SUBCLASS_PRESERVED = "preserved";
@@ -934,9 +990,13 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_BRIDLEWAY = "bridleway";
       public static final String SUBCLASS_CORRIDOR = "corridor";
       public static final String SUBCLASS_PLATFORM = "platform";
+      public static final Set<String> SUBCLASS_VALUES = Set
+        .of("rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram", "pedestrian",
+          "path", "footway", "cycleway", "steps", "bridleway", "corridor", "platform");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
       public static final String BRUNNEL_FORD = "ford";
+      public static final Set<String> BRUNNEL_VALUES = Set.of("bridge", "tunnel", "ford");
       public static final String SERVICE_SPUR = "spur";
       public static final String SERVICE_YARD = "yard";
       public static final String SERVICE_SIDING = "siding";
@@ -944,8 +1004,11 @@ public class OpenMapTilesSchema {
       public static final String SERVICE_DRIVEWAY = "driveway";
       public static final String SERVICE_ALLEY = "alley";
       public static final String SERVICE_PARKING_AISLE = "parking_aisle";
+      public static final Set<String> SERVICE_VALUES = Set
+        .of("spur", "yard", "siding", "crossover", "driveway", "alley", "parking_aisle");
       public static final String SURFACE_PAVED = "paved";
       public static final String SURFACE_UNPAVED = "unpaved";
+      public static final Set<String> SURFACE_VALUES = Set.of("paved", "unpaved");
     }
 
     final class FieldMappings {
@@ -984,9 +1047,10 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * All [OSM Buildings](http://wiki.openstreetmap.org/wiki/Buildings). All building tags are imported ([`building=
-   * `](http://wiki.openstreetmap.org/wiki/Key:building)). The buildings are not yet ready for 3D rendering support and
-   * any help to improve this is welcomed.
+   * <p>All <a href="http://wiki.openstreetmap.org/wiki/Buildings">OSM Buildings</a>. All building tags are imported
+   * (<a
+   * href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
+   * ready for 3D rendering support and any help to improve this is welcomed.</p>
    */
   public interface Building extends Layer {
 
@@ -1001,22 +1065,24 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * An approximated height from levels and height of the building or building:part after the method of Paul Norman
-       * in [OSM Clear](https://github.com/ClearTables/osm-clear). For future 3D rendering of buildings.
+       * <p>An approximated height from levels and height of the building or building:part after the method of Paul
+       * Norman in <a href="https://github.com/ClearTables/osm-clear">OSM Clear</a>. For future 3D rendering of
+       * buildings.</p>
        */
       public static final String RENDER_HEIGHT = "render_height";
       /**
-       * An approximated height from levels and height of the bottom of the building or building:part after the method
-       * of Paul Norman in [OSM Clear](https://github.com/ClearTables/osm-clear). For future 3D rendering of buildings.
+       * <p>An approximated height from levels and height of the bottom of the building or building:part after the
+       * method of Paul Norman in <a href="https://github.com/ClearTables/osm-clear">OSM Clear</a>. For future 3D
+       * rendering of buildings.</p>
        */
       public static final String RENDER_MIN_HEIGHT = "render_min_height";
       /**
-       * Colour
+       * <p>Colour</p>
        */
       public static final String COLOUR = "colour";
       /**
-       * If True, building (part) should not be rendered in 3D. Currently, [building
-       * outlines](https://wiki.openstreetmap.org/wiki/Simple_3D_buildings) are marked as hide_3d.
+       * <p>If True, building (part) should not be rendered in 3D. Currently, <a href="https://wiki.openstreetmap.org/wiki/Simple_3D_buildings">building
+       * outlines</a> are marked as hide_3d.</p>
        */
       public static final String HIDE_3D = "hide_3d";
     }
@@ -1031,8 +1097,8 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Lake center lines for labelling lake bodies. This is based of the [osm-lakelines](https://github.com/lukasmartinelli/osm-lakelines)
-   * project which derives nice centerlines from OSM water bodies. Only the most important lakes contain labels.
+   * <p>Lake center lines for labelling lake bodies. This is based of the <a href="https://github.com/lukasmartinelli/osm-lakelines">osm-lakelines</a>
+   * project which derives nice centerlines from OSM water bodies. Only the most important lakes contain labels.</p>
    */
   public interface WaterName extends Layer {
 
@@ -1047,20 +1113,22 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the water body.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the water
+       * body.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * At the moment only `lake` since no ocean parts are labelled. Reserved for future use .
+       * <p>At the moment only <code>lake</code> since no ocean parts are labelled. <em>Reserved for future
+       * use</em>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1070,7 +1138,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Mark with `1` if it is an [intermittent](http://wiki.openstreetmap.org/wiki/Key:intermittent) lake.
+       * <p>Mark with <code>1</code> if it is an <a href="http://wiki.openstreetmap.org/wiki/Key:intermittent">intermittent</a>
+       * lake.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1084,6 +1153,7 @@ public class OpenMapTilesSchema {
     final class FieldValues {
 
       public static final String CLASS_LAKE = "lake";
+      public static final Set<String> CLASS_VALUES = Set.of("lake");
     }
 
     final class FieldMappings {
@@ -1092,10 +1162,10 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * This is the layer for labelling the highways. Only highways that are named `name= ` and are long enough to place
-   * text upon appear. The OSM roads are stitched together if they contain the same name to have better label placement
-   * than having many small linestrings. For motorways you should use the `ref` field to label them while for other
-   * roads you should use `name`.
+   * <p>This is the layer for labelling the highways. Only highways that are named <code>name= </code> and are long
+   * enough to place text upon appear. The OSM roads are stitched together if they contain the same name to have better
+   * label placement than having many small linestrings. For motorways you should use the <code>ref</code> field to
+   * label them while for other roads you should use <code>name</code>.</p>
    */
   public interface TransportationName extends Layer {
 
@@ -1110,31 +1180,36 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Highways#Names_and_references) value of the highway.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Highways#Names_and_references"><code>name</code></a>
+       * value of the highway.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
       /**
-       * The OSM [`ref`](http://wiki.openstreetmap.org/wiki/Key:ref) tag of the motorway or its network.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:ref"><code>ref</code></a> tag of the motorway or
+       * its
+       * network.</p>
        */
       public static final String REF = "ref";
       /**
-       * Length of the `ref` field. Useful for having a shield icon as background for labeling motorways.
+       * <p>Length of the <code>ref</code> field. Useful for having a shield icon as background for labeling
+       * motorways.</p>
        */
       public static final String REF_LENGTH = "ref_length";
 
       /**
-       * The network type derived mainly from [`network`](http://wiki.openstreetmap.org/wiki/Key:network) tag of the
-       * road. See more info about [`us- `](http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States),
-       * [`ca-transcanada`](https://en.wikipedia.org/wiki/Trans-Canada_Highway), or [`gb-
-       * `](http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads).
+       * <p>The network type derived mainly from <a href="http://wiki.openstreetmap.org/wiki/Key:network"><code>network</code></a>
+       * tag of the road. See more info about <a href="http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States"><code>us-
+       * </code></a>, <a href="https://en.wikipedia.org/wiki/Trans-Canada_Highway"><code>ca-transcanada</code></a>, or
+       * <a href="http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads"><code>gb-
+       * </code></a>.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1150,7 +1225,7 @@ public class OpenMapTilesSchema {
       public static final String NETWORK = "network";
 
       /**
-       * Distinguish between more and less important roads and roads under construction.
+       * <p>Distinguish between more and less important roads and roads under construction.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1181,8 +1256,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
 
       /**
-       * Distinguish more specific classes of path: Subclass is value of the [`highway`](http://wiki.openstreetmap.org/wiki/Key:highway)
-       * (for paths).
+       * <p>Distinguish more specific classes of path: Subclass is value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>
+       * (for paths).</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1199,7 +1274,7 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS = "subclass";
 
       /**
-       * Mark whether way is a bridge, a tunnel or a ford.
+       * <p>Mark whether way is a bridge, a tunnel or a ford.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1210,19 +1285,19 @@ public class OpenMapTilesSchema {
        */
       public static final String BRUNNEL = "brunnel";
       /**
-       * Experimental feature! Filled only for steps and footways. Original value of
-       * [`level`](http://wiki.openstreetmap.org/wiki/Key:level) tag.
+       * <p>Experimental feature! Filled only for steps and footways. Original value of <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:level"><code>level</code></a> tag.</p>
        */
       public static final String LEVEL = "level";
       /**
-       * Experimental feature! Filled only for steps and footways. Original value of
-       * [`layer`](http://wiki.openstreetmap.org/wiki/Key:layer) tag.
+       * <p>Experimental feature! Filled only for steps and footways. Original value of <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:layer"><code>layer</code></a> tag.</p>
        */
       public static final String LAYER = "layer";
 
       /**
-       * Experimental feature! Filled only for steps and footways. Original value of
-       * [`indoor`](http://wiki.openstreetmap.org/wiki/Key:indoor) tag.
+       * <p>Experimental feature! Filled only for steps and footways. Original value of <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:indoor"><code>indoor</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1241,6 +1316,8 @@ public class OpenMapTilesSchema {
       public static final String NETWORK_GB_MOTORWAY = "gb-motorway";
       public static final String NETWORK_GB_TRUNK = "gb-trunk";
       public static final String NETWORK_ROAD = "road";
+      public static final Set<String> NETWORK_VALUES = Set
+        .of("us-interstate", "us-highway", "us-state", "ca-transcanada", "gb-motorway", "gb-trunk", "road");
       public static final String CLASS_MOTORWAY = "motorway";
       public static final String CLASS_TRUNK = "trunk";
       public static final String CLASS_PRIMARY = "primary";
@@ -1263,6 +1340,11 @@ public class OpenMapTilesSchema {
       public static final String CLASS_RACEWAY_CONSTRUCTION = "raceway_construction";
       public static final String CLASS_RAIL = "rail";
       public static final String CLASS_TRANSIT = "transit";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track", "path", "raceway",
+          "motorway_construction", "trunk_construction", "primary_construction", "secondary_construction",
+          "tertiary_construction", "minor_construction", "service_construction", "track_construction",
+          "path_construction", "raceway_construction", "rail", "transit");
       public static final String SUBCLASS_PEDESTRIAN = "pedestrian";
       public static final String SUBCLASS_PATH = "path";
       public static final String SUBCLASS_FOOTWAY = "footway";
@@ -1271,9 +1353,12 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_BRIDLEWAY = "bridleway";
       public static final String SUBCLASS_CORRIDOR = "corridor";
       public static final String SUBCLASS_PLATFORM = "platform";
+      public static final Set<String> SUBCLASS_VALUES = Set
+        .of("pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "platform");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
       public static final String BRUNNEL_FORD = "ford";
+      public static final Set<String> BRUNNEL_VALUES = Set.of("bridge", "tunnel", "ford");
     }
 
     final class FieldMappings {
@@ -1282,10 +1367,11 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * The place layer consists out of [countries](http://wiki.openstreetmap.org/wiki/Tag:place%3Dcountry),
-   * [states](http://wiki.openstreetmap.org/wiki/Tag:place%3Dstate) and [cities](http://wiki.openstreetmap.org/wiki/Key:place).
-   * Apart from the roads this is also one of the more important layers to create a beautiful map. We suggest you use
-   * different font styles and sizes to create a text hierarchy.
+   * <p>The place layer consists out of <a href="http://wiki.openstreetmap.org/wiki/Tag:place%3Dcountry">countries</a>,
+   * <a href="http://wiki.openstreetmap.org/wiki/Tag:place%3Dstate">states</a> and <a
+   * href="http://wiki.openstreetmap.org/wiki/Key:place">cities</a>. Apart from the roads this is also one of the more
+   * important layers to create a beautiful map. We suggest you use different font styles and sizes to create a text
+   * hierarchy.</p>
    */
   public interface Place extends Layer {
 
@@ -1300,21 +1386,21 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the POI.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * The capital field marks the [`admin_level`](http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level)
-       * of the boundary the place is a capital of.
+       * <p>The <strong>capital</strong> field marks the <a href="http://wiki.openstreetmap.org/wiki/Tag:boundary%3Dadministrative#admin_level"><code>admin_level</code></a>
+       * of the boundary the place is a capital of.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1325,9 +1411,10 @@ public class OpenMapTilesSchema {
       public static final String CAPITAL = "capital";
 
       /**
-       * Original value of the [`place`](http://wiki.openstreetmap.org/wiki/Key:place) tag. Distinguish between
-       * continents, countries, states and places like settlements or smaller entities. Use class to separately style
-       * the different places and build a text hierarchy according to their importance.
+       * <p>Original value of the <a href="http://wiki.openstreetmap.org/wiki/Key:place"><code>place</code></a> tag.
+       * Distinguish between continents, countries, states and places like settlements or smaller entities. Use
+       * <strong>class</strong> to separately style the different places and build a text hierarchy according to their
+       * importance.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1346,19 +1433,22 @@ public class OpenMapTilesSchema {
        */
       public static final String CLASS = "class";
       /**
-       * Two-letter country code [ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2). Available only
-       * for `class=country`. Original value of the [`country_code_iso3166_1_alpha_2`](http://wiki.openstreetmap.org/wiki/Tag:place%3Dcountry)
-       * tag.
+       * <p>Two-letter country code <a href="https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2">ISO 3166-1 alpha-2</a>.
+       * Available only for <code>class=country</code>. Original value of the <a href="http://wiki.openstreetmap.org/wiki/Tag:place%3Dcountry"><code>country_code_iso3166_1_alpha_2</code></a>
+       * tag.</p>
        */
       public static final String ISO_A2 = "iso_a2";
       /**
-       * Countries, states and the most important cities all have a rank to boost their importance on the map. The rank
-       * field for counries and states ranges from `1` to `6` while the rank field for cities ranges from `1` to `10`
-       * for the most important cities and continues from `10` serially based on the local importance of the city
-       * (derived from population and city class). You can use the rank to limit density of labels or improve the text
-       * hierarchy. The rank value is a combination of the Natural Earth `scalerank`, `labelrank` and `datarank` values
-       * for countries and states and for cities consists out of a shifted Natural Earth `scalerank` combined with a
-       * local rank within a grid for cities that do not have a Natural Earth `scalerank`.
+       * <p>Countries, states and the most important cities all have a <strong>rank</strong> to boost their importance
+       * on the map. The <strong>rank</strong> field for counries and states ranges from <code>1</code> to
+       * <code>6</code> while the <strong>rank</strong> field for cities ranges from <code>1</code> to <code>10</code>
+       * for the most important cities and continues from <code>10</code> serially based on the local importance of the
+       * city (derived from population and city class). You can use the <strong>rank</strong> to limit density of labels
+       * or improve the text hierarchy. The rank value is a combination of the Natural Earth <code>scalerank</code>,
+       * <code>labelrank</code> and <code>datarank</code> values for countries and states and for cities consists out
+       * of
+       * a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do not
+       * have a Natural Earth <code>scalerank</code>.</p>
        */
       public static final String RANK = "rank";
     }
@@ -1376,6 +1466,9 @@ public class OpenMapTilesSchema {
       public static final String CLASS_QUARTER = "quarter";
       public static final String CLASS_NEIGHBOURHOOD = "neighbourhood";
       public static final String CLASS_ISOLATED_DWELLING = "isolated_dwelling";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("continent", "country", "state", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood",
+          "isolated_dwelling");
     }
 
     final class FieldMappings {
@@ -1384,8 +1477,10 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * Everything in OpenStreetMap which contains a `addr:housenumber` tag useful for labelling housenumbers on a map.
-   * This adds significant size to z14 . For buildings the centroid of the building is used as housenumber.
+   * <p>Everything in OpenStreetMap which contains a <code>addr:housenumber</code> tag useful for labelling
+   * housenumbers
+   * on a map. This adds significant size to <em>z14</em>. For buildings the centroid of the building is used as
+   * housenumber.</p>
    */
   public interface Housenumber extends Layer {
 
@@ -1400,7 +1495,8 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * Value of the [`addr:housenumber`](http://wiki.openstreetmap.org/wiki/Key:addr) tag.
+       * <p>Value of the <a href="http://wiki.openstreetmap.org/wiki/Key:addr"><code>addr:housenumber</code></a>
+       * tag.</p>
        */
       public static final String HOUSENUMBER = "housenumber";
     }
@@ -1415,8 +1511,8 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * [Points of interests](http://wiki.openstreetmap.org/wiki/Points_of_interest) containing a of a variety of
-   * OpenStreetMap tags. Mostly contains amenities, sport, shop and tourist POIs.
+   * <p><a href="http://wiki.openstreetmap.org/wiki/Points_of_interest">Points of interests</a> containing a of a
+   * variety of OpenStreetMap tags. Mostly contains amenities, sport, shop and tourist POIs.</p>
    */
   public interface Poi extends Layer {
 
@@ -1431,22 +1527,23 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the POI.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * More general classes of POIs. If there is no more general `class` for the `subclass` this field will contain
-       * the same value as `subclass`. But for example for schools you only need to style the class `school` to filter
-       * the subclasses `school` and `kindergarten`. Or use the class `shop` to style all shops.
+       * <p>More general classes of POIs. If there is no more general <code>class</code> for the <code>subclass</code>
+       * this field will contain the same value as <code>subclass</code>. But for example for schools you only need to
+       * style the class <code>school</code> to filter the subclasses <code>school</code> and <code>kindergarten</code>.
+       * Or use the class <code>shop</code> to style all shops.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1487,29 +1584,38 @@ public class OpenMapTilesSchema {
        */
       public static final String CLASS = "class";
       /**
-       * Original value of either the [`amenity`](http://wiki.openstreetmap.org/wiki/Key:amenity),
-       * [`barrier`](http://wiki.openstreetmap.org/wiki/Key:barrier), [`historic`](http://wiki.openstreetmap.org/wiki/Key:historic),
-       * [`information`](http://wiki.openstreetmap.org/wiki/Key:information), [`landuse`](http://wiki.openstreetmap.org/wiki/Key:landuse),
-       * [`leisure`](http://wiki.openstreetmap.org/wiki/Key:leisure), [`railway`](http://wiki.openstreetmap.org/wiki/Key:railway),
-       * [`shop`](http://wiki.openstreetmap.org/wiki/Key:shop), [`sport`](http://wiki.openstreetmap.org/wiki/Key:sport),
-       * [`station`](http://wiki.openstreetmap.org/wiki/Key:station), [`religion`](http://wiki.openstreetmap.org/wiki/Key:religion),
-       * [`tourism`](http://wiki.openstreetmap.org/wiki/Key:tourism), [`aerialway`](http://wiki.openstreetmap.org/wiki/Key:aerialway),
-       * [`building`](http://wiki.openstreetmap.org/wiki/Key:building), [`highway`](http://wiki.openstreetmap.org/wiki/Key:highway)
-       * or [`waterway`](http://wiki.openstreetmap.org/wiki/Key:waterway) tag. Use this to do more precise styling.
+       * <p>Original value of either the <a href="http://wiki.openstreetmap.org/wiki/Key:amenity"><code>amenity</code></a>,
+       * <a href="http://wiki.openstreetmap.org/wiki/Key:barrier"><code>barrier</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:historic"><code>historic</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:information"><code>information</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:landuse"><code>landuse</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:leisure"><code>leisure</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:railway"><code>railway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:shop"><code>shop</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:sport"><code>sport</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:station"><code>station</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:religion"><code>religion</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:tourism"><code>tourism</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:aerialway"><code>aerialway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a> or <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:waterway"><code>waterway</code></a> tag. Use this to do more
+       * precise styling.</p>
        */
       public static final String SUBCLASS = "subclass";
       /**
-       * The POIs are ranked ascending according to their importance within a grid. The `rank` value shows the local
-       * relative importance of a POI within it's cell in the grid. This can be used to reduce label density at z14 .
-       * Since all POIs already need to be contained at z14 you can use `less than rank=10` epxression to limit POIs. At
-       * some point like z17 you can show all POIs.
+       * <p>The POIs are ranked ascending according to their importance within a grid. The <code>rank</code> value
+       * shows
+       * the local relative importance of a POI within it's cell in the grid. This can be used to reduce label density
+       * at <em>z14</em>. Since all POIs already need to be contained at <em>z14</em> you can use <code>less than
+       * rank=10</code> epxression to limit POIs. At some point like <em>z17</em> you can show all POIs.</p>
        */
       public static final String RANK = "rank";
 
       /**
-       * Experimental feature! Indicates main platform of public transport stops (buses, trams, and subways). Grouping
-       * of platforms is implemented using [`uic_ref`](http://wiki.openstreetmap.org/wiki/Key:uic_ref) tag that is not
-       * used worldwide.
+       * <p>Experimental feature! Indicates main platform of public transport stops (buses, trams, and subways).
+       * Grouping of platforms is implemented using <a href="http://wiki.openstreetmap.org/wiki/Key:uic_ref"><code>uic_ref</code></a>
+       * tag that is not used worldwide.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1518,16 +1624,16 @@ public class OpenMapTilesSchema {
        */
       public static final String AGG_STOP = "agg_stop";
       /**
-       * Original value of [`level`](http://wiki.openstreetmap.org/wiki/Key:level) tag.
+       * <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:level"><code>level</code></a> tag.</p>
        */
       public static final String LEVEL = "level";
       /**
-       * Original value of [`layer`](http://wiki.openstreetmap.org/wiki/Key:layer) tag.
+       * <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:layer"><code>layer</code></a> tag.</p>
        */
       public static final String LAYER = "layer";
 
       /**
-       * Original value of [`indoor`](http://wiki.openstreetmap.org/wiki/Key:indoor) tag.
+       * <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:indoor"><code>indoor</code></a> tag.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1572,6 +1678,11 @@ public class OpenMapTilesSchema {
       public static final String CLASS_CLOTHING_STORE = "clothing_store";
       public static final String CLASS_SWIMMING = "swimming";
       public static final String CLASS_CASTLE = "castle";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("shop", "town_hall", "golf", "fast_food", "park", "bus", "railway", "aerialway", "entrance", "campsite",
+          "laundry", "grocery", "library", "college", "lodging", "ice_cream", "post", "cafe", "school", "alcohol_shop",
+          "bar", "harbor", "car", "hospital", "cemetery", "attraction", "beer", "music", "stadium", "art_gallery",
+          "clothing_store", "swimming", "castle");
     }
 
     final class FieldMappings {
@@ -1621,7 +1732,7 @@ public class OpenMapTilesSchema {
   }
 
   /**
-   * [Aerodrome labels](http://wiki.openstreetmap.org/wiki/Tag:aeroway%3Daerodrome)
+   * <p><a href="http://wiki.openstreetmap.org/wiki/Tag:aeroway%3Daerodrome">Aerodrome labels</a></p>
    */
   public interface AerodromeLabel extends Layer {
 
@@ -1636,21 +1747,23 @@ public class OpenMapTilesSchema {
     final class Fields {
 
       /**
-       * The OSM [`name`](http://wiki.openstreetmap.org/wiki/Key:name) value of the aerodrome.
+       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the
+       * aerodrome.</p>
        */
       public static final String NAME = "name";
       /**
-       * English name `name:en` if available, otherwise `name`.
+       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
        */
       public static final String NAME_EN = "name_en";
       /**
-       * German name `name:de` if available, otherwise `name` or `name:en`.
+       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
        */
       public static final String NAME_DE = "name_de";
 
       /**
-       * Distinguish between more and less important aerodromes. Class is derived from the value of
-       * [`aerodrome`](http://wiki.openstreetmap.org/wiki/Proposed_features/Aerodrome) and `aerodrome:type` tags.
+       * <p>Distinguish between more and less important aerodromes. Class is derived from the value of <a
+       * href="http://wiki.openstreetmap.org/wiki/Proposed_features/Aerodrome"><code>aerodrome</code></a> and
+       * <code>aerodrome:type</code> tags.</p>
        * <p>
        * allowed values:
        * <ul>
@@ -1664,19 +1777,19 @@ public class OpenMapTilesSchema {
        */
       public static final String CLASS = "class";
       /**
-       * 3-character code issued by the IATA.
+       * <p>3-character code issued by the IATA.</p>
        */
       public static final String IATA = "iata";
       /**
-       * 4-letter code issued by the ICAO.
+       * <p>4-letter code issued by the ICAO.</p>
        */
       public static final String ICAO = "icao";
       /**
-       * Elevation (`ele`) in meters.
+       * <p>Elevation (<code>ele</code>) in meters.</p>
        */
       public static final String ELE = "ele";
       /**
-       * Elevation (`ele`) in feets.
+       * <p>Elevation (<code>ele</code>) in feets.</p>
        */
       public static final String ELE_FT = "ele_ft";
     }
@@ -1689,6 +1802,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_MILITARY = "military";
       public static final String CLASS_PRIVATE = "private";
       public static final String CLASS_OTHER = "other";
+      public static final Set<String> CLASS_VALUES = Set
+        .of("international", "public", "regional", "military", "private", "other");
     }
 
     final class FieldMappings {

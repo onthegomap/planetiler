@@ -5,6 +5,7 @@ import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface Profile {
 
@@ -42,6 +43,10 @@ public interface Profile {
 
   default boolean caresAboutWikidataTranslation(ReaderElement elem) {
     return true;
+  }
+
+  default void finish(String sourceName, FeatureCollector.Factory featureCollectors,
+    Consumer<FeatureCollector.Feature> next) {
   }
 
   class NullProfile implements Profile {

@@ -15,8 +15,10 @@ package com.onthegomap.flatmap.read;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongObjectMap;
+import com.carrotsearch.hppc.ObjectIntMap;
 import com.carrotsearch.hppc.cursors.LongObjectCursor;
 import com.graphhopper.coll.GHLongObjectHashMap;
+import com.graphhopper.coll.GHObjectIntHashMap;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
@@ -35,7 +37,7 @@ import org.locationtech.jts.geom.prep.PreparedPolygon;
  * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go and
  * https://github.com/omniscale/imposm3/blob/master/geom/ring.go
  */
-class OsmMultipolygon {
+public class OsmMultipolygon {
 
   private static final double MIN_CLOSE_RING_GAP = 0.1 / GeoUtils.WORLD_CIRCUMFERENCE_METERS;
   private static final Comparator<Ring> BY_AREA_DESCENDING = Comparator.comparingDouble(ring -> -ring.area);
@@ -68,10 +70,39 @@ class OsmMultipolygon {
     }
   }
 
+  public static Geometry build(List<CoordinateSequence> rings) throws GeometryException {
+    ObjectIntMap<Coordinate> coordToId = new GHObjectIntHashMap<>();
+    List<Coordinate> idToCoord = new ArrayList<>();
+    int id = 0;
+    List<LongArrayList> idRings = new ArrayList<>(rings.size());
+    for (CoordinateSequence coords : rings) {
+      LongArrayList idRing = new LongArrayList(coords.size());
+      idRings.add(idRing);
+      for (Coordinate coord : coords.toCoordinateArray()) {
+        if (!coordToId.containsKey(coord)) {
+          coordToId.put(coord, id);
+          idToCoord.add(coord);
+          id++;
+        }
+        idRing.add(coordToId.get(coord));
+      }
+    }
+    return build(idRings, lookupId -> idToCoord.get((int) lookupId), 0, MIN_CLOSE_RING_GAP);
+  }
+
   public static Geometry build(
     List<LongArrayList> rings,
     OpenStreetMapReader.NodeLocationProvider nodeCache,
     long osmId
+  ) throws GeometryException {
+    return build(rings, nodeCache, osmId, MIN_CLOSE_RING_GAP);
+  }
+
+  public static Geometry build(
+    List<LongArrayList> rings,
+    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    long osmId,
+    double minGap
   ) throws GeometryException {
     try {
       if (rings.size() == 0) {
@@ -83,7 +114,7 @@ class OsmMultipolygon {
       for (LongArrayList segment : idSegments) {
         int size = segment.size();
         long firstId = segment.get(0), lastId = segment.get(size - 1);
-        if (firstId == lastId || tryClose(segment, nodeCache)) {
+        if (firstId == lastId || tryClose(segment, nodeCache, minGap)) {
           CoordinateSequence coordinates = nodeCache.getWayGeometry(segment);
           Polygon poly = GeoUtils.JTS_FACTORY.createPolygon(coordinates);
           polygons.add(new Ring(poly));
@@ -142,12 +173,13 @@ class OsmMultipolygon {
     return shells;
   }
 
-  private static boolean tryClose(LongArrayList segment, OpenStreetMapReader.NodeLocationProvider nodeCache) {
+  private static boolean tryClose(LongArrayList segment, OpenStreetMapReader.NodeLocationProvider nodeCache,
+    double minGap) {
     int size = segment.size();
     long firstId = segment.get(0);
     Coordinate firstCoord = nodeCache.getCoordinate(firstId);
     Coordinate lastCoord = nodeCache.getCoordinate(segment.get(size - 1));
-    if (firstCoord.distance(lastCoord) <= MIN_CLOSE_RING_GAP) {
+    if (firstCoord.distance(lastCoord) <= minGap) {
       segment.set(size - 1, firstId);
       return true;
     }

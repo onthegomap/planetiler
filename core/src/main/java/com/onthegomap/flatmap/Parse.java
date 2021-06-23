@@ -109,4 +109,18 @@ public class Parse {
       (Parse.boolInt(tags.get("bridge")) * 10L);
     return Math.abs(z) < 10_000 ? (int) z : 0;
   }
+
+  public static Double parseDoubleOrNull(Object value) {
+    if (value instanceof Number num) {
+      return num.doubleValue();
+    }
+    if (value == null) {
+      return null;
+    }
+    try {
+      return Double.parseDouble(value.toString());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
 }

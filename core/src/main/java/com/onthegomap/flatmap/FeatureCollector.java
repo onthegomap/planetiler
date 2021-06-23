@@ -35,7 +35,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   public Feature geometry(String layer, Geometry geometry) {
-    Feature feature = new Feature(layer, geometry);
+    Feature feature = new Feature(layer, geometry, source.id());
     output.add(feature);
     return feature;
   }
@@ -49,7 +49,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_point_" + e.stat());
       LOGGER.warn("Error getting point geometry for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -59,7 +59,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_centroid_" + e.stat());
       LOGGER.warn("Error getting centroid for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -69,7 +69,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_line_" + e.stat());
       LOGGER.warn("Error constructing line for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -79,7 +79,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_polygon_" + e.stat());
       LOGGER.warn("Error constructing polygon for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -89,7 +89,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_validated_polygon_" + e.stat());
       LOGGER.warn("Error constructing validated polygon for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -99,7 +99,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     } catch (GeometryException e) {
       stats.dataError("feature_point_on_surface_" + e.stat());
       LOGGER.warn("Error constructing point on surface for " + source + ": " + e.getMessage());
-      return new Feature(layer, EMPTY_GEOM);
+      return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
 
@@ -118,6 +118,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private final Geometry geom;
     private final Map<String, Object> attrs = new TreeMap<>();
     private final GeometryType geometryType;
+    private final long sourceId;
     private int zOrder;
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
@@ -134,11 +135,16 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double pixelToleranceAtMaxZoom = 256d / 4096;
     private ZoomFunction<Double> pixelTolerance = null;
 
-    private Feature(String layer, Geometry geom) {
+    private Feature(String layer, Geometry geom, long sourceId) {
       this.layer = layer;
       this.geom = geom;
       this.zOrder = 0;
       this.geometryType = GeometryType.valueOf(geom);
+      this.sourceId = sourceId;
+    }
+
+    public long sourceId() {
+      return sourceId;
     }
 
     public int getZorder() {

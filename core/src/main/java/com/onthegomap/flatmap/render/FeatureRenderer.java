@@ -88,7 +88,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
       TileExtents.ForZoom extents = config.extents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
+      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.sourceId());
 
       RenderedFeature.Group groupInfo = null;
       if (hasLabelGrid && coords.length == 1) {
@@ -163,7 +163,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       List<List<CoordinateSequence>> groups = CoordinateSequenceExtractor.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.extents().getForZoom(z);
-      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.sourceId());
       writeTileFeatures(z, id, feature, sliced);
     }
 

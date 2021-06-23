@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.read;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.locationtech.jts.geom.Geometry;
@@ -21,13 +22,18 @@ public class ReaderFeature extends SourceFeature {
 
   public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer,
     long id) {
-    super(properties, source, sourceLayer, null, id);
-    this.latLonGeometry = latLonGeometry;
-    this.properties = properties;
+    this(latLonGeometry, properties, source, sourceLayer, id, null);
   }
 
   public ReaderFeature(Geometry latLonGeometry, int numProperties, String source, String sourceLayer, long id) {
     this(latLonGeometry, new HashMap<>(numProperties), source, sourceLayer, id);
+  }
+
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer,
+    long id, List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relations) {
+    super(properties, source, sourceLayer, relations, id);
+    this.latLonGeometry = latLonGeometry;
+    this.properties = properties;
   }
 
   @Override

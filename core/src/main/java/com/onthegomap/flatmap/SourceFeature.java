@@ -14,11 +14,11 @@ public abstract class SourceFeature {
   private final Map<String, Object> properties;
   private final String source;
   private final String sourceLayer;
-  private final List<OpenStreetMapReader.RelationMember<?>> relationInfos;
+  private final List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relationInfos;
   private final long id;
 
   protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer,
-    List<OpenStreetMapReader.RelationMember<?>> relationInfos, long id) {
+    List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relationInfos, long id) {
     this.properties = properties;
     this.source = source;
     this.sourceLayer = sourceLayer;

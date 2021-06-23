@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -151,6 +152,18 @@ public class FlatMapTest {
     );
   }
 
+  private FlatMapResults runWithReaderFeaturesProfile(
+    Map<String, String> args,
+    List<ReaderFeature> features,
+    Profile profileToUse
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
+      profileToUse
+    );
+  }
+
   private FlatMapResults runWithOsmElements(
     Map<String, String> args,
     List<ReaderElement> features,
@@ -160,6 +173,18 @@ public class FlatMapTest {
       args,
       (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
       TestProfile.processSourceFeatures(profileFunction)
+    );
+  }
+
+  private FlatMapResults runWithOsmElements(
+    Map<String, String> args,
+    List<ReaderElement> features,
+    Profile profileToUse
+  ) throws Exception {
+    return run(
+      args,
+      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
+      profileToUse
     );
   }
 
@@ -1038,6 +1063,114 @@ public class FlatMapTest {
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(rectangle(10, 10, 30, 20), Map.of("group", "1")),
         feature(rectangle(10, 20.5, 20, 30), Map.of("group", "2"))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
+  public void testReaderProfileFinish() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+
+    var results = runWithReaderFeaturesProfile(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newPoint(lng1, lat), Map.of("a", 1, "b", 2)),
+        newReaderFeature(newPoint(lng2, lat), Map.of("a", 3, "b", 4))
+      ),
+      new Profile.NullProfile() {
+        private final List<SourceFeature> featureList = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        public void processFeature(SourceFeature in, FeatureCollector features) {
+          featureList.add(in);
+        }
+
+        @Override
+        public void finish(String name, FeatureCollector.Factory featureCollectors,
+          Consumer<FeatureCollector.Feature> next) {
+          if ("test".equals(name)) {
+            for (SourceFeature in : featureList) {
+              var features = featureCollectors.get(in);
+              features.point("layer")
+                .setZoomRange(13, 14)
+                .inheritFromSource("a");
+              for (var feature : features) {
+                next.accept(feature);
+              }
+            }
+          }
+        }
+      }
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 128), Map.of("a", 1L)),
+        feature(newPoint(74, 128), Map.of("a", 3L))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // merge 32->37 and 37->42 since they have same attrs
+        feature(newPoint(32, 64), Map.of("a", 1L)),
+        feature(newPoint(37, 64), Map.of("a", 3L))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
+  public void testOsmProfileFinish() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        with(new ReaderNode(1, lat, lng1), t -> t.setTag("a", 1)),
+        with(new ReaderNode(2, lat, lng2), t -> t.setTag("a", 3))
+      ),
+      new Profile.NullProfile() {
+        private final List<SourceFeature> featureList = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        public void processFeature(SourceFeature in, FeatureCollector features) {
+          featureList.add(in);
+        }
+
+        @Override
+        public void finish(String name, FeatureCollector.Factory featureCollectors,
+          Consumer<FeatureCollector.Feature> next) {
+          if ("osm".equals(name)) {
+            for (SourceFeature in : featureList) {
+              var features = featureCollectors.get(in);
+              features.point("layer")
+                .setZoomRange(13, 14)
+                .inheritFromSource("a");
+              for (var feature : features) {
+                next.accept(feature);
+              }
+            }
+          }
+        }
+      }
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 128), Map.of("a", 1L)),
+        feature(newPoint(74, 128), Map.of("a", 3L))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // merge 32->37 and 37->42 since they have same attrs
+        feature(newPoint(32, 64), Map.of("a", 1L)),
+        feature(newPoint(37, 64), Map.of("a", 3L))
       )
     )), sortListValues(results.tiles));
   }

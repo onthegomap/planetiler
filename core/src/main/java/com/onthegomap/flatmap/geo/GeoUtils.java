@@ -134,7 +134,7 @@ public class GeoUtils {
   }
 
   public static double decodeWorldX(long encoded) {
-    return ((double) (encoded >> 32)) / QUANTIZED_WORLD_SIZE;
+    return ((double) (encoded >>> 32)) / QUANTIZED_WORLD_SIZE;
   }
 
   public static double getZoomFromLonLatBounds(Envelope envelope) {
