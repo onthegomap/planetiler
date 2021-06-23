@@ -208,7 +208,7 @@ public class Boundary implements
     if ("boundary".equals(typeTag) && relation.hasTag("admin_level") && relation.hasTag("boundary", "administrative")) {
       Integer adminLevelValue = Parse.parseIntSubstring(relation.getTag("admin_level"));
       String code = relation.getTag("ISO3166-1:alpha3");
-      if (adminLevelValue != null && adminLevelValue >= 2 && adminLevelValue <= 2) {
+      if (adminLevelValue != null && adminLevelValue >= 2 && adminLevelValue <= 10) {
         boolean disputed = isDisputed(ReaderElementUtils.getProperties(relation));
         if (code != null) {
           synchronized (regionNames) {
