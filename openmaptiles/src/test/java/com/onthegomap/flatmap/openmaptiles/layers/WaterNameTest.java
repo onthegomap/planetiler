@@ -94,8 +94,8 @@ public class WaterNameTest extends BaseLayerTest {
     assertFeatures(11, List.of(), process(new ReaderFeature(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(
-        "scalerank", 10,
-        "name", "pacific ocean"
+        "scalerank", 1,
+        "name", "Black sea"
       )),
       NATURAL_EARTH_SOURCE,
       "ne_10m_geography_marine_polys",
@@ -104,16 +104,16 @@ public class WaterNameTest extends BaseLayerTest {
 
     // name match - use scale rank from NE
     assertFeatures(10, List.of(Map.of(
-      "name", "Pacific",
-      "name:es", "Pacific es",
+      "name", "Black Sea",
+      "name:es", "Mar Negro",
       "_layer", "water_name",
       "_type", "point",
-      "_minzoom", 10,
+      "_minzoom", 1,
       "_maxzoom", 14
     )), process(pointFeature(Map.of(
       "rank", 9,
-      "name", "Pacific",
-      "name:es", "Pacific es",
+      "name", "Black Sea",
+      "name:es", "Mar Negro",
       "place", "sea"
     ))));
 
@@ -125,7 +125,7 @@ public class WaterNameTest extends BaseLayerTest {
       "_maxzoom", 14
     )), process(pointFeature(Map.of(
       "rank", 9,
-      "name", "Pacific",
+      "name", "Black Sea",
       "place", "ocean"
     ))));
 
