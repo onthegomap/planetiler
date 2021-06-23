@@ -1,6 +1,7 @@
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
 
 import com.carrotsearch.hppc.LongObjectMap;
 import com.graphhopper.coll.GHLongObjectHashMap;
@@ -20,7 +21,6 @@ import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
-import com.onthegomap.flatmap.read.OsmMultipolygon;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,16 +29,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
+import java.util.function.Function;
+import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryComponentFilter;
-import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.operation.linemerge.LineMerger;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,101 +104,6 @@ public class Boundary implements
         .setAttr(Fields.ADMIN_LEVEL, info.adminLevel)
         .setAttr(Fields.MARITIME, 0)
         .setAttr(Fields.DISPUTED, disputed ? 1 : 0);
-    }
-  }
-
-  @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
-    throws GeometryException {
-    double tolerance = zoom >= 14 ? 256d / 4096d : 0.1;
-    return FeatureMerge.mergeLineStrings(items, 1, tolerance, BUFFER_SIZE);
-  }
-
-  @Override
-  public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-    Consumer<FeatureCollector.Feature> next) {
-    if (OpenMapTilesProfile.OSM_SOURCE.equals(sourceName)) {
-      var timer = stats.startTimer("boundaries");
-      LOGGER.info("[boundaries] Creating polygons for " + regionGeometries.size() + " boundaries");
-      LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();
-      for (var entry : regionGeometries.entrySet()) {
-        Long countryCode = entry.getKey();
-        List<CoordinateSequence> seqs = new ArrayList<>();
-        for (Geometry geometry : entry.getValue()) {
-          geometry.apply((GeometryComponentFilter) geom -> {
-            if (geom instanceof LineString lineString) {
-              seqs.add(lineString.getCoordinateSequence());
-            }
-          });
-        }
-        try {
-          countryBoundaries.put(countryCode, PreparedGeometryFactory.prepare(
-            GeoUtils.fixPolygon(
-              OsmMultipolygon.build(seqs)
-            )
-          ));
-        } catch (GeometryException e) {
-          LOGGER.warn("[boundaries] Unable to build boundary polygon for " + countryCode + ": " + e.getMessage());
-        }
-      }
-      LOGGER.info("[boundaries] Finished creating polygons");
-
-      long number = 0;
-      for (var entry : boundariesToMerge.entrySet()) {
-        number++;
-        CountryBoundaryComponent key = entry.getKey();
-        LineMerger merger = new LineMerger();
-        for (Geometry geom : entry.getValue()) {
-          merger.add(geom);
-        }
-        entry.getValue().clear();
-        for (Object merged : merger.getMergedLineStrings()) {
-          if (merged instanceof LineString lineString) {
-            Long rightCountry = null, leftCountry = null;
-            int numPoints = lineString.getNumPoints();
-            int middle = Math.max(0, Math.min(numPoints - 2, numPoints / 2));
-            Coordinate a = lineString.getCoordinateN(middle);
-            Coordinate b = lineString.getCoordinateN(middle + 1);
-            LineSegment segment = new LineSegment(a, b);
-            Point right = JTS_FACTORY.createPoint(segment.pointAlongOffset(0.5, COUNTRY_TEST_OFFSET));
-            Point left = JTS_FACTORY.createPoint(segment.pointAlongOffset(0.5, -COUNTRY_TEST_OFFSET));
-            for (Long regionId : key.regions) {
-              PreparedGeometry geom = countryBoundaries.get(regionId);
-              if (geom != null) {
-                if (geom.contains(right)) {
-                  rightCountry = regionId;
-                } else if (geom.contains(left)) {
-                  leftCountry = regionId;
-                }
-              }
-            }
-
-            if (leftCountry == null && rightCountry == null) {
-              LOGGER.warn("[boundaries] no left or right country for " + key);
-            }
-
-            var features = featureCollectors.get(new ReaderFeature(
-              GeoUtils.worldToLatLonCoords(lineString),
-              Map.of(),
-              number
-            ));
-            features.line(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-              .setAttr(Fields.ADMIN_LEVEL, key.adminLevel)
-              .setAttr(Fields.DISPUTED, key.disputed ? 1 : 0)
-              .setAttr(Fields.MARITIME, key.maritime ? 1 : 0)
-              .setAttr(Fields.CLAIMED_BY, key.claimedBy)
-              .setAttr(Fields.DISPUTED_NAME, key.disputed ? editName(key.name) : null)
-              .setAttr(Fields.ADM0_L, regionNames.get(leftCountry))
-              .setAttr(Fields.ADM0_R, regionNames.get(rightCountry))
-              .setMinPixelSizeAtAllZooms(0)
-              .setZoomRange(key.minzoom, 14);
-            for (var feature : features) {
-              next.accept(feature);
-            }
-          }
-        }
-      }
-      timer.stop();
     }
   }
 
@@ -307,6 +212,133 @@ public class Boundary implements
       }
     }
   }
+
+  @Override
+  public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
+    Consumer<FeatureCollector.Feature> next) {
+    if (OpenMapTilesProfile.OSM_SOURCE.equals(sourceName)) {
+      var timer = stats.startTimer("boundaries");
+      LongObjectMap<PreparedGeometry> countryBoundaries = prepareRegionPolygons();
+
+      long number = 0;
+      for (var entry : boundariesToMerge.entrySet()) {
+        number++;
+        CountryBoundaryComponent key = entry.getKey();
+        LineMerger merger = new LineMerger();
+        for (Geometry geom : entry.getValue()) {
+          merger.add(geom);
+        }
+        entry.getValue().clear();
+        for (Object merged : merger.getMergedLineStrings()) {
+          if (merged instanceof LineString lineString) {
+            BorderingRegions borderingRegions = getBorderingRegions(countryBoundaries, key.regions, lineString);
+
+            var features = featureCollectors.get(new ReaderFeature(
+              GeoUtils.worldToLatLonCoords(lineString),
+              Map.of(),
+              number
+            ));
+            features.line(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
+              .setAttr(Fields.ADMIN_LEVEL, key.adminLevel)
+              .setAttr(Fields.DISPUTED, key.disputed ? 1 : 0)
+              .setAttr(Fields.MARITIME, key.maritime ? 1 : 0)
+              .setAttr(Fields.CLAIMED_BY, key.claimedBy)
+              .setAttr(Fields.DISPUTED_NAME, key.disputed ? editName(key.name) : null)
+              .setAttr(Fields.ADM0_L, regionNames.get(borderingRegions.left))
+              .setAttr(Fields.ADM0_R, regionNames.get(borderingRegions.right))
+              .setMinPixelSizeAtAllZooms(0)
+              .setZoomRange(key.minzoom, 14);
+            for (var feature : features) {
+              next.accept(feature);
+            }
+          }
+        }
+      }
+      timer.stop();
+    }
+  }
+
+  @Override
+  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
+    throws GeometryException {
+    double tolerance = zoom >= 14 ? 256d / 4096d : 0.1;
+    return FeatureMerge.mergeLineStrings(items, 1, tolerance, BUFFER_SIZE);
+  }
+
+  @NotNull
+  private BorderingRegions getBorderingRegions(
+    LongObjectMap<PreparedGeometry> countryBoundaries,
+    Set<Long> regions,
+    LineString lineString
+  ) {
+    Long rightCountry = null, leftCountry = null;
+    List<Long> rights = new ArrayList<>();
+    List<Long> lefts = new ArrayList<>();
+    int steps = 10;
+    for (int i = 0; i < steps; i++) {
+      double ratio = (double) (i + 1) / (steps + 2);
+      Point right = GeoUtils.pointAlongOffset(lineString, ratio, COUNTRY_TEST_OFFSET);
+      Point left = GeoUtils.pointAlongOffset(lineString, ratio, -COUNTRY_TEST_OFFSET);
+      for (Long regionId : regions) {
+        PreparedGeometry geom = countryBoundaries.get(regionId);
+        if (geom != null) {
+          if (geom.contains(right)) {
+            rights.add(regionId);
+          } else if (geom.contains(left)) {
+            lefts.add(regionId);
+          }
+        }
+      }
+    }
+
+    var right = mode(rights);
+    if (right != null) {
+      rightCountry = right.getKey();
+      lefts.removeAll(List.of(rightCountry));
+    }
+    var left = mode(lefts);
+    if (left != null) {
+      leftCountry = left.getKey();
+    }
+
+    if (leftCountry == null && rightCountry == null) {
+      LOGGER.warn("[boundaries] no left or right country for border between " + regions);
+    }
+
+    return new BorderingRegions(leftCountry, rightCountry);
+  }
+
+  @NotNull
+  private LongObjectMap<PreparedGeometry> prepareRegionPolygons() {
+    LOGGER.info("[boundaries] Creating polygons for " + regionGeometries.size() + " boundaries");
+    LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();
+    for (var entry : regionGeometries.entrySet()) {
+      Long regionId = entry.getKey();
+      Polygonizer polygonizer = new Polygonizer();
+      polygonizer.add(entry.getValue());
+      try {
+        Geometry combined = polygonizer.getGeometry().union();
+        if (combined.isEmpty()) {
+          LOGGER.warn("[boundaries] No valid polygons found for " + regionId);
+        } else {
+          countryBoundaries.put(regionId, PreparedGeometryFactory.prepare(combined));
+        }
+      } catch (TopologyException e) {
+        LOGGER.warn("[boundaries] Unable to build boundary polygon for " + regionId + ": " + e.getMessage());
+      }
+    }
+    LOGGER.info("[boundaries] Finished creating polygons");
+    return countryBoundaries;
+  }
+
+  private Map.Entry<Long, Long> mode(List<Long> rights) {
+    return rights.stream()
+      .collect(groupingBy(Function.identity(), counting())).entrySet().stream()
+      .max(Map.Entry.comparingByValue())
+      .orElse(null);
+  }
+
+  private static record BorderingRegions(Long left, Long right) {}
 
   private static record BoundaryRelation(
     long id,

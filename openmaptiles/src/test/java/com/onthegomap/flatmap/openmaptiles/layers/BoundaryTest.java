@@ -570,7 +570,7 @@ public class BoundaryTest extends BaseLayerTest {
     country1.setTag("ISO3166-1:alpha3", "C1");
 
     assertFeatures(14, List.of(), process(new ReaderFeature(
-      GeoUtils.worldToLatLonCoords(newLineString(0, 0, 10, 0, 10, 10, 2, 10, 2, -2)),
+      GeoUtils.worldToLatLonCoords(newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0.02, 0.1, 0.02, -0.02)),
       Map.of(),
       OSM_SOURCE,
       null,
@@ -584,6 +584,45 @@ public class BoundaryTest extends BaseLayerTest {
     assertFeatures(0, List.of(Map.of(
       "adm0_l", "<null>",
       "adm0_r", "<null>"
+    )), features);
+  }
+
+  @Test
+  public void testIgnoreBadPolygonAndLabelGoodPart() throws GeometryException {
+    var country1 = new ReaderRelation(1);
+    country1.setTag("type", "boundary");
+    country1.setTag("admin_level", "2");
+    country1.setTag("boundary", "administrative");
+    country1.setTag("ISO3166-1:alpha3", "C1");
+
+    assertFeatures(14, List.of(), process(new ReaderFeature(
+      GeoUtils.worldToLatLonCoords(newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0.2, 0.1, 0.2, -0.2)),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      3,
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        .toList()
+    )));
+
+    assertFeatures(14, List.of(), process(new ReaderFeature(
+      GeoUtils.worldToLatLonCoords(GeoUtils.polygonToLineString(rectangle(0.2, 0.3))),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      3,
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        .toList()
+    )));
+
+    List<FeatureCollector.Feature> features = new ArrayList<>();
+    profile.finish(OSM_SOURCE, new FeatureCollector.Factory(params, stats), features::add);
+    assertFeatures(0, List.of(Map.of(
+      "adm0_l", "<null>",
+      "adm0_r", "<null>"
+    ), Map.of(
+      "adm0_l", "<null>",
+      "adm0_r", "C1"
     )), features);
   }
 

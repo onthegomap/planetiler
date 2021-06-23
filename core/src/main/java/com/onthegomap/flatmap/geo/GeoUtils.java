@@ -13,6 +13,7 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
@@ -281,6 +282,15 @@ public class GeoUtils {
 
   public static Geometry createGeometryCollection(List<Geometry> polygonGroup) {
     return JTS_FACTORY.createGeometryCollection(polygonGroup.toArray(Geometry[]::new));
+  }
+
+  public static Point pointAlongOffset(LineString lineString, double v, double offset) {
+    int numPoints = lineString.getNumPoints();
+    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * v)));
+    Coordinate a = lineString.getCoordinateN(middle);
+    Coordinate b = lineString.getCoordinateN(middle + 1);
+    LineSegment segment = new LineSegment(a, b);
+    return JTS_FACTORY.createPoint(segment.pointAlongOffset(0.5, offset));
   }
 
   private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
