@@ -20,7 +20,9 @@ public class GeoUtilsTest {
     "0, 180, 1, 0.5",
     "0, " + (180 - 1e-7) + ", 1, 0.5",
     "45, 0, 0.5, 0.359725",
-    "-45, 0, 0.5, " + (1 - 0.359725)
+    "-45, 0, 0.5, " + (1 - 0.359725),
+    "86, -198, -0.05, -0.03391287",
+    "-86, 198, 1.05, 1.03391287",
   })
   public void testWorldCoords(double lat, double lon, double worldX, double worldY) {
     assertEquals(worldY, getWorldY(lat), 1e-5);

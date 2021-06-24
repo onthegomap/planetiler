@@ -123,19 +123,19 @@ public class GeoUtils {
   private static final long LOWER_32_BIT_MASK = (1L << 32) - 1L;
 
   public static long encodeFlatLocation(double lon, double lat) {
-    double worldX = getWorldX(lon);
-    double worldY = getWorldY(lat);
+    double worldX = getWorldX(lon) / 2 + 0.5;
+    double worldY = getWorldY(lat) / 2 + 0.5;
     long x = (long) (worldX * QUANTIZED_WORLD_SIZE);
     long y = (long) (worldY * QUANTIZED_WORLD_SIZE);
     return (x << 32) | y;
   }
 
   public static double decodeWorldY(long encoded) {
-    return ((double) (encoded & LOWER_32_BIT_MASK)) / QUANTIZED_WORLD_SIZE;
+    return ((((double) (encoded & LOWER_32_BIT_MASK)) / QUANTIZED_WORLD_SIZE) - 0.5) * 2;
   }
 
   public static double decodeWorldX(long encoded) {
-    return ((double) (encoded >>> 32)) / QUANTIZED_WORLD_SIZE;
+    return ((((double) (encoded >>> 32)) / QUANTIZED_WORLD_SIZE) - 0.5) * 2;
   }
 
   public static double getZoomFromLonLatBounds(Envelope envelope) {
