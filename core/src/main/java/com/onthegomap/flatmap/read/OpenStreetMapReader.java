@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.jetbrains.annotations.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -128,7 +129,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
           relationInfo.put(rel.getId(), info);
           relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
           for (ReaderRelation.Member member : rel.getMembers()) {
-            if (member.getType() == ReaderRelation.Member.WAY) {
+            int type = member.getType();
+            if (type == ReaderRelation.Member.WAY || type == ReaderRelation.Member.RELATION) {
               wayToRelations.put(member.getRef(), new RelationMembership(member.getRole(), rel.getId()).encode());
             }
           }
@@ -234,7 +236,12 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   SourceFeature processRelationPass2(ReaderRelation rel, NodeLocationProvider nodeCache) {
-    return rel.hasTag("type", "multipolygon") ? new MultipolygonSourceFeature(rel, nodeCache) : null;
+    if (rel.hasTag("type", "multipolygon")) {
+      List<RelationMember<RelationInfo>> parentRelations = getRelationMembership(rel.getId());
+      return new MultipolygonSourceFeature(rel, nodeCache, parentRelations);
+    } else {
+      return null;
+    }
   }
 
   SourceFeature processWayPass2(NodeLocationProvider nodeCache, ReaderWay way) {
@@ -246,7 +253,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     String area = way.getTag("area");
-    LongArrayList relationIds = wayToRelations.get(way.getId());
+    List<RelationMember<RelationInfo>> rels = getRelationMembership(way.getId());
+    return new WaySourceFeature(way, closed, area, nodeCache, rels);
+  }
+
+  @Nullable
+  private List<RelationMember<RelationInfo>> getRelationMembership(long id) {
+    LongArrayList relationIds = wayToRelations.get(id);
     List<RelationMember<RelationInfo>> rels = null;
     if (!relationIds.isEmpty()) {
       rels = new ArrayList<>(relationIds.size());
@@ -259,7 +272,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
         }
       }
     }
-    return new WaySourceFeature(way, closed, area, nodeCache, rels);
+    return rels;
   }
 
   SourceFeature processNodePass2(ReaderNode node) {
@@ -463,8 +476,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     private final ReaderRelation relation;
     private final NodeLocationProvider nodeCache;
 
-    public MultipolygonSourceFeature(ReaderRelation relation, NodeLocationProvider nodeCache) {
-      super(relation, false, false, true, null);
+    public MultipolygonSourceFeature(ReaderRelation relation, NodeLocationProvider nodeCache,
+      List<RelationMember<RelationInfo>> parentRelations) {
+      super(relation, false, false, true, parentRelations);
       this.relation = relation;
       this.nodeCache = nodeCache;
     }

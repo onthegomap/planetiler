@@ -799,6 +799,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmMultipolygon() throws Exception {
+    record TestRelationInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -829,14 +830,24 @@ public class FlatMapTest {
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 14, "outer"));
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 15, "inner"));
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "inner")); // incorrect
+        }),
+        with(new ReaderRelation(18), rel -> {
+          rel.setTag("type", "relation");
+          rel.setTag("name", "rel name");
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.RELATION, 17, "outer"));
         })
       ),
+      in -> in.hasTag("type", "relation") ?
+        List.of(new TestRelationInfo(in.getId(), in.getTag("name"))) :
+        null,
       (in, features) -> {
         if (in.hasTag("should_emit")) {
           features.polygon("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
-            .inheritFromSource("attr");
+            .inheritFromSource("attr")
+            .setAttr("relname",
+              in.relationInfo(TestRelationInfo.class).stream().map(c -> c.relation().name).findFirst().orElse(null));
         }
       }
     );
@@ -853,7 +864,8 @@ public class FlatMapTest {
           rectangle(0.375 * 256, 0.625 * 256)
         ), Map.of(
           "attr", "value",
-          "name", "name value"
+          "name", "name value",
+          "relname", "rel name"
         ))
       )
     ), results.tiles);
