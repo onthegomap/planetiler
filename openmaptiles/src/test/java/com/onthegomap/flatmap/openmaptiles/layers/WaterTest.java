@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class WaterTest extends BaseLayerTest {
+public class WaterTest extends AbstractLayerTest {
 
 
   @Test

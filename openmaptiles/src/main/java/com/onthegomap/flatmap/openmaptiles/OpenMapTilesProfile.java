@@ -38,7 +38,6 @@ public class OpenMapTilesProfile implements Profile {
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPointMappings;
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmLineMappings;
   private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPolygonMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmRelationMemberMappings;
   private final List<Layer> layers;
   private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
   private final Map<String, FeaturePostProcessor> postProcessors;
@@ -74,7 +73,6 @@ public class OpenMapTilesProfile implements Profile {
     this.osmPointMappings = indexForType("point");
     this.osmLineMappings = indexForType("linestring");
     this.osmPolygonMappings = indexForType("polygon");
-    this.osmRelationMemberMappings = indexForType("relation_member");
     postProcessors = new HashMap<>();
     osmAllProcessors = new ArrayList<>();
     lakeCenterlineProcessors = new ArrayList<>();

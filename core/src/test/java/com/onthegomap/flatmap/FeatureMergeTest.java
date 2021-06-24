@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.write.Mbtiles;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -362,6 +363,24 @@ public class FeatureMergeTest {
   }
 
   @Test
+  public void mergePolygonsInsideEachother() throws GeometryException {
+    assertEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 40), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, rectangle(10, 40), Map.of("a", 1)),
+          feature(2, rectangle(20, 30), Map.of("a", 1))
+        ),
+        0,
+        1,
+        1
+      )
+    );
+  }
+
+  @Test
   public void dontMergePolygonsAboveMinDist() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
@@ -435,6 +454,24 @@ public class FeatureMergeTest {
     assertEquals(
       expected.stream().map(f -> new NormGeometry(silence(() -> f.geometry().decode()))).toList(),
       actual.stream().map(f -> new NormGeometry(silence(() -> f.geometry().decode()))).toList(),
+      "geometry comparison"
+    );
+  }
+
+  private static void assertTopologicallyEquivalentFeatures(List<VectorTileEncoder.Feature> expected,
+    List<VectorTileEncoder.Feature> actual) throws GeometryException {
+    for (var feature : actual) {
+      Geometry geom = feature.geometry().decode();
+      TestUtils.validateGeometry(geom);
+    }
+    assertEquals(
+      expected.stream().map(f -> f.copyWithNewGeometry(newPoint(0, 0))).toList(),
+      actual.stream().map(f -> f.copyWithNewGeometry(newPoint(0, 0))).toList(),
+      "comparison without geometries"
+    );
+    assertEquals(
+      expected.stream().map(f -> new TopoGeometry(silence(() -> f.geometry().decode()))).toList(),
+      actual.stream().map(f -> new TopoGeometry(silence(() -> f.geometry().decode()))).toList(),
       "geometry comparison"
     );
   }
@@ -527,9 +564,9 @@ public class FeatureMergeTest {
 
   @ParameterizedTest
   @CsvSource({
-    "2477, 3028, 13, 1026",
-    "2481, 3026, 13, 789",
-    "2479, 3028, 13, 963"
+    "2477, 3028, 13, 1141",
+    "2481, 3026, 13, 948",
+    "2479, 3028, 13, 1074"
   })
   public void testMergeManyPolygons(int x, int y, int z, int expected)
     throws IOException, GeometryException {
@@ -546,5 +583,47 @@ public class FeatureMergeTest {
       }
       assertEquals(expected, total);
     }
+  }
+
+  @Test
+  public void mergeMultiPolygon() throws GeometryException {
+    var innerRing = rectangleCoordList(12, 18);
+    Collections.reverse(innerRing);
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, newPolygon(rectangleCoordList(10, 22), List.of(innerRing)), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, newPolygon(rectangleCoordList(10, 20), List.of(innerRing)), Map.of("a", 1)),
+          feature(1, rectangle(20, 10, 22, 22), Map.of("a", 1)),
+          feature(1, rectangle(10, 20, 22, 22), Map.of("a", 1))
+        ),
+        0,
+        0,
+        0
+      )
+    );
+  }
+
+  @Test
+  public void mergeMultiPolygonExcludeSmallInnerRings() throws GeometryException {
+    var innerRing = rectangleCoordList(12, 12.99);
+    Collections.reverse(innerRing);
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, rectangle(10, 22), Map.of("a", 1))
+      ),
+      FeatureMerge.mergePolygons(
+        List.of(
+          feature(1, newPolygon(rectangleCoordList(10, 20), List.of(innerRing)), Map.of("a", 1)),
+          feature(1, rectangle(20, 10, 22, 22), Map.of("a", 1)),
+          feature(1, rectangle(10, 20, 22, 22), Map.of("a", 1))
+        ),
+        1,
+        0,
+        0
+      )
+    );
   }
 }

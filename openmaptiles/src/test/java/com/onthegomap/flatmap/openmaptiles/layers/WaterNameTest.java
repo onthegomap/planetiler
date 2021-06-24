@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class WaterNameTest extends BaseLayerTest {
+public class WaterNameTest extends AbstractLayerTest {
 
   @Test
   public void testWaterNamePoint() {

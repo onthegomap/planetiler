@@ -14,6 +14,7 @@ public class Housenumber implements OpenMapTilesSchema.Housenumber, Tables.OsmHo
 
   @Override
   public void process(Tables.OsmHousenumberPoint element, FeatureCollector features) {
+    // TODO if not convex, use pointOnSurface
     features.centroid(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.HOUSENUMBER, element.housenumber())

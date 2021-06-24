@@ -152,25 +152,6 @@ public class Tables {
     }
   }
 
-  public static record OsmBorderDispRelation(
-    String name, String boundary, long adminLevel, String claimedBy, String disputedBy, boolean maritime,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
-    public OsmBorderDispRelation(SourceFeature source, String mappingKey) {
-      this(source.getString("name"), source.getString("boundary"), source.getLong("admin_level"),
-        source.getString("claimed_by"), source.getString("disputed_by"), source.getBoolean("maritime"), source);
-    }
-
-    public static final Expression MAPPING = and(matchAny("type", "boundary"), matchField("admin_level"),
-      matchField("claimed_by"), matchType("relation_member"));
-
-    public interface Handler {
-
-      void process(OsmBorderDispRelation element, FeatureCollector features);
-    }
-  }
-
   public static record OsmAerowayPolygon(
     String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
   ) implements Row {
@@ -345,22 +326,6 @@ public class Tables {
     }
   }
 
-  public static record OsmRouteMember(
-    String ref, String network, String name, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
-    public OsmRouteMember(SourceFeature source, String mappingKey) {
-      this(source.getString("ref"), source.getString("network"), source.getString("name"), source);
-    }
-
-    public static final Expression MAPPING = and(matchAny("route", "road"), matchType("relation_member"));
-
-    public interface Handler {
-
-      void process(OsmRouteMember element, FeatureCollector features);
-    }
-  }
-
   public static record OsmBuildingPolygon(
     String material, String colour, String building, String buildingpart, String buildingheight,
     String buildingminHeight, String buildinglevels, String buildingminLevel, String height, String minHeight,
@@ -382,32 +347,6 @@ public class Tables {
     public interface Handler {
 
       void process(OsmBuildingPolygon element, FeatureCollector features);
-    }
-  }
-
-  public static record OsmBuildingRelation(
-    String building, String material, String colour, String buildingpart, String buildingheight, String height,
-    String buildingminHeight, String minHeight, String buildinglevels, String levels, String buildingminLevel,
-    String minLevel, String relbuildingheight, String relheight, String relbuildingminHeight, String relminHeight,
-    String relbuildinglevels, String rellevels, String relbuildingminLevel, String relminLevel,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
-
-    public OsmBuildingRelation(SourceFeature source, String mappingKey) {
-      this(source.getString("building"), source.getString("building:material"), source.getString("building:colour"),
-        source.getString("building:part"), source.getString("building:height"), source.getString("height"),
-        source.getString("building:min_height"), source.getString("min_height"), source.getString("building:levels"),
-        source.getString("levels"), source.getString("building:min_level"), source.getString("min_level"),
-        source.getString("building:height"), source.getString("height"), source.getString("building:min_height"),
-        source.getString("min_height"), source.getString("building:levels"), source.getString("levels"),
-        source.getString("building:min_level"), source.getString("min_level"), source);
-    }
-
-    public static final Expression MAPPING = and(matchAny("type", "building"), matchType("relation_member"));
-
-    public interface Handler {
-
-      void process(OsmBuildingRelation element, FeatureCollector features);
     }
   }
 
@@ -701,7 +640,6 @@ public class Tables {
     Map.entry(OsmLandusePolygon::new, OsmLandusePolygon.MAPPING),
     Map.entry(OsmPeakPoint::new, OsmPeakPoint.MAPPING),
     Map.entry(OsmParkPolygon::new, OsmParkPolygon.MAPPING),
-    Map.entry(OsmBorderDispRelation::new, OsmBorderDispRelation.MAPPING),
     Map.entry(OsmAerowayPolygon::new, OsmAerowayPolygon.MAPPING),
     Map.entry(OsmAerowayLinestring::new, OsmAerowayLinestring.MAPPING),
     Map.entry(OsmAerowayPoint::new, OsmAerowayPoint.MAPPING),
@@ -710,9 +648,7 @@ public class Tables {
     Map.entry(OsmAerialwayLinestring::new, OsmAerialwayLinestring.MAPPING),
     Map.entry(OsmShipwayLinestring::new, OsmShipwayLinestring.MAPPING),
     Map.entry(OsmHighwayPolygon::new, OsmHighwayPolygon.MAPPING),
-    Map.entry(OsmRouteMember::new, OsmRouteMember.MAPPING),
     Map.entry(OsmBuildingPolygon::new, OsmBuildingPolygon.MAPPING),
-    Map.entry(OsmBuildingRelation::new, OsmBuildingRelation.MAPPING),
     Map.entry(OsmMarinePoint::new, OsmMarinePoint.MAPPING),
     Map.entry(OsmContinentPoint::new, OsmContinentPoint.MAPPING),
     Map.entry(OsmCountryPoint::new, OsmCountryPoint.MAPPING),
@@ -753,10 +689,6 @@ public class Tables {
         result.computeIfAbsent(OsmParkPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmParkPolygon>) typedHandler::process);
       }
-      if (handler instanceof OsmBorderDispRelation.Handler typedHandler) {
-        result.computeIfAbsent(OsmBorderDispRelation.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmBorderDispRelation>) typedHandler::process);
-      }
       if (handler instanceof OsmAerowayPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmAerowayPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmAerowayPolygon>) typedHandler::process);
@@ -789,17 +721,9 @@ public class Tables {
         result.computeIfAbsent(OsmHighwayPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmHighwayPolygon>) typedHandler::process);
       }
-      if (handler instanceof OsmRouteMember.Handler typedHandler) {
-        result.computeIfAbsent(OsmRouteMember.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmRouteMember>) typedHandler::process);
-      }
       if (handler instanceof OsmBuildingPolygon.Handler typedHandler) {
         result.computeIfAbsent(OsmBuildingPolygon.class, cls -> new ArrayList<>())
           .add((RowHandler<OsmBuildingPolygon>) typedHandler::process);
-      }
-      if (handler instanceof OsmBuildingRelation.Handler typedHandler) {
-        result.computeIfAbsent(OsmBuildingRelation.class, cls -> new ArrayList<>())
-          .add((RowHandler<OsmBuildingRelation>) typedHandler::process);
       }
       if (handler instanceof OsmMarinePoint.Handler typedHandler) {
         result.computeIfAbsent(OsmMarinePoint.class, cls -> new ArrayList<>())

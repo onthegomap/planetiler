@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
-public class MountainPeakTest extends BaseLayerTest {
+public class MountainPeakTest extends AbstractLayerTest {
 
   @TestFactory
   public List<DynamicTest> mountainPeakProcessing() {

@@ -174,8 +174,10 @@ public class Generate {
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 
+      import com.graphhopper.reader.ReaderRelation;
       import com.onthegomap.flatmap.openmaptiles.Expression;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+      import com.onthegomap.flatmap.read.OpenStreetMapReader;
       import com.onthegomap.flatmap.FeatureCollector;
       import com.onthegomap.flatmap.SourceFeature;
       import java.util.ArrayList;
@@ -203,42 +205,44 @@ public class Generate {
         mappingExpression
       );
       String className = lowerUnderscoreToUpperCamel("osm_" + key);
-      classNames.add(className);
-      if (fields.size() <= 1) {
-        tablesClass.append("""
-          public static record %s(%s) implements Row {
-            %s
-            public interface Handler {
-              void process(%s element, FeatureCollector features);
+      if (!"relation_member".equals(table.type)) {
+        classNames.add(className);
+
+        if (fields.size() <= 1) {
+          tablesClass.append("""
+            public static record %s(%s) implements Row {
+              %s
+              public interface Handler {
+                void process(%s element, FeatureCollector features);
+              }
             }
-          }
-          """.formatted(
-          className,
-          fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
-            .collect(joining(", ")),
-          mapping,
-          className
-        ).indent(2));
-      } else {
-        tablesClass.append("""
-          public static record %s(%s) implements Row {
-            public %s(SourceFeature source, String mappingKey) {
-              this(%s);
+            """.formatted(
+            className,
+            fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name)).collect(joining(", ")),
+            mapping,
+            className
+          ).indent(2));
+        } else {
+          tablesClass.append("""
+            public static record %s(%s) implements Row {
+              public %s(SourceFeature source, String mappingKey) {
+                this(%s);
+              }
+              %s
+              public interface Handler {
+                void process(%s element, FeatureCollector features);
+              }
             }
-            %s
-            public interface Handler {
-              void process(%s element, FeatureCollector features);
-            }
-          }
-          """.formatted(
-          className,
-          fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
-            .collect(joining(", ")),
-          className,
-          fields.stream().map(c -> c.extractCode).collect(joining(", ")),
-          mapping,
-          className
-        ).indent(2));
+            """.formatted(
+            className,
+            fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
+              .collect(joining(", ")),
+            className,
+            fields.stream().map(c -> c.extractCode).collect(joining(", ")),
+            mapping,
+            className
+          ).indent(2));
+        }
       }
     }
 
@@ -250,6 +254,7 @@ public class Generate {
       classNames.stream().map(className -> "Map.entry(%s::new, %s.MAPPING)".formatted(className, className))
         .collect(joining(",\n")).indent(2).strip()
     ).indent(2));
+
     String handlerCondition = classNames.stream().map(className ->
       """
         if (handler instanceof %s.Handler typedHandler) {
@@ -292,14 +297,17 @@ public class Generate {
 
   private static List<OsmTableField> getFields(Imposm3Table tableDefinition) {
     List<OsmTableField> result = new ArrayList<>();
-    // TODO columns used, and from_member
+    boolean relationMember = "relation_member".equals(tableDefinition.type);
     for (Imposm3Column col : tableDefinition.columns) {
+      if (relationMember && col.from_member) {
+        continue;
+      }
       switch (col.type) {
         case "id", "validated_geometry", "area", "hstore_tags", "geometry" -> {
           // do nothing - already on source feature
         }
         case "member_id", "member_role", "member_type", "member_index" -> {
-          // TODO
+          // do nothing
         }
         case "mapping_key" -> result
           .add(new OsmTableField("String", col.name, "mappingKey"));

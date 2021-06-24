@@ -27,8 +27,8 @@ public class OpenMapTilesMain {
       .setProfile(createProfileWithWikidataTranslations(runner))
       .addShapefileSource("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE,
         sourcesDir.resolve("lake_centerline.shp.zip"))
-//      .addShapefileSource(OpenMapTilesProfile.WATER_POLYGON_SOURCE,
-//        sourcesDir.resolve("water-polygons-split-3857.zip"))
+      .addShapefileSource(OpenMapTilesProfile.WATER_POLYGON_SOURCE,
+        sourcesDir.resolve("water-polygons-split-3857.zip"))
       .addNaturalEarthSource(OpenMapTilesProfile.NATURAL_EARTH_SOURCE,
         sourcesDir.resolve("natural_earth_vector.sqlite.zip"))
       .addOsmSource(OpenMapTilesProfile.OSM_SOURCE, sourcesDir.resolve(fallbackOsmFile))

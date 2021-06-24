@@ -1,0 +1,178 @@
+package com.onthegomap.flatmap.openmaptiles.layers;
+
+import static com.onthegomap.flatmap.TestUtils.rectangle;
+import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.graphhopper.reader.ReaderRelation;
+import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import com.onthegomap.flatmap.read.ReaderFeature;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+public class BuildingTest extends AbstractLayerTest {
+
+  @Test
+  public void testBuilding() {
+    assertFeatures(13, List.of(Map.of(
+      "colour", "<null>",
+      "hide_3d", "<null>",
+      "_layer", "building",
+      "_type", "polygon",
+      "_minzoom", 13,
+      "_maxzoom", 14,
+      "_buffer", 4d,
+      "_minpixelsize", 0d
+    )), process(polygonFeature(Map.of(
+      "building", "yes"
+    ))));
+    assertFeatures(13, List.of(Map.of(
+      "_layer", "building",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "building:part", "yes"
+    ))));
+    assertFeatures(13, List.of(), process(polygonFeature(Map.of(
+      "building", "no"
+    ))));
+  }
+
+  @Test
+  public void testAirportBuildings() {
+    assertFeatures(13, List.of(Map.of(
+      "_layer", "building",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "aeroway", "terminal"
+    ))));
+    assertFeatures(13, List.of(Map.of(
+      "_layer", "building",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "aeroway", "hangar"
+    ))));
+  }
+
+  @Test
+  public void testRenderHeights() {
+    assertFeatures(13, List.of(Map.of(
+      "render_height", "<null>",
+      "render_min_height", "<null>"
+    )), process(polygonFeature(Map.of(
+      "building", "yes"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "render_height", 5,
+      "render_min_height", 0
+    )), process(polygonFeature(Map.of(
+      "building", "yes"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "render_height", 12,
+      "render_min_height", 3
+    )), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:min_height", "3",
+      "building:height", "12"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "render_height", 44,
+      "render_min_height", 10
+    )), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:min_level", "3",
+      "building:levels", "12"
+    ))));
+    assertFeatures(14, List.of(), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:min_level", "1500",
+      "building:levels", "1500"
+    ))));
+  }
+
+  @Test
+  public void testOutlineHides3d() {
+    var relation = new ReaderRelation(1);
+    relation.setTag("type", "building");
+
+    var relationInfos = profile.preprocessOsmRelation(relation).stream()
+      .map(i -> new OpenStreetMapReader.RelationMember<>("outline", i)).toList();
+
+    assertFeatures(14, List.of(Map.of(
+      "_layer", "building",
+      "hide_3d", true
+    )), process(new ReaderFeature(
+      GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
+      Map.of(
+        "building", "yes"
+      ),
+      OSM_SOURCE,
+      null,
+      0,
+      relationInfos
+    )));
+  }
+
+  @Test
+  public void testMergePolygonsZ13() throws GeometryException {
+    var poly1 = new VectorTileEncoder.Feature(
+      Building.LAYER_NAME,
+      1,
+      VectorTileEncoder.encodeGeometry(rectangle(10, 20)),
+      Map.of(),
+      0
+    );
+    var poly2 = new VectorTileEncoder.Feature(
+      Building.LAYER_NAME,
+      1,
+      VectorTileEncoder.encodeGeometry(rectangle(20, 10, 22, 20)),
+      Map.of(),
+      0
+    );
+    var connected = new VectorTileEncoder.Feature(
+      Building.LAYER_NAME,
+      1,
+      VectorTileEncoder.encodeGeometry(rectangle(10, 10, 22, 20)),
+      Map.of(),
+      0
+    );
+
+    assertEquals(
+      2,
+      profile.postProcessLayerFeatures(Building.LAYER_NAME, 14, List.of(poly1, poly2)).size()
+    );
+    assertEquals(
+      1,
+      profile.postProcessLayerFeatures(Building.LAYER_NAME, 13, List.of(poly1, poly2)).size()
+    );
+  }
+
+  @Test
+  public void testColor() {
+    assertFeatures(14, List.of(Map.of(
+      "colour", "#ff0000"
+    )), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:colour", "#ff0000",
+      "building:material", "brick"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "colour", "#bd8161"
+    )), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:building", "yes",
+      "building:material", "brick"
+    ))));
+    assertFeatures(13, List.of(Map.of(
+      "colour", "<null>"
+    )), process(polygonFeature(Map.of(
+      "building", "yes",
+      "building:building", "yes",
+      "building:colour", "#ff0000"
+    ))));
+  }
+}

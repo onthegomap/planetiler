@@ -19,7 +19,9 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -154,21 +156,18 @@ public class FeatureMerge {
           if (buffer > 0) {
             merged = new BufferOp(merged, bufferOps).getResultGeometry(-buffer);
           }
-          if (!(merged instanceof Polygon poly)
-            || Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) < minArea) {
+          if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
           merged = GeoUtils.snapAndFixPolygon(merged).reverse();
         } else {
           merged = polygonGroup.get(0);
-          if (!(merged instanceof Polygon poly)
-            || Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) < minArea) {
+          if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
         }
         // TODO VW simplify?
-        // TODO limit inner ring area
-        extractPolygons(merged, outPolygons);
+        extractPolygons(merged, outPolygons, minArea);
       }
       if (!outPolygons.isEmpty()) {
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
@@ -178,12 +177,27 @@ public class FeatureMerge {
     return result;
   }
 
-  private static void extractPolygons(Geometry geom, List<Polygon> result) {
+  private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea) {
     if (geom instanceof Polygon poly) {
-      result.add(poly);
+      if (Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) > minArea) {
+        int innerRings = poly.getNumInteriorRing();
+        if (innerRings > 0) {
+          List<LinearRing> rings = new ArrayList<>(innerRings);
+          for (int i = 0; i < innerRings; i++) {
+            LinearRing innerRing = poly.getInteriorRingN(i);
+            if (Area.ofRing(innerRing.getCoordinateSequence()) > minArea) {
+              rings.add(innerRing);
+            }
+          }
+          if (rings.size() != innerRings) {
+            poly = GeoUtils.createPolygon(poly.getExteriorRing(), rings);
+          }
+        }
+        result.add(poly);
+      }
     } else if (geom instanceof GeometryCollection) {
       for (int i = 0; i < geom.getNumGeometries(); i++) {
-        extractPolygons(geom.getGeometryN(i), result);
+        extractPolygons(geom.getGeometryN(i), result, minArea);
       }
     }
   }

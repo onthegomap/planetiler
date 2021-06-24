@@ -21,7 +21,7 @@ import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
-public class BoundaryTest extends BaseLayerTest {
+public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testNaturalEarthCountryBoundaries() {

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class AerowayTest extends BaseLayerTest {
+public class AerowayTest extends AbstractLayerTest {
 
   @Test
   public void aerowayGate() {

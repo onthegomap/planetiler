@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class WaterwayTest extends BaseLayerTest {
+public class WaterwayTest extends AbstractLayerTest {
 
   @Test
   public void testWaterwayImportantRiverProcess() {

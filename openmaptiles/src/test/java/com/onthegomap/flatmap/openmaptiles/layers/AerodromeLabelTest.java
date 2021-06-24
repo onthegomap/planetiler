@@ -7,7 +7,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
-public class AerodromeLabelTest extends BaseLayerTest {
+public class AerodromeLabelTest extends AbstractLayerTest {
 
 
   @TestFactory

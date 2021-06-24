@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class HousenumberTest extends BaseLayerTest {
+public class HousenumberTest extends AbstractLayerTest {
 
   @Test
   public void testHousenumber() {

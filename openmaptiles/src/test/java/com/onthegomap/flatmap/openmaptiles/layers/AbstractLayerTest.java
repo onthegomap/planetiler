@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 
-public abstract class BaseLayerTest {
+public abstract class AbstractLayerTest {
 
   final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
   final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))

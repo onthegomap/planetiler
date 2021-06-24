@@ -293,6 +293,10 @@ public class GeoUtils {
     return JTS_FACTORY.createPoint(segment.pointAlongOffset(0.5, offset));
   }
 
+  public static Polygon createPolygon(LinearRing exteriorRing, List<LinearRing> rings) {
+    return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
+  }
+
   private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
 
     PolyAndArea(Polygon poly) {

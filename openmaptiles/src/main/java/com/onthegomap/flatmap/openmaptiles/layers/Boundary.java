@@ -56,8 +56,14 @@ public class Boundary implements
   private final Map<Long, List<Geometry>> regionGeometries = new HashMap<>();
   private final Map<CountryBoundaryComponent, List<Geometry>> boundariesToMerge = new HashMap<>();
   private final Stats stats;
+  private final boolean addCountryNames;
 
   public Boundary(Translations translations, Arguments args, Stats stats) {
+    this.addCountryNames = args.get(
+      "boundary_country_names",
+      "boundary layer: add left/right codes of neighboring countries",
+      true
+    );
     this.stats = stats;
   }
 
@@ -174,7 +180,7 @@ public class Boundary implements
             minAdminLevel <= 4 ? 5 :
               minAdminLevel <= 6 ? 9 :
                 minAdminLevel <= 8 ? 11 : 12;
-        if (!regionIds.isEmpty()) {
+        if (addCountryNames && !regionIds.isEmpty()) {
           // save for later
           try {
             CountryBoundaryComponent component = new CountryBoundaryComponent(
