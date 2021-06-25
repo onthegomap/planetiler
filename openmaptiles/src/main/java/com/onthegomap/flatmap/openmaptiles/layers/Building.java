@@ -126,6 +126,6 @@ public class Building implements OpenMapTilesSchema.Building,
   @Override
   public List<VectorTileEncoder.Feature> postProcess(int zoom,
     List<VectorTileEncoder.Feature> items) throws GeometryException {
-    return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergePolygons(items, 4, 0.5, 0.5) : items;
+    return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergePolygons(items, 4, 4, 0.5, 0.5) : items;
   }
 }

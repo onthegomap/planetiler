@@ -621,6 +621,7 @@ public class FeatureMergeTest {
           feature(1, rectangle(10, 20, 22, 22), Map.of("a", 1))
         ),
         1,
+        1,
         0,
         0
       )

@@ -375,6 +375,7 @@ public class TestUtils {
     result.put("_labelgrid_size", feature.getLabelGridPixelSizeAtZoom(zoom));
     result.put("_minpixelsize", feature.getMinPixelSize(zoom));
     result.put("_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
+    result.put("_numpointsattr", feature.getNumPointsAttr());
     return result;
   }
 

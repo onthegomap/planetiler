@@ -134,6 +134,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private double defaultPixelTolerance = 0.1d;
     private double pixelToleranceAtMaxZoom = 256d / 4096;
     private ZoomFunction<Double> pixelTolerance = null;
+    private String numPointsAttr = null;
 
     private Feature(String layer, Geometry geom, long sourceId) {
       this.layer = layer;
@@ -348,6 +349,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setAttrs(Map<String, Object> names) {
       attrs.putAll(names);
       return this;
+    }
+
+    public Feature setNumPointsAttr(String numPointsAttr) {
+      this.numPointsAttr = numPointsAttr;
+      return this;
+    }
+
+    public String getNumPointsAttr() {
+      return numPointsAttr;
     }
   }
 }

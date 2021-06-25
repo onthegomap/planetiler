@@ -446,6 +446,10 @@ public class VectorTileEncoder {
 
     public static final long NO_GROUP = Long.MIN_VALUE;
 
+    public boolean hasGroup() {
+      return group != NO_GROUP;
+    }
+
     public Feature copyWithNewGeometry(Geometry newGeometry) {
       return new Feature(
         layer,

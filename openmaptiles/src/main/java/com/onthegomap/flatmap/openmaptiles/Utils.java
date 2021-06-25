@@ -19,6 +19,14 @@ public class Utils {
     return a != null ? a : b != null ? b : c != null ? c : d;
   }
 
+  public static <T> T coalesce(T a, T b, T c, T d, T e) {
+    return a != null ? a : b != null ? b : c != null ? c : d != null ? d : e;
+  }
+
+  public static <T> T coalesce(T a, T b, T c, T d, T e, T f) {
+    return a != null ? a : b != null ? b : c != null ? c : d != null ? d : e != null ? e : f;
+  }
+
   public static <T> T coalesceLazy(T a, Supplier<T> b) {
     return a != null ? a : b.get();
   }

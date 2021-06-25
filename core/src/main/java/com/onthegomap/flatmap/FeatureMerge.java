@@ -138,6 +138,17 @@ public class FeatureMerge {
 
   public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> features, double minArea,
     double minDist, double buffer) throws GeometryException {
+    return mergePolygons(
+      features,
+      minArea,
+      0,
+      minDist,
+      buffer
+    );
+  }
+
+  public static List<VectorTileEncoder.Feature> mergePolygons(List<VectorTileEncoder.Feature> features, double minArea,
+    double minHoleArea, double minDist, double buffer) throws GeometryException {
     List<VectorTileEncoder.Feature> result = new ArrayList<>(features.size());
     Collection<List<VectorTileEncoder.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
     for (List<VectorTileEncoder.Feature> groupedFeatures : groupedByAttrs) {
@@ -167,7 +178,7 @@ public class FeatureMerge {
           }
         }
         // TODO VW simplify?
-        extractPolygons(merged, outPolygons, minArea);
+        extractPolygons(merged, outPolygons, minArea, minHoleArea);
       }
       if (!outPolygons.isEmpty()) {
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
@@ -177,11 +188,11 @@ public class FeatureMerge {
     return result;
   }
 
-  private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea) {
+  private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea, double minHoleArea) {
     if (geom instanceof Polygon poly) {
       if (Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) > minArea) {
         int innerRings = poly.getNumInteriorRing();
-        if (innerRings > 0) {
+        if (minHoleArea > 0 && innerRings > 0) {
           List<LinearRing> rings = new ArrayList<>(innerRings);
           for (int i = 0; i < innerRings; i++) {
             LinearRing innerRing = poly.getInteriorRingN(i);
@@ -197,7 +208,7 @@ public class FeatureMerge {
       }
     } else if (geom instanceof GeometryCollection) {
       for (int i = 0; i < geom.getNumGeometries(); i++) {
-        extractPolygons(geom.getGeometryN(i), result, minArea);
+        extractPolygons(geom.getGeometryN(i), result, minArea, minHoleArea);
       }
     }
   }

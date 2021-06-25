@@ -106,7 +106,8 @@ public class Arguments {
 
   public List<String> get(String arg, String description, String[] defaultValue) {
     String value = getArg(arg, String.join(",", defaultValue));
-    List<String> results = List.of(value.split("[\\s,]+"));
+    List<String> results = Stream.of(value.split("[\\s,]+"))
+      .filter(c -> !c.isBlank()).toList();
     LOGGER.debug(description + ": " + value);
     return results;
   }

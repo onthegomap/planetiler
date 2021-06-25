@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Stats;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -143,6 +144,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
     long id = idGen.incrementAndGet();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
+    String numPointsAttr = feature.getNumPointsAttr();
     for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
       double scale = 1 << z;
       double tolerance = feature.getPixelTolerance(z) / 256d;
@@ -164,14 +166,19 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.extents().getForZoom(z);
       TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.sourceId());
-      writeTileFeatures(z, id, feature, sliced);
+      Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
+      if (numPointsAttr != null) {
+        attrs = new HashMap<>(attrs);
+        attrs.put(numPointsAttr, geom.getNumPoints());
+      }
+      writeTileFeatures(z, id, feature, sliced, attrs);
     }
 
     stats.processedElement(area ? "polygon" : "line", feature.getLayer());
   }
 
-  private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
-    Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
+  private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
+    Map<String, Object> attrs) {
     int emitted = 0;
     for (var entry : sliced.getTileData()) {
       TileCoord tile = entry.getKey();

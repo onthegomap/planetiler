@@ -39,7 +39,7 @@ public abstract class AbstractLayerTest {
 
   static void assertFeatures(int zoom, List<Map<String, Object>> expected, Iterable<FeatureCollector.Feature> actual) {
     List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
-    assertEquals(expected.size(), actualList.size(), "size");
+    assertEquals(expected.size(), actualList.size(), () -> "size: " + actualList);
     for (int i = 0; i < expected.size(); i++) {
       assertSubmap(expected.get(i), TestUtils.toMap(actualList.get(i), zoom));
     }

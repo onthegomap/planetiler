@@ -62,7 +62,12 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
-    this.layers = OpenMapTilesSchema.createInstances(translations, arguments, stats);
+    List<String> onlyLayers = arguments.get("only_layers", "Include only certain layers", new String[]{});
+    List<String> excludeLayers = arguments.get("exclude_layers", "Exclude certain layers", new String[]{});
+    this.layers = OpenMapTilesSchema.createInstances(translations, arguments, stats)
+      .stream()
+      .filter(l -> (onlyLayers.isEmpty() || onlyLayers.contains(l.name())) && !excludeLayers.contains(l.name()))
+      .toList();
     osmDispatchMap = new HashMap<>();
     Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
       osmDispatchMap.put(clazz, handlers.stream().map(handler -> {
