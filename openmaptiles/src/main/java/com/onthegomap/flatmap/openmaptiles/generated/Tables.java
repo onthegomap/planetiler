@@ -9,8 +9,10 @@ import com.onthegomap.flatmap.openmaptiles.Expression;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class Tables {
 
@@ -661,6 +663,91 @@ public class Tables {
     Map.entry(OsmPoiPolygon::new, OsmPoiPolygon.MAPPING),
     Map.entry(OsmAerodromeLabelPoint::new, OsmAerodromeLabelPoint.MAPPING)
   ));
+
+  public static Map<Class<? extends Row>, Set<Class<?>>> generateHandlerClassMap(List<?> handlers) {
+    Map<Class<? extends Row>, Set<Class<?>>> result = new HashMap<>();
+    for (var handler : handlers) {
+      if (handler instanceof OsmWaterPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmWaterPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmWaterwayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmWaterwayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmLandcoverPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmLandcoverPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmLandusePolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmLandusePolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmPeakPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmPeakPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmParkPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmParkPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmAerowayPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmAerowayPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmAerowayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmAerowayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmAerowayPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmAerowayPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmHighwayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmHighwayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmRailwayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmRailwayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmAerialwayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmAerialwayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmShipwayLinestring.Handler typedHandler) {
+        result.computeIfAbsent(OsmShipwayLinestring.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmHighwayPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmHighwayPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmBuildingPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmBuildingPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmMarinePoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmMarinePoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmContinentPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmContinentPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmCountryPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmCountryPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmIslandPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmIslandPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmIslandPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmIslandPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmStatePoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmStatePoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmCityPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmCityPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmHousenumberPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmHousenumberPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmPoiPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmPoiPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmPoiPolygon.Handler typedHandler) {
+        result.computeIfAbsent(OsmPoiPolygon.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+      if (handler instanceof OsmAerodromeLabelPoint.Handler typedHandler) {
+        result.computeIfAbsent(OsmAerodromeLabelPoint.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+      }
+    }
+    return result;
+  }
 
   public static Map<Class<? extends Row>, List<RowHandler<? extends Row>>> generateDispatchMap(List<?> handlers) {
     Map<Class<? extends Row>, List<RowHandler<? extends Row>>> result = new HashMap<>();

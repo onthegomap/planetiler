@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 public class BoundaryTest extends AbstractLayerTest {
@@ -168,36 +166,8 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testMergesDisconnectedLineFeatures() throws GeometryException {
-    var line1 = new VectorTileEncoder.Feature(
-      Boundary.LAYER_NAME,
-      1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, 10, 0)),
-      Map.of("admin_level", 2),
-      0
-    );
-    var line2 = new VectorTileEncoder.Feature(
-      Boundary.LAYER_NAME,
-      1,
-      VectorTileEncoder.encodeGeometry(newLineString(10, 0, 20, 0)),
-      Map.of("admin_level", 2),
-      0
-    );
-    var connected = new VectorTileEncoder.Feature(
-      Boundary.LAYER_NAME,
-      1,
-      VectorTileEncoder.encodeGeometry(newLineString(00, 0, 20, 0)),
-      Map.of("admin_level", 2),
-      0
-    );
-
-    assertEquals(
-      List.of(connected),
-      profile.postProcessLayerFeatures(Boundary.LAYER_NAME, 14, List.of(line1, line2))
-    );
-    assertEquals(
-      List.of(connected),
-      profile.postProcessLayerFeatures(Boundary.LAYER_NAME, 13, List.of(line1, line2))
-    );
+    testMergesLinestrings(Map.of("admin_level", 2), Boundary.LAYER_NAME, 10, 13);
+    testMergesLinestrings(Map.of("admin_level", 2), Boundary.LAYER_NAME, 10, 14);
   }
 
   @Test
@@ -626,17 +596,4 @@ public class BoundaryTest extends AbstractLayerTest {
     )), features);
   }
 
-  @NotNull
-  private ReaderFeature lineFeatureWithRelation(List<OpenStreetMapReader.RelationInfo> relationInfos,
-    Map<String, Object> map) {
-    return new ReaderFeature(
-      newLineString(0, 0, 1, 1),
-      map,
-      OSM_SOURCE,
-      null,
-      0,
-      (relationInfos == null ? List.<OpenStreetMapReader.RelationInfo>of() : relationInfos).stream()
-        .map(r -> new OpenStreetMapReader.RelationMember<>("", r)).toList()
-    );
-  }
 }

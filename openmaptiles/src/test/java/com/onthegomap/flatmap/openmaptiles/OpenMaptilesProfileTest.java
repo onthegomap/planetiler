@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.graphhopper.reader.ReaderNode;
+import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
@@ -27,5 +28,12 @@ public class OpenMaptilesProfileTest {
 
     node.setTag("aeroway", "other");
     assertFalse(profile.caresAboutWikidataTranslation(node));
+  }
+
+  @Test
+  public void testDoesntCareAboutWikidataForRoads() {
+    var way = new ReaderWay(1);
+    way.setTag("highway", "footway");
+    assertFalse(profile.caresAboutWikidataTranslation(way));
   }
 }

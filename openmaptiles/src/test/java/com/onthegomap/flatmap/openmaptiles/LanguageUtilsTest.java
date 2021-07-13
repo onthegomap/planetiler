@@ -103,9 +103,9 @@ public class LanguageUtilsTest {
     "name:es, a, true",
     "name:pt, a, true",
     "name:de, a, true",
-    "name:ar, a, false",
-    "name:it, a, false",
-    "name:jp, a, false",
+    "name:ar, ِغَّ, false",
+    "name:it, a, true",
+    "name:jp, ア, false",
     "name:jp-Latn, a, true",
     "name:jp_rm, a, true",
   })

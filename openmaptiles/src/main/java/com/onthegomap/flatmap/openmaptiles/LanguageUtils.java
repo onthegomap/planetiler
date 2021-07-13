@@ -1,14 +1,15 @@
 package com.onthegomap.flatmap.openmaptiles;
 
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesceLazy;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
 import com.ibm.icu.text.Transliterator;
 import com.onthegomap.flatmap.Translations;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * This class is ported from https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql
@@ -32,29 +33,7 @@ public class LanguageUtils {
     return string != null && !NONLATIN.matcher(string).find();
   }
 
-  private static final Pattern ROMANIZED_KEY = Pattern.compile("^name:.+(_rm|-Latn)$");
-
   private static final Transliterator TO_LATIN_TRANSLITERATOR = Transliterator.getInstance("Any-Latin");
-
-  private static String findLatinName(Map<String, Object> properties) {
-    String result = coalesce(
-      string(properties.get("name:fr")),
-      string(properties.get("name:es")),
-      string(properties.get("name:pt")),
-      string(properties.get("name:de"))
-    );
-    if (result == null) {
-      for (String key : properties.keySet()) {
-        if (ROMANIZED_KEY.matcher(key).matches()) {
-          result = string(properties.get(key));
-          if (result != null) {
-            break;
-          }
-        }
-      }
-    }
-    return result;
-  }
 
   private static String transliterate(Map<String, Object> properties) {
     String name = string(properties.get("name"));
@@ -93,18 +72,9 @@ public class LanguageUtils {
     String nameDe = string(properties.get("name:de"));
 
     boolean isLatin = isLatin(name);
-    String latin = coalesceLazy(
-      coalesce(
-        isLatin ? name : null,
-        nameEn,
-        intName
-      ),
-      LanguageUtils::findLatinName,
-      properties
-    );
-    if (latin == null) {
-      latin = findLatinName(properties);
-    }
+    String latin = isLatin ? name : Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNames(properties))
+      .filter(LanguageUtils::isLatin)
+      .findFirst().orElse(null);
     if (latin == null && translations != null && translations.getShouldTransliterate()) {
       latin = transliterate(properties);
     }
@@ -130,6 +100,18 @@ public class LanguageUtils {
     }
 
     return result;
+  }
+
+  private static final Set<String> EN_DE_NAME_KEYS = Set.of("name:en", "name:de");
+
+  private static Stream<String> getAllNames(Map<String, Object> properties) {
+    return properties.entrySet().stream()
+      .filter(e -> {
+        String key = e.getKey();
+        return key.startsWith("name:") && !EN_DE_NAME_KEYS.contains(key);
+      })
+      .map(Map.Entry::getValue)
+      .map(LanguageUtils::string);
   }
 
 }

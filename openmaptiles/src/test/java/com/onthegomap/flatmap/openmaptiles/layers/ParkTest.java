@@ -1,7 +1,5 @@
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 import com.onthegomap.flatmap.geo.GeoUtils;
 import java.util.List;
 import java.util.Map;
@@ -127,14 +125,6 @@ public class ParkTest extends AbstractLayerTest {
         "name", "a"
       ))
     );
-  }
-
-  private void assertDescending(int... vals) {
-    for (int i = 1; i < vals.length; i++) {
-      if (vals[i - 1] < vals[i]) {
-        fail("element at " + (i - 1) + " is less than element at " + i);
-      }
-    }
   }
 
   private int getLabelZorder(double area, Map<String, Object> tags) {

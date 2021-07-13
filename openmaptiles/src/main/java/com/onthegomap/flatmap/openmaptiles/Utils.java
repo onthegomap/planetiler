@@ -43,6 +43,10 @@ public class Utils {
     return (a == null || a.isEmpty()) ? null : a;
   }
 
+  public static boolean nullOrEmpty(String a) {
+    return a == null || a.isEmpty();
+  }
+
   public static Map<String, Object> elevationTags(int meters) {
     return Map.of(
       "ele", meters,
@@ -56,6 +60,10 @@ public class Utils {
   }
 
   public static String brunnel(boolean isBridge, boolean isTunnel) {
-    return isBridge ? "bridge" : isTunnel ? "tunnel" : null;
+    return brunnel(isBridge, isTunnel, false);
+  }
+
+  public static String brunnel(boolean isBridge, boolean isTunnel, boolean isFord) {
+    return isBridge ? "bridge" : isTunnel ? "tunnel" : isFord ? "ford" : null;
   }
 }

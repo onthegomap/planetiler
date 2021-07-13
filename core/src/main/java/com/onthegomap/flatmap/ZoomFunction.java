@@ -47,7 +47,7 @@ public interface ZoomFunction<T> extends IntFunction<T> {
 
   class MeterThresholds implements ZoomFunction<Number> {
 
-    private static TreeMap<Integer, Number> levels = new TreeMap<>();
+    private TreeMap<Integer, Number> levels = new TreeMap<>();
 
     public MeterThresholds put(int zoom, double meters) {
       levels.put(zoom, GeoUtils.metersToPixelAtEquator(zoom, meters));
@@ -58,11 +58,13 @@ public interface ZoomFunction<T> extends IntFunction<T> {
     public Number apply(int value) {
       return levels.get(value);
     }
+
   }
 
   static MeterThresholds meterThresholds() {
     return new MeterThresholds();
   }
+
 
   static <T> ZoomFunction<T> constant(T value) {
     return zoom -> value;

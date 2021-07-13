@@ -17,13 +17,16 @@ import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.Wikidata;
 import com.onthegomap.flatmap.geo.GeoUtils;
+import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
+import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import com.onthegomap.flatmap.read.ReaderFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class AbstractLayerTest {
 
@@ -42,6 +45,14 @@ public abstract class AbstractLayerTest {
     assertEquals(expected.size(), actualList.size(), () -> "size: " + actualList);
     for (int i = 0; i < expected.size(); i++) {
       assertSubmap(expected.get(i), TestUtils.toMap(actualList.get(i), zoom));
+    }
+  }
+
+  static void assertDescending(int... vals) {
+    for (int i = 1; i < vals.length; i++) {
+      if (vals[i - 1] < vals[i]) {
+        fail("element at " + (i - 1) + " is less than element at " + i);
+      }
     }
   }
 
@@ -121,5 +132,79 @@ public abstract class AbstractLayerTest {
 
   SourceFeature polygonFeature(Map<String, Object> props) {
     return polygonFeatureWithArea(1, props);
+  }
+
+  @NotNull
+  protected ReaderFeature lineFeatureWithRelation(List<OpenStreetMapReader.RelationInfo> relationInfos,
+    Map<String, Object> map) {
+    return new ReaderFeature(
+      newLineString(0, 0, 1, 1),
+      map,
+      OSM_SOURCE,
+      null,
+      0,
+      (relationInfos == null ? List.<OpenStreetMapReader.RelationInfo>of() : relationInfos).stream()
+        .map(r -> new OpenStreetMapReader.RelationMember<>("", r)).toList()
+    );
+  }
+
+  protected void testMergesLinestrings(Map<String, Object> attrs, String layer,
+    double length, int zoom) throws GeometryException {
+    var line1 = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length / 2, 0)),
+      attrs,
+      0
+    );
+    var line2 = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(length / 2, 0, length, 0)),
+      attrs,
+      0
+    );
+    var connected = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length, 0)),
+      attrs,
+      0
+    );
+
+    assertEquals(
+      List.of(connected),
+      profile.postProcessLayerFeatures(layer, zoom, List.of(line1, line2))
+    );
+  }
+
+  protected void testDoesNotMergeLinestrings(Map<String, Object> attrs, String layer,
+    double length, int zoom) throws GeometryException {
+    var line1 = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length / 2, 0)),
+      attrs,
+      0
+    );
+    var line2 = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(length / 2, 0, length, 0)),
+      attrs,
+      0
+    );
+    var connected = new VectorTileEncoder.Feature(
+      layer,
+      1,
+      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length, 0)),
+      attrs,
+      0
+    );
+
+    assertEquals(
+      List.of(line1, line2),
+      profile.postProcessLayerFeatures(layer, zoom, List.of(line1, line2))
+    );
   }
 }

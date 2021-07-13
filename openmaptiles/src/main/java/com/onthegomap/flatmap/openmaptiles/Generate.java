@@ -182,8 +182,10 @@ public class Generate {
       import com.onthegomap.flatmap.SourceFeature;
       import java.util.ArrayList;
       import java.util.HashMap;
+      import java.util.HashSet;
       import java.util.List;
       import java.util.Map;
+      import java.util.Set;
 
       public class Tables {
         public interface Row {}
@@ -254,6 +256,22 @@ public class Generate {
       classNames.stream().map(className -> "Map.entry(%s::new, %s.MAPPING)".formatted(className, className))
         .collect(joining(",\n")).indent(2).strip()
     ).indent(2));
+
+    String handlerClassCondition = classNames.stream().map(className ->
+      """
+        if (handler instanceof %s.Handler typedHandler) {
+          result.computeIfAbsent(%s.class, cls -> new HashSet<>()).add(typedHandler.getClass());
+        }""".formatted(className, className)
+    ).collect(joining("\n"));
+    tablesClass.append("""
+      public static Map<Class<? extends Row>, Set<Class<?>>> generateHandlerClassMap(List<?> handlers) {
+        Map<Class<? extends Row>, Set<Class<?>>> result = new HashMap<>();
+        for (var handler : handlers) {
+          %s
+        }
+        return result;
+      }
+      """.formatted(handlerClassCondition.indent(8).trim()));
 
     String handlerCondition = classNames.stream().map(className ->
       """
