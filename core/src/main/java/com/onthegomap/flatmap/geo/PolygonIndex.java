@@ -22,16 +22,21 @@ public class PolygonIndex<T> {
     return new PolygonIndex<>();
   }
 
-  public List<T> getContaining(Point newPoint) {
-    List<?> items = index.query(newPoint.getEnvelopeInternal());
-    return getContaining(newPoint, items);
+  public List<T> getContaining(Point point) {
+    List<?> items = index.query(point.getEnvelopeInternal());
+    return getContaining(point, items);
+  }
+
+  public T getOnlyContaining(Point point) {
+    List<T> result = getContaining(point);
+    return result.isEmpty() ? null : result.get(0);
   }
 
   @NotNull
-  private List<T> getContaining(Point newPoint, List<?> items) {
+  private List<T> getContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (int i = 0; i < items.size(); i++) {
-      if (items.get(i) instanceof GeomWithData<?> value && value.poly.contains(newPoint)) {
+      if (items.get(i) instanceof GeomWithData<?> value && value.poly.contains(point)) {
         @SuppressWarnings("unchecked") T t = (T) value.data;
         result.add(t);
       }
@@ -39,8 +44,8 @@ public class PolygonIndex<T> {
     return result;
   }
 
-  public List<T> getContainingOrNearest(Point newPoint) {
-    List<?> items = index.query(newPoint.getEnvelopeInternal());
+  public List<T> getContainingOrNearest(Point point) {
+    List<?> items = index.query(point.getEnvelopeInternal());
     // optimization: if there's only one then skip checking contains/distance
     if (items.size() == 1) {
       if (items.get(0) instanceof GeomWithData<?> value) {
@@ -48,13 +53,13 @@ public class PolygonIndex<T> {
         return List.of(t);
       }
     }
-    List<T> result = getContaining(newPoint, items);
+    List<T> result = getContaining(point, items);
     if (result.isEmpty()) {
       double nearest = Double.MAX_VALUE;
       T nearestValue = null;
       for (int i = 0; i < items.size(); i++) {
         if (items.get(i) instanceof GeomWithData<?> value) {
-          double distance = value.poly.distance(newPoint);
+          double distance = value.poly.distance(point);
           if (distance < nearest) {
             @SuppressWarnings("unchecked") T t = (T) value.data;
             nearestValue = t;
