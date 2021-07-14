@@ -43,8 +43,8 @@ public class Utils {
     return (a == null || a.isEmpty()) ? null : a;
   }
 
-  public static boolean nullOrEmpty(String a) {
-    return a == null || a.isEmpty();
+  public static boolean nullOrEmpty(Object a) {
+    return a == null || a.toString().isEmpty();
   }
 
   public static Map<String, Object> elevationTags(int meters) {

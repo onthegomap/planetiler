@@ -476,4 +476,11 @@ public class TestUtils {
     );
   }
 
+  public static void assertListsContainSameElements(List<?> expected, List<?> actual) {
+    var comparator = Comparator.comparing(Object::toString);
+    assertEquals(
+      expected.stream().sorted(comparator).toList(),
+      actual.stream().sorted(comparator).toList()
+    );
+  }
 }
