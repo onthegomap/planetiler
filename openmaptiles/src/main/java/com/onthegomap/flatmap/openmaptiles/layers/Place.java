@@ -1,26 +1,42 @@
 package com.onthegomap.flatmap.openmaptiles.layers;
 
+import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_BITS;
 import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MAX;
+import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MIN;
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullOrEmpty;
 
+import com.carrotsearch.hppc.LongIntHashMap;
+import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.Parse;
 import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.Translations;
+import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.ZoomFunction;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.geo.PointIndex;
 import com.onthegomap.flatmap.geo.PolygonIndex;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
+import org.locationtech.jts.geom.Point;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +47,9 @@ public class Place implements
   Tables.OsmCountryPoint.Handler,
   Tables.OsmStatePoint.Handler,
   Tables.OsmIslandPoint.Handler,
-  Tables.OsmIslandPolygon.Handler {
+  Tables.OsmIslandPolygon.Handler,
+  Tables.OsmCityPoint.Handler,
+  OpenMapTilesProfile.FeaturePostProcessor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Place.class);
 
@@ -44,8 +62,18 @@ public class Place implements
     }
   }
 
+  private static record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
+
   private PolygonIndex<NaturalEarthRegion> countries = PolygonIndex.create();
   private PolygonIndex<NaturalEarthRegion> states = PolygonIndex.create();
+  private PointIndex<NaturalEarthPoint> cities = PointIndex.create();
+
+  @Override
+  public void release() {
+    countries = null;
+    states = null;
+    cities = null;
+  }
 
   public Place(Translations translations, Arguments args, Stats stats) {
     this.translations = translations;
@@ -72,6 +100,15 @@ public class Place implements
             ));
           }
         }
+        case "ne_10m_populated_places" -> cities.put(feature.worldGeometry(), new NaturalEarthPoint(
+          feature.getString("name"),
+          feature.getString("wikidataid"),
+          (int) feature.getLong("scalerank"),
+          Stream.of("name", "namealt", "meganame", "gn_ascii", "nameascii").map(feature::getString)
+            .filter(Objects::nonNull)
+            .map(s -> s.toLowerCase(Locale.ROOT))
+            .collect(Collectors.toSet())
+        ));
       }
     } catch (GeometryException e) {
       LOGGER
@@ -200,5 +237,134 @@ public class Place implements
       .setAttr(Fields.CLASS, "island")
       .setAttr(Fields.RANK, 7)
       .setZoomRange(12, 14);
+  }
+
+  private static final Set<String> majorCityPlaces = Set.of("city", "town", "village");
+  private static final double CITY_JOIN_DISTANCE = GeoUtils.metersToPixelAtEquator(0, 50_000) / 256d;
+
+  enum PlaceType {
+    CITY("city"),
+    TOWN("town"),
+    VILLAGE("village"),
+    HAMLET("hamlet"),
+    SUBURB("suburb"),
+    QUARTER("quarter"),
+    NEIGHBORHOOD("neighbourhood"),
+    ISOLATED_DWELLING("isolated_dwelling"),
+    UNKNOWN("unknown");
+
+    private final String name;
+    private static final Map<String, PlaceType> byName = new HashMap<>();
+
+    static {
+      for (PlaceType place : values()) {
+        byName.put(place.name, place);
+      }
+    }
+
+    PlaceType(String name) {
+      this.name = name;
+    }
+
+    public static PlaceType forName(String name) {
+      return byName.getOrDefault(name, UNKNOWN);
+    }
+  }
+
+  private static final int Z_ORDER_RANK_BITS = 4;
+  private static final int Z_ORDER_PLACE_BITS = 4;
+  private static final int Z_ORDER_LENGTH_BITS = 5;
+  private static final int Z_ORDER_POPULATION_BITS = Z_ORDER_BITS -
+    (Z_ORDER_RANK_BITS + Z_ORDER_PLACE_BITS + Z_ORDER_LENGTH_BITS);
+  private static final int Z_ORDER_POPULATION_RANGE = (1 << Z_ORDER_POPULATION_BITS) - 1;
+  private static final double LOG_MAX_POPULATION = Math.log(100_000_000d);
+
+  // order by rank asc, place asc, population desc, name.length asc
+  static int getZorder(Integer rank, PlaceType place, long population, String name) {
+    int zorder = rank == null ? 0 : Math.max(1, 15 - rank);
+    zorder = (zorder << Z_ORDER_PLACE_BITS) | (place == null ? 0 : Math.max(1, 15 - place.ordinal()));
+    double logPop = Math.min(LOG_MAX_POPULATION, Math.log(population));
+    zorder = (zorder << Z_ORDER_POPULATION_BITS) | Math.max(0, Math.min(Z_ORDER_POPULATION_RANGE,
+      (int) Math.round(logPop * Z_ORDER_POPULATION_RANGE / LOG_MAX_POPULATION)));
+    zorder = (zorder << Z_ORDER_LENGTH_BITS) | (name == null ? 0 : Math.max(1, 31 - name.length()));
+
+    return zorder + Z_ORDER_MIN;
+  }
+
+  private static final ZoomFunction<Number> LABEL_GRID_LIMITS = ZoomFunction.fromMaxZoomThresholds(Map.of(
+    8, 4,
+    9, 8,
+    10, 12,
+    12, 14
+  ), 0);
+
+  @Override
+  public void process(Tables.OsmCityPoint element, FeatureCollector features) {
+    Integer rank = null;
+    if (majorCityPlaces.contains(element.place())) {
+      try {
+        Point point = element.source().worldGeometry().getCentroid();
+        List<NaturalEarthPoint> neCities = cities.getWithin(point, CITY_JOIN_DISTANCE);
+        String rawName = coalesce(element.name(), "");
+        String name = coalesce(rawName, "").toLowerCase(Locale.ROOT);
+        String nameEn = coalesce(element.nameEn(), "").toLowerCase(Locale.ROOT);
+        String normalizedName = StringUtils.stripAccents(rawName);
+        String wikidata = element.source().getString("wikidata", "");
+        for (var neCity : neCities) {
+          if (wikidata.equals(neCity.wikidata) ||
+            neCity.names.contains(name) ||
+            neCity.names.contains(nameEn) ||
+            normalizedName.equals(neCity.name)) {
+            rank = neCity.scaleRank <= 5 ? neCity.scaleRank + 1 : neCity.scaleRank;
+            break;
+          }
+        }
+      } catch (GeometryException e) {
+        LOGGER.warn("Unable to get area for OSM city " + element.source().id() + ": " + e);
+      }
+    }
+
+    String capital = element.capital();
+
+    PlaceType placeType = PlaceType.forName(element.place());
+
+    int minzoom = rank != null && rank == 1 ? 2 :
+      rank != null && rank <= 8 ? Math.max(3, rank - 1) :
+        placeType.ordinal() <= PlaceType.TOWN.ordinal() ? 7 :
+          placeType.ordinal() <= PlaceType.VILLAGE.ordinal() ? 8 :
+            placeType.ordinal() <= PlaceType.SUBURB.ordinal() ? 11 : 14;
+
+    var feature = features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
+      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttr(Fields.CLASS, element.place())
+      .setAttr(Fields.RANK, rank)
+      .setZoomRange(minzoom, 14)
+      .setZorder(getZorder(rank, placeType, element.population(), element.name()))
+      .setLabelGridPixelSize(12, 128);
+
+    if (rank == null) {
+      feature.setLabelGridLimitFunction(LABEL_GRID_LIMITS);
+    }
+
+    if ("2".equals(capital) || "yes".equals(capital)) {
+      feature.setAttr(Fields.CAPITAL, 2);
+    } else if ("4".equals(capital)) {
+      feature.setAttr(Fields.CAPITAL, 4);
+    }
+  }
+
+  @Override
+  public List<VectorTileEncoder.Feature> postProcess(int zoom,
+    List<VectorTileEncoder.Feature> items) throws GeometryException {
+    LongIntMap groupCounts = new LongIntHashMap();
+    for (int i = items.size() - 1; i >= 0; i--) {
+      VectorTileEncoder.Feature feature = items.get(i);
+      int gridrank = groupCounts.getOrDefault(feature.group(), 1);
+      groupCounts.put(feature.group(), gridrank + 1);
+      if (!feature.attrs().containsKey(Fields.RANK)) {
+        feature.attrs().put(Fields.RANK, 10 + gridrank);
+      }
+    }
+    return items;
   }
 }

@@ -264,12 +264,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
     }
 
-    private Feature setLabelGridPixelSizeFunction(ZoomFunction<Number> labelGridSize) {
+    public Feature setLabelGridPixelSizeFunction(ZoomFunction<Number> labelGridSize) {
       this.labelGridPixelSize = labelGridSize;
       return this;
     }
 
-    private Feature setLabelGridLimitFunction(ZoomFunction<Number> labelGridLimit) {
+    public Feature setLabelGridLimitFunction(ZoomFunction<Number> labelGridLimit) {
       this.labelGridLimit = labelGridLimit;
       return this;
     }
