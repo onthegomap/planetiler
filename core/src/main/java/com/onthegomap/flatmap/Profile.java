@@ -49,6 +49,10 @@ public interface Profile {
     Consumer<FeatureCollector.Feature> next) {
   }
 
+  default boolean caresAboutSource(String name) {
+    return true;
+  }
+
   class NullProfile implements Profile {
 
     @Override

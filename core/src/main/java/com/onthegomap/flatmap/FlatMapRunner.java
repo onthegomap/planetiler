@@ -61,31 +61,41 @@ public class FlatMapRunner {
     stageDescriptions
       .put(name + "_pass1", "Pre-process OpenStreetMap input (store node locations then relation members)");
     stageDescriptions.put(name + "_pass2", "Process OpenStreetMap nodes, ways, then relations");
-    return addStage(name, () -> {
+    return addStage(name, ifSourceUsed(name, () -> {
       try (var osmReader = new OpenStreetMapReader(name, thisInputFile, nodeLocations,
         profile, stats)) {
         osmReader.pass1(config);
         osmReader.pass2(featureMap, config);
       }
-    });
+    }));
   }
 
   public FlatMapRunner addShapefileSource(String name, Path defaultPath) {
     Path path = arguments.inputFile(name, name + " shapefile", defaultPath);
     return addStage(name, "Process features in " + path,
-      () -> ShapefileReader.process(name, path, featureMap, config, profile, stats));
+      ifSourceUsed(name, () -> ShapefileReader.process(name, path, featureMap, config, profile, stats)));
+  }
+
+  private Worker.RunnableThatThrows ifSourceUsed(String name, Worker.RunnableThatThrows task) {
+    return () -> {
+      if (profile.caresAboutSource(name)) {
+        task.run();
+      } else {
+        LOGGER.info("[" + name + "] skipping since profile does not use it");
+      }
+    };
   }
 
   public FlatMapRunner addShapefileSource(String projection, String name, Path defaultPath) {
     Path path = arguments.inputFile(name, name + " shapefile", defaultPath);
     return addStage(name, "Process features in " + path,
-      () -> ShapefileReader.process(projection, name, path, featureMap, config, profile, stats));
+      ifSourceUsed(name, () -> ShapefileReader.process(projection, name, path, featureMap, config, profile, stats)));
   }
 
   public FlatMapRunner addNaturalEarthSource(String name, Path defaultPath) {
     Path path = arguments.inputFile(name, name + " sqlite db", defaultPath);
-    return addStage(name, "Process features in " + path, () -> NaturalEarthReader
-      .process(name, path, tmpDir.resolve("natearth.sqlite"), featureMap, config, profile, stats));
+    return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
+      .process(name, path, tmpDir.resolve("natearth.sqlite"), featureMap, config, profile, stats)));
   }
 
   public FlatMapRunner addStage(String name, String description, Worker.RunnableThatThrows task) {

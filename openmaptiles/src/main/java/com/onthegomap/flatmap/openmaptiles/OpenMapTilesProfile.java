@@ -217,6 +217,17 @@ public class OpenMapTilesProfile implements Profile {
     }
   }
 
+  @Override
+  public boolean caresAboutSource(String name) {
+    return switch (name) {
+      case NATURAL_EARTH_SOURCE -> !naturalEarthProcessors.isEmpty();
+      case WATER_POLYGON_SOURCE -> !osmWaterProcessors.isEmpty();
+      case OSM_SOURCE -> !osmAllProcessors.isEmpty() || !osmDispatchMap.isEmpty();
+      case LAKE_CENTERLINE_SOURCE -> !lakeCenterlineProcessors.isEmpty();
+      default -> true;
+    };
+  }
+
   public interface NaturalEarthProcessor {
 
     void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features);
