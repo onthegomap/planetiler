@@ -16,7 +16,10 @@ import java.util.Set;
 
 public class Tables {
 
-  public interface Row {}
+  public interface Row {
+
+    SourceFeature source();
+  }
 
   public interface Constructor {
 
@@ -29,9 +32,11 @@ public class Tables {
   }
 
   public static record OsmWaterPolygon(
-    String name, String nameEn, String nameDe, String natural, String landuse, String waterway, boolean isIntermittent,
-    boolean isTunnel, boolean isBridge, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String natural,
+    @Override String landuse, @Override String waterway, @Override boolean isIntermittent, @Override boolean isTunnel,
+    @Override boolean isBridge, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithNatural, WithLanduse, WithWaterway, WithIsIntermittent,
+    WithIsTunnel, WithIsBridge, WithSource {
 
     public OsmWaterPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -52,9 +57,11 @@ public class Tables {
   }
 
   public static record OsmWaterwayLinestring(
-    String waterway, String name, String nameEn, String nameDe, boolean isTunnel, boolean isBridge,
-    boolean isIntermittent, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String waterway, @Override String name, @Override String nameEn, @Override String nameDe,
+    @Override boolean isTunnel, @Override boolean isBridge, @Override boolean isIntermittent,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithWaterway, WithName, WithNameEn, WithNameDe, WithIsTunnel, WithIsBridge, WithIsIntermittent,
+    WithSource {
 
     public OsmWaterwayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("waterway"), source.getString("name"), source.getString("name:en"),
@@ -72,8 +79,8 @@ public class Tables {
   }
 
   public static record OsmLandcoverPolygon(
-    String subclass, String mappingKey, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String subclass, @Override String mappingKey, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithSubclass, WithMappingKey, WithSource {
 
     public OsmLandcoverPolygon(SourceFeature source, String mappingKey) {
       this(source.getString(mappingKey), mappingKey, source);
@@ -94,9 +101,9 @@ public class Tables {
   }
 
   public static record OsmLandusePolygon(
-    String landuse, String amenity, String leisure, String tourism, String place, String waterway,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String landuse, @Override String amenity, @Override String leisure, @Override String tourism,
+    @Override String place, @Override String waterway, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithLanduse, WithAmenity, WithLeisure, WithTourism, WithPlace, WithWaterway, WithSource {
 
     public OsmLandusePolygon(SourceFeature source, String mappingKey) {
       this(source.getString("landuse"), source.getString("amenity"), source.getString("leisure"),
@@ -117,8 +124,9 @@ public class Tables {
   }
 
   public static record OsmPeakPoint(
-    String name, String nameEn, String nameDe, String ele, String wikipedia, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String ele,
+    @Override String wikipedia, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithEle, WithWikipedia, WithSource {
 
     public OsmPeakPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getString("ele"),
@@ -134,9 +142,11 @@ public class Tables {
   }
 
   public static record OsmParkPolygon(
-    String name, String nameEn, String nameDe, String landuse, String leisure, String boundary, String protectionTitle,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String landuse,
+    @Override String leisure, @Override String boundary, @Override String protectionTitle,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithLanduse, WithLeisure, WithBoundary, WithProtectionTitle,
+    WithSource {
 
     public OsmParkPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -155,8 +165,8 @@ public class Tables {
   }
 
   public static record OsmAerowayPolygon(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String ref, @Override String aeroway, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithRef, WithAeroway, WithSource {
 
     public OsmAerowayPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString(mappingKey), source);
@@ -174,8 +184,8 @@ public class Tables {
   }
 
   public static record OsmAerowayLinestring(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String ref, @Override String aeroway, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithRef, WithAeroway, WithSource {
 
     public OsmAerowayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString("aeroway"), source);
@@ -190,8 +200,8 @@ public class Tables {
   }
 
   public static record OsmAerowayPoint(
-    String ref, String aeroway, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String ref, @Override String aeroway, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithRef, WithAeroway, WithSource {
 
     public OsmAerowayPoint(SourceFeature source, String mappingKey) {
       this(source.getString("ref"), source.getString("aeroway"), source);
@@ -206,12 +216,17 @@ public class Tables {
   }
 
   public static record OsmHighwayLinestring(
-    String highway, String construction, String ref, String network, int zOrder, long layer, long level, boolean indoor,
-    String name, String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp,
-    boolean isFord, int isOneway, boolean isArea, String service, String usage, String publicTransport, String manMade,
-    String bicycle, String foot, String horse, String mtbScale, String surface,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String highway, @Override String construction, @Override String ref, @Override String network,
+    @Override int zOrder, @Override long layer, @Override long level, @Override boolean indoor, @Override String name,
+    @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
+    @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
+    @Override boolean isArea, @Override String service, @Override String usage, @Override String publicTransport,
+    @Override String manMade, @Override String bicycle, @Override String foot, @Override String horse,
+    @Override String mtbScale, @Override String surface, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithHighway, WithConstruction, WithRef, WithNetwork, WithZOrder, WithLayer, WithLevel, WithIndoor,
+    WithName, WithNameEn, WithNameDe, WithShortName, WithIsTunnel, WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway,
+    WithIsArea, WithService, WithUsage, WithPublicTransport, WithManMade, WithBicycle, WithFoot, WithHorse,
+    WithMtbScale, WithSurface, WithSource {
 
     public OsmHighwayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("highway"), source.getString("construction"), source.getString("ref"),
@@ -238,10 +253,15 @@ public class Tables {
   }
 
   public static record OsmRailwayLinestring(
-    String railway, String ref, String network, int zOrder, long layer, long level, boolean indoor, String name,
-    String nameEn, String nameDe, String shortName, boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord,
-    int isOneway, boolean isArea, String service, String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String railway, @Override String ref, @Override String network, @Override int zOrder,
+    @Override long layer, @Override long level, @Override boolean indoor, @Override String name,
+    @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
+    @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
+    @Override boolean isArea, @Override String service, @Override String usage,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithRailway, WithRef, WithNetwork, WithZOrder, WithLayer, WithLevel, WithIndoor, WithName,
+    WithNameEn, WithNameDe, WithShortName, WithIsTunnel, WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea,
+    WithService, WithUsage, WithSource {
 
     public OsmRailwayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("railway"), source.getString("ref"), source.getString("network"), source.getWayZorder(),
@@ -263,10 +283,13 @@ public class Tables {
   }
 
   public static record OsmAerialwayLinestring(
-    String aerialway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName,
-    boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service,
-    String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String aerialway, @Override int zOrder, @Override long layer, @Override String name,
+    @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
+    @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
+    @Override boolean isArea, @Override String service, @Override String usage,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithAerialway, WithZOrder, WithLayer, WithName, WithNameEn, WithNameDe, WithShortName, WithIsTunnel,
+    WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea, WithService, WithUsage, WithSource {
 
     public OsmAerialwayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("aerialway"), source.getWayZorder(), source.getLong("layer"), source.getString("name"),
@@ -286,10 +309,13 @@ public class Tables {
   }
 
   public static record OsmShipwayLinestring(
-    String shipway, int zOrder, long layer, String name, String nameEn, String nameDe, String shortName,
-    boolean isTunnel, boolean isBridge, boolean isRamp, boolean isFord, int isOneway, boolean isArea, String service,
-    String usage, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String shipway, @Override int zOrder, @Override long layer, @Override String name,
+    @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
+    @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
+    @Override boolean isArea, @Override String service, @Override String usage,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithShipway, WithZOrder, WithLayer, WithName, WithNameEn, WithNameDe, WithShortName, WithIsTunnel,
+    WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea, WithService, WithUsage, WithSource {
 
     public OsmShipwayLinestring(SourceFeature source, String mappingKey) {
       this(source.getString("route"), source.getWayZorder(), source.getLong("layer"), source.getString("name"),
@@ -308,9 +334,11 @@ public class Tables {
   }
 
   public static record OsmHighwayPolygon(
-    String highway, int zOrder, long layer, long level, boolean indoor, boolean isArea, String publicTransport,
-    String manMade, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String highway, @Override int zOrder, @Override long layer, @Override long level,
+    @Override boolean indoor, @Override boolean isArea, @Override String publicTransport, @Override String manMade,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithHighway, WithZOrder, WithLayer, WithLevel, WithIndoor, WithIsArea, WithPublicTransport,
+    WithManMade, WithSource {
 
     public OsmHighwayPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("highway"), source.getWayZorder(), source.getLong("layer"), source.getLong("level"),
@@ -329,10 +357,12 @@ public class Tables {
   }
 
   public static record OsmBuildingPolygon(
-    String material, String colour, String building, String buildingpart, String buildingheight,
-    String buildingminHeight, String buildinglevels, String buildingminLevel, String height, String minHeight,
-    String levels, String minLevel, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String material, @Override String colour, @Override String building, @Override String buildingpart,
+    @Override String buildingheight, @Override String buildingminHeight, @Override String buildinglevels,
+    @Override String buildingminLevel, @Override String height, @Override String minHeight, @Override String levels,
+    @Override String minLevel, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithMaterial, WithColour, WithBuilding, WithBuildingpart, WithBuildingheight, WithBuildingminHeight,
+    WithBuildinglevels, WithBuildingminLevel, WithHeight, WithMinHeight, WithLevels, WithMinLevel, WithSource {
 
     public OsmBuildingPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("building:material"), source.getString("building:colour"), source.getString("building"),
@@ -353,9 +383,9 @@ public class Tables {
   }
 
   public static record OsmMarinePoint(
-    String name, String nameEn, String nameDe, String place, long rank, boolean isIntermittent,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String place,
+    @Override long rank, @Override boolean isIntermittent, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithPlace, WithRank, WithIsIntermittent, WithSource {
 
     public OsmMarinePoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -372,8 +402,9 @@ public class Tables {
   }
 
   public static record OsmContinentPoint(
-    String name, String nameEn, String nameDe, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithSource {
 
     public OsmContinentPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source);
@@ -389,9 +420,11 @@ public class Tables {
   }
 
   public static record OsmCountryPoint(
-    String name, String nameEn, String nameDe, long rank, String countryCodeIso31661Alpha2, String iso31661Alpha2,
-    String iso31661, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override long rank,
+    @Override String countryCodeIso31661Alpha2, @Override String iso31661Alpha2, @Override String iso31661,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithRank, WithCountryCodeIso31661Alpha2, WithIso31661Alpha2,
+    WithIso31661, WithSource {
 
     public OsmCountryPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
@@ -408,8 +441,9 @@ public class Tables {
   }
 
   public static record OsmIslandPolygon(
-    String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override long rank,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithRank, WithSource {
 
     public OsmIslandPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
@@ -425,8 +459,9 @@ public class Tables {
   }
 
   public static record OsmIslandPoint(
-    String name, String nameEn, String nameDe, long rank, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override long rank,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithRank, WithSource {
 
     public OsmIslandPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"), source.getLong("rank"),
@@ -442,9 +477,11 @@ public class Tables {
   }
 
   public static record OsmStatePoint(
-    String name, String nameEn, String nameDe, String isInCountry, String isInCountryCode, String ref, long rank,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String isInCountry,
+    @Override String isInCountryCode, @Override String ref, @Override long rank,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithIsInCountry, WithIsInCountryCode, WithRef, WithRank,
+    WithSource {
 
     public OsmStatePoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -461,9 +498,10 @@ public class Tables {
   }
 
   public static record OsmCityPoint(
-    String name, String nameEn, String nameDe, String place, long population, String capital, long rank,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String place,
+    @Override long population, @Override String capital, @Override long rank,
+    @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithPlace, WithPopulation, WithCapital, WithRank, WithSource {
 
     public OsmCityPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -481,8 +519,9 @@ public class Tables {
     }
   }
 
-  public static record OsmHousenumberPoint(String housenumber, com.onthegomap.flatmap.SourceFeature source) implements
-    Row {
+  public static record OsmHousenumberPoint(
+    @Override String housenumber, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithHousenumber, WithSource {
 
     public OsmHousenumberPoint(SourceFeature source, String mappingKey) {
       this(source.getString("addr:housenumber"), source);
@@ -498,10 +537,12 @@ public class Tables {
   }
 
   public static record OsmPoiPoint(
-    String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular,
-    String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String subclass,
+    @Override String mappingKey, @Override String station, @Override String funicular, @Override String information,
+    @Override String uicRef, @Override String religion, @Override long level, @Override boolean indoor,
+    @Override long layer, @Override String sport, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithSubclass, WithMappingKey, WithStation, WithFunicular,
+    WithInformation, WithUicRef, WithReligion, WithLevel, WithIndoor, WithLayer, WithSport, WithSource {
 
     public OsmPoiPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -557,10 +598,12 @@ public class Tables {
   }
 
   public static record OsmPoiPolygon(
-    String name, String nameEn, String nameDe, String subclass, String mappingKey, String station, String funicular,
-    String information, String uicRef, String religion, long level, boolean indoor, long layer, String sport,
-    com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String subclass,
+    @Override String mappingKey, @Override String station, @Override String funicular, @Override String information,
+    @Override String uicRef, @Override String religion, @Override long level, @Override boolean indoor,
+    @Override long layer, @Override String sport, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithSubclass, WithMappingKey, WithStation, WithFunicular,
+    WithInformation, WithUicRef, WithReligion, WithLevel, WithIndoor, WithLayer, WithSport, WithSource {
 
     public OsmPoiPolygon(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -616,9 +659,11 @@ public class Tables {
   }
 
   public static record OsmAerodromeLabelPoint(
-    String name, String nameEn, String nameDe, String aerodromeType, String aerodrome, String military, String iata,
-    String icao, String ele, com.onthegomap.flatmap.SourceFeature source
-  ) implements Row {
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override String aerodromeType,
+    @Override String aerodrome, @Override String military, @Override String iata, @Override String icao,
+    @Override String ele, @Override com.onthegomap.flatmap.SourceFeature source
+  ) implements Row, WithName, WithNameEn, WithNameDe, WithAerodromeType, WithAerodrome, WithMilitary, WithIata,
+    WithIcao, WithEle, WithSource {
 
     public OsmAerodromeLabelPoint(SourceFeature source, String mappingKey) {
       this(source.getString("name"), source.getString("name:en"), source.getString("name:de"),
@@ -633,6 +678,451 @@ public class Tables {
 
       void process(OsmAerodromeLabelPoint element, FeatureCollector features);
     }
+  }
+
+  public interface WithAdminLevel {
+
+    long adminLevel();
+  }
+
+  public interface WithAerialway {
+
+    String aerialway();
+  }
+
+  public interface WithAerodrome {
+
+    String aerodrome();
+  }
+
+  public interface WithAerodromeType {
+
+    String aerodromeType();
+  }
+
+  public interface WithAeroway {
+
+    String aeroway();
+  }
+
+  public interface WithAmenity {
+
+    String amenity();
+  }
+
+  public interface WithBicycle {
+
+    String bicycle();
+  }
+
+  public interface WithBoundary {
+
+    String boundary();
+  }
+
+  public interface WithBuilding {
+
+    String building();
+  }
+
+  public interface WithBuildingheight {
+
+    String buildingheight();
+  }
+
+  public interface WithBuildinglevels {
+
+    String buildinglevels();
+  }
+
+  public interface WithBuildingminHeight {
+
+    String buildingminHeight();
+  }
+
+  public interface WithBuildingminLevel {
+
+    String buildingminLevel();
+  }
+
+  public interface WithBuildingpart {
+
+    String buildingpart();
+  }
+
+  public interface WithCapital {
+
+    String capital();
+  }
+
+  public interface WithClaimedBy {
+
+    String claimedBy();
+  }
+
+  public interface WithColour {
+
+    String colour();
+  }
+
+  public interface WithConstruction {
+
+    String construction();
+  }
+
+  public interface WithCountryCodeIso31661Alpha2 {
+
+    String countryCodeIso31661Alpha2();
+  }
+
+  public interface WithDisputedBy {
+
+    String disputedBy();
+  }
+
+  public interface WithEle {
+
+    String ele();
+  }
+
+  public interface WithFoot {
+
+    String foot();
+  }
+
+  public interface WithFunicular {
+
+    String funicular();
+  }
+
+  public interface WithHeight {
+
+    String height();
+  }
+
+  public interface WithHighway {
+
+    String highway();
+  }
+
+  public interface WithHorse {
+
+    String horse();
+  }
+
+  public interface WithHousenumber {
+
+    String housenumber();
+  }
+
+  public interface WithIata {
+
+    String iata();
+  }
+
+  public interface WithIcao {
+
+    String icao();
+  }
+
+  public interface WithIndoor {
+
+    boolean indoor();
+  }
+
+  public interface WithInformation {
+
+    String information();
+  }
+
+  public interface WithIsArea {
+
+    boolean isArea();
+  }
+
+  public interface WithIsBridge {
+
+    boolean isBridge();
+  }
+
+  public interface WithIsFord {
+
+    boolean isFord();
+  }
+
+  public interface WithIsInCountry {
+
+    String isInCountry();
+  }
+
+  public interface WithIsInCountryCode {
+
+    String isInCountryCode();
+  }
+
+  public interface WithIsIntermittent {
+
+    boolean isIntermittent();
+  }
+
+  public interface WithIsOneway {
+
+    int isOneway();
+  }
+
+  public interface WithIsRamp {
+
+    boolean isRamp();
+  }
+
+  public interface WithIsTunnel {
+
+    boolean isTunnel();
+  }
+
+  public interface WithIso31661 {
+
+    String iso31661();
+  }
+
+  public interface WithIso31661Alpha2 {
+
+    String iso31661Alpha2();
+  }
+
+  public interface WithLanduse {
+
+    String landuse();
+  }
+
+  public interface WithLayer {
+
+    long layer();
+  }
+
+  public interface WithLeisure {
+
+    String leisure();
+  }
+
+  public interface WithLevel {
+
+    long level();
+  }
+
+  public interface WithLevels {
+
+    String levels();
+  }
+
+  public interface WithManMade {
+
+    String manMade();
+  }
+
+  public interface WithMappingKey {
+
+    String mappingKey();
+  }
+
+  public interface WithMaterial {
+
+    String material();
+  }
+
+  public interface WithMilitary {
+
+    String military();
+  }
+
+  public interface WithMinHeight {
+
+    String minHeight();
+  }
+
+  public interface WithMinLevel {
+
+    String minLevel();
+  }
+
+  public interface WithMtbScale {
+
+    String mtbScale();
+  }
+
+  public interface WithName {
+
+    String name();
+  }
+
+  public interface WithNameDe {
+
+    String nameDe();
+  }
+
+  public interface WithNameEn {
+
+    String nameEn();
+  }
+
+  public interface WithNatural {
+
+    String natural();
+  }
+
+  public interface WithNetwork {
+
+    String network();
+  }
+
+  public interface WithPlace {
+
+    String place();
+  }
+
+  public interface WithPopulation {
+
+    long population();
+  }
+
+  public interface WithProtectionTitle {
+
+    String protectionTitle();
+  }
+
+  public interface WithPublicTransport {
+
+    String publicTransport();
+  }
+
+  public interface WithRailway {
+
+    String railway();
+  }
+
+  public interface WithRank {
+
+    long rank();
+  }
+
+  public interface WithRef {
+
+    String ref();
+  }
+
+  public interface WithRelbuildingheight {
+
+    String relbuildingheight();
+  }
+
+  public interface WithRelbuildinglevels {
+
+    String relbuildinglevels();
+  }
+
+  public interface WithRelbuildingminHeight {
+
+    String relbuildingminHeight();
+  }
+
+  public interface WithRelbuildingminLevel {
+
+    String relbuildingminLevel();
+  }
+
+  public interface WithRelheight {
+
+    String relheight();
+  }
+
+  public interface WithReligion {
+
+    String religion();
+  }
+
+  public interface WithRellevels {
+
+    String rellevels();
+  }
+
+  public interface WithRelminHeight {
+
+    String relminHeight();
+  }
+
+  public interface WithRelminLevel {
+
+    String relminLevel();
+  }
+
+  public interface WithService {
+
+    String service();
+  }
+
+  public interface WithShipway {
+
+    String shipway();
+  }
+
+  public interface WithShortName {
+
+    String shortName();
+  }
+
+  public interface WithSource {
+
+    com.onthegomap.flatmap.SourceFeature source();
+  }
+
+  public interface WithSport {
+
+    String sport();
+  }
+
+  public interface WithStation {
+
+    String station();
+  }
+
+  public interface WithSubclass {
+
+    String subclass();
+  }
+
+  public interface WithSurface {
+
+    String surface();
+  }
+
+  public interface WithTourism {
+
+    String tourism();
+  }
+
+  public interface WithUicRef {
+
+    String uicRef();
+  }
+
+  public interface WithUsage {
+
+    String usage();
+  }
+
+  public interface WithWaterway {
+
+    String waterway();
+  }
+
+  public interface WithWikipedia {
+
+    String wikipedia();
+  }
+
+  public interface WithZOrder {
+
+    int zOrder();
   }
 
   public static final MultiExpression<Constructor> MAPPINGS = MultiExpression.of(Map.ofEntries(

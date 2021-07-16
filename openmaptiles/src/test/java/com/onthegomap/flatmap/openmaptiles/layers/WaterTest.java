@@ -100,14 +100,16 @@ public class WaterTest extends AbstractLayerTest {
       "natural", "water",
       "water", "reservoir"
     ))));
-    assertFeatures(14, List.of(Map.of(
-      "class", "lake",
+    assertFeatures(14, List.of(
+      Map.of("_layer", "poi"),
+      Map.of(
+        "class", "lake",
 
-      "_layer", "water",
-      "_type", "polygon",
-      "_minzoom", 6,
-      "_maxzoom", 14
-    )), process(polygonFeature(Map.of(
+        "_layer", "water",
+        "_type", "polygon",
+        "_minzoom", 6,
+        "_maxzoom", 14
+      )), process(polygonFeature(Map.of(
       "leisure", "swimming_pool"
     ))));
     assertFeatures(14, List.of(), process(polygonFeature(Map.of(

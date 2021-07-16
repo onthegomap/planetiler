@@ -39,7 +39,8 @@ public class PoiTest extends AbstractLayerTest {
       "_layer", "poi",
       "class", "railway",
       "subclass", "halt",
-      "rank", "<null>"
+      "rank", "<null>",
+      "_minzoom", 12
     )), process(feature(area, Map.of(
       "railway", "station",
       "funicular", "yes",
@@ -54,7 +55,8 @@ public class PoiTest extends AbstractLayerTest {
       "_layer", "poi",
       "class", "railway",
       "subclass", "subway",
-      "rank", "<null>"
+      "rank", "<null>",
+      "_minzoom", 12
     )), process(feature(area, Map.of(
       "railway", "station",
       "station", "subway",
@@ -69,7 +71,8 @@ public class PoiTest extends AbstractLayerTest {
       "_layer", "poi",
       "class", "place_of_worship",
       "subclass", "religion value",
-      "rank", "<null>"
+      "rank", "<null>",
+      "_minzoom", 14
     )), process(feature(area, Map.of(
       "amenity", "place_of_worship",
       "religion", "religion value",
@@ -98,12 +101,42 @@ public class PoiTest extends AbstractLayerTest {
       "_layer", "poi",
       "class", "information",
       "subclass", "infotype",
+      "layer", 3L,
+      "level", 2L,
+      "indoor", 1,
       "rank", "<null>"
     )), process(feature(area, Map.of(
       "tourism", "information",
       "information", "infotype",
-      "name", "station"
+      "name", "station",
+      "layer", "3",
+      "level", "2",
+      "indoor", "yes"
     ))));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  public void testFerryTerminal(boolean area) {
+    assertFeatures(7, List.of(Map.of(
+      "_layer", "poi",
+      "class", "ferry_terminal",
+      "subclass", "ferry_terminal",
+      "name", "Water Taxi",
+      "_minzoom", 12
+    )), process(feature(area, Map.of(
+      "amenity", "ferry_terminal",
+      "information", "infotype",
+      "name", "Water Taxi",
+      "layer", "3",
+      "level", "2",
+      "indoor", "yes"
+    ))));
+  }
+
+  @Test
+  public void testUicRef() {
+    throw new Error("TODO");
   }
 
   @Test

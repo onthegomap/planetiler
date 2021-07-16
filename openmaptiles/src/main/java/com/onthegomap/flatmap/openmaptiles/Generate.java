@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.apache.commons.text.StringEscapeUtils;
 import org.commonmark.node.Node;
@@ -188,7 +189,9 @@ public class Generate {
       import java.util.Set;
 
       public class Tables {
-        public interface Row {}
+        public interface Row {
+          SourceFeature source();
+        }
         public interface Constructor {
           Row create(SourceFeature source, String mappingKey);
         }
@@ -198,10 +201,20 @@ public class Generate {
       """.formatted(packageName));
 
     List<String> classNames = new ArrayList<>();
+    Map<String, String> fieldNameToType = new TreeMap<>();
     for (var entry : tables.entrySet()) {
       String key = entry.getKey();
       Imposm3Table table = entry.getValue();
       List<OsmTableField> fields = getFields(table);
+      for (var field : fields) {
+        String existing = fieldNameToType.get(field.name);
+        if (existing == null) {
+          fieldNameToType.put(field.name, field.clazz);
+        } else if (!existing.equals(field.clazz)) {
+          throw new IllegalArgumentException(
+            "Field " + field.name + " has both " + existing + " and " + field.clazz + " types");
+        }
+      }
       Expression mappingExpression = parseImposm3MappingExpression(table);
       String mapping = "public static final Expression MAPPING = %s;".formatted(
         mappingExpression
@@ -210,43 +223,39 @@ public class Generate {
       if (!"relation_member".equals(table.type)) {
         classNames.add(className);
 
-        if (fields.size() <= 1) {
-          tablesClass.append("""
-            public static record %s(%s) implements Row {
-              %s
-              public interface Handler {
-                void process(%s element, FeatureCollector features);
-              }
+        tablesClass.append("""
+          public static record %s(%s) implements Row, %s {
+            public %s(SourceFeature source, String mappingKey) {
+              this(%s);
             }
-            """.formatted(
-            className,
-            fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name)).collect(joining(", ")),
-            mapping,
-            className
-          ).indent(2));
-        } else {
-          tablesClass.append("""
-            public static record %s(%s) implements Row {
-              public %s(SourceFeature source, String mappingKey) {
-                this(%s);
-              }
-              %s
-              public interface Handler {
-                void process(%s element, FeatureCollector features);
-              }
+            %s
+            public interface Handler {
+              void process(%s element, FeatureCollector features);
             }
-            """.formatted(
-            className,
-            fields.stream().map(c -> c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
-              .collect(joining(", ")),
-            className,
-            fields.stream().map(c -> c.extractCode).collect(joining(", ")),
-            mapping,
-            className
-          ).indent(2));
-        }
+          }
+          """.formatted(
+          className,
+          fields.stream().map(c -> "@Override " + c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
+            .collect(joining(", ")),
+          fields.stream().map(c -> lowerUnderscoreToUpperCamel("with_" + c.name))
+            .collect(joining(", ")),
+          className,
+          fields.stream().map(c -> c.extractCode).collect(joining(", ")),
+          mapping,
+          className
+        ).indent(2));
       }
     }
+
+    tablesClass.append(fieldNameToType.entrySet().stream().map(e -> """
+      public static interface %s {
+        %s %s();
+      }
+      """.formatted(
+      lowerUnderscoreToUpperCamel("with_" + e.getKey()),
+      e.getValue(),
+      lowerUnderscoreToLowerCamel(e.getKey())
+    )).collect(joining("\n")).indent(2));
 
     tablesClass.append("""
       public static final MultiExpression<Constructor> MAPPINGS = MultiExpression.of(Map.ofEntries(

@@ -69,7 +69,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
     entry(FieldValues.CLASS_BAR, 800)
   );
 
-  private static int poiClassRank(String clazz) {
+  static int poiClassRank(String clazz) {
     return CLASS_RANKS.getOrDefault(clazz, 1_000);
   }
 
@@ -81,39 +81,17 @@ public class Poi implements OpenMapTilesSchema.Poi,
 
   @Override
   public void process(Tables.OsmPoiPoint element, FeatureCollector features) {
-    String rawSubclass = element.subclass();
-    if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
-      rawSubclass = "subway";
-    }
-    if ("station".equals(rawSubclass) && "yes".equals(element.funicular())) {
-      rawSubclass = "halt";
-    }
-
-    String subclass = switch (rawSubclass) {
-      case "information" -> nullIfEmpty(element.information());
-      case "place_of_worship" -> nullIfEmpty(element.religion());
-      case "pitch" -> nullIfEmpty(element.sport());
-      default -> rawSubclass;
-    };
-    String poiClass = poiClass(rawSubclass, element.mappingKey());
-    int poiClassRank = poiClassRank(poiClass);
-    int rankOrder = poiClassRank + ((nullOrEmpty(element.name())) ? 2000 : 0);
-
-    features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, poiClass)
-      .setAttr(Fields.SUBCLASS, subclass)
-      .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
-      .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
-      .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
-      .setLabelGridPixelSize(14, 64)
-      .setZorder(-rankOrder)
-      .setZoomRange(minzoom(element.subclass(), element.mappingKey()), 14);
+    setupPoiFeature(element, features.point(LAYER_NAME));
   }
 
   @Override
   public void process(Tables.OsmPoiPolygon element, FeatureCollector features) {
-    // TODO duplicate code
+    // TODO pointOnSurface if not convex
+    setupPoiFeature(element, features.centroid(LAYER_NAME));
+  }
+
+  private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource>
+  void setupPoiFeature(T element, FeatureCollector.Feature output) {
     String rawSubclass = element.subclass();
     if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
       rawSubclass = "subway";
@@ -132,8 +110,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
     int poiClassRank = poiClassRank(poiClass);
     int rankOrder = poiClassRank + ((nullOrEmpty(element.name())) ? 2000 : 0);
 
-    // TODO pointOnSurface if not convex
-    features.centroid(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
+    output.setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, poiClass)
       .setAttr(Fields.SUBCLASS, subclass)
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))

@@ -35,17 +35,19 @@ public class LanduseTest extends AbstractLayerTest {
 
   @Test
   public void testOsmLanduse() {
-    assertFeatures(13, List.of(Map.of(
-      "_layer", "landuse",
-      "class", "railway",
-      "_minpixelsize", 4d,
-      "_minzoom", 9,
-      "_maxzoom", 14
-    )), process(polygonFeature(Map.of(
+    assertFeatures(13, List.of(
+      Map.of("_layer", "poi"),
+      Map.of(
+        "_layer", "landuse",
+        "class", "railway",
+        "_minpixelsize", 4d,
+        "_minzoom", 9,
+        "_maxzoom", 14
+      )), process(polygonFeature(Map.of(
       "landuse", "railway",
       "amenity", "school"
     ))));
-    assertFeatures(13, List.of(Map.of(
+    assertFeatures(13, List.of(Map.of("_layer", "poi"), Map.of(
       "_layer", "landuse",
       "class", "school",
       "_minpixelsize", 4d,
