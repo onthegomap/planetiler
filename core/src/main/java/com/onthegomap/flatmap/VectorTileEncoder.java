@@ -305,7 +305,7 @@ public class VectorTileEncoder {
     }
 
     for (Feature inFeature : features) {
-      if (inFeature.geometry().commands().length > 0) {
+      if (inFeature != null && inFeature.geometry().commands().length > 0) {
         EncodedFeature outFeature = new EncodedFeature(inFeature);
 
         for (Map.Entry<String, ?> e : inFeature.attrs().entrySet()) {

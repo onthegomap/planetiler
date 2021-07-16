@@ -81,6 +81,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
 
   @Override
   public void process(Tables.OsmPoiPoint element, FeatureCollector features) {
+    // TODO handle uic_ref => agg_stop
     setupPoiFeature(element, features.point(LAYER_NAME));
   }
 

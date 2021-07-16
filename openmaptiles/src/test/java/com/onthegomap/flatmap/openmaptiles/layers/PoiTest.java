@@ -135,11 +135,6 @@ public class PoiTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testUicRef() {
-    throw new Error("TODO");
-  }
-
-  @Test
   public void testGridRank() throws GeometryException {
     var layerName = Poi.LAYER_NAME;
     assertEquals(List.of(), profile.postProcessLayerFeatures(layerName, 13, List.of()));
