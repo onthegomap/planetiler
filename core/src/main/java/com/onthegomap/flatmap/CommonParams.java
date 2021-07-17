@@ -14,6 +14,7 @@ public record CommonParams(
   boolean deferIndexCreation,
   boolean optimizeDb,
   boolean forceOverwrite,
+  boolean gzipTempStorage,
 
   // computed
   Envelope worldBounds,
@@ -28,7 +29,8 @@ public record CommonParams(
     int maxzoom,
     boolean deferIndexCreation,
     boolean optimizeDb,
-    boolean forceOverwrite
+    boolean forceOverwrite,
+    boolean gzipTempStorage
   ) {
     this(
       latLonBounds,
@@ -39,6 +41,7 @@ public record CommonParams(
       deferIndexCreation,
       optimizeDb,
       forceOverwrite,
+      gzipTempStorage,
 
       // computed
       GeoUtils.toWorldBounds(latLonBounds),
@@ -78,7 +81,8 @@ public record CommonParams(
       arguments.integer("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
       arguments.get("defer_mbtiles_index_creation", "add index to mbtiles file after finished writing", false),
       arguments.get("optimize_db", "optimize mbtiles after writing", false),
-      arguments.get("force", "force overwriting output file", false)
+      arguments.get("force", "force overwriting output file", false),
+      arguments.get("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false)
     );
   }
 }

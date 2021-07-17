@@ -11,6 +11,8 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -23,6 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,10 +44,11 @@ class ExternalMergeSort implements FeatureSort {
   private final AtomicLong features = new AtomicLong(0);
 
   private final List<Chunk> chunks = new ArrayList<>();
+  private final boolean gzip;
   private Chunk current;
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, int threads, Stats stats) {
+  ExternalMergeSort(Path tempDir, int threads, boolean gzip, Stats stats) {
     this(
       tempDir,
       threads,
@@ -51,14 +56,16 @@ class ExternalMergeSort implements FeatureSort {
         MAX_CHUNK_SIZE,
         (ProcessInfo.getMaxMemoryBytes() / 2) / threads
       ),
+      gzip,
       stats
     );
   }
 
-  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, Stats stats) {
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, Stats stats) {
     this.dir = dir;
     this.stats = stats;
     this.chunkSizeLimit = chunkSizeLimit;
+    this.gzip = gzip;
     long memory = ProcessInfo.getMaxMemoryBytes();
     if (chunkSizeLimit > memory / 2) {
       throw new IllegalStateException(
@@ -73,6 +80,22 @@ class ExternalMergeSort implements FeatureSort {
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private DataInputStream newInputStream(Path path) throws IOException {
+    InputStream inputStream = new BufferedInputStream(Files.newInputStream(path), 50_000);
+    if (gzip) {
+      inputStream = new GZIPInputStream(inputStream);
+    }
+    return new DataInputStream(inputStream);
+  }
+
+  private DataOutputStream newOutputStream(Path path) throws IOException {
+    OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path), 50_000);
+    if (gzip) {
+      outputStream = new GZIPOutputStream(outputStream);
+    }
+    return new DataOutputStream(outputStream);
   }
 
   @Override
@@ -194,7 +217,7 @@ class ExternalMergeSort implements FeatureSort {
     chunks.add(current = new Chunk(chunkPath));
   }
 
-  private static class Chunk implements Closeable {
+  private class Chunk implements Closeable {
 
     private final Path path;
     private final DataOutputStream outputStream;
@@ -203,7 +226,7 @@ class ExternalMergeSort implements FeatureSort {
 
     private Chunk(Path path) throws IOException {
       this.path = path;
-      this.outputStream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path), 50_000));
+      this.outputStream = newOutputStream(path);
     }
 
     public PeekableScanner newReader() {
@@ -240,8 +263,7 @@ class ExternalMergeSort implements FeatureSort {
       }
 
       public SortableChunk flush() {
-        try (DataOutputStream out = new DataOutputStream(
-          new BufferedOutputStream(Files.newOutputStream(path), 50_000))) {
+        try (DataOutputStream out = newOutputStream(path)) {
           for (Entry feature : featuresToSort) {
             write(out, feature);
           }
@@ -280,7 +302,7 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  private static class PeekableScanner implements Closeable, Comparable<PeekableScanner>, Iterator<Entry> {
+  private class PeekableScanner implements Closeable, Comparable<PeekableScanner>, Iterator<Entry> {
 
     private final int count;
     private int read = 0;
@@ -290,7 +312,7 @@ class ExternalMergeSort implements FeatureSort {
     PeekableScanner(Path path, int count) {
       this.count = count;
       try {
-        input = new DataInputStream(new BufferedInputStream(Files.newInputStream(path), 50_000));
+        input = newInputStream(path);
         next = readNextFeature();
       } catch (IOException e) {
         throw new IllegalStateException(e);

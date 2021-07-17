@@ -11,12 +11,12 @@ import org.jetbrains.annotations.NotNull;
 
 public interface FeatureSort extends Iterable<FeatureSort.Entry> {
 
-  static FeatureSort newExternalMergeSort(Path tempDir, int threads, Stats stats) {
-    return new ExternalMergeSort(tempDir, threads, stats);
+  static FeatureSort newExternalMergeSort(Path tempDir, int threads, boolean gzip, Stats stats) {
+    return new ExternalMergeSort(tempDir, threads, gzip, stats);
   }
 
-  static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, Stats stats) {
-    return new ExternalMergeSort(dir, workers, chunkSizeLimit, stats);
+  static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, Stats stats) {
+    return new ExternalMergeSort(dir, workers, chunkSizeLimit, gzip, stats);
   }
 
   static FeatureSort newInMemory() {
