@@ -134,7 +134,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
           .setZoomRange(minzoom, 14);
       } catch (GeometryException e) {
-        LOGGER.warn("Unable to get geometry for " + element + ": " + e);
+        LOGGER.warn("Unable to get geometry for water polygon " + element.source().id() + ": " + e);
       }
     }
   }

@@ -489,7 +489,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       for (ReaderRelation.Member member : relation.getMembers()) {
         String role = member.getRole();
         LongArrayList poly = multipolygonWayGeometries.get(member.getRef());
-        if ("outer".equals(role) || "inner".equals(role)) {
+        if (member.getType() == ReaderRelation.Member.WAY) {
           if (poly != null && !poly.isEmpty()) {
             rings.add(poly);
           } else {

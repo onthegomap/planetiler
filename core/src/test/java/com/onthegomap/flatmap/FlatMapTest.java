@@ -867,7 +867,7 @@ public class FlatMapTest {
           rel.setTag("attr", "value");
           rel.setTag("should_emit", "yes");
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 14, "outer"));
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 15, "inner"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 15, null)); // missing
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "inner")); // incorrect
         }),
         with(new ReaderRelation(18), rel -> {
