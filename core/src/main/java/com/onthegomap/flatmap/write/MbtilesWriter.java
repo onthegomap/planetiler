@@ -146,12 +146,18 @@ public class MbtilesWriter {
       .setMaxzoom(config.maxzoom())
       .setJson(layerStats.getTileStats());
 
+    int currentZoom = Integer.MIN_VALUE;
     try (var batchedWriter = db.newBatchedTileWriter()) {
       Mbtiles.TileEntry tile;
       while ((tile = tiles.get()) != null) {
+        int z = tile.tile().z();
+        if (z > currentZoom) {
+          LOGGER.info("[mbtiles] Starting z" + z);
+          currentZoom = z;
+        }
         batchedWriter.write(tile.tile(), tile.bytes());
-        stats.wroteTile(tile.tile().z(), tile.bytes().length);
-        tilesByZoom[tile.tile().z()].inc();
+        stats.wroteTile(z, tile.bytes().length);
+        tilesByZoom[z].inc();
       }
     }
 

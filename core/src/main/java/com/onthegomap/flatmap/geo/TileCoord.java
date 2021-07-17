@@ -36,8 +36,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   public static int decodeZ(int key) {
-    int result = key >> 28;
-    return result < 0 ? 16 + result : result;
+    return (key >> 28) + 8;
   }
 
   public static int decodeX(int key) {
@@ -61,6 +60,15 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     }
     if (y >= max) {
       y = max;
+    }
+    // since most significant bit is treated as the sign bit, make:
+    // z0-7 get encoded from 8 (0b1000) to 15 (0b1111)
+    // z8-14 get encoded from 0 (0b0000) to 6 (0b0110)
+    // so that encoded tile coordinates are ordered by zoom level
+    if (z < 8) {
+      z += 8;
+    } else {
+      z -= 8;
     }
     return (z << 28) | (x << 14) | y;
   }
