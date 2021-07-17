@@ -298,6 +298,58 @@ public class GeoUtils {
     return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
   }
 
+  public static boolean isConvex(LinearRing r) {
+    CoordinateSequence seq = r.getCoordinateSequence();
+    if (seq.size() <= 3) {
+      return false;
+    }
+
+    double c0x = seq.getX(0);
+    double c0y = seq.getY(0);
+    double c1x = Double.NaN, c1y = Double.NaN;
+    int i;
+    for (i = 1; i < seq.size(); i++) {
+      c1x = seq.getX(i);
+      c1y = seq.getY(i);
+      if (c1x != c0x || c1y != c0y) {
+        break;
+      }
+    }
+
+    double dx1 = c1x - c0x;
+    double dy1 = c1y - c0y;
+
+    int sign = 0;
+
+    for (; i < seq.size(); i++) {
+      double c2x = seq.getX(i);
+      double c2y = seq.getY(i);
+
+      double dx2 = c2x - c1x;
+      double dy2 = c2y - c1y;
+      double z = dx1 * dy2 - dy1 * dx2;
+
+      // if z == 0 (with small delta to account for rounding errors) then keep skipping
+      // points to ignore identical or colinear points
+      if (Math.abs(z) < 1e-10) {
+        continue;
+      }
+
+      int s = z >= 0d ? 1 : -1;
+      if (sign == 0) {
+        sign = s;
+      } else if (sign != s) {
+        return false;
+      }
+
+      c1x = c2x;
+      c1y = c2y;
+      dx1 = dx2;
+      dy1 = dy2;
+    }
+    return true;
+  }
+
   private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
 
     PolyAndArea(Polygon poly) {

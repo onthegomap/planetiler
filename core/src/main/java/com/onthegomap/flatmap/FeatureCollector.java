@@ -83,12 +83,12 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  public Feature validatedPolygon(String layer) {
+  public Feature centroidIfConvex(String layer) {
     try {
-      return geometry(layer, source.validatedPolygon());
+      return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
-      stats.dataError("feature_validated_polygon_" + e.stat());
-      LOGGER.warn("Error constructing validated polygon for " + source + ": " + e.getMessage());
+      stats.dataError("feature_centroid_if_convex_" + e.stat());
+      LOGGER.warn("Error constructing centroid if convex for " + source + ": " + e.getMessage());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }

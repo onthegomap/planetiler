@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.util.AffineTransformation;
 
 public class GeoUtilsTest {
 
@@ -111,5 +113,191 @@ public class GeoUtilsTest {
   })
   public void testMetersPerPixel(int zoom, double meters) {
     assertEquals(meters, metersPerPixelAtEquator(zoom), 1);
+  }
+
+  @Test
+  public void testIsConvexTriangle() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      0, 1,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void testIsConvexRectangle() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void testBarelyConvexRectangle() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.5, 0.5,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.4, 0.4,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.7, 0.7,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void testConcaveRectangleDoublePoints() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void testBarelyConcaveRectangle() {
+    assertConvex(false, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.51, 0.5,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void test5PointsConcave() {
+    assertConvex(false, newLinearRing(
+      0, 0,
+      0.5, 0.1,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(false, newLinearRing(
+      0, 0,
+      1, 0,
+      0.9, 0.5,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(false, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.5, 0.9,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(false, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0.1, 0.5,
+      0, 0
+    ));
+  }
+
+  @Test
+  public void test5PointsColinear() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      0.5, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 0.5,
+      1, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.5, 1,
+      0, 1,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      0, 0.5,
+      0, 0
+    ));
+  }
+
+  private static void assertConvex(boolean isConvex, LinearRing ring) {
+    for (double rotation : new double[]{0, 90, 180, 270}) {
+      LinearRing rotated = (LinearRing) AffineTransformation.rotationInstance(Math.toRadians(rotation)).transform(ring);
+      for (boolean flip : new boolean[]{false, true}) {
+        LinearRing flipped = flip ? (LinearRing) AffineTransformation.scaleInstance(-1, 1).transform(rotated) : rotated;
+        for (boolean reverse : new boolean[]{false, true}) {
+          LinearRing reversed = reverse ? flipped.reverse() : flipped;
+          assertEquals(isConvex, isConvex(reversed), "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
+        }
+      }
+    }
   }
 }

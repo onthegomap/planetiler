@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Polygon;
 
 public abstract class SourceFeature {
 
@@ -54,6 +55,24 @@ public abstract class SourceFeature {
       canBePolygon() ? polygon().getInteriorPoint() :
         canBeLine() ? line().getInteriorPoint() :
           worldGeometry().getInteriorPoint());
+  }
+
+  private Geometry centroidIfConvex = null;
+
+  private Geometry computeCentroidIfConvex() throws GeometryException {
+    if (!canBePolygon()) {
+      return centroid();
+    } else if (polygon() instanceof Polygon poly &&
+      poly.getNumInteriorRing() == 0 &&
+      GeoUtils.isConvex(poly.getExteriorRing())) {
+      return centroid();
+    } else {
+      return pointOnSurface();
+    }
+  }
+
+  public Geometry centroidIfConvex() throws GeometryException {
+    return centroidIfConvex != null ? centroidIfConvex : (centroidIfConvex = computeCentroidIfConvex());
   }
 
   private Geometry linearGeometry = null;

@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap;
 
+import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
+import static com.onthegomap.flatmap.geo.GeoUtils.coordinateSequence;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -482,5 +484,9 @@ public class TestUtils {
       expected.stream().sorted(comparator).toList(),
       actual.stream().sorted(comparator).toList()
     );
+  }
+
+  public static LinearRing newLinearRing(double... coords) {
+    return JTS_FACTORY.createLinearRing(coordinateSequence(coords));
   }
 }

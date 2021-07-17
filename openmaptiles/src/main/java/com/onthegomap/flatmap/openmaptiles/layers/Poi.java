@@ -87,8 +87,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
 
   @Override
   public void process(Tables.OsmPoiPolygon element, FeatureCollector features) {
-    // TODO pointOnSurface if not convex
-    setupPoiFeature(element, features.centroid(LAYER_NAME));
+    setupPoiFeature(element, features.centroidIfConvex(LAYER_NAME));
   }
 
   private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource>
