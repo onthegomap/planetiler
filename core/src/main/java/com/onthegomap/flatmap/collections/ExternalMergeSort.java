@@ -26,7 +26,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +92,7 @@ class ExternalMergeSort implements FeatureSort {
   private DataOutputStream newOutputStream(Path path) throws IOException {
     OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path), 50_000);
     if (gzip) {
-      outputStream = new GZIPOutputStream(outputStream);
+      outputStream = new FastGzipOutputStream(outputStream);
     }
     return new DataOutputStream(outputStream);
   }
