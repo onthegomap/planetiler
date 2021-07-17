@@ -37,7 +37,7 @@ public class TransportationTest extends AbstractLayerTest {
       "name", "<null>",
       "_buffer", 4d,
       "_minpixelsize", 0d,
-      "_minzoom", 13,
+      "_minzoom", 14,
       "_maxzoom", 14
     ), Map.of(
       "_layer", "transportation_name",
@@ -48,7 +48,7 @@ public class TransportationTest extends AbstractLayerTest {
       "name_int", "Lagoon Path",
       "name:latin", "Lagoon Path",
       "_minpixelsize", 0d,
-      "_minzoom", 13,
+      "_minzoom", 14,
       "_maxzoom", 14
     )), result);
     assertFeatures(13, List.of(Map.of(
@@ -239,13 +239,13 @@ public class TransportationTest extends AbstractLayerTest {
       "mtb_scale", "4",
       "surface", "unpaved",
       "bicycle", "yes",
-      "_minzoom", 13
+      "_minzoom", 14
     ), Map.of(
       "_layer", "transportation_name",
       "class", "path",
       "subclass", "path",
       "name", "Path name",
-      "_minzoom", 13
+      "_minzoom", 14
     )), process(lineFeature(Map.of(
       "highway", "path",
       "mtb:scale", "4",

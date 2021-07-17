@@ -64,25 +64,32 @@ public class Transportation implements
     "paved", "asphalt", "cobblestone", "concrete", "concrete:lanes", "concrete:plates", "metal",
     "paving_stones", "sett", "unhewn_cobblestone", "wood"
   );
-  private static final Map<String, Integer> MINZOOMS = Map.of(
-    FieldValues.CLASS_TRACK, 14,
-    FieldValues.CLASS_PATH, 13,
-    FieldValues.CLASS_MINOR, 13,
-    FieldValues.CLASS_RACEWAY, 12,
-    FieldValues.CLASS_TERTIARY, 11,
-    FieldValues.CLASS_SECONDARY, 9,
-    FieldValues.CLASS_PRIMARY, 7,
-    FieldValues.CLASS_TRUNK, 5,
-    FieldValues.CLASS_MOTORWAY, 4
-  );
+  private final Map<String, Integer> MINZOOMS;
   private static final ZoomFunction.MeterThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(7, 50)
     .put(6, 100)
     .put(5, 500)
     .put(4, 1_000);
   private static final double PIXEL = 256d / 4096d;
+  private final boolean z13Paths;
 
   public Transportation(Translations translations, Arguments args, Stats stats) {
+    this.z13Paths = args.get(
+      "transportation_z13_paths",
+      "transportation(_name) layer: show paths on z13",
+      false
+    );
+    MINZOOMS = Map.of(
+      FieldValues.CLASS_TRACK, 14,
+      FieldValues.CLASS_PATH, z13Paths ? 13 : 14,
+      FieldValues.CLASS_MINOR, 13,
+      FieldValues.CLASS_RACEWAY, 12,
+      FieldValues.CLASS_TERTIARY, 11,
+      FieldValues.CLASS_SECONDARY, 9,
+      FieldValues.CLASS_PRIMARY, 7,
+      FieldValues.CLASS_TRUNK, 5,
+      FieldValues.CLASS_MOTORWAY, 4
+    );
   }
 
   private static String surface(String value) {

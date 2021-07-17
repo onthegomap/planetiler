@@ -54,14 +54,7 @@ public class TransportationName implements
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
   private static final Pattern GREAT_BRITAIN_REF_NETWORK_PATTERN = Pattern.compile("^[AM][0-9AM()]+");
-  private static final Map<String, Integer> MINZOOMS = Map.of(
-    FieldValues.CLASS_TRACK, 14,
-    FieldValues.CLASS_PATH, 13,
-    FieldValues.CLASS_MINOR, 13,
-    FieldValues.CLASS_TRUNK, 8,
-    FieldValues.CLASS_MOTORWAY, 6
-    // default: 12
-  );
+  private final Map<String, Integer> MINZOOMS;
   private static final ZoomFunction.MeterThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(6, 20_000)
     .put(7, 20_000)
@@ -73,6 +66,7 @@ public class TransportationName implements
   private final boolean brunnel;
   private final boolean sizeForShield;
   private final boolean limitMerge;
+  private final boolean z13Paths;
   private PreparedGeometry greatBritain = null;
   private AtomicBoolean loggedNoGb = new AtomicBoolean(false);
 
@@ -91,6 +85,19 @@ public class TransportationName implements
       "transportation_name_limit_merge",
       "transportation_name layer: limit merge so we don't combine different relations to help merge long highways",
       false
+    );
+    this.z13Paths = args.get(
+      "transportation_z13_paths",
+      "transportation(_name) layer: show paths on z13",
+      false
+    );
+    MINZOOMS = Map.of(
+      FieldValues.CLASS_TRACK, 14,
+      FieldValues.CLASS_PATH, z13Paths ? 13 : 14,
+      FieldValues.CLASS_MINOR, 13,
+      FieldValues.CLASS_TRUNK, 8,
+      FieldValues.CLASS_MOTORWAY, 6
+      // default: 12
     );
   }
 
