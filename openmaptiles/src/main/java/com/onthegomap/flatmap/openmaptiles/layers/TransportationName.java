@@ -67,10 +67,12 @@ public class TransportationName implements
   private final boolean sizeForShield;
   private final boolean limitMerge;
   private final boolean z13Paths;
+  private final Stats stats;
   private PreparedGeometry greatBritain = null;
   private AtomicBoolean loggedNoGb = new AtomicBoolean(false);
 
   public TransportationName(Translations translations, Arguments args, Stats stats) {
+    this.stats = stats;
     this.brunnel = args.get(
       "transportation_name_brunnel",
       "transportation_name layer: set to false to omit brunnel and help merge long highways",
@@ -230,7 +232,8 @@ public class TransportationName implements
               relation = new RouteRelation(refMatcher.group(), networkType, 0);
             }
           } catch (GeometryException e) {
-            LOGGER.warn("Unable to test highway against GB route network: " + element.source().id());
+            e.log(stats, "omt_transportation_name_gb_test",
+              "Unable to test highway against GB route network: " + element.source().id());
           }
         }
       }

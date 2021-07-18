@@ -200,8 +200,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
           emitted++;
         }
       } catch (GeometryException e) {
-        stats.dataError("write_tile_features_" + e.stat());
-        LOGGER.warn(e.getMessage() + ": " + tile + " " + feature);
+        e.log(stats, "write_tile_features", "Error writing tile " + tile + " feature " + feature);
       }
     }
 

@@ -106,7 +106,7 @@ public class OsmMultipolygon {
   ) throws GeometryException {
     try {
       if (rings.size() == 0) {
-        throw new GeometryException("osm_invalid_multipolygon_empty",
+        throw new GeometryException.Verbose("osm_invalid_multipolygon_empty",
           "error building multipolygon " + osmId + ": no rings to process");
       }
       List<LongArrayList> idSegments = connectPolygonSegments(rings);
@@ -123,7 +123,7 @@ public class OsmMultipolygon {
       polygons.sort(BY_AREA_DESCENDING);
       Set<Ring> shells = groupParentChildShells(polygons);
       if (shells.size() == 0) {
-        throw new GeometryException("osm_invalid_multipolygon_not_closed",
+        throw new GeometryException.Verbose("osm_invalid_multipolygon_not_closed",
           "error building multipolygon " + osmId + ": multipolygon not closed");
       } else if (shells.size() == 1) {
         return shells.iterator().next().toPolygon();

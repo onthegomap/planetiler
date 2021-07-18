@@ -54,6 +54,7 @@ public class Place implements
   private static final Logger LOGGER = LoggerFactory.getLogger(Place.class);
 
   private final Translations translations;
+  private final Stats stats;
 
   private static record NaturalEarthRegion(String name, int rank) {
 
@@ -77,6 +78,7 @@ public class Place implements
 
   public Place(Translations translations, Arguments args, Stats stats) {
     this.translations = translations;
+    this.stats = stats;
   }
 
   @Override
@@ -111,8 +113,8 @@ public class Place implements
         ));
       }
     } catch (GeometryException e) {
-      LOGGER
-        .warn("Error getting geometry for natural earth feature " + table + " " + feature.getTag("ogc_fid") + " " + e);
+      e.log(stats, "omt_place_ne",
+        "Error getting geometry for natural earth feature " + table + " " + feature.getTag("ogc_fid"));
     }
   }
 
@@ -163,7 +165,8 @@ public class Place implements
         .setZoomRange(rank - 1, 14)
         .setZorder(-rank);
     } catch (GeometryException e) {
-      LOGGER.warn("Unable to get point for OSM country " + element.source().id());
+      e.log(stats, "omt_place_country",
+        "Unable to get point for OSM country " + element.source().id());
     }
   }
 
@@ -187,7 +190,8 @@ public class Place implements
           .setZorder(-rank);
       }
     } catch (GeometryException e) {
-      LOGGER.warn("Unable to get point for OSM state " + element.source().id());
+      e.log(stats, "omt_place_state",
+        "Unable to get point for OSM state " + element.source().id());
     }
   }
 
@@ -226,7 +230,8 @@ public class Place implements
         .setZoomRange(minzoom, 14)
         .setZorder(zOrder);
     } catch (GeometryException e) {
-      LOGGER.warn("Unable to get area for OSM island polygon " + element.source().id() + ": " + e);
+      e.log(stats, "omt_place_island_poly",
+        "Unable to get point for OSM island polygon " + element.source().id());
     }
   }
 
@@ -320,7 +325,8 @@ public class Place implements
           }
         }
       } catch (GeometryException e) {
-        LOGGER.warn("Unable to get area for OSM city " + element.source().id() + ": " + e);
+        e.log(stats, "omt_place_city",
+          "Unable to get point for OSM city " + element.source().id());
       }
     }
 

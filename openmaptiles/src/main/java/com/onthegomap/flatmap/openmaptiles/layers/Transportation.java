@@ -72,8 +72,10 @@ public class Transportation implements
     .put(4, 1_000);
   private static final double PIXEL = 256d / 4096d;
   private final boolean z13Paths;
+  private final Stats stats;
 
   public Transportation(Translations translations, Arguments args, Stats stats) {
+    this.stats = stats;
     this.z13Paths = args.get(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
@@ -149,7 +151,8 @@ public class Transportation implements
             return;
           }
         } catch (GeometryException e) {
-          LOGGER.warn("Unable to decode pier geometry for " + element.source().id());
+          e.log(stats, "omt_transportation_pier",
+            "Unable to decode pier geometry for " + element.source().id());
           return;
         }
         minzoom = 13;

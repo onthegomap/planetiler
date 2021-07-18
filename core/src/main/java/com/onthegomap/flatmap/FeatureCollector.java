@@ -47,8 +47,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {
-      stats.dataError("feature_point_" + e.stat());
-      LOGGER.warn("Error getting point geometry for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_point", "Error getting point geometry for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -57,8 +56,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroid());
     } catch (GeometryException e) {
-      stats.dataError("feature_centroid_" + e.stat());
-      LOGGER.warn("Error getting centroid for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -67,8 +65,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.line());
     } catch (GeometryException e) {
-      stats.dataError("feature_line_" + e.stat());
-      LOGGER.warn("Error constructing line for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_line", "Error constructing line for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -77,8 +74,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.polygon());
     } catch (GeometryException e) {
-      stats.dataError("feature_polygon_" + e.stat());
-      LOGGER.warn("Error constructing polygon for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_polygon", "Error constructing polygon for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -87,8 +83,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.centroidIfConvex());
     } catch (GeometryException e) {
-      stats.dataError("feature_centroid_if_convex_" + e.stat());
-      LOGGER.warn("Error constructing centroid if convex for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_centroid_if_convex", "Error constructing centroid if convex for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }
@@ -97,8 +92,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     try {
       return geometry(layer, source.pointOnSurface());
     } catch (GeometryException e) {
-      stats.dataError("feature_point_on_surface_" + e.stat());
-      LOGGER.warn("Error constructing point on surface for " + source + ": " + e.getMessage());
+      e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
   }

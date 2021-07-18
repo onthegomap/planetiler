@@ -31,8 +31,10 @@ public class Park implements
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Park.class);
   private final Translations translations;
+  private final Stats stats;
 
   public Park(Translations translations, Arguments args, Stats stats) {
+    this.stats = stats;
     this.translations = translations;
   }
 
@@ -79,7 +81,7 @@ public class Park implements
             areaBoost
           ).setZoomRange(minzoom, 14);
       } catch (GeometryException e) {
-        LOGGER.warn("Unable to get park area for " + element.source().id() + ": " + e.getMessage());
+        e.log(stats, "omt_park_area", "Unable to get park area for " + element.source().id());
       }
     }
   }

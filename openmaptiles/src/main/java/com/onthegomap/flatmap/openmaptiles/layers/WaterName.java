@@ -33,6 +33,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
   private final Translations translations;
   private final LongObjectMap<Geometry> lakeCenterlines = new GHLongObjectHashMap<>();
   private final TreeMap<String, Integer> importantMarinePoints = new TreeMap<>();
+  private final Stats stats;
 
   @Override
   public void release() {
@@ -42,6 +43,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
 
   public WaterName(Translations translations, Arguments args, Stats stats) {
     this.translations = translations;
+    this.stats = stats;
   }
 
   @Override
@@ -69,7 +71,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
         try {
           lakeCenterlines.put(osmId, feature.worldGeometry());
         } catch (GeometryException e) {
-          LOGGER.warn("Bad lake centerline geometry: " + feature, e);
+          e.log(stats, "omt_water_name_lakeline", "Bad lake centerline: " + feature);
         }
       }
     }
@@ -134,7 +136,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
           .setZoomRange(minzoom, 14);
       } catch (GeometryException e) {
-        LOGGER.warn("Unable to get geometry for water polygon " + element.source().id() + ": " + e);
+        e.log(stats, "omt_water_polygon", "Unable to get geometry for water polygon " + element.source().id());
       }
     }
   }

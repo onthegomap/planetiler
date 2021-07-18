@@ -275,7 +275,7 @@ public class VectorTileEncoder {
               attrs
             ));
           } catch (GeometryException e) {
-            LOGGER.warn("Error decoding " + tileID + ": " + e);
+            e.log("Error decoding " + tileID);
           }
         }
       }

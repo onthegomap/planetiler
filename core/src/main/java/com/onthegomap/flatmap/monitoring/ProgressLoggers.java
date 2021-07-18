@@ -135,7 +135,7 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addProcessStats() {
-    add("\n" + " ".repeat(4));
+    add("\n" + " ".repeat(3));
     addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
     addDeltaLogger("gc", ProcessInfo::getGcTime, Format::formatPercent);
     loggers.add(new ProgressLogger("mem",
