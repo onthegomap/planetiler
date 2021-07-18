@@ -308,7 +308,7 @@ public class Boundary implements
     }
 
     if (leftCountry == null && rightCountry == null) {
-      LOGGER.warn("[boundaries] no left or right country for border between " + regions);
+      LOGGER.warn("[boundaries] no left or right country for border between country relations: " + regions);
     }
 
     return new BorderingRegions(leftCountry, rightCountry);
@@ -333,7 +333,7 @@ public class Boundary implements
         LOGGER.warn("[boundaries] Unable to build boundary polygon for " + regionId + ": " + e.getMessage());
       }
     }
-    LOGGER.info("[boundaries] Finished creating polygons");
+    LOGGER.info("[boundaries] Finished creating " + countryBoundaries.size() + " country polygons");
     return countryBoundaries;
   }
 

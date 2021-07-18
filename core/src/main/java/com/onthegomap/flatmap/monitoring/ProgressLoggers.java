@@ -135,6 +135,7 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addProcessStats() {
+    add("\n" + " ".repeat(4));
     addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
     addDeltaLogger("gc", ProcessInfo::getGcTime, Format::formatPercent);
     loggers.add(new ProgressLogger("mem",
@@ -188,7 +189,7 @@ public class ProgressLoggers {
 
         lastTime.set(currentTime);
         lastThreads.putAll(newThreads);
-        return (first ? " | " : " -> ") + name + percents;
+        return (first ? "\n    " : " -> ") + name + percents;
       }));
     } catch (Throwable e) {
       // can't get CPU stats per-thread

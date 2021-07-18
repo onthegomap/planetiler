@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 public class Arguments {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Arguments.class);
+
   private final List<Function<String, String>> providers;
 
   private Arguments(List<Function<String, String>> providers) {
@@ -73,20 +74,24 @@ public class Arguments {
       }
       result = new Envelope(bounds[0], bounds[2], bounds[1], bounds[3]);
     }
-    LOGGER.debug(description + ": " + result);
+    logArgValue(arg, description, result);
     return result;
+  }
+
+  private void logArgValue(String arg, String description, Object result) {
+    LOGGER.debug("  -D" + arg + "=" + result + " (" + description + ")");
   }
 
   public String get(String arg, String description, String defaultValue) {
     String value = getArg(arg, defaultValue);
-    LOGGER.debug(description + ": " + value);
+    logArgValue(arg, description, value);
     return value;
   }
 
   public Path file(String arg, String description, Path defaultValue) {
     String value = getArg(arg);
     Path file = value == null ? defaultValue : Path.of(value);
-    LOGGER.debug(description + ": " + file);
+    logArgValue(arg, description, file);
     return file;
   }
 
@@ -100,7 +105,7 @@ public class Arguments {
 
   public boolean get(String arg, String description, boolean defaultValue) {
     boolean value = "true".equalsIgnoreCase(getArg(arg, Boolean.toString(defaultValue)));
-    LOGGER.debug(description + ": " + value);
+    logArgValue(arg, description, value);
     return value;
   }
 
@@ -108,14 +113,14 @@ public class Arguments {
     String value = getArg(arg, String.join(",", defaultValue));
     List<String> results = Stream.of(value.split("[\\s,]+"))
       .filter(c -> !c.isBlank()).toList();
-    LOGGER.debug(description + ": " + value);
+    logArgValue(arg, description, value);
     return results;
   }
 
   public int threads() {
     String value = getArg("threads", Integer.toString(Runtime.getRuntime().availableProcessors()));
     int threads = Math.max(2, Integer.parseInt(value));
-    LOGGER.debug("num threads: " + threads);
+    logArgValue("threads", "num threads", threads);
     return threads;
   }
 
@@ -135,14 +140,14 @@ public class Arguments {
   public int integer(String key, String description, int defaultValue) {
     String value = getArg(key, Integer.toString(defaultValue));
     int parsed = Integer.parseInt(value);
-    LOGGER.debug(description + ": " + parsed);
+    logArgValue(key, description, parsed);
     return parsed;
   }
 
   public Duration duration(String key, String description, String defaultValue) {
     String value = getArg(key, defaultValue);
     Duration parsed = Duration.parse("PT" + value);
-    LOGGER.debug(description + ": " + parsed.get(ChronoUnit.SECONDS) + " seconds");
+    logArgValue(key, description, parsed.get(ChronoUnit.SECONDS) + " seconds");
     return parsed;
   }
 }

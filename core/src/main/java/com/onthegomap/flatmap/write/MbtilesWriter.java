@@ -66,7 +66,6 @@ public class MbtilesWriter {
     stats.counter("mbtiles_tiles_written", "zoom", () -> countsByZoom);
   }
 
-
   public static void writeOutput(FeatureGroup features, Path outputPath, Profile profile, CommonParams config,
     Stats stats) {
     try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
