@@ -41,8 +41,11 @@ public class MbtilesWriter {
   private final Counter.Readable[] tilesByZoom;
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
+  private final FeatureGroup features;
 
-  MbtilesWriter(Mbtiles db, CommonParams config, Profile profile, Stats stats, LayerStats layerStats) {
+  MbtilesWriter(FeatureGroup features, Mbtiles db, CommonParams config, Profile profile, Stats stats,
+    LayerStats layerStats) {
+    this.features = features;
     this.db = db;
     this.config = config;
     this.profile = profile;
@@ -76,10 +79,11 @@ public class MbtilesWriter {
   public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
     CommonParams config, Stats stats) {
     var timer = stats.startTimer("mbtiles");
-    MbtilesWriter writer = new MbtilesWriter(output, config, profile, stats, features.layerStats());
+    MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
+      features.layerStats());
 
     var topology = Topology.start("mbtiles", stats)
-      .readFrom("reader", features)
+      .fromGenerator("reader", writer::readFeatures, 1)
       .addBuffer("reader_queue", 50_000, 1_000)
       .addWorker("encoder", config.threads(), writer::tileEncoder)
       .addBuffer("writer_queue", 50_000, 1_000)
@@ -95,6 +99,18 @@ public class MbtilesWriter {
 
     topology.awaitAndLog(loggers, config.logInterval());
     timer.stop();
+  }
+
+  void readFeatures(Consumer<FeatureGroup.TileFeatures> next) {
+    int currentZoom = Integer.MIN_VALUE;
+    for (var feature : features) {
+      int z = feature.coord().z();
+      if (z > currentZoom) {
+        LOGGER.info("[mbtiles] Starting z" + z);
+        currentZoom = z;
+      }
+      next.accept(feature);
+    }
   }
 
   void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<Mbtiles.TileEntry> next) throws IOException {
@@ -146,15 +162,10 @@ public class MbtilesWriter {
       .setMaxzoom(config.maxzoom())
       .setJson(layerStats.getTileStats());
 
-    int currentZoom = Integer.MIN_VALUE;
     try (var batchedWriter = db.newBatchedTileWriter()) {
       Mbtiles.TileEntry tile;
       while ((tile = tiles.get()) != null) {
         int z = tile.tile().z();
-        if (z > currentZoom) {
-          LOGGER.info("[mbtiles] Starting z" + z);
-          currentZoom = z;
-        }
         batchedWriter.write(tile.tile(), tile.bytes());
         stats.wroteTile(z, tile.bytes().length);
         tilesByZoom[z].inc();
