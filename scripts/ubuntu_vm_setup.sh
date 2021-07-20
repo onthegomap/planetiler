@@ -12,13 +12,13 @@ fi
 
 "$(dirname "$0")"/build.sh
 
-scp openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-jar-with-dependencies.jar "${1}":flatmap.jar
+rsync -avzP openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-jar-with-dependencies.jar "${1}":flatmap.jar
 scp scripts/download-other-sources.sh "${1}":download-other-sources.sh
 scp scripts/download-osm.sh "${1}":download-osm.sh
-ssh "${1}" "
+ssh "${1}" "bash -s" <<EOF
 wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add - && \
 add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ && \
 apt-get update -y && \
 apt-get install adoptopenjdk-16-hotspot-jre -y && \
 ./download-other-sources.sh
-"
+EOF

@@ -83,9 +83,9 @@ public class MbtilesWriter {
 
     var topology = Topology.start("mbtiles", stats)
       .fromGenerator("reader", writer::readFeatures, 1)
-      .addBuffer("reader_queue", 50_000, 1_000)
+      .addBuffer("reader_queue", 10_000, 500)
       .addWorker("encoder", config.threads(), writer::tileEncoder)
-      .addBuffer("writer_queue", 50_000, 1_000)
+      .addBuffer("writer_queue", 10_000, 500)
       .sinkTo("writer", 1, writer::tileWriter);
 
     var loggers = new ProgressLoggers("mbtiles")

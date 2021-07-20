@@ -1,6 +1,5 @@
 package com.onthegomap.flatmap.monitoring;
 
-import com.onthegomap.flatmap.Format;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,9 +13,8 @@ public class Timers {
 
   public void printSummary() {
     LOGGER.info("-".repeat(50));
-    int pad = 1 + timers.keySet().stream().mapToInt(String::length).max().orElse("# features".length());
     for (var entry : timers.entrySet()) {
-      LOGGER.info(Format.padLeft(entry.getKey(), pad) + ": " + entry.getValue());
+      LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
     }
   }
 
