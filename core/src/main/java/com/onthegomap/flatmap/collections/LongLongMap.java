@@ -71,6 +71,10 @@ public interface LongLongMap extends Closeable {
     return new SparseArray(path);
   }
 
+  static LongLongMap newInMemorySparseArray(int segmentSize, int gapLimit) {
+    return new SparseArrayMemory(segmentSize, gapLimit);
+  }
+
   static LongLongMap newFileBackedSparseArray(Path path, int segmentSize, int gapLimit) {
     return new SparseArray(path, segmentSize, gapLimit);
   }
@@ -197,9 +201,9 @@ public interface LongLongMap extends Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SparseArray.class);
 
-    private static final int DEFAULT_GAP_LIMIT = 100;
-    private static final int DEFAULT_SEGMENT_SIZE_BYTES = 1 << 30; // 1MB
-    private final long gapLimit;
+    private static final int DEFAULT_CHUNK_SIZE = 1 << 8; // 256 (8 billion / (256mb / 8 bytes))
+    private static final int DEFAULT_SEGMENT_SIZE_BYTES = 1 << 20; // 1MB
+    private final long chunkSize;
     private final long segmentSize;
     private final Path path;
     private final DataOutputStream outputStream;
@@ -207,20 +211,20 @@ public interface LongLongMap extends Closeable {
     private long outIdx = 0;
     private FileChannel channel = null;
     private final LongArrayList keys = new LongArrayList();
-    private final LongArrayList values = new LongArrayList();
     private volatile List<MappedByteBuffer> segments;
 
     SparseArray(Path path) {
-      this(path, DEFAULT_SEGMENT_SIZE_BYTES, DEFAULT_GAP_LIMIT);
+      this(path, DEFAULT_SEGMENT_SIZE_BYTES, DEFAULT_CHUNK_SIZE);
     }
 
-    public SparseArray(Path path, int segmentSize, int gapLimit) {
+    public SparseArray(Path path, int segmentSize, int chunkSize) {
       this.path = path;
       this.segmentSize = segmentSize / 8;
-      this.gapLimit = gapLimit;
-      lastKey = -2 * this.gapLimit;
+      this.chunkSize = chunkSize;
+      lastKey = -1L;
       try {
         this.outputStream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path), 50_000));
+        appendValue(MISSING_VALUE);
       } catch (IOException e) {
         throw new IllegalStateException("Could not create compact array output stream", e);
       }
@@ -229,17 +233,19 @@ public interface LongLongMap extends Closeable {
     @Override
     public void put(long key, long value) {
       assert key > lastKey;
-      long gap = key - lastKey;
-      lastKey = key;
+      int chunk = (int) (key / chunkSize);
 
       try {
-        if (gap > gapLimit) {
-          keys.add(key);
-          values.add(outIdx);
-        } else {
-          for (long i = 1; i < gap; i++) {
-            appendValue(MISSING_VALUE);
+        if (chunk >= keys.elementsCount) {
+          while (chunk >= keys.elementsCount) {
+            keys.add(outIdx);
           }
+          lastKey = chunk * chunkSize;
+        } else {
+          lastKey++;
+        }
+        for (; lastKey < key; lastKey++) {
+          appendValue(MISSING_VALUE);
         }
         appendValue(value);
       } catch (IOException e) {
@@ -261,29 +267,26 @@ public interface LongLongMap extends Closeable {
           }
         }
       }
-      if (key > lastKey) {
+      int chunk = (int) (key / chunkSize);
+      if (key > lastKey || chunk >= keys.elementsCount) {
         return MISSING_VALUE;
       }
-      int idx = binarySearch(key);
-      long fileIdx;
-      if (idx == -1) {
-        return MISSING_VALUE;
-      }
-      if (idx >= 0) {
-        fileIdx = values.get(idx);
-      } else {
-        int beforeIdx = -idx - 2;
-        long beforeKey = keys.get(beforeIdx);
-        fileIdx = values.get(beforeIdx) + (key - beforeKey);
-        if (beforeIdx < values.size() - 1 ? fileIdx >= values.get(beforeIdx + 1) : fileIdx >= outIdx) {
+      long start = keys.get(chunk);
+      long fileIdx = start + key % chunkSize;
+      if (chunk < keys.elementsCount) {
+        long next = keys.get(chunk + 1);
+        if (fileIdx >= next) {
           return MISSING_VALUE;
         }
+      } else {
+        return MISSING_VALUE;
       }
       return getValue(fileIdx);
     }
 
     private void build() {
       try {
+        keys.add(outIdx);
         outputStream.close();
         channel = FileChannel.open(path, StandardOpenOption.READ);
         var segmentCount = (int) (outIdx / segmentSize + 1);
@@ -322,6 +325,107 @@ public interface LongLongMap extends Closeable {
     public void close() throws IOException {
       outputStream.close();
       channel.close();
+    }
+  }
+
+  class SparseArrayMemory implements LongLongMap {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SparseArrayMemory.class);
+
+    private static final int DEFAULT_CHUNK_SIZE = 1 << 8; // 256 (8 billion / (256mb / 8 bytes))
+    private static final int DEFAULT_SEGMENT_SIZE_BYTES = 1 << 20; // 1MB
+    private final long chunkSize;
+    private final long segmentSize;
+    private long lastKey;
+    private long outIdx = 0;
+    private final LongArrayList keys = new LongArrayList();
+    private final List<LongArrayList> segments = new ArrayList<>();
+
+    SparseArrayMemory() {
+      this(DEFAULT_SEGMENT_SIZE_BYTES, DEFAULT_CHUNK_SIZE);
+    }
+
+    public SparseArrayMemory(int segmentSize, int chunkSize) {
+      this.segmentSize = segmentSize / 8;
+      this.chunkSize = chunkSize;
+      lastKey = -1L;
+      segments.add(new LongArrayList());
+      appendValue(MISSING_VALUE);
+    }
+
+    @Override
+    public void put(long key, long value) {
+      assert key > lastKey;
+      int chunk = (int) (key / chunkSize);
+
+      if (chunk >= keys.elementsCount) {
+        while (chunk >= keys.elementsCount) {
+          keys.add(outIdx);
+        }
+        lastKey = chunk * chunkSize;
+      } else {
+        lastKey++;
+      }
+      for (; lastKey < key; lastKey++) {
+        appendValue(MISSING_VALUE);
+      }
+      appendValue(value);
+    }
+
+    private void appendValue(long value) {
+      outIdx++;
+      var last = segments.get(segments.size() - 1);
+      if (last.size() >= segmentSize) {
+        segments.add(last = new LongArrayList());
+      }
+      last.add(value);
+    }
+
+    private volatile boolean init = false;
+
+    @Override
+    public long get(long key) {
+      if (!init) {
+        synchronized (this) {
+          if (!init) {
+            keys.add(outIdx);
+            init = true;
+          }
+        }
+      }
+      int chunk = (int) (key / chunkSize);
+      if (key > lastKey || chunk >= keys.elementsCount) {
+        return MISSING_VALUE;
+      }
+      long start = keys.get(chunk);
+      long fileIdx = start + key % chunkSize;
+      if (chunk < keys.elementsCount) {
+        long next = keys.get(chunk + 1);
+        if (fileIdx >= next) {
+          return MISSING_VALUE;
+        }
+      } else {
+        return MISSING_VALUE;
+      }
+      return getValue(fileIdx);
+    }
+
+    private long getValue(long fileIdx) {
+      int segNum = (int) (fileIdx / segmentSize);
+      int segOffset = (int) (fileIdx % segmentSize);
+      return segments.get(segNum).get(segOffset);
+    }
+
+    @Override
+    public long fileSize() {
+      return 0L;
+    }
+
+    @Override
+    public void close() throws IOException {
+      keys.release();
+      segments.forEach(LongArrayList::release);
+      segments.clear();
     }
   }
 }

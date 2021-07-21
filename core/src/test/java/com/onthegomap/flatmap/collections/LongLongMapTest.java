@@ -96,6 +96,14 @@ public abstract class LongLongMapTest {
     }
   }
 
+  public static class SparseArrayMemoryTest extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup() {
+      this.map = LongLongMap.newInMemorySparseArray(80, 100);
+    }
+  }
+
   public static class ArrayTest extends LongLongMapTest {
 
     @BeforeEach

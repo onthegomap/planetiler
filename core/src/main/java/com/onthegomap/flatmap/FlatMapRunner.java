@@ -33,7 +33,6 @@ public class FlatMapRunner {
   private Stats stats;
   private Profile profile = null;
   private CommonParams config;
-  private LongLongMap nodeLocations;
   private FeatureSort featureDb;
   private FeatureGroup featureMap;
   private OsmInputFile osmInputFile;
@@ -41,6 +40,7 @@ public class FlatMapRunner {
   private Path output;
   private boolean overwrite = false;
   private boolean ran = false;
+  private Path nodeDbPath;
 
   private FlatMapRunner(Arguments arguments) {
     this.arguments = arguments;
@@ -62,8 +62,10 @@ public class FlatMapRunner {
       .put(name + "_pass1", "Pre-process OpenStreetMap input (store node locations then relation members)");
     stageDescriptions.put(name + "_pass2", "Process OpenStreetMap nodes, ways, then relations");
     return addStage(name, ifSourceUsed(name, () -> {
-      try (var osmReader = new OpenStreetMapReader(name, thisInputFile, nodeLocations,
-        profile, stats)) {
+      try (
+        var nodeLocations = LongLongMap.newFileBackedSparseArray(nodeDbPath);
+        var osmReader = new OpenStreetMapReader(name, thisInputFile, nodeLocations, profile, stats)
+      ) {
         osmReader.pass1(config);
         osmReader.pass2(featureMap, config);
       }
@@ -164,8 +166,7 @@ public class FlatMapRunner {
     LOGGER.info("  [mbtiles] Encode each tile and write to " + output);
 
     Files.createDirectories(tmpDir);
-    Path nodeDbPath = tmpDir.resolve("node.db");
-    nodeLocations = LongLongMap.newFileBackedSortedTable(nodeDbPath);
+    nodeDbPath = tmpDir.resolve("node.db");
     Path featureDbPath = tmpDir.resolve("feature.db");
     featureDb = FeatureSort
       .newExternalMergeSort(tmpDir.resolve("feature.db"), config.threads(), config.gzipTempStorage(), stats);
@@ -180,7 +181,6 @@ public class FlatMapRunner {
 
     LOGGER.info("Deleting node.db to make room for mbtiles");
     profile.release();
-    Files.delete(nodeDbPath);
 
     featureDb.sort();
 

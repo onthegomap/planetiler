@@ -113,13 +113,18 @@ public class Building implements OpenMapTilesSchema.Building,
       : minLevels != null ? (minLevels * 3.66) : 0);
 
     if (renderHeight < 3660 && renderMinHeight < 3660) {
-      features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
+      var feature = features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         .setZoomRange(13, 14)
-        .setMinPixelSize(mergeZ13Buildings ? 0 : 2)
+        .setMinPixelSize(2)
         .setAttrWithMinzoom(Fields.RENDER_HEIGHT, renderHeight, 14)
         .setAttrWithMinzoom(Fields.RENDER_MIN_HEIGHT, renderMinHeight, 14)
         .setAttrWithMinzoom(Fields.COLOUR, color, 14)
         .setAttrWithMinzoom(Fields.HIDE_3D, hide3d, 14);
+      if (mergeZ13Buildings) {
+        feature
+          .setMinPixelSize(0.25)
+          .setPixelTolerance(0.25); // improves performance of the building merge ~50% over default
+      }
     }
   }
 

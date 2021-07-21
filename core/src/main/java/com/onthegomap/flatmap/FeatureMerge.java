@@ -163,9 +163,9 @@ public class FeatureMerge {
         Geometry merged;
         if (polygonGroup.size() > 1) {
           merged = GeoUtils.createGeometryCollection(polygonGroup);
-          merged = new BufferOp(merged, bufferOps).getResultGeometry(buffer);
+          merged = buffer(buffer, merged);
           if (buffer > 0) {
-            merged = new BufferOp(merged, bufferOps).getResultGeometry(-buffer);
+            merged = unbuffer(buffer, merged);
           }
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
@@ -186,6 +186,18 @@ public class FeatureMerge {
       }
     }
     return result;
+  }
+
+  private static Geometry union(Geometry merged) {
+    return merged.union();
+  }
+
+  private static Geometry unbuffer(double buffer, Geometry merged) {
+    return new BufferOp(merged, bufferOps).getResultGeometry(-buffer);
+  }
+
+  private static Geometry buffer(double buffer, Geometry merged) {
+    return new BufferOp(merged, bufferOps).getResultGeometry(buffer);
   }
 
   private static void extractPolygons(Geometry geom, List<Polygon> result, double minArea, double minHoleArea) {
