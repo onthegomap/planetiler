@@ -53,6 +53,18 @@ public class FlatMapRunner {
     return new FlatMapRunner(Arguments.fromJvmProperties());
   }
 
+  private LongLongMap getLongLongMap() {
+    return switch (config.longLongMap()) {
+      case "mapdb" -> LongLongMap.newFileBackedSortedTable(nodeDbPath);
+      case "sparsearray" -> LongLongMap.newFileBackedSparseArray(nodeDbPath);
+      case "ramsparsearray" -> LongLongMap.newInMemorySparseArray();
+      case "ramarray" -> LongLongMap.newArrayBacked();
+      case "sqlite" -> LongLongMap.newSqlite(nodeDbPath);
+      case "rocksdb" -> LongLongMap.newRocksdb(nodeDbPath);
+      default -> throw new IllegalStateException("Unexpected llmap value: " + config.longLongMap());
+    };
+  }
+
   public FlatMapRunner addOsmSource(String name, Path defaultPath) {
     Path path = arguments.inputFile(name, "OSM input file", defaultPath);
     var thisInputFile = new OsmInputFile(path);
@@ -63,11 +75,13 @@ public class FlatMapRunner {
     stageDescriptions.put(name + "_pass2", "Process OpenStreetMap nodes, ways, then relations");
     return addStage(name, ifSourceUsed(name, () -> {
       try (
-        var nodeLocations = LongLongMap.newFileBackedSparseArray(nodeDbPath);
+        var nodeLocations = getLongLongMap();
         var osmReader = new OpenStreetMapReader(name, thisInputFile, nodeLocations, profile, stats)
       ) {
         osmReader.pass1(config);
         osmReader.pass2(featureMap, config);
+      } finally {
+        FileUtils.delete(nodeDbPath);
       }
     }));
   }

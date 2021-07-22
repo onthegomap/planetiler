@@ -2,7 +2,6 @@ package com.onthegomap.flatmap.read;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
-import com.carrotsearch.hppc.LongDoubleHashMap;
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.graphhopper.coll.GHIntObjectHashMap;
@@ -113,14 +112,18 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
     timer.stop();
+    System.err.println(nodesInWays + " " + PASS1_WAYS.getAsLong() + " " + (nodesInWays / PASS1_WAYS.getAsLong()));
   }
+
+  long nodesInWays = 0;
 
   void processPass1(ReaderElement readerElement) {
     if (readerElement instanceof ReaderNode node) {
       PASS1_NODES.inc();
       nodeDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
-    } else if (readerElement instanceof ReaderWay) {
+    } else if (readerElement instanceof ReaderWay way) {
       PASS1_WAYS.inc();
+      nodesInWays += way.getNodes().size();
     } else if (readerElement instanceof ReaderRelation rel) {
       PASS1_RELATIONS.inc();
       List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
@@ -149,7 +152,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   public void pass2(FeatureGroup writer, CommonParams config) {
     var timer = stats.startTimer(name + "_pass2");
     int readerThreads = Math.max(config.threads() / 4, 1);
-    int processThreads = config.threads() - 1;
+    int processThreads = config.threads();
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
@@ -528,25 +531,13 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
   private class NodeGeometryCache implements NodeLocationProvider {
 
-    private final LongDoubleHashMap xs = new LongDoubleHashMap();
-    private final LongDoubleHashMap ys = new LongDoubleHashMap();
-
     @Override
     public Coordinate getCoordinate(long id) {
-      double worldX, worldY;
-      worldX = xs.getOrDefault(id, Double.NaN);
-      if (Double.isNaN(worldX)) {
-        long encoded = nodeDb.get(id);
-        if (encoded == LongLongMap.MISSING_VALUE) {
-          throw new IllegalArgumentException("Missing location for node: " + id);
-        }
-
-        xs.put(id, worldX = GeoUtils.decodeWorldX(encoded));
-        ys.put(id, worldY = GeoUtils.decodeWorldY(encoded));
-      } else {
-        worldY = ys.get(id);
+      long encoded = nodeDb.get(id);
+      if (encoded == LongLongMap.MISSING_VALUE) {
+        throw new IllegalArgumentException("Missing location for node: " + id);
       }
-      return new CoordinateXY(worldX, worldY);
+      return new CoordinateXY(GeoUtils.decodeWorldX(encoded), GeoUtils.decodeWorldY(encoded));
     }
 
     @Override
@@ -554,31 +545,19 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       int num = nodeIds.size();
       CoordinateSequence seq = new PackedCoordinateSequence.Double(nodeIds.size(), 2, 0);
 
+      long[] values = nodeDb.multiGet(nodeIds);
       for (int i = 0; i < num; i++) {
-        long id = nodeIds.get(i);
-        double worldX, worldY;
-        worldX = xs.getOrDefault(id, Double.NaN);
-        if (Double.isNaN(worldX)) {
-          long encoded = nodeDb.get(id);
-          if (encoded == LongLongMap.MISSING_VALUE) {
-            throw new IllegalArgumentException("Missing location for node: " + id);
-          }
-
-          xs.put(id, worldX = GeoUtils.decodeWorldX(encoded));
-          ys.put(id, worldY = GeoUtils.decodeWorldY(encoded));
-        } else {
-          worldY = ys.get(id);
+        long encoded = values[i];
+        if (encoded == LongLongMap.MISSING_VALUE) {
+          throw new IllegalArgumentException("Missing location for node: " + nodeIds.get(i));
         }
-        seq.setOrdinate(i, 0, worldX);
-        seq.setOrdinate(i, 1, worldY);
+        seq.setOrdinate(i, 0, GeoUtils.decodeWorldX(encoded));
+        seq.setOrdinate(i, 1, GeoUtils.decodeWorldY(encoded));
       }
       return seq;
     }
+  }
 
-    @Override
-    public void reset() {
-      xs.clear();
-      ys.clear();
-    }
+  public void reset() {
   }
 }

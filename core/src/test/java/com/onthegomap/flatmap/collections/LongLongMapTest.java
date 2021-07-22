@@ -111,4 +111,20 @@ public abstract class LongLongMapTest {
       this.map = LongLongMap.newArrayBacked();
     }
   }
+
+  public static class SqliteTest extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup(@TempDir Path dir) {
+      this.map = LongLongMap.newSqlite(dir.resolve("sqlite-long-long-map-test"));
+    }
+  }
+
+  public static class RocksdbTest extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup(@TempDir Path dir) {
+      this.map = LongLongMap.newRocksdb(dir.resolve("rocksdb-long-long-map-test"));
+    }
+  }
 }

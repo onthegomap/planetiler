@@ -15,6 +15,7 @@ public record CommonParams(
   boolean optimizeDb,
   boolean forceOverwrite,
   boolean gzipTempStorage,
+  String longLongMap,
 
   // computed
   Envelope worldBounds,
@@ -30,7 +31,8 @@ public record CommonParams(
     boolean deferIndexCreation,
     boolean optimizeDb,
     boolean forceOverwrite,
-    boolean gzipTempStorage
+    boolean gzipTempStorage,
+    String longLongMap
   ) {
     this(
       latLonBounds,
@@ -42,6 +44,7 @@ public record CommonParams(
       optimizeDb,
       forceOverwrite,
       gzipTempStorage,
+      longLongMap,
 
       // computed
       GeoUtils.toWorldBounds(latLonBounds),
@@ -82,7 +85,8 @@ public record CommonParams(
       arguments.get("defer_mbtiles_index_creation", "add index to mbtiles file after finished writing", false),
       arguments.get("optimize_db", "optimize mbtiles after writing", false),
       arguments.get("force", "force overwriting output file", false),
-      arguments.get("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false)
+      arguments.get("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
+      arguments.get("llmap", "type of long long map", "mapdb")
     );
   }
 }
