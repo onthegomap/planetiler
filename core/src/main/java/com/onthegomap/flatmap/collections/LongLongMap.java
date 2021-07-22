@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Format;
 import com.onthegomap.flatmap.MemoryEstimator;
 import com.onthegomap.flatmap.monitoring.Counter;
+import com.onthegomap.flatmap.monitoring.ProcessInfo;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Worker;
@@ -138,6 +139,7 @@ public interface LongLongMap extends Closeable {
         args[1],
         args[2],
         args[3],
+        Format.formatStorage(ProcessInfo.getMaxMemoryBytes(), false),
         Format.formatStorage(map.fileSize(), false),
         Format.formatStorage(FileUtils.size(path), false),
         writeRate.get(),
@@ -303,37 +305,39 @@ public interface LongLongMap extends Closeable {
 
     int used = 0;
     private static final long MAX_MEM_USAGE = 100_000_000_000L; // 100GB
-    private static final long SEGMENT_SIZE = 1_000_000; // 1MB
-    private static final long SEGMENT_MAX_ENTRIES = SEGMENT_SIZE / 8 + 1;
-    private static final long MAX_SEGMENTS = MAX_MEM_USAGE / SEGMENT_SIZE;
+    private static final long INDEX_OVERHEAD = 256_000_000; // 256mb
+    private static final long MAX_ENTRIES = MAX_MEM_USAGE / 8L;
+    private static final long MAX_SEGMENTS = INDEX_OVERHEAD / (24 + 8);
+    private static final long SEGMENT_SIZE = MAX_ENTRIES / MAX_SEGMENTS + 1;
 
     private long[][] longs = new long[(int) MAX_SEGMENTS][];
 
     @Override
     public void put(long key, long value) {
-      int segment = (int) (key / SEGMENT_MAX_ENTRIES);
+      int segment = (int) (key / SEGMENT_SIZE);
       long[] seg = longs[segment];
       if (seg == null) {
-        seg = longs[segment] = new long[(int) SEGMENT_MAX_ENTRIES];
+        seg = longs[segment] = new long[(int) SEGMENT_SIZE];
         Arrays.fill(seg, MISSING_VALUE);
         used++;
       }
-      seg[(int) (key % SEGMENT_MAX_ENTRIES)] = value;
+      seg[(int) (key % SEGMENT_SIZE)] = value;
     }
 
     @Override
     public long get(long key) {
-      long[] segment = longs[(int) (key / SEGMENT_MAX_ENTRIES)];
-      return segment == null ? MISSING_VALUE : segment[(int) (key % SEGMENT_MAX_ENTRIES)];
+      long[] segment = longs[(int) (key / SEGMENT_SIZE)];
+      return segment == null ? MISSING_VALUE : segment[(int) (key % SEGMENT_SIZE)];
     }
 
     @Override
     public long fileSize() {
-      return 24L + 8L * longs.length + ((long) used) * (24L + 8L * SEGMENT_MAX_ENTRIES);
+      return 24L + 8L * longs.length + ((long) used) * (24L + 8L * SEGMENT_SIZE);
     }
 
     @Override
     public void close() throws IOException {
+      Arrays.fill(longs, null);
       longs = null;
     }
   }
