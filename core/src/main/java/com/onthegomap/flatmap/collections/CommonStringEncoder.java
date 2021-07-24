@@ -11,7 +11,7 @@ public class CommonStringEncoder {
   private final AtomicInteger layerId = new AtomicInteger(0);
 
   public String decode(byte id) {
-    String str = idToLayer[id];
+    String str = idToLayer[id & 0xff];
     if (str == null) {
       throw new IllegalStateException("No string for " + id);
     }

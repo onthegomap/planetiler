@@ -54,7 +54,7 @@ public abstract class Reader implements Closeable {
           }
         }
       })
-      .addBuffer("write_queue", 1000)
+      .addBuffer("write_queue", 50_000, 1_000)
       .sinkToConsumer("write", 1, (item) -> {
         featuresWritten.incrementAndGet();
         writer.accept(item);

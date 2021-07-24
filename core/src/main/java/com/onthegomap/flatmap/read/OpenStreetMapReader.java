@@ -97,8 +97,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   public void pass1(CommonParams config) {
     var timer = stats.startTimer(name + "_pass1");
     String pbfParsePrefix = "pbfpass1";
+    int parseThreads = Math.max(1, config.threads() - 2);
     var topology = Topology.start(pbfParsePrefix, stats)
-      .fromGenerator("pbf", osmInputFile.read("pbfpass1", config.threads() - 1))
+      .fromGenerator("pbf", osmInputFile.read("pbfpass1", parseThreads))
       .addBuffer("reader_queue", 50_000, 10_000)
       .sinkToConsumer("process", 1, this::processPass1);
 
@@ -109,7 +110,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addRateCounter("rels", PASS1_RELATIONS)
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .addThreadPoolStats("parse", pbfParsePrefix)
+      .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
     timer.stop();
@@ -218,7 +219,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .addThreadPoolStats("parse", parseThreadPrefix)
+      .addThreadPoolStats("parse", parseThreadPrefix + "-pool")
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());

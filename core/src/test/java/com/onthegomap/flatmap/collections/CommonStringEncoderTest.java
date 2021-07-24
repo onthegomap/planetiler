@@ -22,7 +22,10 @@ public class CommonStringEncoderTest {
   @Test
   public void testLimitsTo250() {
     for (int i = 0; i <= 250; i++) {
-      commonStringEncoder.encode(Integer.toString(i));
+      String string = Integer.toString(i);
+      byte encoded = commonStringEncoder.encode(Integer.toString(i));
+      String decoded = commonStringEncoder.decode(encoded);
+      assertEquals(string, decoded);
     }
     assertThrows(IllegalStateException.class, () -> commonStringEncoder.encode("too many"));
   }

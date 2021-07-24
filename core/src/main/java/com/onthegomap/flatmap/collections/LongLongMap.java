@@ -568,7 +568,11 @@ public interface LongLongMap extends Closeable {
 
     @Override
     public long fileSize() {
-      return MemoryEstimator.size(keys) + segments.stream().mapToLong(MemoryEstimator::size).sum();
+      long result = MemoryEstimator.size(keys);
+      for (int i = 0; i < segments.size(); i++) {
+        result += MemoryEstimator.size(segments.get(i));
+      }
+      return result;
     }
 
     @Override

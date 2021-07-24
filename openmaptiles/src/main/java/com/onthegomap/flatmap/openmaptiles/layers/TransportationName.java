@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
@@ -137,7 +138,7 @@ public class TransportationName implements
       }
 
       if (networkType != null) {
-        return List.of(new RouteRelation(ref, networkType, relation.getId()));
+        return List.of(new RouteRelation(coalesce(ref, ""), networkType, relation.getId()));
       }
     }
     return null;
@@ -289,7 +290,7 @@ public class TransportationName implements
   }
 
   private static record RouteRelation(
-    String ref,
+    @NotNull String ref,
     RouteNetwork network,
     long id
   ) implements OpenStreetMapReader.RelationInfo {
@@ -307,6 +308,6 @@ public class TransportationName implements
   private static final Comparator<RouteRelation> RELATION_ORDERING = Comparator
     .<RouteRelation>comparingInt(r -> r.network.ordinal())
     // TODO also compare network string?
-    .thenComparingInt(r -> r.ref == null ? 0 : r.ref.length())
-    .thenComparing(r -> r.ref);
+    .thenComparingInt(r -> r.ref.length())
+    .thenComparing(RouteRelation::ref);
 }

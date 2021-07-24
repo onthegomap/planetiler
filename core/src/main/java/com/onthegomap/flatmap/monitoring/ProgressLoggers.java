@@ -28,6 +28,11 @@ import org.slf4j.LoggerFactory;
 
 public class ProgressLoggers {
 
+  public static final String ANSI_RESET = "\u001B[0m";
+  public static final String ANSI_RED = "\u001B[31m";
+  public static final String ANSI_GREEN = "\u001B[32m";
+  public static final String ANSI_YELLOW = "\u001B[33m";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
   private final List<Object> loggers;
   private final String prefix;
@@ -53,7 +58,8 @@ public class ProgressLoggers {
       double valueDiff = valueNow - last.get();
       last.set(valueNow);
       lastTime.set(now);
-      return "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true) + "/s ]";
+      return ANSI_GREEN + "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true)
+        + "/s ]" + ANSI_RESET;
     }));
     return this;
   }
@@ -76,8 +82,8 @@ public class ProgressLoggers {
       double valueDiff = valueNow - last.get();
       last.set(valueNow);
       lastTime.set(now);
-      return "[ " + formatNumeric(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4) + " "
-        + formatNumeric(valueDiff / timeDiff, true) + "/s ]";
+      return ANSI_GREEN + "[ " + formatNumeric(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
+        + " " + formatNumeric(valueDiff / timeDiff, true) + "/s ]" + ANSI_RESET;
     }));
     return this;
   }
@@ -85,8 +91,8 @@ public class ProgressLoggers {
   public ProgressLoggers addPercentCounter(String name, long total, AtomicLong getValue) {
     loggers.add(new ProgressLogger(name, () -> {
       long valueNow = getValue.get();
-      return "[ " + padLeft("" + valueNow, 3) + " / " + padLeft("" + total, 3) + " " + padLeft(
-        formatPercent(1f * valueNow / total), 4) + " ]";
+      return ANSI_GREEN + "[ " + padLeft("" + valueNow, 3) + " / " + padLeft("" + total, 3) + " " + padLeft(
+        formatPercent(1f * valueNow / total), 4) + " ]" + ANSI_RESET;
     }));
     return this;
   }
