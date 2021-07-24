@@ -51,11 +51,6 @@
       <version>3.0.8</version>
     </dependency>
     <dependency>
-      <groupId>org.rocksdb</groupId>
-      <artifactId>rocksdbjni</artifactId>
-      <version>6.20.3</version>
-    </dependency>
-    <dependency>
       <groupId>org.msgpack</groupId>
       <artifactId>msgpack-core</artifactId>
       <version>0.8.22</version>

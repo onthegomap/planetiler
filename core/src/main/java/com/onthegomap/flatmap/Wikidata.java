@@ -133,8 +133,9 @@ public class Wikidata {
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile);
       fetcher.loadExisting(oldMappings);
 
+      String pbfParsePrefix = "pbfwikidata";
       var topology = Topology.start("wikidata", stats)
-        .fromGenerator("pbf", infile.read("pbfwikidata", readerThreads))
+        .fromGenerator("pbf", infile.read(pbfParsePrefix, readerThreads))
         .addBuffer("reader_queue", 50_000, 10_000)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 50_000)
@@ -153,7 +154,7 @@ public class Wikidata {
         .addRateCounter("wiki", fetcher.wikidatas)
         .addFileSize(outfile)
         .addProcessStats()
-        .addThreadPoolStats("parse", "pool-")
+        .addThreadPoolStats("parse", pbfParsePrefix)
         .addTopologyStats(topology);
 
       topology.awaitAndLog(loggers, config.logInterval());

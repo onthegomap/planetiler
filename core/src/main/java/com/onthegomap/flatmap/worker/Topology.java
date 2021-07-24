@@ -110,7 +110,7 @@ public record Topology<T>(
     }
 
     public <T> Builder<?, T> readFromQueue(WorkQueue<T> input) {
-      return new Builder<>(input, stats);
+      return new Builder<>(prefix, input, stats);
     }
   }
 
@@ -127,8 +127,8 @@ public record Topology<T>(
       this(prefix, name, null, null, outputQueue, worker, stats);
     }
 
-    public Builder(WorkQueue<O> outputQueue, Stats stats) {
-      this(null, null, outputQueue, null, stats);
+    public Builder(String prefix, WorkQueue<O> outputQueue, Stats stats) {
+      this(prefix, null, outputQueue, null, stats);
     }
 
     public <O2> Bufferable<O, O2> addWorker(String name, int threads, WorkerStep<O, O2> step) {

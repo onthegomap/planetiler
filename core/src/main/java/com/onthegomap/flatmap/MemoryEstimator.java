@@ -49,6 +49,18 @@ public class MemoryEstimator {
     return object == null ? 0 : (24L + 8L * object.keys.length + 24L + 4L * object.values.length);
   }
 
+  public static long size(int[] array) {
+    return 24L + 4L * array.length;
+  }
+
+  public static long size(long[] array) {
+    return 24L + 8L * array.length;
+  }
+
+  public static long size(Object[] array) {
+    return 24L + 8L * array.length;
+  }
+
   public interface HasEstimate {
 
     long estimateMemoryUsageBytes();

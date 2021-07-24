@@ -57,10 +57,11 @@ public class FlatMapRunner {
     return switch (config.longLongMap()) {
       case "mapdb" -> LongLongMap.newFileBackedSortedTable(nodeDbPath);
       case "sparsearray" -> LongLongMap.newFileBackedSparseArray(nodeDbPath);
+      case "sparsemem2" -> LongLongMap.newInMemorySparseArray2();
+      case "sparse2" -> LongLongMap.newFileBackedSparseArray2(nodeDbPath);
       case "ramsparsearray" -> LongLongMap.newInMemorySparseArray();
       case "ramarray" -> LongLongMap.newArrayBacked();
       case "sqlite" -> LongLongMap.newSqlite(nodeDbPath);
-      case "rocksdb" -> LongLongMap.newRocksdb(nodeDbPath);
       default -> throw new IllegalStateException("Unexpected llmap value: " + config.longLongMap());
     };
   }

@@ -96,7 +96,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
   public void pass1(CommonParams config) {
     var timer = stats.startTimer(name + "_pass1");
-    var topology = Topology.start("osm_pass1", stats)
+    String pbfParsePrefix = "pbfpass1";
+    var topology = Topology.start(pbfParsePrefix, stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass1", config.threads() - 1))
       .addBuffer("reader_queue", 50_000, 10_000)
       .sinkToConsumer("process", 1, this::processPass1);
@@ -108,7 +109,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addRateCounter("rels", PASS1_RELATIONS)
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .addThreadPoolStats("parse", "pool-")
+      .addThreadPoolStats("parse", pbfParsePrefix)
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
     timer.stop();
@@ -152,7 +153,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   public void pass2(FeatureGroup writer, CommonParams config) {
     var timer = stats.startTimer(name + "_pass2");
     int readerThreads = Math.max(config.threads() / 4, 1);
-    int processThreads = config.threads();
+    int processThreads = config.threads() - 1;
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
@@ -164,8 +165,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
+    String parseThreadPrefix = "pbfpass2";
     var topology = Topology.start("osm_pass2", stats)
-      .fromGenerator("pbf", osmInputFile.read("pbfpass2", readerThreads))
+      .fromGenerator("pbf", osmInputFile.read(parseThreadPrefix, readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
         Counter nodes = nodesProcessed.counterForThread();
@@ -217,7 +219,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .addThreadPoolStats("parse", "pool-")
+      .addThreadPoolStats("parse", parseThreadPrefix)
       .addTopologyStats(topology);
 
     topology.awaitAndLog(logger, config.logInterval());
@@ -545,9 +547,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       int num = nodeIds.size();
       CoordinateSequence seq = new PackedCoordinateSequence.Double(nodeIds.size(), 2, 0);
 
-      long[] values = nodeDb.multiGet(nodeIds);
       for (int i = 0; i < num; i++) {
-        long encoded = values[i];
+        long encoded = nodeDb.get(nodeIds.get(i));
         if (encoded == LongLongMap.MISSING_VALUE) {
           throw new IllegalArgumentException("Missing location for node: " + nodeIds.get(i));
         }

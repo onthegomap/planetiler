@@ -5,7 +5,6 @@ import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.graphhopper.coll.GHLongLongHashMap;
-import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Format;
 import com.onthegomap.flatmap.MemoryEstimator;
@@ -43,12 +42,6 @@ import org.mapdb.SortedTableMap;
 import org.mapdb.volume.ByteArrayVol;
 import org.mapdb.volume.MappedFileVol;
 import org.mapdb.volume.Volume;
-import org.rocksdb.EnvOptions;
-import org.rocksdb.IngestExternalFileOptions;
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.SstFileWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
@@ -59,11 +52,12 @@ public interface LongLongMap extends Closeable {
     Path path = Path.of("./llmaptest");
     FileUtils.delete(path);
     LongLongMap map = switch (args[0]) {
+      case "sparsemem2" -> new SparseArray2Memory();
       case "sparsearraymemory" -> new SparseArrayMemory();
       case "hppc" -> new HppcMap();
       case "array" -> new Array();
 
-      case "rocksdb" -> newRocksdb(path);
+      case "sparse2" -> new SparseArray2(path);
       case "sqlite" -> newSqlite(path);
       case "sparsearray" -> new SparseArray(path);
       case "mapdb" -> newFileBackedSortedTable(path);
@@ -71,7 +65,6 @@ public interface LongLongMap extends Closeable {
     };
     long entries = Long.parseLong(args[1]);
     int readers = Integer.parseInt(args[2]);
-    int batchSize = Integer.parseInt(args[3]);
 
     class LocalCounter {
 
@@ -84,8 +77,8 @@ public interface LongLongMap extends Closeable {
     AtomicReference<String> writeRate = new AtomicReference<>();
     new Worker("writer", new Stats.InMemory(), 1, () -> {
       long start = System.nanoTime();
-      for (long i = 1; i <= entries; i++) {
-        map.put(i, i + 1);
+      for (long i = 0; i < entries; i++) {
+        map.put(i + 1L, i + 2L);
         counter.count = i;
       }
       long end = System.nanoTime();
@@ -111,15 +104,21 @@ public interface LongLongMap extends Closeable {
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
-        LongArrayList keys = new LongArrayList(batchSize);
         Random random = new Random(rnum);
-        while (true) {
-          keys.elementsCount = 0;
-          for (int j = 0; j < batchSize; j++) {
-            keys.add((Math.abs(random.nextLong()) % entries) + 1);
+        try {
+          long sum = 0;
+          long b = 0;
+          while (b == 0) {
+            readCount.inc();
+            long key = 1L + (Math.abs(random.nextLong()) % entries);
+            long value = map.get(key);
+            assert key + 1 == value : key + " value was " + value;
+            sum += value;
           }
-          readCount.incBy(batchSize);
-          map.multiGet(keys);
+          System.err.println(sum);
+        } catch (Throwable e) {
+          e.printStackTrace();
+          System.exit(1);
         }
       }).start();
     }
@@ -152,8 +151,12 @@ public interface LongLongMap extends Closeable {
 
   long MISSING_VALUE = Long.MIN_VALUE;
 
-  static LongLongMap newRocksdb(Path path) {
-    return new RocksdbLongLongMap(path);
+  static LongLongMap newInMemorySparseArray2() {
+    return new SparseArray2Memory();
+  }
+
+  static LongLongMap newFileBackedSparseArray2(Path nodeDbPath) {
+    return new SparseArray2(nodeDbPath);
   }
 
   void put(long key, long value);
@@ -304,40 +307,42 @@ public interface LongLongMap extends Closeable {
   class Array implements LongLongMap {
 
     int used = 0;
-    private static final long MAX_MEM_USAGE = 100_000_000_000L; // 100GB
-    private static final long INDEX_OVERHEAD = 256_000_000; // 256mb
-    private static final long MAX_ENTRIES = MAX_MEM_USAGE / 8L;
-    private static final long MAX_SEGMENTS = INDEX_OVERHEAD / (24 + 8);
-    private static final long SEGMENT_SIZE = MAX_ENTRIES / MAX_SEGMENTS + 1;
+    private static final long MAX_ENTRIES = 10_000_000_000L; // 10B
+    private static final long OFFSET_BITS = 10;
+    private static final long SEGMENT_SIZE = 1 << OFFSET_BITS; // 1024
+    private static final long OFFSET_MASK = SEGMENT_SIZE - 1L;
+    private static final long MAX_SEGMENTS = MAX_ENTRIES / SEGMENT_SIZE + 1;
 
     private long[][] longs = new long[(int) MAX_SEGMENTS][];
 
     @Override
     public void put(long key, long value) {
-      int segment = (int) (key / SEGMENT_SIZE);
+      int segment = (int) (key >>> OFFSET_BITS);
       long[] seg = longs[segment];
       if (seg == null) {
-        seg = longs[segment] = new long[(int) SEGMENT_SIZE];
+        longs[segment] = seg = new long[(int) SEGMENT_SIZE];
         Arrays.fill(seg, MISSING_VALUE);
         used++;
       }
-      seg[(int) (key % SEGMENT_SIZE)] = value;
+      seg[(int) (key & OFFSET_MASK)] = value;
     }
 
     @Override
     public long get(long key) {
-      long[] segment = longs[(int) (key / SEGMENT_SIZE)];
-      return segment == null ? MISSING_VALUE : segment[(int) (key % SEGMENT_SIZE)];
+      long[] segment = longs[(int) (key >>> OFFSET_BITS)];
+      return segment == null ? MISSING_VALUE : segment[(int) (key & OFFSET_MASK)];
     }
 
     @Override
     public long fileSize() {
-      return 24L + 8L * longs.length + ((long) used) * (24L + 8L * SEGMENT_SIZE);
+      return MemoryEstimator.size(longs) + ((long) used) * (24L + 8L * SEGMENT_SIZE);
     }
 
     @Override
     public void close() throws IOException {
-      Arrays.fill(longs, null);
+      if (longs != null) {
+        Arrays.fill(longs, null);
+      }
       longs = null;
     }
   }
@@ -634,7 +639,6 @@ public interface LongLongMap extends Closeable {
         synchronized (this) {
           if (!readable) {
             try {
-              System.err.println("Making readable");
               flush();
               conn.close();
             } catch (SQLException e) {
@@ -823,113 +827,99 @@ public interface LongLongMap extends Closeable {
       | ((long) b[7] & 0xff);
   }
 
-  class RocksdbLongLongMap implements LongLongMap {
+  class SparseArray2 implements LongLongMap {
 
-    private final Path sst;
-    private final SstFileWriter writer;
+    private static final long MAX_KEY = 10_000_000_000L;
+    private static final long OFFSET_BITS = 7; // 128
+    private static final long SLAB_BITS = 17; // 1MB of longs
+    private static final int OFFSET_MASK = (1 << OFFSET_BITS) - 1;
+    private static final long SLAB_MINUS_MASK = SLAB_BITS - OFFSET_BITS;
+    private static final int SLAB_PRE_MASK = (1 << SLAB_MINUS_MASK) - 1;
+    private int[] keyIndex = new int[(int) (MAX_KEY >>> OFFSET_BITS)]; // 300mb
+    private int lastChunk = -1;
+    private int slab = -1;
+    private final Path path;
+    private final DataOutputStream outputStream;
+    private int lastOffset = 0;
+    private FileChannel channel;
+    private long outIdx = 0;
 
-    static {
-      RocksDB.loadLibrary();
-    }
-
-    private Path path = null;
-
-    public RocksdbLongLongMap(Path path) {
+    SparseArray2(Path path) {
       this.path = path;
       try {
-        FileUtils.delete(path);
-        Files.createDirectories(path);
-        writer = new SstFileWriter(new EnvOptions(), new Options());
-        FileUtils.delete(Path.of("/tmp/rocks"));
-        Files.createDirectories(Path.of("/tmp/rocks"));
-        sst = Path.of("/tmp/rocks").resolve("sst");
-        writer.open(sst.toAbsolutePath().toString());
-      } catch (RocksDBException | IOException ex) {
-        throw new RuntimeException(ex);
+        this.outputStream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path), 50_000));
+      } catch (IOException e) {
+        throw new IllegalStateException("Could not create compact array output stream", e);
       }
+      Arrays.fill(keyIndex, -1);
     }
 
-    private volatile boolean compacted = false;
-
-    private ThreadLocal<RocksDB> rocksDb = ThreadLocal.withInitial(() -> {
-      try {
-        return RocksDB.openReadOnly(new Options()
-            .setAllowMmapReads(true)
-          , path.resolve("db").toAbsolutePath().toString());
-      } catch (RocksDBException e) {
-        return null;
-      }
-    });
-
-    private synchronized void compactIfNecessary() {
-      if (!compacted) {
-        synchronized (this) {
-          if (!compacted) {
-            try {
-              System.err.println("Ingesting...");
-              StopWatch watch = new StopWatch().start();
-              writer.finish();
-              writer.close();
-              try (RocksDB _db = RocksDB.open(new Options().setCreateIfMissing(true),
-                path.resolve("db").toAbsolutePath().toString())) {
-                _db.ingestExternalFile(List.of(sst.toAbsolutePath().toString()), new IngestExternalFileOptions());
-              } finally {
-                FileUtils.delete(sst);
-              }
-
-              System.err.println("Done. Took " + (watch.stop().getCurrentSeconds()) + "s");
-            } catch (RocksDBException e) {
-              throw new Error(e);
-            }
-            compacted = true;
-          }
-        }
-      }
+    private void appendValue(long value) throws IOException {
+      outputStream.writeLong(value);
+      lastOffset = (lastOffset + 1) & OFFSET_MASK;
+      outIdx++;
     }
 
     @Override
-    public void put(long key, long val) {
+    public void put(long key, long value) {
       try {
-        writer.put(LongLongMap.encodeNodeId(key), LongLongMap.encodeNodeValue(val));
-      } catch (RocksDBException e) {
-        throw new RuntimeException(e);
+        int chunk = (int) (key >>> OFFSET_BITS);
+        int offset = (int) (key & OFFSET_MASK);
+        if (lastChunk != chunk) {
+          keyIndex[chunk] = ++slab;
+          lastChunk = chunk;
+          while (lastOffset != 0) {
+            appendValue(MISSING_VALUE);
+          }
+        }
+        while (lastOffset != offset) {
+          appendValue(MISSING_VALUE);
+        }
+        appendValue(value);
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
       }
     }
+
+    private volatile MappedByteBuffer[] segments;
 
     @Override
     public long get(long key) {
-      compactIfNecessary();
-      try {
-        byte[] results = rocksDb.get().get(LongLongMap.encodeNodeId(key));
-        return results == null ? MISSING_VALUE : LongLongMap.decodeNodeValue(results);
-      } catch (RocksDBException e) {
-        throw new RuntimeException(e);
+      if (segments == null) {
+        synchronized (this) {
+          if (segments == null) {
+            build();
+          }
+        }
       }
+      int chunk = (int) (key >>> OFFSET_BITS);
+      int offset = (int) (key & OFFSET_MASK);
+      int slab = keyIndex[chunk];
+      if (slab == -1) {
+        return MISSING_VALUE;
+      }
+      MappedByteBuffer segment = segments[slab >>> SLAB_MINUS_MASK];
+      int idx = (((slab & SLAB_PRE_MASK) << OFFSET_BITS) | offset) << 3;
+      return idx >= segment.limit() ? MISSING_VALUE : segment.getLong(idx);
     }
 
-    @Override
-    public long[] multiGet(LongArrayList key) {
-      compactIfNecessary();
-      long[] result = new long[key.size()];
+    private void build() {
       try {
-        List<byte[]> keys = new ArrayList<>(key.size());
-        for (int i = 0; i < key.size(); i++) {
-          keys.add(LongLongMap.encodeNodeId(key.get(i)));
+        outputStream.close();
+        channel = FileChannel.open(path, StandardOpenOption.READ);
+        var segmentCount = (slab >>> SLAB_MINUS_MASK) + 1;
+        MappedByteBuffer[] result = new MappedByteBuffer[segmentCount];
+        for (int i = 0; i < segmentCount; i++) {
+          long start = ((long) i) << SLAB_BITS;
+          if (outIdx > start) {
+            result[i] = channel
+              .map(FileChannel.MapMode.READ_ONLY, start << 3, Math.min(1 << SLAB_BITS, outIdx - start) << 3);
+          }
         }
-        List<byte[]> results = rocksDb.get().multiGetAsList(keys);
-        for (int i = 0; i < results.size(); i++) {
-          byte[] thisResult = results.get(i);
-          result[i] = thisResult == null ? MISSING_VALUE : LongLongMap.decodeNodeValue(thisResult);
-        }
-        return result;
-      } catch (RocksDBException e) {
-        throw new RuntimeException(e);
+        segments = result;
+      } catch (IOException e) {
+        throw new IllegalStateException("Could not create segments", e);
       }
-    }
-
-    @Override
-    public long[] multiGet(long[] key) {
-      return multiGet(LongArrayList.from(key));
     }
 
     @Override
@@ -938,8 +928,82 @@ public interface LongLongMap extends Closeable {
     }
 
     @Override
-    public void close() {
-//      db.close();
+    public void close() throws IOException {
+      if (channel != null) {
+        channel.close();
+        channel = null;
+      }
+      if (segments != null) {
+        Arrays.fill(segments, null);
+        segments = null;
+      }
+      keyIndex = null;
+    }
+  }
+
+  class SparseArray2Memory implements LongLongMap {
+
+    private static final long MAX_KEY = 10_000_000_000L;
+    private static final long OFFSET_BITS = 8; // 256
+    private static final long SLAB_BITS = 16; // 8MB of longs
+    private static final long OFFSET_MASK = (1L << OFFSET_BITS) - 1;
+    private static final long SLAB_MINUS_MASK = SLAB_BITS - OFFSET_BITS;
+    private static final int SLAB_PRE_MASK = (1 << SLAB_MINUS_MASK) - 1;
+    private final int[] keyIndex = new int[(int) (MAX_KEY >>> OFFSET_BITS)]; // 300mb
+    private final long[][] valueSlabs = new long[(int) (MAX_KEY >>> SLAB_BITS)][];
+    private int lastChunk = -1;
+    private int slab = -1;
+    private long slabSizes = 0;
+
+    SparseArray2Memory() {
+      Arrays.fill(keyIndex, -1);
+    }
+
+    @Override
+    public void put(long key, long value) {
+      int chunk = (int) (key >>> OFFSET_BITS);
+      int offset = (int) (key & OFFSET_MASK);
+      if (lastChunk != chunk) {
+        slab++;
+        keyIndex[chunk] = slab;
+        lastChunk = chunk;
+      }
+      int slabNum = slab >>> SLAB_MINUS_MASK;
+      long[] theSlab = valueSlabs[slabNum];
+      if (theSlab == null) {
+        theSlab = new long[1 << SLAB_BITS];
+        valueSlabs[slabNum] = theSlab;
+        for (int i = 0, len = theSlab.length; i < len; i++) {
+          theSlab[i] = MISSING_VALUE;
+        }
+        slabSizes += 24L + 8L * theSlab.length;
+      }
+      theSlab[((slab & SLAB_PRE_MASK) << OFFSET_BITS) | offset] = value;
+    }
+
+    @Override
+    public long get(long key) {
+      int chunk = (int) (key >>> OFFSET_BITS);
+      int offset = (int) (key & OFFSET_MASK);
+      int slab = keyIndex[chunk];
+      if (slab == -1) {
+        return MISSING_VALUE;
+      }
+      long[] theSlab = valueSlabs[slab >>> SLAB_MINUS_MASK];
+      return theSlab[((slab & SLAB_PRE_MASK) << OFFSET_BITS) | offset];
+    }
+
+    @Override
+    public long fileSize() {
+      return 24L + 4L * keyIndex.length +
+        24L + 8L * valueSlabs.length +
+        slabSizes;
+    }
+
+    @Override
+    public void close() throws IOException {
+//      valueSlabs = null;
+//      keyIndex = null;
     }
   }
 }

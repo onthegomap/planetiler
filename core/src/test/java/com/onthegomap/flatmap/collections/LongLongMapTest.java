@@ -59,11 +59,11 @@ public abstract class LongLongMapTest {
 
   @Test
   public void bigMultiInsert() {
-    long[] key = new long[5000];
-    long[] expected = new long[5000];
-    for (int i = 0; i < 5000; i++) {
-      map.put(i, i + 1);
-      key[i] = i;
+    long[] key = new long[50000];
+    long[] expected = new long[50000];
+    for (int i = 0; i < 50000; i++) {
+      map.put(i * 4, i + 1);
+      key[i] = i * 4;
       expected[i] = i + 1;
     }
 
@@ -120,11 +120,19 @@ public abstract class LongLongMapTest {
     }
   }
 
-  public static class RocksdbTest extends LongLongMapTest {
+  public static class SpareArray2Memory extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup() {
+      this.map = new LongLongMap.SparseArray2Memory();
+    }
+  }
+
+  public static class SparseArray2 extends LongLongMapTest {
 
     @BeforeEach
     public void setup(@TempDir Path dir) {
-      this.map = LongLongMap.newRocksdb(dir.resolve("rocksdb-long-long-map-test"));
+      this.map = new LongLongMap.SparseArray2(dir.resolve("temp-sparse-array-2"));
     }
   }
 }

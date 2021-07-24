@@ -49,6 +49,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <version>3.3.0</version>
+        <!-- for fatjar assembly descriptor -->
+        <dependencies>
+          <dependency>
+            <groupId>com.onthegomap</groupId>
+            <artifactId>flatmap-core</artifactId>
+            <version>${project.parent.version}</version>
+          </dependency>
+        </dependencies>
 
         <configuration>
           <archive>
@@ -57,7 +65,7 @@
             </manifestEntries>
           </archive>
           <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
+            <descriptorRef>fatjar</descriptorRef>
           </descriptorRefs>
         </configuration>
 

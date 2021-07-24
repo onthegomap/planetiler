@@ -12,7 +12,7 @@ fi
 
 "$(dirname "$0")"/build.sh
 
-rsync -avzP openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-jar-with-dependencies.jar "${1}":flatmap.jar
+rsync -avzP openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-fatjar.jar "${1}":flatmap.jar
 scp scripts/download-other-sources.sh "${1}":download-other-sources.sh
 scp scripts/download-osm.sh "${1}":download-osm.sh
 ssh "${1}" "bash -s" <<EOF
