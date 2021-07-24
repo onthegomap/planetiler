@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap.monitoring;
 
+import com.sun.management.GarbageCollectionNotificationInfo;
+import com.sun.management.GcInfo;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -9,30 +11,56 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import javax.management.NotificationEmitter;
+import javax.management.openmbean.CompositeData;
 
 public class ProcessInfo {
 
-  public static Optional<Duration> getProcessCpuTime() {
-    try {
-      return Optional
-        .of(Duration.ofNanos(callLongGetter("getProcessCpuTime", ManagementFactory.getOperatingSystemMXBean())));
-    } catch (NoSuchMethodException | InvocationTargetException e) {
-      return Optional.empty();
+  private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
+
+  // listen on GC events to track memory pool sizes after each GC
+  static {
+    for (GarbageCollectorMXBean garbageCollectorMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+      if (garbageCollectorMXBean instanceof NotificationEmitter emitter) {
+        emitter.addNotificationListener((notification, handback) -> {
+          if (notification.getUserData() instanceof CompositeData compositeData) {
+            var info = GarbageCollectionNotificationInfo.from(compositeData);
+            GcInfo gcInfo = info.getGcInfo();
+            postGcMemoryUsage.set(gcInfo.getMemoryUsageAfterGc().entrySet().stream()
+              .map(e -> Map.entry(e.getKey(), e.getValue().getUsed()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+            );
+          }
+        }, null, null);
+      }
     }
   }
 
-  private static Long callLongGetter(String getterName, Object obj)
-    throws NoSuchMethodException, InvocationTargetException {
-    return callLongGetter(obj.getClass().getMethod(getterName), obj);
+  public static Optional<Duration> getProcessCpuTime() {
+    return Optional
+      .ofNullable(callGetter("getProcessCpuTime", ManagementFactory.getOperatingSystemMXBean(), Long.class))
+      .map(Duration::ofNanos);
   }
 
-
-  private static Long callLongGetter(Method method, Object obj) throws InvocationTargetException {
+  private static <T> T callGetter(String getterName, Object obj, Class<T> resultClazz) {
     try {
-      return (Long) method.invoke(obj);
+      return callGetter(obj.getClass().getMethod(getterName), obj, resultClazz);
+    } catch (NoSuchMethodException | InvocationTargetException e) {
+      return null;
+    }
+  }
+
+  private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
+    try {
+      return resultClazz.cast(method.invoke(obj));
     } catch (IllegalAccessException e) {
       // Expected, the declaring class or interface might not be public.
+    } catch (ClassCastException e) {
+      return null;
     }
 
     // Iterate over all implemented/extended interfaces and attempt invoking the method with the
@@ -40,7 +68,7 @@ public class ProcessInfo {
     for (Class<?> clazz : method.getDeclaringClass().getInterfaces()) {
       try {
         Method interfaceMethod = clazz.getMethod(method.getName(), method.getParameterTypes());
-        Long result = callLongGetter(interfaceMethod, obj);
+        T result = callGetter(interfaceMethod, obj, resultClazz);
         if (result != null) {
           return result;
         }
@@ -70,6 +98,19 @@ public class ProcessInfo {
       total += gc.getCollectionTime();
     }
     return Duration.ofMillis(total);
+  }
+
+  public static Map<String, Long> getPostGcPoolSizes() {
+    return postGcMemoryUsage.get();
+  }
+
+  public static OptionalLong getMemoryUsageAfterLastGC() {
+    var lastGcPoolSizes = postGcMemoryUsage.get();
+    if (lastGcPoolSizes.isEmpty()) {
+      return OptionalLong.empty();
+    } else {
+      return OptionalLong.of(lastGcPoolSizes.values().stream().mapToLong(l -> l).sum());
+    }
   }
 
   public static Map<Long, ThreadState> getThreadStats() {

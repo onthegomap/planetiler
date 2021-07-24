@@ -54,6 +54,7 @@ public class PrometheusStats implements Stats {
     new InProgressTasks().register(registry);
     new FileSizeCollector().register(registry);
     new HeapObjectSizeCollector().register(registry);
+    new PostGcMemoryCollector().register(registry);
   }
 
   public PrometheusStats(String destination, String job, Duration interval) {
@@ -276,6 +277,22 @@ public class PrometheusStats implements Stats {
             heapObject.estimateMemoryUsageBytes()));
       }
       return results;
+    }
+  }
+
+  private static class PostGcMemoryCollector extends Collector {
+
+    @Override
+    public List<MetricFamilySamples> collect() {
+      GaugeMetricFamily postGcPoolSizes = new GaugeMetricFamily(
+        "jvm_memory_pool_post_gc_bytes_total",
+        "Memory used by each pool after last GC",
+        List.of("pool")
+      );
+      for (var entry : ProcessInfo.getPostGcPoolSizes().entrySet()) {
+        postGcPoolSizes.addMetric(List.of(entry.getKey()), entry.getValue());
+      }
+      return List.of(postGcPoolSizes);
     }
   }
 

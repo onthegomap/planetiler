@@ -145,8 +145,14 @@ public class ProgressLoggers {
     addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
     addDeltaLogger("gc", ProcessInfo::getGcTime, Format::formatPercent);
     loggers.add(new ProgressLogger("mem",
-      () -> padLeft(formatMB(Helper.getUsedMB(), false) + " / " + formatMB(Helper.getTotalMB(), false), 7)));
-
+      () ->
+        formatMB(Helper.getUsedMB(), false) + " / " +
+          formatMB(Helper.getTotalMB(), false) +
+          ProcessInfo.getMemoryUsageAfterLastGC().stream()
+            .mapToObj(value -> " postGC: " + formatBytes(value, false))
+            .findFirst()
+            .orElse("")
+    ));
     return this;
   }
 

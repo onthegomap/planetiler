@@ -128,7 +128,6 @@ public class Generate {
     Arguments arguments = Arguments.fromJvmProperties();
     String tag = arguments.get("tag", "openmaptiles tag to use", "v3.12.2");
     String base = "https://raw.githubusercontent.com/openmaptiles/openmaptiles/" + tag + "/";
-    base = "jar:file:/tmp/openmaptiles-3.12.2.zip!/openmaptiles-3.12.2/";
     var rootUrl = new URL(base + "openmaptiles.yaml");
     OpenmaptilesConfig config = load(rootUrl, OpenmaptilesConfig.class);
 
