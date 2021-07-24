@@ -113,7 +113,6 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addTopologyStats(topology);
     topology.awaitAndLog(loggers, config.logInterval());
     timer.stop();
-    System.err.println(nodesInWays + " " + PASS1_WAYS.getAsLong() + " " + (nodesInWays / PASS1_WAYS.getAsLong()));
   }
 
   long nodesInWays = 0;
