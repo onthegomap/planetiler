@@ -122,8 +122,9 @@ public class Wikidata {
   public static void fetch(OsmInputFile infile, Path outfile, CommonParams config, Profile profile, Stats stats) {
     int threads = config.threads();
     var timer = stats.startTimer("wikidata");
-    int readerThreads = Math.max(1, Math.min(4, threads * 3 / 4));
-    int processThreads = Math.max(1, Math.min(4, threads / 4));
+    int threadsAvailable = Math.max(1, config.threads() - 2);
+    int readerThreads = Math.max(1, (threadsAvailable * 3) / 4);
+    int processThreads = Math.max(1, threadsAvailable - readerThreads);
     LOGGER
       .info("[wikidata] Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
 
