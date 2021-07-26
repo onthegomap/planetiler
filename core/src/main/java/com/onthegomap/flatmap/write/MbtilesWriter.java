@@ -99,20 +99,31 @@ public class MbtilesWriter {
 
     var topology = Topology.start("mbtiles", stats);
 
-    int queueSize = 30_000 / BATCH_SIZE;
+    int queueSize = 10_000;
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
 
-    var encodeBranch = topology
-      .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
-        next.accept(batch);
-        writerQueue.accept(batch); // also send immediately to writer
-      }), 1)
-      .addBuffer("reader_queue", queueSize)
-      .sinkTo("encoder", config.threads(), writer::tileEncoder);
+    Topology<TileBatch> encodeBranch, writeBranch;
+    if (true || config.emitTilesInOrder()) {
+      encodeBranch = topology
+        .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
+          next.accept(batch);
+          writerQueue.accept(batch); // also send immediately to writer
+        }), 1)
+        .addBuffer("reader_queue", queueSize)
+        .sinkTo("encoder", config.threads(), writer::tileEncoder);
 
-    // the tile writer will wait on the result of each batch to ensure tiles are written in order
-    var writeBranch = topology.readFromQueue(writerQueue)
-      .sinkTo("writer", 1, writer::tileWriter);
+      // the tile writer will wait on the result of each batch to ensure tiles are written in order
+      writeBranch = topology.readFromQueue(writerQueue)
+        .sinkTo("writer", 1, writer::tileWriter);
+    } else {
+      // TODO
+//      encodeBranch = topology
+//        .fromGenerator("reader", writer::readFeatures, 1)
+//        .addBuffer("reader_queue", queueSize)
+//        .addWorker("encoder", config.threads(), (prev, next) -> {
+//          TOO
+//        })
+    }
 
     var loggers = new ProgressLoggers("mbtiles")
       .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
@@ -164,16 +175,24 @@ public class MbtilesWriter {
   void readFeatures(Consumer<TileBatch> next) {
     int currentZoom = Integer.MIN_VALUE;
     TileBatch batch = new TileBatch();
+    long featuresInThisBatch = 0;
+    long tilesInThisBatch = 0;
+    // 249 vs. 24,900
+    long MAX_FEATURES_PER_BATCH = BATCH_SIZE * 100;
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      if (batch.in.size() >= BATCH_SIZE) {
+      if (tilesInThisBatch > BATCH_SIZE || featuresInThisBatch > MAX_FEATURES_PER_BATCH) {
         next.accept(batch);
         batch = new TileBatch();
+        featuresInThisBatch = 0;
+        tilesInThisBatch = 0;
       }
+      featuresInThisBatch++;
+      tilesInThisBatch += feature.getNumFeatures();
       batch.in.offer(feature);
     }
     if (!batch.in.isEmpty()) {

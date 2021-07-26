@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.geo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -22,7 +23,21 @@ public class PointIndex<T> {
     return new PointIndex<>();
   }
 
+  private volatile boolean built = false;
+
+  private void build() {
+    if (!built) {
+      synchronized (this) {
+        if (!built) {
+          index.build();
+          built = true;
+        }
+      }
+    }
+  }
+
   public List<T> getWithin(Point point, double threshold) {
+    build();
     Coordinate coord = point.getCoordinate();
     Envelope envelope = point.getEnvelopeInternal();
     envelope.expandBy(threshold);
@@ -41,6 +56,7 @@ public class PointIndex<T> {
   }
 
   public T getNearest(Point point, double threshold) {
+    build();
     Coordinate coord = point.getCoordinate();
     Envelope envelope = point.getEnvelopeInternal();
     envelope.expandBy(threshold);
@@ -62,7 +78,8 @@ public class PointIndex<T> {
 
   public void put(Geometry geom, T item) {
     if (geom instanceof Point point && !point.isEmpty()) {
-      index.insert(point.getEnvelopeInternal(), new GeomWithData<>(point.getCoordinate(), item));
+      Envelope envelope = Objects.requireNonNull(point.getEnvelopeInternal());
+      index.insert(envelope, new GeomWithData<>(point.getCoordinate(), item));
     } else if (geom instanceof GeometryCollection geoms) {
       for (int i = 0; i < geoms.getNumGeometries(); i++) {
         put(geoms.getGeometryN(i), item);

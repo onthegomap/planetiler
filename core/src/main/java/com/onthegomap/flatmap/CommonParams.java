@@ -13,6 +13,7 @@ public record CommonParams(
   int maxzoom,
   boolean deferIndexCreation,
   boolean optimizeDb,
+  boolean emitTilesInOrder,
   boolean forceOverwrite,
   boolean gzipTempStorage,
   String longLongMap,
@@ -30,6 +31,7 @@ public record CommonParams(
     int maxzoom,
     boolean deferIndexCreation,
     boolean optimizeDb,
+    boolean emitTilesInOrder,
     boolean forceOverwrite,
     boolean gzipTempStorage,
     String longLongMap
@@ -42,6 +44,7 @@ public record CommonParams(
       maxzoom,
       deferIndexCreation,
       optimizeDb,
+      emitTilesInOrder,
       forceOverwrite,
       gzipTempStorage,
       longLongMap,
@@ -84,6 +87,7 @@ public record CommonParams(
       arguments.integer("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
       arguments.get("defer_mbtiles_index_creation", "add index to mbtiles file after finished writing", false),
       arguments.get("optimize_db", "optimize mbtiles after writing", false),
+      arguments.get("emit_tiles_in_order", "emit tiles in index order", false),
       arguments.get("force", "force overwriting output file", false),
       arguments.get("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.get("llmap", "type of long long map", "mapdb")
