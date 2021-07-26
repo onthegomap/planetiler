@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.util.StopWatch;
+import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.OsmInputFile;
@@ -34,7 +35,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -52,11 +52,11 @@ public class Wikidata {
   private static final Logger LOGGER = LoggerFactory.getLogger(Wikidata.class);
   private static final Pattern wikidataIRIMatcher = Pattern.compile("http://www.wikidata.org/entity/Q([0-9]+)");
   private static final Pattern qidPattern = Pattern.compile("Q([0-9]+)");
-  private final AtomicLong nodes = new AtomicLong(0);
-  private final AtomicLong ways = new AtomicLong(0);
-  private final AtomicLong rels = new AtomicLong(0);
-  private final AtomicLong wikidatas = new AtomicLong(0);
-  private final AtomicLong batches = new AtomicLong(0);
+  private final Counter.Readable nodes = Counter.newMultiThreadCounter();
+  private final Counter.Readable ways = Counter.newMultiThreadCounter();
+  private final Counter.Readable rels = Counter.newMultiThreadCounter();
+  private final Counter.Readable wikidatas = Counter.newMultiThreadCounter();
+  private final Counter.Readable batches = Counter.newMultiThreadCounter();
   private final LongSet visited = new LongHashSet();
   private final List<Long> qidsToFetch;
   private final Writer writer;
@@ -123,8 +123,8 @@ public class Wikidata {
     int threads = config.threads();
     var timer = stats.startTimer("wikidata");
     int threadsAvailable = Math.max(1, config.threads() - 2);
-    int readerThreads = Math.max(1, (threadsAvailable * 3) / 4);
-    int processThreads = Math.max(1, threadsAvailable - readerThreads);
+    int processThreads = Math.max(1, threadsAvailable / 4);
+    int readerThreads = Math.max(1, threadsAvailable - processThreads);
     LOGGER
       .info("[wikidata] Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
 
@@ -219,9 +219,9 @@ public class Wikidata {
     ReaderElement elem;
     while ((elem = prev.get()) != null) {
       switch (elem.getType()) {
-        case ReaderElement.NODE -> nodes.incrementAndGet();
-        case ReaderElement.WAY -> ways.incrementAndGet();
-        case ReaderElement.RELATION -> rels.incrementAndGet();
+        case ReaderElement.NODE -> nodes.inc();
+        case ReaderElement.WAY -> ways.inc();
+        case ReaderElement.RELATION -> rels.inc();
       }
       Object wikidata = elem.getTag("wikidata");
       if (wikidata instanceof String wikidataString) {
@@ -239,12 +239,13 @@ public class Wikidata {
     try {
       StopWatch timer = new StopWatch().start();
       LongObjectMap<Map<String, String>> results = queryWikidata(qidsToFetch);
-      LOGGER.info("Fetched batch " + batches.incrementAndGet() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
+      batches.inc();
+      LOGGER.info("Fetched batch " + batches.get() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
       writeTranslations(results);
     } catch (IOException | InterruptedException | URISyntaxException e) {
       throw new RuntimeException(e);
     }
-    wikidatas.addAndGet(qidsToFetch.size());
+    wikidatas.incBy(qidsToFetch.size());
     qidsToFetch.clear();
   }
 

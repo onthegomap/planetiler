@@ -1,5 +1,8 @@
 package com.onthegomap.flatmap.write;
 
+import static com.onthegomap.flatmap.monitoring.ProgressLoggers.string;
+import static com.onthegomap.flatmap.write.Mbtiles.BatchedTileWriter.BATCH_SIZE;
+
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Format;
@@ -7,15 +10,26 @@ import com.onthegomap.flatmap.LayerStats;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.collections.FeatureGroup;
+import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkQueue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -42,6 +56,8 @@ public class MbtilesWriter {
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
   private final FeatureGroup features;
+  private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
+  private final Set<String> layersSinceLastLog = Collections.synchronizedSet(new TreeSet<>());
 
   MbtilesWriter(FeatureGroup features, Mbtiles db, CommonParams config, Profile profile, Stats stats,
     LayerStats layerStats) {
@@ -81,11 +97,21 @@ public class MbtilesWriter {
     MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
       features.layerStats());
 
-    var topology = Topology.start("mbtiles", stats)
-      .fromGenerator("reader", writer::readFeatures, 1)
-      .addBuffer("reader_queue", 10_000, 500)
-      .addWorker("encoder", config.threads(), writer::tileEncoder)
-      .addBuffer("writer_queue", 10_000, 500)
+    var topology = Topology.start("mbtiles", stats);
+
+    int queueSize = 30_000 / BATCH_SIZE;
+    WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
+
+    var encodeBranch = topology
+      .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
+        next.accept(batch);
+        writerQueue.accept(batch); // also send immediately to writer
+      }), 1)
+      .addBuffer("reader_queue", queueSize)
+      .sinkTo("encoder", config.threads(), writer::tileEncoder);
+
+    // the tile writer will wait on the result of each batch to ensure tiles are written in order
+    var writeBranch = topology.readFromQueue(writerQueue)
       .sinkTo("writer", 1, writer::tileWriter);
 
     var loggers = new ProgressLoggers("mbtiles")
@@ -94,54 +120,104 @@ public class MbtilesWriter {
       .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
       .addProcessStats()
-      .addTopologyStats(topology);
+      .addTopologyStats(encodeBranch)
+      .addTopologyStats(writeBranch)
+      .newLine()
+      .add(string(() -> {
+        TileCoord lastTile = writer.lastTileWritten.get();
+        Set<String> layers = new TreeSet<>(writer.layersSinceLastLog);
+        writer.layersSinceLastLog.clear();
+        String blurb;
+        if (lastTile == null) {
+          blurb = "n/a";
+        } else {
+          blurb = lastTile.z() + "/" + lastTile.x() + "/" + lastTile.y() + " " + lastTile.getDebugUrl() + " " + layers;
+        }
+        return "last tile: " + blurb;
+      }));
 
-    topology.awaitAndLog(loggers, config.logInterval());
+    encodeBranch.awaitAndLog(loggers, config.logInterval());
+    writeBranch.awaitAndLog(loggers, config.logInterval());
+    writer.printTileStats();
     timer.stop();
   }
 
-  void readFeatures(Consumer<FeatureGroup.TileFeatures> next) {
+  private static record TileBatch(
+    Queue<FeatureGroup.TileFeatures> in,
+    Set<String> layers,
+    CompletableFuture<Queue<Mbtiles.TileEntry>> out
+  ) {
+
+    TileBatch() {
+      this(new ArrayDeque<>(BATCH_SIZE), new HashSet<>(), new CompletableFuture<>());
+    }
+
+    public int size() {
+      return in.size();
+    }
+
+    public boolean isEmpty() {
+      return in.isEmpty();
+    }
+  }
+
+  void readFeatures(Consumer<TileBatch> next) {
     int currentZoom = Integer.MIN_VALUE;
+    TileBatch batch = new TileBatch();
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      next.accept(feature);
-    }
-  }
-
-  void tileEncoder(Supplier<FeatureGroup.TileFeatures> prev, Consumer<Mbtiles.TileEntry> next) throws IOException {
-    FeatureGroup.TileFeatures tileFeatures, last = null;
-    byte[] lastBytes = null, lastEncoded = null;
-    while ((tileFeatures = prev.get()) != null) {
-      featuresProcessed.incBy(tileFeatures.getNumFeatures());
-      byte[] bytes, encoded;
-      if (tileFeatures.hasSameContents(last)) {
-        bytes = lastBytes;
-        encoded = lastEncoded;
-        memoizedTiles.inc();
-      } else {
-        VectorTileEncoder en = tileFeatures.getTile();
-        encoded = en.encode();
-        bytes = gzipCompress(encoded);
-        last = tileFeatures;
-        lastEncoded = encoded;
-        lastBytes = bytes;
-        if (encoded.length > 1_000_000) {
-          LOGGER.warn(tileFeatures.coord() + " " + encoded.length / 1024 + "kb uncompressed");
-        }
+      if (batch.in.size() >= BATCH_SIZE) {
+        next.accept(batch);
+        batch = new TileBatch();
       }
-      int zoom = tileFeatures.coord().z();
-      int encodedLength = encoded.length;
-      totalTileSizesByZoom[zoom].incBy(encodedLength);
-      maxTileSizesByZoom[zoom].accumulate(encodedLength);
-      next.accept(new Mbtiles.TileEntry(tileFeatures.coord(), bytes));
+      batch.in.offer(feature);
+    }
+    if (!batch.in.isEmpty()) {
+      next.accept(batch);
     }
   }
 
-  private void tileWriter(Supplier<Mbtiles.TileEntry> tiles) {
+  void tileEncoder(Supplier<TileBatch> prev) throws IOException {
+    TileBatch batch;
+    byte[] lastBytes = null, lastEncoded = null;
+
+    while ((batch = prev.get()) != null) {
+      Queue<Mbtiles.TileEntry> result = new ArrayDeque<>(batch.size());
+      FeatureGroup.TileFeatures tileFeatures, last = null;
+      while ((tileFeatures = batch.in.poll()) != null) {
+        batch.layers.addAll(tileFeatures.getTile().getLayers());
+        featuresProcessed.incBy(tileFeatures.getNumFeatures());
+        byte[] bytes, encoded;
+        if (tileFeatures.hasSameContents(last)) {
+          bytes = lastBytes;
+          encoded = lastEncoded;
+          memoizedTiles.inc();
+        } else {
+          VectorTileEncoder en = tileFeatures.getTile();
+          encoded = en.encode();
+          bytes = gzipCompress(encoded);
+          last = tileFeatures;
+          lastEncoded = encoded;
+          lastBytes = bytes;
+          if (encoded.length > 1_000_000) {
+            LOGGER.warn(tileFeatures.coord() + " " + encoded.length / 1024 + "kb uncompressed");
+          }
+        }
+        int zoom = tileFeatures.coord().z();
+        int encodedLength = encoded.length;
+        totalTileSizesByZoom[zoom].incBy(encodedLength);
+        maxTileSizesByZoom[zoom].accumulate(encodedLength);
+        result.add(new Mbtiles.TileEntry(tileFeatures.coord(), bytes));
+      }
+      batch.out.complete(result);
+    }
+  }
+
+  private void tileWriter(Supplier<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
     db.setupSchema();
     if (!config.deferIndexCreation()) {
       db.addIndex();
@@ -161,24 +237,32 @@ public class MbtilesWriter {
       .setMaxzoom(config.maxzoom())
       .setJson(layerStats.getTileStats());
 
+    TileCoord lastTile = null;
     try (var batchedWriter = db.newBatchedTileWriter()) {
-      Mbtiles.TileEntry tile;
-      while ((tile = tiles.get()) != null) {
-        int z = tile.tile().z();
-        batchedWriter.write(tile.tile(), tile.bytes());
-        stats.wroteTile(z, tile.bytes().length);
-        tilesByZoom[z].inc();
+      TileBatch batch;
+      while ((batch = tileBatches.get()) != null) {
+        Queue<Mbtiles.TileEntry> tiles = batch.out.get();
+        Mbtiles.TileEntry tile;
+        while ((tile = tiles.poll()) != null) {
+          TileCoord tileCoord = tile.tile();
+          assert lastTile == null || lastTile.compareTo(tileCoord) < 0;
+          lastTile = tile.tile();
+          int z = tileCoord.z();
+          batchedWriter.write(tile.tile(), tile.bytes());
+          stats.wroteTile(z, tile.bytes().length);
+          tilesByZoom[z].inc();
+        }
+        layersSinceLastLog.addAll(batch.layers);
+        lastTileWritten.set(lastTile);
       }
     }
 
     if (config.deferIndexCreation()) {
-      db.addIndex();
+//      db.addIndex();
     }
     if (config.optimizeDb()) {
       db.vacuumAnalyze();
     }
-
-    printTileStats();
   }
 
   private void printTileStats() {

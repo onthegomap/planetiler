@@ -32,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.locationtech.jts.algorithm.Orientation;
@@ -375,6 +376,10 @@ public class VectorTileEncoder {
       tile.addLayers(tileLayer.build());
     }
     return tile.build().toByteArray();
+  }
+
+  public Set<String> getLayers() {
+    return layers.keySet();
   }
 
   private enum Command {

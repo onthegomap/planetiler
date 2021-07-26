@@ -1,6 +1,9 @@
 package com.onthegomap.flatmap.geo;
 
+import java.text.NumberFormat;
 import org.jetbrains.annotations.NotNull;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
 
@@ -12,8 +15,13 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encode(x, y, z), x, y, z);
   }
 
+  private static final int XY_MASK = (1 << 14) - 1;
+
   public static TileCoord decode(int encoded) {
-    return new TileCoord(encoded, decodeX(encoded), decodeY(encoded), decodeZ(encoded));
+    int z = (encoded >> 28) + 8;
+    int x = (encoded >> 14) & XY_MASK;
+    int y = ((1 << z) - 1) - ((encoded) & XY_MASK);
+    return new TileCoord(encoded, x, y, z);
   }
 
   @Override
@@ -35,18 +43,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return encoded;
   }
 
-  public static int decodeZ(int key) {
-    return (key >> 28) + 8;
-  }
-
-  public static int decodeX(int key) {
-    return (key >> 14) & ((1 << 14) - 1);
-  }
-
-  public static int decodeY(int key) {
-    return (key) & ((1 << 14) - 1);
-  }
-
   private static int encode(int x, int y, int z) {
     int max = 1 << z;
     if (x >= max) {
@@ -59,7 +55,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
       y = 0;
     }
     if (y >= max) {
-      y = max;
+      y = max - 1;
     }
     // since most significant bit is treated as the sign bit, make:
     // z0-7 get encoded from 8 (0b1000) to 15 (0b1111)
@@ -70,6 +66,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     } else {
       z -= 8;
     }
+    y = max - 1 - y;
     return (z << 28) | (x << 14) | y;
   }
 
@@ -81,5 +78,24 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   @Override
   public int compareTo(@NotNull TileCoord o) {
     return Long.compare(encoded, o.encoded);
+  }
+
+  public Coordinate getLatLon() {
+    double worldWidthAtZoom = Math.pow(2, z);
+    return new CoordinateXY(
+      GeoUtils.getWorldLon(x / worldWidthAtZoom),
+      GeoUtils.getWorldLat(y / worldWidthAtZoom)
+    );
+  }
+
+  private static final NumberFormat format = NumberFormat.getNumberInstance();
+
+  static {
+    format.setMaximumFractionDigits(5);
+  }
+
+  public String getDebugUrl() {
+    Coordinate coord = getLatLon();
+    return "https://www.openstreetmap.org/#map=" + z + "/" + format.format(coord.y) + "/" + format.format(coord.x);
   }
 }

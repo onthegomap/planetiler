@@ -81,12 +81,12 @@ public final class Mbtiles implements Closeable {
   public static Mbtiles newWriteToFileDatabase(Path path) {
     try {
       SQLiteConfig config = new SQLiteConfig();
-      config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
       config.setJournalMode(SQLiteConfig.JournalMode.OFF);
+      config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
+      config.setCacheSize(1_000_000); // 1GB
       config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+      config.setTempStore(SQLiteConfig.TempStore.MEMORY);
       config.setApplicationId(MBTILES_APPLICATION_ID);
-      config.setPageSize(8_192);
-      config.setPragma(SQLiteConfig.Pragma.MMAP_SIZE, "30000000000");
       return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()));
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
@@ -287,12 +287,13 @@ public final class Mbtiles implements Closeable {
 
   public class BatchedTileWriter implements AutoCloseable {
 
+    public static final int BATCH_SIZE = 999 / 4;
     private final List<TileEntry> batch;
     private final PreparedStatement batchStatement;
     private final int batchLimit;
 
     private BatchedTileWriter() {
-      batchLimit = 999 / 4;
+      batchLimit = BATCH_SIZE;
       batch = new ArrayList<>(batchLimit);
       batchStatement = createBatchStatement(batchLimit);
     }

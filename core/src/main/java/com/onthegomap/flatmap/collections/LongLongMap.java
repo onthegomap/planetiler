@@ -462,10 +462,6 @@ public interface LongLongMap extends Closeable {
       return segments.get(segNum).getLong(segOffset << 3);
     }
 
-    private int binarySearch(long key) {
-      return Arrays.binarySearch(keys.buffer, 0, keys.elementsCount, key);
-    }
-
     @Override
     public long fileSize() {
       return FileUtils.size(path);
@@ -474,7 +470,14 @@ public interface LongLongMap extends Closeable {
     @Override
     public void close() throws IOException {
       outputStream.close();
-      channel.close();
+      if (channel != null) {
+        channel.close();
+        channel = null;
+      }
+      if (segments != null) {
+        segments.clear();
+        segments = null;
+      }
     }
   }
 

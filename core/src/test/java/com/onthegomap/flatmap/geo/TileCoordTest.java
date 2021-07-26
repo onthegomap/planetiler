@@ -21,14 +21,14 @@ public class TileCoordTest {
   public void testTileCoord(int x, int y, int z) {
     TileCoord coord1 = TileCoord.ofXYZ(x, y, z);
     TileCoord coord2 = TileCoord.decode(coord1.encoded());
-    assertEquals(coord1.x(), coord2.x());
-    assertEquals(coord1.y(), coord2.y());
-    assertEquals(coord1.z(), coord2.z());
+    assertEquals(coord1.x(), coord2.x(), "x");
+    assertEquals(coord1.y(), coord2.y(), "y");
+    assertEquals(coord1.z(), coord2.z(), "z");
     assertEquals(coord1, coord2);
   }
 
   @Test
-  public void testTileSortOrder() {
+  public void testTileSortOrderRespectZ() {
     int last = Integer.MIN_VALUE;
     for (int z = 0; z <= 14; z++) {
       int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
@@ -36,6 +36,17 @@ public class TileCoordTest {
         fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
       }
       last = encoded;
+    }
+  }
+
+  @Test
+  public void testTileSortOrderFlipY() {
+    for (int z = 1; z <= 14; z++) {
+      int encoded1 = TileCoord.ofXYZ(0, 1, z).encoded();
+      int encoded2 = TileCoord.ofXYZ(0, 0, z).encoded();
+      if (encoded2 < encoded1) {
+        fail("encoded value for y=1 is not less than y=0 at z=" + z);
+      }
     }
   }
 

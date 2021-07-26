@@ -126,7 +126,7 @@ public class ProgressLoggers {
     return this;
   }
 
-  private Object string(Supplier<String> supplier) {
+  public static Object string(Supplier<String> supplier) {
     return new Object() {
       @Override
       public String toString() {
@@ -241,6 +241,10 @@ public class ProgressLoggers {
       }
     }
     return this;
+  }
+
+  public ProgressLoggers newLine() {
+    return add("\n    ");
   }
 
   private static record ProgressLogger(String name, Supplier<String> fn) {
