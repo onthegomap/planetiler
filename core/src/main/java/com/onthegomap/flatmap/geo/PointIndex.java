@@ -79,7 +79,10 @@ public class PointIndex<T> {
   public void put(Geometry geom, T item) {
     if (geom instanceof Point point && !point.isEmpty()) {
       Envelope envelope = Objects.requireNonNull(point.getEnvelopeInternal());
-      index.insert(envelope, new GeomWithData<>(point.getCoordinate(), item));
+      // need to externally synchronize inserts into the STRTree
+      synchronized (this) {
+        index.insert(envelope, new GeomWithData<>(point.getCoordinate(), item));
+      }
     } else if (geom instanceof GeometryCollection geoms) {
       for (int i = 0; i < geoms.getNumGeometries(); i++) {
         put(geoms.getGeometryN(i), item);

@@ -22,7 +22,21 @@ public class PolygonIndex<T> {
     return new PolygonIndex<>();
   }
 
+  private volatile boolean built = false;
+
+  private void build() {
+    if (!built) {
+      synchronized (this) {
+        if (!built) {
+          index.build();
+          built = true;
+        }
+      }
+    }
+  }
+
   public List<T> getContaining(Point point) {
+    build();
     List<?> items = index.query(point.getEnvelopeInternal());
     return getContaining(point, items);
   }
@@ -45,6 +59,7 @@ public class PolygonIndex<T> {
   }
 
   public List<T> getContainingOrNearest(Point point) {
+    build();
     List<?> items = index.query(point.getEnvelopeInternal());
     // optimization: if there's only one then skip checking contains/distance
     if (items.size() == 1) {
@@ -81,7 +96,10 @@ public class PolygonIndex<T> {
 
   public synchronized void put(Geometry geom, T item) {
     if (geom instanceof Polygon poly) {
-      index.insert(poly.getEnvelopeInternal(), new GeomWithData<>(poly, item));
+      // need to externally synchronize inserts into the STRTree
+      synchronized (this) {
+        index.insert(poly.getEnvelopeInternal(), new GeomWithData<>(poly, item));
+      }
     } else if (geom instanceof GeometryCollection geoms) {
       for (int i = 0; i < geoms.getNumGeometries(); i++) {
         put(geoms.getGeometryN(i), item);
