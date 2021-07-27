@@ -3,11 +3,14 @@ package com.onthegomap.flatmap.worker;
 import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -17,7 +20,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
-  private final ConcurrentHashMap<Long, Queue<T>> queues = new ConcurrentHashMap<>();
+  private final List<WriterForThread> writers = Collections.synchronizedList(new ArrayList<>());
   private final int pendingBatchesCapacity;
   private final Counter.MultiThreadCounter enqueueCountStatAll;
   private final Counter.MultiThreadCounter enqueueBlockTimeNanosAll;
@@ -45,8 +48,9 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   @Override
   public void close() {
     try {
-      for (Queue<T> q : queues.values()) {
-        if (!q.isEmpty()) {
+      for (var writer : writers) {
+        var q = writer.writeBatchRef.get();
+        if (q != null && !q.isEmpty()) {
           itemQueue.put(q);
         }
       }
@@ -76,10 +80,15 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
 
   private class WriterForThread implements Consumer<T> {
 
+    AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
     Queue<T> writeBatch = null;
     Counter pendingCount = pendingCountAll.counterForThread();
     Counter enqueueCountStat = enqueueCountStatAll.counterForThread();
     Counter enqueueBlockTimeNanos = enqueueBlockTimeNanosAll.counterForThread();
+
+    WriterForThread() {
+      writers.add(this);
+    }
 
     @Override
     public void accept(T item) {
@@ -87,7 +96,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
       // queue in lass frequent, larger batches
       if (writeBatch == null) {
         writeBatch = new ArrayDeque<>(batchSize);
-        queues.put(Thread.currentThread().getId(), writeBatch);
+        writeBatchRef.set(writeBatch);
       }
 
       writeBatch.offer(item);
@@ -104,7 +113,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
         try {
           Queue<T> oldWriteBatch = writeBatch;
           writeBatch = null;
-          queues.remove(Thread.currentThread().getId());
+          writeBatchRef.set(null);
           // blocks if full
           if (!itemQueue.offer(oldWriteBatch)) {
             long start = System.nanoTime();

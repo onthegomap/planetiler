@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
@@ -58,6 +59,9 @@ public class MbtilesWriter {
   private final FeatureGroup features;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final Set<String> layersSinceLastLog = Collections.synchronizedSet(new TreeSet<>());
+  private final AtomicLong batchLengths = new AtomicLong(0);
+  private final AtomicLong batches = new AtomicLong(0);
+  private final AtomicLong maxInputFeaturesPerTile = new AtomicLong(0);
 
   MbtilesWriter(FeatureGroup features, Mbtiles db, CommonParams config, Profile profile, Stats stats,
     LayerStats layerStats) {
@@ -100,10 +104,10 @@ public class MbtilesWriter {
     var topology = Topology.start("mbtiles", stats);
 
     int queueSize = 10_000;
-    WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
 
     Topology<TileBatch> encodeBranch, writeBranch = null;
     if (config.emitTilesInOrder()) {
+      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = topology
         .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
           next.accept(batch);
@@ -138,10 +142,16 @@ public class MbtilesWriter {
         Set<String> layers = new TreeSet<>(writer.layersSinceLastLog);
         writer.layersSinceLastLog.clear();
         String blurb;
+        long batches = writer.batches.getAndSet(0);
+        long batchLen = writer.batchLengths.getAndSet(0);
+        String avgBatch = batches == 0 ? "-" : Long.toString(batchLen / batches);
         if (lastTile == null) {
           blurb = "n/a";
         } else {
-          blurb = lastTile.z() + "/" + lastTile.x() + "/" + lastTile.y() + " " + lastTile.getDebugUrl() + " " + layers;
+          blurb =
+            lastTile.z() + "/" + lastTile.x() + "/" + lastTile.y() + " bsize:" + avgBatch + " max: "
+              + writer.maxInputFeaturesPerTile.getAndSet(0) + " " + lastTile.getDebugUrl()
+              + " " + layers;
         }
         return "last tile: " + blurb;
       }));
@@ -179,8 +189,11 @@ public class MbtilesWriter {
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
     // 249 vs. 24,900
-    long MAX_FEATURES_PER_BATCH = (long) BATCH_SIZE * config.mbtilesFeatureMultiplier();
+    long MAX_FEATURES_PER_BATCH = ((long) BATCH_SIZE) * ((long) config.mbtilesFeatureMultiplier());
     long MIN_TILES_PER_BATCH = config.mbtilesMinTilesPerBatch();
+    System.err.println("BATCH_SIZE=" + BATCH_SIZE);
+    System.err.println("MAX_FEATURES_PER_BATCH=" + MAX_FEATURES_PER_BATCH);
+    System.err.println("MIN_TILES_PER_BATCH=" + MIN_TILES_PER_BATCH);
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
@@ -194,8 +207,9 @@ public class MbtilesWriter {
         featuresInThisBatch = 0;
         tilesInThisBatch = 0;
       }
-      featuresInThisBatch++;
-      tilesInThisBatch += feature.getNumFeatures();
+      featuresInThisBatch += feature.getNumFeatures();
+      maxInputFeaturesPerTile.accumulateAndGet(feature.getNumFeatures(), Long::max);
+      tilesInThisBatch++;
       batch.in.offer(feature);
     }
     if (!batch.in.isEmpty()) {
@@ -271,6 +285,7 @@ public class MbtilesWriter {
       while ((batch = tileBatches.get()) != null) {
         Queue<Mbtiles.TileEntry> tiles = batch.out.get();
         Mbtiles.TileEntry tile;
+        long batchSize = 0;
         while ((tile = tiles.poll()) != null) {
           TileCoord tileCoord = tile.tile();
           assert lastTile == null || lastTile.compareTo(tileCoord) < 0;
@@ -279,7 +294,10 @@ public class MbtilesWriter {
           batchedWriter.write(tile.tile(), tile.bytes());
           stats.wroteTile(z, tile.bytes().length);
           tilesByZoom[z].inc();
+          batchSize++;
         }
+        batches.incrementAndGet();
+        batchLengths.addAndGet(batchSize);
         layersSinceLastLog.addAll(batch.layers);
         lastTileWritten.set(lastTile);
       }
