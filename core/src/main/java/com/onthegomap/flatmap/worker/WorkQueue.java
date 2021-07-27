@@ -13,18 +13,18 @@ import java.util.function.Supplier;
 
 public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
 
-  private final ThreadLocal<Queue<T>> itemWriteBatchProvider = new ThreadLocal<>();
-  private final ThreadLocal<Queue<T>> itemReadBatchProvider = new ThreadLocal<>();
+  private final ThreadLocal<WriterForThread> writerProvider = ThreadLocal.withInitial(WriterForThread::new);
+  private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
   private final ConcurrentHashMap<Long, Queue<T>> queues = new ConcurrentHashMap<>();
   private final int pendingBatchesCapacity;
-  private final Counter enqueueCountStat;
-  private final Counter enqueueBlockTimeNanos;
-  private final Counter dequeueCountStat;
-  private final Counter dequeueBlockTimeNanos;
+  private final Counter.MultiThreadCounter enqueueCountStatAll;
+  private final Counter.MultiThreadCounter enqueueBlockTimeNanosAll;
+  private final Counter.MultiThreadCounter dequeueCountStatAll;
+  private final Counter.MultiThreadCounter dequeueBlockTimeNanosAll;
   private volatile boolean hasIncomingData = true;
-  private final Counter.Readable pendingCount = Counter.newMultiThreadCounter();
+  private final Counter.MultiThreadCounter pendingCountAll = Counter.newMultiThreadCounter();
 
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
     this.pendingBatchesCapacity = capacity / maxBatch;
@@ -36,10 +36,10 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     stats.gauge(name + "_capacity", this::getCapacity);
     stats.gauge(name + "_size", this::getPending);
 
-    this.enqueueCountStat = stats.longCounter(name + "_enqueue_count");
-    this.enqueueBlockTimeNanos = stats.nanoCounter(name + "_enqueue_block_time_seconds");
-    this.dequeueCountStat = stats.longCounter(name + "_dequeue_count");
-    this.dequeueBlockTimeNanos = stats.nanoCounter(name + "_dequeue_block_time_seconds");
+    this.enqueueCountStatAll = stats.longCounter(name + "_enqueue_count");
+    this.enqueueBlockTimeNanosAll = stats.nanoCounter(name + "_enqueue_block_time_seconds");
+    this.dequeueCountStatAll = stats.longCounter(name + "_dequeue_count");
+    this.dequeueBlockTimeNanosAll = stats.nanoCounter(name + "_dequeue_block_time_seconds");
   }
 
   @Override
@@ -56,80 +56,113 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     }
   }
 
-  @Override
-  public void accept(T item) {
-    // past 4-8 concurrent writers, start getting lock contention adding to the blocking queue so add to the
-    // queue in lass frequent, larger batches
-    Queue<T> writeBatch = itemWriteBatchProvider.get();
-    if (writeBatch == null) {
-      itemWriteBatchProvider.set(writeBatch = new ArrayDeque<>(batchSize));
-      queues.put(Thread.currentThread().getId(), writeBatch);
-    }
-
-    writeBatch.offer(item);
-    pendingCount.inc();
-
-    if (writeBatch.size() >= batchSize) {
-      flushWrites();
-    }
-    enqueueCountStat.inc();
+  public Consumer<T> threadLocalWriter() {
+    return writerProvider.get();
   }
 
-  private void flushWrites() {
-    Queue<T> writeBatch = itemWriteBatchProvider.get();
-    if (writeBatch != null && !writeBatch.isEmpty()) {
-      try {
-        itemWriteBatchProvider.set(null);
-        queues.remove(Thread.currentThread().getId());
-        // blocks if full
-        if (!itemQueue.offer(writeBatch)) {
-          long start = System.nanoTime();
-          itemQueue.put(writeBatch);
-          enqueueBlockTimeNanos.incBy(System.nanoTime() - start);
-        }
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
-      }
-    }
+  public Supplier<T> threadLocalReader() {
+    return readerProvider.get();
+  }
+
+  @Override
+  public void accept(T item) {
+    writerProvider.get().accept(item);
   }
 
   @Override
   public T get() {
-    Queue<T> itemBatch = itemReadBatchProvider.get();
+    return readerProvider.get().get();
+  }
 
-    if (itemBatch == null || itemBatch.isEmpty()) {
-      long start = System.nanoTime();
-      do {
-        if (!hasIncomingData && itemQueue.isEmpty()) {
-          break;
-        }
+  private class WriterForThread implements Consumer<T> {
 
-        if ((itemBatch = itemQueue.poll()) == null) {
-          try {
-            itemBatch = itemQueue.poll(100, TimeUnit.MILLISECONDS);
-            if (itemBatch != null) {
-              break;
-            }
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            break;// signal EOF
+    Queue<T> writeBatch = null;
+    Counter pendingCount = pendingCountAll.counterForThread();
+    Counter enqueueCountStat = enqueueCountStatAll.counterForThread();
+    Counter enqueueBlockTimeNanos = enqueueBlockTimeNanosAll.counterForThread();
+
+    @Override
+    public void accept(T item) {
+      // past 4-8 concurrent writers, start getting lock contention adding to the blocking queue so add to the
+      // queue in lass frequent, larger batches
+      if (writeBatch == null) {
+        writeBatch = new ArrayDeque<>(batchSize);
+        queues.put(Thread.currentThread().getId(), writeBatch);
+      }
+
+      writeBatch.offer(item);
+      pendingCount.inc();
+
+      if (writeBatch.size() >= batchSize) {
+        flushWrites();
+      }
+      enqueueCountStat.inc();
+    }
+
+    private void flushWrites() {
+      if (writeBatch != null && !writeBatch.isEmpty()) {
+        try {
+          Queue<T> oldWriteBatch = writeBatch;
+          writeBatch = null;
+          queues.remove(Thread.currentThread().getId());
+          // blocks if full
+          if (!itemQueue.offer(oldWriteBatch)) {
+            long start = System.nanoTime();
+            itemQueue.put(oldWriteBatch);
+            enqueueBlockTimeNanos.incBy(System.nanoTime() - start);
           }
+        } catch (InterruptedException ex) {
+          throw new RuntimeException(ex);
         }
-      } while (itemBatch == null);
-      itemReadBatchProvider.set(itemBatch);
-      dequeueBlockTimeNanos.incBy(System.nanoTime() - start);
+      }
     }
+  }
 
-    T result = itemBatch == null ? null : itemBatch.poll();
-    if (result != null) {
-      pendingCount.incBy(-1);
+  private class ReaderForThread implements Supplier<T> {
+
+    Queue<T> readBatch = null;
+    Counter dequeueBlockTimeNanos = dequeueBlockTimeNanosAll.counterForThread();
+    Counter pendingCount = pendingCountAll.counterForThread();
+    Counter dequeueCountStat = dequeueCountStatAll.counterForThread();
+
+    @Override
+    public T get() {
+      Queue<T> itemBatch = readBatch;
+
+      if (itemBatch == null || itemBatch.isEmpty()) {
+        long start = System.nanoTime();
+        do {
+          if (!hasIncomingData && itemQueue.isEmpty()) {
+            break;
+          }
+
+          if ((itemBatch = itemQueue.poll()) == null) {
+            try {
+              itemBatch = itemQueue.poll(100, TimeUnit.MILLISECONDS);
+              if (itemBatch != null) {
+                break;
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              break;// signal EOF
+            }
+          }
+        } while (itemBatch == null);
+        readBatch = itemBatch;
+        dequeueBlockTimeNanos.incBy(System.nanoTime() - start);
+      }
+
+      T result = itemBatch == null ? null : itemBatch.poll();
+      if (result != null) {
+        pendingCount.incBy(-1);
+      }
+      dequeueCountStat.inc();
+      return result;
     }
-    dequeueCountStat.inc();
-    return result;
   }
 
   public int getPending() {
-    return (int) pendingCount.get();
+    return (int) pendingCountAll.get();
   }
 
   public int getCapacity() {

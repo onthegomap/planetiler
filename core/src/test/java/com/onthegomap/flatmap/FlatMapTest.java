@@ -1300,4 +1300,57 @@ public class FlatMapTest {
       return postprocessLayerFeatures.process(layer, zoom, items);
     }
   }
+
+  private static final <T> List<T> orEmpty(List<T> in) {
+    return in == null ? List.of() : in;
+  }
+
+  @Test
+  public void testBadRelation() throws Exception {
+    // this threw an exception in OsmMultipolygon.build
+    OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
+    List<ReaderElement> elements = new ArrayList<>();
+    for (var node : orEmpty(osmInfo.nodes())) {
+      elements.add(new ReaderNode(node.id(), node.lat(), node.lon()));
+    }
+    for (var way : orEmpty(osmInfo.ways())) {
+      ReaderWay readerWay = new ReaderWay(way.id());
+      elements.add(readerWay);
+      for (var tag : orEmpty(way.tags())) {
+        readerWay.setTag(tag.k(), tag.v());
+      }
+      for (var nodeRef : orEmpty(way.nodeRefs())) {
+        readerWay.getNodes().add(nodeRef.ref());
+      }
+    }
+    for (var relation : orEmpty(osmInfo.relation())) {
+      ReaderRelation readerRelation = new ReaderRelation(relation.id());
+      elements.add(readerRelation);
+      for (var tag : orEmpty(relation.tags())) {
+        readerRelation.setTag(tag.k(), tag.v());
+      }
+      for (var member : orEmpty(relation.members())) {
+        readerRelation.add(new ReaderRelation.Member(switch (member.type()) {
+          case "way" -> ReaderRelation.Member.WAY;
+          case "relation" -> ReaderRelation.Member.RELATION;
+          case "node" -> ReaderRelation.Member.NODE;
+          default -> throw new IllegalStateException("Unexpected value: " + member.type());
+        }, member.ref(), member.role()));
+      }
+    }
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      elements,
+      (in, features) -> {
+        if (in.hasTag("landuse", "forest")) {
+          features.polygon("layer")
+            .setZoomRange(12, 14)
+            .setBufferPixels(4);
+        }
+      }
+    );
+
+    assertEquals(11, results.tiles.size());
+  }
 }

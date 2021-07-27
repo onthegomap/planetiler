@@ -401,7 +401,6 @@ public class OpenStreetMapReaderTest {
     var nodeCache = reader.newNodeGeometryCache();
     elements.stream().flatMap(ways).forEach(way -> {
       reader.processWayPass2(nodeCache, way);
-      nodeCache.reset();
     });
 
     var feature = reader.processRelationPass2(relation, nodeCache);
@@ -476,7 +475,6 @@ public class OpenStreetMapReaderTest {
     var nodeCache = reader.newNodeGeometryCache();
     elements.stream().flatMap(ways).forEach(way -> {
       reader.processWayPass2(nodeCache, way);
-      nodeCache.reset();
     });
 
     var feature = reader.processRelationPass2(relation, nodeCache);
@@ -545,7 +543,6 @@ public class OpenStreetMapReaderTest {
     var nodeCache = reader.newNodeGeometryCache();
     elements.stream().flatMap(ways).forEach(way -> {
       reader.processWayPass2(nodeCache, way);
-      nodeCache.reset();
     });
 
     var feature = reader.processRelationPass2(relation, nodeCache);
@@ -599,7 +596,6 @@ public class OpenStreetMapReaderTest {
     var nodeCache = reader.newNodeGeometryCache();
     elements.stream().flatMap(ways).forEach(way -> {
       reader.processWayPass2(nodeCache, way);
-      nodeCache.reset();
     });
 
     var feature = reader.processRelationPass2(relation, nodeCache);
@@ -633,7 +629,6 @@ public class OpenStreetMapReaderTest {
     var nodeCache = reader.newNodeGeometryCache();
     elements.stream().flatMap(ways).forEach(way -> {
       reader.processWayPass2(nodeCache, way);
-      nodeCache.reset();
     });
 
     var feature = reader.processRelationPass2(relation, nodeCache);

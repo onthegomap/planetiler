@@ -31,6 +31,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.prep.PreparedPolygon;
 
 /**
@@ -104,6 +105,16 @@ public class OsmMultipolygon {
     long osmId,
     double minGap
   ) throws GeometryException {
+    return build(rings, nodeCache, osmId, minGap, false);
+  }
+
+  public static Geometry build(
+    List<LongArrayList> rings,
+    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    long osmId,
+    double minGap,
+    boolean fix
+  ) throws GeometryException {
     try {
       if (rings.size() == 0) {
         throw new GeometryException.Verbose("osm_invalid_multipolygon_empty",
@@ -117,6 +128,9 @@ public class OsmMultipolygon {
         if (firstId == lastId || tryClose(segment, nodeCache, minGap)) {
           CoordinateSequence coordinates = nodeCache.getWayGeometry(segment);
           Polygon poly = GeoUtils.JTS_FACTORY.createPolygon(coordinates);
+          if (fix) {
+            poly = (Polygon) GeoUtils.fixPolygon(poly);
+          }
           polygons.add(new Ring(poly));
         }
       }
@@ -133,6 +147,14 @@ public class OsmMultipolygon {
       }
     } catch (IllegalArgumentException e) {
       throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+    } catch (TopologyException e) {
+      if (!fix) {
+        // retry but fix every polygon first
+        System.err.println("FIXING!");
+        return build(rings, nodeCache, osmId, minGap, true);
+      } else {
+        throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+      }
     }
   }
 

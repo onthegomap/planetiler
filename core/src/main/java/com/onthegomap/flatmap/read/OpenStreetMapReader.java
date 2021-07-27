@@ -202,7 +202,6 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
               renderer.accept(renderable);
             }
           }
-          nodeCache.reset();
         }
 
         // just in case a worker skipped over all relations
@@ -526,9 +525,6 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     }
 
     Coordinate getCoordinate(long id);
-
-    default void reset() {
-    }
   }
 
   private class NodeGeometryCache implements NodeLocationProvider {
@@ -557,8 +553,5 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       }
       return seq;
     }
-  }
-
-  public void reset() {
   }
 }

@@ -9,12 +9,19 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.write.Mbtiles;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -488,5 +495,72 @@ public class TestUtils {
 
   public static LinearRing newLinearRing(double... coords) {
     return JTS_FACTORY.createLinearRing(coordinateSequence(coords));
+  }
+
+  @JacksonXmlRootElement(localName = "node")
+  public static record Node(
+    long id, double lat, double lon
+  ) {}
+
+  @JacksonXmlRootElement(localName = "nd")
+  public static record NodeRef(
+    long ref
+  ) {}
+
+  public static record Tag(String k, String v) {}
+
+  public static record Way(
+    long id,
+    @JacksonXmlProperty(localName = "nd")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<NodeRef> nodeRefs,
+    @JacksonXmlProperty(localName = "tag")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<Tag> tags
+  ) {}
+
+  @JacksonXmlRootElement(localName = "member")
+  public static record RelationMember(
+    String type, long ref, String role
+  ) {}
+
+  @JacksonXmlRootElement(localName = "relation")
+  public static record Relation(
+    long id,
+    @JacksonXmlProperty(localName = "member")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<RelationMember> members,
+    @JacksonXmlProperty(localName = "tag")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<Tag> tags
+  ) {}
+
+  //  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static record OsmXml(
+    String version,
+    String generator,
+    String copyright,
+    String attribution,
+    String license,
+    @JacksonXmlProperty(localName = "node")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<Node> nodes,
+    @JacksonXmlProperty(localName = "way")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<Way> ways,
+    @JacksonXmlProperty(localName = "relation")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    List<Relation> relation
+  ) {}
+
+  private static final XmlMapper xmlMapper = new XmlMapper();
+
+  static {
+    xmlMapper.registerModule(new Jdk8Module());
+  }
+
+  public static OsmXml readOsmXml(String s) throws IOException {
+    Path path = Path.of("src", "test", "resources", s);
+    return xmlMapper.readValue(Files.newInputStream(path), OsmXml.class);
   }
 }

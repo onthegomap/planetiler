@@ -33,14 +33,14 @@ public interface Stats extends AutoCloseable {
 
   void counter(String name, Supplier<Number> supplier);
 
-  default Counter.Readable longCounter(String name) {
-    Counter.Readable counter = Counter.newMultiThreadCounter();
+  default Counter.MultiThreadCounter longCounter(String name) {
+    Counter.MultiThreadCounter counter = Counter.newMultiThreadCounter();
     counter(name, counter::get);
     return counter;
   }
 
-  default Counter nanoCounter(String name) {
-    Counter.Readable counter = Counter.newMultiThreadCounter();
+  default Counter.MultiThreadCounter nanoCounter(String name) {
+    Counter.MultiThreadCounter counter = Counter.newMultiThreadCounter();
     counter(name, () -> counter.get() / NANOSECONDS_PER_SECOND);
     return counter;
   }
@@ -82,13 +82,13 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public Counter.Readable longCounter(String name) {
-      return Counter.newSingleThreadCounter();
+    public Counter.MultiThreadCounter longCounter(String name) {
+      return Counter.newMultiThreadCounter();
     }
 
     @Override
-    public Counter nanoCounter(String name) {
-      return Counter.noop();
+    public Counter.MultiThreadCounter nanoCounter(String name) {
+      return Counter.newMultiThreadCounter();
     }
 
     @Override

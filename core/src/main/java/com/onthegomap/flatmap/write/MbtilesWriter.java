@@ -102,27 +102,26 @@ public class MbtilesWriter {
     int queueSize = 10_000;
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
 
-    Topology<TileBatch> encodeBranch, writeBranch;
-    if (true || config.emitTilesInOrder()) {
+    Topology<TileBatch> encodeBranch, writeBranch = null;
+    if (config.emitTilesInOrder()) {
       encodeBranch = topology
         .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
           next.accept(batch);
           writerQueue.accept(batch); // also send immediately to writer
         }), 1)
         .addBuffer("reader_queue", queueSize)
-        .sinkTo("encoder", config.threads(), writer::tileEncoder);
+        .sinkTo("encoder", config.threads(), writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
       writeBranch = topology.readFromQueue(writerQueue)
         .sinkTo("writer", 1, writer::tileWriter);
     } else {
-      // TODO
-//      encodeBranch = topology
-//        .fromGenerator("reader", writer::readFeatures, 1)
-//        .addBuffer("reader_queue", queueSize)
-//        .addWorker("encoder", config.threads(), (prev, next) -> {
-//          TOO
-//        })
+      encodeBranch = topology
+        .fromGenerator("reader", writer::readFeatures, 1)
+        .addBuffer("reader_queue", queueSize)
+        .addWorker("encoder", config.threads(), writer::tileEncoder)
+        .addBuffer("writer_queue", queueSize)
+        .sinkTo("writer", 1, writer::tileWriter);
     }
 
     var loggers = new ProgressLoggers("mbtiles")
@@ -148,7 +147,9 @@ public class MbtilesWriter {
       }));
 
     encodeBranch.awaitAndLog(loggers, config.logInterval());
-    writeBranch.awaitAndLog(loggers, config.logInterval());
+    if (writeBranch != null) {
+      writeBranch.awaitAndLog(loggers, config.logInterval());
+    }
     writer.printTileStats();
     timer.stop();
   }
@@ -178,14 +179,16 @@ public class MbtilesWriter {
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
     // 249 vs. 24,900
-    long MAX_FEATURES_PER_BATCH = BATCH_SIZE * 100;
+    long MAX_FEATURES_PER_BATCH = (long) BATCH_SIZE * config.mbtilesFeatureMultiplier();
+    long MIN_TILES_PER_BATCH = config.mbtilesMinTilesPerBatch();
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      if (tilesInThisBatch > BATCH_SIZE || featuresInThisBatch > MAX_FEATURES_PER_BATCH) {
+      if (tilesInThisBatch > BATCH_SIZE ||
+        (tilesInThisBatch >= MIN_TILES_PER_BATCH && featuresInThisBatch > MAX_FEATURES_PER_BATCH)) {
         next.accept(batch);
         batch = new TileBatch();
         featuresInThisBatch = 0;
@@ -200,7 +203,12 @@ public class MbtilesWriter {
     }
   }
 
-  void tileEncoder(Supplier<TileBatch> prev) throws IOException {
+  void tileEncoderSink(Supplier<TileBatch> prev) throws IOException {
+    tileEncoder(prev, batch -> {
+    });
+  }
+
+  void tileEncoder(Supplier<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
     TileBatch batch;
     byte[] lastBytes = null, lastEncoded = null;
 
@@ -233,6 +241,7 @@ public class MbtilesWriter {
         result.add(new Mbtiles.TileEntry(tileFeatures.coord(), bytes));
       }
       batch.out.complete(result);
+      next.accept(batch);
     }
   }
 
