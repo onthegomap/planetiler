@@ -95,10 +95,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass1(CommonParams config) {
-    var timer = stats.startTimer(name + "_pass1");
+    var timer = stats.startTimer("osm_pass1");
     String pbfParsePrefix = "pbfpass1";
     int parseThreads = Math.max(1, config.threads() - 2);
-    var topology = Topology.start(pbfParsePrefix, stats)
+    var topology = Topology.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass1", parseThreads))
       .addBuffer("reader_queue", 50_000, 10_000)
       .sinkToConsumer("process", 1, this::processPass1);
@@ -151,7 +151,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass2(FeatureGroup writer, CommonParams config) {
-    var timer = stats.startTimer(name + "_pass2");
+    var timer = stats.startTimer("osm_pass2");
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();

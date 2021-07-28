@@ -29,6 +29,7 @@ import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.TopologyException;
@@ -108,7 +109,16 @@ public class OsmMultipolygon {
     return build(rings, nodeCache, osmId, minGap, false);
   }
 
-  public static Geometry build(
+  private static Geometry buildAndFix(
+    List<LongArrayList> rings,
+    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    long osmId,
+    double minGap
+  ) throws GeometryException {
+    return build(rings, nodeCache, osmId, minGap, true);
+  }
+
+  private static Geometry build(
     List<LongArrayList> rings,
     OpenStreetMapReader.NodeLocationProvider nodeCache,
     long osmId,
@@ -128,11 +138,13 @@ public class OsmMultipolygon {
         if (firstId == lastId || tryClose(segment, nodeCache, minGap)) {
           CoordinateSequence coordinates = nodeCache.getWayGeometry(segment);
           Polygon poly = GeoUtils.JTS_FACTORY.createPolygon(coordinates);
-          if (fix) {
-            poly = (Polygon) GeoUtils.fixPolygon(poly);
-          }
-          polygons.add(new Ring(poly));
+          Geometry fixed = fix ? GeoUtils.fixPolygon(poly) : poly;
+          addPolygonRings(polygons, fixed);
         }
+      }
+      if (polygons.isEmpty()) {
+        throw new GeometryException.Verbose("osm_invalid_multipolygon_empty_after_fix",
+          "error building multipolygon " + osmId + ": no rings to process after fixing");
       }
       polygons.sort(BY_AREA_DESCENDING);
       Set<Ring> shells = groupParentChildShells(polygons);
@@ -145,15 +157,24 @@ public class OsmMultipolygon {
         Polygon[] finished = shells.stream().map(Ring::toPolygon).toArray(Polygon[]::new);
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
       }
-    } catch (IllegalArgumentException e) {
-      throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
     } catch (TopologyException e) {
       if (!fix) {
         // retry but fix every polygon first
-        System.err.println("FIXING!");
-        return build(rings, nodeCache, osmId, minGap, true);
+        return buildAndFix(rings, nodeCache, osmId, minGap);
       } else {
         throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+      }
+    } catch (Exception e) {
+      throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+    }
+  }
+
+  private static void addPolygonRings(List<Ring> polygons, Geometry geom) {
+    if (geom instanceof Polygon poly) {
+      polygons.add(new Ring(poly));
+    } else if (geom instanceof GeometryCollection geometryCollection) {
+      for (int i = 0; i < geom.getNumGeometries(); i++) {
+        addPolygonRings(polygons, geometryCollection.getGeometryN(i));
       }
     }
   }

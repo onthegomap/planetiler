@@ -389,6 +389,8 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
         items = profile.postProcessLayerFeatures(currentLayer, tile.z(), items);
       } catch (GeometryException e) {
         e.log(stats, "postprocess_layer", "Error postprocessing features for " + currentLayer + " layer on " + tile);
+      } catch (Exception e) {
+        LOGGER.error("Error postprocessing features " + currentLayer + " " + tile, e);
       }
       encoder.addLayerFeatures(currentLayer, items);
     }
