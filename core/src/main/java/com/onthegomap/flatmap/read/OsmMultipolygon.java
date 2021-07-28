@@ -165,7 +165,8 @@ public class OsmMultipolygon {
         throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
       }
     } catch (Exception e) {
-      throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+      throw e instanceof GeometryException geoe ? geoe
+        : new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
     }
   }
 
