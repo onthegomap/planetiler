@@ -1145,13 +1145,15 @@ public class FlatMapTest {
         public void finish(String name, FeatureCollector.Factory featureCollectors,
           Consumer<FeatureCollector.Feature> next) {
           if ("test".equals(name)) {
-            for (SourceFeature in : featureList) {
-              var features = featureCollectors.get(in);
-              features.point("layer")
-                .setZoomRange(13, 14)
-                .inheritFromSource("a");
-              for (var feature : features) {
-                next.accept(feature);
+            synchronized (featureList) {
+              for (SourceFeature in : featureList) {
+                var features = featureCollectors.get(in);
+                features.point("layer")
+                  .setZoomRange(13, 14)
+                  .inheritFromSource("a");
+                for (var feature : features) {
+                  next.accept(feature);
+                }
               }
             }
           }
@@ -1199,13 +1201,15 @@ public class FlatMapTest {
         public void finish(String name, FeatureCollector.Factory featureCollectors,
           Consumer<FeatureCollector.Feature> next) {
           if ("osm".equals(name)) {
-            for (SourceFeature in : featureList) {
-              var features = featureCollectors.get(in);
-              features.point("layer")
-                .setZoomRange(13, 14)
-                .inheritFromSource("a");
-              for (var feature : features) {
-                next.accept(feature);
+            synchronized (featureList) {
+              for (SourceFeature in : featureList) {
+                var features = featureCollectors.get(in);
+                features.point("layer")
+                  .setZoomRange(13, 14)
+                  .inheritFromSource("a");
+                for (var feature : features) {
+                  next.accept(feature);
+                }
               }
             }
           }

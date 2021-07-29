@@ -13,8 +13,10 @@ public class Timers {
 
   public void printSummary() {
     LOGGER.info("-".repeat(50));
-    for (var entry : timers.entrySet()) {
-      LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
+    synchronized (timers) {
+      for (var entry : timers.entrySet()) {
+        LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
+      }
     }
   }
 
@@ -26,7 +28,9 @@ public class Timers {
   }
 
   public Map<String, Timer> all() {
-    return new LinkedHashMap<>(timers);
+    synchronized (timers) {
+      return new LinkedHashMap<>(timers);
+    }
   }
 
   public interface Finishable {

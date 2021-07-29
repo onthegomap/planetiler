@@ -564,13 +564,14 @@ public class FeatureMergeTest {
 
   @ParameterizedTest
   @CsvSource({
-    "2477, 3028, 13, 1141",
-    "2481, 3026, 13, 948",
-    "2479, 3028, 13, 1074"
+    "bostonbuildings.mbtiles, 2477, 3028, 13, 1141",
+    "bostonbuildings.mbtiles, 2481, 3026, 13, 948",
+    "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
+    "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
-  public void testMergeManyPolygons(int x, int y, int z, int expected)
+  public void testMergeManyPolygons(String file, int x, int y, int z, int expected)
     throws IOException, GeometryException {
-    try (var db = Mbtiles.newReadOnlyDatabase(Path.of("src", "test", "resources", "bostonbuildings.mbtiles"))) {
+    try (var db = Mbtiles.newReadOnlyDatabase(Path.of("src", "test", "resources", file))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
       List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);

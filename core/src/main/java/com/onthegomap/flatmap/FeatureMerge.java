@@ -2,6 +2,7 @@ package com.onthegomap.flatmap;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
+import com.carrotsearch.hppc.IntStack;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
 import com.onthegomap.flatmap.geo.GeoUtils;
@@ -274,15 +275,25 @@ public class FeatureMerge {
     return result;
   }
 
-  private static void dfs(int start, IntArrayList group, IntObjectMap<IntArrayList> adjacencyList, BitSet visited) {
-    IntArrayList adjacent = adjacencyList.get(start);
-    if (adjacent != null) {
-      for (var cursor : adjacent) {
-        int index = cursor.value;
-        if (!visited.get(index)) {
-          visited.set(index, true);
-          group.add(index);
-          dfs(index, group, adjacencyList, visited);
+  private static void dfs(int startNode, IntArrayList group, IntObjectMap<IntArrayList> adjacencyList,
+    BitSet visited) {
+    // do iterate (not recursive) depth-first search since when merging z13 building in very dense areas like Jakarta
+    // recursive calls can generate a stackoverflow error
+    IntStack stack = new IntStack();
+    stack.add(startNode);
+    while (!stack.isEmpty()) {
+      int start = stack.pop();
+      IntArrayList adjacent = adjacencyList.get(start);
+      if (adjacent != null) {
+        for (var cursor : adjacent) {
+          int index = cursor.value;
+          if (!visited.get(index)) {
+            visited.set(index, true);
+            group.add(index);
+            // technically, depth-first search would push onto the stack in reverse order but don't bother since
+            // ordering doesn't matter
+            stack.push(index);
+          }
         }
       }
     }

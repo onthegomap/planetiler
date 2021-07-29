@@ -85,7 +85,9 @@ public interface Counter {
 
     @Override
     public long get() {
-      return all.stream().mapToLong(SingleThreadCounter::get).sum();
+      synchronized (all) {
+        return all.stream().mapToLong(SingleThreadCounter::get).sum();
+      }
     }
   }
 

@@ -234,28 +234,31 @@ public class PrometheusStats implements Stats {
     @Override
     public List<MetricFamilySamples> collect() {
       List<Collector.MetricFamilySamples> results = new ArrayList<>();
-      for (var file : filesToMonitor.entrySet()) {
-        String name = sanitizeMetricName(file.getKey());
-        Path path = file.getValue();
-        results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
-          FileUtils.size(path)));
-        if (Files.exists(path)) {
-          try {
-            FileStore fileStore = Files.getFileStore(path);
-            results
-              .add(new GaugeMetricFamily(BASE + "file_" + name + "_total_space_bytes", "Total space available on disk",
-                fileStore.getTotalSpace()));
-            results.add(
-              new GaugeMetricFamily(BASE + "file_" + name + "_unallocated_space_bytes", "Unallocated space on disk",
-                fileStore.getUnallocatedSpace()));
-            results
-              .add(new GaugeMetricFamily(BASE + "file_" + name + "_usable_space_bytes", "Usable space on disk",
-                fileStore.getUsableSpace()));
-          } catch (IOException e) {
-            // let the user know once
-            if (!logged) {
-              LOGGER.warn("unable to get usable space on device", e);
-              logged = true;
+      synchronized (filesToMonitor) {
+        for (var file : filesToMonitor.entrySet()) {
+          String name = sanitizeMetricName(file.getKey());
+          Path path = file.getValue();
+          results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
+            FileUtils.size(path)));
+          if (Files.exists(path)) {
+            try {
+              FileStore fileStore = Files.getFileStore(path);
+              results
+                .add(
+                  new GaugeMetricFamily(BASE + "file_" + name + "_total_space_bytes", "Total space available on disk",
+                    fileStore.getTotalSpace()));
+              results.add(
+                new GaugeMetricFamily(BASE + "file_" + name + "_unallocated_space_bytes", "Unallocated space on disk",
+                  fileStore.getUnallocatedSpace()));
+              results
+                .add(new GaugeMetricFamily(BASE + "file_" + name + "_usable_space_bytes", "Usable space on disk",
+                  fileStore.getUsableSpace()));
+            } catch (IOException e) {
+              // let the user know once
+              if (!logged) {
+                LOGGER.warn("unable to get usable space on device", e);
+                logged = true;
+              }
             }
           }
         }
@@ -322,10 +325,12 @@ public class PrometheusStats implements Stats {
         "User time used by each thread", List.of("name", "id"));
       mfs.add(threadUserTimes);
       threads.putAll(ProcessInfo.getThreadStats());
-      for (ProcessInfo.ThreadState thread : threads.values()) {
-        var labels = List.of(thread.name(), Long.toString(thread.id()));
-        threadUserTimes.addMetric(labels, thread.userTimeNanos() / NANOSECONDS_PER_SECOND);
-        threadCpuTimes.addMetric(labels, thread.cpuTimeNanos() / NANOSECONDS_PER_SECOND);
+      synchronized (threads) {
+        for (ProcessInfo.ThreadState thread : threads.values()) {
+          var labels = List.of(thread.name(), Long.toString(thread.id()));
+          threadUserTimes.addMetric(labels, thread.userTimeNanos() / NANOSECONDS_PER_SECOND);
+          threadCpuTimes.addMetric(labels, thread.cpuTimeNanos() / NANOSECONDS_PER_SECOND);
+        }
       }
 
       return mfs;

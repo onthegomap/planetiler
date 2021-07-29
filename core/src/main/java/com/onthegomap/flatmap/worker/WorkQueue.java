@@ -48,13 +48,15 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   @Override
   public void close() {
     try {
-      for (var writer : writers) {
-        var q = writer.writeBatchRef.get();
-        if (q != null && !q.isEmpty()) {
-          itemQueue.put(q);
+      synchronized (writers) {
+        for (var writer : writers) {
+          var q = writer.writeBatchRef.get();
+          if (q != null && !q.isEmpty()) {
+            itemQueue.put(q);
+          }
         }
+        hasIncomingData = false;
       }
-      hasIncomingData = false;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

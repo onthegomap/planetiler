@@ -157,16 +157,15 @@ public class OsmMultipolygon {
         Polygon[] finished = shells.stream().map(Ring::toPolygon).toArray(Polygon[]::new);
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
       }
-    } catch (TopologyException e) {
-      if (!fix) {
+    } catch (Exception e) {
+      if (e instanceof GeometryException geoe) {
+        throw geoe;
+      } else if (e instanceof TopologyException && !fix) {
         // retry but fix every polygon first
         return buildAndFix(rings, nodeCache, osmId, minGap);
       } else {
         throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
       }
-    } catch (Exception e) {
-      throw e instanceof GeometryException geoe ? geoe
-        : new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
     }
   }
 

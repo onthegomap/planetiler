@@ -387,10 +387,18 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
     private void emitLayer(VectorTileEncoder encoder, List<VectorTileEncoder.Feature> items, String currentLayer) {
       try {
         items = profile.postProcessLayerFeatures(currentLayer, tile.z(), items);
-      } catch (GeometryException e) {
-        e.log(stats, "postprocess_layer", "Error postprocessing features for " + currentLayer + " layer on " + tile);
-      } catch (Exception e) {
-        LOGGER.error("Error postprocessing features " + currentLayer + " " + tile, e);
+      } catch (Throwable e) {
+        if (e instanceof GeometryException geoe) {
+          geoe.log(stats, "postprocess_layer",
+            "Caught error postprocessing features for " + currentLayer + " layer on " + tile);
+        } else if (e instanceof Exception) {
+          LOGGER.error("Caught error postprocessing features " + currentLayer + " " + tile, e);
+        } else {
+          LOGGER.error("Fatal error postprocessing features " + currentLayer + " " + tile, e);
+        }
+        if (e instanceof Error err) {
+          throw err;
+        }
       }
       encoder.addLayerFeatures(currentLayer, items);
     }

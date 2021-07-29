@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.write;
 
 import static com.onthegomap.flatmap.monitoring.ProgressLoggers.string;
-import static com.onthegomap.flatmap.write.Mbtiles.BatchedTileWriter.BATCH_SIZE;
 
 import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
@@ -20,13 +19,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,7 +55,6 @@ public class MbtilesWriter {
   private final LongAccumulator[] maxTileSizesByZoom;
   private final FeatureGroup features;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
-  private final Set<String> layersSinceLastLog = Collections.synchronizedSet(new TreeSet<>());
   private final AtomicLong batchLengths = new AtomicLong(0);
   private final AtomicLong batches = new AtomicLong(0);
   private final AtomicLong maxInputFeaturesPerTile = new AtomicLong(0);
@@ -103,7 +99,7 @@ public class MbtilesWriter {
 
     var topology = Topology.start("mbtiles", stats);
 
-    int queueSize = 10_000;
+    int queueSize = 1_000;
 
     Topology<TileBatch> encodeBranch, writeBranch = null;
     if (config.emitTilesInOrder()) {
@@ -139,8 +135,6 @@ public class MbtilesWriter {
       .newLine()
       .add(string(() -> {
         TileCoord lastTile = writer.lastTileWritten.get();
-        Set<String> layers = new TreeSet<>(writer.layersSinceLastLog);
-        writer.layersSinceLastLog.clear();
         String blurb;
         long batches = writer.batches.getAndSet(0);
         long batchLen = writer.batchLengths.getAndSet(0);
@@ -150,8 +144,7 @@ public class MbtilesWriter {
         } else {
           blurb =
             lastTile.z() + "/" + lastTile.x() + "/" + lastTile.y() + " bsize:" + avgBatch + " max: "
-              + writer.maxInputFeaturesPerTile.getAndSet(0) + " " + lastTile.getDebugUrl()
-              + " " + layers;
+              + writer.maxInputFeaturesPerTile.getAndSet(0) + " " + lastTile.getDebugUrl();
         }
         return "last tile: " + blurb;
       }));
@@ -165,13 +158,12 @@ public class MbtilesWriter {
   }
 
   private static record TileBatch(
-    Queue<FeatureGroup.TileFeatures> in,
-    Set<String> layers,
+    List<FeatureGroup.TileFeatures> in,
     CompletableFuture<Queue<Mbtiles.TileEntry>> out
   ) {
 
     TileBatch() {
-      this(new ArrayDeque<>(BATCH_SIZE), new HashSet<>(), new CompletableFuture<>());
+      this(new ArrayList<>(), new CompletableFuture<>());
     }
 
     public int size() {
@@ -189,18 +181,19 @@ public class MbtilesWriter {
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
     // 249 vs. 24,900
-    long MAX_FEATURES_PER_BATCH = ((long) BATCH_SIZE) * ((long) config.mbtilesFeatureMultiplier());
-    long MIN_TILES_PER_BATCH = config.mbtilesMinTilesPerBatch();
-    System.err.println("BATCH_SIZE=" + BATCH_SIZE);
-    System.err.println("MAX_FEATURES_PER_BATCH=" + MAX_FEATURES_PER_BATCH);
-    System.err.println("MIN_TILES_PER_BATCH=" + MIN_TILES_PER_BATCH);
+    long MAX_FEATURES_PER_BATCH = 10_000;
+    long MIN_TILES_PER_BATCH = 1;
+    long MAX_TILES_PER_BATCH = 1_000;
+    LOGGER.info("MAX_TILES_PER_BATCH=" + MAX_TILES_PER_BATCH);
+    LOGGER.info("MAX_FEATURES_PER_BATCH=" + MAX_FEATURES_PER_BATCH);
+    LOGGER.info("MIN_TILES_PER_BATCH=" + MIN_TILES_PER_BATCH);
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      if (tilesInThisBatch > BATCH_SIZE ||
+      if (tilesInThisBatch > MAX_TILES_PER_BATCH ||
         (tilesInThisBatch >= MIN_TILES_PER_BATCH && featuresInThisBatch > MAX_FEATURES_PER_BATCH)) {
         next.accept(batch);
         batch = new TileBatch();
@@ -210,7 +203,7 @@ public class MbtilesWriter {
       featuresInThisBatch += feature.getNumFeatures();
       maxInputFeaturesPerTile.accumulateAndGet(feature.getNumFeatures(), Long::max);
       tilesInThisBatch++;
-      batch.in.offer(feature);
+      batch.in.add(feature);
     }
     if (!batch.in.isEmpty()) {
       next.accept(batch);
@@ -228,9 +221,9 @@ public class MbtilesWriter {
 
     while ((batch = prev.get()) != null) {
       Queue<Mbtiles.TileEntry> result = new ArrayDeque<>(batch.size());
-      FeatureGroup.TileFeatures tileFeatures, last = null;
-      while ((tileFeatures = batch.in.poll()) != null) {
-        batch.layers.addAll(tileFeatures.getTile().getLayers());
+      FeatureGroup.TileFeatures last = null;
+      for (int i = 0; i < batch.in.size(); i++) {
+        FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeatures());
         byte[] bytes, encoded;
         if (tileFeatures.hasSameContents(last)) {
@@ -245,7 +238,7 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           if (encoded.length > 1_000_000) {
-            LOGGER.warn(tileFeatures.coord() + " " + encoded.length / 1024 + "kb uncompressed");
+            LOGGER.warn(tileFeatures.coord() + " " + (encoded.length / 1024) + "kb uncompressed");
           }
         }
         int zoom = tileFeatures.coord().z();
@@ -298,7 +291,6 @@ public class MbtilesWriter {
         }
         batches.incrementAndGet();
         batchLengths.addAndGet(batchSize);
-        layersSinceLastLog.addAll(batch.layers);
         lastTileWritten.set(lastTile);
       }
     }
