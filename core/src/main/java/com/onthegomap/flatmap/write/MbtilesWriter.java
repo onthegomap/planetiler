@@ -180,28 +180,27 @@ public class MbtilesWriter {
     TileBatch batch = new TileBatch();
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
-    // 249 vs. 24,900
     long MAX_FEATURES_PER_BATCH = 10_000;
-    long MIN_TILES_PER_BATCH = 1;
     long MAX_TILES_PER_BATCH = 1_000;
     LOGGER.info("MAX_TILES_PER_BATCH=" + MAX_TILES_PER_BATCH);
     LOGGER.info("MAX_FEATURES_PER_BATCH=" + MAX_FEATURES_PER_BATCH);
-    LOGGER.info("MIN_TILES_PER_BATCH=" + MIN_TILES_PER_BATCH);
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      if (tilesInThisBatch > MAX_TILES_PER_BATCH ||
-        (tilesInThisBatch >= MIN_TILES_PER_BATCH && featuresInThisBatch > MAX_FEATURES_PER_BATCH)) {
+      long thisTileFeatures = features.numFeatures();
+      if (tilesInThisBatch > 0 &&
+        (tilesInThisBatch >= MAX_TILES_PER_BATCH ||
+          ((featuresInThisBatch + thisTileFeatures) > MAX_FEATURES_PER_BATCH))) {
         next.accept(batch);
         batch = new TileBatch();
         featuresInThisBatch = 0;
         tilesInThisBatch = 0;
       }
-      featuresInThisBatch += feature.getNumFeatures();
-      maxInputFeaturesPerTile.accumulateAndGet(feature.getNumFeatures(), Long::max);
+      featuresInThisBatch += thisTileFeatures;
+      maxInputFeaturesPerTile.accumulateAndGet(thisTileFeatures, Long::max);
       tilesInThisBatch++;
       batch.in.add(feature);
     }
