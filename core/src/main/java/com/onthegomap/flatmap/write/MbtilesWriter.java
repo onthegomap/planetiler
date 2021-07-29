@@ -99,7 +99,7 @@ public class MbtilesWriter {
 
     var topology = Topology.start("mbtiles", stats);
 
-    int queueSize = 1_000;
+    int queueSize = 5_000;
 
     Topology<TileBatch> encodeBranch, writeBranch = null;
     if (config.emitTilesInOrder()) {
@@ -190,7 +190,12 @@ public class MbtilesWriter {
         LOGGER.info("[mbtiles] Starting z" + z);
         currentZoom = z;
       }
-      long thisTileFeatures = features.numFeatures();
+      long thisTileFeatures = feature.getNumFeaturesToEmit();
+      maxInputFeaturesPerTile.accumulateAndGet(thisTileFeatures, Long::max);
+      // TODO move to profile layer cost function
+      if (z != 13) {
+        thisTileFeatures /= 10;
+      }
       if (tilesInThisBatch > 0 &&
         (tilesInThisBatch >= MAX_TILES_PER_BATCH ||
           ((featuresInThisBatch + thisTileFeatures) > MAX_FEATURES_PER_BATCH))) {
@@ -200,7 +205,6 @@ public class MbtilesWriter {
         tilesInThisBatch = 0;
       }
       featuresInThisBatch += thisTileFeatures;
-      maxInputFeaturesPerTile.accumulateAndGet(thisTileFeatures, Long::max);
       tilesInThisBatch++;
       batch.in.add(feature);
     }
@@ -223,7 +227,7 @@ public class MbtilesWriter {
       FeatureGroup.TileFeatures last = null;
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
-        featuresProcessed.incBy(tileFeatures.getNumFeatures());
+        featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;

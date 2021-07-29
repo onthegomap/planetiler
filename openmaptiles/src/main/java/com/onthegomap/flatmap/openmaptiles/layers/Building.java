@@ -122,7 +122,7 @@ public class Building implements OpenMapTilesSchema.Building,
         .setAttrWithMinzoom(Fields.HIDE_3D, hide3d, 14);
       if (mergeZ13Buildings) {
         feature
-          .setMinPixelSize(0.25)
+          .setMinPixelSize(0.1)
           .setPixelTolerance(0.25); // improves performance of the building merge ~50% over default
       }
     }

@@ -336,8 +336,12 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
       this.tile = TileCoord.decode(tile);
     }
 
-    public long getNumFeatures() {
+    public long getNumFeaturesProcessed() {
       return numFeaturesProcessed.get();
+    }
+
+    public long getNumFeaturesToEmit() {
+      return entries.size();
     }
 
     public TileCoord coord() {
