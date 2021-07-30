@@ -5,6 +5,7 @@ import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
+import com.onthegomap.flatmap.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
@@ -27,7 +28,6 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.linemerge.LineMerger;
-import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,10 +65,7 @@ public class FeatureMerge {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
             // re-simplify since some endpoints of merged segments may be unnecessary
             if (line.getNumPoints() > 2) {
-              DouglasPeuckerSimplifier simplifier = new DouglasPeuckerSimplifier(line);
-              simplifier.setDistanceTolerance(tolerance);
-              simplifier.setEnsureValid(false);
-              Geometry simplified = simplifier.getResultGeometry();
+              Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
               if (simplified instanceof LineString simpleLineString) {
                 line = simpleLineString;
               } else {
@@ -163,10 +160,16 @@ public class FeatureMerge {
       for (List<Geometry> polygonGroup : groupedByProximity) {
         Geometry merged;
         if (polygonGroup.size() > 1) {
-          merged = GeoUtils.createGeometryCollection(polygonGroup);
-          merged = buffer(buffer, merged);
           if (buffer > 0) {
+            // union performs better when there's a large overlap between features that are getting merged
+            // which ends up happening when we merge many tiny nearby buildings
+            for (int i = 0; i < polygonGroup.size(); i++) {
+              polygonGroup.set(i, buffer(buffer, polygonGroup.get(i)));
+            }
+            merged = union(GeoUtils.createGeometryCollection(polygonGroup));
             merged = unbuffer(buffer, merged);
+          } else {
+            merged = buffer(buffer, GeoUtils.createGeometryCollection(polygonGroup));
           }
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
@@ -178,7 +181,6 @@ public class FeatureMerge {
             continue;
           }
         }
-        // TODO VW simplify?
         extractPolygons(merged, outPolygons, minArea, minHoleArea);
       }
       if (!outPolygons.isEmpty()) {

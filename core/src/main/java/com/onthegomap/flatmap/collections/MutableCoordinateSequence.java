@@ -64,6 +64,10 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     }
   }
 
+  public void forceAddPoint(double x, double y) {
+    points.add(x, y);
+  }
+
   public void closeRing() {
     int size = size();
     if (size >= 1) {

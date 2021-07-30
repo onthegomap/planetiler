@@ -6,6 +6,7 @@ import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TileExtents;
 import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
@@ -29,7 +30,6 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,10 +157,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       }
 
       Geometry geom = AffineTransformation.scaleInstance(scale, scale).transform(input);
-      DouglasPeuckerSimplifier simplifier = new DouglasPeuckerSimplifier(geom);
-      simplifier.setEnsureValid(false);
-      simplifier.setDistanceTolerance(tolerance);
-      geom = simplifier.getResultGeometry();
+      geom = DouglasPeuckerSimplifier.simplify(geom, tolerance);
 
       List<List<CoordinateSequence>> groups = CoordinateSequenceExtractor.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;

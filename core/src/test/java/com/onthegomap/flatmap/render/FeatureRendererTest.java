@@ -982,6 +982,16 @@ public class FeatureRendererTest {
   }
 
   @Test
+  public void testIncludesPolygonUnderMinTolerance() {
+    var feature = polygonFeature(rectangle(0.5 + Z13_PX * 10, 0.5 + Z13_PX * 11.9))
+      .setMinPixelSize(1)
+      .setPixelTolerance(2)
+      .setZoomRange(13, 13)
+      .setBufferPixels(1);
+    assertEquals(1, renderGeometry(feature).size());
+  }
+
+  @Test
   public void testUses1pxMinAreaAtMaxZoom() {
     double base = 0.5 + Z14_WIDTH / 2;
     var feature = polygonFeature(rectangle(base, base + Z14_WIDTH / 4096 / 2))
@@ -1001,7 +1011,7 @@ public class FeatureRendererTest {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
-        0.5 + Z14_PX * (10 + 256d / 4096d), 0.5 + Z14_PX * 100,
+        0.5 + Z14_PX * (10 + 256d / 4096d / 2d), 0.5 + Z14_PX * 100,
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 200,
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10
       )

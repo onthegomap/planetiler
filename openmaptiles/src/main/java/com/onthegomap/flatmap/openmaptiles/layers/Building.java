@@ -123,7 +123,7 @@ public class Building implements OpenMapTilesSchema.Building,
       if (mergeZ13Buildings) {
         feature
           .setMinPixelSize(0.1)
-          .setPixelTolerance(0.25); // improves performance of the building merge ~50% over default
+          .setPixelTolerance(0.25);
       }
     }
   }

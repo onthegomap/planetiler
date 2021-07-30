@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -15,6 +16,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class FeatureSortTest {
 
+  private final CommonParams config = CommonParams.defaults();
+
   @TempDir
   Path tmpDir;
 
@@ -23,7 +26,7 @@ public class FeatureSortTest {
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip) {
-    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, new Stats.InMemory());
+    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, new Stats.InMemory());
   }
 
   @Test

@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.monitoring.ProcessInfo;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
@@ -21,8 +22,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
@@ -44,10 +43,11 @@ class ExternalMergeSort implements FeatureSort {
 
   private final List<Chunk> chunks = new ArrayList<>();
   private final boolean gzip;
+  private final CommonParams config;
   private Chunk current;
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, int threads, boolean gzip, Stats stats) {
+  ExternalMergeSort(Path tempDir, int threads, boolean gzip, CommonParams config, Stats stats) {
     this(
       tempDir,
       threads,
@@ -56,11 +56,13 @@ class ExternalMergeSort implements FeatureSort {
         (ProcessInfo.getMaxMemoryBytes() / 2) / threads
       ),
       gzip,
+      config,
       stats
     );
   }
 
-  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, Stats stats) {
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, CommonParams config, Stats stats) {
+    this.config = config;
     this.dir = dir;
     this.stats = stats;
     this.chunkSizeLimit = chunkSizeLimit;
@@ -140,7 +142,6 @@ class ExternalMergeSort implements FeatureSort {
     AtomicLong writing = new AtomicLong(0);
     AtomicLong sorting = new AtomicLong(0);
     AtomicLong doneCounter = new AtomicLong(0);
-    CompletableFuture<ProgressLoggers> logger = new CompletableFuture<>();
 
     var topology = Topology.start("sort", stats)
       .readFromTiny("item_queue", chunks)
@@ -149,11 +150,6 @@ class ExternalMergeSort implements FeatureSort {
         time(sorting, toSort::sort);
         time(writing, toSort::flush);
         doneCounter.incrementAndGet();
-        try {
-          logger.get().log();
-        } catch (InterruptedException | ExecutionException e) {
-          throw new IllegalStateException(e);
-        }
       });
 
     ProgressLoggers loggers = new ProgressLoggers("sort")
@@ -161,9 +157,8 @@ class ExternalMergeSort implements FeatureSort {
       .addFileSize(this::getStorageSize)
       .addProcessStats()
       .addTopologyStats(topology);
-    logger.complete(loggers);
 
-    topology.await();
+    topology.awaitAndLog(loggers, config.logInterval());
 
     sorted = true;
     timer.stop();

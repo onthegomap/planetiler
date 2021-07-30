@@ -61,8 +61,9 @@ public class Format {
     long value = num.longValue();
     if (value < 0) {
       return "-" + format(-value, pad, suffixes);
-    }
-    if (value < 1000) {
+    } else if (num.doubleValue() < 1) {
+      return padLeft("<1", pad ? 4 : 0);
+    } else if (value < 1000) {
       return padLeft(Long.toString(value), pad ? 4 : 0);
     }
 

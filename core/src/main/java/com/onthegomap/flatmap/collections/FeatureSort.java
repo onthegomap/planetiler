@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap.collections;
 
+import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,12 +12,13 @@ import org.jetbrains.annotations.NotNull;
 
 public interface FeatureSort extends Iterable<FeatureSort.Entry> {
 
-  static FeatureSort newExternalMergeSort(Path tempDir, int threads, boolean gzip, Stats stats) {
-    return new ExternalMergeSort(tempDir, threads, gzip, stats);
+  static FeatureSort newExternalMergeSort(Path tempDir, int threads, boolean gzip, CommonParams config, Stats stats) {
+    return new ExternalMergeSort(tempDir, threads, gzip, config, stats);
   }
 
-  static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, Stats stats) {
-    return new ExternalMergeSort(dir, workers, chunkSizeLimit, gzip, stats);
+  static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, CommonParams config,
+    Stats stats) {
+    return new ExternalMergeSort(dir, workers, chunkSizeLimit, gzip, config, stats);
   }
 
   static FeatureSort newInMemory() {
