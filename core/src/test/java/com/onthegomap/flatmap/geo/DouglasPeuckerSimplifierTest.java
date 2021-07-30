@@ -6,68 +6,70 @@ import static com.onthegomap.flatmap.TestUtils.newPolygon;
 import static com.onthegomap.flatmap.TestUtils.rectangle;
 
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.util.AffineTransformation;
 
 public class DouglasPeuckerSimplifierTest {
 
+  int[] rotations = new int[]{0, 45, 90, 180, 270};
+
+  private void testSimplify(Geometry in, Geometry expected, double amount) {
+    for (int rotation : rotations) {
+      var rotate = AffineTransformation.rotationInstance(Math.PI * rotation / 180);
+      assertSameNormalizedFeature(
+        rotate.transform(expected),
+        DouglasPeuckerSimplifier.simplify(rotate.transform(in), amount)
+      );
+    }
+  }
+
   @Test
-  public void test() {
-    var simplified = DouglasPeuckerSimplifier.simplify(newLineString(
+  public void testSimplify2Points() {
+    testSimplify(newLineString(
+      0, 0,
+      10, 10
+    ), newLineString(
       0, 0,
       10, 10
     ), 1);
-    assertSameNormalizedFeature(
-      newLineString(
-        0, 0,
-        10, 10
-      ),
-      simplified
-    );
   }
 
   @Test
   public void testRemoveAPoint() {
-    var simplified = DouglasPeuckerSimplifier.simplify(newLineString(
+    testSimplify(newLineString(
       0, 0,
       5, 0.9,
       10, 0
+    ), newLineString(
+      0, 0,
+      10, 0
     ), 1);
-    assertSameNormalizedFeature(
-      newLineString(
-        0, 0,
-        10, 0
-      ),
-      simplified
-    );
   }
 
   @Test
   public void testKeepAPoint() {
-    var simplified = DouglasPeuckerSimplifier.simplify(newLineString(
+    testSimplify(newLineString(
+      0, 0,
+      5, 1.1,
+      10, 0
+    ), newLineString(
       0, 0,
       5, 1.1,
       10, 0
     ), 1);
-    assertSameNormalizedFeature(
-      newLineString(
-        0, 0,
-        5, 1.1,
-        10, 0
-      ),
-      simplified
-    );
   }
 
   @Test
   public void testPolygonLeaveAPoint() {
-    var simplified = DouglasPeuckerSimplifier.simplify(rectangle(0, 10), 20);
-    assertSameNormalizedFeature(
+    testSimplify(
+      rectangle(0, 10),
       newPolygon(
         0, 0,
         10, 10,
         10, 0,
         0, 0
       ),
-      simplified
+      20
     );
   }
 }

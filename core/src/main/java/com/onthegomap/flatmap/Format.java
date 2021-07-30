@@ -59,9 +59,10 @@ public class Format {
 
   public static String format(Number num, boolean pad, NavigableMap<Long, String> suffixes) {
     long value = num.longValue();
+    double doubleValue = num.doubleValue();
     if (value < 0) {
       return "-" + format(-value, pad, suffixes);
-    } else if (num.doubleValue() < 1) {
+    } else if (doubleValue > 0 && doubleValue < 1) {
       return padLeft("<1", pad ? 4 : 0);
     } else if (value < 1000) {
       return padLeft(Long.toString(value), pad ? 4 : 0);

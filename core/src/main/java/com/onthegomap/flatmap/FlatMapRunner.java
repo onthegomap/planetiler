@@ -183,8 +183,7 @@ public class FlatMapRunner {
     Files.createDirectories(tmpDir);
     nodeDbPath = tmpDir.resolve("node.db");
     Path featureDbPath = tmpDir.resolve("feature.db");
-    featureDb = FeatureSort
-      .newExternalMergeSort(tmpDir.resolve("feature.db"), config.threads(), config.gzipTempStorage(), config, stats);
+    featureDb = FeatureSort.newExternalMergeSort(tmpDir.resolve("feature.db"), config, stats);
     featureMap = new FeatureGroup(featureDb, profile, stats);
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);

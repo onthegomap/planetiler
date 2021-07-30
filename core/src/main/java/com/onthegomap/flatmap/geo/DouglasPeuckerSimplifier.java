@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) 2016 Vivid Solutions.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License 2.0
+ * and Eclipse Distribution License v. 1.0 which accompanies this distribution.
+ * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ */
 package com.onthegomap.flatmap.geo;
 
 import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
@@ -7,6 +18,12 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
+/**
+ * This class is adapted from https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java
+ * with modifications to avoid collapsing small polygons since the subsequent area filter will remove them more
+ * accurately and performance improvement to put the results in a MutableCoordinateSequence which uses a primitive
+ * double array instead of allocating lots of Coordinate objects.
+ */
 public class DouglasPeuckerSimplifier {
 
   public static Geometry simplify(Geometry geom, double distanceTolerance) {
@@ -95,22 +112,10 @@ public class DouglasPeuckerSimplifier {
       return result;
     }
 
-    /**
-     * Simplifies a polygon, fixing it if required.
-     */
     protected Geometry transformPolygon(Polygon geom, Geometry parent) {
-      // empty geometries are simply removed
-      if (geom.isEmpty()) {
-        return null;
-      }
-      return super.transformPolygon(geom, parent);
+      return geom.isEmpty() ? null : super.transformPolygon(geom, parent);
     }
 
-    /**
-     * Simplifies a LinearRing.  If the simplification results in a degenerate ring, remove the component.
-     *
-     * @return null if the simplification results in a degenerate ring
-     */
     protected Geometry transformLinearRing(LinearRing geom, Geometry parent) {
       boolean removeDegenerateRings = parent instanceof Polygon;
       Geometry simpResult = super.transformLinearRing(geom, parent);

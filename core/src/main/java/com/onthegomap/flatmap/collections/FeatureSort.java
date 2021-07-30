@@ -12,8 +12,8 @@ import org.jetbrains.annotations.NotNull;
 
 public interface FeatureSort extends Iterable<FeatureSort.Entry> {
 
-  static FeatureSort newExternalMergeSort(Path tempDir, int threads, boolean gzip, CommonParams config, Stats stats) {
-    return new ExternalMergeSort(tempDir, threads, gzip, config, stats);
+  static FeatureSort newExternalMergeSort(Path tempDir, CommonParams config, Stats stats) {
+    return new ExternalMergeSort(tempDir, config, stats);
   }
 
   static FeatureSort newExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, CommonParams config,

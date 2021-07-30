@@ -47,15 +47,15 @@ class ExternalMergeSort implements FeatureSort {
   private Chunk current;
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, int threads, boolean gzip, CommonParams config, Stats stats) {
+  ExternalMergeSort(Path tempDir, CommonParams config, Stats stats) {
     this(
       tempDir,
-      threads,
+      config.threads(),
       (int) Math.min(
         MAX_CHUNK_SIZE,
-        (ProcessInfo.getMaxMemoryBytes() / 2) / threads
+        (ProcessInfo.getMaxMemoryBytes() / 2) / config.threads()
       ),
-      gzip,
+      config.gzipTempStorage(),
       config,
       stats
     );

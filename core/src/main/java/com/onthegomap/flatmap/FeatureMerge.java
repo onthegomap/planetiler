@@ -161,13 +161,15 @@ public class FeatureMerge {
         Geometry merged;
         if (polygonGroup.size() > 1) {
           if (buffer > 0) {
-            // union performs better when there's a large overlap between features that are getting merged
-            // which ends up happening when we merge many tiny nearby buildings
-            for (int i = 0; i < polygonGroup.size(); i++) {
-              polygonGroup.set(i, buffer(buffer, polygonGroup.get(i)));
-            }
-            merged = union(GeoUtils.createGeometryCollection(polygonGroup));
-            merged = unbuffer(buffer, merged);
+            // there are 2 ways to merge polygons:
+            // 1) bufferUnbuffer: merged.buffer(amount).buffer(-amount)
+            // 2) bufferUnionUnbuffer: polygon.buffer(amount) on each polygon then merged.union().buffer(-amount)
+            // #1 is faster on average, but can become very slow and use a lot of memory when there is a large overlap
+            // between buffered polygons (ie. most of them are smaller than the buffer amount) so we use #2 to avoid
+            // spinning for a very long time on very dense tiles.
+            // TODO use some heuristic to choose bufferUnbuffer vs. bufferUnionUnbuffer based on the number small
+            //      polygons in the group?
+            merged = bufferUnionUnbuffer(buffer, polygonGroup);
           } else {
             merged = buffer(buffer, GeoUtils.createGeometryCollection(polygonGroup));
           }
@@ -189,6 +191,23 @@ public class FeatureMerge {
       }
     }
     return result;
+  }
+
+  private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) {
+    for (int i = 0; i < polygonGroup.size(); i++) {
+      polygonGroup.set(i, buffer(buffer, polygonGroup.get(i)));
+    }
+    Geometry merged = GeoUtils.createGeometryCollection(polygonGroup);
+    merged = union(merged);
+    merged = unbuffer(buffer, merged);
+    return merged;
+  }
+
+  private static Geometry bufferUnbuffer(double buffer, List<Geometry> polygonGroup) {
+    Geometry merged = GeoUtils.createGeometryCollection(polygonGroup);
+    merged = buffer(buffer, merged);
+    merged = unbuffer(buffer, merged);
+    return merged;
   }
 
   private static Geometry union(Geometry merged) {

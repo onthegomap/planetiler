@@ -38,10 +38,10 @@ public class Arguments {
     return new Arguments(List.of(map::get));
   }
 
-  public static Arguments of(String... args) {
+  public static Arguments of(Object... args) {
     Map<String, String> map = new TreeMap<>();
     for (int i = 0; i < args.length; i += 2) {
-      map.put(args[i], args[i + 1]);
+      map.put(args[i].toString(), args[i + 1].toString());
     }
     return of(map);
   }
