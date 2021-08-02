@@ -1,9 +1,6 @@
 package com.onthegomap.flatmap;
 
-import com.carrotsearch.hppc.ObjectIntMap;
-import com.graphhopper.coll.GHObjectIntHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 public class Parse {
@@ -52,62 +49,20 @@ public class Parse {
     }
   }
 
-  private static final Set<String> booleanFalseValues = Set.of("", "0", "false", "no");
-
   public static boolean bool(Object tag) {
-    return !(tag == null || booleanFalseValues.contains(tag.toString()));
+    return Imposm3Parsers.bool(tag);
   }
 
   public static int boolInt(Object tag) {
-    return bool(tag) ? 1 : 0;
+    return Imposm3Parsers.boolInt(tag);
   }
 
-  private static final Set<String> forwardDirections = Set.of("1", "yes", "true");
-
-  public static int direction(Object string) {
-    if (string == null) {
-      return 0;
-    } else if (forwardDirections.contains(string(string))) {
-      return 1;
-    } else if ("-1".equals(string)) {
-      return -1;
-    } else {
-      return 0;
-    }
-  }
-
-  private static final ObjectIntMap<String> defaultRank = new GHObjectIntHashMap<>();
-
-  static {
-    defaultRank.put("minor", 3);
-    defaultRank.put("road", 3);
-    defaultRank.put("unclassified", 3);
-    defaultRank.put("residential", 3);
-    defaultRank.put("tertiary_link", 3);
-    defaultRank.put("tertiary", 4);
-    defaultRank.put("secondary_link", 3);
-    defaultRank.put("secondary", 5);
-    defaultRank.put("primary_link", 3);
-    defaultRank.put("primary", 6);
-    defaultRank.put("trunk_link", 3);
-    defaultRank.put("trunk", 8);
-    defaultRank.put("motorway_link", 3);
-    defaultRank.put("motorway", 9);
-  }
-
-  private static String string(Object object) {
-    return object == null ? null : object.toString();
+  public static int direction(Object input) {
+    return Imposm3Parsers.direction(input);
   }
 
   public static int wayzorder(Map<String, Object> tags) {
-    long z = Parse.parseLong(tags.get("layer")) * 10 +
-      defaultRank.getOrDefault(
-        string(tags.get("highway")),
-        tags.containsKey("railway") ? 7 : 0
-      ) +
-      (Parse.boolInt(tags.get("tunnel")) * -10L) +
-      (Parse.boolInt(tags.get("bridge")) * 10L);
-    return Math.abs(z) < 10_000 ? (int) z : 0;
+    return Imposm3Parsers.wayzorder(tags);
   }
 
   public static Double parseDoubleOrNull(Object value) {

@@ -36,19 +36,20 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
   @Override
   public Envelope getBounds() {
     try (var input = Files.newInputStream(path)) {
+      // https://wiki.openstreetmap.org/wiki/PBF_Format
       var dataInput = new DataInputStream(input);
       int headerSize = dataInput.readInt();
-      if (headerSize > 65536) {
-        throw new FileFormatException("Unexpectedly long header 65536 bytes. Possibly corrupt file " + path);
+      if (headerSize > 64 * 1024) {
+        throw new FileFormatException("Header longer than 64 KiB: " + path);
       }
       byte[] buf = dataInput.readNBytes(headerSize);
       BlobHeader header = BlobHeader.parseFrom(buf);
       if (!header.getType().equals("OSMHeader")) {
-        throw new IllegalArgumentException("Expecting OSMHeader got " + header.getType());
+        throw new IllegalArgumentException("Expecting OSMHeader got " + header.getType() + " in " + path);
       }
       buf = dataInput.readNBytes(header.getDatasize());
       Blob blob = Blob.parseFrom(buf);
-      ByteString data = null;
+      ByteString data;
       if (blob.hasRaw()) {
         data = blob.getRaw();
       } else if (blob.hasZlibData()) {
@@ -58,6 +59,8 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
         decompresser.inflate(buf2);
         decompresser.end();
         data = ByteString.copyFrom(buf2);
+      } else {
+        throw new FileFormatException("Header does not have raw or zlib data");
       }
       HeaderBlock headerblock = HeaderBlock.parseFrom(data);
       HeaderBBox bbox = headerblock.getBbox();
@@ -68,7 +71,7 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
         bbox.getTop() / 1e9
       );
     } catch (IOException | DataFormatException e) {
-      throw new RuntimeException(e);
+      throw new IllegalArgumentException(e);
     }
   }
 

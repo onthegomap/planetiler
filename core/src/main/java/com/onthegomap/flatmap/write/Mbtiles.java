@@ -35,6 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
+/**
+ * Implements the MBTiles specification defined in: https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md
+ */
 public final class Mbtiles implements Closeable {
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
