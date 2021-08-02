@@ -26,7 +26,7 @@ public class BuildingTest extends AbstractLayerTest {
       "_minzoom", 13,
       "_maxzoom", 14,
       "_buffer", 4d,
-      "_minpixelsize", 0.25d
+      "_minpixelsize", 0.1d
     )), process(polygonFeature(Map.of(
       "building", "yes"
     ))));
