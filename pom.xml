@@ -39,9 +39,9 @@
   </repositories>
 
   <modules>
-    <module>core</module>
-    <module>examples</module>
-    <module>openmaptiles</module>
+    <module>flatmap-core</module>
+    <module>flatmap-examples</module>
+    <module>flatmap-openmaptiles</module>
   </modules>
 
   <dependencyManagement>

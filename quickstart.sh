@@ -4,7 +4,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-JAR="openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-fatjar.jar"
+JAR="flatmap-openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-fatjar.jar"
 
 echo "Downloading data..."
 AREA="${1:-north-america_us_massachusetts}"
