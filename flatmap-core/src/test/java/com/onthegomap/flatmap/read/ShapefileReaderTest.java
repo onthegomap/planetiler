@@ -22,7 +22,7 @@ public class ShapefileReaderTest {
     "test",
     Path.of("src", "test", "resources", "shapefile.zip"),
     new Profile.NullProfile(),
-    new Stats.InMemory()
+    Stats.inMemory()
   );
 
   @AfterEach
@@ -41,7 +41,7 @@ public class ShapefileReaderTest {
   public void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
-      Topology.start("test", new Stats.InMemory())
+      Topology.start("test", Stats.inMemory())
         .fromGenerator("shapefile", reader.read())
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {

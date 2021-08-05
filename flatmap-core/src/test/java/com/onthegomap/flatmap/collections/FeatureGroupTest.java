@@ -28,7 +28,7 @@ import org.locationtech.jts.geom.Geometry;
 public class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
-  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), new Stats.InMemory());
+  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), Stats.inMemory());
 
   @Test
   public void testEmpty() {
@@ -211,7 +211,7 @@ public class FeatureGroupTest {
         Collections.reverse(items);
         return items;
       }
-    }, new Stats.InMemory());
+    }, Stats.inMemory());
     int x = 5, y = 6;
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2

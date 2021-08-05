@@ -108,6 +108,7 @@ public record Topology<T>(
       for (T item : items) {
         writer.accept(item);
       }
+      queue.close();
       return readFromQueue(queue);
     }
 

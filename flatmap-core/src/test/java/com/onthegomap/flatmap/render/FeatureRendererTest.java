@@ -40,7 +40,7 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 public class FeatureRendererTest {
 
   private CommonParams config = CommonParams.defaults();
-  private final Stats stats = new Stats.InMemory();
+  private final Stats stats = Stats.inMemory();
 
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
@@ -50,7 +50,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<Geometry>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(decodeSilently(rendered.vectorTileFeature().geometry())), new Stats.InMemory()).accept(feature);
+      .add(decodeSilently(rendered.vectorTileFeature().geometry())), Stats.inMemory()).accept(feature);
     result.values().forEach(gs -> gs.forEach(TestUtils::validateGeometry));
     return result;
   }
@@ -58,7 +58,7 @@ public class FeatureRendererTest {
   private Map<TileCoord, Collection<RenderedFeature>> renderFeatures(FeatureCollector.Feature feature) {
     Map<TileCoord, Collection<RenderedFeature>> result = new TreeMap<>();
     new FeatureRenderer(config, rendered -> result.computeIfAbsent(rendered.tile(), tile -> new HashSet<>())
-      .add(rendered), new Stats.InMemory()).accept(feature);
+      .add(rendered), Stats.inMemory()).accept(feature);
     result.values()
       .forEach(gs -> gs.forEach(f -> TestUtils.validateGeometry(decodeSilently(f.vectorTileFeature().geometry()))));
     return result;
@@ -808,7 +808,7 @@ public class FeatureRendererTest {
       .setZoomRange(maxZoom, maxZoom)
       .setBufferPixels(0);
     AtomicLong num = new AtomicLong(0);
-    new FeatureRenderer(config, rendered1 -> num.incrementAndGet(), new Stats.InMemory())
+    new FeatureRenderer(config, rendered1 -> num.incrementAndGet(), Stats.inMemory())
       .accept(feature);
     assertEquals(num.get(), Math.pow(4, maxZoom));
   }

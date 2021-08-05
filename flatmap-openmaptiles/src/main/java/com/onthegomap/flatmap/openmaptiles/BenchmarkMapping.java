@@ -21,7 +21,7 @@ import org.locationtech.jts.geom.Geometry;
 public class BenchmarkMapping {
 
   public static void main(String[] args) throws IOException {
-    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), Arguments.of(), new Stats.InMemory());
+    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), Arguments.of(), Stats.inMemory());
     var random = new Random(0);
     var input = new OsmInputFile(Path.of("data", "sources", "north-america_us_massachusetts.pbf"));
     List<SourceFeature> inputs = new ArrayList<>();

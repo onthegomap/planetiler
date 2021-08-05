@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Timeout;
 
 public class TopologyTest {
 
-  Stats stats = new Stats.InMemory();
+  Stats stats = Stats.inMemory();
 
   @Test
   @Timeout(10)

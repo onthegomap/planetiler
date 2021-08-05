@@ -62,7 +62,7 @@ public class FlatMapTest {
   private static final int Z12_TILES = 1 << 12;
   private static final double Z12_WIDTH = 1d / Z12_TILES;
   private static final int Z4_TILES = 1 << 4;
-  private final Stats stats = new Stats.InMemory();
+  private final Stats stats = Stats.inMemory();
 
   private static <T extends ReaderElement> T with(T elem, Consumer<T> fn) {
     fn.accept(elem);
@@ -99,7 +99,7 @@ public class FlatMapTest {
       osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OpenStreetMapReader(elems, nodeMap, profile, new Stats.InMemory())) {
+    try (var reader = new OpenStreetMapReader(elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }

@@ -104,5 +104,5 @@ public class WorkQueueTest {
     return new WorkQueue<>("queue", 1000, maxBatch, stats);
   }
 
-  private static final Stats stats = new Stats.InMemory();
+  private static final Stats stats = Stats.inMemory();
 }

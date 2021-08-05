@@ -25,12 +25,12 @@ public class NaturalEarthReaderTest {
   @Timeout(30)
   public void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
     var path = Path.of("src", "test", "resources", filename);
-    try (var reader = new NaturalEarthReader("test", path, tempDir, new Profile.NullProfile(), new Stats.InMemory())) {
+    try (var reader = new NaturalEarthReader("test", path, tempDir, new Profile.NullProfile(), Stats.inMemory())) {
       for (int i = 1; i <= 2; i++) {
         assertEquals(19, reader.getCount(), "iter " + i);
 
         List<Geometry> points = new ArrayList<>();
-        Topology.start("test", new Stats.InMemory())
+        Topology.start("test", Stats.inMemory())
           .fromGenerator("naturalearth", reader.read())
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {

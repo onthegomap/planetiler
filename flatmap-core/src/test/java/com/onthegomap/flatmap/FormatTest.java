@@ -17,7 +17,7 @@ public class FormatTest {
     "99999,99k",
     "999999,999k",
     "9999999,9.9M",
-    "-9999999,-9.9M",
+    "-9999999,-",
     "5.5e12,5.5T",
   })
   public void testFormatNumeric(Double number, String formatted) {
@@ -27,9 +27,9 @@ public class FormatTest {
   @ParameterizedTest
   @CsvSource({
     "999,999",
-    "1000,1kB",
-    "9999,9.9kB",
-    "5.5e9,5.5GB",
+    "1000,1k",
+    "9999,9.9k",
+    "5.5e9,5.5G",
   })
   public void testFormatStorage(Double number, String formatted) {
     assertEquals(formatted, Format.formatStorage(number, false));

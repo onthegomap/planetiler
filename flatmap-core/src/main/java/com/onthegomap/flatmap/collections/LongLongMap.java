@@ -75,7 +75,7 @@ public interface LongLongMap extends Closeable {
       .addRatePercentCounter("entries", entries, () -> counter.count)
       .addProcessStats();
     AtomicReference<String> writeRate = new AtomicReference<>();
-    new Worker("writer", new Stats.InMemory(), 1, () -> {
+    new Worker("writer", Stats.inMemory(), 1, () -> {
       long start = System.nanoTime();
       for (long i = 0; i < entries; i++) {
         map.put(i + 1L, i + 2L);

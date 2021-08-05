@@ -55,7 +55,7 @@ public class OpenMapTilesMain {
       var osmInput = new OsmInputFile(
         arguments.inputFile(OpenMapTilesProfile.OSM_SOURCE, "input file", sourcesDir.resolve(fallbackOsmFile)));
       Wikidata
-        .fetch(osmInput, wikidataNamesFile, CommonParams.from(arguments, osmInput), profile, new Stats.InMemory());
+        .fetch(osmInput, wikidataNamesFile, CommonParams.from(arguments, osmInput), profile, Stats.inMemory());
       translations.addTranslationProvider(Wikidata.load(wikidataNamesFile));
       System.exit(0);
     }

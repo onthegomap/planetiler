@@ -21,7 +21,7 @@ import org.locationtech.jts.geom.Geometry;
 public class FeatureCollectorTest {
 
   private CommonParams config = CommonParams.defaults();
-  private FeatureCollector.Factory factory = new FeatureCollector.Factory(config, new Stats.InMemory());
+  private FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
 
   private static void assertFeatures(int zoom, List<Map<String, Object>> expected, FeatureCollector actual) {
     List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();

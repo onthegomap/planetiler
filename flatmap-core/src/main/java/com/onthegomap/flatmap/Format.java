@@ -9,11 +9,11 @@ import java.util.TreeMap;
 public class Format {
 
   private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
-    Map.entry(1_000L, "kB"),
-    Map.entry(1_000_000L, "MB"),
-    Map.entry(1_000_000_000L, "GB"),
-    Map.entry(1_000_000_000_000L, "TB"),
-    Map.entry(1_000_000_000_000_000L, "PB")
+    Map.entry(1_000L, "k"),
+    Map.entry(1_000_000L, "M"),
+    Map.entry(1_000_000_000L, "G"),
+    Map.entry(1_000_000_000_000L, "T"),
+    Map.entry(1_000_000_000_000_000L, "P")
   ));
   private static final NavigableMap<Long, String> NUMERIC_SUFFIXES = new TreeMap<>(Map.ofEntries(
     Map.entry(1_000L, "k"),
@@ -61,7 +61,7 @@ public class Format {
     long value = num.longValue();
     double doubleValue = num.doubleValue();
     if (value < 0) {
-      return "-" + format(-value, pad, suffixes);
+      return padLeft("-", pad ? 4 : 0);
     } else if (doubleValue > 0 && doubleValue < 1) {
       return padLeft("<1", pad ? 4 : 0);
     } else if (value < 1000) {

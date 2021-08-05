@@ -27,7 +27,7 @@ public class OsmInputFileTest {
       AtomicInteger nodes = new AtomicInteger(0);
       AtomicInteger ways = new AtomicInteger(0);
       AtomicInteger rels = new AtomicInteger(0);
-      Topology.start("test", new Stats.InMemory())
+      Topology.start("test", Stats.inMemory())
         .fromGenerator("pbf", file.read("test", 2))
         .addBuffer("reader_queue", 1_000, 100)
         .sinkToConsumer("counter", 1, elem -> {

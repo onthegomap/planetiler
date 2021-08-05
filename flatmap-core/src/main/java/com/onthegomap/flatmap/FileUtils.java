@@ -79,4 +79,16 @@ public class FileUtils {
       deleteFile(path);
     }
   }
+
+  public static void createParentDirectories(Path path) {
+    try {
+      if (Files.isDirectory(path)) {
+        Files.createDirectories(path);
+      } else {
+        Files.createDirectories(path.getParent());
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to create parent directories " + path, e);
+    }
+  }
 }

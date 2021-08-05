@@ -51,6 +51,10 @@ public interface Stats extends AutoCloseable {
 
   void dataError(String stat);
 
+  static Stats inMemory() {
+    return new InMemory();
+  }
+
   class InMemory implements Stats {
 
     private final Timers timers = new Timers();

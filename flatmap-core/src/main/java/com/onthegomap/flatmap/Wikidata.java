@@ -1,5 +1,9 @@
 package com.onthegomap.flatmap;
 
+import static com.google.common.net.HttpHeaders.ACCEPT;
+import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static com.google.common.net.HttpHeaders.USER_AGENT;
+
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.LongObjectMap;
@@ -273,9 +277,9 @@ public class Wikidata {
 
     HttpRequest request = HttpRequest.newBuilder(URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
       .timeout(Duration.ofSeconds(30))
-      .header("User-Agent", "OpenMapTiles OSM name resolver (https://github.com/openmaptiles/openmaptiles)")
-      .header("Accept", "application/sparql-results+json")
-      .header("Content-Type", "application/sparql-query")
+      .header(USER_AGENT, "Flatmap OSM name resolver (https://github.com/onthegomap/flatmap)")
+      .header(ACCEPT, "application/sparql-results+json")
+      .header(CONTENT_TYPE, "application/sparql-query")
       .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
       .build();
     InputStream response = client.send(request);

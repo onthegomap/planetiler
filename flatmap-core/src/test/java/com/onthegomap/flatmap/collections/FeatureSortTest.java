@@ -26,7 +26,7 @@ public class FeatureSortTest {
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip) {
-    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, new Stats.InMemory());
+    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, Stats.inMemory());
   }
 
   @Test

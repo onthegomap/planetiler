@@ -18,7 +18,7 @@ public class OpenMaptilesProfileTest {
   private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
     .addTranslationProvider(wikidataTranslations);
   private final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, Arguments.of(),
-    new Stats.InMemory());
+    Stats.inMemory());
 
   @Test
   public void testCaresAboutWikidata() {

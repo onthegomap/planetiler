@@ -17,8 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 import java.util.function.DoubleFunction;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -56,6 +60,9 @@ public class ProgressLoggers {
       long valueNow = getValue.getAsLong();
       double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
       double valueDiff = valueNow - last.get();
+      if (valueDiff < 0) {
+        valueDiff = valueNow;
+      }
       last.set(valueNow);
       lastTime.set(now);
       return ANSI_GREEN + "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true)
@@ -73,6 +80,15 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
+    return addRatePercentCounter(name, total, getValue, Format::formatNumeric);
+  }
+
+  public ProgressLoggers addRatePercentBytesCounter(String name, long total, LongSupplier getValue) {
+    return addRatePercentCounter(name, total, getValue, Format::formatStorage);
+  }
+
+  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
+    BiFunction<Number, Boolean, String> format) {
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
     loggers.add(new ProgressLogger(name, () -> {
@@ -80,10 +96,13 @@ public class ProgressLoggers {
       long valueNow = getValue.getAsLong();
       double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
       double valueDiff = valueNow - last.get();
+      if (valueDiff < 0) {
+        valueDiff = valueNow;
+      }
       last.set(valueNow);
       lastTime.set(now);
-      return ANSI_GREEN + "[ " + formatNumeric(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
-        + " " + formatNumeric(valueDiff / timeDiff, true) + "/s ]" + ANSI_RESET;
+      return ANSI_GREEN + "[ " + format.apply(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
+        + " " + format.apply(valueDiff / timeDiff, true) + "/s ]" + ANSI_RESET;
     }));
     return this;
   }
@@ -245,6 +264,23 @@ public class ProgressLoggers {
 
   public ProgressLoggers newLine() {
     return add("\n    ");
+  }
+
+  public void awaitAndLog(Future<?> future, Duration logInterval) {
+    while (!await(future, logInterval)) {
+      log();
+    }
+  }
+
+  private static boolean await(Future<?> future, Duration duration) {
+    try {
+      future.get(duration.toNanos(), TimeUnit.NANOSECONDS);
+      return true;
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IllegalStateException(e);
+    } catch (TimeoutException e) {
+      return false;
+    }
   }
 
   private static record ProgressLogger(String name, Supplier<String> fn) {

@@ -14,7 +14,7 @@ public class ProgressLoggersTest {
   @Timeout(10)
   public void testLogTopology() {
     var latch = new CountDownLatch(1);
-    var topology = Topology.start("topo", new Stats.InMemory())
+    var topology = Topology.start("topo", Stats.inMemory())
       .fromGenerator("reader", next -> latch.await())
       .addBuffer("reader_queue", 10)
       .addWorker("worker", 2, (a, b) -> latch.await())
@@ -33,6 +33,7 @@ public class ProgressLoggersTest {
       log.replaceAll("[ 0-9][0-9]%", " 0%"));
     latch.countDown();
     topology.awaitAndLog(loggers, Duration.ofSeconds(10));
+    loggers.getLog();
     assertEquals("[prefix]\n    reader( -%) ->    (0/10) -> worker( -%  -%) ->    (0/10) -> writer( -%  -%)",
       loggers.getLog());
   }

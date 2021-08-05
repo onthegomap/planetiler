@@ -133,7 +133,7 @@ public class Arguments {
       return new PrometheusStats(prometheus, job, interval);
     } else {
       LOGGER.info("Using in-memory stats");
-      return new Stats.InMemory();
+      return Stats.inMemory();
     }
   }
 
