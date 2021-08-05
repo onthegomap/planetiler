@@ -85,7 +85,7 @@ public interface LongLongMap extends Closeable {
       String rate = Format.formatNumeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
       System.err.println("Loaded " + entries + " in " + Duration.ofNanos(end - start).toSeconds() + "s (" + rate + ")");
       writeRate.set(rate);
-    }).awaitAndLog(loggers, Duration.ofSeconds(10), Duration.ofSeconds(10));
+    }).awaitAndLog(loggers, Duration.ofSeconds(10));
 
     map.get(1);
     System.err.println("Storage: " + Format.formatStorage(map.fileSize(), false));

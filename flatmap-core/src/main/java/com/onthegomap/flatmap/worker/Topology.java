@@ -1,55 +1,39 @@
 package com.onthegomap.flatmap.worker;
 
+import static com.onthegomap.flatmap.worker.Worker.joinFutures;
+
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public record Topology<T>(
   String name,
-  com.onthegomap.flatmap.worker.Topology<?> previous,
+  Topology<?> previous,
   WorkQueue<T> inputQueue,
-  Worker worker
+  Worker worker,
+  CompletableFuture<?> done
 ) {
 
   public static Empty start(String prefix, Stats stats) {
     return new Empty(prefix, stats);
   }
 
-  // track time since last log and stagger initial log interval for each step to keep logs
-  // coming at consistent intervals
-  private void doAwaitAndLog(ProgressLoggers loggers, Duration logInterval, long startNanos) {
-    if (previous != null) {
-      previous.doAwaitAndLog(loggers, logInterval, startNanos);
-      if (inputQueue != null) {
-        inputQueue.close();
-      }
-    }
-    if (worker != null) {
-      long elapsedSoFar = System.nanoTime() - startNanos;
-      Duration sinceLastLog = Duration.ofNanos(elapsedSoFar % logInterval.toNanos());
-      Duration untilNextLog = logInterval.minus(sinceLastLog);
-      worker.awaitAndLog(loggers, untilNextLog, logInterval);
-    }
-  }
-
   public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
-    doAwaitAndLog(loggers, logInterval, System.nanoTime());
+    loggers.awaitAndLog(done, logInterval);
     loggers.log();
   }
 
   public void await() {
-    if (previous != null) {
-      previous.await();
-      if (inputQueue != null) {
-        inputQueue.close();
-      }
-    }
-    if (worker != null) {
-      worker.await();
+    try {
+      done.get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -146,13 +130,21 @@ public record Topology<T>(
 
     private Topology<I> build() {
       var previousTopology = previous == null || previous.worker == null ? null : previous.build();
-      return new Topology<>(name, previousTopology, inputQueue, worker);
+      var doneFuture = worker != null ? worker.done() : CompletableFuture.completedFuture(true);
+      if (previousTopology != null) {
+        doneFuture = joinFutures(doneFuture, previousTopology.done);
+      }
+      if (outputQueue != null) {
+        doneFuture = doneFuture.thenRun(outputQueue::close);
+      }
+      return new Topology<>(name, previousTopology, inputQueue, worker, doneFuture);
     }
 
     public Topology<O> sinkTo(String name, int threads, SinkStep<O> step) {
       var previousTopology = build();
       var worker = new Worker(prefix + "_" + name, stats, threads, () -> step.run(outputQueue.threadLocalReader()));
-      return new Topology<>(name, previousTopology, outputQueue, worker);
+      var doneFuture = joinFutures(worker.done(), previousTopology.done);
+      return new Topology<>(name, previousTopology, outputQueue, worker, doneFuture);
     }
 
     public Topology<O> sinkToConsumer(String name, int threads, Consumer<O> step) {

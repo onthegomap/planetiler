@@ -3,6 +3,7 @@ package com.onthegomap.flatmap;
 import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.graphhopper.reader.ReaderElement;
@@ -752,6 +753,19 @@ public class FlatMapTest {
         ))
       )
     ), results.tiles);
+  }
+
+  @Test
+  public void testExceptionWhileProcessingOsm() {
+    assertThrows(RuntimeException.class, () -> runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+      ),
+      (in, features) -> {
+        throw new Error();
+      }
+    ));
   }
 
   @Test

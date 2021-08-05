@@ -1,0 +1,25 @@
+package com.onthegomap.flatmap.worker;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import com.onthegomap.flatmap.monitoring.Stats;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+public class WorkerTest {
+
+  @Test
+  @Timeout(10)
+  public void testExceptionHandled() {
+    AtomicInteger counter = new AtomicInteger(0);
+    var worker = new Worker("prefix", Stats.inMemory(), 4, () -> {
+      if (counter.incrementAndGet() == 1) {
+        throw new Error();
+      } else {
+        Thread.sleep(5000);
+      }
+    });
+    assertThrows(RuntimeException.class, worker::await);
+  }
+}
