@@ -1,9 +1,9 @@
 package com.onthegomap.flatmap.read;
 
 import com.graphhopper.reader.ReaderElement;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 
 public interface OsmSource {
 
-  Topology.SourceStep<ReaderElement> read(String poolName, int threads);
+  WorkerPipeline.SourceStep<ReaderElement> read(String poolName, int threads);
 }

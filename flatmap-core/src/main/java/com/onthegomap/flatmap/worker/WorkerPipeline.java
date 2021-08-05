@@ -12,9 +12,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public record Topology<T>(
+public record WorkerPipeline<T>(
   String name,
-  Topology<?> previous,
+  WorkerPipeline<?> previous,
   WorkQueue<T> inputQueue,
   Worker worker,
   CompletableFuture<?> done
@@ -104,7 +104,7 @@ public record Topology<T>(
   public static record Builder<I, O>(
     String prefix,
     String name,
-    Topology.Builder<?, I> previous,
+    WorkerPipeline.Builder<?, I> previous,
     WorkQueue<I> inputQueue,
     WorkQueue<O> outputQueue,
     Worker worker, Stats stats
@@ -128,26 +128,26 @@ public record Topology<T>(
       };
     }
 
-    private Topology<I> build() {
-      var previousTopology = previous == null || previous.worker == null ? null : previous.build();
+    private WorkerPipeline<I> build() {
+      var previousPipeline = previous == null || previous.worker == null ? null : previous.build();
       var doneFuture = worker != null ? worker.done() : CompletableFuture.completedFuture(true);
-      if (previousTopology != null) {
-        doneFuture = joinFutures(doneFuture, previousTopology.done);
+      if (previousPipeline != null) {
+        doneFuture = joinFutures(doneFuture, previousPipeline.done);
       }
       if (outputQueue != null) {
         doneFuture = doneFuture.thenRun(outputQueue::close);
       }
-      return new Topology<>(name, previousTopology, inputQueue, worker, doneFuture);
+      return new WorkerPipeline<>(name, previousPipeline, inputQueue, worker, doneFuture);
     }
 
-    public Topology<O> sinkTo(String name, int threads, SinkStep<O> step) {
-      var previousTopology = build();
+    public WorkerPipeline<O> sinkTo(String name, int threads, SinkStep<O> step) {
+      var previousPipeline = build();
       var worker = new Worker(prefix + "_" + name, stats, threads, () -> step.run(outputQueue.threadLocalReader()));
-      var doneFuture = joinFutures(worker.done(), previousTopology.done);
-      return new Topology<>(name, previousTopology, outputQueue, worker, doneFuture);
+      var doneFuture = joinFutures(worker.done(), previousPipeline.done);
+      return new WorkerPipeline<>(name, previousPipeline, outputQueue, worker, doneFuture);
     }
 
-    public Topology<O> sinkToConsumer(String name, int threads, Consumer<O> step) {
+    public WorkerPipeline<O> sinkToConsumer(String name, int threads, Consumer<O> step) {
       return sinkTo(name, threads, (prev) -> {
         O item;
         while ((item = prev.get()) != null) {

@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -103,7 +103,7 @@ public class ShapefileReader extends Reader implements Closeable {
   }
 
   @Override
-  public Topology.SourceStep<ReaderFeature> read() {
+  public WorkerPipeline.SourceStep<ReaderFeature> read() {
     return next -> {
       try (var iter = inputSource.features()) {
         long id = 0;

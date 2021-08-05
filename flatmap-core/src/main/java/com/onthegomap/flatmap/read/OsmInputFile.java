@@ -6,7 +6,7 @@ import com.graphhopper.reader.osm.pbf.PbfDecoder;
 import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
 import com.graphhopper.reader.osm.pbf.Sink;
 import com.onthegomap.flatmap.BoundsProvider;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -93,7 +93,7 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
   }
 
   @Override
-  public Topology.SourceStep<ReaderElement> read(String poolName, int threads) {
+  public WorkerPipeline.SourceStep<ReaderElement> read(String poolName, int threads) {
     return next -> readTo(next, poolName, threads);
   }
 

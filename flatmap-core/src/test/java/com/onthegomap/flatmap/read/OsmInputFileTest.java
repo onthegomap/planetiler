@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.graphhopper.reader.ReaderElement;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ public class OsmInputFileTest {
       AtomicInteger nodes = new AtomicInteger(0);
       AtomicInteger ways = new AtomicInteger(0);
       AtomicInteger rels = new AtomicInteger(0);
-      Topology.start("test", Stats.inMemory())
+      WorkerPipeline.start("test", Stats.inMemory())
         .fromGenerator("pbf", file.read("test", 2))
         .addBuffer("reader_queue", 1_000, 100)
         .sinkToConsumer("counter", 1, elem -> {

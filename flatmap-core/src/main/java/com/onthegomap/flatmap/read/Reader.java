@@ -9,7 +9,7 @@ import com.onthegomap.flatmap.collections.FeatureSort;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.render.FeatureRenderer;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -36,7 +36,7 @@ public abstract class Reader implements Closeable {
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
-    var topology = Topology.start(sourceName, stats)
+    var pipeline = WorkerPipeline.start(sourceName, stats)
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
       .<FeatureSort.Entry>addWorker("process", threads, (prev, next) -> {
@@ -65,9 +65,9 @@ public abstract class Reader implements Closeable {
       .addRateCounter("write", featuresWritten)
       .addFileSize(writer::getStorageSize)
       .addProcessStats()
-      .addTopologyStats(topology);
+      .addPipelineStats(pipeline);
 
-    topology.awaitAndLog(loggers, config.logInterval());
+    pipeline.awaitAndLog(loggers, config.logInterval());
 
     profile.finish(sourceName,
       new FeatureCollector.Factory(config, stats),
@@ -89,7 +89,7 @@ public abstract class Reader implements Closeable {
 
   public abstract long getCount();
 
-  public abstract Topology.SourceStep<? extends SourceFeature> read();
+  public abstract WorkerPipeline.SourceStep<? extends SourceFeature> read();
 
   @Override
   public abstract void close();

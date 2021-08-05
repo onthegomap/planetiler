@@ -28,7 +28,7 @@ import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.render.FeatureRenderer;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -98,7 +98,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     var timer = stats.startTimer("osm_pass1");
     String pbfParsePrefix = "pbfpass1";
     int parseThreads = Math.max(1, config.threads() - 2);
-    var topology = Topology.start("osm_pass1", stats)
+    var pipeline = WorkerPipeline.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass1", parseThreads))
       .addBuffer("reader_queue", 50_000, 10_000)
       .sinkToConsumer("process", 1, this::processPass1);
@@ -111,8 +111,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
-      .addTopologyStats(topology);
-    topology.awaitAndLog(loggers, config.logInterval());
+      .addPipelineStats(pipeline);
+    pipeline.awaitAndLog(loggers, config.logInterval());
     timer.stop();
   }
 
@@ -166,7 +166,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
     CountDownLatch waysDone = new CountDownLatch(processThreads);
 
     String parseThreadPrefix = "pbfpass2";
-    var topology = Topology.start("osm_pass2", stats)
+    var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("pbf", osmInputFile.read(parseThreadPrefix, readerThreads))
       .addBuffer("reader_queue", 50_000, 1_000)
       .<FeatureSort.Entry>addWorker("process", processThreads, (prev, next) -> {
@@ -219,9 +219,9 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", parseThreadPrefix + "-pool")
-      .addTopologyStats(topology);
+      .addPipelineStats(pipeline);
 
-    topology.awaitAndLog(logger, config.logInterval());
+    pipeline.awaitAndLog(logger, config.logInterval());
 
     profile.finish(name,
       new FeatureCollector.Factory(config, stats),

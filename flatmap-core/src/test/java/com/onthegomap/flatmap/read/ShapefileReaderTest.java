@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ public class ShapefileReaderTest {
   public void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
-      Topology.start("test", Stats.inMemory())
+      WorkerPipeline.start("test", Stats.inMemory())
         .fromGenerator("shapefile", reader.read())
         .addBuffer("reader_queue", 100, 1)
         .sinkToConsumer("counter", 1, elem -> {

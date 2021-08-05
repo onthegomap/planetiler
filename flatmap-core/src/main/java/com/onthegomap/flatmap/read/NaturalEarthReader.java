@@ -6,7 +6,7 @@ import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.collections.FeatureGroup;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -102,7 +102,7 @@ public class NaturalEarthReader extends Reader {
   }
 
   @Override
-  public Topology.SourceStep<ReaderFeature> read() {
+  public WorkerPipeline.SourceStep<ReaderFeature> read() {
     return next -> {
       long id = 0;
       var tables = tableNames();

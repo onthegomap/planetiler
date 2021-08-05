@@ -20,7 +20,7 @@ import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.read.OsmInputFile;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -139,7 +139,7 @@ public class Wikidata {
       fetcher.loadExisting(oldMappings);
 
       String pbfParsePrefix = "pbfwikidata";
-      var topology = Topology.start("wikidata", stats)
+      var pipeline = WorkerPipeline.start("wikidata", stats)
         .fromGenerator("pbf", infile.read(pbfParsePrefix, readerThreads))
         .addBuffer("reader_queue", 50_000, 10_000)
         .addWorker("filter", processThreads, fetcher::filter)
@@ -160,9 +160,9 @@ public class Wikidata {
         .addFileSize(outfile)
         .addProcessStats()
         .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
-        .addTopologyStats(topology);
+        .addPipelineStats(pipeline);
 
-      topology.awaitAndLog(loggers, config.logInterval());
+      pipeline.awaitAndLog(loggers, config.logInterval());
       LOGGER.info("[wikidata] DONE fetched:" + fetcher.wikidatas.get());
     } catch (IOException e) {
       throw new RuntimeException(e);

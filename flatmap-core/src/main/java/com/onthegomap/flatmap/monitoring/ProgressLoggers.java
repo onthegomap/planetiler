@@ -5,9 +5,9 @@ import static com.onthegomap.flatmap.Format.*;
 import com.graphhopper.util.Helper;
 import com.onthegomap.flatmap.Format;
 import com.onthegomap.flatmap.MemoryEstimator;
-import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
 import com.onthegomap.flatmap.worker.Worker;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -117,7 +117,7 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addQueueStats(WorkQueue<?> queue) {
-    loggers.add(new TopologyLogger(() ->
+    loggers.add(new WorkerPipelineLogger(() ->
       " -> " + padLeft("(" +
         formatNumeric(queue.getPending(), false)
         + "/" +
@@ -197,11 +197,11 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addThreadPoolStats(String name, String prefix) {
-    boolean first = loggers.isEmpty() || !(loggers.get(loggers.size() - 1) instanceof TopologyLogger);
+    boolean first = loggers.isEmpty() || !(loggers.get(loggers.size() - 1) instanceof WorkerPipelineLogger);
     try {
       Map<Long, ProcessInfo.ThreadState> lastThreads = ProcessInfo.getThreadStats();
       AtomicLong lastTime = new AtomicLong(System.nanoTime());
-      loggers.add(new TopologyLogger(() -> {
+      loggers.add(new WorkerPipelineLogger(() -> {
         var oldAndNewThreads = new TreeMap<>(lastThreads);
         var newThreads = ProcessInfo.getThreadStats();
         oldAndNewThreads.putAll(newThreads);
@@ -249,14 +249,14 @@ public class ProgressLoggers {
     return this;
   }
 
-  public ProgressLoggers addTopologyStats(Topology<?> topology) {
-    if (topology != null) {
-      addTopologyStats(topology.previous());
-      if (topology.inputQueue() != null) {
-        addQueueStats(topology.inputQueue());
+  public ProgressLoggers addPipelineStats(WorkerPipeline<?> pipeline) {
+    if (pipeline != null) {
+      addPipelineStats(pipeline.previous());
+      if (pipeline.inputQueue() != null) {
+        addQueueStats(pipeline.inputQueue());
       }
-      if (topology.worker() != null) {
-        addThreadPoolStats(topology.name(), topology.worker());
+      if (pipeline.worker() != null) {
+        addThreadPoolStats(pipeline.name(), pipeline.worker());
       }
     }
     return this;
@@ -291,7 +291,7 @@ public class ProgressLoggers {
     }
   }
 
-  private static record TopologyLogger(Supplier<String> fn) {
+  private static record WorkerPipelineLogger(Supplier<String> fn) {
 
     @Override
     public String toString() {

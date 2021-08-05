@@ -13,8 +13,8 @@ import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
 import com.onthegomap.flatmap.worker.WorkQueue;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -97,14 +97,14 @@ public class MbtilesWriter {
     MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
       features.layerStats());
 
-    var topology = Topology.start("mbtiles", stats);
+    var pipeline = WorkerPipeline.start("mbtiles", stats);
 
     int queueSize = 5_000;
 
-    Topology<TileBatch> encodeBranch, writeBranch = null;
+    WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
     if (config.emitTilesInOrder()) {
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
-      encodeBranch = topology
+      encodeBranch = pipeline
         .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
           next.accept(batch);
           writerQueue.accept(batch); // also send immediately to writer
@@ -113,10 +113,10 @@ public class MbtilesWriter {
         .sinkTo("encoder", config.threads(), writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
-      writeBranch = topology.readFromQueue(writerQueue)
+      writeBranch = pipeline.readFromQueue(writerQueue)
         .sinkTo("writer", 1, writer::tileWriter);
     } else {
-      encodeBranch = topology
+      encodeBranch = pipeline
         .fromGenerator("reader", writer::readFeatures, 1)
         .addBuffer("reader_queue", queueSize)
         .addWorker("encoder", config.threads(), writer::tileEncoder)
@@ -130,8 +130,8 @@ public class MbtilesWriter {
       .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
       .addProcessStats()
-      .addTopologyStats(encodeBranch)
-      .addTopologyStats(writeBranch)
+      .addPipelineStats(encodeBranch)
+      .addPipelineStats(writeBranch)
       .newLine()
       .add(string(() -> {
         TileCoord lastTile = writer.lastTileWritten.get();

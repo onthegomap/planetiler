@@ -15,15 +15,15 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class TopologyTest {
+public class WorkerPipelineTest {
 
   Stats stats = Stats.inMemory();
 
   @Test
   @Timeout(10)
-  public void testSimpleTopology() {
+  public void testSimplePipeline() {
     Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
-    var topology = Topology.start("test", stats)
+    var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         next.accept(0);
         next.accept(1);
@@ -37,17 +37,17 @@ public class TopologyTest {
       }).addBuffer("writer_queue", 1)
       .sinkToConsumer("writer", 1, result::add);
 
-    topology.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
+    pipeline.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
 
   @Test
   @Timeout(10)
-  public void testTopologyFromQueue() {
+  public void testPipelineFromQueue() {
     var queue = new WorkQueue<Integer>("readerqueue", 10, 1, stats);
     Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
-    var topology = Topology.start("test", stats)
+    var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>readFromQueue(queue)
       .<Integer>addWorker("process", 1, (prev, next) -> {
         Integer item;
@@ -64,16 +64,16 @@ public class TopologyTest {
       queue.close();
     }).start();
 
-    topology.await();
+    pipeline.await();
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
 
   @Test
   @Timeout(10)
-  public void testTopologyFromIterator() {
+  public void testPipelineFromIterator() {
     Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
-    var topology = Topology.start("test", stats)
+    var pipeline = WorkerPipeline.start("test", stats)
       .readFrom("reader", List.of(0, 1))
       .addBuffer("reader_queue", 1)
       .<Integer>addWorker("process", 1, (prev, next) -> {
@@ -85,7 +85,7 @@ public class TopologyTest {
       }).addBuffer("writer_queue", 1)
       .sinkToConsumer("writer", 1, result::add);
 
-    topology.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
+    pipeline.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
@@ -93,10 +93,10 @@ public class TopologyTest {
   @ParameterizedTest
   @Timeout(10)
   @ValueSource(ints = {1, 2, 3})
-  public void testThrowingExceptionInTopologyHandledGracefully(int failureStage) {
+  public void testThrowingExceptionInPipelineHandledGracefully(int failureStage) {
     class ExpectedException extends RuntimeException {}
     Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
-    var topology = Topology.start("test", stats)
+    var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         if (failureStage == 1) {
           throw new ExpectedException();
@@ -121,6 +121,6 @@ public class TopologyTest {
       });
 
     assertThrows(RuntimeException.class,
-      () -> topology.await());//awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1)));
+      () -> pipeline.await());//awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1)));
   }
 }

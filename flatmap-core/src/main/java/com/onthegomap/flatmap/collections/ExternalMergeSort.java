@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.FileUtils;
 import com.onthegomap.flatmap.monitoring.ProcessInfo;
 import com.onthegomap.flatmap.monitoring.ProgressLoggers;
 import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -143,7 +143,7 @@ class ExternalMergeSort implements FeatureSort {
     AtomicLong sorting = new AtomicLong(0);
     AtomicLong doneCounter = new AtomicLong(0);
 
-    var topology = Topology.start("sort", stats)
+    var pipeline = WorkerPipeline.start("sort", stats)
       .readFromTiny("item_queue", chunks)
       .sinkToConsumer("worker", workers, chunk -> {
         var toSort = time(reading, chunk::readAll);
@@ -156,9 +156,9 @@ class ExternalMergeSort implements FeatureSort {
       .addPercentCounter("chunks", chunks.size(), doneCounter)
       .addFileSize(this::getStorageSize)
       .addProcessStats()
-      .addTopologyStats(topology);
+      .addPipelineStats(pipeline);
 
-    topology.awaitAndLog(loggers, config.logInterval());
+    pipeline.awaitAndLog(loggers, config.logInterval());
 
     sorted = true;
     timer.stop();

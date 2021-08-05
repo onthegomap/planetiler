@@ -21,7 +21,7 @@ import com.onthegomap.flatmap.read.OpenStreetMapReader;
 import com.onthegomap.flatmap.read.OsmSource;
 import com.onthegomap.flatmap.read.Reader;
 import com.onthegomap.flatmap.read.ReaderFeature;
-import com.onthegomap.flatmap.worker.Topology;
+import com.onthegomap.flatmap.worker.WorkerPipeline;
 import com.onthegomap.flatmap.write.Mbtiles;
 import com.onthegomap.flatmap.write.MbtilesWriter;
 import java.io.IOException;
@@ -80,7 +80,7 @@ public class FlatMapTest {
       }
 
       @Override
-      public Topology.SourceStep<SourceFeature> read() {
+      public WorkerPipeline.SourceStep<SourceFeature> read() {
         return features::forEach;
       }
 
