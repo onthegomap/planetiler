@@ -112,8 +112,6 @@ public class FlatMapTest {
     Profile profile
   ) throws Exception {
     CommonParams config = CommonParams.from(Arguments.of(args));
-    var translations = Translations.defaultProvider(List.of());
-    LongLongMap nodeLocations = LongLongMap.newInMemorySortedTable();
     FeatureSort featureDb = FeatureSort.newInMemory();
     FeatureGroup featureGroup = new FeatureGroup(featureDb, profile, stats);
     runner.run(featureGroup, profile, config);

@@ -83,15 +83,16 @@ public class Worker {
   }
 
   public static CompletableFuture<?> joinFutures(Collection<CompletableFuture<?>> futures) {
-    CompletableFuture<Void> result = new CompletableFuture<>();
+    CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    // fail fast on exceptions
     for (CompletableFuture<?> f : futures) {
       f.whenComplete((res, ex) -> {
         if (ex != null) {
           result.completeExceptionally(ex);
+          futures.forEach(other -> other.cancel(true));
         }
       });
     }
-    CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).thenAccept(result::complete);
     return result;
   }
 

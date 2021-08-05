@@ -134,7 +134,7 @@ public record WorkerPipeline<T>(
       if (previousPipeline != null) {
         doneFuture = joinFutures(doneFuture, previousPipeline.done);
       }
-      if (outputQueue != null) {
+      if (worker != null && outputQueue != null) {
         doneFuture = doneFuture.thenRun(outputQueue::close);
       }
       return new WorkerPipeline<>(name, previousPipeline, inputQueue, worker, doneFuture);

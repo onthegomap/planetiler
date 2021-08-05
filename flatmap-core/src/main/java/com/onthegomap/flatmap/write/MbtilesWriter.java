@@ -105,10 +105,13 @@ public class MbtilesWriter {
     if (config.emitTilesInOrder()) {
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
-        .<TileBatch>fromGenerator("reader", next -> writer.readFeatures(batch -> {
-          next.accept(batch);
-          writerQueue.accept(batch); // also send immediately to writer
-        }), 1)
+        .<TileBatch>fromGenerator("reader", next -> {
+          writer.readFeatures(batch -> {
+            next.accept(batch);
+            writerQueue.accept(batch); // also send immediately to writer
+          });
+          writerQueue.close();
+        }, 1)
         .addBuffer("reader_queue", queueSize)
         .sinkTo("encoder", config.threads(), writer::tileEncoderSink);
 
