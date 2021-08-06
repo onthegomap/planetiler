@@ -3,12 +3,11 @@ package com.onthegomap.flatmap.worker;
 import com.onthegomap.flatmap.monitoring.Counter;
 import com.onthegomap.flatmap.monitoring.Stats;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -20,7 +19,8 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
-  private final List<WriterForThread> writers = Collections.synchronizedList(new ArrayList<>());
+  private final List<WriterForThread> writers = new CopyOnWriteArrayList<>();
+  private final List<ReaderForThread> readers = new CopyOnWriteArrayList<>();
   private final int pendingBatchesCapacity;
   private final Counter.MultiThreadCounter enqueueCountStatAll;
   private final Counter.MultiThreadCounter enqueueBlockTimeNanosAll;
@@ -48,15 +48,13 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   @Override
   public void close() {
     try {
-      synchronized (writers) {
-        for (var writer : writers) {
-          var q = writer.writeBatchRef.get();
-          if (q != null && !q.isEmpty()) {
-            itemQueue.put(q);
-          }
+      for (var writer : writers) {
+        var q = writer.writeBatchRef.get();
+        if (q != null && !q.isEmpty()) {
+          itemQueue.put(q);
         }
-        hasIncomingData = false;
       }
+      hasIncomingData = false;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -95,7 +93,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     @Override
     public void accept(T item) {
       // past 4-8 concurrent writers, start getting lock contention adding to the blocking queue so add to the
-      // queue in lass frequent, larger batches
+      // queue in less frequent, larger batches
       if (writeBatch == null) {
         writeBatch = new ArrayDeque<>(batchSize);
         writeBatchRef.set(writeBatch);
@@ -135,6 +133,10 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     Counter dequeueBlockTimeNanos = dequeueBlockTimeNanosAll.counterForThread();
     Counter pendingCount = pendingCountAll.counterForThread();
     Counter dequeueCountStat = dequeueCountStatAll.counterForThread();
+
+    ReaderForThread() {
+      readers.add(this);
+    }
 
     @Override
     public T get() {
@@ -177,7 +179,9 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   }
 
   public int getCapacity() {
-    return pendingBatchesCapacity * batchSize;
+    // actual queue can hold more than the specified capacity because each writer and reader may have a batch they are
+    // working on that is outside of the queue
+    return (pendingBatchesCapacity + writers.size() + readers.size()) * batchSize;
   }
 }
 

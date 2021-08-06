@@ -29,12 +29,12 @@ public class ProgressLoggersTest {
       // spin waiting for threads to start
     }
 
-    assertEquals("[prefix]\n    reader( 0%) ->    (0/10) -> worker( 0%  0%) ->    (0/10) -> writer( 0%  0%)",
+    assertEquals("[prefix]\n    reader( 0%) ->    (0/13) -> worker( 0%  0%) ->    (0/14) -> writer( 0%  0%)",
       log.replaceAll("[ 0-9][0-9]%", " 0%"));
     latch.countDown();
     pipeline.awaitAndLog(loggers, Duration.ofSeconds(10));
     loggers.getLog();
-    assertEquals("[prefix]\n    reader( -%) ->    (0/10) -> worker( -%  -%) ->    (0/10) -> writer( -%  -%)",
+    assertEquals("[prefix]\n    reader( -%) ->    (0/13) -> worker( -%  -%) ->    (0/14) -> writer( -%  -%)",
       loggers.getLog());
   }
 }
