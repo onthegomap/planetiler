@@ -3,7 +3,9 @@ package com.onthegomap.flatmap;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
 
-import com.onthegomap.flatmap.monitoring.ProgressLoggers;
+import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.stats.ProgressLoggers;
+import com.onthegomap.flatmap.util.FileUtils;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;

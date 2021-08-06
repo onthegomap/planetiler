@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.ibm.icu.text.Transliterator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,5 +86,11 @@ public class Translations {
       }
       return result;
     }
+  }
+
+  private static final Transliterator TO_LATIN_TRANSLITERATOR = Transliterator.getInstance("Any-Latin");
+
+  public static String transliterate(String input) {
+    return input == null ? null : TO_LATIN_TRANSLITERATOR.transform(input);
   }
 }

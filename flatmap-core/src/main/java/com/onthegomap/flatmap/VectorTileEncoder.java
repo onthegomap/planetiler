@@ -24,6 +24,7 @@ import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.geo.GeometryType;
 import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.ArrayList;
 import java.util.Arrays;

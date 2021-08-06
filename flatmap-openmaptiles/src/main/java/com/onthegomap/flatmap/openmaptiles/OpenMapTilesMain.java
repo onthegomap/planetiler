@@ -1,13 +1,13 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import com.onthegomap.flatmap.Arguments;
-import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
-import com.onthegomap.flatmap.read.OsmInputFile;
+import com.onthegomap.flatmap.reader.osm.OsmInputFile;
+import com.onthegomap.flatmap.stats.Stats;
 import java.nio.file.Path;
 import java.util.List;
 import org.slf4j.Logger;

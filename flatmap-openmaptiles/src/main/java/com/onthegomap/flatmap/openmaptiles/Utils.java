@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import com.onthegomap.flatmap.Parse;
+import com.onthegomap.flatmap.util.Parse;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;

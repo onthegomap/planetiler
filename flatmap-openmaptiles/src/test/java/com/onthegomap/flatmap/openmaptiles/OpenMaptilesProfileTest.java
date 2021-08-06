@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderWay;
-import com.onthegomap.flatmap.Arguments;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

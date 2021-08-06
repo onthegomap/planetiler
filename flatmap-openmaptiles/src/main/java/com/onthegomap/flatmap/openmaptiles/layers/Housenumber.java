@@ -35,12 +35,12 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.stats.Stats;
 
 /**
  * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/housenumber

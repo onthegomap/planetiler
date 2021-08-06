@@ -3,8 +3,8 @@ package com.onthegomap.flatmap.worker;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.onthegomap.flatmap.monitoring.ProgressLoggers;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.ProgressLoggers;
+import com.onthegomap.flatmap.stats.Stats;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;

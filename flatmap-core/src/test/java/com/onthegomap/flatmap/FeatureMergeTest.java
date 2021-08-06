@@ -7,7 +7,7 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.write.Mbtiles;
+import com.onthegomap.flatmap.mbiles.Mbtiles;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collections;

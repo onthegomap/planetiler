@@ -3,7 +3,7 @@ package com.onthegomap.flatmap.worker;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;

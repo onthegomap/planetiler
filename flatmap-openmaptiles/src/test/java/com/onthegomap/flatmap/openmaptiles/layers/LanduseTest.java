@@ -4,7 +4,7 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.reader.ReaderFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

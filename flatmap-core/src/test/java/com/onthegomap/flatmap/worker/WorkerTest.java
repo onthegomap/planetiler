@@ -2,7 +2,7 @@ package com.onthegomap.flatmap.worker;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;

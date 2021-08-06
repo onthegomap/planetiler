@@ -11,7 +11,6 @@
  */
 package com.onthegomap.flatmap.geo;
 
-import com.onthegomap.flatmap.collections.MutableCoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;

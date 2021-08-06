@@ -3,7 +3,7 @@ package com.onthegomap.flatmap.examples;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.SourceFeature;
+import com.onthegomap.flatmap.reader.SourceFeature;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;

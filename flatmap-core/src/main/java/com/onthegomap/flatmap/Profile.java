@@ -3,7 +3,8 @@ package com.onthegomap.flatmap;
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
 import java.util.List;
 import java.util.function.Consumer;
 

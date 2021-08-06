@@ -17,7 +17,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.write.Mbtiles;
+import com.onthegomap.flatmap.mbiles.Mbtiles;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;

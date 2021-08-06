@@ -1,9 +1,13 @@
 package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.collections.CacheByZoom;
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.geo.GeometryType;
+import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.CacheByZoom;
+import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;

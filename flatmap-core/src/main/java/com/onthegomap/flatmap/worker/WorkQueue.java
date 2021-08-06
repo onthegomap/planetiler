@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.worker;
 
-import com.onthegomap.flatmap.monitoring.Counter;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.Counter;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;

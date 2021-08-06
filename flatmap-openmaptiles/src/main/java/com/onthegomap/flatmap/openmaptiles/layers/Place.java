@@ -35,31 +35,31 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_BITS;
-import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MAX;
-import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MIN;
+import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_BITS;
+import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MAX;
+import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullOrEmpty;
 
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
-import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Parse;
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.ZoomFunction;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.PointIndex;
 import com.onthegomap.flatmap.geo.PolygonIndex;
-import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;

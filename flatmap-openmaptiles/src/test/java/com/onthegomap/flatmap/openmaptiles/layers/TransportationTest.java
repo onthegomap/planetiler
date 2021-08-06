@@ -8,7 +8,7 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE
 import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.reader.ReaderFeature;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;

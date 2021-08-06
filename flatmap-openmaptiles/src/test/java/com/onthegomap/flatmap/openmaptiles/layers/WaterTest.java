@@ -5,7 +5,7 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EA
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.WATER_POLYGON_SOURCE;
 
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.reader.ReaderFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

@@ -2,8 +2,8 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MAX;
-import static com.onthegomap.flatmap.collections.FeatureGroup.Z_ORDER_MIN;
+import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MAX;
+import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.layers.Place.getZorder;
@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.reader.ReaderFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

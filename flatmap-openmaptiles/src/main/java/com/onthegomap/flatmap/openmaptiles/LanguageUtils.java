@@ -38,7 +38,6 @@ package com.onthegomap.flatmap.openmaptiles;
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
-import com.ibm.icu.text.Transliterator;
 import com.onthegomap.flatmap.Translations;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,11 +67,8 @@ public class LanguageUtils {
     return string != null && !NONLATIN.matcher(string).find();
   }
 
-  private static final Transliterator TO_LATIN_TRANSLITERATOR = Transliterator.getInstance("Any-Latin");
-
   private static String transliterate(Map<String, Object> properties) {
-    String name = string(properties.get("name"));
-    return name == null ? null : TO_LATIN_TRANSLITERATOR.transform(name);
+    return Translations.transliterate(string(properties.get("name")));
   }
 
   private static final Pattern LETTER = Pattern.compile("[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+");

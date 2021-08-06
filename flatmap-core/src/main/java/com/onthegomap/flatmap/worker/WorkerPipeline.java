@@ -2,8 +2,8 @@ package com.onthegomap.flatmap.worker;
 
 import static com.onthegomap.flatmap.worker.Worker.joinFutures;
 
-import com.onthegomap.flatmap.monitoring.ProgressLoggers;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.ProgressLoggers;
+import com.onthegomap.flatmap.stats.Stats;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;

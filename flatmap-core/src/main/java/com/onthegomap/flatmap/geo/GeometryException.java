@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap.geo;
 
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.stats.Stats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

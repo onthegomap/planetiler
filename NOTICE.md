@@ -19,6 +19,7 @@ The `flatmap-core` module includes the following software:
   - org.mapdb:mapdb (Apache license)
   - org.msgpack:msgpack-core (Apache license)
   - org.xerial:sqlite-jdbc (Apache license)
+  - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -34,7 +35,6 @@ of [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
-  - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
 - Code adapted from OpenMapTiles (BSD 3-Clause License):
   - `generated` package generated from OpenMapTiles
   - All code in `layers` package ported from OpenMapTiles

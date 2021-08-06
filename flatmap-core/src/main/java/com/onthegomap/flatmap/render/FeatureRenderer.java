@@ -2,15 +2,15 @@ package com.onthegomap.flatmap.render;
 
 import static com.onthegomap.flatmap.geo.GeoUtils.TILE_PRECISON;
 
-import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.TileExtents;
 import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.monitoring.Stats;
+import com.onthegomap.flatmap.geo.TileExtents;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

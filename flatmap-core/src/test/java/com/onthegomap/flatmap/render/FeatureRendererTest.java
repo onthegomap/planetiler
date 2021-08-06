@@ -6,14 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
-import com.onthegomap.flatmap.Arguments;
-import com.onthegomap.flatmap.CommonParams;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
+import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

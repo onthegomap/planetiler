@@ -2,8 +2,8 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.reader.SourceFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

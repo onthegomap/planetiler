@@ -5,10 +5,10 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.SourceFeature;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.read.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
 import java.nio.file.Path;
 import java.util.List;
 

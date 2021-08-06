@@ -8,8 +8,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CaseFormat;
-import com.onthegomap.flatmap.Arguments;
-import com.onthegomap.flatmap.FileUtils;
+import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.util.FileUtils;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -218,7 +218,7 @@ public class Generate {
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import com.onthegomap.flatmap.read.OpenStreetMapReader;
       import com.onthegomap.flatmap.FeatureCollector;
-      import com.onthegomap.flatmap.SourceFeature;
+      import com.onthegomap.flatmap.reader.SourceFeature;
       import java.util.ArrayList;
       import java.util.HashMap;
       import java.util.HashSet;
@@ -393,7 +393,7 @@ public class Generate {
         default -> throw new IllegalArgumentException("Unhandled column: " + col.type);
       }
     }
-    result.add(new OsmTableField("com.onthegomap.flatmap.SourceFeature", "source", "source"));
+    result.add(new OsmTableField("com.onthegomap.flatmap.reader.SourceFeature", "source", "source"));
     return result;
   }
 

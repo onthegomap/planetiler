@@ -37,19 +37,19 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.openmaptiles.Utils.*;
 
-import com.onthegomap.flatmap.Arguments;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Parse;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.ZoomFunction;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.monitoring.Stats;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.monitoring.Stats;
-import com.onthegomap.flatmap.read.ReaderFeature;
+import com.onthegomap.flatmap.geo.GeometryType;
+import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
