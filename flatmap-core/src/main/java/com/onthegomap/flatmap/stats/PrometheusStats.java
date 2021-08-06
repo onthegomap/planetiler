@@ -47,7 +47,7 @@ public class PrometheusStats implements Stats {
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = Collections
     .synchronizedMap(new LinkedHashMap<>());
 
-  public PrometheusStats(String job) {
+  PrometheusStats(String job) {
     this.job = job;
     DefaultExports.register(registry);
     new ThreadDetailsExports().register(registry);
@@ -57,7 +57,7 @@ public class PrometheusStats implements Stats {
     new PostGcMemoryCollector().register(registry);
   }
 
-  public PrometheusStats(String destination, String job, Duration interval) {
+  PrometheusStats(String destination, String job, Duration interval) {
     this(job);
     try {
       URL url = new URL(destination);

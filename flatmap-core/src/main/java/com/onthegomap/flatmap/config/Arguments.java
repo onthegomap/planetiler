@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.config;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.stats.PrometheusStats;
 import com.onthegomap.flatmap.stats.Stats;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,7 +129,7 @@ public class Arguments {
       LOGGER.info("Using prometheus push gateway stats");
       String job = get("pushgateway.job", "prometheus pushgateway job ID", "flatmap");
       Duration interval = duration("pushgateway.interval", "how often to send stats to prometheus push gateway", "15s");
-      return new PrometheusStats(prometheus, job, interval);
+      return Stats.prometheusPushGateway(prometheus, job, interval);
     } else {
       LOGGER.info("Using in-memory stats");
       return Stats.inMemory();

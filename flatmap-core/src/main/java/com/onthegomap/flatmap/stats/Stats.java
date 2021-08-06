@@ -4,6 +4,7 @@ import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -53,6 +54,10 @@ public interface Stats extends AutoCloseable {
 
   static Stats inMemory() {
     return new InMemory();
+  }
+
+  static Stats prometheusPushGateway(String destination, String job, Duration interval) {
+    return new PrometheusStats(destination, job, interval);
   }
 
   class InMemory implements Stats {
