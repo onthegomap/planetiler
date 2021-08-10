@@ -28,7 +28,7 @@ public abstract class Reader implements Closeable {
   }
 
   public final void process(FeatureGroup writer, CommonParams config) {
-    var timer = stats.startTimer(sourceName);
+    var timer = stats.startStage(sourceName);
     long featureCount = getCount();
     int threads = config.threads();
     Envelope latLonBounds = config.latLonBounds();
@@ -53,6 +53,7 @@ public abstract class Reader implements Closeable {
           }
         }
       })
+      // output large batches since each input may map to many tiny output features (ie. slicing ocean tiles)
       .addBuffer("write_queue", 50_000, 1_000)
       .sinkToConsumer("write", 1, (item) -> {
         featuresWritten.incrementAndGet();
@@ -63,7 +64,9 @@ public abstract class Reader implements Closeable {
       .addRatePercentCounter("read", featureCount, featuresRead)
       .addRateCounter("write", featuresWritten)
       .addFileSize(writer::getStorageSize)
+      .newLine()
       .addProcessStats()
+      .newLine()
       .addPipelineStats(pipeline);
 
     pipeline.awaitAndLog(loggers, config.logInterval());

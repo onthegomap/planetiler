@@ -70,11 +70,13 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     private void doPrepare() {
       StopWatch watch = new StopWatch().start();
 
-      LOGGER.debug("Sorting long long multimap keys...");
+      LOGGER.debug("Sorting long long multimap...");
       long[] sortedKeys = keys.toArray();
+
+      // this happens in a worker thread, but it's OK to use parallel sort because
+      // all other threads will block while we prepare the multimap.
       Arrays.parallelSort(sortedKeys);
 
-      LOGGER.debug("Sorted keys, now values...");
       long[] sortedValues = new long[sortedKeys.length];
       int from = 0;
       while (from < keys.size()) {

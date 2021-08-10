@@ -95,7 +95,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass1(CommonParams config) {
-    var timer = stats.startTimer("osm_pass1");
+    var timer = stats.startStage("osm_pass1");
     String pbfParsePrefix = "pbfpass1";
     int parseThreads = Math.max(1, config.threads() - 2);
     var pipeline = WorkerPipeline.start("osm_pass1", stats)
@@ -104,13 +104,15 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .sinkToConsumer("process", 1, this::processPass1);
 
     var loggers = new ProgressLoggers("osm_pass1")
-      .addRateCounter("nodes", PASS1_NODES)
+      .addRateCounter("nodes", PASS1_NODES, true)
       .addFileSize(nodeDb::fileSize)
-      .addRateCounter("ways", PASS1_WAYS)
-      .addRateCounter("rels", PASS1_RELATIONS)
+      .addRateCounter("ways", PASS1_WAYS, true)
+      .addRateCounter("rels", PASS1_RELATIONS, true)
+      .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
+      .newLine()
       .addPipelineStats(pipeline);
     pipeline.awaitAndLog(loggers, config.logInterval());
     timer.stop();
@@ -151,7 +153,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   }
 
   public void pass2(FeatureGroup writer, CommonParams config) {
-    var timer = stats.startTimer("osm_pass2");
+    var timer = stats.startStage("osm_pass2");
     int readerThreads = Math.max(config.threads() / 4, 1);
     int processThreads = config.threads() - 1;
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
@@ -216,8 +218,10 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
       .addRateCounter("features", () -> writer.sorter().size())
       .addFileSize(writer::getStorageSize)
+      .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
+      .newLine()
       .addThreadPoolStats("parse", parseThreadPrefix + "-pool")
       .addPipelineStats(pipeline);
 

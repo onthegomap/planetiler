@@ -126,13 +126,12 @@ public class Wikidata {
   }
 
   public static void fetch(OsmInputFile infile, Path outfile, CommonParams config, Profile profile, Stats stats) {
-    int threads = config.threads();
-    var timer = stats.startTimer("wikidata");
+    var timer = stats.startStage("wikidata");
     int threadsAvailable = Math.max(1, config.threads() - 2);
     int processThreads = Math.max(1, threadsAvailable / 4);
     int readerThreads = Math.max(1, threadsAvailable - processThreads);
     LOGGER
-      .info("[wikidata] Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
+      .info("Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
     try (Writer writer = Files.newBufferedWriter(outfile)) {
@@ -155,17 +154,19 @@ public class Wikidata {
         });
 
       ProgressLoggers loggers = new ProgressLoggers("wikidata")
-        .addRateCounter("nodes", fetcher.nodes)
-        .addRateCounter("ways", fetcher.ways)
-        .addRateCounter("rels", fetcher.rels)
+        .addRateCounter("nodes", fetcher.nodes, true)
+        .addRateCounter("ways", fetcher.ways, true)
+        .addRateCounter("rels", fetcher.rels, true)
         .addRateCounter("wiki", fetcher.wikidatas)
         .addFileSize(outfile)
+        .newLine()
         .addProcessStats()
+        .newLine()
         .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
         .addPipelineStats(pipeline);
 
       pipeline.awaitAndLog(loggers, config.logInterval());
-      LOGGER.info("[wikidata] DONE fetched:" + fetcher.wikidatas.get());
+      LOGGER.info("DONE fetched:" + fetcher.wikidatas.get());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -178,11 +179,11 @@ public class Wikidata {
     try (BufferedReader fis = Files.newBufferedReader(path)) {
       WikidataTranslations result = load(fis);
       LOGGER.info(
-        "[wikidata] loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + watch
+        "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + watch
           .stop());
       return result;
     } catch (IOException e) {
-      LOGGER.info("[wikidata] error loading " + path.toAbsolutePath() + ": " + e);
+      LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
       return new WikidataTranslations();
     }
   }
@@ -294,7 +295,7 @@ public class Wikidata {
   public void loadExisting(WikidataTranslations oldMappings) throws IOException {
     LongObjectMap<Map<String, String>> alreadyHave = oldMappings.getAll();
     if (!alreadyHave.isEmpty()) {
-      LOGGER.info("[wikidata] skipping " + alreadyHave.size() + " mappings we already have");
+      LOGGER.info("skipping " + alreadyHave.size() + " mappings we already have");
       writeTranslations(alreadyHave);
       for (LongObjectCursor<Map<String, String>> cursor : alreadyHave) {
         visited.add(cursor.key);

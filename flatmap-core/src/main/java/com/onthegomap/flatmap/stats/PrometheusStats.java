@@ -90,11 +90,6 @@ public class PrometheusStats implements Stats {
   }
 
   @Override
-  public Timers.Finishable startTimer(String name) {
-    return timers.startTimer(name);
-  }
-
-  @Override
   public void gauge(String name, Supplier<Number> value) {
     new Collector() {
       @Override

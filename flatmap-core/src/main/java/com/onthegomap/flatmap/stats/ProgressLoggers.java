@@ -32,10 +32,36 @@ import org.slf4j.LoggerFactory;
 
 public class ProgressLoggers {
 
-  public static final String ANSI_RESET = "\u001B[0m";
-  public static final String ANSI_RED = "\u001B[31m";
-  public static final String ANSI_GREEN = "\u001B[32m";
-  public static final String ANSI_YELLOW = "\u001B[33m";
+  private static final String COLOR_RESET = "\u001B[0m";
+  private static final String FG_RED = "\u001B[31m";
+  private static final String FG_GREEN = "\u001B[32m";
+  private static final String FG_YELLOW = "\u001B[33m";
+  private static final String FG_BLUE = "\u001B[34m";
+  private static final String FG_CYAN = "\u001B[36m";
+
+  private static String fg(String fg, String string) {
+    return fg + string + COLOR_RESET;
+  }
+
+  private static String red(String string) {
+    return fg(FG_RED, string);
+  }
+
+  private static String green(String string) {
+    return fg(FG_GREEN, string);
+  }
+
+  private static String yellow(String string) {
+    return fg(FG_YELLOW, string);
+  }
+
+  private static String blue(String string) {
+    return fg(FG_BLUE, string);
+  }
+
+  private static String cyan(String string) {
+    return fg(FG_CYAN, string);
+  }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
   private final List<Object> loggers;
@@ -47,12 +73,21 @@ public class ProgressLoggers {
   }
 
   public String getLog() {
-    return "[" + prefix + "]" + loggers.stream()
+    return loggers.stream()
       .map(Object::toString)
-      .collect(Collectors.joining(""));
+      .collect(Collectors.joining(""))
+      .replaceAll("\n\\s*", "\n    ");
   }
 
   public ProgressLoggers addRateCounter(String name, LongSupplier getValue) {
+    return addRateCounter(name, getValue, false);
+  }
+
+  public ProgressLoggers addRateCounter(String name, AtomicLong getValue) {
+    return addRateCounter(name, getValue, false);
+  }
+
+  public ProgressLoggers addRateCounter(String name, LongSupplier getValue, boolean color) {
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
     loggers.add(new ProgressLogger(name, () -> {
@@ -65,14 +100,14 @@ public class ProgressLoggers {
       }
       last.set(valueNow);
       lastTime.set(now);
-      return ANSI_GREEN + "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true)
-        + "/s ]" + ANSI_RESET;
+      String result = "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true) + "/s ]";
+      return color && valueDiff > 0 ? green(result) : result;
     }));
     return this;
   }
 
-  public ProgressLoggers addRateCounter(String name, AtomicLong value) {
-    return addRateCounter(name, value::get);
+  public ProgressLoggers addRateCounter(String name, AtomicLong value, boolean color) {
+    return addRateCounter(name, value::get, color);
   }
 
   public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value) {
@@ -101,8 +136,9 @@ public class ProgressLoggers {
       }
       last.set(valueNow);
       lastTime.set(now);
-      return ANSI_GREEN + "[ " + format.apply(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
-        + " " + format.apply(valueDiff / timeDiff, true) + "/s ]" + ANSI_RESET;
+      String result = "[ " + format.apply(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
+        + " " + format.apply(valueDiff / timeDiff, true) + "/s ]";
+      return valueDiff > 0 ? green(result) : result;
     }));
     return this;
   }
@@ -110,8 +146,8 @@ public class ProgressLoggers {
   public ProgressLoggers addPercentCounter(String name, long total, AtomicLong getValue) {
     loggers.add(new ProgressLogger(name, () -> {
       long valueNow = getValue.get();
-      return ANSI_GREEN + "[ " + padLeft("" + valueNow, 3) + " / " + padLeft("" + total, 3) + " " + padLeft(
-        formatPercent(1f * valueNow / total), 4) + " ]" + ANSI_RESET;
+      return "[ " + padLeft("" + valueNow, 3) + " / " + padLeft("" + total, 3) + " " + padLeft(
+        formatPercent(1f * valueNow / total), 4) + " ]";
     }));
     return this;
   }
@@ -160,15 +196,17 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addProcessStats() {
-    add("\n" + " ".repeat(3));
-    addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, Format::formatDecimal);
-    addDeltaLogger("gc", ProcessInfo::getGcTime, Format::formatPercent);
+    addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, num -> blue(Format.formatDecimal(num)));
+    addDeltaLogger("gc", ProcessInfo::getGcTime, num -> {
+      String formatted = Format.formatPercent(num);
+      return num > 0.3 ? yellow(formatted) : num > 0.6 ? red(formatted) : formatted;
+    });
     loggers.add(new ProgressLogger("mem",
       () ->
-        formatMB(Helper.getUsedMB(), false) + " / " +
+        formatMB(Helper.getUsedMB(), false) + "/" +
           formatMB(Helper.getTotalMB(), false) +
           ProcessInfo.getMemoryUsageAfterLastGC().stream()
-            .mapToObj(value -> " postGC: " + formatBytes(value, false))
+            .mapToObj(value -> " postGC: " + blue(formatBytes(value, false)))
             .findFirst()
             .orElse("")
     ));
@@ -220,9 +258,9 @@ public class ProgressLoggers {
 
         lastTime.set(currentTime);
         lastThreads.putAll(newThreads);
-        return (first ? "\n    " : " -> ") + name + percents;
+        return (first ? " " : " -> ") + name + percents;
       }));
-    } catch (Throwable e) {
+    } catch (Throwable ignored) {
       // can't get CPU stats per-thread
     }
     return this;
@@ -263,7 +301,7 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers newLine() {
-    return add("\n    ");
+    return add("\n");
   }
 
   public void awaitAndLog(Future<?> future, Duration logInterval) {

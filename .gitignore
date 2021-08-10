@@ -2,6 +2,7 @@
 
 target/
 *.jar
+*.log
 
 .idea/*
 *.iml

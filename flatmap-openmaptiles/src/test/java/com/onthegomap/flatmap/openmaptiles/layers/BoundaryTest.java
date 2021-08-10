@@ -194,6 +194,29 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testOsmBoundaryLevelTwoAndAHalf() {
+    var relation = new ReaderRelation(1);
+    relation.setTag("type", "boundary");
+    relation.setTag("admin_level", "2.5");
+    relation.setTag("boundary", "administrative");
+
+    assertFeatures(14, List.of(Map.of(
+      "_layer", "boundary",
+      "_type", "line",
+      "disputed", 0,
+      "maritime", 0,
+      "admin_level", 3,
+
+      "_minzoom", 5,
+      "_maxzoom", 14,
+      "_buffer", 4d,
+      "_minpixelsize", 0d
+    )), process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(relation),
+      Map.of())));
+  }
+
+  @Test
   public void testOsmBoundaryTakesMinAdminLevel() {
     var relation1 = new ReaderRelation(1);
     relation1.setTag("type", "boundary");

@@ -139,7 +139,7 @@ class ExternalMergeSort implements FeatureSort {
         // ok
       }
     }
-    var timer = stats.startTimer("sort");
+    var timer = stats.startStage("sort");
     AtomicLong reading = new AtomicLong(0);
     AtomicLong writing = new AtomicLong(0);
     AtomicLong sorting = new AtomicLong(0);
@@ -157,7 +157,9 @@ class ExternalMergeSort implements FeatureSort {
     ProgressLoggers loggers = new ProgressLoggers("sort")
       .addPercentCounter("chunks", chunks.size(), doneCounter)
       .addFileSize(this::getStorageSize)
+      .newLine()
       .addProcessStats()
+      .newLine()
       .addPipelineStats(pipeline);
 
     pipeline.awaitAndLog(loggers, config.logInterval());

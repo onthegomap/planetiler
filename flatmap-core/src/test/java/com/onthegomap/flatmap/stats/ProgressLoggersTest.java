@@ -32,17 +32,18 @@ public class ProgressLoggersTest {
       });
 
     var loggers = new ProgressLoggers("prefix")
+      .newLine()
       .addPipelineStats(pipeline);
 
     readyLatch.await();
     String log = loggers.getLog();
 
-    assertEquals("[prefix]\n    reader( 0%) ->    (0/13) -> worker( 0%  0%) ->    (0/14) -> writer( 0%  0%)",
+    assertEquals("\n    reader( 0%) ->    (0/13) -> worker( 0%  0%) ->    (0/14) -> writer( 0%  0%)",
       log.replaceAll("[ 0-9][0-9]%", " 0%"));
     continueLatch.countDown();
     pipeline.awaitAndLog(loggers, Duration.ofSeconds(10));
     loggers.getLog();
-    assertEquals("[prefix]\n    reader( -%) ->    (0/13) -> worker( -%  -%) ->    (0/14) -> writer( -%  -%)",
+    assertEquals("\n    reader( -%) ->    (0/13) -> worker( -%  -%) ->    (0/14) -> writer( -%  -%)",
       loggers.getLog());
   }
 }

@@ -6,6 +6,7 @@ import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.FileUtils;
+import com.onthegomap.flatmap.util.LogUtil;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -39,6 +40,7 @@ public class NaturalEarthReader extends Reader {
 
   public NaturalEarthReader(String sourceName, Path input, Path tmpDir, Profile profile, Stats stats) {
     super(profile, stats, sourceName);
+    LogUtil.setStage(sourceName);
     try {
       conn = open(input, tmpDir);
     } catch (IOException | SQLException e) {

@@ -34,7 +34,7 @@ public class PrometheusStatsTest {
   @Test
   public void testTimer() {
     PrometheusStats stats = new PrometheusStats("job");
-    var timer = stats.startTimer("task1");
+    var timer = stats.startStage("task1");
     assertContainsStat("^flatmap_task1_running 1", stats);
     assertContainsStat("^flatmap_task1_elapsed_time_seconds [0-9\\.]+$", stats);
     assertContainsStat("^flatmap_task1_cpu_time_seconds [0-9\\.]+$", stats);

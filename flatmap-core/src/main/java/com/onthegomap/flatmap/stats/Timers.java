@@ -23,8 +23,8 @@ public class Timers {
   public Finishable startTimer(String name) {
     Timer timer = new Timer().start();
     timers.put(name, timer);
-    LOGGER.info("[" + name + "] Starting...");
-    return () -> LOGGER.info("[" + name + "] Finished in " + timers.get(name).stop() + "\n");
+    LOGGER.info("Starting...");
+    return () -> LOGGER.info("Finished in " + timers.get(name).stop() + "\n");
   }
 
   public Map<String, Timer> all() {

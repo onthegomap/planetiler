@@ -65,7 +65,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
@@ -89,7 +91,7 @@ public class Boundary implements
   OpenMapTilesProfile.FinishHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Boundary.class);
-  private static final double COUNTRY_TEST_OFFSET = GeoUtils.metersToPixelAtEquator(0, 100) / 256d;
+  private static final double COUNTRY_TEST_OFFSET = GeoUtils.metersToPixelAtEquator(0, 10) / 256d;
   private final Map<Long, String> regionNames = new HashMap<>();
   private final Map<Long, List<Geometry>> regionGeometries = new HashMap<>();
   private final Map<CountryBoundaryComponent, List<Geometry>> boundariesToMerge = new HashMap<>();
@@ -156,7 +158,7 @@ public class Boundary implements
     if (relation.hasTag("type", "boundary") &&
       relation.hasTag("admin_level") &&
       relation.hasTag("boundary", "administrative")) {
-      Integer adminLevelValue = Parse.parseIntSubstring(relation.getTag("admin_level"));
+      Integer adminLevelValue = Parse.parseRoundInt(relation.getTag("admin_level"));
       String code = relation.getTag("ISO3166-1:alpha3");
       if (adminLevelValue != null && adminLevelValue >= 2 && adminLevelValue <= 10) {
         boolean disputed = isDisputed(ReaderElementUtils.getProperties(relation));
@@ -262,7 +264,7 @@ public class Boundary implements
   public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
     Consumer<FeatureCollector.Feature> next) {
     if (OpenMapTilesProfile.OSM_SOURCE.equals(sourceName)) {
-      var timer = stats.startTimer("boundaries");
+      var timer = stats.startStage("boundaries");
       LongObjectMap<PreparedGeometry> countryBoundaries = prepareRegionPolygons();
 
       long number = 0;
@@ -313,10 +315,16 @@ public class Boundary implements
   @NotNull
   private BorderingRegions getBorderingRegions(
     LongObjectMap<PreparedGeometry> countryBoundaries,
-    Set<Long> regions,
+    Set<Long> allRegions,
     LineString lineString
   ) {
     Long rightCountry = null, leftCountry = null;
+    Set<Long> validRegions = allRegions.stream()
+      .filter(countryBoundaries::containsKey)
+      .collect(Collectors.toSet());
+    if (validRegions.isEmpty()) {
+      return BorderingRegions.empty();
+    }
     List<Long> rights = new ArrayList<>();
     List<Long> lefts = new ArrayList<>();
     int steps = 10;
@@ -324,7 +332,7 @@ public class Boundary implements
       double ratio = (double) (i + 1) / (steps + 2);
       Point right = GeoUtils.pointAlongOffset(lineString, ratio, COUNTRY_TEST_OFFSET);
       Point left = GeoUtils.pointAlongOffset(lineString, ratio, -COUNTRY_TEST_OFFSET);
-      for (Long regionId : regions) {
+      for (Long regionId : validRegions) {
         PreparedGeometry geom = countryBoundaries.get(regionId);
         if (geom != null) {
           if (geom.contains(right)) {
@@ -347,7 +355,13 @@ public class Boundary implements
     }
 
     if (leftCountry == null && rightCountry == null) {
-      LOGGER.warn("[boundaries] no left or right country for border between country relations: " + regions);
+      Coordinate point = GeoUtils.worldToLatLonCoords(GeoUtils.pointAlongOffset(lineString, 0.5, 0)).getCoordinate();
+      LOGGER.warn("no left or right country for border between OSM country relations: %s around %.5f, %.5f"
+        .formatted(
+          validRegions,
+          point.getX(),
+          point.getY()
+        ));
     }
 
     return new BorderingRegions(leftCountry, rightCountry);
@@ -355,7 +369,7 @@ public class Boundary implements
 
   @NotNull
   private LongObjectMap<PreparedGeometry> prepareRegionPolygons() {
-    LOGGER.info("[boundaries] Creating polygons for " + regionGeometries.size() + " boundaries");
+    LOGGER.info("Creating polygons for " + regionGeometries.size() + " boundaries");
     LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();
     for (var entry : regionGeometries.entrySet()) {
       Long regionId = entry.getKey();
@@ -364,15 +378,17 @@ public class Boundary implements
       try {
         Geometry combined = polygonizer.getGeometry().union();
         if (combined.isEmpty()) {
-          LOGGER.warn("[boundaries] No valid polygons found for " + regionId);
+          LOGGER.warn("Unable to form closed polygon for OSM relation " + regionId
+            + " (likely missing edges)");
         } else {
           countryBoundaries.put(regionId, PreparedGeometryFactory.prepare(combined));
         }
       } catch (TopologyException e) {
-        LOGGER.warn("[boundaries] Unable to build boundary polygon for " + regionId + ": " + e.getMessage());
+        LOGGER
+          .warn("Unable to build boundary polygon for OSM relation " + regionId + ": " + e.getMessage());
       }
     }
-    LOGGER.info("[boundaries] Finished creating " + countryBoundaries.size() + " country polygons");
+    LOGGER.info("Finished creating " + countryBoundaries.size() + " country polygons");
     return countryBoundaries;
   }
 
@@ -383,7 +399,12 @@ public class Boundary implements
       .orElse(null);
   }
 
-  private static record BorderingRegions(Long left, Long right) {}
+  private static record BorderingRegions(Long left, Long right) {
+
+    public static BorderingRegions empty() {
+      return new BorderingRegions(null, null);
+    }
+  }
 
   private static record BoundaryRelation(
     long id,

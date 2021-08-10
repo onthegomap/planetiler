@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.stats;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
+import com.onthegomap.flatmap.util.LogUtil;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -14,7 +15,14 @@ public interface Stats extends AutoCloseable {
     timers().printSummary();
   }
 
-  Timers.Finishable startTimer(String name);
+  default Timers.Finishable startStage(String name) {
+    LogUtil.setStage(name);
+    var timer = timers().startTimer(name);
+    return () -> {
+      timer.stop();
+      LogUtil.clearStage();
+    };
+  }
 
   default void gauge(String name, Number value) {
     gauge(name, () -> value);
@@ -63,11 +71,6 @@ public interface Stats extends AutoCloseable {
   class InMemory implements Stats {
 
     private final Timers timers = new Timers();
-
-    @Override
-    public Timers.Finishable startTimer(String name) {
-      return timers.startTimer(name);
-    }
 
     @Override
     public void wroteTile(int zoom, int bytes) {

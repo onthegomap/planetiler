@@ -73,6 +73,7 @@ public interface LongLongMap extends Closeable {
     LocalCounter counter = new LocalCounter();
     ProgressLoggers loggers = new ProgressLoggers("write")
       .addRatePercentCounter("entries", entries, () -> counter.count)
+      .newLine()
       .addProcessStats();
     AtomicReference<String> writeRate = new AtomicReference<>();
     new Worker("writer", Stats.inMemory(), 1, () -> {
@@ -93,6 +94,7 @@ public interface LongLongMap extends Closeable {
     Counter.Readable readCount = Counter.newMultiThreadCounter();
     loggers = new ProgressLoggers("read")
       .addRateCounter("entries", readCount)
+      .newLine()
       .addProcessStats();
     CountDownLatch latch = new CountDownLatch(readers);
     for (int i = 0; i < readers; i++) {

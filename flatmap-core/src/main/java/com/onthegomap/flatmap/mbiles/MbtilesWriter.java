@@ -55,9 +55,8 @@ public class MbtilesWriter {
   private final LongAccumulator[] maxTileSizesByZoom;
   private final FeatureGroup features;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
-  private final AtomicLong batchLengths = new AtomicLong(0);
-  private final AtomicLong batches = new AtomicLong(0);
-  private final AtomicLong maxInputFeaturesPerTile = new AtomicLong(0);
+  private final AtomicLong maxBatchLength = new AtomicLong(0);
+  private final AtomicLong minBatchLength = new AtomicLong(Integer.MAX_VALUE);
 
   MbtilesWriter(FeatureGroup features, Mbtiles db, CommonParams config, Profile profile, Stats stats,
     LayerStats layerStats) {
@@ -93,7 +92,7 @@ public class MbtilesWriter {
 
   public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
     CommonParams config, Stats stats) {
-    var timer = stats.startTimer("mbtiles");
+    var timer = stats.startStage("mbtiles");
     MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
       features.layerStats());
 
@@ -132,22 +131,30 @@ public class MbtilesWriter {
       .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)
       .add(" features ").addFileSize(features::getStorageSize)
+      .newLine()
       .addProcessStats()
+      .newLine()
       .addPipelineStats(encodeBranch)
       .addPipelineStats(writeBranch)
       .newLine()
       .add(string(() -> {
         TileCoord lastTile = writer.lastTileWritten.get();
         String blurb;
-        long batches = writer.batches.getAndSet(0);
-        long batchLen = writer.batchLengths.getAndSet(0);
-        String avgBatch = batches == 0 ? "-" : Long.toString(batchLen / batches);
+        long minBatch = writer.minBatchLength.getAndSet(Integer.MAX_VALUE);
+        long maxBatch = writer.maxBatchLength.getAndSet(0);
+        String batchSizeRange = (minBatch > 0 && maxBatch < Integer.MAX_VALUE) ? (minBatch + "-" + maxBatch) : "-";
         if (lastTile == null) {
           blurb = "n/a";
         } else {
-          blurb =
-            lastTile.z() + "/" + lastTile.x() + "/" + lastTile.y() + " bsize:" + avgBatch + " max: "
-              + writer.maxInputFeaturesPerTile.getAndSet(0) + " " + lastTile.getDebugUrl();
+          var extentForZoom = config.extents().getForZoom(lastTile.z());
+          int zMinX = extentForZoom.minX();
+          int zMaxX = extentForZoom.maxX();
+          blurb = "%d/%d/%d (z%d %s%%) batch sizes: %s %s".formatted(
+            lastTile.z(), lastTile.x(), lastTile.y(),
+            lastTile.z(), (100 * (lastTile.x() + 1 - zMinX)) / (zMaxX - zMinX),
+            batchSizeRange,
+            lastTile.getDebugUrl()
+          );
         }
         return "last tile: " + blurb;
       }));
@@ -190,15 +197,10 @@ public class MbtilesWriter {
     for (var feature : features) {
       int z = feature.coord().z();
       if (z > currentZoom) {
-        LOGGER.info("[mbtiles] Starting z" + z);
+        LOGGER.info("Starting z" + z);
         currentZoom = z;
       }
       long thisTileFeatures = feature.getNumFeaturesToEmit();
-      maxInputFeaturesPerTile.accumulateAndGet(thisTileFeatures, Long::max);
-      // TODO move to profile layer cost function
-      if (z != 13) {
-        thisTileFeatures /= 10;
-      }
       if (tilesInThisBatch > 0 &&
         (tilesInThisBatch >= MAX_TILES_PER_BATCH ||
           ((featuresInThisBatch + thisTileFeatures) > MAX_FEATURES_PER_BATCH))) {
@@ -295,8 +297,8 @@ public class MbtilesWriter {
           tilesByZoom[z].inc();
           batchSize++;
         }
-        batches.incrementAndGet();
-        batchLengths.addAndGet(batchSize);
+        maxBatchLength.accumulateAndGet(batchSize, Long::max);
+        minBatchLength.accumulateAndGet(batchSize, Long::min);
         lastTileWritten.set(lastTile);
       }
     }

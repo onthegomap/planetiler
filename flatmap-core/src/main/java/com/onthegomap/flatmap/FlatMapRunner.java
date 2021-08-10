@@ -13,6 +13,7 @@ import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.stats.Timers;
 import com.onthegomap.flatmap.util.FileUtils;
+import com.onthegomap.flatmap.util.LogUtil;
 import com.onthegomap.flatmap.worker.Worker;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,7 +49,8 @@ public class FlatMapRunner {
   private FlatMapRunner(Arguments arguments) {
     this.arguments = arguments;
     stats = arguments.getStats();
-    overallTimer = stats.startTimer("overall");
+    overallTimer = stats.startStage("overall");
+    LogUtil.clearStage();
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
   }
 
@@ -101,7 +103,9 @@ public class FlatMapRunner {
       if (profile.caresAboutSource(name)) {
         task.run();
       } else {
-        LOGGER.info("[" + name + "] skipping since profile does not use it");
+        LogUtil.setStage(name);
+        LOGGER.info("Skipping since profile does not use it");
+        LogUtil.clearStage();
       }
     };
   }
@@ -177,11 +181,11 @@ public class FlatMapRunner {
 
     for (String stage : stages.keySet()) {
       for (String substage : subStages.getOrDefault(stage, List.of(stage))) {
-        LOGGER.info("  [" + substage + "] " + stageDescriptions.getOrDefault(substage, ""));
+        LOGGER.info("  " + substage + ": " + stageDescriptions.getOrDefault(substage, ""));
       }
     }
-    LOGGER.info("  [sort] Sort rendered features by tile ID");
-    LOGGER.info("  [mbtiles] Encode each tile and write to " + output);
+    LOGGER.info("  sort: Sort rendered features by tile ID");
+    LOGGER.info("  mbtiles: Encode each tile and write to " + output);
 
     Files.createDirectories(tmpDir);
     nodeDbPath = tmpDir.resolve("node.db");

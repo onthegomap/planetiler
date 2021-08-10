@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.worker;
 
 import com.onthegomap.flatmap.stats.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.LogUtil;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
@@ -55,9 +56,11 @@ public class Worker {
     this.prefix = prefix;
     stats.gauge(prefix + "_threads", threads);
     var es = Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix));
+    String parentStage = LogUtil.getStage();
     List<CompletableFuture<?>> results = new ArrayList<>();
     for (int i = 0; i < threads; i++) {
       results.add(CompletableFuture.runAsync(() -> {
+        LogUtil.setStage(parentStage, prefix);
         String id = Thread.currentThread().getName();
         LOGGER.trace("Starting worker");
         try {
