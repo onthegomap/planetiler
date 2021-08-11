@@ -146,13 +146,15 @@ public class TransportationName implements
   public void processNaturalEarth(String table, SourceFeature feature,
     FeatureCollector features) {
     if ("ne_10m_admin_0_countries".equals(table) && feature.hasTag("iso_a2", "GB")) {
-      try {
-        synchronized (this) {
+      // multiple threads call this method concurrently, GB polygon *should* only be found
+      // once, but just to be safe synchronize updates to that field
+      synchronized (this) {
+        try {
           Geometry boundary = feature.polygon().buffer(GeoUtils.metersToPixelAtEquator(0, 10_000) / 256d);
           greatBritain = PreparedGeometryFactory.prepare(boundary);
+        } catch (GeometryException e) {
+          LOGGER.error("Failed to get Great Britain Polygon: " + e);
         }
-      } catch (GeometryException e) {
-        LOGGER.error("Failed to get Great Britain Polygon: " + e);
       }
     }
   }

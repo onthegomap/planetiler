@@ -1,8 +1,7 @@
 package com.onthegomap.flatmap.stats;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 
@@ -62,7 +61,7 @@ public interface Counter {
     private MultiThreadCounter() {
     }
 
-    private final List<SingleThreadCounter> all = Collections.synchronizedList(new ArrayList<>());
+    private final List<SingleThreadCounter> all = new CopyOnWriteArrayList<>();
     private final ThreadLocal<SingleThreadCounter> thread = ThreadLocal.withInitial(() -> {
       SingleThreadCounter counter = new SingleThreadCounter();
       all.add(counter);
@@ -85,9 +84,7 @@ public interface Counter {
 
     @Override
     public long get() {
-      synchronized (all) {
-        return all.stream().mapToLong(SingleThreadCounter::get).sum();
-      }
+      return all.stream().mapToLong(SingleThreadCounter::get).sum();
     }
   }
 

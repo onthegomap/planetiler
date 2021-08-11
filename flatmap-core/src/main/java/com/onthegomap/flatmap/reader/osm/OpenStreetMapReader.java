@@ -255,7 +255,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   SourceFeature processWayPass2(NodeLocationProvider nodeCache, ReaderWay way) {
     LongArrayList nodes = way.getNodes();
     if (waysInMultipolygon.contains(way.getId())) {
-      synchronized (multipolygonWayGeometries) {
+      // multiple threads may update this concurrently
+      synchronized (this) {
         multipolygonWayGeometries.putAll(way.getId(), nodes);
       }
     }

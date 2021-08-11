@@ -31,12 +31,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1149,7 +1149,7 @@ public class FlatMapTest {
         newReaderFeature(newPoint(lng2, lat), Map.of("a", 3, "b", 4))
       ),
       new Profile.NullProfile() {
-        private final List<SourceFeature> featureList = Collections.synchronizedList(new ArrayList<>());
+        private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
 
         @Override
         public void processFeature(SourceFeature in, FeatureCollector features) {
@@ -1160,15 +1160,13 @@ public class FlatMapTest {
         public void finish(String name, FeatureCollector.Factory featureCollectors,
           Consumer<FeatureCollector.Feature> next) {
           if ("test".equals(name)) {
-            synchronized (featureList) {
-              for (SourceFeature in : featureList) {
-                var features = featureCollectors.get(in);
-                features.point("layer")
-                  .setZoomRange(13, 14)
-                  .inheritFromSource("a");
-                for (var feature : features) {
-                  next.accept(feature);
-                }
+            for (SourceFeature in : featureList) {
+              var features = featureCollectors.get(in);
+              features.point("layer")
+                .setZoomRange(13, 14)
+                .inheritFromSource("a");
+              for (var feature : features) {
+                next.accept(feature);
               }
             }
           }
@@ -1205,7 +1203,7 @@ public class FlatMapTest {
         with(new ReaderNode(2, lat, lng2), t -> t.setTag("a", 3))
       ),
       new Profile.NullProfile() {
-        private final List<SourceFeature> featureList = Collections.synchronizedList(new ArrayList<>());
+        private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
 
         @Override
         public void processFeature(SourceFeature in, FeatureCollector features) {
@@ -1216,15 +1214,13 @@ public class FlatMapTest {
         public void finish(String name, FeatureCollector.Factory featureCollectors,
           Consumer<FeatureCollector.Feature> next) {
           if ("osm".equals(name)) {
-            synchronized (featureList) {
-              for (SourceFeature in : featureList) {
-                var features = featureCollectors.get(in);
-                features.point("layer")
-                  .setZoomRange(13, 14)
-                  .inheritFromSource("a");
-                for (var feature : features) {
-                  next.accept(feature);
-                }
+            for (SourceFeature in : featureList) {
+              var features = featureCollectors.get(in);
+              features.point("layer")
+                .setZoomRange(13, 14)
+                .inheritFromSource("a");
+              for (var feature : features) {
+                next.accept(feature);
               }
             }
           }

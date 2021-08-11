@@ -21,11 +21,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -43,9 +41,8 @@ public class PrometheusStats implements Stats {
   private PushGateway pg;
   private ScheduledExecutorService executor;
   private final String job;
-  private final Map<String, Path> filesToMonitor = Collections.synchronizedMap(new LinkedHashMap<>());
-  private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = Collections
-    .synchronizedMap(new LinkedHashMap<>());
+  private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
+  private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
 
   PrometheusStats(String job) {
     this.job = job;
@@ -229,31 +226,29 @@ public class PrometheusStats implements Stats {
     @Override
     public List<MetricFamilySamples> collect() {
       List<Collector.MetricFamilySamples> results = new ArrayList<>();
-      synchronized (filesToMonitor) {
-        for (var file : filesToMonitor.entrySet()) {
-          String name = sanitizeMetricName(file.getKey());
-          Path path = file.getValue();
-          results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
-            FileUtils.size(path)));
-          if (Files.exists(path)) {
-            try {
-              FileStore fileStore = Files.getFileStore(path);
-              results
-                .add(
-                  new GaugeMetricFamily(BASE + "file_" + name + "_total_space_bytes", "Total space available on disk",
-                    fileStore.getTotalSpace()));
-              results.add(
-                new GaugeMetricFamily(BASE + "file_" + name + "_unallocated_space_bytes", "Unallocated space on disk",
-                  fileStore.getUnallocatedSpace()));
-              results
-                .add(new GaugeMetricFamily(BASE + "file_" + name + "_usable_space_bytes", "Usable space on disk",
-                  fileStore.getUsableSpace()));
-            } catch (IOException e) {
-              // let the user know once
-              if (!logged) {
-                LOGGER.warn("unable to get usable space on device", e);
-                logged = true;
-              }
+      for (var file : filesToMonitor.entrySet()) {
+        String name = sanitizeMetricName(file.getKey());
+        Path path = file.getValue();
+        results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
+          FileUtils.size(path)));
+        if (Files.exists(path)) {
+          try {
+            FileStore fileStore = Files.getFileStore(path);
+            results
+              .add(
+                new GaugeMetricFamily(BASE + "file_" + name + "_total_space_bytes", "Total space available on disk",
+                  fileStore.getTotalSpace()));
+            results.add(
+              new GaugeMetricFamily(BASE + "file_" + name + "_unallocated_space_bytes", "Unallocated space on disk",
+                fileStore.getUnallocatedSpace()));
+            results
+              .add(new GaugeMetricFamily(BASE + "file_" + name + "_usable_space_bytes", "Usable space on disk",
+                fileStore.getUsableSpace()));
+          } catch (IOException e) {
+            // let the user know once
+            if (!logged) {
+              LOGGER.warn("unable to get usable space on device", e);
+              logged = true;
             }
           }
         }
@@ -302,7 +297,7 @@ public class PrometheusStats implements Stats {
       this.osBean = ManagementFactory.getOperatingSystemMXBean();
     }
 
-    private Map<Long, ProcessInfo.ThreadState> threads = Collections.synchronizedMap(new TreeMap<>());
+    private Map<Long, ProcessInfo.ThreadState> threads = new ConcurrentSkipListMap<>();
 
     public List<MetricFamilySamples> collect() {
 
@@ -320,12 +315,10 @@ public class PrometheusStats implements Stats {
         "User time used by each thread", List.of("name", "id"));
       mfs.add(threadUserTimes);
       threads.putAll(ProcessInfo.getThreadStats());
-      synchronized (threads) {
-        for (ProcessInfo.ThreadState thread : threads.values()) {
-          var labels = List.of(thread.name(), Long.toString(thread.id()));
-          threadUserTimes.addMetric(labels, thread.userTimeNanos() / NANOSECONDS_PER_SECOND);
-          threadCpuTimes.addMetric(labels, thread.cpuTimeNanos() / NANOSECONDS_PER_SECOND);
-        }
+      for (ProcessInfo.ThreadState thread : threads.values()) {
+        var labels = List.of(thread.name(), Long.toString(thread.id()));
+        threadUserTimes.addMetric(labels, thread.userTimeNanos() / NANOSECONDS_PER_SECOND);
+        threadCpuTimes.addMetric(labels, thread.cpuTimeNanos() / NANOSECONDS_PER_SECOND);
       }
 
       return mfs;

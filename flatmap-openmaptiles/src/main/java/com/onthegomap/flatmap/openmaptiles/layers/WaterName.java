@@ -52,7 +52,7 @@ import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +69,10 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
   private static final Logger LOGGER = LoggerFactory.getLogger(WaterName.class);
 
   private final Translations translations;
+  // need to synchronize updates from multiple threads
   private final LongObjectMap<Geometry> lakeCenterlines = new GHLongObjectHashMap<>();
-  private final TreeMap<String, Integer> importantMarinePoints = new TreeMap<>();
+  // may be updated concurrently by multiple threads
+  private final ConcurrentSkipListMap<String, Integer> importantMarinePoints = new ConcurrentSkipListMap<>();
   private final Stats stats;
 
   @Override
@@ -92,9 +94,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
       Integer scalerank = Parse.parseIntOrNull(feature.getTag("scalerank"));
       if (name != null && scalerank != null) {
         name = name.replaceAll("\\s+", " ").trim().toLowerCase();
-        synchronized (importantMarinePoints) {
-          importantMarinePoints.put(name, scalerank);
-        }
+        importantMarinePoints.put(name, scalerank);
       }
     }
   }
@@ -105,12 +105,13 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
     if (osmId == 0L) {
       LOGGER.warn("Bad lake centerline: " + feature);
     } else {
-      synchronized (lakeCenterlines) {
-        try {
+      try {
+        // multiple threads call this concurrently
+        synchronized (this) {
           lakeCenterlines.put(osmId, feature.worldGeometry());
-        } catch (GeometryException e) {
-          e.log(stats, "omt_water_name_lakeline", "Bad lake centerline: " + feature);
         }
+      } catch (GeometryException e) {
+        e.log(stats, "omt_water_name_lakeline", "Bad lake centerline: " + feature);
       }
     }
   }

@@ -13,10 +13,8 @@ public class Timers {
 
   public void printSummary() {
     LOGGER.info("-".repeat(50));
-    synchronized (timers) {
-      for (var entry : timers.entrySet()) {
-        LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
-      }
+    for (var entry : all().entrySet()) {
+      LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
     }
   }
 

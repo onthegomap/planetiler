@@ -102,6 +102,8 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
      * Optimization: Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
      */
     var packer = MessagePack.newDefaultBufferPacker();
+    // and also avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
+    var threadLocalLayerStats = layerStats.handlerForThread();
 
     /*
      * Optimization: Avoid re-encoding values for identical fill geometries (ie. in the ocean) by memoizing based on
@@ -114,7 +116,7 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
 
       @Override
       public FeatureSort.Entry apply(RenderedFeature feature) {
-        layerStats.accept(feature);
+        threadLocalLayerStats.accept(feature);
         var group = feature.group();
         var thisFeature = feature.vectorTileFeature();
         byte[] encodedValue;

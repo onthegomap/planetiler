@@ -6,10 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,7 +21,7 @@ public class WorkerPipelineTest {
   @Test
   @Timeout(10)
   public void testSimplePipeline() {
-    Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
+    Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         next.accept(0);
@@ -46,7 +45,7 @@ public class WorkerPipelineTest {
   @Timeout(10)
   public void testPipelineFromQueue() {
     var queue = new WorkQueue<Integer>("readerqueue", 10, 1, stats);
-    Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
+    Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>readFromQueue(queue)
       .<Integer>addWorker("process", 1, (prev, next) -> {
@@ -72,7 +71,7 @@ public class WorkerPipelineTest {
   @Test
   @Timeout(10)
   public void testPipelineFromIterator() {
-    Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
+    Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
       .readFrom("reader", List.of(0, 1))
       .addBuffer("reader_queue", 1)
@@ -95,7 +94,6 @@ public class WorkerPipelineTest {
   @ValueSource(ints = {1, 2, 3})
   public void testThrowingExceptionInPipelineHandledGracefully(int failureStage) {
     class ExpectedException extends RuntimeException {}
-    Set<Integer> result = Collections.synchronizedSet(new TreeSet<>());
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         if (failureStage == 1) {

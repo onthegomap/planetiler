@@ -63,6 +63,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -92,11 +93,13 @@ public class Boundary implements
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Boundary.class);
   private static final double COUNTRY_TEST_OFFSET = GeoUtils.metersToPixelAtEquator(0, 10) / 256d;
-  private final Map<Long, String> regionNames = new HashMap<>();
-  private final Map<Long, List<Geometry>> regionGeometries = new HashMap<>();
-  private final Map<CountryBoundaryComponent, List<Geometry>> boundariesToMerge = new HashMap<>();
   private final Stats stats;
   private final boolean addCountryNames;
+  // may be updated concurrently by multiple threads
+  private final Map<Long, String> regionNames = new ConcurrentHashMap<>();
+  // need to synchronize updates to these shared data structures:
+  private final Map<Long, List<Geometry>> regionGeometries = new HashMap<>();
+  private final Map<CountryBoundaryComponent, List<Geometry>> boundariesToMerge = new HashMap<>();
 
   public Boundary(Translations translations, Arguments args, Stats stats) {
     this.addCountryNames = args.get(
@@ -163,9 +166,7 @@ public class Boundary implements
       if (adminLevelValue != null && adminLevelValue >= 2 && adminLevelValue <= 10) {
         boolean disputed = isDisputed(ReaderElementUtils.getProperties(relation));
         if (code != null) {
-          synchronized (regionNames) {
-            regionNames.put(relation.getId(), code);
-          }
+          regionNames.put(relation.getId(), code);
         }
         return List.of(new BoundaryRelation(
           relation.getId(),
@@ -234,7 +235,8 @@ public class Boundary implements
               claimedBy,
               disputedName
             );
-            synchronized (regionGeometries) {
+            // multiple threads may update this concurrently
+            synchronized (this) {
               boundariesToMerge.computeIfAbsent(component.groupingKey(), key -> new ArrayList<>()).add(component.line);
               for (var info : relationInfos) {
                 var rel = info.relation();
@@ -291,8 +293,8 @@ public class Boundary implements
               .setAttr(Fields.MARITIME, key.maritime ? 1 : 0)
               .setAttr(Fields.CLAIMED_BY, key.claimedBy)
               .setAttr(Fields.DISPUTED_NAME, key.disputed ? editName(key.name) : null)
-              .setAttr(Fields.ADM0_L, regionNames.get(borderingRegions.left))
-              .setAttr(Fields.ADM0_R, regionNames.get(borderingRegions.right))
+              .setAttr(Fields.ADM0_L, borderingRegions.left == null ? null : regionNames.get(borderingRegions.left))
+              .setAttr(Fields.ADM0_R, borderingRegions.right == null ? null : regionNames.get(borderingRegions.right))
               .setMinPixelSizeAtAllZooms(0)
               .setZoomRange(key.minzoom, 14);
             for (var feature : features) {

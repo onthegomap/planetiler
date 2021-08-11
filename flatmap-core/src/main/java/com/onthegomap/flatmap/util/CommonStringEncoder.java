@@ -19,13 +19,19 @@ public class CommonStringEncoder {
   }
 
   public byte encode(String string) {
-    return stringToId.computeIfAbsent(string, s -> {
-      int id = layerId.getAndIncrement();
-      if (id > 250) {
-        throw new IllegalStateException("Too many string keys when inserting " + string);
-      }
-      idToLayer[id] = string;
-      return (byte) id;
-    });
+    // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
+    // contains the value.
+    Byte result = stringToId.get(string);
+    if (result == null) {
+      result = stringToId.computeIfAbsent(string, s -> {
+        int id = layerId.getAndIncrement();
+        if (id > 250) {
+          throw new IllegalStateException("Too many string keys when inserting " + string);
+        }
+        idToLayer[id] = string;
+        return (byte) id;
+      });
+    }
+    return result;
   }
 }

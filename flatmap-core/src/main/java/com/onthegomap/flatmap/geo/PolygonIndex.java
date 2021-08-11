@@ -2,6 +2,7 @@ package com.onthegomap.flatmap.geo;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
 import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -9,6 +10,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.index.strtree.STRtree;
 
+@ThreadSafe
 public class PolygonIndex<T> {
 
   private record GeomWithData<T>(Polygon poly, T data) {}
@@ -94,7 +96,7 @@ public class PolygonIndex<T> {
     return nearests.isEmpty() ? null : nearests.get(0);
   }
 
-  public synchronized void put(Geometry geom, T item) {
+  public void put(Geometry geom, T item) {
     if (geom instanceof Polygon poly) {
       // need to externally synchronize inserts into the STRTree
       synchronized (this) {
