@@ -48,9 +48,9 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstimate {
+public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(OpenStreetMapReader.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(OsmReader.class);
 
   private final OsmSource osmInputFile;
   private final Stats stats;
@@ -75,11 +75,11 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
 
-  public OpenStreetMapReader(OsmSource osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
+  public OsmReader(OsmSource osmInputFile, LongLongMap nodeDb, Profile profile, Stats stats) {
     this("osm", osmInputFile, nodeDb, profile, stats);
   }
 
-  public OpenStreetMapReader(String name, OsmSource osmInputFile, LongLongMap nodeDb, Profile profile,
+  public OsmReader(String name, OsmSource osmInputFile, LongLongMap nodeDb, Profile profile,
     Stats stats) {
     this.name = name;
     this.osmInputFile = osmInputFile;
@@ -129,7 +129,8 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
       nodesInWays += way.getNodes().size();
     } else if (readerElement instanceof ReaderRelation rel) {
       PASS1_RELATIONS.inc();
-      List<RelationInfo> infos = profile.preprocessOsmRelation(rel);
+      OsmElement.Relation osmRelation = OsmElement.fromGraphopper(rel);
+      List<RelationInfo> infos = profile.preprocessOsmRelation(osmRelation);
       if (infos != null) {
         for (RelationInfo info : infos) {
           relationInfo.put(rel.getId(), info);
@@ -365,7 +366,7 @@ public class OpenStreetMapReader implements Closeable, MemoryEstimator.HasEstima
 
     public ProxyFeature(ReaderElement elem, boolean point, boolean line, boolean polygon,
       List<RelationMember<RelationInfo>> relationInfo) {
-      super(ReaderElementUtils.getProperties(elem), name, null, relationInfo, elem.getId());
+      super(ReaderElementUtils.getTags(elem), name, null, relationInfo, elem.getId());
       this.point = point;
       this.line = line;
       this.polygon = polygon;

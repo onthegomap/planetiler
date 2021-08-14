@@ -118,7 +118,7 @@ public class OsmMultipolygonTest {
         coords.put(node.id, new CoordinateXY(node.x, node.y));
       }
     }
-    OpenStreetMapReader.NodeLocationProvider nodeLocs = coords::get;
+    OsmReader.NodeLocationProvider nodeLocs = coords::get;
     Geometry actual = OsmMultipolygon.build(rings, nodeLocs, 0);
     assertSameNormalizedFeature(expected, actual);
   }

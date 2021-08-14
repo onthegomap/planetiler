@@ -43,7 +43,6 @@ import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwayC
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwaySubclass;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.isFootwayOrSteps;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Translations;
@@ -56,7 +55,8 @@ import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import com.onthegomap.flatmap.util.Parse;
@@ -160,12 +160,12 @@ public class TransportationName implements
   }
 
   @Override
-  public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("route", "road")) {
       RouteNetwork networkType = null;
-      String network = relation.getTag("network");
-      String name = relation.getTag("name");
-      String ref = relation.getTag("ref");
+      String network = relation.getString("network");
+      String name = relation.getString("name");
+      String ref = relation.getString("ref");
 
       if ("US:I".equals(network)) {
         networkType = RouteNetwork.US_INTERSTATE;
@@ -178,7 +178,7 @@ public class TransportationName implements
       }
 
       if (networkType != null) {
-        return List.of(new RouteRelation(coalesce(ref, ""), networkType, relation.getId()));
+        return List.of(new RouteRelation(coalesce(ref, ""), networkType, relation.id()));
       }
     }
     return null;
@@ -186,7 +186,7 @@ public class TransportationName implements
 
   @Override
   public void process(Tables.OsmHighwayLinestring element, FeatureCollector features) {
-    List<OpenStreetMapReader.RelationMember<RouteRelation>> relations = element.source()
+    List<OsmReader.RelationMember<RouteRelation>> relations = element.source()
       .relationInfo(RouteRelation.class);
 
     String ref = element.ref();
@@ -216,7 +216,7 @@ public class TransportationName implements
       .setBufferPixels(BUFFER_SIZE)
       .setBufferPixelOverrides(MIN_LENGTH)
       // TODO abbreviate road names
-      .setAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().properties()))
+      .setAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
@@ -252,9 +252,9 @@ public class TransportationName implements
 
   @Nullable
   private RouteRelation getRouteRelation(Tables.OsmHighwayLinestring element,
-    List<OpenStreetMapReader.RelationMember<RouteRelation>> relations, String ref) {
+    List<OsmReader.RelationMember<RouteRelation>> relations, String ref) {
     RouteRelation relation = relations.stream()
-      .map(OpenStreetMapReader.RelationMember::relation)
+      .map(OsmReader.RelationMember::relation)
       .min(RELATION_ORDERING)
       .orElse(null);
     if (relation == null && ref != null) {
@@ -333,7 +333,7 @@ public class TransportationName implements
     @NotNull String ref,
     RouteNetwork network,
     long id
-  ) implements OpenStreetMapReader.RelationInfo {
+  ) implements OsmReader.RelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {

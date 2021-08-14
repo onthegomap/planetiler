@@ -5,10 +5,10 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -104,7 +104,7 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testInterstateMotorway() {
-    var rel = new ReaderRelation(1);
+    var rel = new OsmElement.Relation(1);
     rel.setTag("type", "route");
     rel.setTag("route", "road");
     rel.setTag("network", "US:I");
@@ -270,7 +270,7 @@ public class TransportationTest extends AbstractLayerTest {
     ))));
   }
 
-  ReaderRelation relUS = new ReaderRelation(1);
+  OsmElement.Relation relUS = new OsmElement.Relation(1);
 
   {
     relUS.setTag("type", "route");
@@ -279,7 +279,7 @@ public class TransportationTest extends AbstractLayerTest {
     relUS.setTag("ref", "3");
   }
 
-  ReaderRelation relMA = new ReaderRelation(2);
+  OsmElement.Relation relMA = new OsmElement.Relation(2);
 
   {
     relMA.setTag("type", "route");
@@ -389,7 +389,7 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testTransCanadaHighway() {
-    var rel = new ReaderRelation(1);
+    var rel = new OsmElement.Relation(1);
     rel.setTag("type", "route");
     rel.setTag("route", "road");
     rel.setTag("network", "CA:transcanada:namedRoute");

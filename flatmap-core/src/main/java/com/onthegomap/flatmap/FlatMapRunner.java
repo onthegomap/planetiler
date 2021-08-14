@@ -8,8 +8,8 @@ import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.mbiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.NaturalEarthReader;
 import com.onthegomap.flatmap.reader.ShapefileReader;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.stats.Timers;
 import com.onthegomap.flatmap.util.FileUtils;
@@ -82,7 +82,7 @@ public class FlatMapRunner {
     return addStage(name, ifSourceUsed(name, () -> {
       try (
         var nodeLocations = getLongLongMap();
-        var osmReader = new OpenStreetMapReader(name, thisInputFile, nodeLocations, profile, stats)
+        var osmReader = new OsmReader(name, thisInputFile, nodeLocations, profile, stats)
       ) {
         osmReader.pass1(config);
         osmReader.pass2(featureMap, config);

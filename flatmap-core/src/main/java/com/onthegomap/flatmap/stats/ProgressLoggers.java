@@ -22,7 +22,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
 import java.util.function.DoubleFunction;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -115,15 +114,10 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, Format::formatNumeric);
-  }
-
-  public ProgressLoggers addRatePercentBytesCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, Format::formatStorage);
-  }
-
-  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
-    BiFunction<Number, Boolean, String> format) {
+    // if there's no total, we can't show progress so fall back to rate logger instead
+    if (total == 0) {
+      return addRateCounter(name, getValue, true);
+    }
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
     loggers.add(new ProgressLogger(name, () -> {
@@ -136,8 +130,9 @@ public class ProgressLoggers {
       }
       last.set(valueNow);
       lastTime.set(now);
-      String result = "[ " + format.apply(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
-        + " " + format.apply(valueDiff / timeDiff, true) + "/s ]";
+      String result =
+        "[ " + Format.formatNumeric(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
+          + " " + Format.formatNumeric(valueDiff / timeDiff, true) + "/s ]";
       return valueDiff > 0 ? green(result) : result;
     }));
     return this;

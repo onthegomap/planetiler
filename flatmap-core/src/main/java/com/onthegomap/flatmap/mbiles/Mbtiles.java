@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
 /**
- * Implements the MBTiles specification defined in: https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md
+ * Implements the MBTiles specification defined in the <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles
+ * Specification</a>
  */
 public final class Mbtiles implements Closeable {
 

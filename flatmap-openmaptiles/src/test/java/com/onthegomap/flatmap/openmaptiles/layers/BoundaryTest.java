@@ -7,12 +7,12 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.ReaderFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -172,7 +172,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmTownBoundary() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "10");
     relation.setTag("boundary", "administrative");
@@ -195,7 +195,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmBoundaryLevelTwoAndAHalf() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "2.5");
     relation.setTag("boundary", "administrative");
@@ -218,12 +218,12 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmBoundaryTakesMinAdminLevel() {
-    var relation1 = new ReaderRelation(1);
+    var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
     relation1.setTag("name", "Town");
     relation1.setTag("boundary", "administrative");
-    var relation2 = new ReaderRelation(2);
+    var relation2 = new OsmElement.Relation(2);
     relation2.setTag("type", "boundary");
     relation2.setTag("admin_level", "4");
     relation2.setTag("name", "State");
@@ -245,7 +245,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmBoundarySetsMaritimeFromWay() {
-    var relation1 = new ReaderRelation(1);
+    var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
     relation1.setTag("boundary", "administrative");
@@ -278,7 +278,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testIgnoresProtectedAreas() {
-    var relation1 = new ReaderRelation(1);
+    var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
     relation1.setTag("boundary", "protected_area");
@@ -288,7 +288,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testIgnoresProtectedAdminLevelOver10() {
-    var relation1 = new ReaderRelation(1);
+    var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "11");
     relation1.setTag("boundary", "administrative");
@@ -298,7 +298,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmBoundaryDisputed() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "5");
     relation.setTag("boundary", "administrative");
@@ -322,7 +322,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testOsmBoundaryDisputedFromWay() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "5");
     relation.setTag("boundary", "administrative");
@@ -362,7 +362,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testCountryBoundaryEmittedIfNoName() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "2");
     relation.setTag("boundary", "administrative");
@@ -382,12 +382,12 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testCountryLeftRightName() {
-    var country1 = new ReaderRelation(1);
+    var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
     country1.setTag("ISO3166-1:alpha3", "C1");
-    var country2 = new ReaderRelation(2);
+    var country2 = new OsmElement.Relation(2);
     country2.setTag("type", "boundary");
     country2.setTag("admin_level", "2");
     country2.setTag("boundary", "administrative");
@@ -403,7 +403,7 @@ public class BoundaryTest extends AbstractLayerTest {
         Stream.concat(
           profile.preprocessOsmRelation(country1).stream(),
           profile.preprocessOsmRelation(country2).stream()
-        ).map(r -> new OpenStreetMapReader.RelationMember<>("", r)).toList()
+        ).map(r -> new OsmReader.RelationMember<>("", r)).toList()
       )
     ));
 
@@ -414,7 +414,7 @@ public class BoundaryTest extends AbstractLayerTest {
         OSM_SOURCE,
         null,
         4,
-        profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
           .toList()
       )
     ));
@@ -424,7 +424,7 @@ public class BoundaryTest extends AbstractLayerTest {
         OSM_SOURCE,
         null,
         4,
-        profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
           .toList()
       )
     ));
@@ -436,7 +436,7 @@ public class BoundaryTest extends AbstractLayerTest {
         OSM_SOURCE,
         null,
         4,
-        profile.preprocessOsmRelation(country2).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
           .toList()
       )
     ));
@@ -446,7 +446,7 @@ public class BoundaryTest extends AbstractLayerTest {
         OSM_SOURCE,
         null,
         4,
-        profile.preprocessOsmRelation(country2).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+        profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
           .toList()
       )
     ));
@@ -486,7 +486,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testCountryBoundaryNotClosed() {
-    var country1 = new ReaderRelation(1);
+    var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
@@ -499,7 +499,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
 
@@ -518,7 +518,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testNestedCountry() throws GeometryException {
-    var country1 = new ReaderRelation(1);
+    var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
@@ -530,7 +530,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
     assertFeatures(14, List.of(), process(new ReaderFeature(
@@ -539,7 +539,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
 
@@ -556,7 +556,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testDontLabelBadPolygon() throws GeometryException {
-    var country1 = new ReaderRelation(1);
+    var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
@@ -568,7 +568,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
 
@@ -582,7 +582,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
   @Test
   public void testIgnoreBadPolygonAndLabelGoodPart() throws GeometryException {
-    var country1 = new ReaderRelation(1);
+    var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
@@ -594,7 +594,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
 
@@ -604,7 +604,7 @@ public class BoundaryTest extends AbstractLayerTest {
       OSM_SOURCE,
       null,
       3,
-      profile.preprocessOsmRelation(country1).stream().map(r -> new OpenStreetMapReader.RelationMember<>("", r))
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
 

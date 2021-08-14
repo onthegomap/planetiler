@@ -72,7 +72,7 @@ public class MountainPeak implements
     if (meters != null && Math.abs(meters) < 10_000) {
       features.point(LAYER_NAME)
         .setAttr(Fields.CLASS, element.source().getTag("natural"))
-        .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttrs(elevationTags(meters))
         .setBufferPixels(BUFFER_SIZE)
         .setZorder(

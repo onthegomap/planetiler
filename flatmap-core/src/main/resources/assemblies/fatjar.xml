@@ -10,6 +10,7 @@
   <includeBaseDirectory>false</includeBaseDirectory>
   <containerDescriptorHandlers>
     <containerDescriptorHandler>
+      <!-- Merge META-INF/services files instead of overwriting them -->
       <handlerName>metaInf-services</handlerName>
     </containerDescriptorHandler>
   </containerDescriptorHandlers>
@@ -19,6 +20,12 @@
       <useProjectArtifact>true</useProjectArtifact>
       <unpack>true</unpack>
       <scope>runtime</scope>
+      <unpackOptions>
+        <excludes>
+          <!-- Exclude cached log4j2 plugins https://stackoverflow.com/questions/48033792/log4j2-error-statuslogger-unrecognized-conversion-specifier -->
+          <exclude>**/Log4j2Plugins.dat</exclude>
+        </excludes>
+      </unpackOptions>
     </dependencySet>
   </dependencySets>
 </assembly>

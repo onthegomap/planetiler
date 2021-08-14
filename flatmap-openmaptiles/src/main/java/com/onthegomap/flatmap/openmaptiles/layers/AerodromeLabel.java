@@ -65,10 +65,10 @@ public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables
     features.centroid(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setZoomRange(10, 14)
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttrs(Utils.elevationTags(element.ele()))
       .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
       .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
-      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().properties(), FieldValues.CLASS_OTHER));
+      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().tags(), FieldValues.CLASS_OTHER));
   }
 }

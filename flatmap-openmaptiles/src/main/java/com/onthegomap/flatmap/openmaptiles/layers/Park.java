@@ -111,7 +111,7 @@ public class Park implements
 
         features.centroid(LAYER_NAME).setBufferPixels(256)
           .setAttr(Fields.CLASS, clazz)
-          .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+          .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
           .setLabelGridPixelSize(14, 100)
           .setZorder(Z_ORDER_MIN +
             ("national_park".equals(clazz) ? PARK_NATIONAL_PARK_BOOST : 0) +

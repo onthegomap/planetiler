@@ -67,7 +67,7 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
         .setZoomRange(6, 14)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
         .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source().properties(), FieldValues.CLASS_RIVER));
+        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source().tags(), FieldValues.CLASS_RIVER));
     }
   }
 

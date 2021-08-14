@@ -7,7 +7,7 @@ import java.util.Map;
  */
 public class ReaderElementUtils {
 
-  public static Map<String, Object> getProperties(ReaderElement elem) {
+  public static Map<String, Object> getTags(ReaderElement elem) {
     return elem.getTags();
   }
 }

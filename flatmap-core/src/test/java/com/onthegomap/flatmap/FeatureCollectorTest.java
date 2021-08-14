@@ -36,8 +36,8 @@ public class FeatureCollectorTest {
 
   private long id = 0;
 
-  private ReaderFeature newReaderFeature(Geometry latLonGeometry, Map<String, Object> properties) {
-    return new ReaderFeature(latLonGeometry, properties, id++);
+  private ReaderFeature newReaderFeature(Geometry latLonGeometry, Map<String, Object> tags) {
+    return new ReaderFeature(latLonGeometry, tags, id++);
   }
 
   @Test

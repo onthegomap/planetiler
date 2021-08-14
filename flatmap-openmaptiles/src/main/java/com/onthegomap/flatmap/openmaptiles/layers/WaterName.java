@@ -140,7 +140,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
       int minZoom = "ocean".equals(place) ? 0 : rank != null ? rank : 8;
       features.point(LAYER_NAME)
         .setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(source.properties(), translations))
+        .setAttrs(LanguageUtils.getNames(source.tags(), translations))
         .setAttr(Fields.CLASS, place)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
         .setZoomRange(minZoom, 14);
@@ -171,7 +171,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
         feature
           .setAttr(Fields.CLASS, FieldValues.CLASS_LAKE)
           .setBufferPixels(BUFFER_SIZE)
-          .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+          .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
           .setZoomRange(minzoom, 14);
       } catch (GeometryException e) {

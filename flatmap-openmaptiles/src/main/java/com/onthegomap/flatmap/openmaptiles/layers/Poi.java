@@ -154,7 +154,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
       .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
       .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setLabelGridPixelSize(14, 64)
       .setZorder(-rankOrder)
       .setZoomRange(minzoom(element.subclass(), element.mappingKey()), 14);

@@ -4,12 +4,12 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.VectorTileEncoder;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.ReaderFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -96,11 +96,11 @@ public class BuildingTest extends AbstractLayerTest {
 
   @Test
   public void testOutlineHides3d() {
-    var relation = new ReaderRelation(1);
+    var relation = new OsmElement.Relation(1);
     relation.setTag("type", "building");
 
     var relationInfos = profile.preprocessOsmRelation(relation).stream()
-      .map(i -> new OpenStreetMapReader.RelationMember<>("outline", i)).toList();
+      .map(i -> new OsmReader.RelationMember<>("outline", i)).toList();
 
     assertFeatures(14, List.of(Map.of(
       "_layer", "building",

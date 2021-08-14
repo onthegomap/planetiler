@@ -40,8 +40,6 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.carrotsearch.hppc.LongObjectMap;
 import com.graphhopper.coll.GHLongObjectHashMap;
-import com.graphhopper.reader.ReaderElementUtils;
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Translations;
@@ -53,7 +51,8 @@ import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.reader.ReaderFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import com.onthegomap.flatmap.util.Parse;
@@ -157,23 +156,23 @@ public class Boundary implements
   }
 
   @Override
-  public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "boundary") &&
       relation.hasTag("admin_level") &&
       relation.hasTag("boundary", "administrative")) {
       Integer adminLevelValue = Parse.parseRoundInt(relation.getTag("admin_level"));
-      String code = relation.getTag("ISO3166-1:alpha3");
+      String code = relation.getString("ISO3166-1:alpha3");
       if (adminLevelValue != null && adminLevelValue >= 2 && adminLevelValue <= 10) {
-        boolean disputed = isDisputed(ReaderElementUtils.getProperties(relation));
+        boolean disputed = isDisputed(relation.tags());
         if (code != null) {
-          regionNames.put(relation.getId(), code);
+          regionNames.put(relation.id(), code);
         }
         return List.of(new BoundaryRelation(
-          relation.getId(),
+          relation.id(),
           adminLevelValue,
           disputed,
-          relation.getTag("name"),
-          disputed ? relation.getTag("claimed_by") : null,
+          relation.getString("name"),
+          disputed ? relation.getString("claimed_by") : null,
           code
         ));
       }
@@ -208,7 +207,7 @@ public class Boundary implements
       }
 
       if (minAdminLevel <= 10) {
-        boolean wayIsDisputed = isDisputed(feature.properties());
+        boolean wayIsDisputed = isDisputed(feature.tags());
         disputed |= wayIsDisputed;
         if (wayIsDisputed) {
           disputedName = disputedName == null ? feature.getString("name") : disputedName;
@@ -415,7 +414,7 @@ public class Boundary implements
     String name,
     String claimedBy,
     String iso3166alpha3
-  ) implements OpenStreetMapReader.RelationInfo {
+  ) implements OsmReader.RelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {

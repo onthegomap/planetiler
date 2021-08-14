@@ -3,11 +3,10 @@ package com.onthegomap.flatmap.openmaptiles;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.graphhopper.reader.ReaderNode;
-import com.graphhopper.reader.ReaderWay;
-import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.Translations;
 import com.onthegomap.flatmap.Wikidata;
+import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.stats.Stats;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ public class OpenMaptilesProfileTest {
 
   @Test
   public void testCaresAboutWikidata() {
-    var node = new ReaderNode(1, 1, 1);
+    var node = new OsmElement.Node(1, 1, 1);
     node.setTag("aeroway", "gate");
     assertTrue(profile.caresAboutWikidataTranslation(node));
 
@@ -32,7 +31,7 @@ public class OpenMaptilesProfileTest {
 
   @Test
   public void testDoesntCareAboutWikidataForRoads() {
-    var way = new ReaderWay(1);
+    var way = new OsmElement.Way(1);
     way.setTag("highway", "footway");
     assertFalse(profile.caresAboutWikidataTranslation(way));
   }

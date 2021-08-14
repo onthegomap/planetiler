@@ -160,10 +160,10 @@ public class Place implements
   public void process(Tables.OsmContinentPoint element, FeatureCollector features) {
     if (!nullOrEmpty(element.name())) {
       features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, FieldValues.CLASS_CONTINENT)
         .setAttr(Fields.RANK, 1)
-        .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setZoomRange(0, 3);
     }
   }
@@ -184,7 +184,7 @@ public class Place implements
     try {
       int rank = 7;
       NaturalEarthRegion country = countries.get(element.source().worldGeometry().getCentroid());
-      var names = LanguageUtils.getNames(element.source().properties(), translations);
+      var names = LanguageUtils.getNames(element.source().tags(), translations);
 
       if (country != null) {
         if (nullOrEmpty(names.get(Fields.NAME_EN))) {
@@ -214,7 +214,7 @@ public class Place implements
       // don't want nearest since we pre-filter the states in the polygon index
       NaturalEarthRegion state = states.getOnlyContaining(element.source().worldGeometry().getCentroid());
       if (state != null) {
-        var names = LanguageUtils.getNames(element.source().properties(), translations);
+        var names = LanguageUtils.getNames(element.source().tags(), translations);
         if (nullOrEmpty(names.get(Fields.NAME_EN))) {
           names.put(Fields.NAME_EN, state.name);
         }
@@ -262,7 +262,7 @@ public class Place implements
       int zOrder = (int) (logWorldArea * ISLAND_ZORDER_RANGE);
 
       features.pointOnSurface(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, "island")
         .setAttr(Fields.RANK, rank)
         .setZoomRange(minzoom, 14)
@@ -276,7 +276,7 @@ public class Place implements
   @Override
   public void process(Tables.OsmIslandPoint element, FeatureCollector features) {
     features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, "island")
       .setAttr(Fields.RANK, 7)
       .setZoomRange(12, 14);
@@ -379,7 +379,7 @@ public class Place implements
             placeType.ordinal() <= PlaceType.SUBURB.ordinal() ? 11 : 14;
 
     var feature = features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, element.place())
       .setAttr(Fields.RANK, rank)
       .setZoomRange(minzoom, 14)

@@ -23,7 +23,8 @@ import com.onthegomap.flatmap.mbiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.Reader;
 import com.onthegomap.flatmap.reader.ReaderFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.reader.osm.OsmSource;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
@@ -103,7 +104,7 @@ public class FlatMapTest {
       osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OpenStreetMapReader(elems, nodeMap, profile, Stats.inMemory())) {
+    try (var reader = new OsmReader(elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }
@@ -193,7 +194,7 @@ public class FlatMapTest {
   private FlatMapResults runWithOsmElements(
     Map<String, String> args,
     List<ReaderElement> features,
-    Function<ReaderRelation, List<OpenStreetMapReader.RelationInfo>> preprocessOsmRelation,
+    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
   ) throws Exception {
     return run(
@@ -757,6 +758,47 @@ public class FlatMapTest {
   }
 
   @Test
+  public void testOsmPointSkipPass1() throws Exception {
+    var results = run(
+      Map.of("threads", "1"),
+      (featureGroup, profile, config) -> {
+        List<? extends ReaderElement> osmElements = List.<ReaderElement>of(
+          with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+        );
+        OsmSource elems = (name, threads) -> next -> {
+          // process the same order they come in from an OSM file
+          osmElements.stream().filter(e -> e.getType() == ReaderElement.FILEHEADER).forEachOrdered(next);
+          osmElements.stream().filter(e -> e.getType() == ReaderElement.NODE).forEachOrdered(next);
+          osmElements.stream().filter(e -> e.getType() == ReaderElement.WAY).forEachOrdered(next);
+          osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
+        };
+        var nodeMap = LongLongMap.newInMemorySortedTable();
+        try (var reader = new OsmReader(elems, nodeMap, profile, Stats.inMemory())) {
+          // skip pass 1
+          reader.pass2(featureGroup, config);
+        }
+      },
+      TestProfile.processSourceFeatures((in, features) -> {
+        if (in.isPoint()) {
+          features.point("layer")
+            .setZoomRange(0, 0)
+            .setAttr("name", "name value")
+            .inheritFromSource("attr");
+        }
+      })
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newPoint(128, 128), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      )
+    ), results.tiles);
+  }
+
+  @Test
   public void testExceptionWhileProcessingOsm() {
     assertThrows(RuntimeException.class, () -> runWithOsmElements(
       Map.of("threads", "1"),
@@ -853,7 +895,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmMultipolygon() throws Exception {
-    record TestRelationInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
+    record TestRelationInfo(long id, String name) implements OsmReader.RelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -892,7 +934,7 @@ public class FlatMapTest {
         })
       ),
       in -> in.hasTag("type", "relation") ?
-        List.of(new TestRelationInfo(in.getId(), in.getTag("name"))) :
+        List.of(new TestRelationInfo(in.id(), in.getString("name"))) :
         null,
       (in, features) -> {
         if (in.hasTag("should_emit")) {
@@ -927,7 +969,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmLineInRelation() throws Exception {
-    record TestRelationInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
+    record TestRelationInfo(long id, String name) implements OsmReader.RelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -950,7 +992,7 @@ public class FlatMapTest {
       ),
       (relation) -> {
         if (relation.hasTag("name", "relation name")) {
-          return List.of(new TestRelationInfo(relation.getId(), relation.getTag("name")));
+          return List.of(new TestRelationInfo(relation.id(), relation.getString("name")));
         }
         return null;
       }, (in, features) -> {
@@ -961,7 +1003,7 @@ public class FlatMapTest {
             .setZoomRange(0, 0)
             .setAttr("relname", firstRelation.map(d -> d.relation().name).orElse(null))
             .inheritFromSource("attr")
-            .setAttr("relrole", firstRelation.map(OpenStreetMapReader.RelationMember::role).orElse(null));
+            .setAttr("relrole", firstRelation.map(OsmReader.RelationMember::role).orElse(null));
         }
       }
     );
@@ -1276,13 +1318,13 @@ public class FlatMapTest {
     @Override String attribution,
     @Override String version,
     BiConsumer<SourceFeature, FeatureCollector> processFeature,
-    Function<ReaderRelation, List<OpenStreetMapReader.RelationInfo>> preprocessOsmRelation,
+    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
     LayerPostprocessFunction postprocessLayerFeatures
   ) implements Profile {
 
     TestProfile(
       BiConsumer<SourceFeature, FeatureCollector> processFeature,
-      Function<ReaderRelation, List<OpenStreetMapReader.RelationInfo>> preprocessOsmRelation,
+      Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
       LayerPostprocessFunction postprocessLayerFeatures
     ) {
       this(TEST_PROFILE_NAME, TEST_PROFILE_DESCRIPTION, TEST_PROFILE_ATTRIBUTION, TEST_PROFILE_VERSION, processFeature,
@@ -1295,8 +1337,8 @@ public class FlatMapTest {
     }
 
     @Override
-    public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(
-      ReaderRelation relation) {
+    public List<OsmReader.RelationInfo> preprocessOsmRelation(
+      OsmElement.Relation relation) {
       return preprocessOsmRelation.apply(relation);
     }
 

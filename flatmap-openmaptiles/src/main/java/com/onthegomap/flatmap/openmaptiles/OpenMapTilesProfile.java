@@ -4,9 +4,6 @@ import static com.onthegomap.flatmap.openmaptiles.Expression.FALSE;
 import static com.onthegomap.flatmap.openmaptiles.Expression.TRUE;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchType;
 
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderElementUtils;
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.Translations;
@@ -17,7 +14,8 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.ReaderFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -140,10 +138,10 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
-    List<OpenStreetMapReader.RelationInfo> result = null;
+  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    List<OsmReader.RelationInfo> result = null;
     for (int i = 0; i < osmRelationPreprocessors.size(); i++) {
-      List<OpenStreetMapReader.RelationInfo> thisResult = osmRelationPreprocessors.get(i)
+      List<OsmReader.RelationInfo> thisResult = osmRelationPreprocessors.get(i)
         .preprocessOsmRelation(relation);
       if (thisResult != null) {
         if (result == null) {
@@ -195,15 +193,15 @@ public class OpenMapTilesProfile implements Profile {
     SourceFeature sourceFeature) {
     List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> result = null;
     if (sourceFeature.isPoint()) {
-      result = osmPointMappings.getMatchesWithTriggers(sourceFeature.properties());
+      result = osmPointMappings.getMatchesWithTriggers(sourceFeature.tags());
     } else {
       if (sourceFeature.canBeLine()) {
-        result = osmLineMappings.getMatchesWithTriggers(sourceFeature.properties());
+        result = osmLineMappings.getMatchesWithTriggers(sourceFeature.tags());
         if (sourceFeature.canBePolygon()) {
-          result.addAll(osmPolygonMappings.getMatchesWithTriggers(sourceFeature.properties()));
+          result.addAll(osmPolygonMappings.getMatchesWithTriggers(sourceFeature.tags()));
         }
       } else if (sourceFeature.canBePolygon()) {
-        result = osmPolygonMappings.getMatchesWithTriggers(sourceFeature.properties());
+        result = osmPolygonMappings.getMatchesWithTriggers(sourceFeature.tags());
       }
     }
     return result == null ? List.of() : result;
@@ -256,7 +254,7 @@ public class OpenMapTilesProfile implements Profile {
 
   public interface OsmRelationPreprocessor {
 
-    List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation);
+    List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
   }
 
   public interface FeaturePostProcessor {
@@ -268,14 +266,17 @@ public class OpenMapTilesProfile implements Profile {
   public interface IgnoreWikidata {}
 
   @Override
-  public boolean caresAboutWikidataTranslation(ReaderElement elem) {
-    var tags = ReaderElementUtils.getProperties(elem);
-    return switch (elem.getType()) {
-      case ReaderElement.WAY -> wikidataOsmPolygonMappings.matches(tags) || wikidataOsmLineMappings.matches(tags);
-      case ReaderElement.NODE -> wikidataOsmPointMappings.matches(tags);
-      case ReaderElement.RELATION -> wikidataOsmPolygonMappings.matches(tags);
-      default -> false;
-    };
+  public boolean caresAboutWikidataTranslation(OsmElement elem) {
+    var tags = elem.tags();
+    if (elem instanceof OsmElement.Node) {
+      return wikidataOsmPointMappings.matches(tags);
+    } else if (elem instanceof OsmElement.Way) {
+      return wikidataOsmPolygonMappings.matches(tags) || wikidataOsmLineMappings.matches(tags);
+    } else if (elem instanceof OsmElement.Relation) {
+      return wikidataOsmPolygonMappings.matches(tags);
+    } else {
+      return false;
+    }
   }
 
   @Override

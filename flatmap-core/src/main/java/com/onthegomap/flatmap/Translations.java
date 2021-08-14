@@ -36,15 +36,15 @@ public class Translations {
     return this;
   }
 
-  public Map<String, Object> getTranslations(Map<String, Object> properties) {
+  public Map<String, Object> getTranslations(Map<String, Object> tags) {
     Map<String, Object> result = new HashMap<>();
-    addTranslations(result, properties);
+    addTranslations(result, tags);
     return result;
   }
 
-  public void addTranslations(Map<String, Object> result, Map<String, Object> properties) {
+  public void addTranslations(Map<String, Object> result, Map<String, Object> tags) {
     for (TranslationProvider provider : providers) {
-      Map<String, String> translations = provider.getNameTranslations(properties);
+      Map<String, String> translations = provider.getNameTranslations(tags);
       if (translations != null && !translations.isEmpty()) {
         for (var entry : translations.entrySet()) {
           String key = entry.getKey();

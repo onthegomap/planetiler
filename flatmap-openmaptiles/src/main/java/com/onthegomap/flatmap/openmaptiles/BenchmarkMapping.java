@@ -30,7 +30,7 @@ public class BenchmarkMapping {
         if (inputs.size() % 1_000_000 == 0) {
           System.err.println(inputs.size());
         }
-        var props = ReaderElementUtils.getProperties(readerElem);
+        var props = ReaderElementUtils.getTags(readerElem);
         inputs.add(new SourceFeature(props, "", "", null, readerElem.getId()) {
           @Override
           public Geometry latLonGeometry() throws GeometryException {

@@ -67,8 +67,8 @@ public class LanguageUtils {
     return string != null && !NONLATIN.matcher(string).find();
   }
 
-  private static String transliterate(Map<String, Object> properties) {
-    return Translations.transliterate(string(properties.get("name")));
+  private static String transliterate(Map<String, Object> tags) {
+    return Translations.transliterate(string(tags.get("name")));
   }
 
   private static final Pattern LETTER = Pattern.compile("[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+");
@@ -90,24 +90,24 @@ public class LanguageUtils {
     return name.trim();
   }
 
-  public static Map<String, Object> getNamesWithoutTranslations(Map<String, Object> properties) {
-    return getNames(properties, null);
+  public static Map<String, Object> getNamesWithoutTranslations(Map<String, Object> tags) {
+    return getNames(tags, null);
   }
 
-  public static Map<String, Object> getNames(Map<String, Object> properties, Translations translations) {
+  public static Map<String, Object> getNames(Map<String, Object> tags, Translations translations) {
     Map<String, Object> result = new HashMap<>();
 
-    String name = string(properties.get("name"));
-    String intName = string(properties.get("int_name"));
-    String nameEn = string(properties.get("name:en"));
-    String nameDe = string(properties.get("name:de"));
+    String name = string(tags.get("name"));
+    String intName = string(tags.get("int_name"));
+    String nameEn = string(tags.get("name:en"));
+    String nameDe = string(tags.get("name:de"));
 
     boolean isLatin = isLatin(name);
-    String latin = isLatin ? name : Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNames(properties))
+    String latin = isLatin ? name : Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNames(tags))
       .filter(LanguageUtils::isLatin)
       .findFirst().orElse(null);
     if (latin == null && translations != null && translations.getShouldTransliterate()) {
-      latin = transliterate(properties);
+      latin = transliterate(tags);
     }
     String nonLatin = isLatin ? null : removeNonLatin(name);
     if (coalesce(nonLatin, "").equals(latin)) {
@@ -127,7 +127,7 @@ public class LanguageUtils {
     ));
 
     if (translations != null) {
-      translations.addTranslations(result, properties);
+      translations.addTranslations(result, tags);
     }
 
     return result;
@@ -135,8 +135,8 @@ public class LanguageUtils {
 
   private static final Set<String> EN_DE_NAME_KEYS = Set.of("name:en", "name:de");
 
-  private static Stream<String> getAllNames(Map<String, Object> properties) {
-    return properties.entrySet().stream()
+  private static Stream<String> getAllNames(Map<String, Object> tags) {
+    return tags.entrySet().stream()
       .filter(e -> {
         String key = e.getKey();
         return key.startsWith("name:") && !EN_DE_NAME_KEYS.contains(key);

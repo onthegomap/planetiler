@@ -94,7 +94,7 @@ public class OsmMultipolygon {
 
   public static Geometry build(
     List<LongArrayList> rings,
-    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    OsmReader.NodeLocationProvider nodeCache,
     long osmId
   ) throws GeometryException {
     return build(rings, nodeCache, osmId, MIN_CLOSE_RING_GAP);
@@ -102,7 +102,7 @@ public class OsmMultipolygon {
 
   public static Geometry build(
     List<LongArrayList> rings,
-    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    OsmReader.NodeLocationProvider nodeCache,
     long osmId,
     double minGap
   ) throws GeometryException {
@@ -111,7 +111,7 @@ public class OsmMultipolygon {
 
   private static Geometry buildAndFix(
     List<LongArrayList> rings,
-    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    OsmReader.NodeLocationProvider nodeCache,
     long osmId,
     double minGap
   ) throws GeometryException {
@@ -120,7 +120,7 @@ public class OsmMultipolygon {
 
   private static Geometry build(
     List<LongArrayList> rings,
-    OpenStreetMapReader.NodeLocationProvider nodeCache,
+    OsmReader.NodeLocationProvider nodeCache,
     long osmId,
     double minGap,
     boolean fix
@@ -216,7 +216,7 @@ public class OsmMultipolygon {
     return shells;
   }
 
-  private static boolean tryClose(LongArrayList segment, OpenStreetMapReader.NodeLocationProvider nodeCache,
+  private static boolean tryClose(LongArrayList segment, OsmReader.NodeLocationProvider nodeCache,
     double minGap) {
     int size = segment.size();
     long firstId = segment.get(0);

@@ -39,7 +39,6 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.util.Parse.parseDoubleOrNull;
 import static java.util.Map.entry;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.Translations;
@@ -49,7 +48,8 @@ import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import java.util.List;
 import java.util.Locale;
@@ -93,7 +93,7 @@ public class Building implements OpenMapTilesSchema.Building,
     );
   }
 
-  private static record BuildingRelationInfo(long id) implements OpenStreetMapReader.RelationInfo {
+  private static record BuildingRelationInfo(long id) implements OsmReader.RelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {
@@ -102,9 +102,9 @@ public class Building implements OpenMapTilesSchema.Building,
   }
 
   @Override
-  public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "building")) {
-      return List.of(new BuildingRelationInfo(relation.getId()));
+      return List.of(new BuildingRelationInfo(relation.id()));
     }
     return null;
   }

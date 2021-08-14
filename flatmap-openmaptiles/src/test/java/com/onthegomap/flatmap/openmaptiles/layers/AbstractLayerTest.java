@@ -20,7 +20,7 @@ import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.reader.ReaderFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import java.util.HashMap;
 import java.util.List;
@@ -135,7 +135,7 @@ public abstract class AbstractLayerTest {
   }
 
   @NotNull
-  protected ReaderFeature lineFeatureWithRelation(List<OpenStreetMapReader.RelationInfo> relationInfos,
+  protected ReaderFeature lineFeatureWithRelation(List<OsmReader.RelationInfo> relationInfos,
     Map<String, Object> map) {
     return new ReaderFeature(
       newLineString(0, 0, 1, 1),
@@ -143,8 +143,8 @@ public abstract class AbstractLayerTest {
       OSM_SOURCE,
       null,
       0,
-      (relationInfos == null ? List.<OpenStreetMapReader.RelationInfo>of() : relationInfos).stream()
-        .map(r -> new OpenStreetMapReader.RelationMember<>("", r)).toList()
+      (relationInfos == null ? List.<OsmReader.RelationInfo>of() : relationInfos).stream()
+        .map(r -> new OsmReader.RelationMember<>("", r)).toList()
     );
   }
 

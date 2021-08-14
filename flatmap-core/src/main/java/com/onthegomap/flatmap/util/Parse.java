@@ -37,12 +37,12 @@ public class Parse {
 
   private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");
 
-  public static Integer parseRoundInt(String tag) {
+  public static Integer parseRoundInt(Object tag) {
     if (tag == null) {
       return null;
     }
     try {
-      var matcher = TO_ROUND_INT_SUBSTRING_PATTERN.matcher(tag);
+      var matcher = TO_ROUND_INT_SUBSTRING_PATTERN.matcher(tag.toString());
       return matcher.find() ? Math.round(Float.parseFloat(matcher.group(1))) : null;
     } catch (NumberFormatException e) {
       return null;

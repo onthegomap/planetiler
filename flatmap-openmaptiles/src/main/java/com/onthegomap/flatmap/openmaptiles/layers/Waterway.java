@@ -89,7 +89,7 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
     features.line(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, element.waterway())
-      .setAttrs(LanguageUtils.getNames(element.source().properties(), translations))
+      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setZoomRange(minzoom, 14)
       // details only at higher zoom levels
       .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)

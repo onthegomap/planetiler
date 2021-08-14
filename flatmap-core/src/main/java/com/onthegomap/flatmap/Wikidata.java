@@ -17,6 +17,7 @@ import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.stats.Counter;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
@@ -232,7 +233,8 @@ public class Wikidata {
       }
       Object wikidata = elem.getTag("wikidata");
       if (wikidata instanceof String wikidataString) {
-        if (profile.caresAboutWikidataTranslation(elem)) {
+        OsmElement osmElement = OsmElement.fromGraphhopper(elem);
+        if (profile.caresAboutWikidataTranslation(osmElement)) {
           long qid = parseQid(wikidataString);
           if (qid > 0) {
             next.accept(qid);

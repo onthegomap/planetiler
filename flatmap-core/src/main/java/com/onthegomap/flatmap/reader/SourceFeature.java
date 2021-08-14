@@ -2,8 +2,7 @@ package com.onthegomap.flatmap.reader;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
-import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,34 +10,31 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygon;
 
-public abstract class SourceFeature {
+public abstract class SourceFeature implements WithTags {
 
-  private final Map<String, Object> properties;
+  private final Map<String, Object> tags;
   private final String source;
   private final String sourceLayer;
-  private final List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relationInfos;
+  private final List<OsmReader.RelationMember<OsmReader.RelationInfo>> relationInfos;
   private final long id;
 
-  protected SourceFeature(Map<String, Object> properties, String source, String sourceLayer,
-    List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relationInfos, long id) {
-    this.properties = properties;
+  protected SourceFeature(Map<String, Object> tags, String source, String sourceLayer,
+    List<OsmReader.RelationMember<OsmReader.RelationInfo>> relationInfos, long id) {
+    this.tags = tags;
     this.source = source;
     this.sourceLayer = sourceLayer;
     this.relationInfos = relationInfos;
     this.id = id;
   }
 
+  @Override
+  public Map<String, Object> tags() {
+    return tags;
+  }
+
   public abstract Geometry latLonGeometry() throws GeometryException;
 
   public abstract Geometry worldGeometry() throws GeometryException;
-
-  public void setTag(String key, Object value) {
-    properties.put(key, value);
-  }
-
-  public Map<String, Object> properties() {
-    return properties;
-  }
 
   private Geometry centroid = null;
 
@@ -137,31 +133,6 @@ public abstract class SourceFeature {
       (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
-  public Object getTag(String key) {
-    return properties.get(key);
-  }
-
-  public Object getTag(String key, Object defaultValue) {
-    Object val = properties.get(key);
-    if (val == null) {
-      return defaultValue;
-    }
-    return val;
-  }
-
-  public boolean hasTag(String key) {
-    return properties.containsKey(key);
-  }
-
-  public boolean hasTag(String key, Object value) {
-    return value.equals(getTag(key));
-  }
-
-  public boolean hasTag(String key, Object value, Object value2) {
-    Object actual = getTag(key);
-    return value.equals(actual) || value2.equals(actual);
-  }
-
   public abstract boolean isPoint();
 
   public abstract boolean canBePolygon();
@@ -176,17 +147,17 @@ public abstract class SourceFeature {
     return sourceLayer;
   }
 
-  public <T extends OpenStreetMapReader.RelationInfo> List<OpenStreetMapReader.RelationMember<T>> relationInfo(
+  public <T extends OsmReader.RelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
     Class<T> relationInfoClass) {
-    List<OpenStreetMapReader.RelationMember<T>> result = null;
+    List<OsmReader.RelationMember<T>> result = null;
     if (relationInfos != null) {
-      for (OpenStreetMapReader.RelationMember<?> info : relationInfos) {
+      for (OsmReader.RelationMember<?> info : relationInfos) {
         if (relationInfoClass.isInstance(info.relation())) {
           if (result == null) {
             result = new ArrayList<>();
           }
           @SuppressWarnings("unchecked")
-          OpenStreetMapReader.RelationMember<T> casted = (OpenStreetMapReader.RelationMember<T>) info;
+          OsmReader.RelationMember<T> casted = (OsmReader.RelationMember<T>) info;
           result.add(casted);
         }
       }
@@ -198,29 +169,4 @@ public abstract class SourceFeature {
     return id;
   }
 
-  public String getString(String key) {
-    Object value = getTag(key);
-    return value == null ? null : value.toString();
-  }
-
-  public String getString(String key, String defaultValue) {
-    Object value = getTag(key, defaultValue);
-    return value == null ? null : value.toString();
-  }
-
-  public boolean getBoolean(String key) {
-    return Parse.bool(getTag(key));
-  }
-
-  public long getLong(String key) {
-    return Parse.parseLong(getTag(key));
-  }
-
-  public int getDirection(String key) {
-    return Parse.direction(getTag(key));
-  }
-
-  public int getWayZorder() {
-    return Parse.wayzorder(properties);
-  }
 }

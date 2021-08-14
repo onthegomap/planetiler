@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.reader;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.reader.osm.OpenStreetMapReader;
+import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,26 +14,26 @@ import org.locationtech.jts.geom.Puntal;
 public class ReaderFeature extends SourceFeature {
 
   private final Geometry latLonGeometry;
-  private final Map<String, Object> properties;
+  private final Map<String, Object> tags;
 
-  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, long id) {
-    this(latLonGeometry, properties, null, null, id);
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> tags, long id) {
+    this(latLonGeometry, tags, null, null, id);
   }
 
-  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer,
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> tags, String source, String sourceLayer,
     long id) {
-    this(latLonGeometry, properties, source, sourceLayer, id, null);
+    this(latLonGeometry, tags, source, sourceLayer, id, null);
   }
 
-  public ReaderFeature(Geometry latLonGeometry, int numProperties, String source, String sourceLayer, long id) {
-    this(latLonGeometry, new HashMap<>(numProperties), source, sourceLayer, id);
+  public ReaderFeature(Geometry latLonGeometry, int numTags, String source, String sourceLayer, long id) {
+    this(latLonGeometry, new HashMap<>(numTags), source, sourceLayer, id);
   }
 
-  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> properties, String source, String sourceLayer,
-    long id, List<OpenStreetMapReader.RelationMember<OpenStreetMapReader.RelationInfo>> relations) {
-    super(properties, source, sourceLayer, relations, id);
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> tags, String source, String sourceLayer,
+    long id, List<OsmReader.RelationMember<OsmReader.RelationInfo>> relations) {
+    super(tags, source, sourceLayer, relations, id);
     this.latLonGeometry = latLonGeometry;
-    this.properties = properties;
+    this.tags = tags;
   }
 
   @Override
@@ -49,8 +49,8 @@ public class ReaderFeature extends SourceFeature {
       : (worldGeometry = GeoUtils.ensureDescendingPolygonsSizes(GeoUtils.latLonToWorldCoords(latLonGeometry)));
   }
 
-  public Map<String, Object> properties() {
-    return properties;
+  public Map<String, Object> tags() {
+    return tags;
   }
 
   @Override
@@ -78,18 +78,18 @@ public class ReaderFeature extends SourceFeature {
     }
     var that = (ReaderFeature) obj;
     return Objects.equals(this.latLonGeometry, that.latLonGeometry) &&
-      Objects.equals(this.properties, that.properties);
+      Objects.equals(this.tags, that.tags);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(latLonGeometry, properties);
+    return Objects.hash(latLonGeometry, tags);
   }
 
   @Override
   public String toString() {
     return "ReaderFeature[" +
       "geometry=" + latLonGeometry + ", " +
-      "properties=" + properties + ']';
+      "tags=" + tags + ']';
   }
 }

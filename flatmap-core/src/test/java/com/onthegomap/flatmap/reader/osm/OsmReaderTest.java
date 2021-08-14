@@ -23,7 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class OpenStreetMapReaderTest {
+public class OsmReaderTest {
 
   public final OsmSource osmSource = (name, threads) -> next -> {
   };
@@ -31,10 +31,11 @@ public class OpenStreetMapReaderTest {
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap longLongMap = LongLongMap.newInMemoryHashMap();
 
-  private static Profile newProfile(Function<ReaderRelation, List<OpenStreetMapReader.RelationInfo>> processRelation) {
+  private static Profile newProfile(
+    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> processRelation) {
     return new Profile.NullProfile() {
       @Override
-      public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+      public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return processRelation.apply(relation);
       }
     };
@@ -42,7 +43,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPoint() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var node = new ReaderNode(1, 0, 0);
     node.setTag("key", "value");
     reader.processPass1(node);
@@ -61,12 +62,12 @@ public class OpenStreetMapReaderTest {
     assertEquals(0, feature.length());
     assertThrows(GeometryException.class, feature::line);
     assertThrows(GeometryException.class, feature::polygon);
-    assertEquals(Map.of("key", "value"), feature.properties());
+    assertEquals(Map.of("key", "value"), feature.tags());
   }
 
   @Test
   public void testLine() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = new ReaderNode(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
@@ -101,12 +102,12 @@ public class OpenStreetMapReaderTest {
 
     assertEquals(0, feature.area());
     assertEquals(Math.sqrt(2 * 0.25 * 0.25), feature.length(), 1e-5);
-    assertEquals(Map.of("key", "value"), feature.properties());
+    assertEquals(Map.of("key", "value"), feature.tags());
   }
 
   @Test
   public void testPolygonAreaNotSpecified() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -149,7 +150,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonAreaYes() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -189,7 +190,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonAreaNo() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeGeometryCache();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -229,7 +230,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testLineWithTooFewPoints() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var way = new ReaderWay(3);
     way.getNodes().add(1);
@@ -254,7 +255,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testPolygonWithTooFewPoints() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
     var way = new ReaderWay(3);
@@ -291,7 +292,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testInvalidPolygon() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
 
     reader.processPass1(node(1, 0.5, 0.5));
     reader.processPass1(node(2, 0.75, 0.5));
@@ -335,7 +336,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testLineReferencingNonexistentNode() {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var way = new ReaderWay(321);
     way.getNodes().add(123, 2222, 333, 444, 123);
     reader.processPass1(way);
@@ -368,7 +369,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testMultiPolygon() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var outerway = new ReaderWay(9);
     outerway.getNodes().add(1, 2, 3, 4, 1);
     var innerway = new ReaderWay(10);
@@ -432,7 +433,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testMultipolygonInfersCorrectParent() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var outerway = new ReaderWay(13);
     outerway.getNodes().add(1, 2, 3, 4, 1);
     var innerway = new ReaderWay(14);
@@ -500,7 +501,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testInvalidMultipolygon() throws GeometryException {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var outerway = new ReaderWay(13);
     outerway.getNodes().add(1, 2, 3, 4, 1);
     var innerway = new ReaderWay(14);
@@ -572,7 +573,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testMultiPolygonRefersToNonexistentNode() {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
     var outerway = new ReaderWay(5);
     outerway.getNodes().add(1, 2, 3, 4, 1);
 
@@ -607,7 +608,7 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testMultiPolygonRefersToNonexistentWay() {
-    OpenStreetMapReader reader = newOsmReader();
+    OsmReader reader = newOsmReader();
 
     var relation = new ReaderRelation(6);
     relation.setTag("type", "multipolygon");
@@ -640,14 +641,14 @@ public class OpenStreetMapReaderTest {
 
   @Test
   public void testWayInRelation() {
-    record OtherRelInfo(long id) implements OpenStreetMapReader.RelationInfo {}
-    record TestRelInfo(long id, String name) implements OpenStreetMapReader.RelationInfo {}
-    OpenStreetMapReader reader = new OpenStreetMapReader(
+    record OtherRelInfo(long id) implements OsmReader.RelationInfo {}
+    record TestRelInfo(long id, String name) implements OsmReader.RelationInfo {}
+    OsmReader reader = new OsmReader(
       osmSource,
       longLongMap,
       new Profile.NullProfile() {
         @Override
-        public List<OpenStreetMapReader.RelationInfo> preprocessOsmRelation(ReaderRelation relation) {
+        public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
           return List.of(new TestRelInfo(1, "name"));
         }
       },
@@ -670,12 +671,12 @@ public class OpenStreetMapReaderTest {
     SourceFeature feature = reader.processWayPass2(nodeCache, way);
 
     assertEquals(List.of(), feature.relationInfo(OtherRelInfo.class));
-    assertEquals(List.of(new OpenStreetMapReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
+    assertEquals(List.of(new OsmReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
       feature.relationInfo(TestRelInfo.class));
   }
 
-  private OpenStreetMapReader newOsmReader() {
-    return new OpenStreetMapReader(
+  private OsmReader newOsmReader() {
+    return new OsmReader(
       osmSource,
       longLongMap,
       profile,

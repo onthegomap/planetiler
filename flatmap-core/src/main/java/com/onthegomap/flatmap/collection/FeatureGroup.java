@@ -393,7 +393,8 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
 
     private void emitLayer(VectorTileEncoder encoder, List<VectorTileEncoder.Feature> items, String currentLayer) {
       try {
-        items = profile.postProcessLayerFeatures(currentLayer, tile.z(), items);
+        List<VectorTileEncoder.Feature> postProcessed = profile.postProcessLayerFeatures(currentLayer, tile.z(), items);
+        items = postProcessed == null ? items : postProcessed;
       } catch (Throwable e) {
         if (e instanceof GeometryException geoe) {
           geoe.log(stats, "postprocess_layer",

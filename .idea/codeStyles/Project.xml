@@ -55,6 +55,7 @@
       </option>
       <option name="NEW_LINE_AFTER_LPAREN_IN_RECORD_HEADER" value="true" />
       <option name="RPAREN_ON_NEW_LINE_IN_RECORD_HEADER" value="true" />
+      <option name="JD_DO_NOT_WRAP_ONE_LINE_COMMENTS" value="true" />
     </JavaCodeStyleSettings>
     <Objective-C>
       <option name="INDENT_NAMESPACE_MEMBERS" value="0" />

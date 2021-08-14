@@ -202,6 +202,28 @@ public interface LongLongMap extends Closeable {
     return new MapdbSortedTable(volume, () -> FileUtils.size(path));
   }
 
+  static LongLongMap noop() {
+    return new LongLongMap() {
+      @Override
+      public void put(long key, long value) {
+      }
+
+      @Override
+      public long get(long key) {
+        return 0;
+      }
+
+      @Override
+      public long fileSize() {
+        return 0;
+      }
+
+      @Override
+      public void close() {
+      }
+    };
+  }
+
   static LongLongMap newInMemorySortedTable() {
     Volume volume = createInMemoryVolume();
     return new MapdbSortedTable(volume, () -> 0);
