@@ -188,13 +188,9 @@ public class OpenMapTilesSchema {
        * The <code>name</code> field may be empty for NaturalEarth data or at lower zoom levels.</p>
        */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -501,9 +497,7 @@ public class OpenMapTilesSchema {
     }
   }
 
-  /**
-   * <p><a href="http://wiki.openstreetmap.org/wiki/Tag:natural%3Dpeak">Natural peaks</a></p>
-   */
+  /** <p><a href="http://wiki.openstreetmap.org/wiki/Tag:natural%3Dpeak">Natural peaks</a></p> */
   public interface MountainPeak extends Layer {
 
     double BUFFER_SIZE = 64.0;
@@ -516,17 +510,11 @@ public class OpenMapTilesSchema {
 
     final class Fields {
 
-      /**
-       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the peak.</p>
-       */
+      /** <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the peak.</p> */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -539,17 +527,11 @@ public class OpenMapTilesSchema {
        * </ul>
        */
       public static final String CLASS = "class";
-      /**
-       * <p>Elevation (<code>ele</code>) in meters.</p>
-       */
+      /** <p>Elevation (<code>ele</code>) in meters.</p> */
       public static final String ELE = "ele";
-      /**
-       * <p>Elevation (<code>ele</code>) in feets.</p>
-       */
+      /** <p>Elevation (<code>ele</code>) in feets.</p> */
       public static final String ELE_FT = "ele_ft";
-      /**
-       * <p>Rank of the peak within one tile (starting at 1 that is the most important peak).</p>
-       */
+      /** <p>Rank of the peak within one tile (starting at 1 that is the most important peak).</p> */
       public static final String RANK = "rank";
     }
 
@@ -594,21 +576,18 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
       /**
        * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the park
-       * (point features only).</p>
+       * (point
+       * features only).</p>
        */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code> (point features only).</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code> (point features only).</p> */
       public static final String NAME_EN = "name_en";
       /**
        * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code> (point
        * features only).</p>
        */
       public static final String NAME_DE = "name_de";
-      /**
-       * <p>Rank of the park within one tile, starting at 1 that is the most important park (point features only).</p>
-       */
+      /** <p>Rank of the park within one tile, starting at 1 that is the most important park (point features only).</p> */
       public static final String RANK = "rank";
     }
 
@@ -647,13 +626,9 @@ public class OpenMapTilesSchema {
        * to the equivalent admin levels.</p>
        */
       public static final String ADMIN_LEVEL = "admin_level";
-      /**
-       * <p>State name on the left of the border. For country boundaries only (<code>admin_level = 2</code>).</p>
-       */
+      /** <p>State name on the left of the border. For country boundaries only (<code>admin_level = 2</code>).</p> */
       public static final String ADM0_L = "adm0_l";
-      /**
-       * <p>State name on the right of the border. For country boundaries only (<code>admin_level = 2</code>).</p>
-       */
+      /** <p>State name on the right of the border. For country boundaries only (<code>admin_level = 2</code>).</p> */
       public static final String ADM0_R = "adm0_r";
 
       /**
@@ -689,7 +664,8 @@ public class OpenMapTilesSchema {
       public static final String DISPUTED_NAME = "disputed_name";
       /**
        * <p>ISO2 code of country, which wants to see the boundary line. For country boundaries only (<code>admin_level
-       * = 2</code>).</p>
+       * =
+       * 2</code>).</p>
        */
       public static final String CLAIMED_BY = "claimed_by";
 
@@ -808,8 +784,9 @@ public class OpenMapTilesSchema {
 
       /**
        * <p>Distinguish between more and less important roads or railways and roads under construction. Class is
-       * derived from the value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>,
-       * <a href="http://wiki.openstreetmap.org/wiki/Key:construction"><code>construction</code></a>, <a
+       * derived
+       * from the value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>, <a
+       * href="http://wiki.openstreetmap.org/wiki/Key:construction"><code>construction</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:railway"><code>railway</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:aerialway"><code>aerialway</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:route"><code>route</code></a> tag (for shipping ways), or <a
@@ -1081,7 +1058,8 @@ public class OpenMapTilesSchema {
 
   /**
    * <p>All <a href="http://wiki.openstreetmap.org/wiki/Buildings">OSM Buildings</a>. All building tags are imported
-   * (<a href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
+   * (<a
+   * href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
    * ready for 3D rendering support and any help to improve this is welcomed.</p>
    */
   public interface Building extends Layer {
@@ -1108,9 +1086,7 @@ public class OpenMapTilesSchema {
        * rendering of buildings.</p>
        */
       public static final String RENDER_MIN_HEIGHT = "render_min_height";
-      /**
-       * <p>Colour</p>
-       */
+      /** <p>Colour</p> */
       public static final String COLOUR = "colour";
       /**
        * <p>If True, building (part) should not be rendered in 3D. Currently, <a href="https://wiki.openstreetmap.org/wiki/Simple_3D_buildings">building
@@ -1149,13 +1125,9 @@ public class OpenMapTilesSchema {
        * body.</p>
        */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -1216,17 +1188,14 @@ public class OpenMapTilesSchema {
        * value of the highway.</p>
        */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
       /**
        * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:ref"><code>ref</code></a> tag of the motorway or
-       * its network.</p>
+       * its
+       * network.</p>
        */
       public static final String REF = "ref";
       /**
@@ -1416,17 +1385,11 @@ public class OpenMapTilesSchema {
 
     final class Fields {
 
-      /**
-       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p>
-       */
+      /** <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p> */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -1477,8 +1440,9 @@ public class OpenMapTilesSchema {
        * city (derived from population and city class). You can use the <strong>rank</strong> to limit density of labels
        * or improve the text hierarchy. The rank value is a combination of the Natural Earth <code>scalerank</code>,
        * <code>labelrank</code> and <code>datarank</code> values for countries and states and for cities consists out
-       * of a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do
-       * not have a Natural Earth <code>scalerank</code>.</p>
+       * of
+       * a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do not
+       * have a Natural Earth <code>scalerank</code>.</p>
        */
       public static final String RANK = "rank";
     }
@@ -1508,8 +1472,9 @@ public class OpenMapTilesSchema {
 
   /**
    * <p>Everything in OpenStreetMap which contains a <code>addr:housenumber</code> tag useful for labelling
-   * housenumbers on a map. This adds significant size to <em>z14</em>. For buildings the centroid of the building is
-   * used as housenumber.</p>
+   * housenumbers
+   * on a map. This adds significant size to <em>z14</em>. For buildings the centroid of the building is used as
+   * housenumber.</p>
    */
   public interface Housenumber extends Layer {
 
@@ -1555,17 +1520,11 @@ public class OpenMapTilesSchema {
 
     final class Fields {
 
-      /**
-       * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p>
-       */
+      /** <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the POI.</p> */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -1634,9 +1593,10 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS = "subclass";
       /**
        * <p>The POIs are ranked ascending according to their importance within a grid. The <code>rank</code> value
-       * shows the local relative importance of a POI within it's cell in the grid. This can be used to reduce label
-       * density at <em>z14</em>. Since all POIs already need to be contained at <em>z14</em> you can use <code>less
-       * than rank=10</code> epxression to limit POIs. At some point like <em>z17</em> you can show all POIs.</p>
+       * shows
+       * the local relative importance of a POI within it's cell in the grid. This can be used to reduce label density
+       * at <em>z14</em>. Since all POIs already need to be contained at <em>z14</em> you can use <code>less than
+       * rank=10</code> epxression to limit POIs. At some point like <em>z17</em> you can show all POIs.</p>
        */
       public static final String RANK = "rank";
 
@@ -1651,13 +1611,9 @@ public class OpenMapTilesSchema {
        * </ul>
        */
       public static final String AGG_STOP = "agg_stop";
-      /**
-       * <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:level"><code>level</code></a> tag.</p>
-       */
+      /** <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:level"><code>level</code></a> tag.</p> */
       public static final String LEVEL = "level";
-      /**
-       * <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:layer"><code>layer</code></a> tag.</p>
-       */
+      /** <p>Original value of <a href="http://wiki.openstreetmap.org/wiki/Key:layer"><code>layer</code></a> tag.</p> */
       public static final String LAYER = "layer";
 
       /**
@@ -1759,9 +1715,7 @@ public class OpenMapTilesSchema {
     }
   }
 
-  /**
-   * <p><a href="http://wiki.openstreetmap.org/wiki/Tag:aeroway%3Daerodrome">Aerodrome labels</a></p>
-   */
+  /** <p><a href="http://wiki.openstreetmap.org/wiki/Tag:aeroway%3Daerodrome">Aerodrome labels</a></p> */
   public interface AerodromeLabel extends Layer {
 
     double BUFFER_SIZE = 64.0;
@@ -1779,13 +1733,9 @@ public class OpenMapTilesSchema {
        * aerodrome.</p>
        */
       public static final String NAME = "name";
-      /**
-       * <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p>
-       */
+      /** <p>English name <code>name:en</code> if available, otherwise <code>name</code>.</p> */
       public static final String NAME_EN = "name_en";
-      /**
-       * <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p>
-       */
+      /** <p>German name <code>name:de</code> if available, otherwise <code>name</code> or <code>name:en</code>.</p> */
       public static final String NAME_DE = "name_de";
 
       /**
@@ -1804,21 +1754,13 @@ public class OpenMapTilesSchema {
        * </ul>
        */
       public static final String CLASS = "class";
-      /**
-       * <p>3-character code issued by the IATA.</p>
-       */
+      /** <p>3-character code issued by the IATA.</p> */
       public static final String IATA = "iata";
-      /**
-       * <p>4-letter code issued by the ICAO.</p>
-       */
+      /** <p>4-letter code issued by the ICAO.</p> */
       public static final String ICAO = "icao";
-      /**
-       * <p>Elevation (<code>ele</code>) in meters.</p>
-       */
+      /** <p>Elevation (<code>ele</code>) in meters.</p> */
       public static final String ELE = "ele";
-      /**
-       * <p>Elevation (<code>ele</code>) in feets.</p>
-       */
+      /** <p>Elevation (<code>ele</code>) in feets.</p> */
       public static final String ELE_FT = "ele_ft";
     }
 

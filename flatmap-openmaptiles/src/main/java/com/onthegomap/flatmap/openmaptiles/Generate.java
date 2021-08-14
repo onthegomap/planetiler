@@ -155,7 +155,7 @@ public class Generate {
 
     String packageName = "com.onthegomap.flatmap.openmaptiles.generated";
     String[] packageParts = packageName.split("\\.");
-    Path output = Path.of("openmaptiles", "src", "main", "java")
+    Path output = Path.of("flatmap-openmaptiles", "src", "main", "java")
       .resolve(Path.of(packageParts[0], Arrays.copyOfRange(packageParts, 1, packageParts.length)));
 
     FileUtils.deleteDirectory(output);
@@ -213,7 +213,6 @@ public class Generate {
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
 
-      import com.graphhopper.reader.ReaderRelation;
       import com.onthegomap.flatmap.openmaptiles.Expression;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import com.onthegomap.flatmap.read.OpenStreetMapReader;
@@ -393,7 +392,7 @@ public class Generate {
         default -> throw new IllegalArgumentException("Unhandled column: " + col.type);
       }
     }
-    result.add(new OsmTableField("com.onthegomap.flatmap.reader.SourceFeature", "source", "source"));
+    result.add(new OsmTableField("SourceFeature", "source", "source"));
     return result;
   }
 
@@ -412,8 +411,8 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
-      import com.onthegomap.flatmap.Arguments;
-      import com.onthegomap.flatmap.monitoring.Stats;
+      import com.onthegomap.flatmap.config.Arguments;
+      import com.onthegomap.flatmap.stats.Stats;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import com.onthegomap.flatmap.openmaptiles.Layer;
       import com.onthegomap.flatmap.Translations;

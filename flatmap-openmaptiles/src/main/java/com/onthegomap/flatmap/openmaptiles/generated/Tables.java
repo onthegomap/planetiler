@@ -293,8 +293,7 @@ public class Tables {
     @Override long layer, @Override long level, @Override boolean indoor, @Override String name,
     @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
     @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
-    @Override boolean isArea, @Override String service, @Override String usage,
-    @Override SourceFeature source
+    @Override boolean isArea, @Override String service, @Override String usage, @Override SourceFeature source
   ) implements Row, WithRailway, WithRef, WithNetwork, WithZOrder, WithLayer, WithLevel, WithIndoor, WithName,
     WithNameEn, WithNameDe, WithShortName, WithIsTunnel, WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea,
     WithService, WithUsage, WithSource {
@@ -322,8 +321,7 @@ public class Tables {
     @Override String aerialway, @Override int zOrder, @Override long layer, @Override String name,
     @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
     @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
-    @Override boolean isArea, @Override String service, @Override String usage,
-    @Override SourceFeature source
+    @Override boolean isArea, @Override String service, @Override String usage, @Override SourceFeature source
   ) implements Row, WithAerialway, WithZOrder, WithLayer, WithName, WithNameEn, WithNameDe, WithShortName, WithIsTunnel,
     WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea, WithService, WithUsage, WithSource {
 
@@ -348,8 +346,7 @@ public class Tables {
     @Override String shipway, @Override int zOrder, @Override long layer, @Override String name,
     @Override String nameEn, @Override String nameDe, @Override String shortName, @Override boolean isTunnel,
     @Override boolean isBridge, @Override boolean isRamp, @Override boolean isFord, @Override int isOneway,
-    @Override boolean isArea, @Override String service, @Override String usage,
-    @Override SourceFeature source
+    @Override boolean isArea, @Override String service, @Override String usage, @Override SourceFeature source
   ) implements Row, WithShipway, WithZOrder, WithLayer, WithName, WithNameEn, WithNameDe, WithShortName, WithIsTunnel,
     WithIsBridge, WithIsRamp, WithIsFord, WithIsOneway, WithIsArea, WithService, WithUsage, WithSource {
 
@@ -438,8 +435,7 @@ public class Tables {
   }
 
   public static record OsmContinentPoint(
-    @Override String name, @Override String nameEn, @Override String nameDe,
-    @Override SourceFeature source
+    @Override String name, @Override String nameEn, @Override String nameDe, @Override SourceFeature source
   ) implements Row, WithName, WithNameEn, WithNameDe, WithSource {
 
     public OsmContinentPoint(SourceFeature source, String mappingKey) {
@@ -514,8 +510,7 @@ public class Tables {
 
   public static record OsmStatePoint(
     @Override String name, @Override String nameEn, @Override String nameDe, @Override String isInCountry,
-    @Override String isInCountryCode, @Override String ref, @Override long rank,
-    @Override SourceFeature source
+    @Override String isInCountryCode, @Override String ref, @Override long rank, @Override SourceFeature source
   ) implements Row, WithName, WithNameEn, WithNameDe, WithIsInCountry, WithIsInCountryCode, WithRef, WithRank,
     WithSource {
 
@@ -535,8 +530,7 @@ public class Tables {
 
   public static record OsmCityPoint(
     @Override String name, @Override String nameEn, @Override String nameDe, @Override String place,
-    @Override long population, @Override String capital, @Override long rank,
-    @Override SourceFeature source
+    @Override long population, @Override String capital, @Override long rank, @Override SourceFeature source
   ) implements Row, WithName, WithNameEn, WithNameDe, WithPlace, WithPopulation, WithCapital, WithRank, WithSource {
 
     public OsmCityPoint(SourceFeature source, String mappingKey) {
@@ -555,9 +549,8 @@ public class Tables {
     }
   }
 
-  public static record OsmHousenumberPoint(
-    @Override String housenumber, @Override SourceFeature source
-  ) implements Row, WithHousenumber, WithSource {
+  public static record OsmHousenumberPoint(@Override String housenumber, @Override SourceFeature source) implements Row,
+    WithHousenumber, WithSource {
 
     public OsmHousenumberPoint(SourceFeature source, String mappingKey) {
       this(source.getString("addr:housenumber"), source);
