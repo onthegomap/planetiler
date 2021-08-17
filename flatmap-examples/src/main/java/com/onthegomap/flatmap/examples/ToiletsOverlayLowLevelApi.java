@@ -12,6 +12,7 @@ import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.FileUtils;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.slf4j.Logger;
@@ -35,14 +36,18 @@ public class ToiletsOverlayLowLevelApi {
   private static final Logger LOGGER = LoggerFactory.getLogger(ToiletsOverlayLowLevelApi.class);
 
   public static void main(String[] args) throws Exception {
+    run(
+      Path.of("data", "sources", "north-america_us_massachusetts.pbf"),
+      Path.of("data", "tmp"),
+      Path.of("data", "toilets.mbtiles")
+    );
+  }
+
+  static void run(Path input, Path tmpDir, Path output) throws IOException {
     // Collect runtime statistics in memory. Alternatively you can push them to
     // prometheus using a push gateway (see https://github.com/prometheus/pushgateway)
     Stats stats = Stats.inMemory();
     Profile profile = new ToiletsOverlay();
-
-    Path input = Path.of("data", "sources", "north-america_us_massachusetts.pbf");
-    Path tmpDir = Path.of("data", "tmp");
-    Path output = Path.of("data", "toilets.mbtiles");
 
     // use default settings, but allow overrides from -Dkey=value jvm arguments
     CommonParams config = CommonParams.from(Arguments.fromJvmProperties());

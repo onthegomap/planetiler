@@ -43,6 +43,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
@@ -673,7 +674,7 @@ public class FlatMapTest {
   public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
     throws Exception {
     MultiPolygon geometry = (MultiPolygon) new WKBReader()
-      .read(new InputStreamInStream(Files.newInputStream(Path.of("src", "test", "resources", fileName))));
+      .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
     assertNotNull(geometry);
 
     // automatically checks for self-intersections
@@ -1409,5 +1410,38 @@ public class FlatMapTest {
     );
 
     assertEquals(11, results.tiles.size());
+  }
+
+  @Test
+  public void testFlatMapRunner(@TempDir Path tempDir) throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    FlatMapRunner.createWithArguments(Arguments.of("tmpdir", tempDir))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          if (source.canBePolygon() && source.hasTag("building", "yes")) {
+            features.polygon("building").setZoomRange(0, 14).setMinPixelSize(1);
+          }
+        }
+      })
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .setOutput("mbtiles", mbtiles)
+      .run();
+
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      int features = 0;
+      var tileMap = TestUtils.getTileMap(db);
+      for (var tile : tileMap.values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+          features++;
+        }
+      }
+
+      assertEquals(11, tileMap.size(), "num tiles");
+      assertEquals(2146, features, "num buildings");
+    }
   }
 }

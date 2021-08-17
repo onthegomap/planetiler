@@ -103,7 +103,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
   public void processLakeCenterline(SourceFeature feature, FeatureCollector features) {
     long osmId = Math.abs(feature.getLong("OSM_ID"));
     if (osmId == 0L) {
-      LOGGER.warn("Bad lake centerline: " + feature);
+      LOGGER.warn("Bad lake centerline. Tags: " + feature.tags());
     } else {
       try {
         // multiple threads call this concurrently

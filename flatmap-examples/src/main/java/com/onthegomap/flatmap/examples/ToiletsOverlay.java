@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.examples;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Profile;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.nio.file.Path;
@@ -89,9 +90,13 @@ public class ToiletsOverlay implements Profile {
    * Main entrypoint for the example program
    */
   public static void main(String[] args) throws Exception {
+    run(Arguments.fromJvmProperties());
+  }
+
+  static void run(Arguments args) throws Exception {
     // FlatMapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using this same profile but the lower-level API
-    FlatMapRunner.create()
+    FlatMapRunner.createWithArguments(args)
       .setProfile(new ToiletsOverlay())
       // override this default with -Dosm="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))

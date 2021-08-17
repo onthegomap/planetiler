@@ -62,6 +62,7 @@ public class NaturalEarthReader extends Reader {
       extracted = toOpen;
       try (var zipFs = FileSystems.newFileSystem(path)) {
         var zipEntry = FileUtils.walkFileSystem(zipFs)
+          .filter(Files::isRegularFile)
           .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
           .findFirst()
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));

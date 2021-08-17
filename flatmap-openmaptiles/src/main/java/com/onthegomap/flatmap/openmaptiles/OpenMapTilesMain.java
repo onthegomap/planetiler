@@ -20,9 +20,11 @@ public class OpenMapTilesMain {
   private static final Path sourcesDir = Path.of("data", "sources");
 
   public static void main(String[] args) throws Exception {
+    run(Arguments.fromJvmProperties());
+  }
 
-    FlatMapRunner runner = FlatMapRunner.create();
-
+  static void run(Arguments arguments) throws Exception {
+    FlatMapRunner runner = FlatMapRunner.createWithArguments(arguments);
     runner
       .setProfile(createProfileWithWikidataTranslations(runner))
       .addShapefileSource("EPSG:3857", OpenMapTilesProfile.LAKE_CENTERLINE_SOURCE,

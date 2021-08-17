@@ -24,6 +24,13 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encoded, x, y, z);
   }
 
+  public static TileCoord aroundLngLat(double lng, double lat, int zoom) {
+    double factor = 1 << zoom;
+    double x = GeoUtils.getWorldX(lng) * factor;
+    double y = GeoUtils.getWorldY(lat) * factor;
+    return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -97,5 +104,12 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   public String getDebugUrl() {
     Coordinate coord = getLatLon();
     return "https://www.openstreetmap.org/#map=" + z + "/" + format.format(coord.y) + "/" + format.format(coord.x);
+  }
+
+  public Coordinate lngLatToTileCoords(double lng, double lat) {
+    double factor = 1 << z;
+    double x = GeoUtils.getWorldX(lng) * factor;
+    double y = GeoUtils.getWorldY(lat) * factor;
+    return new CoordinateXY((x - Math.floor(x)) * 256, (y - Math.floor(y)) * 256);
   }
 }

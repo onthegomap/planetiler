@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.Profile;
+import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
@@ -24,10 +25,10 @@ public class NaturalEarthReaderTest {
   @ValueSource(strings = {"natural_earth_vector.sqlite", "natural_earth_vector.sqlite.zip"})
   @Timeout(30)
   public void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
-    var path = Path.of("src", "test", "resources", filename);
+    var path = TestUtils.pathToResource(filename);
     try (var reader = new NaturalEarthReader("test", path, tempDir, new Profile.NullProfile(), Stats.inMemory())) {
       for (int i = 1; i <= 2; i++) {
-        assertEquals(19, reader.getCount(), "iter " + i);
+        assertEquals(7_679, reader.getCount(), "iter " + i);
 
         List<Geometry> points = new ArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
@@ -35,10 +36,11 @@ public class NaturalEarthReaderTest {
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {
             Object elevation = elem.getTag("elevation");
-            assertTrue(elevation instanceof Double, Objects.toString(elevation));
-            assertEquals("test", elem.getSource());
-            assertEquals("ne_110m_geography_regions_elevation_points", elem.getSourceLayer());
-            points.add(elem.latLonGeometry());
+            if ("ne_110m_geography_regions_elevation_points".equals(elem.getSourceLayer())) {
+              assertTrue(elevation instanceof Double, Objects.toString(elevation));
+              assertEquals("test", elem.getSource());
+              points.add(elem.latLonGeometry());
+            }
           }).await();
         assertEquals(19, points.size());
         var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));

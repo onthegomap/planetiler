@@ -18,6 +18,15 @@
       <artifactId>flatmap-core</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+
+    <!-- To use test utilities: -->
+    <dependency>
+      <groupId>com.onthegomap</groupId>
+      <artifactId>flatmap-core</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

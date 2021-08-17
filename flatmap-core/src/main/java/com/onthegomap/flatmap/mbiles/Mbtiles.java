@@ -186,6 +186,10 @@ public final class Mbtiles implements Closeable {
     return getTileStatement;
   }
 
+  public byte[] getTile(TileCoord coord) {
+    return getTile(coord.x(), coord.y(), coord.z());
+  }
+
   public byte[] getTile(int x, int y, int z) {
     try {
       PreparedStatement stmt = getTileStatement();

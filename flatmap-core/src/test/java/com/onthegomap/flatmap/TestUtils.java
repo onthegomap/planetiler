@@ -14,12 +14,17 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.stats.Stats;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
@@ -31,8 +36,10 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
@@ -40,6 +47,7 @@ import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
@@ -297,6 +305,15 @@ public class TestUtils {
       assertTrue(g.isSimple(), "JTS isSimple()");
     }
     validateGeometryRecursive(g);
+  }
+
+  public static Path pathToResource(String resource) {
+    URL url = Objects.requireNonNull(TestUtils.class.getResource("/" + resource));
+    try {
+      return Path.of(url.toURI());
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public interface GeometryComparision {
@@ -560,7 +577,122 @@ public class TestUtils {
   }
 
   public static OsmXml readOsmXml(String s) throws IOException {
-    Path path = Path.of("src", "test", "resources", s);
+    Path path = pathToResource(s);
     return xmlMapper.readValue(Files.newInputStream(path), OsmXml.class);
+  }
+
+  public static FeatureCollector newFeatureCollectorFor(SourceFeature feature) {
+    var featureCollectorFactory = new FeatureCollector.Factory(
+      CommonParams.defaults(),
+      Stats.inMemory()
+    );
+    return featureCollectorFactory.get(feature);
+  }
+
+  public static List<FeatureCollector.Feature> processSourceFeature(SourceFeature sourceFeature, Profile profile) {
+    FeatureCollector collector = newFeatureCollectorFor(sourceFeature);
+    profile.processFeature(sourceFeature, collector);
+    List<FeatureCollector.Feature> result = new ArrayList<>();
+    collector.forEach(result::add);
+    return result;
+  }
+
+
+  public static void assertContains(String substring, String string) {
+    if (!string.contains(substring)) {
+      fail("'%s' did not contain '%s'".formatted(string, substring));
+    }
+  }
+
+  public static void assertNumFeatures(Mbtiles db, String layer, int zoom, Map<String, Object> attrs,
+    Envelope envelope,
+    int expected, Class<? extends Geometry> clazz) {
+    try {
+      int num = 0;
+      for (var tileCoord : db.getAllTileCoords()) {
+        Envelope tileEnv = new Envelope();
+        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMinX(), envelope.getMinY()));
+        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMaxX(), envelope.getMaxY()));
+        if (tileCoord.z() == zoom) {
+          byte[] data = db.getTile(tileCoord);
+          for (var feature : VectorTileEncoder.decode(gunzip(data))) {
+            if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
+              Geometry geometry = feature.geometry().decode();
+              num += getGeometryCounts(geometry, clazz);
+            }
+          }
+        }
+      }
+
+      assertEquals(expected, num, "z%d features in %s".formatted(zoom, layer));
+    } catch (IOException | GeometryException e) {
+      fail(e);
+    }
+  }
+
+  private static int getGeometryCounts(Geometry geom, Class<? extends Geometry> clazz) {
+    int count = 0;
+    if (geom instanceof GeometryCollection geometryCollection) {
+      for (int i = 0; i < geometryCollection.getNumGeometries(); i++) {
+        count += getGeometryCounts(geometryCollection.getGeometryN(i), clazz);
+      }
+    } else if (clazz.isInstance(geom)) {
+      count = 1;
+    }
+    return count;
+  }
+
+  public static void assertFeatureNear(Mbtiles db, String layer, Map<String, Object> attrs, double lng, double lat,
+    int minzoom, int maxzoom) {
+    try {
+      List<String> failures = new ArrayList<>();
+      outer:
+      for (int zoom = 0; zoom <= 14; zoom++) {
+        boolean shouldFind = zoom >= minzoom && zoom <= maxzoom;
+        var coord = TileCoord.aroundLngLat(lng, lat, zoom);
+        Geometry tilePoint = GeoUtils.point(coord.lngLatToTileCoords(lng, lat));
+        byte[] tile = db.getTile(coord);
+        List<VectorTileEncoder.Feature> features = tile == null ? List.of() : VectorTileEncoder.decode(gunzip(tile));
+
+        Set<String> containedInLayers = new TreeSet<>();
+        Set<String> containedInLayerFeatures = new TreeSet<>();
+        for (var feature : features) {
+          if (feature.geometry().decode().isWithinDistance(tilePoint, 2)) {
+            containedInLayers.add(feature.layer());
+            if (layer.equals(feature.layer())) {
+              Map<String, Object> tags = feature.attrs();
+              containedInLayerFeatures.add(tags.toString());
+              if (tags.entrySet().containsAll(attrs.entrySet())) {
+                // found a match
+                if (!shouldFind) {
+                  failures.add("z%d found feature but should not have".formatted(zoom));
+                }
+                continue outer;
+              }
+            }
+          }
+        }
+
+        // not found
+        if (shouldFind) {
+          if (containedInLayers.isEmpty()) {
+            failures.add("z%d no features were found in any layer".formatted(zoom));
+          } else if (!containedInLayers.contains(layer)) {
+            failures.add("z%d features found in %s but not %s".formatted(
+              zoom, containedInLayers, layer
+            ));
+          } else {
+            failures.add("z%d features found in %s but had wrong tags: %s".formatted(
+              zoom, layer, containedInLayerFeatures.stream().collect(Collectors.joining("\n", "\n", "")))
+            );
+          }
+        }
+      }
+      if (!failures.isEmpty()) {
+        fail(String.join("\n", failures));
+      }
+    } catch (GeometryException | IOException e) {
+      fail(e);
+    }
   }
 }

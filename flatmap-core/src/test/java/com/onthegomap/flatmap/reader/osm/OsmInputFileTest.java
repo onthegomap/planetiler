@@ -3,9 +3,9 @@ package com.onthegomap.flatmap.reader.osm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.graphhopper.reader.ReaderElement;
+import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
-import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -13,7 +13,7 @@ import org.locationtech.jts.geom.Envelope;
 
 public class OsmInputFileTest {
 
-  private OsmInputFile file = new OsmInputFile(Path.of("src", "test", "resources", "monaco-latest.osm.pbf"));
+  private OsmInputFile file = new OsmInputFile(TestUtils.pathToResource("monaco-latest.osm.pbf"));
 
   @Test
   public void testGetBounds() {

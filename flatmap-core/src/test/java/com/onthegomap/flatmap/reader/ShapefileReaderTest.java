@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.flatmap.Profile;
+import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -20,7 +20,7 @@ public class ShapefileReaderTest {
 
   private ShapefileReader reader = new ShapefileReader(
     "test",
-    Path.of("src", "test", "resources", "shapefile.zip"),
+    TestUtils.pathToResource("shapefile.zip"),
     new Profile.NullProfile(),
     Stats.inMemory()
   );

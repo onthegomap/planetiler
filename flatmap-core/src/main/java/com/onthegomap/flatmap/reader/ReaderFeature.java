@@ -20,6 +20,11 @@ public class ReaderFeature extends SourceFeature {
     this(latLonGeometry, tags, null, null, id);
   }
 
+  public ReaderFeature(Geometry latLonGeometry, Map<String, Object> tags, long id,
+    List<OsmReader.RelationMember<OsmReader.RelationInfo>> relations) {
+    this(latLonGeometry, tags, null, null, id, relations);
+  }
+
   public ReaderFeature(Geometry latLonGeometry, Map<String, Object> tags, String source, String sourceLayer,
     long id) {
     this(latLonGeometry, tags, source, sourceLayer, id, null);

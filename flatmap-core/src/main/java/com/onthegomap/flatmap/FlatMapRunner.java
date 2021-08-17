@@ -55,7 +55,11 @@ public class FlatMapRunner {
   }
 
   public static FlatMapRunner create() {
-    return new FlatMapRunner(Arguments.fromJvmProperties());
+    return createWithArguments(Arguments.fromJvmProperties());
+  }
+
+  public static FlatMapRunner createWithArguments(Arguments arguments) {
+    return new FlatMapRunner(arguments);
   }
 
   private LongLongMap getLongLongMap() {

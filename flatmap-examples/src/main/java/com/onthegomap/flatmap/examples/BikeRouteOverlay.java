@@ -5,6 +5,7 @@ import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.FlatMapRunner;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
@@ -161,9 +162,13 @@ public class BikeRouteOverlay implements Profile {
    * Main entrypoint for this example program
    */
   public static void main(String[] args) throws Exception {
+    run(Arguments.fromJvmProperties());
+  }
+
+  static void run(Arguments args) throws Exception {
     // FlatMapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using the lower-level API
-    FlatMapRunner.create()
+    FlatMapRunner.createWithArguments(args)
       .setProfile(new BikeRouteOverlay())
       // override this default with -Dosm="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))

@@ -9,7 +9,6 @@ import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -571,7 +570,7 @@ public class FeatureMergeTest {
   })
   public void testMergeManyPolygons(String file, int x, int y, int z, int expected)
     throws IOException, GeometryException {
-    try (var db = Mbtiles.newReadOnlyDatabase(Path.of("src", "test", "resources", file))) {
+    try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
       List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);
