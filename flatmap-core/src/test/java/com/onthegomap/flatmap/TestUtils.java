@@ -23,8 +23,6 @@ import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
@@ -36,7 +34,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -308,12 +305,9 @@ public class TestUtils {
   }
 
   public static Path pathToResource(String resource) {
-    URL url = Objects.requireNonNull(TestUtils.class.getResource("/" + resource));
-    try {
-      return Path.of(url.toURI());
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
+    Path cwd = Path.of("").toAbsolutePath();
+    Path pathFromRoot = Path.of("flatmap-core", "src", "test", "resources", resource);
+    return cwd.resolveSibling(pathFromRoot);
   }
 
   public interface GeometryComparision {
