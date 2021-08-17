@@ -1,18 +1,11 @@
 package com.onthegomap.flatmap.collection;
 
-import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
-
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.graphhopper.coll.GHLongLongHashMap;
-import com.onthegomap.flatmap.stats.Counter;
-import com.onthegomap.flatmap.stats.ProcessInfo;
-import com.onthegomap.flatmap.stats.ProgressLoggers;
-import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.FileUtils;
 import com.onthegomap.flatmap.util.Format;
 import com.onthegomap.flatmap.util.MemoryEstimator;
-import com.onthegomap.flatmap.worker.Worker;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -27,15 +20,11 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 import org.mapdb.Serializer;
 import org.mapdb.SortedTableMap;
@@ -47,109 +36,6 @@ import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
 public interface LongLongMap extends Closeable {
-
-  static void main(String[] args) throws IOException, InterruptedException {
-    Path path = Path.of("./llmaptest");
-    FileUtils.delete(path);
-    LongLongMap map = switch (args[0]) {
-      case "sparsemem2" -> new SparseArray2Memory();
-      case "sparsearraymemory" -> new SparseArrayMemory();
-      case "hppc" -> new HppcMap();
-      case "array" -> new Array();
-
-      case "sparse2" -> new SparseArray2(path);
-      case "sqlite" -> newSqlite(path);
-      case "sparsearray" -> new SparseArray(path);
-      case "mapdb" -> newFileBackedSortedTable(path);
-      default -> throw new IllegalStateException("Unexpected value: " + args[0]);
-    };
-    long entries = Long.parseLong(args[1]);
-    int readers = Integer.parseInt(args[2]);
-
-    class LocalCounter {
-
-      long count = 0;
-    }
-    LocalCounter counter = new LocalCounter();
-    ProgressLoggers loggers = new ProgressLoggers("write")
-      .addRatePercentCounter("entries", entries, () -> counter.count)
-      .newLine()
-      .addProcessStats();
-    AtomicReference<String> writeRate = new AtomicReference<>();
-    new Worker("writer", Stats.inMemory(), 1, () -> {
-      long start = System.nanoTime();
-      for (long i = 0; i < entries; i++) {
-        map.put(i + 1L, i + 2L);
-        counter.count = i;
-      }
-      long end = System.nanoTime();
-      String rate = Format.formatNumeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
-      System.err.println("Loaded " + entries + " in " + Duration.ofNanos(end - start).toSeconds() + "s (" + rate + ")");
-      writeRate.set(rate);
-    }).awaitAndLog(loggers, Duration.ofSeconds(10));
-
-    map.get(1);
-    System.err.println("Storage: " + Format.formatStorage(map.fileSize(), false));
-
-    Counter.Readable readCount = Counter.newMultiThreadCounter();
-    loggers = new ProgressLoggers("read")
-      .addRateCounter("entries", readCount)
-      .newLine()
-      .addProcessStats();
-    CountDownLatch latch = new CountDownLatch(readers);
-    for (int i = 0; i < readers; i++) {
-      int rnum = i;
-      new Thread(() -> {
-        latch.countDown();
-        try {
-          latch.await();
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-        Random random = new Random(rnum);
-        try {
-          long sum = 0;
-          long b = 0;
-          while (b == 0) {
-            readCount.inc();
-            long key = 1L + (Math.abs(random.nextLong()) % entries);
-            long value = map.get(key);
-            assert key + 1 == value : key + " value was " + value;
-            sum += value;
-          }
-          System.err.println(sum);
-        } catch (Throwable e) {
-          e.printStackTrace();
-          System.exit(1);
-        }
-      }).start();
-    }
-    latch.await();
-    long start = System.nanoTime();
-    for (int i = 0; i < 3; i++) {
-      Thread.sleep(10000);
-      loggers.log();
-    }
-    long end = System.nanoTime();
-    long read = readCount.getAsLong();
-    String readRate = Format.formatNumeric(read * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
-    System.err.println("Read " + read + " in 30s (" + readRate + ")");
-    System.err.println(
-      String.join("\t",
-        args[0],
-        args[1],
-        args[2],
-        args[3],
-        Format.formatStorage(ProcessInfo.getMaxMemoryBytes(), false),
-        Format.formatStorage(map.fileSize(), false),
-        Format.formatStorage(FileUtils.size(path), false),
-        writeRate.get(),
-        readRate
-      )
-    );
-    Thread.sleep(100);
-    System.exit(0);
-  }
 
   long MISSING_VALUE = Long.MIN_VALUE;
 

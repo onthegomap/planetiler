@@ -189,7 +189,7 @@ public class OpenMapTilesProfile implements Profile {
     }
   }
 
-  List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> getTableMatches(
+  public List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> getTableMatches(
     SourceFeature sourceFeature) {
     List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> result = null;
     if (sourceFeature.isPoint()) {

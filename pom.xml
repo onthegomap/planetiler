@@ -42,6 +42,7 @@
     <module>flatmap-core</module>
     <module>flatmap-examples</module>
     <module>flatmap-openmaptiles</module>
+    <module>flatmap-benchmarks</module>
   </modules>
 
   <dependencyManagement>
