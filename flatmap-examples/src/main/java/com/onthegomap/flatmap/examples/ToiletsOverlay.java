@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ol>
  *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
  *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -Dosm="path/to/data.osm.pbf" -Dmbtiles="data/output.mbtiles" -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay}</li>
+ *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay osm="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
  *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
@@ -90,7 +90,7 @@ public class ToiletsOverlay implements Profile {
    * Main entrypoint for the example program
    */
   public static void main(String[] args) throws Exception {
-    run(Arguments.fromJvmProperties());
+    run(Arguments.fromArgsOrConfigFile(args));
   }
 
   static void run(Arguments args) throws Exception {
@@ -98,9 +98,9 @@ public class ToiletsOverlay implements Profile {
     // See ToiletsOverlayLowLevelApi for an example using this same profile but the lower-level API
     FlatMapRunner.createWithArguments(args)
       .setProfile(new ToiletsOverlay())
-      // override this default with -Dosm="path/to/data.osm.pbf"
+      // override this default with osm="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))
-      // override this default with -Dmbtiles="path/to/output.mbtiles"
+      // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
       .run();
   }

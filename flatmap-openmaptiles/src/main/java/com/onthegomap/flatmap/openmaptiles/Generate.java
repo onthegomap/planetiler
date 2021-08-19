@@ -125,7 +125,7 @@ public class Generate {
   }
 
   public static void main(String[] args) throws IOException {
-    Arguments arguments = Arguments.fromJvmProperties();
+    Arguments arguments = Arguments.fromArgsOrConfigFile(args);
     String tag = arguments.get("tag", "openmaptiles tag to use", "v3.12.2");
     String base = "https://raw.githubusercontent.com/openmaptiles/openmaptiles/" + tag + "/";
     var rootUrl = new URL(base + "openmaptiles.yaml");

@@ -54,10 +54,6 @@ public class FlatMapRunner {
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
   }
 
-  public static FlatMapRunner create() {
-    return createWithArguments(Arguments.fromJvmProperties());
-  }
-
   public static FlatMapRunner createWithArguments(Arguments arguments) {
     return new FlatMapRunner(arguments);
   }

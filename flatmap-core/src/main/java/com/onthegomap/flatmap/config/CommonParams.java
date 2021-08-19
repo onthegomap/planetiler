@@ -78,7 +78,7 @@ public record CommonParams(
   }
 
   public static CommonParams defaults() {
-    return from(Arguments.empty());
+    return from(Arguments.of());
   }
 
   public static CommonParams from(Arguments arguments) {

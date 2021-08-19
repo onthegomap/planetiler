@@ -20,7 +20,7 @@ public class OpenMapTilesMain {
   private static final Path sourcesDir = Path.of("data", "sources");
 
   public static void main(String[] args) throws Exception {
-    run(Arguments.fromJvmProperties());
+    run(Arguments.fromArgsOrConfigFile(args));
   }
 
   static void run(Arguments arguments) throws Exception {
@@ -48,7 +48,7 @@ public class OpenMapTilesMain {
       Path.of("data", "sources", "wikidata_names.json"));
     // most common languages: "en,ru,ar,zh,ja,ko,fr,de,fi,pl,es,be,br,he"
     List<String> languages = arguments
-      .get("name_languages", "languages to use", OpenMapTilesSchema.LANGUAGES.toArray(String[]::new));
+      .get("name_languages", "languages to use", OpenMapTilesSchema.LANGUAGES);
     var translations = Translations.defaultProvider(languages).setShouldTransliterate(transliterate);
     var profile = new OpenMapTilesProfile(translations, arguments, runner.stats());
 

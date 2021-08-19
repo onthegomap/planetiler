@@ -13,11 +13,9 @@ AREA="${1:-north-america_us_massachusetts}"
 
 if [ ! -f "$JAR" ]; then
   echo "Building..."
-  mvn -DskipTests=true --projects openmaptiles -am clean package
+  mvn -DskipTests=true --projects flatmap-openmaptiles -am clean package
 fi
 
 echo "Running..."
-java -Dinput="./data/sources/${AREA}.pbf" \
-  -Dforce=true \
-  -cp "$JAR" \
-  com.onthegomap.flatmap.openmaptiles.OpenMaptilesMain
+java -cp "$JAR" com.onthegomap.flatmap.openmaptiles.OpenMapTilesMain \
+  -force=true -input="./data/sources/${AREA}.pbf"

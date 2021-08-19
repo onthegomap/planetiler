@@ -69,8 +69,8 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
-    List<String> onlyLayers = arguments.get("only_layers", "Include only certain layers", new String[]{});
-    List<String> excludeLayers = arguments.get("exclude_layers", "Exclude certain layers", new String[]{});
+    List<String> onlyLayers = arguments.get("only_layers", "Include only certain layers", List.of());
+    List<String> excludeLayers = arguments.get("exclude_layers", "Exclude certain layers", List.of());
     this.layers = OpenMapTilesSchema.createInstances(translations, arguments, stats)
       .stream()
       .filter(l -> (onlyLayers.isEmpty() || onlyLayers.contains(l.name())) && !excludeLayers.contains(l.name()))
