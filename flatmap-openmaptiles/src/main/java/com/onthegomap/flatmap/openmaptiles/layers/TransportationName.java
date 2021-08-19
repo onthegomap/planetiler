@@ -231,11 +231,11 @@ public class TransportationName implements
       feature.setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()));
     }
 
-      /*
-       to help group roads into longer segments, add temporary tags to limit which segments get grouped together. Since
-       a divided highway typically has a separate relation for each direction, this ends up keeping segments going
-       opposite directions group getting grouped together and confusing the line merging process
-       */
+    /*
+     * to help group roads into longer segments, add temporary tags to limit which segments get grouped together. Since
+     * a divided highway typically has a separate relation for each direction, this ends up keeping segments going
+     * opposite directions group getting grouped together and confusing the line merging process
+     */
     if (limitMerge) {
       feature
         .setAttr(LINK_TEMP_KEY, isLink ? 1 : 0)
