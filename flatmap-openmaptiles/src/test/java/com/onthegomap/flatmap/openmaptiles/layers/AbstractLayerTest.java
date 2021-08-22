@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
-import org.jetbrains.annotations.NotNull;
 
 public abstract class AbstractLayerTest {
 
@@ -134,7 +133,7 @@ public abstract class AbstractLayerTest {
     return polygonFeatureWithArea(1, props);
   }
 
-  @NotNull
+
   protected ReaderFeature lineFeatureWithRelation(List<OsmReader.RelationInfo> relationInfos,
     Map<String, Object> map) {
     return new ReaderFeature(

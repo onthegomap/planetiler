@@ -29,7 +29,7 @@ public class OsmReaderTest {
   };
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
-  private final LongLongMap longLongMap = LongLongMap.newInMemoryHashMap();
+  private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
 
   private static Profile newProfile(
     Function<OsmElement.Relation, List<OsmReader.RelationInfo>> processRelation) {
@@ -645,7 +645,7 @@ public class OsmReaderTest {
     record TestRelInfo(long id, String name) implements OsmReader.RelationInfo {}
     OsmReader reader = new OsmReader(
       osmSource,
-      longLongMap,
+      nodeMap,
       new Profile.NullProfile() {
         @Override
         public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
@@ -678,7 +678,7 @@ public class OsmReaderTest {
   private OsmReader newOsmReader() {
     return new OsmReader(
       osmSource,
-      longLongMap,
+      nodeMap,
       profile,
       stats
     );

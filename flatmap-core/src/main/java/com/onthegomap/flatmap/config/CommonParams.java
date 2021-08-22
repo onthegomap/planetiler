@@ -15,11 +15,10 @@ public record CommonParams(
   boolean deferIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
-  int mbtilesFeatureMultiplier,
-  int mbtilesMinTilesPerBatch,
   boolean forceOverwrite,
   boolean gzipTempStorage,
-  String longLongMap,
+  String nodeMapType,
+  String nodeMapStorage,
 
   // computed
   Envelope worldBounds,
@@ -35,11 +34,10 @@ public record CommonParams(
     boolean deferIndexCreation,
     boolean optimizeDb,
     boolean emitTilesInOrder,
-    int mbtilesFeatureMultiplier,
-    int mbtilesMinTilesPerBatch,
     boolean forceOverwrite,
     boolean gzipTempStorage,
-    String longLongMap
+    String nodeMapType,
+    String nodeMapStorage
   ) {
     this(
       latLonBounds,
@@ -50,11 +48,10 @@ public record CommonParams(
       deferIndexCreation,
       optimizeDb,
       emitTilesInOrder,
-      mbtilesFeatureMultiplier,
-      mbtilesMinTilesPerBatch,
       forceOverwrite,
       gzipTempStorage,
-      longLongMap,
+      nodeMapType,
+      nodeMapStorage,
 
       // computed
       GeoUtils.toWorldBounds(latLonBounds),
@@ -95,11 +92,10 @@ public record CommonParams(
       arguments.get("defer_mbtiles_index_creation", "add index to mbtiles file after finished writing", false),
       arguments.get("optimize_db", "optimize mbtiles after writing", false),
       arguments.get("emit_tiles_in_order", "emit tiles in index order", true),
-      arguments.integer("mbtiles_feature_multiplier", "mbtiles feature multiplier", 100),
-      arguments.integer("mbtiles_min_tiles_per_batch", "min tiles per batch", 1),
       arguments.get("force", "force overwriting output file", false),
       arguments.get("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
-      arguments.get("llmap", "type of long long map", "mapdb")
+      arguments.get("nodemap_type", "type of node location map: noop, sortedtable, or sparsearray", "sortedtable"),
+      arguments.get("nodemap_storage", "storage for location map: mmap or ram", "mmap")
     );
   }
 }

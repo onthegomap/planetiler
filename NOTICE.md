@@ -16,10 +16,10 @@ The `flatmap-core` module includes the following software:
   - org.geotools:gt-epsg-hsql
     (LGPL, [BSD for HSQL](https://github.com/geotools/geotools/blob/main/licenses/HSQL.md)
     , [EPSG](https://github.com/geotools/geotools/blob/main/licenses/EPSG.md))
-  - org.mapdb:mapdb (Apache license)
   - org.msgpack:msgpack-core (Apache license)
   - org.xerial:sqlite-jdbc (Apache license)
   - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
+  - com.google.guava:guava (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)

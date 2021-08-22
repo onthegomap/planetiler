@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.render.RenderedFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.CommonStringEncoder;
+import com.onthegomap.flatmap.util.DiskBacked;
 import com.onthegomap.flatmap.util.LayerStats;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +33,8 @@ import org.msgpack.value.ValueFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable<FeatureGroup.TileFeatures> {
+public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable<FeatureGroup.TileFeatures>,
+  DiskBacked {
 
   public static final int Z_ORDER_BITS = 23;
   public static final int Z_ORDER_MAX = (1 << (Z_ORDER_BITS - 1)) - 1;
@@ -277,8 +279,9 @@ public final class FeatureGroup implements Consumer<FeatureSort.Entry>, Iterable
     };
   }
 
-  public long getStorageSize() {
-    return sorter.getStorageSize();
+  @Override
+  public long bytesOnDisk() {
+    return sorter.bytesOnDisk();
   }
 
   public FeatureSort sorter() {

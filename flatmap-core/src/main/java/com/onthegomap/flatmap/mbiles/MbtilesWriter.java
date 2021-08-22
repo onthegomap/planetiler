@@ -10,6 +10,7 @@ import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.stats.Counter;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.DiskBacked;
 import com.onthegomap.flatmap.util.FileUtils;
 import com.onthegomap.flatmap.util.Format;
 import com.onthegomap.flatmap.util.LayerStats;
@@ -30,7 +31,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
-import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -90,7 +90,7 @@ public class MbtilesWriter {
     }
   }
 
-  public static void writeOutput(FeatureGroup features, Mbtiles output, LongSupplier fileSize, Profile profile,
+  public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize, Profile profile,
     CommonParams config, Stats stats) {
     var timer = stats.startStage("mbtiles");
     MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
@@ -130,7 +130,7 @@ public class MbtilesWriter {
       .addRatePercentCounter("features", features.numFeatures(), writer.featuresProcessed)
       .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)
-      .add(" features ").addFileSize(features::getStorageSize)
+      .add(" features ").addFileSize(features)
       .newLine()
       .addProcessStats()
       .newLine()

@@ -27,7 +27,6 @@ import java.util.function.Supplier;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,8 +115,13 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public long getStorageSize() {
+  public long bytesOnDisk() {
     return FileUtils.directorySize(dir);
+  }
+
+  @Override
+  public long estimateMemoryUsageBytes() {
+    return 0;
   }
 
   private static <T> T time(AtomicLong timer, Supplier<T> func) {
@@ -156,7 +160,7 @@ class ExternalMergeSort implements FeatureSort {
 
     ProgressLoggers loggers = new ProgressLoggers("sort")
       .addPercentCounter("chunks", chunks.size(), doneCounter)
-      .addFileSize(this::getStorageSize)
+      .addFileSize(this)
       .newLine()
       .addProcessStats()
       .newLine()
@@ -176,7 +180,7 @@ class ExternalMergeSort implements FeatureSort {
     return features.get();
   }
 
-  @NotNull
+
   @Override
   public Iterator<Entry> iterator() {
     assert sorted;
@@ -357,7 +361,7 @@ class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public int compareTo(@NotNull PeekableScanner o) {
+    public int compareTo(PeekableScanner o) {
       return next.compareTo(o.next);
     }
   }

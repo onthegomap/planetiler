@@ -28,7 +28,6 @@ import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -514,7 +513,7 @@ public final class Mbtiles implements Closeable {
     }
 
     @Override
-    public int compareTo(@NotNull TileEntry o) {
+    public int compareTo(TileEntry o) {
       return tile.compareTo(o.tile);
     }
   }

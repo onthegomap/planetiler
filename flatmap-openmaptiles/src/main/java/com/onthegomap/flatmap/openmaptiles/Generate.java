@@ -165,7 +165,7 @@ public class Generate {
     emitTableDefinitions(tables, packageName, output);
   }
 
-  private static String GENERATED_FILE_HEADER = """
+  private static final String GENERATED_FILE_HEADER = """
     /*
     Copyright (c) 2016, KlokanTech.com & OpenMapTiles contributors.
     All rights reserved.

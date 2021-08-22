@@ -3,7 +3,6 @@ package com.onthegomap.flatmap.geo;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.concurrent.ThreadSafe;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.Point;
@@ -48,7 +47,7 @@ public class PolygonIndex<T> {
     return result.isEmpty() ? null : result.get(0);
   }
 
-  @NotNull
+
   private List<T> getContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (int i = 0; i < items.size(); i++) {

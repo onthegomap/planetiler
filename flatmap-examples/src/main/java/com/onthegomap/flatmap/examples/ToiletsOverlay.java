@@ -33,8 +33,8 @@ public class ToiletsOverlay implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    if (sourceFeature.hasTag("amenity", "toilets")) {
-      features.centroid("toilets")
+    if (sourceFeature.isPoint() && sourceFeature.hasTag("amenity", "toilets")) {
+      features.point("toilets")
         .setZoomRange(0, 14)
         // to limit toilets displayed at lower zoom levels:
         // 1) set a z-order that defines a priority ordering of toilets. For mountains you might use "elevation"

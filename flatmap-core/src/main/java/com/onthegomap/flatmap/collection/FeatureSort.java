@@ -2,15 +2,16 @@ package com.onthegomap.flatmap.collection;
 
 import com.onthegomap.flatmap.config.CommonParams;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.DiskBacked;
+import com.onthegomap.flatmap.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 
-public interface FeatureSort extends Iterable<FeatureSort.Entry> {
+public interface FeatureSort extends Iterable<FeatureSort.Entry>, DiskBacked, MemoryEstimator.HasEstimate {
 
   static FeatureSort newExternalMergeSort(Path tempDir, CommonParams config, Stats stats) {
     return new ExternalMergeSort(tempDir, config, stats);
@@ -40,11 +41,16 @@ public interface FeatureSort extends Iterable<FeatureSort.Entry> {
       }
 
       @Override
-      public long getStorageSize() {
+      public long estimateMemoryUsageBytes() {
         return 0;
       }
 
-      @NotNull
+      @Override
+      public long bytesOnDisk() {
+        return 0;
+      }
+
+
       @Override
       public Iterator<Entry> iterator() {
         return list.iterator();
@@ -66,12 +72,10 @@ public interface FeatureSort extends Iterable<FeatureSort.Entry> {
 
   void add(Entry newEntry);
 
-  long getStorageSize();
-
   record Entry(long sortKey, byte[] value) implements Comparable<Entry> {
 
     @Override
-    public int compareTo(@NotNull Entry o) {
+    public int compareTo(Entry o) {
       return Long.compare(sortKey, o.sortKey);
     }
 

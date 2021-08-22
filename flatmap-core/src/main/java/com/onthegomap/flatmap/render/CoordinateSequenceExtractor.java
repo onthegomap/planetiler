@@ -4,7 +4,6 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.ArrayList;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
@@ -82,7 +81,7 @@ class CoordinateSequenceExtractor {
     return GeoUtils.combineLineStrings(lineStrings);
   }
 
-  @NotNull
+
   static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups) throws GeometryException {
     int numGeoms = groups.size();
     if (numGeoms == 1) {

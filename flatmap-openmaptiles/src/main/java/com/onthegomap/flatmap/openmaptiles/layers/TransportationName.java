@@ -68,8 +68,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
@@ -108,7 +106,7 @@ public class TransportationName implements
   private final boolean z13Paths;
   private final Stats stats;
   private PreparedGeometry greatBritain = null;
-  private AtomicBoolean loggedNoGb = new AtomicBoolean(false);
+  private final AtomicBoolean loggedNoGb = new AtomicBoolean(false);
 
   public TransportationName(Translations translations, Arguments args, Stats stats) {
     this.stats = stats;
@@ -250,7 +248,6 @@ public class TransportationName implements
     }
   }
 
-  @Nullable
   private RouteRelation getRouteRelation(Tables.OsmHighwayLinestring element,
     List<OsmReader.RelationMember<RouteRelation>> relations, String ref) {
     RouteRelation relation = relations.stream()
@@ -330,7 +327,7 @@ public class TransportationName implements
   }
 
   private static record RouteRelation(
-    @NotNull String ref,
+    String ref,
     RouteNetwork network,
     long id
   ) implements OsmReader.RelationInfo {

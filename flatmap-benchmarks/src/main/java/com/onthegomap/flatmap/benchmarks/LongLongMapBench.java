@@ -4,7 +4,6 @@ import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.stats.Counter;
-import com.onthegomap.flatmap.stats.ProcessInfo;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.FileUtils;
@@ -21,20 +20,9 @@ public class LongLongMapBench {
   public static void main(String[] args) throws InterruptedException {
     Path path = Path.of("./llmaptest");
     FileUtils.delete(path);
-    LongLongMap map = switch (args[0]) {
-      case "sparsemem2" -> LongLongMap.newInMemorySparseArray2();
-      case "sparsearraymemory" -> LongLongMap.newInMemorySparseArray();
-      case "hppc" -> new LongLongMap.HppcMap();
-      case "array" -> new LongLongMap.Array();
-
-      case "sparse2" -> LongLongMap.newFileBackedSparseArray2(path);
-      case "sqlite" -> LongLongMap.newSqlite(path);
-      case "sparsearray" -> LongLongMap.newFileBackedSparseArray(path);
-      case "mapdb" -> LongLongMap.newFileBackedSortedTable(path);
-      default -> throw new IllegalStateException("Unexpected value: " + args[0]);
-    };
-    long entries = Long.parseLong(args[1]);
-    int readers = Integer.parseInt(args[2]);
+    LongLongMap map = LongLongMap.from(args[0], args[1], path);
+    long entries = Long.parseLong(args[2]);
+    int readers = Integer.parseInt(args[3]);
 
     class LocalCounter {
 
@@ -59,7 +47,8 @@ public class LongLongMapBench {
     }).awaitAndLog(loggers, Duration.ofSeconds(10));
 
     map.get(1);
-    System.err.println("Storage: " + Format.formatStorage(map.fileSize(), false));
+    System.err.println("Storage: " + Format.formatStorage(map.bytesOnDisk(), false));
+    System.err.println("RAM: " + Format.formatStorage(map.estimateMemoryUsageBytes(), false));
 
     Counter.Readable readCount = Counter.newMultiThreadCounter();
     loggers = new ProgressLoggers("read")
@@ -110,13 +99,14 @@ public class LongLongMapBench {
         args[1],
         args[2],
         args[3],
-        Format.formatStorage(ProcessInfo.getMaxMemoryBytes(), false),
-        Format.formatStorage(map.fileSize(), false),
+        Format.formatStorage(map.estimateMemoryUsageBytes(), false),
+        Format.formatStorage(map.bytesOnDisk(), false),
         Format.formatStorage(FileUtils.size(path), false),
         writeRate.get(),
         readRate
       )
     );
+    FileUtils.delete(path);
     Thread.sleep(100);
     System.exit(0);
   }

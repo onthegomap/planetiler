@@ -12,7 +12,6 @@ import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Envelope;
 
 public abstract class Reader implements Closeable {
@@ -63,7 +62,7 @@ public abstract class Reader implements Closeable {
     var loggers = new ProgressLoggers(sourceName)
       .addRatePercentCounter("read", featureCount, featuresRead)
       .addRateCounter("write", featuresWritten)
-      .addFileSize(writer::getStorageSize)
+      .addFileSize(writer)
       .newLine()
       .addProcessStats()
       .newLine()
@@ -78,7 +77,7 @@ public abstract class Reader implements Closeable {
     timer.stop();
   }
 
-  @NotNull
+
   private FeatureRenderer getFeatureRenderer(FeatureGroup writer, CommonParams config,
     Consumer<FeatureSort.Entry> next) {
     var encoder = writer.newRenderedFeatureEncoder();

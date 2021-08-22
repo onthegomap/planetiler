@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.geo;
 
 import java.text.NumberFormat;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 
@@ -83,7 +82,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   @Override
-  public int compareTo(@NotNull TileCoord o) {
+  public int compareTo(TileCoord o) {
     return Long.compare(encoded, o.encoded);
   }
 

@@ -80,6 +80,14 @@ public class FileUtils {
     }
   }
 
+  public static void createDirectory(Path path) {
+    try {
+      Files.createDirectories(path);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to create directories " + path, e);
+    }
+  }
+
   public static void createParentDirectories(Path path) {
     try {
       if (Files.isDirectory(path)) {

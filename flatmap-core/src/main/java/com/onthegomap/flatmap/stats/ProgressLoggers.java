@@ -3,6 +3,7 @@ package com.onthegomap.flatmap.stats;
 import static com.onthegomap.flatmap.util.Format.*;
 
 import com.graphhopper.util.Helper;
+import com.onthegomap.flatmap.util.DiskBacked;
 import com.onthegomap.flatmap.util.Format;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import com.onthegomap.flatmap.worker.WorkQueue;
@@ -185,8 +186,8 @@ public class ProgressLoggers {
     };
   }
 
-  public ProgressLoggers addFileSize(LongSupplier longSupplier) {
-    loggers.add(string(() -> " " + padRight(formatBytes(longSupplier.getAsLong(), false), 5)));
+  public ProgressLoggers addFileSize(DiskBacked longSupplier) {
+    loggers.add(string(() -> " " + padRight(formatBytes(longSupplier.bytesOnDisk(), false), 5)));
     return this;
   }
 

@@ -66,7 +66,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -313,7 +312,7 @@ public class Boundary implements
     return FeatureMerge.mergeLineStrings(items, 1, tolerance, BUFFER_SIZE);
   }
 
-  @NotNull
+
   private BorderingRegions getBorderingRegions(
     LongObjectMap<PreparedGeometry> countryBoundaries,
     Set<Long> allRegions,
@@ -368,7 +367,7 @@ public class Boundary implements
     return new BorderingRegions(leftCountry, rightCountry);
   }
 
-  @NotNull
+
   private LongObjectMap<PreparedGeometry> prepareRegionPolygons() {
     LOGGER.info("Creating polygons for " + regionGeometries.size() + " boundaries");
     LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();

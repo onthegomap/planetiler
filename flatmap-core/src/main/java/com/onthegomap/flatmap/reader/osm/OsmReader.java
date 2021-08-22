@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import org.jetbrains.annotations.Nullable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -105,7 +104,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     var loggers = new ProgressLoggers("osm_pass1")
       .addRateCounter("nodes", PASS1_NODES, true)
-      .addFileSize(nodeDb::fileSize)
+      .addFileSize(nodeDb)
       .addRateCounter("ways", PASS1_WAYS, true)
       .addRateCounter("rels", PASS1_RELATIONS, true)
       .newLine()
@@ -214,11 +213,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     var logger = new ProgressLoggers("osm_pass2")
       .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed)
-      .addFileSize(nodeDb::fileSize)
+      .addFileSize(nodeDb)
       .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed)
       .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
       .addRateCounter("features", () -> writer.sorter().size())
-      .addFileSize(writer::getStorageSize)
+      .addFileSize(writer)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
@@ -267,7 +266,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     return new WaySourceFeature(way, closed, area, nodeCache, rels);
   }
 
-  @Nullable
   private List<RelationMember<RelationInfo>> getRelationMembership(long id) {
     LongArrayList relationIds = wayToRelations.get(id);
     List<RelationMember<RelationInfo>> rels = null;

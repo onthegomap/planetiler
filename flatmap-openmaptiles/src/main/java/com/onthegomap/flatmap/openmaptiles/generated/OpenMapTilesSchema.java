@@ -576,8 +576,7 @@ public class OpenMapTilesSchema {
       public static final String CLASS = "class";
       /**
        * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:name"><code>name</code></a> value of the park
-       * (point
-       * features only).</p>
+       * (point features only).</p>
        */
       public static final String NAME = "name";
       /** <p>English name <code>name:en</code> if available, otherwise <code>name</code> (point features only).</p> */
@@ -664,8 +663,7 @@ public class OpenMapTilesSchema {
       public static final String DISPUTED_NAME = "disputed_name";
       /**
        * <p>ISO2 code of country, which wants to see the boundary line. For country boundaries only (<code>admin_level
-       * =
-       * 2</code>).</p>
+       * = 2</code>).</p>
        */
       public static final String CLAIMED_BY = "claimed_by";
 
@@ -784,9 +782,8 @@ public class OpenMapTilesSchema {
 
       /**
        * <p>Distinguish between more and less important roads or railways and roads under construction. Class is
-       * derived
-       * from the value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>, <a
-       * href="http://wiki.openstreetmap.org/wiki/Key:construction"><code>construction</code></a>, <a
+       * derived from the value of the <a href="http://wiki.openstreetmap.org/wiki/Key:highway"><code>highway</code></a>,
+       * <a href="http://wiki.openstreetmap.org/wiki/Key:construction"><code>construction</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:railway"><code>railway</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:aerialway"><code>aerialway</code></a>, <a
        * href="http://wiki.openstreetmap.org/wiki/Key:route"><code>route</code></a> tag (for shipping ways), or <a
@@ -1058,8 +1055,7 @@ public class OpenMapTilesSchema {
 
   /**
    * <p>All <a href="http://wiki.openstreetmap.org/wiki/Buildings">OSM Buildings</a>. All building tags are imported
-   * (<a
-   * href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
+   * (<a href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
    * ready for 3D rendering support and any help to improve this is welcomed.</p>
    */
   public interface Building extends Layer {
@@ -1194,8 +1190,7 @@ public class OpenMapTilesSchema {
       public static final String NAME_DE = "name_de";
       /**
        * <p>The OSM <a href="http://wiki.openstreetmap.org/wiki/Key:ref"><code>ref</code></a> tag of the motorway or
-       * its
-       * network.</p>
+       * its network.</p>
        */
       public static final String REF = "ref";
       /**
@@ -1440,9 +1435,8 @@ public class OpenMapTilesSchema {
        * city (derived from population and city class). You can use the <strong>rank</strong> to limit density of labels
        * or improve the text hierarchy. The rank value is a combination of the Natural Earth <code>scalerank</code>,
        * <code>labelrank</code> and <code>datarank</code> values for countries and states and for cities consists out
-       * of
-       * a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do not
-       * have a Natural Earth <code>scalerank</code>.</p>
+       * of a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do
+       * not have a Natural Earth <code>scalerank</code>.</p>
        */
       public static final String RANK = "rank";
     }
@@ -1472,9 +1466,8 @@ public class OpenMapTilesSchema {
 
   /**
    * <p>Everything in OpenStreetMap which contains a <code>addr:housenumber</code> tag useful for labelling
-   * housenumbers
-   * on a map. This adds significant size to <em>z14</em>. For buildings the centroid of the building is used as
-   * housenumber.</p>
+   * housenumbers on a map. This adds significant size to <em>z14</em>. For buildings the centroid of the building is
+   * used as housenumber.</p>
    */
   public interface Housenumber extends Layer {
 
@@ -1593,10 +1586,9 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS = "subclass";
       /**
        * <p>The POIs are ranked ascending according to their importance within a grid. The <code>rank</code> value
-       * shows
-       * the local relative importance of a POI within it's cell in the grid. This can be used to reduce label density
-       * at <em>z14</em>. Since all POIs already need to be contained at <em>z14</em> you can use <code>less than
-       * rank=10</code> epxression to limit POIs. At some point like <em>z17</em> you can show all POIs.</p>
+       * shows the local relative importance of a POI within it's cell in the grid. This can be used to reduce label
+       * density at <em>z14</em>. Since all POIs already need to be contained at <em>z14</em> you can use <code>less
+       * than rank=10</code> epxression to limit POIs. At some point like <em>z17</em> you can show all POIs.</p>
        */
       public static final String RANK = "rank";
 

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
-import org.jetbrains.annotations.NotNull;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -357,7 +356,7 @@ public class GeoUtils {
     }
 
     @Override
-    public int compareTo(@NotNull PolyAndArea o) {
+    public int compareTo(PolyAndArea o) {
       return -Double.compare(area, o.area);
     }
   }

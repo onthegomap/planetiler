@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +37,7 @@ public class Worker {
     }
 
     @Override
-    public Thread newThread(@NotNull Runnable r) {
+    public Thread newThread(Runnable r) {
       Thread t = new Thread(group, r,
         namePrefix + threadNumber.getAndIncrement(),
         0);

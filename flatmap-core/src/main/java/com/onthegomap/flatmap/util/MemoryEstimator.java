@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap.util;
 
+import com.carrotsearch.hppc.ByteArrayList;
+import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongHashSet;
@@ -35,6 +37,14 @@ public class MemoryEstimator {
 
   public static long size(LongArrayList object) {
     return object == null ? 0 : (24L + 8L * object.buffer.length);
+  }
+
+  public static long size(IntArrayList object) {
+    return object == null ? 0 : (24L + 4L * object.buffer.length);
+  }
+
+  public static long size(ByteArrayList object) {
+    return object == null ? 0 : (24L + object.buffer.length);
   }
 
   public static long size(String string) {

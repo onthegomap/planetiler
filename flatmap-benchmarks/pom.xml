@@ -24,4 +24,44 @@
       <version>${project.parent.version}</version>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
+        <!-- for fatjar assembly descriptor -->
+        <dependencies>
+          <dependency>
+            <groupId>com.onthegomap</groupId>
+            <artifactId>flatmap-core</artifactId>
+            <version>${project.parent.version}</version>
+          </dependency>
+        </dependencies>
+
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Multi-Release>true</Multi-Release>
+            </manifestEntries>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>fatjar</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+
+      </plugin>
+    </plugins>
+  </build>
 </project>

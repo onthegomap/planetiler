@@ -34,13 +34,13 @@ public class FlatMapRunner {
 
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
-  private Stats stats;
+  private final Stats stats;
   private Profile profile = null;
   private CommonParams config;
   private FeatureSort featureDb;
   private FeatureGroup featureMap;
   private OsmInputFile osmInputFile;
-  private Path tmpDir;
+  private final Path tmpDir;
   private Path output;
   private boolean overwrite = false;
   private boolean ran = false;
@@ -59,16 +59,7 @@ public class FlatMapRunner {
   }
 
   private LongLongMap getLongLongMap() {
-    return switch (config.longLongMap()) {
-      case "mapdb" -> LongLongMap.newFileBackedSortedTable(nodeDbPath);
-      case "sparsearray" -> LongLongMap.newFileBackedSparseArray(nodeDbPath);
-      case "sparsemem2" -> LongLongMap.newInMemorySparseArray2();
-      case "sparse2" -> LongLongMap.newFileBackedSparseArray2(nodeDbPath);
-      case "ramsparsearray" -> LongLongMap.newInMemorySparseArray();
-      case "ramarray" -> LongLongMap.newArrayBacked();
-      case "sqlite" -> LongLongMap.newSqlite(nodeDbPath);
-      default -> throw new IllegalStateException("Unexpected llmap value: " + config.longLongMap());
-    };
+    return LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath);
   }
 
   public FlatMapRunner addOsmSource(String name, Path defaultPath) {

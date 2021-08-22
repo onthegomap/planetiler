@@ -3,10 +3,8 @@ package com.onthegomap.flatmap.collection;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 public abstract class LongLongMapTest {
 
@@ -72,67 +70,24 @@ public abstract class LongLongMapTest {
     assertArrayEquals(expected, result);
   }
 
-  public static class SortedTableFileTest extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup(@TempDir Path dir) {
-      this.map = LongLongMap.newFileBackedSortedTable(dir.resolve("test-node-db-sorted"));
-    }
-  }
-
-  public static class SortedTableMemoryTest extends LongLongMapTest {
+  public static class SortedTable extends LongLongMapTest {
 
     @BeforeEach
     public void setup() {
-      this.map = LongLongMap.newInMemorySortedTable();
+      this.map = new LongLongMap.SortedTable(
+        new AppendStore.SmallLongs(
+          i -> new AppendStoreRam.Ints()
+        ),
+        new AppendStoreRam.Longs()
+      );
     }
   }
 
-  public static class SparseArrayTest extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup(@TempDir Path dir) {
-      this.map = LongLongMap.newFileBackedSparseArray(dir.resolve("test-sparse-array"), 80, 100);
-    }
-  }
-
-  public static class SparseArrayMemoryTest extends LongLongMapTest {
+  public static class SparseArray3 extends LongLongMapTest {
 
     @BeforeEach
     public void setup() {
-      this.map = LongLongMap.newInMemorySparseArray(80, 100);
-    }
-  }
-
-  public static class ArrayTest extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup() {
-      this.map = LongLongMap.newArrayBacked();
-    }
-  }
-
-  public static class SqliteTest extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup(@TempDir Path dir) {
-      this.map = LongLongMap.newSqlite(dir.resolve("sqlite-long-long-map-test"));
-    }
-  }
-
-  public static class SpareArray2Memory extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup() {
-      this.map = new LongLongMap.SparseArray2Memory();
-    }
-  }
-
-  public static class SparseArray2 extends LongLongMapTest {
-
-    @BeforeEach
-    public void setup(@TempDir Path dir) {
-      this.map = new LongLongMap.SparseArray2(dir.resolve("temp-sparse-array-2"));
+      this.map = new LongLongMap.SparseArray(new AppendStoreRam.Longs());
     }
   }
 }

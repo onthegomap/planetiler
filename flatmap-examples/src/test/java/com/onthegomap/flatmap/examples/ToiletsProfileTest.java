@@ -67,7 +67,7 @@ public class ToiletsProfileTest {
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
 
       TestUtils.assertNumFeatures(mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS,
-        36, Point.class);
+        34, Point.class);
     }
   }
 }

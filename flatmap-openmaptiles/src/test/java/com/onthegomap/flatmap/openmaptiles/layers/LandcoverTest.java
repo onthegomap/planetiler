@@ -11,7 +11,6 @@ import com.onthegomap.flatmap.reader.ReaderFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 public class LandcoverTest extends AbstractLayerTest {
@@ -181,7 +180,7 @@ public class LandcoverTest extends AbstractLayerTest {
     ), 6);
   }
 
-  @NotNull
+
   private VectorTileEncoder.Feature feature(org.locationtech.jts.geom.Polygon geom, Map<String, Object> m) {
     return new VectorTileEncoder.Feature(
       "landcover",

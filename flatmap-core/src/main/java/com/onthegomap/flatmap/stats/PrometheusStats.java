@@ -297,7 +297,7 @@ public class PrometheusStats implements Stats {
       this.osBean = ManagementFactory.getOperatingSystemMXBean();
     }
 
-    private Map<Long, ProcessInfo.ThreadState> threads = new ConcurrentSkipListMap<>();
+    private final Map<Long, ProcessInfo.ThreadState> threads = new ConcurrentSkipListMap<>();
 
     public List<MetricFamilySamples> collect() {
 
