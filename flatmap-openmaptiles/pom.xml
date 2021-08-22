@@ -58,6 +58,9 @@
             <manifestEntries>
               <Multi-Release>true</Multi-Release>
             </manifestEntries>
+            <manifest>
+              <mainClass>com.onthegomap.flatmap.openmaptiles.OpenMapTilesMain</mainClass>
+            </manifest>
           </archive>
           <descriptorRefs>
             <descriptorRef>fatjar</descriptorRef>

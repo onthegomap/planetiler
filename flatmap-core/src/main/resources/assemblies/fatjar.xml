@@ -14,6 +14,17 @@
       <handlerName>metaInf-services</handlerName>
     </containerDescriptorHandler>
   </containerDescriptorHandlers>
+  <fileSets>
+    <fileSet>
+      <directory>${project.parent.basedir}</directory>
+      <outputDirectory></outputDirectory>
+      <includes>
+        <include>README*</include>
+        <include>LICENSE*</include>
+        <include>NOTICE*</include>
+      </includes>
+    </fileSet>
+  </fileSets>
   <dependencySets>
     <dependencySet>
       <outputDirectory>/</outputDirectory>
