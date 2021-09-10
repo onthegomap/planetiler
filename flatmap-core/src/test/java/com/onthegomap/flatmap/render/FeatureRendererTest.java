@@ -4,19 +4,21 @@ import static com.onthegomap.flatmap.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.config.Arguments;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,12 +41,14 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class FeatureRendererTest {
 
-  private CommonParams config = CommonParams.defaults();
+  private FlatmapConfig config = FlatmapConfig.defaults();
   private final Stats stats = Stats.inMemory();
 
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
-    return new FeatureCollector.Factory(config, stats).get(new ReaderFeature(latLonGeom, 0, null, null, 1));
+    return new FeatureCollector.Factory(config, stats)
+      .get(SimpleFeature.create(latLonGeom, new HashMap<>(0), null, null,
+        1));
   }
 
   private Map<TileCoord, Collection<Geometry>> renderGeometry(FeatureCollector.Feature feature) {
@@ -121,7 +125,7 @@ public class FeatureRendererTest {
 
   @Test
   public void testEmitPointsRespectExtents() {
-    config = CommonParams.from(Arguments.of(
+    config = FlatmapConfig.from(Arguments.of(
       "bounds", "0,-80,180,0"
     ));
     var feature = pointFeature(newPoint(0.5 + 1d / 512, 0.5 + 1d / 512))
@@ -223,9 +227,9 @@ public class FeatureRendererTest {
       newPoint(0.25, 0.25),
       newPoint(0.25 + 1d / 256, 0.25 + 1d / 256)
     ))
-      .setLabelGridPixelSize(10, 256)
+      .setPointLabelGridPixelSize(10, 10)
       .setZoomRange(0, 1)
-      .setBufferPixels(4);
+      .setBufferPixels(10);
     assertSameNormalizedFeatures(Map.of(
       TileCoord.ofXYZ(0, 0, 0), List.of(
         newPoint(64, 64),
@@ -239,11 +243,22 @@ public class FeatureRendererTest {
   }
 
   @Test
+  public void testLabelGridRequiresBufferPixelsGreaterThanGridSize() {
+    assertThrows(AssertionError.class, () -> renderFeatures(pointFeature(newPoint(0.75, 0.75))
+      .setPointLabelGridSizeAndLimit(10, 10, 2)
+      .setBufferPixels(9)));
+
+    renderFeatures(pointFeature(newPoint(0.75, 0.75))
+      .setPointLabelGridSizeAndLimit(10, 10, 2)
+      .setBufferPixels(10));
+  }
+
+  @Test
   public void testLabelGrid() {
     var feature = pointFeature(newPoint(0.75, 0.75))
-      .setLabelGridSizeAndLimit(10, 256, 2)
+      .setPointLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
-      .setBufferPixels(4);
+      .setBufferPixels(256);
     var rendered = renderFeatures(feature);
     var z0Feature = rendered.get(TileCoord.ofXYZ(0, 0, 0)).iterator().next();
     var z1Feature = rendered.get(TileCoord.ofXYZ(1, 1, 1)).iterator().next();
@@ -254,9 +269,9 @@ public class FeatureRendererTest {
   @Test
   public void testWrapLabelGrid() {
     var feature = pointFeature(newPoint(1.1, -0.1))
-      .setLabelGridSizeAndLimit(10, 256, 2)
+      .setPointLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
-      .setBufferPixels(64);
+      .setBufferPixels(256);
     var rendered = renderFeatures(feature);
     var z0Feature = rendered.get(TileCoord.ofXYZ(0, 0, 0)).iterator().next();
     var z1Feature = rendered.get(TileCoord.ofXYZ(0, 0, 1)).iterator().next();
@@ -1172,8 +1187,8 @@ public class FeatureRendererTest {
     var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
     assertEquals(1, innerTile.size());
     assertEquals(new TestUtils.NormGeometry(newPolygon(
-      rectangleCoordList(-1, 256 + 1),
-      List.of(rectangleCoordList(10, 246))
+        rectangleCoordList(-1, 256 + 1),
+        List.of(rectangleCoordList(10, 246))
       )),
       new TestUtils.NormGeometry(innerTile.iterator().next()));
   }

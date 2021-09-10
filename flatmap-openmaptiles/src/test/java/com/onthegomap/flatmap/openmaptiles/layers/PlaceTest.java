@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ public class PlaceTest extends AbstractLayerTest {
   @Test
   public void testCountry() {
     wikidataTranslations.put(30, "es", "Estados Unidos");
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       rectangle(0, 0.25),
       Map.of(
         "name", "United States",
@@ -69,7 +69,7 @@ public class PlaceTest extends AbstractLayerTest {
 
       "_type", "point",
       "_minzoom", 5
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newPoint(0.5, 0.5),
       Map.of(
         "place", "country",
@@ -95,7 +95,7 @@ public class PlaceTest extends AbstractLayerTest {
 
       "_type", "point",
       "_minzoom", 0
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newPoint(0.1, 0.1),
       Map.of(
         "place", "country",
@@ -114,7 +114,7 @@ public class PlaceTest extends AbstractLayerTest {
   @Test
   public void testState() {
     wikidataTranslations.put(771, "es", "Massachusetts es");
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       rectangle(0, 0.25),
       Map.of(
         "name", "Massachusetts",
@@ -127,7 +127,7 @@ public class PlaceTest extends AbstractLayerTest {
       0
     ));
 
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       rectangle(0.4, 0.6),
       Map.of(
         "name", "Massachusetts - not important",
@@ -141,7 +141,7 @@ public class PlaceTest extends AbstractLayerTest {
     ));
 
     // no match
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       newPoint(1, 1),
       Map.of(
         "place", "state",
@@ -155,7 +155,7 @@ public class PlaceTest extends AbstractLayerTest {
     )));
 
     // unimportant match
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       newPoint(0.5, 0.5),
       Map.of(
         "place", "state",
@@ -180,7 +180,7 @@ public class PlaceTest extends AbstractLayerTest {
 
       "_type", "point",
       "_minzoom", 2
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newPoint(0.1, 0.1),
       Map.of(
         "place", "state",
@@ -216,7 +216,6 @@ public class PlaceTest extends AbstractLayerTest {
 
   @Test
   public void testIslandPolygon() {
-    double rank3area = Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(40_000_000 + 1)) / 256d, 2);
     assertFeatures(0, List.of(Map.of(
       "_layer", "place",
       "class", "island",
@@ -288,7 +287,7 @@ public class PlaceTest extends AbstractLayerTest {
 
   @Test
   public void testCountryCapital() {
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       newPoint(0, 0),
       Map.of(
         "name", "Washington, D.C.",
@@ -322,7 +321,7 @@ public class PlaceTest extends AbstractLayerTest {
 
   @Test
   public void testStateCapital() {
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       newPoint(0, 0),
       Map.of(
         "name", "Boston",
@@ -355,7 +354,7 @@ public class PlaceTest extends AbstractLayerTest {
       "class", "city",
       "name", "Boston",
       "rank", "<null>"
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newPoint(1, 1),
       Map.of(
         "place", "city",

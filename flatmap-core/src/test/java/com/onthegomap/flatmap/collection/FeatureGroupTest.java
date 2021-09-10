@@ -8,10 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.render.RenderedFeature;
+import com.onthegomap.flatmap.stats.Stats;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,7 +60,7 @@ public class FeatureGroupTest {
     int zOrder, boolean hasGroup, long group, int limit) {
     RenderedFeature feature = new RenderedFeature(
       TileCoord.decode(tile),
-      new VectorTileEncoder.Feature(layer, id, VectorTileEncoder.encodeGeometry(geom), attrs),
+      new VectorTile.Feature(layer, id, VectorTile.encodeGeometry(geom), attrs),
       zOrder,
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
@@ -70,8 +70,8 @@ public class FeatureGroupTest {
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
     Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
     for (FeatureGroup.TileFeatures tile : features) {
-      for (var feature : VectorTileEncoder.decode(tile.coord(), tile.getTile().encode())) {
-        map.computeIfAbsent(tile.coord().encoded(), (i) -> new TreeMap<>())
+      for (var feature : VectorTile.decode(tile.getVectorTileEncoder().encode())) {
+        map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
           .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
       }
@@ -206,8 +206,8 @@ public class FeatureGroupTest {
   public void testProfileChangesGeometry() {
     features = new FeatureGroup(sorter, new Profile.NullProfile() {
       @Override
-      public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-        List<VectorTileEncoder.Feature> items) {
+      public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+        List<VectorTile.Feature> items) {
         Collections.reverse(items);
         return items;
       }

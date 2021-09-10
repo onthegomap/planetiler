@@ -42,11 +42,11 @@ import static com.onthegomap.flatmap.openmaptiles.Expression.and;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchAny;
 import static com.onthegomap.flatmap.openmaptiles.Expression.or;
 
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.openmaptiles.Layer;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,31 +57,30 @@ public class OpenMapTilesSchema {
   public static final String DESCRIPTION = "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";
   public static final String VERSION = "3.12.1";
   public static final String ATTRIBUTION = "<a href=\"https://www.openmaptiles.org/\" target=\"_blank\">&copy; OpenMapTiles</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>";
-  public static final List<String> LANGUAGES = List
-    .of("am", "ar", "az", "be", "bg", "br", "bs", "ca", "co", "cs", "cy", "da", "de", "el", "en", "eo", "es", "et",
-      "eu", "fi", "fr", "fy", "ga", "gd", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "ja_kana", "ja_rm",
-      "ja-Latn", "ja-Hira", "ka", "kk", "kn", "ko", "ko-Latn", "ku", "la", "lb", "lt", "lv", "mk", "mt", "ml", "nl",
-      "no", "oc", "pl", "pt", "rm", "ro", "ru", "sk", "sl", "sq", "sr", "sr-Latn", "sv", "ta", "te", "th", "tr", "uk",
-      "zh");
+  public static final List<String> LANGUAGES = List.of("am", "ar", "az", "be", "bg", "br", "bs", "ca", "co", "cs", "cy",
+    "da", "de", "el", "en", "eo", "es", "et", "eu", "fi", "fr", "fy", "ga", "gd", "he", "hi", "hr", "hu", "hy", "id",
+    "is", "it", "ja", "ja_kana", "ja_rm", "ja-Latn", "ja-Hira", "ka", "kk", "kn", "ko", "ko-Latn", "ku", "la", "lb",
+    "lt", "lv", "mk", "mt", "ml", "nl", "no", "oc", "pl", "pt", "rm", "ro", "ru", "sk", "sl", "sq", "sr", "sr-Latn",
+    "sv", "ta", "te", "th", "tr", "uk", "zh");
 
-  public static List<Layer> createInstances(Translations translations, Arguments args, Stats stats) {
+  public static List<Layer> createInstances(Translations translations, FlatmapConfig config, Stats stats) {
     return List.of(
-      new com.onthegomap.flatmap.openmaptiles.layers.Water(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Waterway(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Landcover(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Landuse(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.MountainPeak(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Park(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Boundary(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Aeroway(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Transportation(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Building(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.WaterName(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.TransportationName(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Place(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Housenumber(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.Poi(translations, args, stats),
-      new com.onthegomap.flatmap.openmaptiles.layers.AerodromeLabel(translations, args, stats)
+      new com.onthegomap.flatmap.openmaptiles.layers.Water(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Waterway(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Landcover(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Landuse(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.MountainPeak(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Park(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Boundary(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Aeroway(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Transportation(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Building(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.WaterName(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.TransportationName(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Place(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Housenumber(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.Poi(translations, config, stats),
+      new com.onthegomap.flatmap.openmaptiles.layers.AerodromeLabel(translations, config, stats)
     );
   }
 
@@ -158,9 +157,9 @@ public class OpenMapTilesSchema {
 
     final class FieldMappings {
 
-      public static final MultiExpression<String> Class = MultiExpression.of(Map
-        .ofEntries(Map.entry("lake", matchAny("waterway", "", "lake")), Map.entry("dock", matchAny("waterway", "dock")),
-          Map.entry("river", FALSE), Map.entry("ocean", FALSE)));
+      public static final MultiExpression<String> Class = MultiExpression.of(
+        Map.ofEntries(Map.entry("lake", matchAny("waterway", "", "lake")),
+          Map.entry("dock", matchAny("waterway", "dock")), Map.entry("river", FALSE), Map.entry("ocean", FALSE)));
     }
   }
 
@@ -343,8 +342,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_GRASS = "grass";
       public static final String CLASS_WETLAND = "wetland";
       public static final String CLASS_SAND = "sand";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("farmland", "ice", "wood", "rock", "grass", "wetland", "sand");
+      public static final Set<String> CLASS_VALUES = Set.of("farmland", "ice", "wood", "rock", "grass", "wetland",
+        "sand");
       public static final String SUBCLASS_ALLOTMENTS = "allotments";
       public static final String SUBCLASS_BARE_ROCK = "bare_rock";
       public static final String SUBCLASS_BEACH = "beach";
@@ -381,11 +380,11 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_WET_MEADOW = "wet_meadow";
       public static final String SUBCLASS_WETLAND = "wetland";
       public static final String SUBCLASS_WOOD = "wood";
-      public static final Set<String> SUBCLASS_VALUES = Set
-        .of("allotments", "bare_rock", "beach", "bog", "dune", "scrub", "farm", "farmland", "fell", "forest", "garden",
-          "glacier", "grass", "grassland", "golf_course", "heath", "mangrove", "marsh", "meadow", "orchard", "park",
-          "plant_nursery", "recreation_ground", "reedbed", "saltern", "saltmarsh", "sand", "scree", "swamp",
-          "tidalflat", "tundra", "village_green", "vineyard", "wet_meadow", "wetland", "wood");
+      public static final Set<String> SUBCLASS_VALUES = Set.of("allotments", "bare_rock", "beach", "bog", "dune",
+        "scrub", "farm", "farmland", "fell", "forest", "garden", "glacier", "grass", "grassland", "golf_course",
+        "heath", "mangrove", "marsh", "meadow", "orchard", "park", "plant_nursery", "recreation_ground", "reedbed",
+        "saltern", "saltmarsh", "sand", "scree", "swamp", "tidalflat", "tundra", "village_green", "vineyard",
+        "wet_meadow", "wetland", "wood");
     }
 
     final class FieldMappings {
@@ -486,10 +485,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_QUARTER = "quarter";
       public static final String CLASS_NEIGHBOURHOOD = "neighbourhood";
       public static final String CLASS_DAM = "dam";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("railway", "cemetery", "military", "residential", "commercial", "industrial", "garages", "retail",
-          "bus_station", "school", "university", "kindergarten", "college", "library", "hospital", "stadium", "pitch",
-          "playground", "track", "theme_park", "zoo", "suburb", "quarter", "neighbourhood", "dam");
+      public static final Set<String> CLASS_VALUES = Set.of("railway", "cemetery", "military", "residential",
+        "commercial", "industrial", "garages", "retail", "bus_station", "school", "university", "kindergarten",
+        "college", "library", "hospital", "stadium", "pitch", "playground", "track", "theme_park", "zoo", "suburb",
+        "quarter", "neighbourhood", "dam");
     }
 
     final class FieldMappings {
@@ -692,9 +691,9 @@ public class OpenMapTilesSchema {
       public static final String DISPUTED_NAME_PAKISTANICLAIM = "PakistaniClaim";
       public static final String DISPUTED_NAME_SAMDUVALLEYS = "SamduValleys";
       public static final String DISPUTED_NAME_TIRPANIVALLEYS = "TirpaniValleys";
-      public static final Set<String> DISPUTED_NAME_VALUES = Set
-        .of("AbuMusaIsland", "BaraHotiiValleys", "ChineseClaim", "Crimea", "Demchok", "Dokdo", "IndianClaim-North",
-          "IndianClaimwesternKashmir", "PakistaniClaim", "SamduValleys", "TirpaniValleys");
+      public static final Set<String> DISPUTED_NAME_VALUES = Set.of("AbuMusaIsland", "BaraHotiiValleys", "ChineseClaim",
+        "Crimea", "Demchok", "Dokdo", "IndianClaim-North", "IndianClaimwesternKashmir", "PakistaniClaim",
+        "SamduValleys", "TirpaniValleys");
     }
 
     final class FieldMappings {
@@ -752,8 +751,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_TAXIWAY = "taxiway";
       public static final String CLASS_APRON = "apron";
       public static final String CLASS_GATE = "gate";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("aerodrome", "heliport", "runway", "helipad", "taxiway", "apron", "gate");
+      public static final Set<String> CLASS_VALUES = Set.of("aerodrome", "heliport", "runway", "helipad", "taxiway",
+        "apron", "gate");
     }
 
     final class FieldMappings {
@@ -976,11 +975,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_SERVICE_CONSTRUCTION = "service_construction";
       public static final String CLASS_TRACK_CONSTRUCTION = "track_construction";
       public static final String CLASS_RACEWAY_CONSTRUCTION = "raceway_construction";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("motorway", "trunk", "primary", "secondary", "tertiary", "minor", "path", "service", "track", "raceway",
-          "motorway_construction", "trunk_construction", "primary_construction", "secondary_construction",
-          "tertiary_construction", "minor_construction", "path_construction", "service_construction",
-          "track_construction", "raceway_construction");
+      public static final Set<String> CLASS_VALUES = Set.of("motorway", "trunk", "primary", "secondary", "tertiary",
+        "minor", "path", "service", "track", "raceway", "motorway_construction", "trunk_construction",
+        "primary_construction", "secondary_construction", "tertiary_construction", "minor_construction",
+        "path_construction", "service_construction", "track_construction", "raceway_construction");
       public static final String SUBCLASS_RAIL = "rail";
       public static final String SUBCLASS_NARROW_GAUGE = "narrow_gauge";
       public static final String SUBCLASS_PRESERVED = "preserved";
@@ -997,9 +995,9 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_BRIDLEWAY = "bridleway";
       public static final String SUBCLASS_CORRIDOR = "corridor";
       public static final String SUBCLASS_PLATFORM = "platform";
-      public static final Set<String> SUBCLASS_VALUES = Set
-        .of("rail", "narrow_gauge", "preserved", "funicular", "subway", "light_rail", "monorail", "tram", "pedestrian",
-          "path", "footway", "cycleway", "steps", "bridleway", "corridor", "platform");
+      public static final Set<String> SUBCLASS_VALUES = Set.of("rail", "narrow_gauge", "preserved", "funicular",
+        "subway", "light_rail", "monorail", "tram", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway",
+        "corridor", "platform");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
       public static final String BRUNNEL_FORD = "ford";
@@ -1011,8 +1009,8 @@ public class OpenMapTilesSchema {
       public static final String SERVICE_DRIVEWAY = "driveway";
       public static final String SERVICE_ALLEY = "alley";
       public static final String SERVICE_PARKING_AISLE = "parking_aisle";
-      public static final Set<String> SERVICE_VALUES = Set
-        .of("spur", "yard", "siding", "crossover", "driveway", "alley", "parking_aisle");
+      public static final Set<String> SERVICE_VALUES = Set.of("spur", "yard", "siding", "crossover", "driveway",
+        "alley", "parking_aisle");
       public static final String SURFACE_PAVED = "paved";
       public static final String SURFACE_UNPAVED = "unpaved";
       public static final Set<String> SURFACE_VALUES = Set.of("paved", "unpaved");
@@ -1020,31 +1018,31 @@ public class OpenMapTilesSchema {
 
     final class FieldMappings {
 
-      public static final MultiExpression<String> Class = MultiExpression.of(Map
-        .ofEntries(Map.entry("motorway", matchAny("highway", "motorway", "motorway_link")),
+      public static final MultiExpression<String> Class = MultiExpression.of(
+        Map.ofEntries(Map.entry("motorway", matchAny("highway", "motorway", "motorway_link")),
           Map.entry("trunk", matchAny("highway", "trunk", "trunk_link")),
           Map.entry("primary", matchAny("highway", "primary", "primary_link")),
           Map.entry("secondary", matchAny("highway", "secondary", "secondary_link")),
           Map.entry("tertiary", matchAny("highway", "tertiary", "tertiary_link")),
-          Map.entry("minor", matchAny("highway", "unclassified", "residential", "living_street", "road")), Map
-            .entry("path",
-              or(matchAny("highway", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor"),
-                matchAny("public_transport", "platform"))), Map.entry("service", matchAny("highway", "service")),
-          Map.entry("track", matchAny("highway", "track")), Map.entry("raceway", matchAny("highway", "raceway")), Map
-            .entry("motorway_construction",
-              and(matchAny("highway", "construction"), matchAny("construction", "motorway", "motorway_link"))), Map
-            .entry("trunk_construction",
-              and(matchAny("highway", "construction"), matchAny("construction", "trunk", "trunk_link"))), Map
-            .entry("primary_construction",
-              and(matchAny("highway", "construction"), matchAny("construction", "primary", "primary_link"))), Map
-            .entry("secondary_construction",
-              and(matchAny("highway", "construction"), matchAny("construction", "secondary", "secondary_link"))), Map
-            .entry("tertiary_construction",
-              and(matchAny("highway", "construction"), matchAny("construction", "tertiary", "tertiary_link"))), Map
-            .entry("minor_construction", and(matchAny("highway", "construction"),
-              matchAny("construction", "", "unclassified", "residential", "living_street", "road"))), Map
-            .entry("path_construction", and(matchAny("highway", "construction"), or(
-              matchAny("construction", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor"),
+          Map.entry("minor", matchAny("highway", "unclassified", "residential", "living_street", "road")),
+          Map.entry("path",
+            or(matchAny("highway", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor"),
+              matchAny("public_transport", "platform"))), Map.entry("service", matchAny("highway", "service")),
+          Map.entry("track", matchAny("highway", "track")), Map.entry("raceway", matchAny("highway", "raceway")),
+          Map.entry("motorway_construction",
+            and(matchAny("highway", "construction"), matchAny("construction", "motorway", "motorway_link"))),
+          Map.entry("trunk_construction",
+            and(matchAny("highway", "construction"), matchAny("construction", "trunk", "trunk_link"))),
+          Map.entry("primary_construction",
+            and(matchAny("highway", "construction"), matchAny("construction", "primary", "primary_link"))),
+          Map.entry("secondary_construction",
+            and(matchAny("highway", "construction"), matchAny("construction", "secondary", "secondary_link"))),
+          Map.entry("tertiary_construction",
+            and(matchAny("highway", "construction"), matchAny("construction", "tertiary", "tertiary_link"))),
+          Map.entry("minor_construction", and(matchAny("highway", "construction"),
+            matchAny("construction", "", "unclassified", "residential", "living_street", "road"))),
+          Map.entry("path_construction", and(matchAny("highway", "construction"),
+            or(matchAny("construction", "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor"),
               matchAny("public_transport", "platform")))), Map.entry("service_construction",
             and(matchAny("highway", "construction"), matchAny("construction", "service"))),
           Map.entry("track_construction", and(matchAny("highway", "construction"), matchAny("construction", "track"))),
@@ -1311,8 +1309,8 @@ public class OpenMapTilesSchema {
       public static final String NETWORK_GB_MOTORWAY = "gb-motorway";
       public static final String NETWORK_GB_TRUNK = "gb-trunk";
       public static final String NETWORK_ROAD = "road";
-      public static final Set<String> NETWORK_VALUES = Set
-        .of("us-interstate", "us-highway", "us-state", "ca-transcanada", "gb-motorway", "gb-trunk", "road");
+      public static final Set<String> NETWORK_VALUES = Set.of("us-interstate", "us-highway", "us-state",
+        "ca-transcanada", "gb-motorway", "gb-trunk", "road");
       public static final String CLASS_MOTORWAY = "motorway";
       public static final String CLASS_TRUNK = "trunk";
       public static final String CLASS_PRIMARY = "primary";
@@ -1335,11 +1333,10 @@ public class OpenMapTilesSchema {
       public static final String CLASS_RACEWAY_CONSTRUCTION = "raceway_construction";
       public static final String CLASS_RAIL = "rail";
       public static final String CLASS_TRANSIT = "transit";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track", "path", "raceway",
-          "motorway_construction", "trunk_construction", "primary_construction", "secondary_construction",
-          "tertiary_construction", "minor_construction", "service_construction", "track_construction",
-          "path_construction", "raceway_construction", "rail", "transit");
+      public static final Set<String> CLASS_VALUES = Set.of("motorway", "trunk", "primary", "secondary", "tertiary",
+        "minor", "service", "track", "path", "raceway", "motorway_construction", "trunk_construction",
+        "primary_construction", "secondary_construction", "tertiary_construction", "minor_construction",
+        "service_construction", "track_construction", "path_construction", "raceway_construction", "rail", "transit");
       public static final String SUBCLASS_PEDESTRIAN = "pedestrian";
       public static final String SUBCLASS_PATH = "path";
       public static final String SUBCLASS_FOOTWAY = "footway";
@@ -1348,8 +1345,8 @@ public class OpenMapTilesSchema {
       public static final String SUBCLASS_BRIDLEWAY = "bridleway";
       public static final String SUBCLASS_CORRIDOR = "corridor";
       public static final String SUBCLASS_PLATFORM = "platform";
-      public static final Set<String> SUBCLASS_VALUES = Set
-        .of("pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "platform");
+      public static final Set<String> SUBCLASS_VALUES = Set.of("pedestrian", "path", "footway", "cycleway", "steps",
+        "bridleway", "corridor", "platform");
       public static final String BRUNNEL_BRIDGE = "bridge";
       public static final String BRUNNEL_TUNNEL = "tunnel";
       public static final String BRUNNEL_FORD = "ford";
@@ -1454,9 +1451,8 @@ public class OpenMapTilesSchema {
       public static final String CLASS_QUARTER = "quarter";
       public static final String CLASS_NEIGHBOURHOOD = "neighbourhood";
       public static final String CLASS_ISOLATED_DWELLING = "isolated_dwelling";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("continent", "country", "state", "city", "town", "village", "hamlet", "suburb", "quarter", "neighbourhood",
-          "isolated_dwelling");
+      public static final Set<String> CLASS_VALUES = Set.of("continent", "country", "state", "city", "town", "village",
+        "hamlet", "suburb", "quarter", "neighbourhood", "isolated_dwelling");
     }
 
     final class FieldMappings {
@@ -1654,23 +1650,22 @@ public class OpenMapTilesSchema {
       public static final String CLASS_CLOTHING_STORE = "clothing_store";
       public static final String CLASS_SWIMMING = "swimming";
       public static final String CLASS_CASTLE = "castle";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("shop", "town_hall", "golf", "fast_food", "park", "bus", "railway", "aerialway", "entrance", "campsite",
-          "laundry", "grocery", "library", "college", "lodging", "ice_cream", "post", "cafe", "school", "alcohol_shop",
-          "bar", "harbor", "car", "hospital", "cemetery", "attraction", "beer", "music", "stadium", "art_gallery",
-          "clothing_store", "swimming", "castle");
+      public static final Set<String> CLASS_VALUES = Set.of("shop", "town_hall", "golf", "fast_food", "park", "bus",
+        "railway", "aerialway", "entrance", "campsite", "laundry", "grocery", "library", "college", "lodging",
+        "ice_cream", "post", "cafe", "school", "alcohol_shop", "bar", "harbor", "car", "hospital", "cemetery",
+        "attraction", "beer", "music", "stadium", "art_gallery", "clothing_store", "swimming", "castle");
     }
 
     final class FieldMappings {
 
       public static final MultiExpression<String> Class = MultiExpression.of(Map.ofEntries(Map.entry("shop",
-        matchAny("subclass", "accessories", "antiques", "beauty", "bed", "boutique", "camera", "carpet", "charity",
-          "chemist", "coffee", "computer", "convenience", "copyshop", "cosmetics", "garden_centre", "doityourself",
-          "erotic", "electronics", "fabric", "florist", "frozen_food", "furniture", "video_games", "video", "general",
-          "gift", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk", "lamps",
-          "mall", "massage", "motorcycle", "mobile_phone", "newsagent", "optician", "outdoor", "perfumery", "perfume",
-          "pet", "photo", "second_hand", "shoes", "sports", "stationery", "tailor", "tattoo", "ticket", "tobacco",
-          "toys", "travel_agency", "watches", "weapons", "wholesale")),
+          matchAny("subclass", "accessories", "antiques", "beauty", "bed", "boutique", "camera", "carpet", "charity",
+            "chemist", "coffee", "computer", "convenience", "copyshop", "cosmetics", "garden_centre", "doityourself",
+            "erotic", "electronics", "fabric", "florist", "frozen_food", "furniture", "video_games", "video", "general",
+            "gift", "hardware", "hearing_aids", "hifi", "ice_cream", "interior_decoration", "jewelry", "kiosk", "lamps",
+            "mall", "massage", "motorcycle", "mobile_phone", "newsagent", "optician", "outdoor", "perfumery", "perfume",
+            "pet", "photo", "second_hand", "shoes", "sports", "stationery", "tailor", "tattoo", "ticket", "tobacco",
+            "toys", "travel_agency", "watches", "weapons", "wholesale")),
         Map.entry("town_hall", matchAny("subclass", "townhall", "public_building", "courthouse", "community_centre")),
         Map.entry("golf", matchAny("subclass", "golf", "golf_course", "miniature_golf")),
         Map.entry("fast_food", matchAny("subclass", "fast_food", "food_court")),
@@ -1764,18 +1759,18 @@ public class OpenMapTilesSchema {
       public static final String CLASS_MILITARY = "military";
       public static final String CLASS_PRIVATE = "private";
       public static final String CLASS_OTHER = "other";
-      public static final Set<String> CLASS_VALUES = Set
-        .of("international", "public", "regional", "military", "private", "other");
+      public static final Set<String> CLASS_VALUES = Set.of("international", "public", "regional", "military",
+        "private", "other");
     }
 
     final class FieldMappings {
 
       public static final MultiExpression<String> Class = MultiExpression.of(Map.ofEntries(Map.entry("international",
-        or(matchAny("aerodrome", "international"), matchAny("aerodrome_type", "international"))),
+          or(matchAny("aerodrome", "international"), matchAny("aerodrome_type", "international"))),
         Map.entry("public", or(matchAny("aerodrome", "public"), matchAny("aerodrome_type", "%public%", "civil"))),
-        Map.entry("regional", or(matchAny("aerodrome", "regional"), matchAny("aerodrome_type", "regional"))), Map
-          .entry("military", or(matchAny("aerodrome", "military"), matchAny("aerodrome_type", "%military%"),
-            matchAny("military", "airfield"))),
+        Map.entry("regional", or(matchAny("aerodrome", "regional"), matchAny("aerodrome_type", "regional"))),
+        Map.entry("military", or(matchAny("aerodrome", "military"), matchAny("aerodrome_type", "%military%"),
+          matchAny("military", "airfield"))),
         Map.entry("private", or(matchAny("aerodrome", "private"), matchAny("aerodrome_type", "private"))),
         Map.entry("other", FALSE)));
     }

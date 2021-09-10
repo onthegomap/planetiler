@@ -20,7 +20,7 @@ public class AppendStoreTest {
     @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
     public void writeThenRead(int num) {
       for (int i = 0; i < num; i++) {
-        store.writeInt(i + 1);
+        store.appendInt(i + 1);
       }
       for (int i = 0; i < num; i++) {
         assertEquals(i + 1, store.getInt(i));
@@ -31,9 +31,9 @@ public class AppendStoreTest {
 
     @Test
     public void readBig() {
-      store.writeInt(Integer.MAX_VALUE);
-      store.writeInt(Integer.MAX_VALUE - 1);
-      store.writeInt(Integer.MAX_VALUE - 2);
+      store.appendInt(Integer.MAX_VALUE);
+      store.appendInt(Integer.MAX_VALUE - 1);
+      store.appendInt(Integer.MAX_VALUE - 2);
       assertEquals(Integer.MAX_VALUE, store.getInt(0));
       assertEquals(Integer.MAX_VALUE - 1, store.getInt(1));
       assertEquals(Integer.MAX_VALUE - 2, store.getInt(2));
@@ -48,7 +48,7 @@ public class AppendStoreTest {
     @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
     public void writeThenRead(int num) {
       for (int i = 0; i < num; i++) {
-        store.writeLong(i + 1);
+        store.appendLong(i + 1);
       }
       for (int i = 0; i < num; i++) {
         assertEquals(i + 1, store.getLong(i));
@@ -62,7 +62,7 @@ public class AppendStoreTest {
     @ParameterizedTest
     @ValueSource(longs = {maxInt - 1, maxInt, maxInt + 1, 2 * maxInt - 1, 2 * maxInt, 5 * maxInt - 1, 5 * maxInt + 1})
     public void readBig(long value) {
-      store.writeLong(value);
+      store.appendLong(value);
       assertEquals(value, store.getLong(0));
     }
 

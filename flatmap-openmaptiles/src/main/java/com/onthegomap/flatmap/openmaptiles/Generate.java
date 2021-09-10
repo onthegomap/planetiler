@@ -126,7 +126,7 @@ public class Generate {
 
   public static void main(String[] args) throws IOException {
     Arguments arguments = Arguments.fromArgsOrConfigFile(args);
-    String tag = arguments.get("tag", "openmaptiles tag to use", "v3.12.2");
+    String tag = arguments.getString("tag", "openmaptiles tag to use", "v3.12.2");
     String base = "https://raw.githubusercontent.com/openmaptiles/openmaptiles/" + tag + "/";
     var rootUrl = new URL(base + "openmaptiles.yaml");
     OpenmaptilesConfig config = load(rootUrl, OpenmaptilesConfig.class);
@@ -411,7 +411,7 @@ public class Generate {
       package %s;
 
       import static com.onthegomap.flatmap.openmaptiles.Expression.*;
-      import com.onthegomap.flatmap.config.Arguments;
+      import com.onthegomap.flatmap.config.FlatmapConfig;
       import com.onthegomap.flatmap.stats.Stats;
       import com.onthegomap.flatmap.openmaptiles.MultiExpression;
       import com.onthegomap.flatmap.openmaptiles.Layer;
@@ -427,7 +427,7 @@ public class Generate {
         public static final String ATTRIBUTION = %s;
         public static final List<String> LANGUAGES = List.of(%s);
 
-        public static List<Layer> createInstances(Translations translations, Arguments args, Stats stats) {
+        public static List<Layer> createInstances(Translations translations, FlatmapConfig config, Stats stats) {
           return List.of(
             %s
           );
@@ -443,7 +443,7 @@ public class Generate {
         info.languages.stream().map(Generate::quote).collect(joining(", ")),
         layers.stream()
           .map(
-            l -> "new com.onthegomap.flatmap.openmaptiles.layers.%s(translations, args, stats)"
+            l -> "new com.onthegomap.flatmap.openmaptiles.layers.%s(translations, config, stats)"
               .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
           .collect(joining(",\n"))
           .indent(6).trim()

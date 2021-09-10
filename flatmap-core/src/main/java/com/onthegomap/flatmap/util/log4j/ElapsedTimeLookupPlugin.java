@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap.util;
+package com.onthegomap.flatmap.util.log4j;
 
 import java.time.Duration;
 import org.apache.logging.log4j.core.LogEvent;
@@ -6,11 +6,16 @@ import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.lookup.StrLookup;
 
 /**
- * A log4j plugin that substitutes {@code $${uptime:now}} pattern with the elapsed time of the program in H:MM:SS form.
+ * A log4j plugin that substitutes {@code $${uptime:now}} pattern with the elapsed time of the program in {@code
+ * H:MM:SS} form.
+ * <p>
+ * log4j properties file needs to include {@code packages=com.onthegomap.flatmap.util.log4j} to look in this package for
+ * plugins.
  */
 @Plugin(name = "uptime", category = StrLookup.CATEGORY)
-public class ElapsedTimeLog4jLookup implements StrLookup {
+public class ElapsedTimeLookupPlugin implements StrLookup {
 
+  // rough approximation for start time: when log4j first loads this plugin
   private static final long startTime = System.nanoTime();
 
   @Override

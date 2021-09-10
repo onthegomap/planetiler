@@ -4,7 +4,7 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -17,14 +17,14 @@ public class LanduseTest extends AbstractLayerTest {
       "_layer", "landuse",
       "class", "residential",
       "_buffer", 4d
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of("scalerank", 1.9),
       NATURAL_EARTH_SOURCE,
       "ne_50m_urban_areas",
       0
     )));
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of("scalerank", 2.1),
       NATURAL_EARTH_SOURCE,

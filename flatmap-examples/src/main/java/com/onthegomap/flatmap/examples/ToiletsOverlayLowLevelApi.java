@@ -1,12 +1,11 @@
 package com.onthegomap.flatmap.examples;
 
-import com.onthegomap.flatmap.FlatMapRunner;
+import com.onthegomap.flatmap.FlatmapRunner;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.collection.FeatureGroup;
-import com.onthegomap.flatmap.collection.FeatureSort;
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.mbiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
@@ -20,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Alternative driver program for {@link ToiletsOverlay} that uses the low-level flatmap APIs instead of the {@link
- * FlatMapRunner} convenience wrapper.
+ * FlatmapRunner} convenience wrapper.
  * <p>
  * To run this example:
  * <ol>
@@ -37,7 +36,7 @@ public class ToiletsOverlayLowLevelApi {
 
   public static void main(String[] args) throws Exception {
     run(
-      Path.of("data", "sources", "north-america_us_massachusetts.pbf"),
+      Path.of("data", "sources", "input.pbf"),
       Path.of("data", "tmp"),
       Path.of("data", "toilets.mbtiles")
     );
@@ -50,7 +49,7 @@ public class ToiletsOverlayLowLevelApi {
     Profile profile = new ToiletsOverlay();
 
     // use default settings, but allow overrides from -Dkey=value jvm arguments
-    CommonParams config = CommonParams.from(Arguments.fromJvmProperties());
+    FlatmapConfig config = FlatmapConfig.from(Arguments.fromJvmProperties());
 
     // overwrite output each time
     FileUtils.deleteFile(output);
@@ -67,8 +66,10 @@ public class ToiletsOverlayLowLevelApi {
      * sort more data than fits in memory - but if you have a lot of RAM there is FeatureSort.inMemory
      * option too.
      */
-    FeatureSort featureSort = FeatureSort.newExternalMergeSort(tmpDir.resolve("feature.db"), config, stats);
-    FeatureGroup featureGroup = new FeatureGroup(featureSort, profile, stats);
+    FeatureGroup featureGroup = FeatureGroup.newDiskBackedFeatureGroup(
+      tmpDir.resolve("feature.db"),
+      profile, config, stats
+    );
 
     try (
       /*
@@ -97,7 +98,7 @@ public class ToiletsOverlayLowLevelApi {
     }
 
     // sort the features that were written to disk to prepare for grouping them into tiles
-    featureSort.sort();
+    featureGroup.prepare();
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.

@@ -113,7 +113,7 @@ public class GenerateTest {
         this(mapping, mapping, null, null, expected);
       }
     }
-    return List.of(
+    return Stream.of(
       new TestCase(
         "key: val", matchAny("key", "val")
       ),
@@ -171,7 +171,7 @@ public class GenerateTest {
           not(matchAny("notkey2", "notval1", "notval2"))
         )
       )
-    ).stream().map(test -> dynamicTest(test.name, () -> {
+    ).map(test -> dynamicTest(test.name, () -> {
       Expression parsed = Generate
         .parseImposm3MappingExpression("point", parseYaml(test.mapping), new Generate.Imposm3Filters(
           parseYaml(test.reject),

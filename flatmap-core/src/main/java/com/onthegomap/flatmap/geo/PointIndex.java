@@ -11,10 +11,17 @@ import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.index.strtree.STRtree;
 
+/**
+ * Index to efficiently query points within a radius from a point.
+ * <p>
+ * Writes and reads are thread-safe, but all writes must occur before reads.
+ *
+ * @param <T> the type of value associated with each point
+ */
 @ThreadSafe
 public class PointIndex<T> {
 
-  private record GeomWithData<T>(Coordinate coord, T data) {}
+  private static record GeomWithData<T>(Coordinate coord, T data) {}
 
   private final STRtree index = new STRtree();
 
@@ -38,13 +45,16 @@ public class PointIndex<T> {
     }
   }
 
+  /** Returns the data associated with all indexed points within a radius from {@code point}. */
   public List<T> getWithin(Point point, double threshold) {
     build();
     Coordinate coord = point.getCoordinate();
+    // pre-filter by rectangular envelope
     Envelope envelope = point.getEnvelopeInternal();
     envelope.expandBy(threshold);
     List<?> items = index.query(envelope);
     List<T> result = new ArrayList<>(items.size());
+    // then post-filter by circular radius
     for (int i = 0; i < items.size(); i++) {
       if (items.get(i) instanceof GeomWithData<?> value) {
         double distance = value.coord.distance(coord);
@@ -57,6 +67,7 @@ public class PointIndex<T> {
     return result;
   }
 
+  /** Returns the data associated with the nearest indexed point to {@code point}, up to a certain distance. */
   public T getNearest(Point point, double threshold) {
     build();
     Coordinate coord = point.getCoordinate();
@@ -78,6 +89,7 @@ public class PointIndex<T> {
     return nearestValue;
   }
 
+  /** Indexes {@code item} for points contained in {@code geom}. */
   public void put(Geometry geom, T item) {
     if (geom instanceof Point point && !point.isEmpty()) {
       Envelope envelope = Objects.requireNonNull(point.getEnvelopeInternal());

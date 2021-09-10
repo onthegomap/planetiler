@@ -16,7 +16,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class WorkerPipelineTest {
 
-  Stats stats = Stats.inMemory();
+  final Stats stats = Stats.inMemory();
 
   @Test
   @Timeout(10)
@@ -36,7 +36,7 @@ public class WorkerPipelineTest {
       }).addBuffer("writer_queue", 1)
       .sinkToConsumer("writer", 1, result::add);
 
-    pipeline.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
+    pipeline.awaitAndLog(ProgressLoggers.create(), Duration.ofSeconds(1));
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
@@ -47,7 +47,7 @@ public class WorkerPipelineTest {
     var queue = new WorkQueue<Integer>("readerqueue", 10, 1, stats);
     Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
-      .<Integer>readFromQueue(queue)
+      .readFromQueue(queue)
       .<Integer>addWorker("process", 1, (prev, next) -> {
         Integer item;
         while ((item = prev.get()) != null) {
@@ -84,7 +84,7 @@ public class WorkerPipelineTest {
       }).addBuffer("writer_queue", 1)
       .sinkToConsumer("writer", 1, result::add);
 
-    pipeline.awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1));
+    pipeline.awaitAndLog(ProgressLoggers.create(), Duration.ofSeconds(1));
 
     assertEquals(Set.of(1, 2, 3, 4), result);
   }
@@ -118,7 +118,6 @@ public class WorkerPipelineTest {
         }
       });
 
-    assertThrows(RuntimeException.class,
-      () -> pipeline.await());//awaitAndLog(new ProgressLoggers("test"), Duration.ofSeconds(1)));
+    assertThrows(RuntimeException.class, pipeline::await);
   }
 }

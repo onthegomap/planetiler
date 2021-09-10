@@ -4,10 +4,10 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.List;
@@ -105,7 +105,7 @@ public class BuildingTest extends AbstractLayerTest {
     assertFeatures(14, List.of(Map.of(
       "_layer", "building",
       "hide_3d", true
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(
         "building", "yes"
@@ -119,24 +119,17 @@ public class BuildingTest extends AbstractLayerTest {
 
   @Test
   public void testMergePolygonsZ13() throws GeometryException {
-    var poly1 = new VectorTileEncoder.Feature(
+    var poly1 = new VectorTile.Feature(
       Building.LAYER_NAME,
       1,
-      VectorTileEncoder.encodeGeometry(rectangle(10, 20)),
+      VectorTile.encodeGeometry(rectangle(10, 20)),
       Map.of(),
       0
     );
-    var poly2 = new VectorTileEncoder.Feature(
+    var poly2 = new VectorTile.Feature(
       Building.LAYER_NAME,
       1,
-      VectorTileEncoder.encodeGeometry(rectangle(20, 10, 22, 20)),
-      Map.of(),
-      0
-    );
-    var connected = new VectorTileEncoder.Feature(
-      Building.LAYER_NAME,
-      1,
-      VectorTileEncoder.encodeGeometry(rectangle(10, 10, 22, 20)),
+      VectorTile.encodeGeometry(rectangle(20, 10, 22, 20)),
       Map.of(),
       0
     );

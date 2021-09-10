@@ -42,12 +42,14 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwayClass;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwaySubclass;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.isFootwayOrSteps;
+import static com.onthegomap.flatmap.util.MemoryEstimator.CLASS_HEADER_BYTES;
+import static com.onthegomap.flatmap.util.MemoryEstimator.POINTER_BYTES;
+import static com.onthegomap.flatmap.util.MemoryEstimator.estimateSize;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
@@ -57,9 +59,11 @@ import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.Comparator;
 import java.util.List;
@@ -92,7 +96,7 @@ public class TransportationName implements
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
   private static final Pattern GREAT_BRITAIN_REF_NETWORK_PATTERN = Pattern.compile("^[AM][0-9AM()]+");
   private final Map<String, Integer> MINZOOMS;
-  private static final ZoomFunction.MeterThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
+  private static final ZoomFunction.MeterToPixelThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(6, 20_000)
     .put(7, 20_000)
     .put(8, 14_000)
@@ -105,27 +109,29 @@ public class TransportationName implements
   private final boolean limitMerge;
   private final boolean z13Paths;
   private final Stats stats;
+  private final FlatmapConfig config;
   private PreparedGeometry greatBritain = null;
   private final AtomicBoolean loggedNoGb = new AtomicBoolean(false);
 
-  public TransportationName(Translations translations, Arguments args, Stats stats) {
+  public TransportationName(Translations translations, FlatmapConfig config, Stats stats) {
+    this.config = config;
     this.stats = stats;
-    this.brunnel = args.get(
+    this.brunnel = config.arguments().getBoolean(
       "transportation_name_brunnel",
       "transportation_name layer: set to false to omit brunnel and help merge long highways",
       true
     );
-    this.sizeForShield = args.get(
+    this.sizeForShield = config.arguments().getBoolean(
       "transportation_name_size_for_shield",
       "transportation_name layer: allow road names on shorter segments (ie. they will have a shield)",
       false
     );
-    this.limitMerge = args.get(
+    this.limitMerge = config.arguments().getBoolean(
       "transportation_name_limit_merge",
       "transportation_name layer: limit merge so we don't combine different relations to help merge long highways",
       false
     );
-    this.z13Paths = args.get(
+    this.z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
       false
@@ -158,7 +164,7 @@ public class TransportationName implements
   }
 
   @Override
-  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("route", "road")) {
       RouteNetwork networkType = null;
       String network = relation.getString("network");
@@ -214,7 +220,7 @@ public class TransportationName implements
       .setBufferPixels(BUFFER_SIZE)
       .setBufferPixelOverrides(MIN_LENGTH)
       // TODO abbreviate road names
-      .setAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
+      .putAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
@@ -280,9 +286,8 @@ public class TransportationName implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
-    double tolerance = zoom >= 14 ? PIXEL : 0.1;
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+    double tolerance = config.tolerance(zoom);
     double minLength = coalesce(MIN_LENGTH.apply(zoom), 0).doubleValue();
     // TODO tolerances:
     // z6: (tolerance: 500)
@@ -329,16 +334,15 @@ public class TransportationName implements
   private static record RouteRelation(
     String ref,
     RouteNetwork network,
-    long id
-  ) implements OsmReader.RelationInfo {
+    @Override long id
+  ) implements OsmRelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return 24 +
-        8 + // network pointer
-        8 + // ref pointer
-        8 + // id
-        MemoryEstimator.size(ref);
+      return CLASS_HEADER_BYTES +
+        POINTER_BYTES + estimateSize(ref) +
+        POINTER_BYTES + // network
+        MemoryEstimator.estimateSizeLong(id);
     }
   }
 

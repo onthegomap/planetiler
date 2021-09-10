@@ -13,11 +13,11 @@ import org.locationtech.jts.geom.Envelope;
 
 public class OsmInputFileTest {
 
-  private OsmInputFile file = new OsmInputFile(TestUtils.pathToResource("monaco-latest.osm.pbf"));
+  private final OsmInputFile file = new OsmInputFile(TestUtils.pathToResource("monaco-latest.osm.pbf"));
 
   @Test
   public void testGetBounds() {
-    assertEquals(new Envelope(7.409205, 7.448637, 43.72335, 43.75169), file.getBounds());
+    assertEquals(new Envelope(7.409205, 7.448637, 43.72335, 43.75169), file.getLatLonBounds());
   }
 
   @Test

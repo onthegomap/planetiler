@@ -8,7 +8,7 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE
 
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class WaterNameTest extends AbstractLayerTest {
 
   @Test
   public void testWaterNameLakeline() {
-    assertFeatures(11, List.of(), process(new ReaderFeature(
+    assertFeatures(11, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(
         "OSM_ID", -10
@@ -75,7 +75,7 @@ public class WaterNameTest extends AbstractLayerTest {
       "_minzoom", 9,
       "_maxzoom", 14,
       "_minpixelsize", "waterway".length() * 6d
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       new HashMap<>(Map.<String, Object>of(
         "name", "waterway",
@@ -91,7 +91,7 @@ public class WaterNameTest extends AbstractLayerTest {
 
   @Test
   public void testMarinePoint() {
-    assertFeatures(11, List.of(), process(new ReaderFeature(
+    assertFeatures(11, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(
         "scalerank", 1,

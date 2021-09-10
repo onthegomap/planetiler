@@ -6,12 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.nio.file.Path;
@@ -39,15 +38,11 @@ public class BikeRouteOverlayTest {
     )));
 
     // step 2) process a way contained in that relation
-    var way = new ReaderFeature(
-      TestUtils.newLineString(
+    var way = SimpleFeature.createFakeOsmFeature(TestUtils.newLineString(
         10, 20, // point 1: 10 east 20 north
         30, 40 // point 2: 30 east 40 north
-      ),
-      Map.of(), // way tags don't matter
-      2,
-      relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList()
-    );
+      ), Map.of(), null, null, 2,
+      relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList());
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(way, profile);
 
     // verify output geometry
@@ -65,25 +60,25 @@ public class BikeRouteOverlayTest {
   }
 
   @Test
-  public void testTilePostProcessingMergesConnectedLines() throws GeometryException {
+  public void testTilePostProcessingMergesConnectedLines() {
     String layer = "bicycle-route-local";
     Map<String, Object> attrs = Map.of(
       "name", "rail trail",
       "ref", "1"
     );
     // segment 1: (0, 0) to (10, 0)
-    var line1 = new VectorTileEncoder.Feature(layer, 1, // id
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, 10, 0)),
+    var line1 = new VectorTile.Feature(layer, 1, // id
+      VectorTile.encodeGeometry(newLineString(0, 0, 10, 0)),
       attrs
     );
     // segment 2: (10, 0) to (20, 0)
-    var line2 = new VectorTileEncoder.Feature(layer, 2, // id
-      VectorTileEncoder.encodeGeometry(newLineString(10, 0, 20, 0)),
+    var line2 = new VectorTile.Feature(layer, 2, // id
+      VectorTile.encodeGeometry(newLineString(10, 0, 20, 0)),
       attrs
     );
     // merged: (0, 0) to (20, 0)
-    var connected = new VectorTileEncoder.Feature(layer, 1, // id
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, 20, 0)),
+    var connected = new VectorTile.Feature(layer, 1, // id
+      VectorTile.encodeGeometry(newLineString(0, 0, 20, 0)),
       attrs
     );
 
@@ -99,7 +94,7 @@ public class BikeRouteOverlayTest {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     BikeRouteOverlay.run(Arguments.of(
       // Override input source locations
-      "osm", TestUtils.pathToResource("monaco-latest.osm.pbf"),
+      "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
       // Override temp dir location
       "tmp", tmpDir.toString(),
       // Override output location

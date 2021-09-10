@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.GeometryType;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.Arrays;
@@ -23,8 +23,8 @@ import org.locationtech.jts.geom.Geometry;
 
 public class FeatureCollectorTest {
 
-  private CommonParams config = CommonParams.defaults();
-  private FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
+  private final FlatmapConfig config = FlatmapConfig.defaults();
+  private final FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
 
   private static void assertFeatures(int zoom, List<Map<String, Object>> expected, FeatureCollector actual) {
     List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
@@ -34,10 +34,8 @@ public class FeatureCollectorTest {
     }
   }
 
-  private long id = 0;
-
-  private ReaderFeature newReaderFeature(Geometry latLonGeometry, Map<String, Object> tags) {
-    return new ReaderFeature(latLonGeometry, tags, id++);
+  private SimpleFeature newReaderFeature(Geometry latLonGeometry, Map<String, Object> tags) {
+    return SimpleFeature.create(latLonGeometry, tags);
   }
 
   @Test
@@ -58,8 +56,8 @@ public class FeatureCollectorTest {
       .setZorder(3)
       .setAttr("attr1", 2)
       .setBufferPixels(10d)
-      .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 11d))
-      .setLabelGridSizeAndLimit(12, 100, 10);
+      .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 100d))
+      .setPointLabelGridSizeAndLimit(12, 100, 10);
     assertFeatures(14, List.of(
       Map.of(
         "_layer", "layername",
@@ -77,7 +75,7 @@ public class FeatureCollectorTest {
       Map.of(
         "_labelgrid_size", 100d,
         "_labelgrid_limit", 10,
-        "_buffer", 11d
+        "_buffer", 100d
       )
     ), collector);
   }
@@ -146,7 +144,7 @@ public class FeatureCollectorTest {
       .setZoomRange(12, 14)
       .setZorder(3)
       .setAttr("attr1", 2)
-      .inheritFromSource("key")
+      .inheritAttrFromSource("key")
       .setMinPixelSize(1)
       .setMinPixelSizeBelowZoom(12, 10);
     assertFeatures(13, List.of(
@@ -173,9 +171,9 @@ public class FeatureCollectorTest {
     var poly = collector.polygon("layername")
       .setMinPixelSize(1)
       .setMinPixelSizeBelowZoom(12, 10);
-    assertEquals(10, poly.getMinPixelSize(12));
-    assertEquals(1, poly.getMinPixelSize(13));
-    assertEquals(256d / 4096, poly.getMinPixelSize(14));
+    assertEquals(10, poly.getMinPixelSizeAtZoom(12));
+    assertEquals(1, poly.getMinPixelSizeAtZoom(13));
+    assertEquals(256d / 4096, poly.getMinPixelSizeAtZoom(14));
   }
 
   @Test
@@ -185,9 +183,9 @@ public class FeatureCollectorTest {
       .setMinPixelSize(1)
       .setMinPixelSizeAtMaxZoom(0.5)
       .setMinPixelSizeBelowZoom(12, 10);
-    assertEquals(10, poly.getMinPixelSize(12));
-    assertEquals(1, poly.getMinPixelSize(13));
-    assertEquals(0.5, poly.getMinPixelSize(14));
+    assertEquals(10, poly.getMinPixelSizeAtZoom(12));
+    assertEquals(1, poly.getMinPixelSizeAtZoom(13));
+    assertEquals(0.5, poly.getMinPixelSizeAtZoom(14));
   }
 
   @Test
@@ -196,27 +194,27 @@ public class FeatureCollectorTest {
     var poly = collector.polygon("layername")
       .setMinPixelSizeAtAllZooms(2)
       .setMinPixelSizeBelowZoom(12, 10);
-    assertEquals(10, poly.getMinPixelSize(12));
-    assertEquals(2, poly.getMinPixelSize(13));
-    assertEquals(2, poly.getMinPixelSize(14));
+    assertEquals(10, poly.getMinPixelSizeAtZoom(12));
+    assertEquals(2, poly.getMinPixelSizeAtZoom(13));
+    assertEquals(2, poly.getMinPixelSizeAtZoom(14));
   }
 
   @Test
   public void testDefaultMinPixelSize() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername");
-    assertEquals(1, poly.getMinPixelSize(12));
-    assertEquals(1, poly.getMinPixelSize(13));
-    assertEquals(256d / 4096, poly.getMinPixelSize(14));
+    assertEquals(1, poly.getMinPixelSizeAtZoom(12));
+    assertEquals(1, poly.getMinPixelSizeAtZoom(13));
+    assertEquals(256d / 4096, poly.getMinPixelSizeAtZoom(14));
   }
 
   @Test
   public void testToleranceDefault() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername");
-    assertEquals(0.1, poly.getPixelTolerance(12));
-    assertEquals(0.1, poly.getPixelTolerance(13));
-    assertEquals(256d / 4096, poly.getPixelTolerance(14));
+    assertEquals(0.1, poly.getPixelToleranceAtZoom(12));
+    assertEquals(0.1, poly.getPixelToleranceAtZoom(13));
+    assertEquals(256d / 4096, poly.getPixelToleranceAtZoom(14));
   }
 
   @Test
@@ -224,9 +222,9 @@ public class FeatureCollectorTest {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelTolerance(1);
-    assertEquals(1d, poly.getPixelTolerance(12));
-    assertEquals(1d, poly.getPixelTolerance(13));
-    assertEquals(256d / 4096, poly.getPixelTolerance(14));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(12));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(13));
+    assertEquals(256d / 4096, poly.getPixelToleranceAtZoom(14));
   }
 
   @Test
@@ -234,9 +232,9 @@ public class FeatureCollectorTest {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelToleranceAtAllZooms(1);
-    assertEquals(1d, poly.getPixelTolerance(12));
-    assertEquals(1d, poly.getPixelTolerance(13));
-    assertEquals(1d, poly.getPixelTolerance(14));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(12));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(13));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(14));
   }
 
   @Test
@@ -244,9 +242,9 @@ public class FeatureCollectorTest {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelToleranceAtMaxZoom(2);
-    assertEquals(0.1d, poly.getPixelTolerance(12));
-    assertEquals(0.1d, poly.getPixelTolerance(13));
-    assertEquals(2d, poly.getPixelTolerance(14));
+    assertEquals(0.1d, poly.getPixelToleranceAtZoom(12));
+    assertEquals(0.1d, poly.getPixelToleranceAtZoom(13));
+    assertEquals(2d, poly.getPixelToleranceAtZoom(14));
   }
 
   @Test
@@ -256,9 +254,9 @@ public class FeatureCollectorTest {
       .setPixelTolerance(1)
       .setPixelToleranceAtMaxZoom(2)
       .setPixelToleranceBelowZoom(12, 3);
-    assertEquals(3d, poly.getPixelTolerance(12));
-    assertEquals(1d, poly.getPixelTolerance(13));
-    assertEquals(2d, poly.getPixelTolerance(14));
+    assertEquals(3d, poly.getPixelToleranceAtZoom(12));
+    assertEquals(1d, poly.getPixelToleranceAtZoom(13));
+    assertEquals(2d, poly.getPixelToleranceAtZoom(14));
   }
 
   /*

@@ -4,10 +4,10 @@ import static com.onthegomap.flatmap.TestUtils.rectangle;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,21 +17,21 @@ public class LandcoverTest extends AbstractLayerTest {
 
   @Test
   public void testNaturalEarthGlaciers() {
-    var glacier1 = process(new ReaderFeature(
+    var glacier1 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
       NATURAL_EARTH_SOURCE,
       "ne_110m_glaciated_areas",
       0
     ));
-    var glacier2 = process(new ReaderFeature(
+    var glacier2 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
       NATURAL_EARTH_SOURCE,
       "ne_50m_glaciated_areas",
       0
     ));
-    var glacier3 = process(new ReaderFeature(
+    var glacier3 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -65,14 +65,14 @@ public class LandcoverTest extends AbstractLayerTest {
 
   @Test
   public void testNaturalEarthAntarcticIceShelves() {
-    var ice1 = process(new ReaderFeature(
+    var ice1 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
       NATURAL_EARTH_SOURCE,
       "ne_50m_antarctic_ice_shelves_polys",
       0
     ));
-    var ice2 = process(new ReaderFeature(
+    var ice2 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -181,21 +181,21 @@ public class LandcoverTest extends AbstractLayerTest {
   }
 
 
-  private VectorTileEncoder.Feature feature(org.locationtech.jts.geom.Polygon geom, Map<String, Object> m) {
-    return new VectorTileEncoder.Feature(
+  private VectorTile.Feature feature(org.locationtech.jts.geom.Polygon geom, Map<String, Object> m) {
+    return new VectorTile.Feature(
       "landcover",
       1,
-      VectorTileEncoder.encodeGeometry(geom),
+      VectorTile.encodeGeometry(geom),
       new HashMap<>(m),
       0
     );
   }
 
-  private void assertMerges(List<Map<String, Object>> expected, List<VectorTileEncoder.Feature> in, int zoom)
+  private void assertMerges(List<Map<String, Object>> expected, List<VectorTile.Feature> in, int zoom)
     throws GeometryException {
     assertEquals(expected,
       profile.postProcessLayerFeatures("landcover", zoom, in).stream().map(
-        VectorTileEncoder.Feature::attrs)
+          VectorTile.Feature::attrs)
         .toList());
   }
 }

@@ -1,10 +1,39 @@
 package com.onthegomap.flatmap.geo;
 
+import com.onthegomap.flatmap.mbiles.Mbtiles;
 import java.text.NumberFormat;
+import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 
+/**
+ * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
+ * <p>
+ * In order to encode into a 32-bit integer, only zoom levels <= 14 are supported since we need 4 bits for the
+ * zoom-level, and 14 bits each for the x/y coordinates.
+ * <p>
+ * Tiles are ordered by z ascending, x ascending, y descending to match index ordering of {@link Mbtiles} sqlite
+ * database.
+ *
+ * @param encoded the tile ID encoded as a 32-bit integer
+ * @param x       x coordinate of the tile where 0 is the western-most tile just to the east the international date line
+ *                and 2^z-1 is the eastern-most tile
+ * @param y       y coordinate of the tile where 0 is the northern-most tile and 2^z-1 is the southern-most tile
+ * @param z       zoom level (<= 14)
+ */
+@Immutable
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
+  // TODO: support higher than z14
+  // z15 could theoretically fit into a 32-bit integer but needs a different packing strategy
+  // z16+ would need more space
+  // also need to remove hardcoded z14 limits
+
+  private static final int XY_MASK = (1 << 14) - 1;
+  private static final NumberFormat format = NumberFormat.getNumberInstance();
+
+  static {
+    format.setMaximumFractionDigits(5);
+  }
 
   public TileCoord {
     assert z <= 14;
@@ -14,8 +43,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encode(x, y, z), x, y, z);
   }
 
-  private static final int XY_MASK = (1 << 14) - 1;
-
   public static TileCoord decode(int encoded) {
     int z = (encoded >> 28) + 8;
     int x = (encoded >> 14) & XY_MASK;
@@ -23,30 +50,12 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encoded, x, y, z);
   }
 
+  /** Returns the tile containing a latitude/longitude coordinate at a given zoom level. */
   public static TileCoord aroundLngLat(double lng, double lat, int zoom) {
     double factor = 1 << zoom;
     double x = GeoUtils.getWorldX(lng) * factor;
     double y = GeoUtils.getWorldY(lat) * factor;
     return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    TileCoord tileCoord = (TileCoord) o;
-
-    return encoded == tileCoord.encoded;
-  }
-
-  @Override
-  public int hashCode() {
-    return encoded;
   }
 
   private static int encode(int x, int y, int z) {
@@ -77,6 +86,25 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    TileCoord tileCoord = (TileCoord) o;
+
+    return encoded == tileCoord.encoded;
+  }
+
+  @Override
+  public int hashCode() {
+    return encoded;
+  }
+
+  @Override
   public String toString() {
     return "{x=" + x + " y=" + y + " z=" + z + '}';
   }
@@ -86,6 +114,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return Long.compare(encoded, o.encoded);
   }
 
+  /** Returns the latitude/longitude of the northwest corner of this tile. */
   public Coordinate getLatLon() {
     double worldWidthAtZoom = Math.pow(2, z);
     return new CoordinateXY(
@@ -94,17 +123,13 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     );
   }
 
-  private static final NumberFormat format = NumberFormat.getNumberInstance();
-
-  static {
-    format.setMaximumFractionDigits(5);
-  }
-
+  /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl() {
     Coordinate coord = getLatLon();
     return "https://www.openstreetmap.org/#map=" + z + "/" + format.format(coord.y) + "/" + format.format(coord.x);
   }
 
+  /** Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px tiles). */
   public Coordinate lngLatToTileCoords(double lng, double lat) {
     double factor = 1 << z;
     double x = GeoUtils.getWorldX(lng) * factor;

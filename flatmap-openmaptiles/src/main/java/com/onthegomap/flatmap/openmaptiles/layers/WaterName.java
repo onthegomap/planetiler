@@ -40,8 +40,7 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import com.carrotsearch.hppc.LongObjectMap;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
@@ -51,6 +50,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.locationtech.jts.geom.Geometry;
@@ -81,7 +81,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
     importantMarinePoints.clear();
   }
 
-  public WaterName(Translations translations, Arguments args, Stats stats) {
+  public WaterName(Translations translations, FlatmapConfig config, Stats stats) {
     this.translations = translations;
     this.stats = stats;
   }
@@ -140,7 +140,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
       int minZoom = "ocean".equals(place) ? 0 : rank != null ? rank : 8;
       features.point(LAYER_NAME)
         .setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(source.tags(), translations))
+        .putAttrs(LanguageUtils.getNames(source.tags(), translations))
         .setAttr(Fields.CLASS, place)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
         .setZoomRange(minZoom, 14);
@@ -171,7 +171,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
         feature
           .setAttr(Fields.CLASS, FieldValues.CLASS_LAKE)
           .setBufferPixels(BUFFER_SIZE)
-          .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
           .setZoomRange(minzoom, 14);
       } catch (GeometryException e) {

@@ -35,6 +35,9 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
+import static com.onthegomap.flatmap.util.MemoryEstimator.CLASS_HEADER_BYTES;
+import static com.onthegomap.flatmap.util.MemoryEstimator.POINTER_BYTES;
+import static com.onthegomap.flatmap.util.MemoryEstimator.estimateSize;
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -42,20 +45,20 @@ import com.carrotsearch.hppc.LongObjectMap;
 import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
-import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -98,9 +101,11 @@ public class Boundary implements
   // need to synchronize updates to these shared data structures:
   private final Map<Long, List<Geometry>> regionGeometries = new HashMap<>();
   private final Map<CountryBoundaryComponent, List<Geometry>> boundariesToMerge = new HashMap<>();
+  private final FlatmapConfig config;
 
-  public Boundary(Translations translations, Arguments args, Stats stats) {
-    this.addCountryNames = args.get(
+  public Boundary(Translations translations, FlatmapConfig config, Stats stats) {
+    this.config = config;
+    this.addCountryNames = config.arguments().getBoolean(
       "boundary_country_names",
       "boundary layer: add left/right codes of neighboring countries",
       true
@@ -155,7 +160,7 @@ public class Boundary implements
   }
 
   @Override
-  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "boundary") &&
       relation.hasTag("admin_level") &&
       relation.hasTag("boundary", "administrative")) {
@@ -267,9 +272,7 @@ public class Boundary implements
       var timer = stats.startStage("boundaries");
       LongObjectMap<PreparedGeometry> countryBoundaries = prepareRegionPolygons();
 
-      long number = 0;
       for (var entry : boundariesToMerge.entrySet()) {
-        number++;
         CountryBoundaryComponent key = entry.getKey();
         LineMerger merger = new LineMerger();
         for (Geometry geom : entry.getValue()) {
@@ -280,11 +283,7 @@ public class Boundary implements
           if (merged instanceof LineString lineString) {
             BorderingRegions borderingRegions = getBorderingRegions(countryBoundaries, key.regions, lineString);
 
-            var features = featureCollectors.get(new ReaderFeature(
-              GeoUtils.worldToLatLonCoords(lineString),
-              Map.of(),
-              number
-            ));
+            var features = featureCollectors.get(SimpleFeature.fromWorldGeometry(lineString));
             features.line(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
               .setAttr(Fields.ADMIN_LEVEL, key.adminLevel)
               .setAttr(Fields.DISPUTED, key.disputed ? 1 : 0)
@@ -306,10 +305,10 @@ public class Boundary implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
-    throws GeometryException {
-    double tolerance = zoom >= 14 ? 256d / 4096d : 0.1;
-    return FeatureMerge.mergeLineStrings(items, 1, tolerance, BUFFER_SIZE);
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+    double minLength = config.minFeatureSize(zoom);
+    double tolerance = config.tolerance(zoom);
+    return FeatureMerge.mergeLineStrings(items, attrs -> minLength, tolerance, BUFFER_SIZE);
   }
 
 
@@ -413,13 +412,17 @@ public class Boundary implements
     String name,
     String claimedBy,
     String iso3166alpha3
-  ) implements OsmReader.RelationInfo {
+  ) implements OsmRelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return 29 + 8 + MemoryEstimator.size(name)
-        + 8 + MemoryEstimator.size(claimedBy)
-        + 8 + MemoryEstimator.size(iso3166alpha3);
+      return CLASS_HEADER_BYTES
+        + MemoryEstimator.estimateSizeLong(id)
+        + MemoryEstimator.estimateSizeInt(adminLevel)
+        + estimateSize(disputed)
+        + POINTER_BYTES + estimateSize(name)
+        + POINTER_BYTES + estimateSize(claimedBy)
+        + POINTER_BYTES + estimateSize(iso3166alpha3);
     }
   }
 

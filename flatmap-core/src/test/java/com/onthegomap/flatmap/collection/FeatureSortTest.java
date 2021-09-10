@@ -2,7 +2,7 @@ package com.onthegomap.flatmap.collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.stats.Stats;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -16,17 +16,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class FeatureSortTest {
 
-  private final CommonParams config = CommonParams.defaults();
+  private final FlatmapConfig config = FlatmapConfig.defaults();
 
   @TempDir
   Path tmpDir;
 
-  private static FeatureSort.Entry newEntry(int i) {
-    return new FeatureSort.Entry(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
+  private static SortableFeature newEntry(int i) {
+    return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip) {
-    return FeatureSort.newExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, Stats.inMemory());
+    return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, Stats.inMemory());
   }
 
   @Test
@@ -76,8 +76,8 @@ public class FeatureSortTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   public void testManyItems(boolean gzip) {
-    List<FeatureSort.Entry> sorted = new ArrayList<>();
-    List<FeatureSort.Entry> shuffled = new ArrayList<>();
+    List<SortableFeature> sorted = new ArrayList<>();
+    List<SortableFeature> shuffled = new ArrayList<>();
     for (int i = 0; i < 10_000; i++) {
       shuffled.add(newEntry(i));
       sorted.add(newEntry(i));

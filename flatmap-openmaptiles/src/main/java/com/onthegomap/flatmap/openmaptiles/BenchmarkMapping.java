@@ -4,12 +4,12 @@ import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -21,7 +21,8 @@ import org.locationtech.jts.geom.Geometry;
 public class BenchmarkMapping {
 
   public static void main(String[] args) throws IOException {
-    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), Arguments.of(), Stats.inMemory());
+    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), FlatmapConfig.defaults(),
+      Stats.inMemory());
     var random = new Random(0);
     var input = new OsmInputFile(Path.of("data", "sources", "north-america_us_massachusetts.pbf"));
     List<SourceFeature> inputs = new ArrayList<>();

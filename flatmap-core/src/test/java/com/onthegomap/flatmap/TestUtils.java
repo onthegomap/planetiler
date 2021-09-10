@@ -14,7 +14,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
@@ -204,14 +204,14 @@ public class TestUtils {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
       var bytes = gunzip(tile.bytes());
-      var decoded = VectorTileEncoder.decode(tile.tile(), bytes).stream()
+      var decoded = VectorTile.decode(bytes).stream()
         .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
       tiles.put(tile.tile(), decoded);
     }
     return tiles;
   }
 
-  public static Geometry decodeSilently(VectorTileEncoder.VectorGeometry geom) {
+  public static Geometry decodeSilently(VectorTile.VectorGeometry geom) {
     try {
       return geom.decode();
     } catch (GeometryException e) {
@@ -234,10 +234,6 @@ public class TestUtils {
       }
     }
     return result;
-  }
-
-  public static <K extends Comparable<? super K>, V> void assertMapEquals(Map<K, V> expected, Map<K, V> actual) {
-    assertEquals(new TreeMap<>(expected), actual);
   }
 
   public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual) {
@@ -391,9 +387,9 @@ public class TestUtils {
     result.put("_layer", feature.getLayer());
     result.put("_zorder", feature.getZorder());
     result.put("_geom", new NormGeometry(geom));
-    result.put("_labelgrid_limit", feature.getLabelGridLimitAtZoom(zoom));
-    result.put("_labelgrid_size", feature.getLabelGridPixelSizeAtZoom(zoom));
-    result.put("_minpixelsize", feature.getMinPixelSize(zoom));
+    result.put("_labelgrid_limit", feature.getPointLabelGridLimitAtZoom(zoom));
+    result.put("_labelgrid_size", feature.getPointLabelGridPixelSizeAtZoom(zoom));
+    result.put("_minpixelsize", feature.getMinPixelSizeAtZoom(zoom));
     result.put("_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
     result.put("_numpointsattr", feature.getNumPointsAttr());
     return result;
@@ -444,7 +440,7 @@ public class TestUtils {
     if (otherActuals != null && otherActuals.length > 0) {
       for (int i = 0; i < otherActuals.length; i++) {
         assertEquals(new NormGeometry(expected), new NormGeometry(otherActuals[i]),
-          "arg " + Integer.toString(i + 3) + " != arg 1");
+          "arg " + (i + 3) + " != arg 1");
       }
     }
   }
@@ -465,16 +461,6 @@ public class TestUtils {
 
   public static void assertTopologicallyEquivalentFeature(Geometry expected, Geometry actual) {
     assertEquals(new TopoGeometry(expected), new TopoGeometry(actual));
-  }
-
-  public static void assertNormalizedSubmap(
-    Map<TileCoord, Collection<Geometry>> expectedSubmap,
-    Map<TileCoord, Collection<Geometry>> actual
-  ) {
-    assertSubmap(
-      mapTileFeatures(expectedSubmap, NormGeometry::new),
-      mapTileFeatures(actual, NormGeometry::new)
-    );
   }
 
   public static List<Coordinate> worldCoordinateList(double... coords) {
@@ -577,7 +563,7 @@ public class TestUtils {
 
   public static FeatureCollector newFeatureCollectorFor(SourceFeature feature) {
     var featureCollectorFactory = new FeatureCollector.Factory(
-      CommonParams.defaults(),
+      FlatmapConfig.defaults(),
       Stats.inMemory()
     );
     return featureCollectorFactory.get(feature);
@@ -609,7 +595,7 @@ public class TestUtils {
         tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMaxX(), envelope.getMaxY()));
         if (tileCoord.z() == zoom) {
           byte[] data = db.getTile(tileCoord);
-          for (var feature : VectorTileEncoder.decode(gunzip(data))) {
+          for (var feature : VectorTile.decode(gunzip(data))) {
             if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
               Geometry geometry = feature.geometry().decode();
               num += getGeometryCounts(geometry, clazz);
@@ -646,7 +632,7 @@ public class TestUtils {
         var coord = TileCoord.aroundLngLat(lng, lat, zoom);
         Geometry tilePoint = GeoUtils.point(coord.lngLatToTileCoords(lng, lat));
         byte[] tile = db.getTile(coord);
-        List<VectorTileEncoder.Feature> features = tile == null ? List.of() : VectorTileEncoder.decode(gunzip(tile));
+        List<VectorTile.Feature> features = tile == null ? List.of() : VectorTile.decode(gunzip(tile));
 
         Set<String> containedInLayers = new TreeSet<>();
         Set<String> containedInLayerFeatures = new TreeSet<>();

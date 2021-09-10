@@ -3,11 +3,11 @@ package com.onthegomap.flatmap.openmaptiles;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.Wikidata;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
+import com.onthegomap.flatmap.util.Wikidata;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +16,7 @@ public class OpenMapTilesProfileTest {
   private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
   private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
     .addTranslationProvider(wikidataTranslations);
-  private final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, Arguments.of(),
+  private final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, FlatmapConfig.defaults(),
     Stats.inMemory());
 
   @Test

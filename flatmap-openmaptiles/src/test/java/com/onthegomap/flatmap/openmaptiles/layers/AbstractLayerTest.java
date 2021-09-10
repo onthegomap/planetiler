@@ -10,18 +10,18 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.Wikidata;
-import com.onthegomap.flatmap.config.Arguments;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
+import com.onthegomap.flatmap.util.Wikidata;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +33,8 @@ public abstract class AbstractLayerTest {
   final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
     .addTranslationProvider(wikidataTranslations);
 
-  final CommonParams params = CommonParams.defaults();
-  final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, Arguments.of(),
+  final FlatmapConfig params = FlatmapConfig.defaults();
+  final OpenMapTilesProfile profile = new OpenMapTilesProfile(translations, FlatmapConfig.defaults(),
     Stats.inMemory());
   final Stats stats = Stats.inMemory();
   final FeatureCollector.Factory featureCollectorFactory = new FeatureCollector.Factory(params, stats);
@@ -55,11 +55,11 @@ public abstract class AbstractLayerTest {
     }
   }
 
-  VectorTileEncoder.Feature pointFeature(String layer, Map<String, Object> map, int group) {
-    return new VectorTileEncoder.Feature(
+  VectorTile.Feature pointFeature(String layer, Map<String, Object> map, int group) {
+    return new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newPoint(0, 0)),
+      VectorTile.encodeGeometry(newPoint(0, 0)),
       new HashMap<>(map),
       group
     );
@@ -100,7 +100,7 @@ public abstract class AbstractLayerTest {
   }
 
   SourceFeature pointFeature(Map<String, Object> props) {
-    return new ReaderFeature(
+    return SimpleFeature.create(
       newPoint(0, 0),
       new HashMap<>(props),
       OSM_SOURCE,
@@ -110,7 +110,7 @@ public abstract class AbstractLayerTest {
   }
 
   SourceFeature lineFeature(Map<String, Object> props) {
-    return new ReaderFeature(
+    return SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(props),
       OSM_SOURCE,
@@ -120,7 +120,7 @@ public abstract class AbstractLayerTest {
   }
 
   SourceFeature polygonFeatureWithArea(double area, Map<String, Object> props) {
-    return new ReaderFeature(
+    return SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(area))),
       new HashMap<>(props),
       OSM_SOURCE,
@@ -134,39 +134,39 @@ public abstract class AbstractLayerTest {
   }
 
 
-  protected ReaderFeature lineFeatureWithRelation(List<OsmReader.RelationInfo> relationInfos,
+  protected SimpleFeature lineFeatureWithRelation(List<OsmRelationInfo> relationInfos,
     Map<String, Object> map) {
-    return new ReaderFeature(
+    return SimpleFeature.createFakeOsmFeature(
       newLineString(0, 0, 1, 1),
       map,
       OSM_SOURCE,
       null,
       0,
-      (relationInfos == null ? List.<OsmReader.RelationInfo>of() : relationInfos).stream()
+      (relationInfos == null ? List.<OsmRelationInfo>of() : relationInfos).stream()
         .map(r -> new OsmReader.RelationMember<>("", r)).toList()
     );
   }
 
   protected void testMergesLinestrings(Map<String, Object> attrs, String layer,
     double length, int zoom) throws GeometryException {
-    var line1 = new VectorTileEncoder.Feature(
+    var line1 = new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length / 2, 0)),
+      VectorTile.encodeGeometry(newLineString(0, 0, length / 2, 0)),
       attrs,
       0
     );
-    var line2 = new VectorTileEncoder.Feature(
+    var line2 = new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(length / 2, 0, length, 0)),
+      VectorTile.encodeGeometry(newLineString(length / 2, 0, length, 0)),
       attrs,
       0
     );
-    var connected = new VectorTileEncoder.Feature(
+    var connected = new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length, 0)),
+      VectorTile.encodeGeometry(newLineString(0, 0, length, 0)),
       attrs,
       0
     );
@@ -179,24 +179,17 @@ public abstract class AbstractLayerTest {
 
   protected void testDoesNotMergeLinestrings(Map<String, Object> attrs, String layer,
     double length, int zoom) throws GeometryException {
-    var line1 = new VectorTileEncoder.Feature(
+    var line1 = new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length / 2, 0)),
+      VectorTile.encodeGeometry(newLineString(0, 0, length / 2, 0)),
       attrs,
       0
     );
-    var line2 = new VectorTileEncoder.Feature(
+    var line2 = new VectorTile.Feature(
       layer,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(length / 2, 0, length, 0)),
-      attrs,
-      0
-    );
-    var connected = new VectorTileEncoder.Feature(
-      layer,
-      1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, length, 0)),
+      VectorTile.encodeGeometry(newLineString(length / 2, 0, length, 0)),
       attrs,
       0
     );

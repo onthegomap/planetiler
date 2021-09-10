@@ -1,5 +1,7 @@
 package com.onthegomap.flatmap.collection;
 
+import static com.onthegomap.flatmap.util.MemoryEstimator.estimateSize;
+
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.graphhopper.util.StopWatch;
@@ -8,10 +10,21 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An in-memory map that stores a multiple {@code long} values for each {@code long} key.
+ */
+// TODO: The two implementations should probably not implement the same interface
 public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
+  /**
+   * Writes the value for a key. Not thread safe!
+   */
   void put(long key, long value);
 
+  /**
+   * Returns the values for a key. Safe to be called by multiple threads after all values have been written. After the
+   * first read, all writes will fail.
+   */
   LongArrayList get(long key);
 
   default void putAll(long key, LongArrayList vals) {
@@ -20,14 +33,20 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     }
   }
 
+  /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
   static LongLongMultimap newDensedOrderedMultimap() {
     return new DenseOrderedHppcMultimap();
   }
 
+  /** Returns a new multimap where each write adds a value for the given key. */
   static LongLongMultimap newSparseUnorderedMultimap() {
     return new SparseUnorderedBinarySearchMultimap();
   }
 
+  /**
+   * A map from {@code long} to {@code long} stored as a list of keys and values that uses binary search to find the
+   * values for a key. Inserts do not need to be ordered, the first read will sort the array.
+   */
   class SparseUnorderedBinarySearchMultimap implements LongLongMultimap {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SparseUnorderedBinarySearchMultimap.class);
@@ -36,13 +55,6 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     private final LongArrayList keys = new LongArrayList();
     private final LongArrayList values = new LongArrayList();
     private volatile boolean prepared = false;
-    private static final ThreadLocal<LongArrayList> resultHolder = ThreadLocal.withInitial(LongArrayList::new);
-
-    protected LongArrayList getResultHolder() {
-      LongArrayList res = resultHolder.get();
-      res.elementsCount = 0;
-      return res;
-    }
 
     @Override
     public void put(long key, long val) {
@@ -67,6 +79,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       }
     }
 
+    /** Sort the keys and values arrays by key */
     private void doPrepare() {
       StopWatch watch = new StopWatch().start();
 
@@ -77,6 +90,8 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       // all other threads will block while we prepare the multimap.
       Arrays.parallelSort(sortedKeys);
 
+      // after sorting keys, sort values by iterating through each unordered key/value pair and
+      // using binary search to find where to insert the result in sorted values.
       long[] sortedValues = new long[sortedKeys.length];
       int from = 0;
       while (from < keys.size()) {
@@ -110,11 +125,13 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       }
       int size = keys.size();
       int index = Arrays.binarySearch(keys.buffer, 0, size, key);
-      LongArrayList result = getResultHolder();
+      LongArrayList result = new LongArrayList();
       if (index >= 0) {
+        // binary search might drop us in the middle of repeated values, so look forwards...
         for (int i = index; i < size && keys.get(i) == key; i++) {
           result.add(values.get(i));
         }
+        // ... and backwards to get all the matches
         for (int i = index - 1; i >= 0 && keys.get(i) == key; i--) {
           result.add(values.get(i));
         }
@@ -124,14 +141,19 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return MemoryEstimator.size(keys) + MemoryEstimator.size(values);
+      return estimateSize(keys) + estimateSize(values);
     }
   }
 
+  /**
+   * A map from {@code long} to {@code long} where each putAll replaces previous values and results are returned in the
+   * same order they were inserted.
+   */
   class DenseOrderedHppcMultimap implements LongLongMultimap {
 
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
-    private final LongIntHashMap keys = new LongIntHashMap();
+    private final LongIntHashMap keyToValuesIndex = new LongIntHashMap();
+    // each block starts with a "length" header then contains that number of entries
     private final LongArrayList values = new LongArrayList();
 
     @Override
@@ -139,7 +161,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       if (others.isEmpty()) {
         return;
       }
-      keys.put(key, values.size());
+      keyToValuesIndex.put(key, values.size());
       values.add(others.size());
       values.add(others.buffer, 0, others.size());
     }
@@ -151,7 +173,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
     @Override
     public LongArrayList get(long key) {
-      int index = keys.getOrDefault(key, -1);
+      int index = keyToValuesIndex.getOrDefault(key, -1);
       if (index >= 0) {
         LongArrayList result = new LongArrayList();
         int num = (int) values.get(index);
@@ -164,7 +186,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return MemoryEstimator.size(keys) + MemoryEstimator.size(values);
+      return estimateSize(keyToValuesIndex) + estimateSize(values);
     }
   }
 }

@@ -30,6 +30,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Logs the progress of a long-running task (percent complete, queue sizes, CPU and memory usage, etc.)
+ */
+@SuppressWarnings("UnusedReturnValue")
 public class ProgressLoggers {
 
   private static final String COLOR_RESET = "\u001B[0m";
@@ -37,7 +41,8 @@ public class ProgressLoggers {
   private static final String FG_GREEN = "\u001B[32m";
   private static final String FG_YELLOW = "\u001B[33m";
   private static final String FG_BLUE = "\u001B[34m";
-  private static final String FG_CYAN = "\u001B[36m";
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
+  private final List<Object> loggers = new ArrayList<>();
 
   private static String fg(String fg, String string) {
     return fg + string + COLOR_RESET;
@@ -59,34 +64,26 @@ public class ProgressLoggers {
     return fg(FG_BLUE, string);
   }
 
-  private static String cyan(String string) {
-    return fg(FG_CYAN, string);
+  private ProgressLoggers() {
   }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
-  private final List<Object> loggers;
-  private final String prefix;
-
-  public ProgressLoggers(String prefix) {
-    this.prefix = prefix;
-    loggers = new ArrayList<>();
+  public static ProgressLoggers create() {
+    return new ProgressLoggers();
   }
 
-  public String getLog() {
-    return loggers.stream()
-      .map(Object::toString)
-      .collect(Collectors.joining(""))
-      .replaceAll("\n\\s*", "\n    ");
-  }
-
+  /** Adds "name: [ numCompleted rate/s ]" to the logger. */
   public ProgressLoggers addRateCounter(String name, LongSupplier getValue) {
     return addRateCounter(name, getValue, false);
   }
 
+  /** Adds "name: [ numCompleted rate/s ]" to the logger. */
   public ProgressLoggers addRateCounter(String name, AtomicLong getValue) {
     return addRateCounter(name, getValue, false);
   }
 
+  /**
+   * Adds "name: [ numCompleted rate/s ]" to the logger, colored green if {@code color=true} and rate > 0.
+   */
   public ProgressLoggers addRateCounter(String name, LongSupplier getValue, boolean color) {
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
@@ -106,14 +103,25 @@ public class ProgressLoggers {
     return this;
   }
 
+  /**
+   * Adds "name: [ numCompleted rate/s ]" to the logger, colored green if {@code color=true} and rate > 0.
+   */
   public ProgressLoggers addRateCounter(String name, AtomicLong value, boolean color) {
     return addRateCounter(name, value::get, color);
   }
 
+  /**
+   * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
+   * process.
+   */
   public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value) {
     return addRatePercentCounter(name, total, value::get);
   }
 
+  /**
+   * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
+   * process.
+   */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
     // if there's no total, we can't show progress so fall back to rate logger instead
     if (total == 0) {
@@ -139,6 +147,10 @@ public class ProgressLoggers {
     return this;
   }
 
+  /**
+   * Adds "name: [ numComplete / total pctComplete% ]" to the logger where {@code total} is the total number of items to
+   * process.
+   */
   public ProgressLoggers addPercentCounter(String name, long total, AtomicLong getValue) {
     loggers.add(new ProgressLogger(name, () -> {
       long valueNow = getValue.get();
@@ -148,6 +160,7 @@ public class ProgressLoggers {
     return this;
   }
 
+  /** Adds the current number of items in a queue and the queue's size to the output. */
   public ProgressLoggers addQueueStats(WorkQueue<?> queue) {
     loggers.add(new WorkerPipelineLogger(() ->
       " -> " + padLeft("(" +
@@ -159,52 +172,54 @@ public class ProgressLoggers {
     return this;
   }
 
-  public ProgressLoggers add(Object obj) {
+  public ProgressLoggers add(String obj) {
     loggers.add(obj);
     return this;
   }
 
+  public ProgressLoggers add(Supplier<String> obj) {
+    loggers.add(new Object() {
+      @Override
+      public String toString() {
+        return obj.get();
+      }
+    });
+    return this;
+  }
+
   public ProgressLoggers addFileSize(Path file) {
-    loggers.add(string(() -> {
+    return add(() -> {
       String bytes;
       try {
-        bytes = formatBytes(Files.size(file), false);
+        bytes = formatStorage(Files.size(file), false);
       } catch (IOException e) {
         bytes = "-";
       }
       return " " + padRight(bytes, 5);
-    }));
-    return this;
-  }
-
-  public static Object string(Supplier<String> supplier) {
-    return new Object() {
-      @Override
-      public String toString() {
-        return supplier.get();
-      }
-    };
+    });
   }
 
   public ProgressLoggers addFileSize(DiskBacked longSupplier) {
-    loggers.add(string(() -> " " + padRight(formatBytes(longSupplier.bytesOnDisk(), false), 5)));
-    return this;
+    return add(() -> " " + padRight(formatStorage(longSupplier.diskUsageBytes(), false), 5));
   }
 
+  /**
+   * Adds the average number of CPUs and % time in GC since last log along with memory usage, total memory, and memory
+   * used after last GC to the output.
+   */
   public ProgressLoggers addProcessStats() {
     addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, num -> blue(Format.formatDecimal(num)));
     addDeltaLogger("gc", ProcessInfo::getGcTime, num -> {
       String formatted = Format.formatPercent(num);
-      return num > 0.3 ? yellow(formatted) : num > 0.6 ? red(formatted) : formatted;
+      return num > 0.6 ? red(formatted) : num > 0.3 ? yellow(formatted) : formatted;
     });
     loggers.add(new ProgressLogger("mem",
-      () ->
-        formatMB(Helper.getUsedMB(), false) + "/" +
-          formatMB(Helper.getTotalMB(), false) +
-          ProcessInfo.getMemoryUsageAfterLastGC().stream()
-            .mapToObj(value -> " postGC: " + blue(formatBytes(value, false)))
-            .findFirst()
-            .orElse("")
+      () -> formatStorage(Helper.getUsedMB() * Helper.MB, false) + "/" +
+        formatStorage(Helper.getTotalMB() * Helper.MB, false) +
+        ProcessInfo.getMemoryUsageAfterLastGC().stream()
+          .mapToObj(value -> " postGC: " + blue(formatStorage(value, false)))
+          .findFirst()
+          .orElse("")
     ));
     return this;
   }
@@ -214,6 +229,7 @@ public class ProgressLoggers {
     addDeltaLogger(name, () -> supplier.get().orElse(Duration.ZERO), format);
   }
 
+  // adds a logger that keeps track of the value each time it is invoked and logs the change
   private void addDeltaLogger(String name, Supplier<Duration> supplier, DoubleFunction<String> format) {
     AtomicLong lastValue = new AtomicLong(supplier.get().toNanos());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
@@ -230,6 +246,7 @@ public class ProgressLoggers {
     }));
   }
 
+  /** Adds the CPU utilization of every thread starting with {@code prefix} since the last log to output. */
   public ProgressLoggers addThreadPoolStats(String name, String prefix) {
     boolean first = loggers.isEmpty() || !(loggers.get(loggers.size() - 1) instanceof WorkerPipelineLogger);
     try {
@@ -248,8 +265,8 @@ public class ProgressLoggers {
             if (!newThreads.containsKey(thread.id())) {
               return " -%";
             }
-            long last = lastThreads.getOrDefault(thread.id(), ProcessInfo.ThreadState.DEFAULT).cpuTimeNanos();
-            return padLeft(formatPercent(1d * (thread.cpuTimeNanos() - last) / timeDiff), 3);
+            long last = lastThreads.getOrDefault(thread.id(), ProcessInfo.ThreadState.DEFAULT).cpuTime().toNanos();
+            return padLeft(formatPercent(1d * (thread.cpuTime().toNanos() - last) / timeDiff), 3);
           }).collect(Collectors.joining(" ", "(", ")"));
 
         lastTime.set(currentTime);
@@ -262,27 +279,29 @@ public class ProgressLoggers {
     return this;
   }
 
+  /** Adds the CPU utilization since last log of every thread in a {@link Worker} pool to output. */
   public ProgressLoggers addThreadPoolStats(String name, Worker worker) {
     return addThreadPoolStats(name, worker.getPrefix());
-  }
-
-  private String formatBytes(long bytes, boolean pad) {
-    return formatStorage(bytes, pad);
-  }
-
-  private String formatMB(long mb, boolean pad) {
-    return formatStorage(mb * Helper.MB, pad);
   }
 
   public void log() {
     LOGGER.info(getLog());
   }
 
+  public String getLog() {
+    return loggers.stream()
+      .map(Object::toString)
+      .collect(Collectors.joining(""))
+      .replaceAll(System.lineSeparator() + "\\s*", System.lineSeparator() + "    ");
+  }
+
+  /** Adds the current estimated size of an in-memory object to the output. */
   public ProgressLoggers addInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
     loggers.add(new ProgressLogger(name, () -> formatStorage(object.estimateMemoryUsageBytes(), true)));
     return this;
   }
 
+  /** Adds the alternating worker thread pool / queue / worker thread pool stats for the pipeline to the output. */
   public ProgressLoggers addPipelineStats(WorkerPipeline<?> pipeline) {
     if (pipeline != null) {
       addPipelineStats(pipeline.previous());
@@ -296,16 +315,19 @@ public class ProgressLoggers {
     return this;
   }
 
+  /** Adds a linebreak to the output. */
   public ProgressLoggers newLine() {
-    return add("\n");
+    return add(System.lineSeparator());
   }
 
+  /** Invoke {@link #log()} at a fixed duration until {@code future} completes. */
   public void awaitAndLog(Future<?> future, Duration logInterval) {
     while (!await(future, logInterval)) {
       log();
     }
   }
 
+  /** Returns true if the future is done, false if {@code duration} has elapsed. */
   private static boolean await(Future<?> future, Duration duration) {
     try {
       future.get(duration.toNanos(), TimeUnit.NANOSECONDS);

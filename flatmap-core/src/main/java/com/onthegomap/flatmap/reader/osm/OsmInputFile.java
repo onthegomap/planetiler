@@ -5,7 +5,7 @@ import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.reader.osm.pbf.PbfDecoder;
 import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
 import com.graphhopper.reader.osm.pbf.Sink;
-import com.onthegomap.flatmap.config.BoundsProvider;
+import com.onthegomap.flatmap.config.Bounds;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -23,9 +23,13 @@ import org.openstreetmap.osmosis.osmbinary.Fileformat.Blob;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.BlobHeader;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBBox;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
-import org.openstreetmap.osmosis.osmbinary.file.FileFormatException;
 
-public class OsmInputFile implements BoundsProvider, OsmSource {
+/**
+ * An input file in {@code .osm.pbf} format.
+ *
+ * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format>OSM PBF Format</a>
+ */
+public class OsmInputFile implements Bounds.Provider, OsmSource {
 
   private final Path path;
 
@@ -33,14 +37,20 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
     this.path = path;
   }
 
+  /**
+   * Returns the bounding box of this file from the header block.
+   *
+   * @throws IllegalArgumentException if an error is encountered reading the file
+   */
   @Override
-  public Envelope getBounds() {
+  public Envelope getLatLonBounds() {
     try (var input = Files.newInputStream(path)) {
+      // Read the "bbox" field of the header block of the input file.
       // https://wiki.openstreetmap.org/wiki/PBF_Format
       var dataInput = new DataInputStream(input);
       int headerSize = dataInput.readInt();
       if (headerSize > 64 * 1024) {
-        throw new FileFormatException("Header longer than 64 KiB: " + path);
+        throw new IllegalArgumentException("Header longer than 64 KiB: " + path);
       }
       byte[] buf = dataInput.readNBytes(headerSize);
       BlobHeader header = BlobHeader.parseFrom(buf);
@@ -60,10 +70,11 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
         decompresser.end();
         data = ByteString.copyFrom(buf2);
       } else {
-        throw new FileFormatException("Header does not have raw or zlib data");
+        throw new IllegalArgumentException("Header does not have raw or zlib data");
       }
       HeaderBlock headerblock = HeaderBlock.parseFrom(data);
       HeaderBBox bbox = headerblock.getBbox();
+      // always specified in nanodegrees
       return new Envelope(
         bbox.getLeft() / 1e9,
         bbox.getRight() / 1e9,
@@ -75,6 +86,12 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
     }
   }
 
+  /**
+   * Reads all elements from the input file using {@code threads} threads to decode blocks in parallel and writes them
+   * to {@code next}.
+   *
+   * @throws IOException if an error is encountered reading the file
+   */
   public void readTo(Consumer<ReaderElement> next, String poolName, int threads) throws IOException {
     ThreadFactory threadFactory = Executors.defaultThreadFactory();
     ExecutorService executorService = Executors.newFixedThreadPool(threads, (runnable) -> {
@@ -92,6 +109,7 @@ public class OsmInputFile implements BoundsProvider, OsmSource {
     }
   }
 
+  /** Starts a {@link WorkerPipeline} with all elements read from this input file. */
   @Override
   public WorkerPipeline.SourceStep<ReaderElement> read(String poolName, int threads) {
     return next -> readTo(next, poolName, threads);

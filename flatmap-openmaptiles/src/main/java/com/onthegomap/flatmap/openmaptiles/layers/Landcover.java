@@ -37,9 +37,8 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
@@ -47,6 +46,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +74,7 @@ public class Landcover implements
   );
   private final MultiExpression.MultiExpressionIndex<String> classMapping;
 
-  public Landcover(Translations translations, Arguments args, Stats stats) {
+  public Landcover(Translations translations, FlatmapConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
   }
 
@@ -111,7 +111,7 @@ public class Landcover implements
     String clazz = getClassFromSubclass(subclass);
     if (clazz != null) {
       features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setMinPixelSizeThresholds(MIN_PIXEL_SIZE_THRESHOLDS)
+        .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
         .setAttr(Fields.CLASS, clazz)
         .setAttr(Fields.SUBCLASS, subclass)
         .setNumPointsAttr(NUM_POINTS_ATTR)
@@ -120,7 +120,7 @@ public class Landcover implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
     throws GeometryException {
     if (zoom < 7 || zoom > 13) {
       for (var item : items) {
@@ -129,8 +129,8 @@ public class Landcover implements
       return items;
     } else { // z7-13
       String groupKey = "_group";
-      List<VectorTileEncoder.Feature> result = new ArrayList<>();
-      List<VectorTileEncoder.Feature> toMerge = new ArrayList<>();
+      List<VectorTile.Feature> result = new ArrayList<>();
+      List<VectorTile.Feature> toMerge = new ArrayList<>();
       for (var item : items) {
         Map<String, Object> attrs = item.attrs();
         Object numPointsObj = attrs.remove(NUM_POINTS_ATTR);
@@ -158,7 +158,7 @@ public class Landcover implements
           result.add(item);
         }
       }
-      var merged = FeatureMerge.mergePolygons(toMerge, 4, 0, 0);
+      var merged = FeatureMerge.mergeOverlappingPolygons(toMerge, 4);
       for (var item : merged) {
         item.attrs().remove(groupKey);
       }

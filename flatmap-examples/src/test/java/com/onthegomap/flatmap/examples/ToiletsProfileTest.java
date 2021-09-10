@@ -8,7 +8,7 @@ import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +22,9 @@ public class ToiletsProfileTest {
 
   @Test
   public void testSourceFeatureProcessing() {
-    var node = new ReaderFeature(
+    var node = SimpleFeature.create(
       TestUtils.newPoint(1, 2),
-      Map.of("amenity", "toilets"),
-      1 // node ID
+      Map.of("amenity", "toilets")
     );
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(node, profile);
 
@@ -40,13 +39,13 @@ public class ToiletsProfileTest {
     assertEquals(1, feature.getZorder());
 
     // at z12 - use label grid to limit output
-    assertEquals(4, feature.getLabelGridLimitAtZoom(12));
-    assertEquals(32, feature.getLabelGridPixelSizeAtZoom(12));
+    assertEquals(4, feature.getPointLabelGridLimitAtZoom(12));
+    assertEquals(32, feature.getPointLabelGridPixelSizeAtZoom(12));
     assertEquals(32, feature.getBufferPixelsAtZoom(12));
 
     // at z13 - no label grid (0 disables filtering)
-    assertEquals(0, feature.getLabelGridLimitAtZoom(13));
-    assertEquals(0, feature.getLabelGridPixelSizeAtZoom(13));
+    assertEquals(0, feature.getPointLabelGridLimitAtZoom(13));
+    assertEquals(0, feature.getPointLabelGridPixelSizeAtZoom(13));
     assertEquals(4, feature.getBufferPixelsAtZoom(13));
   }
 
@@ -55,7 +54,7 @@ public class ToiletsProfileTest {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ToiletsOverlay.run(Arguments.of(
       // Override input source locations
-      "osm", TestUtils.pathToResource("monaco-latest.osm.pbf"),
+      "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
       // Override temp dir location
       "tmp", tmpDir.toString(),
       // Override output location

@@ -39,14 +39,14 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.Map;
 import java.util.Set;
@@ -59,7 +59,7 @@ public class Landuse implements
   OpenMapTilesProfile.NaturalEarthProcessor,
   Tables.OsmLandusePolygon.Handler {
 
-  public Landuse(Translations translations, Arguments args, Stats stats) {
+  public Landuse(Translations translations, FlatmapConfig config, Stats stats) {
   }
 
   @Override
@@ -100,7 +100,7 @@ public class Landuse implements
     if (clazz != null) {
       features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         .setAttr(Fields.CLASS, clazz)
-        .setMinPixelSizeThresholds(MIN_PIXEL_SIZE_THRESHOLDS)
+        .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
         .setZoomRange(Z6_CLASSES.contains(clazz) ? 6 : 9, 14);
     }
   }

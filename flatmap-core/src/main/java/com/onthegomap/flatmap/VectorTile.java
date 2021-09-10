@@ -1,4 +1,4 @@
-/*****************************************************************
+/* ****************************************************************
  *  Licensed to the Apache Software Foundation (ASF) under one
  *  or more contributor license agreements.  See the NOTICE file
  *  distributed with this work for additional information
@@ -18,24 +18,23 @@
  ****************************************************************/
 package com.onthegomap.flatmap;
 
-import com.carrotsearch.hppc.DoubleArrayList;
 import com.carrotsearch.hppc.IntArrayList;
 import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.GeometryType;
-import com.onthegomap.flatmap.geo.TileCoord;
+import com.onthegomap.flatmap.geo.MutableCoordinateSequence;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -52,21 +51,28 @@ import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vector_tile.VectorTile;
+import vector_tile.VectorTileProto;
 
 /**
- * This class is copied from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileEncoder.java
- * and https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileDecoder.java
- * and modified.
+ * Encodes a single output tile containing JTS {@link Geometry} features into the compact binary Mapbox Vector Tile
+ * format.
  * <p>
- * The modifications decouple geometry encoding from vector tile encoding so that encoded commands can be stored in the
+ * This class is copied from
+ * <a href="https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileEncoder.java">VectorTileEncoder.java</a>
+ * and
+ * <a href="https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileDecoder.java">VectorTileDecoder.java</a>
+ * and modified to decouple geometry encoding from vector tile encoding so that encoded commands can be stored in the
  * sorted feature map prior to encoding vector tiles.  The internals are also refactored to improve performance by using
  * hppc primitive collections.
+ *
+ * @see <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1">Mapbox Vector Tile Specification</a>
  */
-public class VectorTileEncoder {
+@NotThreadSafe
+public class VectorTile {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(VectorTileEncoder.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
+  // TODO make these configurable
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   private static final double SCALE = ((double) EXTENT) / SIZE;
@@ -76,10 +82,6 @@ public class VectorTileEncoder {
     var encoder = new CommandEncoder();
     encoder.accept(input);
     return encoder.result.toArray();
-  }
-
-  private static CoordinateSequence toCs(DoubleArrayList seq) {
-    return new PackedCoordinateSequence.Double(seq.toArray(), 2, 0);
   }
 
   private static int zigZagEncode(int n) {
@@ -98,8 +100,8 @@ public class VectorTileEncoder {
       int x = 0;
       int y = 0;
 
-      List<DoubleArrayList> coordsList = new ArrayList<>();
-      DoubleArrayList coords = null;
+      List<MutableCoordinateSequence> allCoordSeqs = new ArrayList<>();
+      MutableCoordinateSequence currentCoordSeq = null;
 
       int geometryCount = commands.length;
       int length = 0;
@@ -116,15 +118,15 @@ public class VectorTileEncoder {
         if (length > 0) {
 
           if (command == Command.MOVE_TO.value) {
-            coords = new DoubleArrayList();
-            coordsList.add(coords);
+            currentCoordSeq = new MutableCoordinateSequence();
+            allCoordSeqs.add(currentCoordSeq);
           } else {
-            Objects.requireNonNull(coords);
+            assert currentCoordSeq != null;
           }
 
           if (command == Command.CLOSE_PATH.value) {
-            if (geomType != GeometryType.POINT && !coords.isEmpty()) {
-              coords.add(coords.get(0), coords.get(1));
+            if (geomType != GeometryType.POINT && !currentCoordSeq.isEmpty()) {
+              currentCoordSeq.closeRing();
             }
             length--;
             continue;
@@ -141,7 +143,7 @@ public class VectorTileEncoder {
           x = x + dx;
           y = y + dy;
 
-          coords.add(x / SCALE, y / SCALE);
+          currentCoordSeq.forceAddPoint(x / SCALE, y / SCALE);
         }
 
       }
@@ -150,43 +152,44 @@ public class VectorTileEncoder {
       boolean outerCCW = false;
 
       switch (geomType) {
-        case LINE:
-          List<LineString> lineStrings = new ArrayList<>(coordsList.size());
-          for (DoubleArrayList cs : coordsList) {
-            if (cs.size() <= 2) {
+        case LINE -> {
+          List<LineString> lineStrings = new ArrayList<>(allCoordSeqs.size());
+          for (MutableCoordinateSequence coordSeq : allCoordSeqs) {
+            if (coordSeq.size() <= 1) {
               continue;
             }
-            lineStrings.add(gf.createLineString(toCs(cs)));
+            lineStrings.add(gf.createLineString(coordSeq));
           }
           if (lineStrings.size() == 1) {
             geometry = lineStrings.get(0);
           } else if (lineStrings.size() > 1) {
             geometry = gf.createMultiLineString(lineStrings.toArray(new LineString[0]));
           }
-          break;
-        case POINT:
-          CoordinateSequence cs = new PackedCoordinateSequence.Double(coordsList.size(), 2, 0);
-          for (int j = 0; j < coordsList.size(); j++) {
-            cs.setOrdinate(j, 0, coordsList.get(j).get(0));
-            cs.setOrdinate(j, 1, coordsList.get(j).get(1));
+        }
+        case POINT -> {
+          CoordinateSequence cs = new PackedCoordinateSequence.Double(allCoordSeqs.size(), 2, 0);
+          for (int j = 0; j < allCoordSeqs.size(); j++) {
+            MutableCoordinateSequence coordSeq = allCoordSeqs.get(j);
+            cs.setOrdinate(j, 0, coordSeq.getX(0));
+            cs.setOrdinate(j, 1, coordSeq.getY(0));
           }
           if (cs.size() == 1) {
             geometry = gf.createPoint(cs);
           } else if (cs.size() > 1) {
             geometry = gf.createMultiPoint(cs);
           }
-          break;
-        case POLYGON:
+        }
+        case POLYGON -> {
           List<List<LinearRing>> polygonRings = new ArrayList<>();
           List<LinearRing> ringsForCurrentPolygon = new ArrayList<>();
           boolean first = true;
-          for (DoubleArrayList clist : coordsList) {
+          for (MutableCoordinateSequence coordSeq : allCoordSeqs) {
             // skip hole with too few coordinates
-            if (ringsForCurrentPolygon.size() > 0 && clist.size() < 4) {
+            if (ringsForCurrentPolygon.size() > 0 && coordSeq.size() < 2) {
               continue;
             }
-            LinearRing ring = gf.createLinearRing(toCs(clist));
-            boolean ccw = Orientation.isCCW(ring.getCoordinates());
+            LinearRing ring = gf.createLinearRing(coordSeq);
+            boolean ccw = Orientation.isCCW(coordSeq);
             if (first) {
               first = false;
               outerCCW = ccw;
@@ -210,9 +213,9 @@ public class VectorTileEncoder {
           if (polygons.size() > 1) {
             geometry = gf.createMultiPolygon(GeometryFactory.toPolygonArray(polygons));
           }
-          break;
-        default:
-          break;
+        }
+        default -> {
+        }
       }
 
       if (geometry == null) {
@@ -225,21 +228,31 @@ public class VectorTileEncoder {
     }
   }
 
+  /**
+   * Parses a binary-encoded vector tile protobuf into a list of features.
+   * <p>
+   * Does not decode geometries, but clients can call {@link VectorGeometry#decode()} to decode a JTS {@link Geometry}
+   * if needed.
+   * <p>
+   * If {@code encoded} is compressed, clients must decompress it first.
+   *
+   * @param encoded encoded vector tile protobuf
+   * @return list of features on that tile
+   * @throws IllegalStateException     if decoding fails
+   * @throws IndexOutOfBoundsException if a tag's key or value refers to an index that does not exist in the keys/values
+   *                                   array for a layer
+   */
   public static List<Feature> decode(byte[] encoded) {
-    return decode(TileCoord.ofXYZ(0, 0, 0), encoded);
-  }
-
-  public static List<Feature> decode(TileCoord tileID, byte[] encoded) {
     try {
-      VectorTile.Tile tile = VectorTile.Tile.parseFrom(encoded);
+      VectorTileProto.Tile tile = VectorTileProto.Tile.parseFrom(encoded);
       List<Feature> features = new ArrayList<>();
-      for (VectorTile.Tile.Layer layer : tile.getLayersList()) {
+      for (VectorTileProto.Tile.Layer layer : tile.getLayersList()) {
         String layerName = layer.getName();
         assert layer.getExtent() == 4096;
         List<String> keys = layer.getKeysList();
         List<Object> values = new ArrayList<>();
 
-        for (VectorTile.Tile.Value value : layer.getValuesList()) {
+        for (VectorTileProto.Tile.Value value : layer.getValuesList()) {
           if (value.hasBoolValue()) {
             values.add(value.getBoolValue());
           } else if (value.hasDoubleValue()) {
@@ -259,7 +272,7 @@ public class VectorTileEncoder {
           }
         }
 
-        for (VectorTile.Tile.Feature feature : layer.getFeaturesList()) {
+        for (VectorTileProto.Tile.Feature feature : layer.getFeaturesList()) {
           int tagsCount = feature.getTagsCount();
           Map<String, Object> attrs = new HashMap<>(tagsCount / 2);
           int tagIdx = 0;
@@ -268,17 +281,12 @@ public class VectorTileEncoder {
             Object value = values.get(feature.getTags(tagIdx++));
             attrs.put(key, value);
           }
-          try {
-            Geometry geometry = decodeCommands(GeometryType.valueOf(feature.getType()), feature.getGeometryList());
-            features.add(new Feature(
-              layerName,
-              feature.getId(),
-              encodeGeometry(geometry),
-              attrs
-            ));
-          } catch (GeometryException e) {
-            e.log("Error decoding " + tileID);
-          }
+          features.add(new Feature(
+            layerName,
+            feature.getId(),
+            new VectorGeometry(Ints.toArray(feature.getGeometryList()), GeometryType.valueOf(feature.getType())),
+            attrs
+          ));
         }
       }
       return features;
@@ -287,15 +295,25 @@ public class VectorTileEncoder {
     }
   }
 
-  private static Geometry decodeCommands(GeometryType type, List<Integer> geometryList) throws GeometryException {
-    return decodeCommands(type, geometryList.stream().mapToInt(i -> i).toArray());
-  }
-
+  /**
+   * Encodes a JTS geometry according to <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry
+   * Encoding Specification</a>.
+   *
+   * @param geometry the JTS geometry to encoded
+   * @return the geometry type and command array for the encoded geometry
+   */
   public static VectorGeometry encodeGeometry(Geometry geometry) {
     return new VectorGeometry(getCommands(geometry), GeometryType.valueOf(geometry));
   }
 
-  public VectorTileEncoder addLayerFeatures(String layerName, List<? extends Feature> features) {
+  /**
+   * Adds features in a layer to this tile.
+   *
+   * @param layerName name of the layer in this tile to add the features to
+   * @param features  features to add to the tile
+   * @return this encoder for chaining
+   */
+  public VectorTile addLayerFeatures(String layerName, List<? extends Feature> features) {
     if (features.isEmpty()) {
       return this;
     }
@@ -312,11 +330,10 @@ public class VectorTileEncoder {
 
         for (Map.Entry<String, ?> e : inFeature.attrs().entrySet()) {
           // skip attribute without value
-          if (e.getValue() == null) {
-            continue;
+          if (e.getValue() != null) {
+            outFeature.tags.add(layer.key(e.getKey()));
+            outFeature.tags.add(layer.value(e.getValue()));
           }
-          outFeature.tags.add(layer.key(e.getKey()));
-          outFeature.tags.add(layer.value(e.getValue()));
         }
 
         layer.encodedFeatures.add(outFeature);
@@ -325,21 +342,25 @@ public class VectorTileEncoder {
     return this;
   }
 
+  /**
+   * Creates a vector tile protobuf with all features in this tile and serializes it as a byte array.
+   * <p>
+   * Does not compress the result.
+   */
   public byte[] encode() {
-    VectorTile.Tile.Builder tile = VectorTile.Tile.newBuilder();
+    VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
     for (Map.Entry<String, Layer> e : layers.entrySet()) {
       String layerName = e.getKey();
       Layer layer = e.getValue();
 
-      VectorTile.Tile.Layer.Builder tileLayer = VectorTile.Tile.Layer.newBuilder();
-
-      tileLayer.setVersion(2);
-      tileLayer.setName(layerName);
-
-      tileLayer.addAllKeys(layer.keys());
+      VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
+        .setVersion(2)
+        .setName(layerName)
+        .setExtent(EXTENT)
+        .addAllKeys(layer.keys());
 
       for (Object value : layer.values()) {
-        VectorTile.Tile.Value.Builder tileValue = VectorTile.Tile.Value.newBuilder();
+        VectorTileProto.Tile.Value.Builder tileValue = VectorTileProto.Tile.Value.newBuilder();
         if (value instanceof String stringValue) {
           tileValue.setStringValue(stringValue);
         } else if (value instanceof Integer intValue) {
@@ -358,29 +379,22 @@ public class VectorTileEncoder {
         tileLayer.addValues(tileValue.build());
       }
 
-      tileLayer.setExtent(EXTENT);
-
       for (EncodedFeature feature : layer.encodedFeatures) {
+        VectorTileProto.Tile.Feature.Builder featureBuilder = VectorTileProto.Tile.Feature.newBuilder()
+          .addAllTags(Ints.asList(feature.tags.toArray()))
+          .setType(feature.geometry().geomType().asProtobufType())
+          .addAllGeometry(Ints.asList(feature.geometry().commands()));
 
-        VectorTile.Tile.Feature.Builder featureBuilder = VectorTile.Tile.Feature.newBuilder();
-
-        featureBuilder.addAllTags(Ints.asList(feature.tags.toArray()));
         if (feature.id >= 0) {
           featureBuilder.setId(feature.id);
         }
 
-        featureBuilder.setType(feature.geometry().geomType().asProtobufType());
-        featureBuilder.addAllGeometry(Ints.asList(feature.geometry().commands()));
         tileLayer.addFeatures(featureBuilder.build());
       }
 
       tile.addLayers(tileLayer.build());
     }
     return tile.build().toByteArray();
-  }
-
-  public Set<String> getLayers() {
-    return layers.keySet();
   }
 
   private enum Command {
@@ -394,8 +408,13 @@ public class VectorTileEncoder {
     }
   }
 
+  /**
+   * A vector tile encoded as a list of commands according to the <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">vector
+   * tile specification</a>.
+   */
   public static record VectorGeometry(int[] commands, GeometryType geomType) {
 
+    /** Converts an encoded geometry back to a JTS geometry. */
     public Geometry decode() throws GeometryException {
       return decodeCommands(geomType, commands);
     }
@@ -433,6 +452,17 @@ public class VectorTileEncoder {
     }
   }
 
+  /**
+   * A feature in a vector tile.
+   *
+   * @param layer    the layer the feature was in
+   * @param id       the feature ID
+   * @param geometry the encoded feature geometry (decode using {@link VectorGeometry#decode()})
+   * @param attrs    tags for the feature to output
+   * @param group    grouping key used to limit point density or {@link #NO_GROUP} if not in a group. NOTE: this is only
+   *                 populated when this feature was deserialized from {@link FeatureGroup}, not when parsed from a tile
+   *                 since vector tile schema does not encode group.
+   */
   public static record Feature(
     String layer,
     long id,
@@ -440,6 +470,8 @@ public class VectorTileEncoder {
     Map<String, Object> attrs,
     long group
   ) {
+
+    public static final long NO_GROUP = Long.MIN_VALUE;
 
     public Feature(
       String layer,
@@ -450,12 +482,14 @@ public class VectorTileEncoder {
       this(layer, id, geometry, attrs, NO_GROUP);
     }
 
-    public static final long NO_GROUP = Long.MIN_VALUE;
-
     public boolean hasGroup() {
       return group != NO_GROUP;
     }
 
+    /**
+     * Encodes {@code newGeometry} and returns a copy of this feature with {@code geometry} replaced with the encoded
+     * new geometry.
+     */
     public Feature copyWithNewGeometry(Geometry newGeometry) {
       return new Feature(
         layer,
@@ -466,6 +500,7 @@ public class VectorTileEncoder {
       );
     }
 
+    /** Returns a copy of this feature with {@code extraAttrs} added to {@code attrs}. */
     public Feature copyWithExtraAttrs(Map<String, Object> extraAttrs) {
       return new Feature(
         layer,
@@ -478,20 +513,27 @@ public class VectorTileEncoder {
     }
   }
 
+  /**
+   * Encodes a geometry as a sequence of integers according to the
+   * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry   * Encoding
+   * Specification</a>.
+   */
   private static class CommandEncoder {
 
-    private final IntArrayList result = new IntArrayList();
-    private int x = 0, y = 0;
+    final IntArrayList result = new IntArrayList();
+    // Initial points use absolute locations, then subsequent points in a geometry use offsets so
+    // need to keep track of previous x/y location during the encoding.
+    int x = 0, y = 0;
 
-    private static boolean shouldClosePath(Geometry geometry) {
+    static boolean shouldClosePath(Geometry geometry) {
       return (geometry instanceof Polygon) || (geometry instanceof LinearRing);
     }
 
-    private static int commandAndLength(Command command, int repeat) {
+    static int commandAndLength(Command command, int repeat) {
       return repeat << 3 | command.value;
     }
 
-    private void accept(Geometry geometry) {
+    void accept(Geometry geometry) {
       if (geometry instanceof MultiLineString multiLineString) {
         for (int i = 0; i < multiLineString.getNumGeometries(); i++) {
           encode(((LineString) multiLineString.getGeometryN(i)).getCoordinateSequence(), false);
@@ -520,11 +562,11 @@ public class VectorTileEncoder {
       }
     }
 
-    private void encode(CoordinateSequence cs, boolean closePathAtEnd) {
+    void encode(CoordinateSequence cs, boolean closePathAtEnd) {
       encode(cs, closePathAtEnd, false);
     }
 
-    private void encode(CoordinateSequence cs, boolean closePathAtEnd, boolean multiPoint) {
+    void encode(CoordinateSequence cs, boolean closePathAtEnd, boolean multiPoint) {
 
       if (cs.size() == 0) {
         throw new IllegalArgumentException("empty geometry");
@@ -597,13 +639,26 @@ public class VectorTileEncoder {
     }
   }
 
+  /**
+   * Holds all features in an output layer of this tile, along with the index of each tag key/value so that features can
+   * store each key/value as a pair of integers.
+   */
   private static final class Layer {
 
-    private final List<EncodedFeature> encodedFeatures = new ArrayList<>();
-    private final Map<String, Integer> keys = new LinkedHashMap<>();
-    private final Map<Object, Integer> values = new LinkedHashMap<>();
+    final List<EncodedFeature> encodedFeatures = new ArrayList<>();
+    final Map<String, Integer> keys = new LinkedHashMap<>();
+    final Map<Object, Integer> values = new LinkedHashMap<>();
 
-    public Integer key(String key) {
+    List<String> keys() {
+      return new ArrayList<>(keys.keySet());
+    }
+
+    List<Object> values() {
+      return new ArrayList<>(values.keySet());
+    }
+
+    /** Returns the ID associated with {@code key} or adds a new one if not present. */
+    Integer key(String key) {
       Integer i = keys.get(key);
       if (i == null) {
         i = keys.size();
@@ -612,15 +667,8 @@ public class VectorTileEncoder {
       return i;
     }
 
-    public List<String> keys() {
-      return new ArrayList<>(keys.keySet());
-    }
-
-    public List<Object> values() {
-      return new ArrayList<>(values.keySet());
-    }
-
-    public Integer value(Object value) {
+    /** Returns the ID associated with {@code value} or adds a new one if not present. */
+    Integer value(Object value) {
       Integer i = values.get(value);
       if (i == null) {
         i = values.size();

@@ -6,7 +6,13 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
+/**
+ * Utilities for formatting values as strings.
+ */
 public class Format {
+
+  private Format() {
+  }
 
   private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
     Map.entry(1_000L, "k"),
@@ -49,15 +55,17 @@ public class Format {
     return strBuilder.toString();
   }
 
+  /** Returns a number of bytes formatted like "123" "1.2k" "240M", etc. */
   public static String formatStorage(Number num, boolean pad) {
     return format(num, pad, STORAGE_SUFFIXES);
   }
 
+  /** Returns a number formatted like "123" "1.2k" "2.5B", etc. */
   public static String formatNumeric(Number num, boolean pad) {
     return format(num, pad, NUMERIC_SUFFIXES);
   }
 
-  public static String format(Number num, boolean pad, NavigableMap<Long, String> suffixes) {
+  private static String format(Number num, boolean pad, NavigableMap<Long, String> suffixes) {
     long value = num.longValue();
     double doubleValue = num.doubleValue();
     if (value < 0) {
@@ -65,6 +73,7 @@ public class Format {
     } else if (doubleValue > 0 && doubleValue < 1) {
       return padLeft("<1", pad ? 4 : 0);
     } else if (value < 1000) {
+      // 0-999
       return padLeft(Long.toString(value), pad ? 4 : 0);
     }
 
@@ -77,18 +86,22 @@ public class Format {
     return padLeft(hasDecimal ? (truncated / 10d) + suffix : (truncated / 10) + suffix, pad ? 4 : 0);
   }
 
+  /** Returns 0.0-1.0 as a "0%" - "100%" with no decimal points. */
   public static String formatPercent(double value) {
     return pf.format(value);
   }
 
+  /** Returns a number formatted with 1 decimal point. */
   public static String formatDecimal(double value) {
     return nf.format(value);
   }
 
+  /** Returns a number formatted with 0 decimal points. */
   public static String formatInteger(Number value) {
     return intF.format(value);
   }
 
+  /** Returns a duration formatted as fractional seconds with 1 decimal point. */
   public static String formatSeconds(Duration duration) {
     double seconds = duration.toNanos() * 1d / Duration.ofSeconds(1).toNanos();
     return formatDecimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";

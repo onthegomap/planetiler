@@ -11,20 +11,20 @@ import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.collection.FeatureGroup;
-import com.onthegomap.flatmap.collection.FeatureSort;
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
 import com.onthegomap.flatmap.mbiles.MbtilesWriter;
-import com.onthegomap.flatmap.reader.Reader;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
+import com.onthegomap.flatmap.reader.SimpleReader;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.reader.osm.OsmSource;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
@@ -55,7 +55,7 @@ import org.locationtech.jts.io.WKBReader;
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
  */
-public class FlatMapTest {
+public class FlatmapTests {
 
   private static final String TEST_PROFILE_NAME = "test name";
   private static final String TEST_PROFILE_DESCRIPTION = "test description";
@@ -66,7 +66,6 @@ public class FlatMapTest {
   private static final int Z13_TILES = 1 << 13;
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
-  private static final double Z12_WIDTH = 1d / Z12_TILES;
   private static final int Z4_TILES = 1 << 4;
   private final Stats stats = Stats.inMemory();
 
@@ -75,9 +74,9 @@ public class FlatMapTest {
     return elem;
   }
 
-  private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
+  private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, FlatmapConfig config,
     List<? extends SourceFeature> features) {
-    new Reader(profile, stats, "test") {
+    new SimpleReader(profile, stats, "test") {
 
       @Override
       public long getCount() {
@@ -95,7 +94,7 @@ public class FlatMapTest {
     }.process(featureGroup, config);
   }
 
-  private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, CommonParams config,
+  private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, FlatmapConfig config,
     List<? extends ReaderElement> osmElements) throws IOException {
     OsmSource elems = (name, threads) -> next -> {
       // process the same order they come in from an OSM file
@@ -105,35 +104,32 @@ public class FlatMapTest {
       osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OsmReader(elems, nodeMap, profile, Stats.inMemory())) {
+    try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }
   }
 
-  private FlatMapResults run(
+  private FlatmapResults run(
     Map<String, String> args,
     Runner runner,
     Profile profile
   ) throws Exception {
-    CommonParams config = CommonParams.from(Arguments.of(args));
-    FeatureSort featureDb = FeatureSort.newInMemory();
-    FeatureGroup featureGroup = new FeatureGroup(featureDb, profile, stats);
+    FlatmapConfig config = FlatmapConfig.from(Arguments.of(args));
+    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
     runner.run(featureGroup, profile, config);
-    featureGroup.sorter().sort();
+    featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, profile, config, stats);
       var tileMap = TestUtils.getTileMap(db);
-      tileMap.values().forEach(fs -> {
-        fs.forEach(f -> f.geometry().validate());
-      });
-      return new FlatMapResults(tileMap, db.metadata().getAll());
+      tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
+      return new FlatmapResults(tileMap, db.metadata().getAll());
     }
   }
 
-  private FlatMapResults runWithReaderFeatures(
+  private FlatmapResults runWithReaderFeatures(
     Map<String, String> args,
-    List<ReaderFeature> features,
+    List<SimpleFeature> features,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
   ) throws Exception {
     return run(
@@ -143,9 +139,9 @@ public class FlatMapTest {
     );
   }
 
-  private FlatMapResults runWithReaderFeatures(
+  private FlatmapResults runWithReaderFeatures(
     Map<String, String> args,
-    List<ReaderFeature> features,
+    List<SimpleFeature> features,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction,
     LayerPostprocessFunction postProcess
   ) throws Exception {
@@ -156,9 +152,9 @@ public class FlatMapTest {
     );
   }
 
-  private FlatMapResults runWithReaderFeaturesProfile(
+  private FlatmapResults runWithReaderFeaturesProfile(
     Map<String, String> args,
-    List<ReaderFeature> features,
+    List<SimpleFeature> features,
     Profile profileToUse
   ) throws Exception {
     return run(
@@ -168,7 +164,7 @@ public class FlatMapTest {
     );
   }
 
-  private FlatMapResults runWithOsmElements(
+  private FlatmapResults runWithOsmElements(
     Map<String, String> args,
     List<ReaderElement> features,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
@@ -180,7 +176,7 @@ public class FlatMapTest {
     );
   }
 
-  private FlatMapResults runWithOsmElements(
+  private FlatmapResults runWithOsmElements(
     Map<String, String> args,
     List<ReaderElement> features,
     Profile profileToUse
@@ -192,10 +188,10 @@ public class FlatMapTest {
     );
   }
 
-  private FlatMapResults runWithOsmElements(
+  private FlatmapResults runWithOsmElements(
     Map<String, String> args,
     List<ReaderElement> features,
-    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
+    Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
   ) throws Exception {
     return run(
@@ -205,10 +201,8 @@ public class FlatMapTest {
     );
   }
 
-  private long id = 0;
-
-  private ReaderFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
-    return new ReaderFeature(geometry, attrs, id++);
+  private SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
+    return SimpleFeature.create(geometry, attrs);
   }
 
   @Test
@@ -257,12 +251,10 @@ public class FlatMapTest {
           "attr", "value"
         ))
       ),
-      (in, features) -> {
-        features.point("layer")
-          .setZoomRange(13, 14)
-          .setAttr("name", "name value")
-          .inheritFromSource("attr");
-      }
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
     );
 
     assertSubmap(Map.of(
@@ -312,12 +304,10 @@ public class FlatMapTest {
           "attr", "value"
         ))
       ),
-      (in, features) -> {
-        features.point("layer")
-          .setZoomRange(13, 14)
-          .setAttr("name", "name value")
-          .inheritFromSource("attr");
-      }
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .setAttr("name", "name value")
+        .inheritAttrFromSource("attr")
     );
 
     assertSubmap(Map.of(
@@ -359,13 +349,12 @@ public class FlatMapTest {
         newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
         newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
       ),
-      (in, features) -> {
-        features.point("layer")
-          .setZoomRange(13, 14)
-          .inheritFromSource("rank")
-          .setZorder(Integer.parseInt(in.getTag("rank").toString()))
-          .setLabelGridSizeAndLimit(13, 128, 2);
-      }
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+        .setPointLabelGridSizeAndLimit(13, 128, 2)
+        .setBufferPixels(128)
     );
 
     assertSubmap(Map.of(
@@ -400,11 +389,9 @@ public class FlatMapTest {
           "attr", "value"
         ))
       ),
-      (in, features) -> {
-        features.line("layer")
-          .setZoomRange(13, 14)
-          .setBufferPixels(4);
-      }
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .setBufferPixels(4)
     );
 
     assertSubmap(Map.of(
@@ -442,12 +429,10 @@ public class FlatMapTest {
           "attr", "value"
         ))
       ),
-      (in, features) -> {
-        features.line("layer")
-          .setZoomRange(13, 14)
-          .setBufferPixels(4)
-          .setNumPointsAttr("_numpoints");
-      }
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .setBufferPixels(4)
+        .setNumPointsAttr("_numpoints")
     );
 
     assertSubmap(Map.of(
@@ -480,11 +465,9 @@ public class FlatMapTest {
           "attr", "value"
         ))
       ),
-      (in, features) -> {
-        features.line("layer")
-          .setZoomRange(13, 14)
-          .setBufferPixels(4);
-      }
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .setBufferPixels(4)
     );
 
     assertSubmap(Map.of(
@@ -547,11 +530,9 @@ public class FlatMapTest {
           List.of(innerPoints)
         ), Map.of())
       ),
-      (in, features) -> {
-        features.polygon("layer")
-          .setZoomRange(12, 14)
-          .setBufferPixels(4);
-      }
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(12, 14)
+        .setBufferPixels(4)
     );
 
     assertEquals(Map.ofEntries(
@@ -651,11 +632,9 @@ public class FlatMapTest {
           List.of()
         ), Map.of())
       ),
-      (in, features) -> {
-        features.polygon("layer")
-          .setZoomRange(0, 6)
-          .setBufferPixels(4);
-      }
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 6)
+        .setBufferPixels(4)
     );
 
     assertEquals(5461, results.tiles.size());
@@ -683,11 +662,9 @@ public class FlatMapTest {
       List.of(
         newReaderFeature(geometry, Map.of())
       ),
-      (in, features) -> {
-        features.polygon("layer")
-          .setZoomRange(0, 14)
-          .setBufferPixels(4);
-      }
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 14)
+        .setBufferPixels(4)
     );
 
     assertEquals(expected, results.tiles.size());
@@ -708,11 +685,9 @@ public class FlatMapTest {
           newPolygon(outerPoints1, List.of(innerPoints1))
         ), Map.of())
       ),
-      (in, features) -> {
-        features.polygon("layer")
-          .setZoomRange(0, 0)
-          .setBufferPixels(0);
-      }
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 0)
+        .setBufferPixels(0)
     );
 
     var tileContents = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
@@ -743,7 +718,7 @@ public class FlatMapTest {
           features.point("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
-            .inheritFromSource("attr");
+            .inheritAttrFromSource("attr");
         }
       }
     );
@@ -774,7 +749,7 @@ public class FlatMapTest {
           osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
         };
         var nodeMap = LongLongMap.newInMemorySortedTable();
-        try (var reader = new OsmReader(elems, nodeMap, profile, Stats.inMemory())) {
+        try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
           // skip pass 1
           reader.pass2(featureGroup, config);
         }
@@ -784,7 +759,7 @@ public class FlatMapTest {
           features.point("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
-            .inheritFromSource("attr");
+            .inheritAttrFromSource("attr");
         }
       })
     );
@@ -829,7 +804,7 @@ public class FlatMapTest {
           features.line("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
-            .inheritFromSource("attr");
+            .inheritAttrFromSource("attr");
         }
       }
     );
@@ -863,13 +838,13 @@ public class FlatMapTest {
           features.line("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value1")
-            .inheritFromSource("attr");
+            .inheritAttrFromSource("attr");
         }
         if (in.canBePolygon()) {
           features.polygon("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value2")
-            .inheritFromSource("attr");
+            .inheritAttrFromSource("attr");
         }
       }
     );
@@ -896,7 +871,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmMultipolygon() throws Exception {
-    record TestRelationInfo(long id, String name) implements OsmReader.RelationInfo {}
+    record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -942,7 +917,7 @@ public class FlatMapTest {
           features.polygon("layer")
             .setZoomRange(0, 0)
             .setAttr("name", "name value")
-            .inheritFromSource("attr")
+            .inheritAttrFromSource("attr")
             .setAttr("relname",
               in.relationInfo(TestRelationInfo.class).stream().map(c -> c.relation().name).findFirst().orElse(null));
         }
@@ -970,7 +945,7 @@ public class FlatMapTest {
 
   @Test
   public void testOsmLineInRelation() throws Exception {
-    record TestRelationInfo(long id, String name) implements OsmReader.RelationInfo {}
+    record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -1003,7 +978,7 @@ public class FlatMapTest {
           features.line("layer")
             .setZoomRange(0, 0)
             .setAttr("relname", firstRelation.map(d -> d.relation().name).orElse(null))
-            .inheritFromSource("attr")
+            .inheritAttrFromSource("attr")
             .setAttr("relrole", firstRelation.map(OsmReader.RelationMember::role).orElse(null));
         }
       }
@@ -1040,16 +1015,15 @@ public class FlatMapTest {
         newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
         newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
       ),
-      (in, features) -> {
-        features.point("layer")
-          .setZoomRange(13, 14)
-          .inheritFromSource("rank")
-          .setZorder(Integer.parseInt(in.getTag("rank").toString()))
-          .setLabelGridPixelSize(13, 8);
-      },
+      (in, features) -> features.point("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+        .setPointLabelGridPixelSize(13, 8)
+        .setBufferPixels(8),
       (layer, zoom, items) -> {
         if ("layer".equals(layer) && zoom == 13) {
-          List<VectorTileEncoder.Feature> result = new ArrayList<>(items.size());
+          List<VectorTile.Feature> result = new ArrayList<>(items.size());
           Map<Long, Integer> rankInGroup = new HashMap<>();
           for (int i = items.size() - 1; i >= 0; i--) {
             var item = items.get(i);
@@ -1108,12 +1082,10 @@ public class FlatMapTest {
           lng4, lat
         ), Map.of("group", "2", "other", "3"))
       ),
-      (in, features) -> {
-        features.line("layer")
-          .setZoomRange(13, 14)
-          .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
-          .inheritFromSource("group");
-      },
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
+        .inheritAttrFromSource("group"),
       (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
     );
 
@@ -1160,12 +1132,16 @@ public class FlatMapTest {
           10, 20.5
         )), Map.of("group", "2"))
       ),
-      (in, features) -> {
-        features.polygon("layer")
-          .setZoomRange(14, 14)
-          .inheritFromSource("group");
-      },
-      (layer, zoom, items) -> FeatureMerge.mergePolygons(items, 0, 1, 1)
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(14, 14)
+        .inheritAttrFromSource("group"),
+      (layer, zoom, items) -> FeatureMerge.mergeNearbyPolygons(
+        items,
+        0,
+        0,
+        1,
+        1
+      )
     );
 
     assertSubmap(sortListValues(Map.of(
@@ -1207,7 +1183,7 @@ public class FlatMapTest {
               var features = featureCollectors.get(in);
               features.point("layer")
                 .setZoomRange(13, 14)
-                .inheritFromSource("a");
+                .inheritAttrFromSource("a");
               for (var feature : features) {
                 next.accept(feature);
               }
@@ -1261,7 +1237,7 @@ public class FlatMapTest {
               var features = featureCollectors.get(in);
               features.point("layer")
                 .setZoomRange(13, 14)
-                .inheritFromSource("a");
+                .inheritAttrFromSource("a");
               for (var feature : features) {
                 next.accept(feature);
               }
@@ -1300,16 +1276,16 @@ public class FlatMapTest {
 
   private interface Runner {
 
-    void run(FeatureGroup featureGroup, Profile profile, CommonParams config) throws Exception;
+    void run(FeatureGroup featureGroup, Profile profile, FlatmapConfig config) throws Exception;
   }
 
   private interface LayerPostprocessFunction {
 
-    List<VectorTileEncoder.Feature> process(String layer, int zoom, List<VectorTileEncoder.Feature> items)
+    List<VectorTile.Feature> process(String layer, int zoom, List<VectorTile.Feature> items)
       throws GeometryException;
   }
 
-  private static record FlatMapResults(
+  private static record FlatmapResults(
     Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata
   ) {}
 
@@ -1319,13 +1295,13 @@ public class FlatMapTest {
     @Override String attribution,
     @Override String version,
     BiConsumer<SourceFeature, FeatureCollector> processFeature,
-    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
+    Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
     LayerPostprocessFunction postprocessLayerFeatures
   ) implements Profile {
 
     TestProfile(
       BiConsumer<SourceFeature, FeatureCollector> processFeature,
-      Function<OsmElement.Relation, List<OsmReader.RelationInfo>> preprocessOsmRelation,
+      Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
       LayerPostprocessFunction postprocessLayerFeatures
     ) {
       this(TEST_PROFILE_NAME, TEST_PROFILE_DESCRIPTION, TEST_PROFILE_ATTRIBUTION, TEST_PROFILE_VERSION, processFeature,
@@ -1338,7 +1314,7 @@ public class FlatMapTest {
     }
 
     @Override
-    public List<OsmReader.RelationInfo> preprocessOsmRelation(
+    public List<OsmRelationInfo> preprocessOsmRelation(
       OsmElement.Relation relation) {
       return preprocessOsmRelation.apply(relation);
     }
@@ -1353,13 +1329,13 @@ public class FlatMapTest {
     }
 
     @Override
-    public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-      List<VectorTileEncoder.Feature> items) throws GeometryException {
+    public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+      List<VectorTile.Feature> items) throws GeometryException {
       return postprocessLayerFeatures.process(layer, zoom, items);
     }
   }
 
-  private static final <T> List<T> orEmpty(List<T> in) {
+  private static <T> List<T> orEmpty(List<T> in) {
     return in == null ? List.of() : in;
   }
 
@@ -1413,9 +1389,9 @@ public class FlatMapTest {
   }
 
   @Test
-  public void testFlatMapRunner(@TempDir Path tempDir) throws Exception {
+  public void testFlatmapRunner(@TempDir Path tempDir) throws Exception {
     Path mbtiles = tempDir.resolve("output.mbtiles");
-    FlatMapRunner.createWithArguments(Arguments.of("tmpdir", tempDir))
+    FlatmapRunner.create(Arguments.of("tmpdir", tempDir))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {

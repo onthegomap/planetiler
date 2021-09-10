@@ -4,12 +4,25 @@ import com.onthegomap.flatmap.util.Format;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * A utility for measuring the wall and CPU time that this JVM consumes between snapshots.
+ * <p>
+ * For example:
+ * <pre>{@code
+ * var start = ProcessTime.now();
+ * // do expensive work...
+ * var end - ProcessTime.now();
+ * LOGGER.log("Expensive work took " + end.minus(start));
+ * }</pre>
+ */
 public record ProcessTime(Duration wall, Optional<Duration> cpu) {
 
+  /** Takes a snapshot of current wall and CPU time of this JVM. */
   public static ProcessTime now() {
     return new ProcessTime(Duration.ofNanos(System.nanoTime()), ProcessInfo.getProcessCpuTime());
   }
 
+  /** Returns the amount of time elapsed between {@code other} and {@code this}. */
   ProcessTime minus(ProcessTime other) {
     return new ProcessTime(wall.minus(other.wall), cpu.flatMap(thisCpu -> other.cpu.map(thisCpu::minus)));
   }

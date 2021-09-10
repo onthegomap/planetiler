@@ -31,7 +31,13 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PrometheusStats implements Stats {
+/**
+ * A {@link Stats} implementation that pushes metrics to a <a href="https://prometheus.io/">prometheus</a> instance
+ * through a <a href="https://github.com/prometheus/pushgateway">push gateway</a>.
+ * <p>
+ * See {@code grafana.json} for an example grafana dashboard you can use to monitor progress.
+ */
+class PrometheusStats implements Stats {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PrometheusStats.class);
 
@@ -44,6 +50,7 @@ public class PrometheusStats implements Stats {
   private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
 
+  /** Constructs a new instance but does not start polling (for tests). */
   PrometheusStats(String job) {
     this.job = job;
     DefaultExports.register(registry);
@@ -54,7 +61,7 @@ public class PrometheusStats implements Stats {
     new PostGcMemoryCollector().register(registry);
   }
 
-  PrometheusStats(String destination, String job, Duration interval) {
+  private PrometheusStats(String destination, String job, Duration interval) {
     this(job);
     try {
       URL url = new URL(destination);
@@ -65,7 +72,7 @@ public class PrometheusStats implements Stats {
           pg.setConnectionFactory(new BasicAuthHttpConnectionFactory(parts[0], parts[1]));
         }
       }
-      pg.pushAdd(registry, job);
+      this.push();
       executor = Executors.newScheduledThreadPool(1, r -> {
         Thread thread = new Thread(r);
         thread.setDaemon(true);
@@ -76,6 +83,13 @@ public class PrometheusStats implements Stats {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Returns a new {@code PrometheusStats} that and schedules it to push to {@code destination} every {@code interval}.
+   */
+  static PrometheusStats createAndStartPushing(String destination, String job, Duration interval) {
+    return new PrometheusStats(destination, job, interval);
   }
 
   private void push() {
@@ -112,8 +126,8 @@ public class PrometheusStats implements Stats {
     .register(registry);
 
   @Override
-  public void dataError(String stat) {
-    dataErrors.labels(stat).inc();
+  public void dataError(String errorCode) {
+    dataErrors.labels(errorCode).inc();
   }
 
   private final io.prometheus.client.Counter emittedFeatures = io.prometheus.client.Counter
@@ -122,10 +136,11 @@ public class PrometheusStats implements Stats {
     .register(registry);
 
   @Override
-  public void emittedFeatures(int z, String layer, int number) {
-    emittedFeatures.labels(Integer.toString(z), layer).inc(number);
+  public void emittedFeatures(int z, String layer, int numFeatures) {
+    emittedFeatures.labels(Integer.toString(z), layer).inc(numFeatures);
   }
 
+  /** Returns the full payload that we would send to push gateway for a poll right way. */
   public String getMetricsAsString() {
     try (StringWriter writer = new StringWriter()) {
       TextFormat.write004(writer, registry.metricFamilySamples());
@@ -157,8 +172,8 @@ public class PrometheusStats implements Stats {
   }
 
   @Override
-  public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate heapObject) {
-    heapObjectsToMonitor.put(name, heapObject);
+  public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
+    heapObjectsToMonitor.put(name, object);
   }
 
   @Override
@@ -188,19 +203,16 @@ public class PrometheusStats implements Stats {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     executor.shutdown();
     push();
-  }
-
-  private static CounterMetricFamily counterMetric(String name, double value) {
-    return new CounterMetricFamily(BASE + name, BASE + name + " value", value);
   }
 
   private static GaugeMetricFamily gaugeMetric(String name, double value) {
     return new GaugeMetricFamily(BASE + name, BASE + name + " value", value);
   }
 
+  /** Reports stats on all tasks being timed through {@link #timers()}. */
   private class InProgressTasks extends Collector {
 
     @Override
@@ -219,6 +231,7 @@ public class PrometheusStats implements Stats {
     }
   }
 
+  /** Reports stats on all file sizes being monitored through {@link #monitorFile(String, Path)}. */
   private class FileSizeCollector extends Collector {
 
     private boolean logged = false;
@@ -257,6 +270,10 @@ public class PrometheusStats implements Stats {
     }
   }
 
+  /**
+   * Reports stats on all in-memory objects sizes being monitored through {@link #monitorInMemoryObject(String,
+   * MemoryEstimator.HasEstimate)}.
+   */
   private class HeapObjectSizeCollector extends Collector {
 
     @Override
@@ -273,6 +290,7 @@ public class PrometheusStats implements Stats {
     }
   }
 
+  /** Reports stats on post-GC memory consumption of each memory pool. */
   private static class PostGcMemoryCollector extends Collector {
 
     @Override
@@ -289,6 +307,7 @@ public class PrometheusStats implements Stats {
     }
   }
 
+  /** Reports more detailed stats on CPU usage statistics by thread than prometheus collects by default. */
   private static class ThreadDetailsExports extends Collector {
 
     private final OperatingSystemMXBean osBean;
@@ -317,8 +336,8 @@ public class PrometheusStats implements Stats {
       threads.putAll(ProcessInfo.getThreadStats());
       for (ProcessInfo.ThreadState thread : threads.values()) {
         var labels = List.of(thread.name(), Long.toString(thread.id()));
-        threadUserTimes.addMetric(labels, thread.userTimeNanos() / NANOSECONDS_PER_SECOND);
-        threadCpuTimes.addMetric(labels, thread.cpuTimeNanos() / NANOSECONDS_PER_SECOND);
+        threadUserTimes.addMetric(labels, thread.userTime().toNanos() / NANOSECONDS_PER_SECOND);
+        threadCpuTimes.addMetric(labels, thread.cpuTime().toNanos() / NANOSECONDS_PER_SECOND);
       }
 
       return mfs;

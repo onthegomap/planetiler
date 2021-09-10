@@ -6,7 +6,7 @@ import static com.onthegomap.flatmap.TestUtils.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.flatmap.TestUtils;
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
 import java.io.IOException;
@@ -25,6 +25,9 @@ import org.locationtech.jts.geom.Polygon;
 
 /**
  * End-to-end tests for OpenMapTiles map generation.
+ * <p>
+ * Generates an entire map for the smallest openstreetmap extract available (Monaco) and asserts that expected output
+ * features exist
  */
 public class OpenMapTilesTest {
 
@@ -39,12 +42,11 @@ public class OpenMapTilesTest {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     OpenMapTilesMain.run(Arguments.of(
       // Override input source locations
-      "osm", TestUtils.pathToResource("monaco-latest.osm.pbf"),
-      "natural_earth", TestUtils.pathToResource("natural_earth_vector.sqlite"),
-      "lake_centerlines", TestUtils.pathToResource("natural_earth_vector.sqlite"),
-      "water_polygons", TestUtils.pathToResource("water-polygons-split-3857.zip"),
+      "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
+      "natural_earth_path", TestUtils.pathToResource("natural_earth_vector.sqlite"),
+      "water_polygons_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
       // no centerlines in monaco - so fake it out with an empty source
-      "lake_centerlines", TestUtils.pathToResource("water-polygons-split-3857.zip"),
+      "lake_centerlines_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
 
       // Override temp dir location
       "tmp", tmpDir.toString(),
@@ -79,8 +81,8 @@ public class OpenMapTilesTest {
   public void ensureValidGeometries() throws Exception {
     Set<Mbtiles.TileEntry> parsedTiles = TestUtils.getAllTiles(mbtiles);
     for (var tileEntry : parsedTiles) {
-      var decoded = VectorTileEncoder.decode(gunzip(tileEntry.bytes()));
-      for (VectorTileEncoder.Feature feature : decoded) {
+      var decoded = VectorTile.decode(gunzip(tileEntry.bytes()));
+      for (VectorTile.Feature feature : decoded) {
         TestUtils.validateGeometry(feature.geometry().decode());
       }
     }

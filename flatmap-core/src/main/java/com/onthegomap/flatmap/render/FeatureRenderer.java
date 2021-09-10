@@ -1,10 +1,8 @@
 package com.onthegomap.flatmap.render;
 
-import static com.onthegomap.flatmap.geo.GeoUtils.TILE_PRECISON;
-
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
@@ -33,12 +31,16 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Converts source features geometries to encoded vector tile features according to settings configured in the map
+ * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
+ */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
 
-  private static final AtomicLong idGen = new AtomicLong(0);
-
+  // generate globally-unique IDs shared by all vector tile features representing the same source feature
+  private static final AtomicLong idGenerator = new AtomicLong(0);
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
-  private static final VectorTileEncoder.VectorGeometry FILL = VectorTileEncoder.encodeGeometry(GeoUtils.JTS_FACTORY
+  private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
       -5, -5,
       261, -5,
@@ -46,11 +48,12 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       -5, 261,
       -5, -5
     }, 2, 0))));
-  private final CommonParams config;
+  private final FlatmapConfig config;
   private final Consumer<RenderedFeature> consumer;
   private final Stats stats;
 
-  public FeatureRenderer(CommonParams config, Consumer<RenderedFeature> consumer, Stats stats) {
+  /** Constructs a new feature render that will send rendered features to {@code consumer}. */
+  public FeatureRenderer(FlatmapConfig config, Consumer<RenderedFeature> consumer, Stats stats) {
     this.config = config;
     this.consumer = consumer;
     this.stats = stats;
@@ -82,30 +85,33 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   }
 
   private void renderPoint(FeatureCollector.Feature feature, Coordinate... coords) {
-    long id = idGen.incrementAndGet();
+    long id = idGenerator.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
-      TileExtents.ForZoom extents = config.extents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.sourceId());
 
+      // for "label grid" point density limiting, compute the grid square that this point sits in
+      // only valid if not a multipoint
       RenderedFeature.Group groupInfo = null;
       if (hasLabelGrid && coords.length == 1) {
-        double labelGridTileSize = feature.getLabelGridPixelSizeAtZoom(zoom) / 256d;
+        double labelGridTileSize = feature.getPointLabelGridPixelSizeAtZoom(zoom) / 256d;
         groupInfo = labelGridTileSize < 1d / 4096d ? null : new RenderedFeature.Group(
           GeoUtils.labelGridId(tilesAtZoom, labelGridTileSize, coords[0]),
-          feature.getLabelGridLimitAtZoom(zoom)
+          feature.getPointLabelGridLimitAtZoom(zoom)
         );
       }
 
+      // compute the tile coordinate of every tile these points should show up in at the given buffer size
+      TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
+      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.getSourceId());
       int emitted = 0;
       for (var entry : tiled.getTileData()) {
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
-        Geometry geom = CoordinateSequenceExtractor.reassemblePoints(result);
-        emitFeature(feature, id, attrs, tile, geom, groupInfo);
+        Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
+        encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo);
         emitted++;
       }
       stats.emittedFeatures(zoom, feature.getLayer(), emitted);
@@ -114,16 +120,16 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
     stats.processedElement("point", feature.getLayer());
   }
 
-  private void emitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs, TileCoord tile,
-    Geometry geom, RenderedFeature.Group groupInfo) {
+  private void encodeAndEmitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs,
+    TileCoord tile, Geometry geom, RenderedFeature.Group groupInfo) {
     consumer.accept(new RenderedFeature(
       tile,
-      new VectorTileEncoder.Feature(
+      new VectorTile.Feature(
         feature.getLayer(),
         id,
-        VectorTileEncoder.encodeGeometry(geom),
+        VectorTile.encodeGeometry(geom),
         attrs,
-        groupInfo == null ? VectorTileEncoder.Feature.NO_GROUP : groupInfo.group()
+        groupInfo == null ? VectorTile.Feature.NO_GROUP : groupInfo.group()
       ),
       feature.getZorder(),
       Optional.ofNullable(groupInfo)
@@ -131,6 +137,11 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   }
 
   private void renderPoint(FeatureCollector.Feature feature, MultiPoint points) {
+    /*
+     * Attempt to encode multipoints as a single feature sharing attributes and z-order
+     * but if it has label grid data then need to fall back to separate features per point,
+     * so they can be filtered individually.
+     */
     if (feature.hasLabelGrid()) {
       for (Coordinate coord : points.getCoordinates()) {
         renderPoint(feature, coord);
@@ -141,30 +152,34 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   }
 
   private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
-    long id = idGen.incrementAndGet();
+    long id = idGenerator.incrementAndGet();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     String numPointsAttr = feature.getNumPointsAttr();
     for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
       double scale = 1 << z;
-      double tolerance = feature.getPixelTolerance(z) / 256d;
-      double minSize = feature.getMinPixelSize(z) / 256d;
+      double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
+      double minSize = feature.getMinPixelSizeAtZoom(z) / 256d;
       if (area) {
+        // treat minPixelSize as the edge of a square that defines minimum area for features
         minSize *= minSize;
       } else if (worldLength > 0 && worldLength * scale < minSize) {
         // skip linestring, too short
         continue;
       }
 
+      // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
+      // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
       Geometry geom = AffineTransformation.scaleInstance(scale, scale).transform(input);
       geom = DouglasPeuckerSimplifier.simplify(geom, tolerance);
 
-      List<List<CoordinateSequence>> groups = CoordinateSequenceExtractor.extractGroups(geom, minSize);
+      List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
-      TileExtents.ForZoom extents = config.extents().getForZoom(z);
-      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.sourceId());
+      TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
+      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.getSourceId());
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
+        // if profile wants the original number of points that the simplified but untiled geometry started with
         attrs = new HashMap<>(attrs);
         attrs.put(numPointsAttr, geom.getNumPoints());
       }
@@ -183,17 +198,26 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         List<List<CoordinateSequence>> geoms = entry.getValue();
 
         Geometry geom;
-        if (feature.area()) {
-          geom = CoordinateSequenceExtractor.reassemblePolygons(geoms);
-          geom = GeoUtils.snapAndFixPolygon(geom, TILE_PRECISON);
-          // JTS utilities "fix" the geometry to be clockwise outer/CCW inner
+        if (feature.isPolygon()) {
+          geom = GeometryCoordinateSequences.reassemblePolygons(geoms);
+          /*
+           * Use the very expensive, but necessary JTS Geometry#buffer(0) trick to repair invalid polygons (with self-
+           * intersections) and JTS GeometryPrecisionReducer utility to snap polygon nodes to the vector tile grid
+           * without introducing self-intersections.
+           *
+           * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
+           * coordinate rounding.
+           */
+          geom = GeoUtils.snapAndFixPolygon(geom);
+          // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
+          // so we need outer CCW/inner clockwise
           geom = geom.reverse();
         } else {
-          geom = CoordinateSequenceExtractor.reassembleLineStrings(geoms);
+          geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
         }
 
         if (!geom.isEmpty()) {
-          emitFeature(feature, id, attrs, tile, geom, null);
+          encodeAndEmitFeature(feature, id, attrs, tile, geom, null);
           emitted++;
         }
       } catch (GeometryException e) {
@@ -201,7 +225,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       }
     }
 
-    if (feature.area()) {
+    // polygons that span multiple tiles contain detail about the outer edges separate from the filled tiles, so emit
+    // filled tiles now
+    if (feature.isPolygon()) {
       emitted += emitFilledTiles(id, feature, sliced);
     }
 
@@ -209,12 +235,13 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   }
 
   private int emitFilledTiles(long id, FeatureCollector.Feature feature, TiledGeometry sliced) {
-    /*
-     * Optimization: large input polygons that generate many filled interior tiles (ie. the ocean), the encoder avoids
-     * re-encoding if groupInfo and vector tile feature are == to previous values.
-     */
     Optional<RenderedFeature.Group> groupInfo = Optional.empty();
-    VectorTileEncoder.Feature vectorTileFeature = new VectorTileEncoder.Feature(
+    /*
+     * Optimization: large input polygons that generate many filled interior tiles (i.e. the ocean), the encoder avoids
+     * re-encoding if groupInfo and vector tile feature are == to previous values, so compute one instance at the start
+     * of each zoom level for this feature.
+     */
+    VectorTile.Feature vectorTileFeature = new VectorTile.Feature(
       feature.getLayer(),
       id,
       FILL,

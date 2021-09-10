@@ -9,10 +9,17 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.index.strtree.STRtree;
 
+/**
+ * Index to efficiently query which polygons contain a point.
+ * <p>
+ * Writes and reads are thread-safe, but all writes must occur before reads.
+ *
+ * @param <T> the type of value associated with each polygon
+ */
 @ThreadSafe
 public class PolygonIndex<T> {
 
-  private record GeomWithData<T>(Polygon poly, T data) {}
+  private static record GeomWithData<T>(Polygon poly, T data) {}
 
   private final STRtree index = new STRtree();
 
@@ -36,19 +43,22 @@ public class PolygonIndex<T> {
     }
   }
 
-  public List<T> getContaining(Point point) {
-    build();
-    List<?> items = index.query(point.getEnvelopeInternal());
-    return getContaining(point, items);
-  }
-
+  /** Returns the data associated with the first polygon containing {@code point}. */
   public T getOnlyContaining(Point point) {
     List<T> result = getContaining(point);
     return result.isEmpty() ? null : result.get(0);
   }
 
+  /** Returns the data associated with all polygons containing {@code point}. */
+  public List<T> getContaining(Point point) {
+    build();
+    // first pre-filter polygons with envelope that overlaps this point
+    List<?> items = index.query(point.getEnvelopeInternal());
+    // then post-filter to only polygons that actually contain the point
+    return postFilterContaining(point, items);
+  }
 
-  private List<T> getContaining(Point point, List<?> items) {
+  private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
     for (int i = 0; i < items.size(); i++) {
       if (items.get(i) instanceof GeomWithData<?> value && value.poly.contains(point)) {
@@ -59,6 +69,10 @@ public class PolygonIndex<T> {
     return result;
   }
 
+  /**
+   * Returns the data associated with either the polygons that contain {@code point} or if none are found than the
+   * nearest polygon to {@code point} with an envelope that contains point.
+   */
   public List<T> getContainingOrNearest(Point point) {
     build();
     List<?> items = index.query(point.getEnvelopeInternal());
@@ -69,7 +83,9 @@ public class PolygonIndex<T> {
         return List.of(t);
       }
     }
-    List<T> result = getContaining(point, items);
+    List<T> result = postFilterContaining(point, items);
+
+    // if none contain, then look for the nearest polygon from potential overlaps
     if (result.isEmpty()) {
       double nearest = Double.MAX_VALUE;
       T nearestValue = null;
@@ -90,11 +106,13 @@ public class PolygonIndex<T> {
     return result;
   }
 
-  public T get(Point p) {
-    List<T> nearests = getContainingOrNearest(p);
+  /** Returns the data associated with a polygon that contains {@code point} or nearest polygon if none are found. */
+  public T get(Point point) {
+    List<T> nearests = getContainingOrNearest(point);
     return nearests.isEmpty() ? null : nearests.get(0);
   }
 
+  /** Indexes {@code item} for all polygons contained in {@code geom}. */
   public void put(Geometry geom, T item) {
     if (geom instanceof Polygon poly) {
       // need to externally synchronize inserts into the STRTree

@@ -8,23 +8,11 @@ import org.junit.jupiter.api.Test;
 
 public class ZoomFunctionTest {
 
-  private static <T> void assertValueInRange(ZoomFunction fn, int min, int max, T value) {
+  private static <T> void assertValueInRange(ZoomFunction<?> fn, int min, int max, T value) {
     for (int i = min; i <= max; i++) {
       assertEquals(value, fn.apply(i), "z" + i);
     }
   }
-
-//  private static void assertDoubleValueInRange(ZoomFunction.OfDouble fn, int min, int max, double value) {
-//    for (int i = min; i <= max; i++) {
-//      assertEquals(value, fn.applyAsDouble(i), 1e-5, "z" + i);
-//    }
-//  }
-//
-//  private static void assertIntValueInRange(ZoomFunction.OfInt fn, int min, int max, double value) {
-//    for (int i = min; i <= max; i++) {
-//      assertEquals(value, fn.applyAsInt(i), "z" + i);
-//    }
-//  }
 
   @Test
   public void testNullBelowZoom() {
@@ -61,46 +49,16 @@ public class ZoomFunctionTest {
 
   @Test
   public void testConvertMetersToPixels() {
-    var fn = ZoomFunction.fromMaxZoomThresholds(Map.of(
-      7, 20_000,
-      8, 14_000,
-      11, 8_000
-    )).andThen(ZoomFunction.metersToPixelsAtEquator());
-    assertEquals(8, fn.apply(6), 1d);
-    assertEquals(16, fn.apply(7), 1d);
-    assertEquals(23, fn.apply(8), 1d);
-    assertEquals(26, fn.apply(9), 1d);
-    assertEquals(52, fn.apply(10), 1d);
-    assertEquals(105, fn.apply(11), 1d);
+    var fn = ZoomFunction.meterThresholds()
+      .put(7, 20_000)
+      .put(8, 14_000)
+      .put(11, 8_000);
+    assertNull(fn.apply(6));
+    assertEquals(16, fn.apply(7).doubleValue(), 1d);
+    assertEquals(23, fn.apply(8).doubleValue(), 1d);
+    assertNull(fn.apply(9));
+    assertNull(fn.apply(10));
+    assertEquals(105, fn.apply(11).doubleValue(), 1d);
     assertNull(fn.apply(12));
   }
-
-//  @Test
-//  public void testMultipleThresholds() {
-//    var fn = ZoomFunction.ranges(
-//      ZoomFunction.range(5, 7, "value"),
-//      ZoomFunction.range(10, 12, "value13")
-//    );
-//    assertValueInRange(fn, 0, 4, null);
-//    assertValueInRange(fn, 5, 7, "value");
-//    assertValueInRange(fn, 8, 9, null);
-//    assertValueInRange(fn, 10, 12, "value13");
-//    assertValueInRange(fn, 13, 14, null);
-//  }
-//
-//  @Test
-//  public void testDoubleMetersToPixels() {
-//    var fn = ZoomFunction.metersToPixelsAtEquator(12,
-//      doubleRange(0, 7, 20_000),
-//      doubleRange(8, 8, 14_000),
-//      doubleRange(9, 11, 8_000)
-//    );
-//    assertEquals(8, fn.applyAsDouble(6), 1d);
-//    assertEquals(16, fn.applyAsDouble(7), 1d);
-//    assertEquals(23, fn.applyAsDouble(8), 1d);
-//    assertEquals(26, fn.applyAsDouble(9), 1d);
-//    assertEquals(52, fn.applyAsDouble(10), 1d);
-//    assertEquals(105, fn.applyAsDouble(11), 1d);
-//    assertEquals(12, fn.applyAsDouble(12), 1d);
-//  }
 }

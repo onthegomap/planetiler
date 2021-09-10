@@ -38,14 +38,14 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.Utils;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 
 /**
  * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label
@@ -55,7 +55,7 @@ public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables
   private final MultiExpression.MultiExpressionIndex<String> classLookup;
   private final Translations translations;
 
-  public AerodromeLabel(Translations translations, Arguments args, Stats stats) {
+  public AerodromeLabel(Translations translations, FlatmapConfig config, Stats stats) {
     this.classLookup = FieldMappings.Class.index();
     this.translations = translations;
   }
@@ -65,8 +65,8 @@ public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables
     features.centroid(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setZoomRange(10, 14)
-      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setAttrs(Utils.elevationTags(element.ele()))
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .putAttrs(Utils.elevationTags(element.ele()))
       .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
       .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
       .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().tags(), FieldValues.CLASS_OTHER));

@@ -1,4 +1,4 @@
-package com.onthegomap.flatmap;
+package com.onthegomap.flatmap.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -37,13 +37,15 @@ public class GeofabrikTest {
 
   @Test
   public void testFound() throws IOException {
-    String url = Geofabrik.getDownloadUrl("afghanistan", new ByteArrayInputStream(response));
+    var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
+    String url = Geofabrik.searchIndexForDownloadUrl("afghanistan", index);
     assertEquals("https://download.geofabrik.de/asia/afghanistan-latest.osm.pbf", url);
   }
 
   @Test
-  public void testNotFound() {
+  public void testNotFound() throws IOException {
+    var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
     assertThrows(IllegalArgumentException.class,
-      () -> Geofabrik.getDownloadUrl("monaco", new ByteArrayInputStream(response)));
+      () -> Geofabrik.searchIndexForDownloadUrl("monaco", index));
   }
 }

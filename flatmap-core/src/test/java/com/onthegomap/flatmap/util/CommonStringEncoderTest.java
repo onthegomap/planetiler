@@ -16,7 +16,7 @@ public class CommonStringEncoderTest {
     assertEquals("a", commonStringEncoder.decode(a));
     assertEquals(a, commonStringEncoder.encode("a"));
     assertEquals("b", commonStringEncoder.decode(b));
-    assertThrows(IllegalStateException.class, () -> commonStringEncoder.decode((byte) (b + 1)));
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoder.decode((byte) (b + 1)));
   }
 
   @Test
@@ -27,6 +27,6 @@ public class CommonStringEncoderTest {
       String decoded = commonStringEncoder.decode(encoded);
       assertEquals(string, decoded);
     }
-    assertThrows(IllegalStateException.class, () -> commonStringEncoder.encode("too many"));
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoder.encode("too many"));
   }
 }

@@ -2,7 +2,7 @@ package com.onthegomap.flatmap.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.mbiles.Mbtiles;
@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 public class LayerStatsTest {
 
-  LayerStats layerStats = new LayerStats();
+  final LayerStats layerStats = new LayerStats();
 
   @Test
   public void testEmptyLayerStats() {
@@ -24,10 +24,10 @@ public class LayerStatsTest {
   public void testEmptyLayerStatsOneLayer() {
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 3),
-      new VectorTileEncoder.Feature(
+      new VectorTile.Feature(
         "layer1",
         1,
-        VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
         Map.of("a", 1, "b", "string", "c", true)
       ),
       1,
@@ -46,10 +46,10 @@ public class LayerStatsTest {
   public void testEmptyLayerStatsTwoLayers() {
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 3),
-      new VectorTileEncoder.Feature(
+      new VectorTile.Feature(
         "layer1",
         1,
-        VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
         Map.of()
       ),
       1,
@@ -57,10 +57,10 @@ public class LayerStatsTest {
     ));
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 4),
-      new VectorTileEncoder.Feature(
+      new VectorTile.Feature(
         "layer2",
         1,
-        VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
         Map.of("a", 1, "b", true, "c", true)
       ),
       1,
@@ -68,10 +68,10 @@ public class LayerStatsTest {
     ));
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 1),
-      new VectorTileEncoder.Feature(
+      new VectorTile.Feature(
         "layer2",
         1,
-        VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
         Map.of("a", 1, "b", true, "c", 1)
       ),
       1,
@@ -90,33 +90,29 @@ public class LayerStatsTest {
 
   @Test
   public void testMergeFromMultipleThreads() throws InterruptedException {
-    Thread t1 = new Thread(() -> {
-      layerStats.accept(new RenderedFeature(
-        TileCoord.ofXYZ(1, 2, 3),
-        new VectorTileEncoder.Feature(
-          "layer1",
-          1,
-          VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
-          Map.of("a", 1)
-        ),
+    Thread t1 = new Thread(() -> layerStats.accept(new RenderedFeature(
+      TileCoord.ofXYZ(1, 2, 3),
+      new VectorTile.Feature(
+        "layer1",
         1,
-        Optional.empty()
-      ));
-    });
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
+        Map.of("a", 1)
+      ),
+      1,
+      Optional.empty()
+    )));
     t1.start();
-    Thread t2 = new Thread(() -> {
-      layerStats.accept(new RenderedFeature(
-        TileCoord.ofXYZ(1, 2, 4),
-        new VectorTileEncoder.Feature(
-          "layer1",
-          1,
-          VectorTileEncoder.encodeGeometry(GeoUtils.point(1, 2)),
-          Map.of("a", true)
-        ),
+    Thread t2 = new Thread(() -> layerStats.accept(new RenderedFeature(
+      TileCoord.ofXYZ(1, 2, 4),
+      new VectorTile.Feature(
+        "layer1",
         1,
-        Optional.empty()
-      ));
-    });
+        VectorTile.encodeGeometry(GeoUtils.point(1, 2)),
+        Map.of("a", true)
+      ),
+      1,
+      Optional.empty()
+    )));
     t2.start();
     t1.join();
     t2.join();

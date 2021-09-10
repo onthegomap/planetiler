@@ -5,7 +5,7 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EA
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.WATER_POLYGON_SOURCE;
 
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ public class WaterTest extends AbstractLayerTest {
       "_layer", "water",
       "_type", "polygon",
       "_minzoom", 0
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       rectangle(0, 10),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -35,7 +35,7 @@ public class WaterTest extends AbstractLayerTest {
       "_layer", "water",
       "_type", "polygon",
       "_minzoom", 0
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       rectangle(0, 10),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -48,7 +48,7 @@ public class WaterTest extends AbstractLayerTest {
       "_layer", "water",
       "_type", "polygon",
       "_maxzoom", 5
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       rectangle(0, 10),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -61,7 +61,7 @@ public class WaterTest extends AbstractLayerTest {
       "_layer", "water",
       "_type", "polygon",
       "_maxzoom", 5
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       rectangle(0, 10),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -79,7 +79,7 @@ public class WaterTest extends AbstractLayerTest {
       "_type", "polygon",
       "_minzoom", 6,
       "_maxzoom", 14
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       rectangle(0, 10),
       Map.of(),
       WATER_POLYGON_SOURCE,
@@ -155,28 +155,28 @@ public class WaterTest extends AbstractLayerTest {
   @Test
   public void testOceanZoomLevels() {
     assertCoversZoomRange(0, 14, "water",
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_110m_ocean",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_50m_ocean",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_10m_ocean",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         WATER_POLYGON_SOURCE,
@@ -189,28 +189,28 @@ public class WaterTest extends AbstractLayerTest {
   @Test
   public void testLakeZoomLevels() {
     assertCoversZoomRange(0, 14, "water",
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_110m_lakes",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_50m_lakes",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_10m_lakes",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         rectangle(0, 10),
         Map.of(
           "natural", "water",

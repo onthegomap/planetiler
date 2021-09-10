@@ -39,9 +39,8 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
@@ -50,6 +49,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +61,10 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
   OpenMapTilesProfile.FeaturePostProcessor, OpenMapTilesProfile.NaturalEarthProcessor {
 
   private final Translations translations;
+  private final FlatmapConfig config;
 
-  public Waterway(Translations translations, Arguments args, Stats stats) {
+  public Waterway(Translations translations, FlatmapConfig config, Stats stats) {
+    this.config = config;
     this.translations = translations;
   }
 
@@ -75,7 +77,7 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
     "ditch", 13
   );
 
-  private static final ZoomFunction.MeterThresholds minPixelSizeThresholds = ZoomFunction.meterThresholds()
+  private static final ZoomFunction.MeterToPixelThresholds minPixelSizeThresholds = ZoomFunction.meterThresholds()
     .put(9, 8_000)
     .put(10, 4_000)
     .put(11, 1_000);
@@ -89,7 +91,7 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
     features.line(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, element.waterway())
-      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setZoomRange(minzoom, 14)
       // details only at higher zoom levels
       .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
@@ -118,10 +120,15 @@ public class Waterway implements OpenMapTilesSchema.Waterway, Tables.OsmWaterway
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
     throws GeometryException {
     if (zoom >= 9 && zoom <= 11) {
-      return FeatureMerge.mergeLineStrings(items, minPixelSizeThresholds.apply(zoom).doubleValue(), 0.1d, BUFFER_SIZE);
+      return FeatureMerge.mergeLineStrings(
+        items,
+        minPixelSizeThresholds.apply(zoom).doubleValue(),
+        config.tolerance(zoom),
+        BUFFER_SIZE
+      );
     }
     return items;
   }

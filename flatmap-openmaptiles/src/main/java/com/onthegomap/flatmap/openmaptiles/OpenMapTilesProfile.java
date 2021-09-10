@@ -5,18 +5,19 @@ import static com.onthegomap.flatmap.openmaptiles.Expression.TRUE;
 import static com.onthegomap.flatmap.openmaptiles.Expression.matchType;
 
 import com.onthegomap.flatmap.FeatureCollector;
+import com.onthegomap.flatmap.FlatmapRunner;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
-import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,7 +56,7 @@ public class OpenMapTilesProfile implements Profile {
     return Tables.MAPPINGS
       .filterKeys(constructor -> {
         // exclude any mapping that generates a class we don't have a handler for
-        var clz = constructor.create(new ReaderFeature(null, Map.of(), 0), "").getClass();
+        var clz = constructor.create(SimpleFeature.empty(), "").getClass();
         var handlers = osmClassHandlerMap.getOrDefault(clz, Set.of()).stream();
         if (requireWikidata) {
           handlers = handlers.filter(handler -> !IgnoreWikidata.class.isAssignableFrom(handler));
@@ -68,10 +69,14 @@ public class OpenMapTilesProfile implements Profile {
       .index();
   }
 
-  public OpenMapTilesProfile(Translations translations, Arguments arguments, Stats stats) {
-    List<String> onlyLayers = arguments.get("only_layers", "Include only certain layers", List.of());
-    List<String> excludeLayers = arguments.get("exclude_layers", "Exclude certain layers", List.of());
-    this.layers = OpenMapTilesSchema.createInstances(translations, arguments, stats)
+  public OpenMapTilesProfile(FlatmapRunner runner) {
+    this(runner.translations(), runner.config(), runner.stats());
+  }
+
+  public OpenMapTilesProfile(Translations translations, FlatmapConfig config, Stats stats) {
+    List<String> onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
+    List<String> excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
+    this.layers = OpenMapTilesSchema.createInstances(translations, config, stats)
       .stream()
       .filter(l -> (onlyLayers.isEmpty() || onlyLayers.contains(l.name())) && !excludeLayers.contains(l.name()))
       .toList();
@@ -127,10 +132,10 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
     FeaturePostProcessor postProcesor = postProcessors.get(layer);
-    List<VectorTileEncoder.Feature> result = null;
+    List<VectorTile.Feature> result = null;
     if (postProcesor != null) {
       result = postProcesor.postProcess(zoom, items);
     }
@@ -138,10 +143,10 @@ public class OpenMapTilesProfile implements Profile {
   }
 
   @Override
-  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-    List<OsmReader.RelationInfo> result = null;
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    List<OsmRelationInfo> result = null;
     for (int i = 0; i < osmRelationPreprocessors.size(); i++) {
-      List<OsmReader.RelationInfo> thisResult = osmRelationPreprocessors.get(i)
+      List<OsmRelationInfo> thisResult = osmRelationPreprocessors.get(i)
         .preprocessOsmRelation(relation);
       if (thisResult != null) {
         if (result == null) {
@@ -254,12 +259,12 @@ public class OpenMapTilesProfile implements Profile {
 
   public interface OsmRelationPreprocessor {
 
-    List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
+    List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
   }
 
   public interface FeaturePostProcessor {
 
-    List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items)
+    List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
       throws GeometryException;
   }
 

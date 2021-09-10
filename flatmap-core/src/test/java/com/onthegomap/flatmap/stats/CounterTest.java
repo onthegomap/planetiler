@@ -27,9 +27,7 @@ public class CounterTest {
       counter.incBy(1);
     });
     t1.start();
-    Thread t2 = new Thread(() -> {
-      counter.incBy(1);
-    });
+    Thread t2 = new Thread(() -> counter.incBy(1));
     t2.start();
     t1.join();
     t2.join();

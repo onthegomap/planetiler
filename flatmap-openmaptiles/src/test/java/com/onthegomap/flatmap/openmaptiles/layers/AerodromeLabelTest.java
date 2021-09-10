@@ -14,39 +14,35 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public List<DynamicTest> aerodromeLabel() {
     wikidataTranslations.put(123, "es", "es wd name");
     return List.of(
-      dynamicTest("happy path point", () -> {
-        assertFeatures(14, List.of(Map.of(
-          "class", "international",
-          "ele", 100,
-          "ele_ft", 328,
-          "name", "osm name",
-          "name:es", "es wd name",
+      dynamicTest("happy path point", () -> assertFeatures(14, List.of(Map.of(
+        "class", "international",
+        "ele", 100,
+        "ele_ft", 328,
+        "name", "osm name",
+        "name:es", "es wd name",
 
-          "_layer", "aerodrome_label",
-          "_type", "point",
-          "_minzoom", 10,
-          "_maxzoom", 14,
-          "_buffer", 64d
-        )), process(pointFeature(Map.of(
-          "aeroway", "aerodrome",
-          "name", "osm name",
-          "wikidata", "Q123",
-          "ele", "100",
-          "aerodrome", "international",
-          "iata", "123",
-          "icao", "1234"
-        ))));
-      }),
+        "_layer", "aerodrome_label",
+        "_type", "point",
+        "_minzoom", 10,
+        "_maxzoom", 14,
+        "_buffer", 64d
+      )), process(pointFeature(Map.of(
+        "aeroway", "aerodrome",
+        "name", "osm name",
+        "wikidata", "Q123",
+        "ele", "100",
+        "aerodrome", "international",
+        "iata", "123",
+        "icao", "1234"
+      ))))),
 
-      dynamicTest("international", () -> {
-        assertFeatures(14, List.of(Map.of(
-          "class", "international",
-          "_layer", "aerodrome_label"
-        )), process(pointFeature(Map.of(
-          "aeroway", "aerodrome",
-          "aerodrome_type", "international"
-        ))));
-      }),
+      dynamicTest("international", () -> assertFeatures(14, List.of(Map.of(
+        "class", "international",
+        "_layer", "aerodrome_label"
+      )), process(pointFeature(Map.of(
+        "aeroway", "aerodrome",
+        "aerodrome_type", "international"
+      ))))),
 
       dynamicTest("public", () -> {
         assertFeatures(14, List.of(Map.of(
@@ -99,20 +95,16 @@ public class AerodromeLabelTest extends AbstractLayerTest {
         ))));
       }),
 
-      dynamicTest("other", () -> {
-        assertFeatures(14, List.of(Map.of(
-          "class", "other",
-          "_layer", "aerodrome_label"
-        )), process(pointFeature(Map.of(
-          "aeroway", "aerodrome"
-        ))));
-      }),
+      dynamicTest("other", () -> assertFeatures(14, List.of(Map.of(
+        "class", "other",
+        "_layer", "aerodrome_label"
+      )), process(pointFeature(Map.of(
+        "aeroway", "aerodrome"
+      ))))),
 
-      dynamicTest("ignore non-points", () -> {
-        assertFeatures(14, List.of(), process(lineFeature(Map.of(
-          "aeroway", "aerodrome"
-        ))));
-      })
+      dynamicTest("ignore non-points", () -> assertFeatures(14, List.of(), process(lineFeature(Map.of(
+        "aeroway", "aerodrome"
+      )))))
     );
   }
 }

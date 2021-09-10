@@ -1,10 +1,11 @@
 package com.onthegomap.flatmap;
 
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.GeometryType;
 import com.onthegomap.flatmap.reader.SourceFeature;
+import com.onthegomap.flatmap.render.FeatureRenderer;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.CacheByZoom;
 import com.onthegomap.flatmap.util.ZoomFunction;
@@ -14,20 +15,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Utility that {@link Profile} implementations use to build map features that should be emitted for an input source
+ * feature.
+ * <p>
+ * For example to add a polygon feature for a lake and a center label point with its name:
+ * <pre>{@code
+ * featureCollector.polygon("water")
+ *   .setAttr("class", "lake");
+ * featureCollector.centroid("water_name")
+ *   .setAttr("class", "lake")
+ *   .setAttr("name", element.getString("name"));
+ * }</pre>
+ */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
   private static final Geometry EMPTY_GEOM = GeoUtils.JTS_FACTORY.createGeometryCollection();
-  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureCollector.class);
 
   private final SourceFeature source;
   private final List<Feature> output = new ArrayList<>();
-  private final CommonParams config;
+  private final FlatmapConfig config;
   private final Stats stats;
 
-  private FeatureCollector(SourceFeature source, CommonParams config, Stats stats) {
+  private FeatureCollector(SourceFeature source, FlatmapConfig config, Stats stats) {
     this.source = source;
     this.config = config;
     this.stats = stats;
@@ -38,12 +49,28 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return output.iterator();
   }
 
+  /**
+   * Starts building a new map feature with an explicit JTS {@code geometry} that overrides the source geometry.
+   *
+   * @param layer    the output vector tile layer this feature will be written to
+   * @param geometry the explicit geometry to use instead of what is present in source data
+   * @return a feature that can be configured further.
+   */
   public Feature geometry(String layer, Geometry geometry) {
     Feature feature = new Feature(layer, geometry, source.id());
     output.add(feature);
     return feature;
   }
 
+  /**
+   * Starts building a new point map feature that expects the source feature to be a point.
+   * <p>
+   * If the source feature is not a point, logs an error and returns a feature that can be configured, but won't
+   * actually emit anything to the map.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
   public Feature point(String layer) {
     try {
       if (!source.isPoint()) {
@@ -56,15 +83,17 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  public Feature centroid(String layer) {
-    try {
-      return geometry(layer, source.centroid());
-    } catch (GeometryException e) {
-      e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
-      return new Feature(layer, EMPTY_GEOM, source.id());
-    }
-  }
-
+  /**
+   * Starts building a new line map feature that expects the source feature to be a line.
+   * <p>
+   * If the source feature cannot be a line, logs an error and returns a feature that can be configured, but won't
+   * actually emit anything to the map.
+   * <p>
+   * Some OSM closed OSM ways can be both a polygon and a line
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
   public Feature line(String layer) {
     try {
       return geometry(layer, source.line());
@@ -74,6 +103,17 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  /**
+   * Starts building a new polygon map feature that expects the source feature to be a polygon.
+   * <p>
+   * If the source feature cannot be a polygon, logs an error and returns a feature that can be configured, but won't
+   * actually emit anything to the map.
+   * <p>
+   * Some OSM closed OSM ways can be both a polygon and a line
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
   public Feature polygon(String layer) {
     try {
       return geometry(layer, source.polygon());
@@ -83,6 +123,29 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  /**
+   * Starts building a new point map feature with geometry from {@link Geometry#getCentroid()} of the source feature.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
+  public Feature centroid(String layer) {
+    try {
+      return geometry(layer, source.centroid());
+    } catch (GeometryException e) {
+      e.log(stats, "feature_centroid", "Error getting centroid for " + source.id());
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
+  /**
+   * Starts building a new point map feature with geometry from {@link Geometry#getCentroid()} if the source feature is
+   * a point, line, or simple convex polygon, or {@link Geometry#getInteriorPoint()} if it is a multipolygon, polygon
+   * with holes, or concave simple polygon.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
   public Feature centroidIfConvex(String layer) {
     try {
       return geometry(layer, source.centroidIfConvex());
@@ -92,6 +155,13 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  /**
+   * Starts building a new point map feature with geometry from {@link Geometry#getInteriorPoint()} of the source
+   * feature.
+   *
+   * @param layer the output vector tile layer this feature will be written to
+   * @return a feature that can be configured further.
+   */
   public Feature pointOnSurface(String layer) {
     try {
       return geometry(layer, source.pointOnSurface());
@@ -101,190 +171,429 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  public static record Factory(CommonParams config, Stats stats) {
+  /**
+   * Creates new feature collector instances for each source feature that we encounter.
+   */
+  public static record Factory(FlatmapConfig config, Stats stats) {
 
     public FeatureCollector get(SourceFeature source) {
       return new FeatureCollector(source, config, stats);
     }
   }
 
+  /**
+   * A builder for an output map feature that contains all the information that will be needed to render vector tile
+   * features from the input element.
+   * <p>
+   * Some feature attributes are set globally (like z-order), and some allow the value to change by zoom-level (like
+   * tags).
+   */
   public final class Feature {
 
     private static final double DEFAULT_LABEL_GRID_SIZE = 0;
     private static final int DEFAULT_LABEL_GRID_LIMIT = 0;
+
     private final String layer;
     private final Geometry geom;
     private final Map<String, Object> attrs = new TreeMap<>();
     private final GeometryType geometryType;
     private final long sourceId;
-    private int zOrder;
+
+    private int zOrder = 0;
+
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
-    private double defaultBufferPixels = 4;
-    private ZoomFunction<Number> bufferPixelOverrides;
-    private double defaultMinPixelSize = 1;
-    private double minPixelSizeAtMaxZoom = 256d / 4096;
-    private ZoomFunction<Number> minPixelSize = null;
+
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
+
     private boolean attrsChangeByZoom = false;
     private CacheByZoom<Map<String, Object>> attrCache = null;
-    private double defaultPixelTolerance = 0.1d;
-    private double pixelToleranceAtMaxZoom = 256d / 4096;
-    private ZoomFunction<Double> pixelTolerance = null;
+
+    private double defaultBufferPixels = 4;
+    private ZoomFunction<Number> bufferPixelOverrides;
+
+    // TODO better API for default value, value at max zoom, and zoom-specific overrides for tolerance and min size?
+    private double defaultMinPixelSize = config.minFeatureSizeBelowMaxZoom();
+    private double minPixelSizeAtMaxZoom = config.minFeatureSizeAtMaxZoom();
+    private ZoomFunction<Number> minPixelSize = null;
+
+    private double defaultPixelTolerance = config.simplifyToleranceBelowMaxZoom();
+    private double pixelToleranceAtMaxZoom = config.simplifyToleranceAtMaxZoom();
+    private ZoomFunction<Number> pixelTolerance = null;
+
     private String numPointsAttr = null;
 
     private Feature(String layer, Geometry geom, long sourceId) {
       this.layer = layer;
       this.geom = geom;
-      this.zOrder = 0;
       this.geometryType = GeometryType.valueOf(geom);
       this.sourceId = sourceId;
     }
 
-    public long sourceId() {
+    /** Returns the original ID of the source feature that this feature came from (i.e. OSM node/way ID). */
+    public long getSourceId() {
       return sourceId;
     }
 
+    GeometryType getGeometryType() {
+      return geometryType;
+    }
+
+    public boolean isPolygon() {
+      return geometryType == GeometryType.POLYGON;
+    }
+
+    /**
+     * Returns the sort order of this feature in the output vector tile where features with higher z-orders appear after
+     * (on top of) lower values.
+     */
     public int getZorder() {
       return zOrder;
     }
 
+    /**
+     * Sets the sort order of this feature in the output vector tile where features with higher z-orders appear after
+     * (on top of) lower values.
+     */
     public Feature setZorder(int zOrder) {
       this.zOrder = zOrder;
       return this;
     }
 
+    /**
+     * Sets the zoom range (inclusive) that this feature appears in.
+     * <p>
+     * If not called, then defaults to all zoom levels.
+     */
     public Feature setZoomRange(int min, int max) {
+      assert min <= max;
       return setMinZoom(min).setMaxZoom(max);
     }
 
+    /** Returns the minimum zoom level (inclusive) that this feature appears in. */
     public int getMinZoom() {
       return minzoom;
     }
 
+
+    /**
+     * Sets the minimum zoom level (inclusive) that this feature appears in.
+     * <p>
+     * If not called, defaults to minimum zoom-level of the map.
+     */
     public Feature setMinZoom(int min) {
       minzoom = Math.max(min, config.minzoom());
       return this;
     }
 
+    /** Returns the maximum zoom level (inclusive) that this feature appears in. */
     public int getMaxZoom() {
       return maxzoom;
     }
 
+    /**
+     * Sets the maximum zoom level (inclusive) that this feature appears in.
+     * <p>
+     * If not called, defaults to maximum zoom-level of the map.
+     */
     public Feature setMaxZoom(int max) {
       maxzoom = Math.min(max, config.maxzoom());
       return this;
     }
 
+    /** Returns the output vector tile layer that this feature will appear in. */
     public String getLayer() {
       return layer;
     }
 
+    /**
+     * Returns the JTS geometry (in world web mercator coordinates) of this feature.
+     * <p>
+     * Subsequent postprocessing in {@link FeatureRenderer} will slice this into tile geometries.
+     */
     public Geometry getGeometry() {
       return geom;
     }
 
+    /** Returns the number of pixels of detail to render outside the visible tile boundary at {@code zoom}. */
     public double getBufferPixelsAtZoom(int zoom) {
       return ZoomFunction.applyAsDoubleOrElse(bufferPixelOverrides, zoom, defaultBufferPixels);
     }
 
+    /**
+     * Sets the default number of pixels of detail to render outside the visible tile boundary when no zoom-specific
+     * override is set in {@link #setBufferPixelOverrides(ZoomFunction)}.
+     */
     public Feature setBufferPixels(double buffer) {
       defaultBufferPixels = buffer;
       return this;
     }
 
+    /**
+     * Sets zoom-specific overrides to the number of pixels of detail to render outside the visible tile boundary.
+     * <p>
+     * If {@code buffer} is {@code null} or returns {@code null}, the buffer pixels will default to {@link
+     * #setBufferPixels(double)}.
+     */
     public Feature setBufferPixelOverrides(ZoomFunction<Number> buffer) {
       bufferPixelOverrides = buffer;
       return this;
     }
 
-    public double getMinPixelSize(int zoom) {
-      return zoom == 14 ? minPixelSizeAtMaxZoom
+
+    /**
+     * Returns the minimum resolution in tile pixels of features to emit at {@code zoom}.
+     * <p>
+     * For line features, this is length, and for polygon features this is the square root of the minimum area of
+     * features to emit.
+     */
+    public double getMinPixelSizeAtZoom(int zoom) {
+      return zoom == config.maxzoom() ? minPixelSizeAtMaxZoom
         : ZoomFunction.applyAsDoubleOrElse(minPixelSize, zoom, defaultMinPixelSize);
     }
 
+    /**
+     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit below the
+     * maximum zoom-level of the map.
+     * <p>
+     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the minimum size at
+     * the max zoom level at {@link FlatmapConfig#minFeatureSizeAtMaxZoom()} unless you explicitly override it with
+     * {@link #setMinPixelSizeAtMaxZoom(double)} or {@link #setMinPixelSizeAtAllZooms(int)}.
+     */
     public Feature setMinPixelSize(double minPixelSize) {
       this.defaultMinPixelSize = minPixelSize;
       return this;
     }
 
-    public Feature setMinPixelSizeThresholds(ZoomFunction<Number> levels) {
+    /**
+     * Sets zoom-specific overrides to the minimum length of line features or square root of the minimum area of polygon
+     * features to emit below the maximum zoom-level of the map.
+     * <p>
+     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the minimum size at
+     * the max zoom level at {@link FlatmapConfig#minFeatureSizeAtMaxZoom()} unless you explicitly override it with
+     * {@link #setMinPixelSizeAtMaxZoom(double)} or {@link #setMinPixelSizeAtAllZooms(int)}.
+     * <p>
+     * If {@code levels} is {@code null} or returns {@code null}, the min pixel size will default to the default value.
+     */
+    public Feature setMinPixelSizeOverrides(ZoomFunction<Number> levels) {
       this.minPixelSize = levels;
       return this;
     }
 
+    /**
+     * Overrides the default minimum pixel size at and below {@code zoom} with {@code minPixelSize}.
+     * <p>
+     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a {@link
+     * ZoomFunction} explicitly and pass it to {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     */
     public Feature setMinPixelSizeBelowZoom(int zoom, double minPixelSize) {
+      if (zoom >= config.maxzoom()) {
+        minPixelSizeAtMaxZoom = minPixelSize;
+      }
       this.minPixelSize = ZoomFunction.maxZoom(zoom, minPixelSize);
       return this;
     }
 
+    /**
+     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit at the
+     * maximum zoom-level of the map.
+     * <p>
+     * Since clients can "overzoom" in on features past the maximum zoom level, this is typically much smaller than min
+     * pixel size at lower zoom levels.
+     * <p>
+     * This overrides, but does not replace the default min pixel size or overrides set through other methods.
+     */
     public Feature setMinPixelSizeAtMaxZoom(double minPixelSize) {
       this.minPixelSizeAtMaxZoom = minPixelSize;
       return this;
     }
 
+    /**
+     * Sets the minimum length of line features or square root of the minimum area of polygon features to emit at all
+     * zoom levels, including the maximum zoom-level of the map.
+     * <p>
+     * This replaces previous default values, but not overrides set with {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     */
     public Feature setMinPixelSizeAtAllZooms(int minPixelSize) {
-      return setMinPixelSizeAtMaxZoom(minPixelSize)
-        .setMinPixelSize(minPixelSize);
+      this.minPixelSizeAtMaxZoom = minPixelSize;
+      return this.setMinPixelSize(minPixelSize);
     }
 
+    /**
+     * Returns the simplification tolerance for lines and polygons in tile pixels at {@code zoom}.
+     */
+    public double getPixelToleranceAtZoom(int zoom) {
+      return zoom == config.maxzoom() ? pixelToleranceAtMaxZoom
+        : ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
+    }
 
+    /**
+     * Sets the simplification tolerance for lines and polygons in tile pixels below the maximum zoom-level of the map.
+     * <p>
+     * Since clients can "overzoom" past the max zoom of the map, this is typically smaller than the default tolerance
+     * to provide more detail as you zoom in.
+     * <p>
+     * This does not replace any overrides that were set with {@link #setPixelToleranceOverrides(ZoomFunction)}.
+     */
     public Feature setPixelTolerance(double tolerance) {
       this.defaultPixelTolerance = tolerance;
       return this;
     }
 
+    /**
+     * Sets the simplification tolerance for lines and polygons in tile pixels at the maximum zoom-level of the map.
+     * <p>
+     * This does not replace the default value at other zoom levels set through {@link #setPixelTolerance(double)} any
+     * zoom-specific overrides that were set with {@link #setPixelToleranceOverrides(ZoomFunction)}.
+     */
     public Feature setPixelToleranceAtMaxZoom(double tolerance) {
       this.pixelToleranceAtMaxZoom = tolerance;
       return this;
     }
 
+    /**
+     * Sets the simplification tolerance for lines and polygons in tile pixels including at the maximum zoom-level of
+     * the map.
+     * <p>
+     * This does not replace the default value at other zoom levels set through {@link #setPixelTolerance(double)}.
+     */
     public Feature setPixelToleranceAtAllZooms(double tolerance) {
       return setPixelToleranceAtMaxZoom(tolerance).setPixelTolerance(tolerance);
     }
 
+    /**
+     * Sets zoom-specific overrides to the simplification tolerance for lines and polygons in tile pixels below the
+     * maximum zoom-level of the map.
+     * <p>
+     * At the maximum zoom level of the map, clients can "overzoom" in on features, so this leaves the tolerance at the
+     * max zoom level set to {@link FlatmapConfig#simplifyToleranceAtMaxZoom()} unless you explicitly override it with
+     * {@link #setMinPixelSizeAtAllZooms(int)} or {@link #setMinPixelSizeAtMaxZoom(double)}.
+     * <p>
+     * If {@code levels} is {@code null} or returns {@code null}, the min pixel size will default to the default value.
+     */
+    public Feature setPixelToleranceOverrides(ZoomFunction<Number> overrides) {
+      this.pixelTolerance = overrides;
+      return this;
+    }
+
+    /**
+     * Overrides the default simplification tolerance for lines and polygons in tile pixels at and below {@code zoom}
+     * with {@code minPixelSize}.
+     * <p>
+     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a {@link
+     * ZoomFunction} explicitly and pass it to {@link #setPixelToleranceOverrides(ZoomFunction)}
+     */
     public Feature setPixelToleranceBelowZoom(int zoom, double tolerance) {
-      this.pixelTolerance = ZoomFunction.maxZoom(zoom, tolerance);
-      return this;
-    }
-
-    public double getPixelTolerance(int zoom) {
-      return zoom == 14 ? pixelToleranceAtMaxZoom
-        : ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
-    }
-
-    public double getLabelGridPixelSizeAtZoom(int zoom) {
-      return ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
-    }
-
-    public int getLabelGridLimitAtZoom(int zoom) {
-      return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
-    }
-
-    public Feature setLabelGridPixelSizeFunction(ZoomFunction<Number> labelGridSize) {
-      this.labelGridPixelSize = labelGridSize;
-      return this;
-    }
-
-    public Feature setLabelGridLimitFunction(ZoomFunction<Number> labelGridLimit) {
-      this.labelGridLimit = labelGridLimit;
-      return this;
-    }
-
-    public Feature setLabelGridPixelSize(int maxzoom, double size) {
-      return setLabelGridPixelSizeFunction(ZoomFunction.maxZoom(maxzoom, size));
-    }
-
-    public Feature setLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
-      return setLabelGridPixelSizeFunction(ZoomFunction.maxZoom(maxzoom, size))
-        .setLabelGridLimitFunction(ZoomFunction.maxZoom(maxzoom, limit));
+      if (zoom == config.maxzoom()) {
+        pixelToleranceAtMaxZoom = tolerance;
+      }
+      return setPixelToleranceOverrides(ZoomFunction.maxZoom(zoom, tolerance));
     }
 
     public boolean hasLabelGrid() {
       return labelGridPixelSize != null || labelGridLimit != null;
     }
 
+    /**
+     * Returns the size in pixels of the grid used to group or limit output points.
+     *
+     * @throws AssertionError when assertions are enabled and the returned value is smaller than the buffer pixel size
+     */
+    public double getPointLabelGridPixelSizeAtZoom(int zoom) {
+      double result = ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
+      // TODO is this enough? what about a grid square that ends just before the start of the tile
+      assert result <= getBufferPixelsAtZoom(zoom) :
+        "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was greater than label grid size=%f".formatted(
+          getLayer(), getBufferPixelsAtZoom(zoom), result);
+      return result;
+    }
+
+    /**
+     * Returns the maximum number of highest z-order points to include in the output vector tile in each square of a
+     * grid with size {@link #getPointLabelGridPixelSizeAtZoom(int)}.
+     */
+    public int getPointLabelGridLimitAtZoom(int zoom) {
+      return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
+    }
+
+    /**
+     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of points rendered in each
+     * zoom-level for limiting the density of features in the output tile, or computing a "rank" key that clients can
+     * use to control label density.
+     * <p>
+     * If limit is set, features will be dropped automatically before encoding the vector tile, but "rank" must be added
+     * explicitly in {@link Profile#postProcessLayerFeatures(String, int, List)}.
+     * <p>
+     * Replaces any previous values set for label grid pixel size.
+     * <p>
+     * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
+     * and ranking of a point rendered in adjacent tiles, be sure to set the buffer pixel size to at least be larger
+     * than the label grid pixel size at each zoom level.
+     *
+     * @param labelGridSize a function that returns the size of the label grid to use at each zoom level. If function is
+     *                      or returns null for a zoom-level, no label grid will be computed.
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
+     * function</a>
+     */
+    public Feature setPointLabelGridPixelSize(ZoomFunction<Number> labelGridSize) {
+      this.labelGridPixelSize = labelGridSize;
+      return this;
+    }
+
+    /**
+     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of points rendered in each
+     * zoom-level at and below {@code maxzoom}.
+     * <p>
+     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)}. It replaces any previous value
+     * set for label grid size. To set multiple thresholds, use the other method directly.
+     *
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
+     * function</a>
+     */
+    public Feature setPointLabelGridPixelSize(int maxzoom, double size) {
+      return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size));
+    }
+
+    /**
+     * Sets the maximum number of points with the highest z-order to include with the same label grid hash in a tile.
+     * <p>
+     * Replaces any previous values set for label grid limit.
+     *
+     * @param labelGridLimit a function that returns the size of the label grid to use at each zoom level. If function
+     *                       is or returns null for a zoom-level, no label grid will be computed.
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
+     * function</a>
+     */
+    public Feature setPointLabelGridLimit(ZoomFunction<Number> labelGridLimit) {
+      this.labelGridLimit = labelGridLimit;
+      return this;
+    }
+
+    /**
+     * Limits the density of points on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
+     * features with highest z-order in each square of a {@code size x size} pixel grid.
+     * <p>
+     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and {@link
+     * #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit. To set
+     * multiple thresholds, use the other methods directly.
+     * <p>
+     * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
+     * and ranking of a point rendered in adjacent tiles, be sure to set the buffer pixel size to at least be larger
+     * than the label grid pixel size at each zoom level.
+     *
+     * @param maxzoom the zoom-level at and below which we should limit point density
+     * @param size    the label grid size to use when computing hashes
+     * @param limit   the number of highest-z-order points to include in each square of the grid
+     * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
+     * function</a>
+     */
+    public Feature setPointLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
+      return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size))
+        .setPointLabelGridLimit(ZoomFunction.maxZoom(maxzoom, limit));
+    }
+
+    // could be expensive, so cache results
     private Map<String, Object> computeAttrsAtZoom(int zoom) {
       Map<String, Object> result = new TreeMap<>();
       for (var entry : attrs.entrySet()) {
@@ -299,6 +608,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return result;
     }
 
+    /** Returns the attribute to put on all output vector tile features at a zoom level. */
     public Map<String, Object> getAttrsAtZoom(int zoom) {
       if (!attrsChangeByZoom) {
         return attrs;
@@ -309,10 +619,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return attrCache.get(zoom);
     }
 
-    public Feature inheritFromSource(String attr) {
-      return setAttr(attr, source.getTag(attr));
+    /** Copies the value for {@code key} attribute from source feature to the output feature. */
+    public Feature inheritAttrFromSource(String key) {
+      return setAttr(key, source.getTag(key));
     }
 
+    /**
+     * Sets an attribute on the output feature to either a string, number, boolean, or instance of {@link ZoomFunction}
+     * to change the value for {@code key} by zoom-level.
+     */
     public Feature setAttr(String key, Object value) {
       if (value instanceof ZoomFunction) {
         attrsChangeByZoom = true;
@@ -323,16 +638,51 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       return this;
     }
 
+    /**
+     * Sets the value for {@code key} attribute at or above {@code minzoom}.  Below {@code minzoom} it will be ignored.
+     * <p>
+     * Replaces all previous value that has been for {@code key} at any zoom level.  To have a value that changes at
+     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed {@link
+     * ZoomFunction} value.
+     */
     public Feature setAttrWithMinzoom(String key, Object value, int minzoom) {
       return setAttr(key, ZoomFunction.minZoom(minzoom, value));
     }
 
-    public GeometryType getGeometryType() {
-      return geometryType;
+    /**
+     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature.
+     * <p>
+     * Does not touch attributes that have already been set.
+     * <p>
+     * Values in {@code attrs} can either be the raw value to set, or an instance of {@link ZoomFunction} to change the
+     * value for that attribute by zoom level.
+     */
+    public Feature putAttrs(Map<String, Object> attrs) {
+      for (Object value : attrs.values()) {
+        if (value instanceof ZoomFunction) {
+          attrsChangeByZoom = true;
+          break;
+        }
+      }
+      this.attrs.putAll(attrs);
+      return this;
     }
 
-    public boolean area() {
-      return geometryType == GeometryType.POLYGON;
+    /**
+     * Sets a special attribute key that the renderer will use to store the number of points in the simplified geometry
+     * before slicing it into tiles.
+     */
+    public Feature setNumPointsAttr(String numPointsAttr) {
+      this.numPointsAttr = numPointsAttr;
+      return this;
+    }
+
+    /**
+     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
+     * before slicing it into tiles.
+     */
+    public String getNumPointsAttr() {
+      return numPointsAttr;
     }
 
     @Override
@@ -342,20 +692,6 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         ", geom=" + geom.getGeometryType() +
         ", attrs=" + attrs +
         '}';
-    }
-
-    public Feature setAttrs(Map<String, Object> names) {
-      attrs.putAll(names);
-      return this;
-    }
-
-    public Feature setNumPointsAttr(String numPointsAttr) {
-      this.numPointsAttr = numPointsAttr;
-      return this;
-    }
-
-    public String getNumPointsAttr() {
-      return numPointsAttr;
     }
   }
 }

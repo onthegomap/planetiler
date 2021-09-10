@@ -15,6 +15,10 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Performance tests for {@link LongLongMap} implementations. Adds items to the map then reads from it for 30s using
+ * multiple threads and reports memory/disk usage, writes and reads per second.
+ */
 public class LongLongMapBench {
 
   public static void main(String[] args) throws InterruptedException {
@@ -29,7 +33,7 @@ public class LongLongMapBench {
       long count = 0;
     }
     LocalCounter counter = new LocalCounter();
-    ProgressLoggers loggers = new ProgressLoggers("write")
+    ProgressLoggers loggers = ProgressLoggers.create()
       .addRatePercentCounter("entries", entries, () -> counter.count)
       .newLine()
       .addProcessStats();
@@ -47,11 +51,11 @@ public class LongLongMapBench {
     }).awaitAndLog(loggers, Duration.ofSeconds(10));
 
     map.get(1);
-    System.err.println("Storage: " + Format.formatStorage(map.bytesOnDisk(), false));
+    System.err.println("Storage: " + Format.formatStorage(map.diskUsageBytes(), false));
     System.err.println("RAM: " + Format.formatStorage(map.estimateMemoryUsageBytes(), false));
 
     Counter.Readable readCount = Counter.newMultiThreadCounter();
-    loggers = new ProgressLoggers("read")
+    loggers = ProgressLoggers.create()
       .addRateCounter("entries", readCount)
       .newLine()
       .addProcessStats();
@@ -100,7 +104,7 @@ public class LongLongMapBench {
         args[2],
         args[3],
         Format.formatStorage(map.estimateMemoryUsageBytes(), false),
-        Format.formatStorage(map.bytesOnDisk(), false),
+        Format.formatStorage(map.diskUsageBytes(), false),
         Format.formatStorage(FileUtils.size(path), false),
         writeRate.get(),
         readRate

@@ -11,6 +11,7 @@
  */
 package com.onthegomap.flatmap.geo;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
@@ -18,13 +19,23 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
 /**
- * This class is adapted from https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java
+ * A utility to simplify geometries using Douglas Peucker simplification algorithm without any attempt to repair
+ * geometries that become invalid due to simplification.
+ * <p>
+ * This class is adapted from <a href="https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java">org.locationtech.jts.simplify.DouglasPeuckerSimplifier</a>
  * with modifications to avoid collapsing small polygons since the subsequent area filter will remove them more
- * accurately and performance improvement to put the results in a MutableCoordinateSequence which uses a primitive
- * double array instead of allocating lots of Coordinate objects.
+ * accurately and performance improvement to put the results in a {@link MutableCoordinateSequence} which uses a
+ * primitive double array instead of allocating lots of {@link Coordinate} objects.
  */
 public class DouglasPeuckerSimplifier {
 
+  /**
+   * Returns a copy of {@code geom}, simplified using Douglas Peucker Algorithm.
+   *
+   * @param geom              the geometry to simplify (will not be modified)
+   * @param distanceTolerance the threshold below which we discard points
+   * @return the simplified geometry
+   */
   public static Geometry simplify(Geometry geom, double distanceTolerance) {
     if (geom.isEmpty()) {
       return geom.copy();
@@ -37,10 +48,14 @@ public class DouglasPeuckerSimplifier {
 
     private final double sqTolerance;
 
-    public DPTransformer(double distanceTolerance) {
+    private DPTransformer(double distanceTolerance) {
       this.sqTolerance = distanceTolerance * distanceTolerance;
     }
 
+    /**
+     * Returns the square of the number of units that (px, p1) is away from the line segment from (p1x, py1) to (p2x,
+     * p2y).
+     */
     private static double getSqSegDist(double px, double py, double p1x, double p1y, double p2x, double p2y) {
 
       double x = p1x,
@@ -68,8 +83,10 @@ public class DouglasPeuckerSimplifier {
       return dx * dx + dy * dy;
     }
 
-    private void subsimplify(CoordinateSequence in, MutableCoordinateSequence out, int first, int last, int nforce) {
-      boolean force = nforce > 0;
+    private void subsimplify(CoordinateSequence in, MutableCoordinateSequence out, int first, int last,
+      int numForcedPoints) {
+      // numForcePoints lets us keep some points even if they are below simplification threshold
+      boolean force = numForcedPoints > 0;
       double maxSqDist = force ? -1 : sqTolerance;
       int index = -1;
       double p1x = in.getX(first);
@@ -90,31 +107,37 @@ public class DouglasPeuckerSimplifier {
 
       if (force || maxSqDist > sqTolerance) {
         if (index - first > 1) {
-          subsimplify(in, out, first, index, nforce - 1);
+          subsimplify(in, out, first, index, numForcedPoints - 1);
         }
         out.forceAddPoint(in.getX(index), in.getY(index));
         if (last - index > 1) {
-          subsimplify(in, out, index, last, nforce - 2);
+          subsimplify(in, out, index, last, numForcedPoints - 2);
         }
       }
     }
 
+    @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       boolean area = parent instanceof LinearRing;
       if (coords.size() == 0) {
         return coords;
       }
+      // make sure we include the first and last points even if they are closer than the simplification threshold
       MutableCoordinateSequence result = new MutableCoordinateSequence();
       result.forceAddPoint(coords.getX(0), coords.getY(0));
+      // for polygons, additionally keep at least 2 intermediate points even if they are below simplification threshold
+      // to avoid collapse.
       subsimplify(coords, result, 0, coords.size() - 1, area ? 2 : 0);
       result.forceAddPoint(coords.getX(coords.size() - 1), coords.getY(coords.size() - 1));
       return result;
     }
 
+    @Override
     protected Geometry transformPolygon(Polygon geom, Geometry parent) {
       return geom.isEmpty() ? null : super.transformPolygon(geom, parent);
     }
 
+    @Override
     protected Geometry transformLinearRing(LinearRing geom, Geometry parent) {
       boolean removeDegenerateRings = parent instanceof Polygon;
       Geometry simpResult = super.transformLinearRing(geom, parent);

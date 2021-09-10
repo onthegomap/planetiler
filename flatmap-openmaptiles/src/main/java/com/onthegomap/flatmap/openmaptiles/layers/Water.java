@@ -36,8 +36,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 package com.onthegomap.flatmap.openmaptiles.layers;
 
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.Utils;
@@ -45,6 +44,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 
 /**
  * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/water
@@ -54,7 +54,7 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
 
   private final MultiExpression.MultiExpressionIndex<String> classMapping;
 
-  public Water(Translations translations, Arguments args, Stats stats) {
+  public Water(Translations translations, FlatmapConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
   }
 

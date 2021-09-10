@@ -4,9 +4,9 @@ import static com.onthegomap.flatmap.TestUtils.newLineString;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -51,24 +51,24 @@ public class WaterwayTest extends AbstractLayerTest {
 
   @Test
   public void testWaterwayImportantRiverPostProcess() throws GeometryException {
-    var line1 = new VectorTileEncoder.Feature(
+    var line1 = new VectorTile.Feature(
       Waterway.LAYER_NAME,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(0, 0, 10, 0)),
+      VectorTile.encodeGeometry(newLineString(0, 0, 10, 0)),
       Map.of("name", "river"),
       0
     );
-    var line2 = new VectorTileEncoder.Feature(
+    var line2 = new VectorTile.Feature(
       Waterway.LAYER_NAME,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(10, 0, 20, 0)),
+      VectorTile.encodeGeometry(newLineString(10, 0, 20, 0)),
       Map.of("name", "river"),
       0
     );
-    var connected = new VectorTileEncoder.Feature(
+    var connected = new VectorTile.Feature(
       Waterway.LAYER_NAME,
       1,
-      VectorTileEncoder.encodeGeometry(newLineString(00, 0, 20, 0)),
+      VectorTile.encodeGeometry(newLineString(0, 0, 20, 0)),
       Map.of("name", "river"),
       0
     );
@@ -134,7 +134,7 @@ public class WaterwayTest extends AbstractLayerTest {
       "_type", "line",
       "_minzoom", 3,
       "_maxzoom", 3
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "River",
@@ -153,7 +153,7 @@ public class WaterwayTest extends AbstractLayerTest {
       "_type", "line",
       "_minzoom", 4,
       "_maxzoom", 5
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "River",
@@ -172,7 +172,7 @@ public class WaterwayTest extends AbstractLayerTest {
       "_type", "line",
       "_minzoom", 6,
       "_maxzoom", 8
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "River",

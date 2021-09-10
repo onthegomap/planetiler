@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.geo;
 
+import com.onthegomap.flatmap.collection.LongLongMap;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 import org.locationtech.jts.algorithm.Area;
@@ -15,7 +15,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -27,26 +26,31 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
+/**
+ * A collection of utilities for working with JTS data structures and geographic data.
+ * <p>
+ * "world" coordinates in this class refer to web mercator coordinates where the top-left/northwest corner of the map is
+ * (0,0) and bottom-right/southeast corner is (1,1).
+ */
 public class GeoUtils {
 
+  /** Rounding precision for 256x256px tiles encoded using 4096 values. */
   public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
-  public static final WKBReader wkbReader = new WKBReader(JTS_FACTORY);
-
+  public static final WKBReader WKB_READER = new WKBReader(JTS_FACTORY);
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
   private static final Polygon[] EMPTY_POLYGON_ARRAY = new Polygon[0];
   private static final Coordinate[] EMPTY_COORD_ARRAY = new Coordinate[0];
   private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
-
   private static final double WORLD_RADIUS_METERS = 6_378_137;
   public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
-  private static final double DEGREES_TO_RADIANS = Math.PI / 180;
-  private static final double RADIANS_TO_DEGREES = 180 / Math.PI;
-  private static final double MAX_LAT = getWorldLat(-0.1);
-  private static final double MIN_LAT = getWorldLat(1.1);
-  public static Envelope WORLD_BOUNDS = new Envelope(0, 1, 0, 1);
-  public static Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
-  public static final GeometryTransformer UNPROJECT_WORLD_COORDS = new GeometryTransformer() {
+  private static final double RADIANS_PER_DEGREE = Math.PI / 180;
+  private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
+  /**
+   * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
+   * latitude/longitude coordinates.
+   */
+  private static final GeometryTransformer UNPROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
@@ -57,7 +61,11 @@ public class GeoUtils {
       return copy;
     }
   };
-  public static final GeometryTransformer PROJECT_WORLD_COORDS = new GeometryTransformer() {
+  /**
+   * Transform latitude/longitude coordinates to web mercator where top-left corner of the planet is (0,0) and
+   * bottom-right is (1,1).
+   */
+  private static final GeometryTransformer PROJECT_WORLD_COORDS = new GeometryTransformer() {
     @Override
     protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
       CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
@@ -68,15 +76,44 @@ public class GeoUtils {
       return copy;
     }
   };
+  private static final double MAX_LAT = getWorldLat(-0.1);
+  private static final double MIN_LAT = getWorldLat(1.1);
+  // to pack latitude/longitude into a single long, we round them to 31 bits of precision
+  private static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
+  private static final double HALF_QUANTIZED_WORLD_SIZE = QUANTIZED_WORLD_SIZE / 2;
+  private static final long LOWER_32_BIT_MASK = (1L << 32) - 1L;
+  /**
+   * Bounds for the entire area of the planet that a web mercator projection covers, where top left is (0,0) and bottom
+   * right is (1,1).
+   */
+  public static final Envelope WORLD_BOUNDS = new Envelope(0, 1, 0, 1);
+  /** Bounds for the entire area of the planet that a web mercator projection covers in latitude/longitude coordinates. */
+  public static final Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
 
+  // should not instantiate
+  private GeoUtils() {
+  }
+
+  /**
+   * Returns a copy of {@code geom} transformed from latitude/longitude coordinates to web mercator where top-left
+   * corner of the planet is (0,0) and bottom-right is (1,1).
+   */
   public static Geometry latLonToWorldCoords(Geometry geom) {
     return PROJECT_WORLD_COORDS.transform(geom);
   }
 
+  /**
+   * Returns a copy of {@code geom} transformed from web mercator where top-left corner of the planet is (0,0) and
+   * bottom-right is (1,1) to latitude/longitude.
+   */
   public static Geometry worldToLatLonCoords(Geometry geom) {
     return UNPROJECT_WORLD_COORDS.transform(geom);
   }
 
+  /**
+   * Returns a copy of {@code worldBounds} transformed from web mercator where top-left corner of the planet is (0,0)
+   * and bottom-right is (1,1) to latitude/longitude.
+   */
   public static Envelope toLatLonBoundsBounds(Envelope worldBounds) {
     return new Envelope(
       getWorldLon(worldBounds.getMinX()),
@@ -85,6 +122,10 @@ public class GeoUtils {
       getWorldLat(worldBounds.getMaxY()));
   }
 
+  /**
+   * Returns a copy of {@code lonLatBounds} transformed from latitude/longitude coordinates to web mercator where
+   * top-left corner of the planet is (0,0) and bottom-right is (1,1).
+   */
   public static Envelope toWorldBounds(Envelope lonLatBounds) {
     return new Envelope(
       getWorldX(lonLatBounds.getMinX()),
@@ -94,34 +135,50 @@ public class GeoUtils {
     );
   }
 
+  /**
+   * Returns the longitude for a web mercator coordinate {@code x} where 0 is the international date line on the west
+   * side, 1 is the international date line on the east side, and 0.5 is the prime meridian.
+   */
   public static double getWorldLon(double x) {
     return x * 360 - 180;
   }
 
+  /**
+   * Returns the latitude for a web mercator {@code y} coordinate where 0 is the north edge of the map, 0.5 is the
+   * equator, and 1 is the south edge of the map.
+   */
   public static double getWorldLat(double y) {
     double n = Math.PI - 2 * Math.PI * y;
-    return RADIANS_TO_DEGREES * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+    return DEGREES_PER_RADIAN * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   }
 
-  public static double getWorldX(double lon) {
-    return (lon + 180) / 360;
+  /**
+   * Returns the web mercator X coordinate for {@code longitude} where 0 is the international date line on the west
+   * side, 1 is the international date line on the east side, and 0.5 is the prime meridian.
+   */
+  public static double getWorldX(double longitude) {
+    return (longitude + 180) / 360;
   }
 
-  public static double getWorldY(double lat) {
-    if (lat <= MIN_LAT) {
+  /**
+   * Returns the web mercator Y coordinate for {@code latitude} where 0 is the north edge of the map, 0.5 is the
+   * equator, and 1 is the south edge of the map.
+   */
+  public static double getWorldY(double latitude) {
+    if (latitude <= MIN_LAT) {
       return 1.1;
     }
-    if (lat >= MAX_LAT) {
+    if (latitude >= MAX_LAT) {
       return -0.1;
     }
-    double sin = Math.sin(lat * DEGREES_TO_RADIANS);
+    double sin = Math.sin(latitude * RADIANS_PER_DEGREE);
     return 0.5 - 0.25 * Math.log((1 + sin) / (1 - sin)) / Math.PI;
   }
 
-  private static final double QUANTIZED_WORLD_SIZE = Math.pow(2, 31);
-  private static final double HALF_QUANTIZED_WORLD_SIZE = QUANTIZED_WORLD_SIZE / 2;
-  private static final long LOWER_32_BIT_MASK = (1L << 32) - 1L;
-
+  /**
+   * Returns a latitude/longitude coordinate encoded into a single 64-bit long for storage in a {@link LongLongMap} that
+   * can be decoded using {@link #decodeWorldX(long)} and {@link #decodeWorldY(long)}.
+   */
   public static long encodeFlatLocation(double lon, double lat) {
     double worldX = getWorldX(lon) + 1;
     double worldY = getWorldY(lat) + 1;
@@ -130,34 +187,48 @@ public class GeoUtils {
     return (x << 32) | (y & LOWER_32_BIT_MASK);
   }
 
+  /**
+   * Returns the web mercator Y coordinate of the latitude/longitude encoded with {@link #encodeFlatLocation(double,
+   * double)}.
+   */
   public static double decodeWorldY(long encoded) {
     return (((double) (encoded & LOWER_32_BIT_MASK)) / HALF_QUANTIZED_WORLD_SIZE) - 1;
   }
 
+  /**
+   * Returns the web mercator X coordinate of the latitude/longitude encoded with {@link #encodeFlatLocation(double,
+   * double)}.
+   */
   public static double decodeWorldX(long encoded) {
     return (((double) (encoded >>> 32)) / HALF_QUANTIZED_WORLD_SIZE) - 1;
   }
 
+  /**
+   * Returns an approximate zoom level that a map should be displayed at to show all of {@code envelope}, specified in
+   * latitude/longitude coordinates.
+   */
   public static double getZoomFromLonLatBounds(Envelope envelope) {
     Envelope worldBounds = GeoUtils.toWorldBounds(envelope);
     return getZoomFromWorldBounds(worldBounds);
   }
 
+  /**
+   * Returns an approximate zoom level that a map should be displayed at to show all of {@code envelope}, specified in
+   * web mercator coordinates.
+   */
   public static double getZoomFromWorldBounds(Envelope worldBounds) {
     double maxEdge = Math.max(worldBounds.getWidth(), worldBounds.getHeight());
     return Math.max(0, -Math.log(maxEdge) / Math.log(2));
   }
 
+  /** Returns the width in meters of a single pixel of a 256x256 px tile at the given {@code zoom} level. */
   public static double metersPerPixelAtEquator(int zoom) {
     return WORLD_CIRCUMFERENCE_METERS / Math.pow(2, zoom + 8);
   }
 
+  /** Returns the length in pixels for a given number of meters on a 256x256 px tile at the given {@code zoom} level. */
   public static double metersToPixelAtEquator(int zoom, double meters) {
     return meters / metersPerPixelAtEquator(zoom);
-  }
-
-  public static long longPair(int a, int b) {
-    return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
   }
 
   public static Point point(double x, double y) {
@@ -168,10 +239,6 @@ public class GeoUtils {
     return JTS_FACTORY.createPoint(coord);
   }
 
-  public static MultiPoint multiPoint(Collection<Coordinate> coords) {
-    return JTS_FACTORY.createMultiPointFromCoords(coords.toArray(EMPTY_COORD_ARRAY));
-  }
-
   public static Geometry createMultiLineString(List<LineString> lineStrings) {
     return JTS_FACTORY.createMultiLineString(lineStrings.toArray(EMPTY_LINE_STRING_ARRAY));
   }
@@ -180,6 +247,11 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiPolygon(polygon.toArray(EMPTY_POLYGON_ARRAY));
   }
 
+  /**
+   * Attempt to fix any self-intersections or overlaps in {@code geom}.
+   *
+   * @throws GeometryException if a robustness error occurred
+   */
   public static Geometry fixPolygon(Geometry geom) throws GeometryException {
     try {
       return geom.buffer(0);
@@ -200,10 +272,20 @@ public class GeoUtils {
     return points.size() == 1 ? points.get(0) : createMultiPoint(points);
   }
 
+  /**
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISON} and fixes any polygon
+   * self-intersections or overlaps that may have caused.
+   */
   public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
     return snapAndFixPolygon(geom, TILE_PRECISON);
   }
 
+  /**
+   * Returns a copy of {@code geom} with coordinates rounded to {@code #tilePrecision} and fixes any polygon
+   * self-intersections or overlaps that may have caused.
+   *
+   * @throws GeometryException if an unrecoverable robustness exception prevents us from fixing the geometry
+   */
   public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
     try {
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
@@ -233,6 +315,19 @@ public class GeoUtils {
     return value;
   }
 
+
+  private static long longPair(int a, int b) {
+    return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
+  }
+
+  /**
+   * Breaks the world up into a grid and returns an ID for the square that {@code coord} falls into.
+   *
+   * @param tilesAtZoom       the tile width of the world at this zoom level
+   * @param labelGridTileSize the tile width of each grid square
+   * @param coord             the coordinate
+   * @return an ID representing the grid square that {@code coord} falls into.
+   */
   public static long labelGridId(int tilesAtZoom, double labelGridTileSize, Coordinate coord) {
     return GeoUtils.longPair(
       (int) Math.floor(wrapDouble(coord.getX() * tilesAtZoom, tilesAtZoom) / labelGridTileSize),
@@ -240,6 +335,7 @@ public class GeoUtils {
     );
   }
 
+  /** Returns a {@link CoordinateSequence} from a list of {@code x, y, x, y, ...} coordinates. */
   public static CoordinateSequence coordinateSequence(double... coords) {
     return new PackedCoordinateSequence.Double(coords, 2, 0);
   }
@@ -248,9 +344,14 @@ public class GeoUtils {
     return JTS_FACTORY.createMultiPoint(points.toArray(EMPTY_POINT_ARRAY));
   }
 
-  public static Geometry polygonToLineString(Geometry world) throws GeometryException {
+  /**
+   * Returns line strings for every inner and outer ring contained in a polygon.
+   *
+   * @throws GeometryException if {@code geom} contains anything other than polygons or line strings
+   */
+  public static Geometry polygonToLineString(Geometry geom) throws GeometryException {
     List<LineString> lineStrings = new ArrayList<>();
-    getLineStrings(world, lineStrings);
+    getLineStrings(geom, lineStrings);
     if (lineStrings.size() == 0) {
       throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
@@ -284,9 +385,10 @@ public class GeoUtils {
     return JTS_FACTORY.createGeometryCollection(polygonGroup.toArray(Geometry[]::new));
   }
 
-  public static Point pointAlongOffset(LineString lineString, double v, double offset) {
+  /** Returns a point approximately {@code ratio} of the way from start to end and {@code offset} units to the right. */
+  public static Point pointAlongOffset(LineString lineString, double ratio, double offset) {
     int numPoints = lineString.getNumPoints();
-    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * v)));
+    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * ratio)));
     Coordinate a = lineString.getCoordinateN(middle);
     Coordinate b = lineString.getCoordinateN(middle + 1);
     LineSegment segment = new LineSegment(a, b);
@@ -297,12 +399,17 @@ public class GeoUtils {
     return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
   }
 
-  public static boolean isConvex(LinearRing r) {
-    CoordinateSequence seq = r.getCoordinateSequence();
+  /**
+   * Returns {@code true} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
+   * {@code ring}, ignoring repeated and colinear points.
+   */
+  public static boolean isConvex(LinearRing ring) {
+    CoordinateSequence seq = ring.getCoordinateSequence();
     if (seq.size() <= 3) {
       return false;
     }
 
+    // ignore leading repeated points
     double c0x = seq.getX(0);
     double c0y = seq.getY(0);
     double c1x = Double.NaN, c1y = Double.NaN;
@@ -329,15 +436,17 @@ public class GeoUtils {
       double z = dx1 * dy2 - dy1 * dx2;
 
       // if z == 0 (with small delta to account for rounding errors) then keep skipping
-      // points to ignore identical or colinear points
+      // points to ignore repeated or colinear points
       if (Math.abs(z) < 1e-10) {
         continue;
       }
 
       int s = z >= 0d ? 1 : -1;
       if (sign == 0) {
+        // on the first non-repeated, non-colinear points, store sign of the area for comparison
         sign = s;
       } else if (sign != s) {
+        // the sign of this triangle has changed, not convex
         return false;
       }
 
@@ -349,19 +458,11 @@ public class GeoUtils {
     return true;
   }
 
-  private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
-
-    PolyAndArea(Polygon poly) {
-      this(poly, Area.ofRing(poly.getExteriorRing().getCoordinateSequence()));
-    }
-
-    @Override
-    public int compareTo(PolyAndArea o) {
-      return -Double.compare(area, o.area);
-    }
-  }
-
-  public static Geometry ensureDescendingPolygonsSizes(Geometry geometry) {
+  /**
+   * If {@code geometry} is a {@link MultiPolygon}, returns a copy with polygons sorted by descending area of the outer
+   * shell, otherwise returns the input geometry.
+   */
+  public static Geometry sortPolygonsByAreaDescending(Geometry geometry) {
     if (geometry instanceof MultiPolygon multiPolygon) {
       PolyAndArea[] areas = new PolyAndArea[multiPolygon.getNumGeometries()];
       for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
@@ -372,6 +473,19 @@ public class GeoUtils {
       );
     } else {
       return geometry;
+    }
+  }
+
+  /** Helper class to sort polygons by area of their outer shell. */
+  private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
+
+    PolyAndArea(Polygon poly) {
+      this(poly, Area.ofRing(poly.getExteriorRing().getCoordinateSequence()));
+    }
+
+    @Override
+    public int compareTo(PolyAndArea o) {
+      return -Double.compare(area, o.area);
     }
   }
 }

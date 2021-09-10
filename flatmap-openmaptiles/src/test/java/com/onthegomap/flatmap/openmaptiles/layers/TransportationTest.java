@@ -7,7 +7,7 @@ import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import java.util.List;
 import java.util.Map;
@@ -425,7 +425,7 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testGreatBritainHighway() {
-    process(new ReaderFeature(
+    process(SimpleFeature.create(
       rectangle(0, 0.1),
       Map.of("iso_a2", "GB"),
       NATURAL_EARTH_SOURCE,
@@ -447,7 +447,7 @@ public class TransportationTest extends AbstractLayerTest {
       "ref_length", 2,
       "network", "gb-motorway",
       "_minzoom", 6
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "highway", "motorway",
@@ -473,7 +473,7 @@ public class TransportationTest extends AbstractLayerTest {
       "ref_length", 2,
       "network", "road",
       "_minzoom", 6
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(1, 0, 0, 1),
       Map.of(
         "highway", "motorway",

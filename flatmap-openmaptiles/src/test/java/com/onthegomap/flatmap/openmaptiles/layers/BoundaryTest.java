@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.reader.ReaderFeature;
+import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
 import java.util.ArrayList;
@@ -25,21 +25,21 @@ public class BoundaryTest extends AbstractLayerTest {
   public void testNaturalEarthCountryBoundaries() {
     assertCoversZoomRange(
       0, 4, "boundary",
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         newLineString(0, 0, 1, 1),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_110m_admin_0_boundary_lines_land",
         0
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         newLineString(0, 0, 1, 1),
         Map.of(),
         NATURAL_EARTH_SOURCE,
         "ne_50m_admin_0_boundary_lines_land",
         1
       )),
-      process(new ReaderFeature(
+      process(SimpleFeature.create(
         newLineString(0, 0, 1, 1),
         Map.of(),
         NATURAL_EARTH_SOURCE,
@@ -57,7 +57,7 @@ public class BoundaryTest extends AbstractLayerTest {
 
       "_minzoom", 0,
       "_buffer", 4d
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "International boundary (verify)"
@@ -74,7 +74,7 @@ public class BoundaryTest extends AbstractLayerTest {
       "maritime", 0,
       "admin_level", 2,
       "_buffer", 4d
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "Disputed (please verify)"
@@ -88,7 +88,7 @@ public class BoundaryTest extends AbstractLayerTest {
       "_layer", "boundary",
       "_type", "line",
       "admin_level", 2
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "International boundary (verify)"
@@ -102,7 +102,7 @@ public class BoundaryTest extends AbstractLayerTest {
       "_layer", "boundary",
       "_type", "line",
       "admin_level", 2
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "International boundary (verify)"
@@ -112,7 +112,7 @@ public class BoundaryTest extends AbstractLayerTest {
       0
     )));
 
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "featurecla", "Lease Limit"
@@ -135,7 +135,7 @@ public class BoundaryTest extends AbstractLayerTest {
       "_minzoom", 1,
       "_maxzoom", 4,
       "_buffer", 4d
-    )), process(new ReaderFeature(
+    )), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "min_zoom", 7d
@@ -145,7 +145,7 @@ public class BoundaryTest extends AbstractLayerTest {
       0
     )));
 
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
         "min_zoom", 7.1d
@@ -155,7 +155,7 @@ public class BoundaryTest extends AbstractLayerTest {
       0
     )));
 
-    assertFeatures(0, List.of(), process(new ReaderFeature(
+    assertFeatures(0, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(),
       NATURAL_EARTH_SOURCE,
@@ -394,7 +394,7 @@ public class BoundaryTest extends AbstractLayerTest {
     country2.setTag("ISO3166-1:alpha3", "C2");
 
     // shared edge
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
         newLineString(0, 0, 0, 10),
         Map.of(),
         OSM_SOURCE,
@@ -408,7 +408,7 @@ public class BoundaryTest extends AbstractLayerTest {
     ));
 
     // other 2 edges of country 1
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
         newLineString(0, 0, 5, 10),
         Map.of(),
         OSM_SOURCE,
@@ -418,7 +418,7 @@ public class BoundaryTest extends AbstractLayerTest {
           .toList()
       )
     ));
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
         newLineString(0, 10, 5, 10),
         Map.of(),
         OSM_SOURCE,
@@ -430,7 +430,7 @@ public class BoundaryTest extends AbstractLayerTest {
     ));
 
     // other 2 edges of country 2
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
         newLineString(0, 0, -5, 10),
         Map.of(),
         OSM_SOURCE,
@@ -440,7 +440,7 @@ public class BoundaryTest extends AbstractLayerTest {
           .toList()
       )
     ));
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
         newLineString(0, 10, -5, 10),
         Map.of(),
         OSM_SOURCE,
@@ -493,7 +493,7 @@ public class BoundaryTest extends AbstractLayerTest {
     country1.setTag("ISO3166-1:alpha3", "C1");
 
     // shared edge
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       newLineString(0, 0, 0, 10, 5, 5),
       Map.of(),
       OSM_SOURCE,
@@ -524,7 +524,7 @@ public class BoundaryTest extends AbstractLayerTest {
     country1.setTag("boundary", "administrative");
     country1.setTag("ISO3166-1:alpha3", "C1");
 
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.polygonToLineString(rectangle(0, 10)),
       Map.of(),
       OSM_SOURCE,
@@ -533,7 +533,7 @@ public class BoundaryTest extends AbstractLayerTest {
       profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
         .toList()
     )));
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.polygonToLineString(rectangle(1, 9)),
       Map.of(),
       OSM_SOURCE,
@@ -555,14 +555,14 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testDontLabelBadPolygon() throws GeometryException {
+  public void testDontLabelBadPolygon() {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
     country1.setTag("boundary", "administrative");
     country1.setTag("ISO3166-1:alpha3", "C1");
 
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.worldToLatLonCoords(newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0.02, 0.1, 0.02, -0.02)),
       Map.of(),
       OSM_SOURCE,
@@ -588,7 +588,7 @@ public class BoundaryTest extends AbstractLayerTest {
     country1.setTag("boundary", "administrative");
     country1.setTag("ISO3166-1:alpha3", "C1");
 
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.worldToLatLonCoords(newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0.2, 0.1, 0.2, -0.2)),
       Map.of(),
       OSM_SOURCE,
@@ -598,7 +598,7 @@ public class BoundaryTest extends AbstractLayerTest {
         .toList()
     )));
 
-    assertFeatures(14, List.of(), process(new ReaderFeature(
+    assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
       GeoUtils.worldToLatLonCoords(GeoUtils.polygonToLineString(rectangle(0.2, 0.3))),
       Map.of(),
       OSM_SOURCE,

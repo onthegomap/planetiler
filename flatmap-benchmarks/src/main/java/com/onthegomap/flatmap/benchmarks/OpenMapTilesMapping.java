@@ -4,12 +4,13 @@ import com.graphhopper.reader.ReaderElementUtils;
 import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -18,10 +19,15 @@ import java.util.List;
 import java.util.Random;
 import org.locationtech.jts.geom.Geometry;
 
+/**
+ * Performance tests for {@link MultiExpression}.  Times how long a sample of elements from an OSM input file take to
+ * match.
+ */
 public class OpenMapTilesMapping {
 
   public static void main(String[] args) throws IOException {
-    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), Arguments.of(), Stats.inMemory());
+    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), FlatmapConfig.defaults(),
+      Stats.inMemory());
     var random = new Random(0);
     var input = new OsmInputFile(Path.of("data", "sources", "north-america_us_massachusetts.pbf"));
     List<SourceFeature> inputs = new ArrayList<>();

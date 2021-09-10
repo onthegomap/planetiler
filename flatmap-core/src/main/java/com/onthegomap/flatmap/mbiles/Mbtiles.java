@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
 /**
- * Implements the MBTiles specification defined in the <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles
+ * Interface into an mbtiles sqlite file containing tiles and metadata about the tileset.
+ *
+ * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles
  * Specification</a>
  */
 public final class Mbtiles implements Closeable {
@@ -43,26 +45,28 @@ public final class Mbtiles implements Closeable {
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
 
-  public static final String TILES_TABLE = "tiles";
-  public static final String TILES_COL_X = "tile_column";
-  public static final String TILES_COL_Y = "tile_row";
-  public static final String TILES_COL_Z = "zoom_level";
-  public static final String TILES_COL_DATA = "tile_data";
+  private static final String TILES_TABLE = "tiles";
+  private static final String TILES_COL_X = "tile_column";
+  private static final String TILES_COL_Y = "tile_row";
+  private static final String TILES_COL_Z = "zoom_level";
+  public static final String ADD_TILE_INDEX_SQL = "create unique index tile_index on %s (%s, %s, %s)".formatted(
+    TILES_TABLE,
+    TILES_COL_Z,
+    TILES_COL_X,
+    TILES_COL_Y
+  );
+  private static final String TILES_COL_DATA = "tile_data";
 
-  public static final String METADATA_TABLE = "metadata";
-  public static final String METADATA_COL_NAME = "name";
-  public static final String METADATA_COL_VALUE = "value";
+  private static final String METADATA_TABLE = "metadata";
+  private static final String METADATA_COL_NAME = "name";
+  private static final String METADATA_COL_VALUE = "value";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mbtiles.class);
   private static final ObjectMapper objectMapper = new ObjectMapper()
     .registerModules(new Jdk8Module())
     .setSerializationInclusion(NON_ABSENT);
-  private final Connection connection;
 
-  public Mbtiles(Connection connection) {
-    this.connection = connection;
-  }
-
+  // load the sqlite driver
   static {
     try {
       Class.forName("org.sqlite.JDBC");
@@ -71,6 +75,14 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+  private final Connection connection;
+  private PreparedStatement getTileStatement = null;
+
+  public Mbtiles(Connection connection) {
+    this.connection = connection;
+  }
+
+  /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
   public static Mbtiles newInMemoryDatabase() {
     try {
       SQLiteConfig config = new SQLiteConfig();
@@ -81,6 +93,7 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+  /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
   public static Mbtiles newWriteToFileDatabase(Path path) {
     try {
       SQLiteConfig config = new SQLiteConfig();
@@ -96,6 +109,7 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+  /** Returns a new connection to an mbtiles file optimized for reads. */
   public static Mbtiles newReadOnlyDatabase(Path path) {
     try {
       SQLiteConfig config = new SQLiteConfig();
@@ -134,16 +148,11 @@ public final class Mbtiles implements Closeable {
     return this;
   }
 
-  public Mbtiles addIndex() {
-    return execute(
-      "create unique index tile_index on " + TILES_TABLE
-        + " ("
-        + TILES_COL_Z + ", " + TILES_COL_X + ", " + TILES_COL_Y
-        + ");"
-    );
+  public Mbtiles addTileIndex() {
+    return execute(ADD_TILE_INDEX_SQL);
   }
 
-  public Mbtiles setupSchema() {
+  public Mbtiles createTables() {
     return execute(
       "create table " + METADATA_TABLE + " (" + METADATA_COL_NAME + " text, " + METADATA_COL_VALUE + " text);",
       "create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");",
@@ -159,15 +168,15 @@ public final class Mbtiles implements Closeable {
     );
   }
 
+  /** Returns a writer that queues up inserts into the tile database into large batches before executing them. */
   public BatchedTileWriter newBatchedTileWriter() {
     return new BatchedTileWriter();
   }
 
+  /** Returns the contents of the metadata table. */
   public Metadata metadata() {
     return new Metadata();
   }
-
-  private PreparedStatement getTileStatement = null;
 
   private PreparedStatement getTileStatement() {
     if (getTileStatement == null) {
@@ -223,6 +232,12 @@ public final class Mbtiles implements Closeable {
     return connection;
   }
 
+  /**
+   * Data contained in the {@code json} row of the metadata table
+   *
+   * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#vector-tileset-metadata">MBtiles
+   * schema</a>
+   */
   public static record MetadataJson(
     @JsonProperty("vector_layers")
     List<VectorLayer> vectorLayers
@@ -253,6 +268,9 @@ public final class Mbtiles implements Closeable {
       @JsonProperty("Boolean") BOOLEAN,
       @JsonProperty("String") STRING;
 
+      /**
+       * Per the spec: attributes whose type varies between features SHOULD be listed as "String"
+       */
       public static FieldType merge(FieldType oldValue, FieldType newValue) {
         return oldValue != newValue ? STRING : newValue;
       }
@@ -266,16 +284,16 @@ public final class Mbtiles implements Closeable {
       @JsonProperty("maxzoom") OptionalInt maxzoom
     ) {
 
-      public static VectorLayer forLayer(String id) {
-        return new VectorLayer(id, new HashMap<>());
-      }
-
       public VectorLayer(String id, Map<String, FieldType> fields) {
         this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty());
       }
 
       public VectorLayer(String id, Map<String, FieldType> fields, int minzoom, int maxzoom) {
         this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom));
+      }
+
+      public static VectorLayer forLayer(String id) {
+        return new VectorLayer(id, new HashMap<>());
       }
 
       public VectorLayer withDescription(String newDescription) {
@@ -292,9 +310,52 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+  /** Contents of a row of the tiles table. */
+  public static record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      TileEntry tileEntry = (TileEntry) o;
+
+      if (!tile.equals(tileEntry.tile)) {
+        return false;
+      }
+      return Arrays.equals(bytes, tileEntry.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = tile.hashCode();
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "TileEntry{" +
+        "tile=" + tile +
+        ", bytes=" + Arrays.toString(bytes) +
+        '}';
+    }
+
+    @Override
+    public int compareTo(TileEntry o) {
+      return tile.compareTo(o.tile);
+    }
+  }
+
+  /** A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches. */
   public class BatchedTileWriter implements AutoCloseable {
 
-    public static final int BATCH_SIZE = 999 / 4;
+    // max number of parameters in a prepared statements is 999
+    private static final int BATCH_SIZE = 999 / 4;
     private final List<TileEntry> batch;
     private final PreparedStatement batchStatement;
     private final int batchLimit;
@@ -320,6 +381,7 @@ public final class Mbtiles implements Closeable {
       }
     }
 
+    /** Queue-up a write or flush to disk if enough are waiting. */
     public void write(TileCoord tile, byte[] data) {
       batch.add(new TileEntry(tile, data));
       if (batch.size() >= batchLimit) {
@@ -363,6 +425,8 @@ public final class Mbtiles implements Closeable {
     }
   }
 
+
+  /** Data contained in the metadata table. */
   public class Metadata {
 
     private static final NumberFormat nf = NumberFormat.getNumberInstance();
@@ -394,6 +458,7 @@ public final class Mbtiles implements Closeable {
       return setMetadata("name", value);
     }
 
+    /** Format of the tile data, should always be pbf {@code pbf}. */
     public Metadata setFormat(String format) {
       return setMetadata("format", format);
     }
@@ -414,6 +479,7 @@ public final class Mbtiles implements Closeable {
       return setBounds(envelope).setCenter(envelope);
     }
 
+    /** Estimate a reasonable center for the map to fit an envelope. */
     public Metadata setCenter(Envelope envelope) {
       Coordinate center = envelope.centre();
       double zoom = Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope));
@@ -436,6 +502,7 @@ public final class Mbtiles implements Closeable {
       return setMetadata("description", value);
     }
 
+    /** {@code overlay} or {@code baselayer}. */
     public Metadata setType(String value) {
       return setMetadata("type", value);
     }
@@ -475,46 +542,6 @@ public final class Mbtiles implements Closeable {
         LOGGER.warn("Error retrieving metadata", throwables);
       }
       return result;
-    }
-  }
-
-  public static record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TileEntry tileEntry = (TileEntry) o;
-
-      if (!tile.equals(tileEntry.tile)) {
-        return false;
-      }
-      return Arrays.equals(bytes, tileEntry.bytes);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = tile.hashCode();
-      result = 31 * result + Arrays.hashCode(bytes);
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TileEntry{" +
-        "tile=" + tile +
-        ", bytes=" + Arrays.toString(bytes) +
-        '}';
-    }
-
-    @Override
-    public int compareTo(TileEntry o) {
-      return tile.compareTo(o.tile);
     }
   }
 }

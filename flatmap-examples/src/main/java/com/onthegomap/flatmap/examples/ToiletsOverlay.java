@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.examples;
 
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.FlatMapRunner;
+import com.onthegomap.flatmap.FlatmapRunner;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.reader.SourceFeature;
@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ol>
  *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
  *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay osm="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
+ *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
  *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
@@ -29,7 +29,7 @@ public class ToiletsOverlay implements Profile {
    * highest ID toilet nodes. Be sure to use thread-safe data structures any time a profile holds state since multiple
    * threads invoke processFeature concurrently.
    */
-  AtomicInteger toiletNumber = new AtomicInteger(0);
+  private final AtomicInteger toiletNumber = new AtomicInteger(0);
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
@@ -37,12 +37,12 @@ public class ToiletsOverlay implements Profile {
       features.point("toilets")
         .setZoomRange(0, 14)
         // to limit toilets displayed at lower zoom levels:
-        // 1) set a z-order that defines a priority ordering of toilets. For mountains you might use "elevation"
+        // 1) set a z-order that defines a priority ordering of toilets. For mountains, you might use "elevation"
         // but for toilets we just set it to the order in which we see them.
         .setZorder(toiletNumber.incrementAndGet())
         // 2) at lower zoom levels, divide each 256x256 px tile into 32x32 px squares and in each square only include
         // the toilets with the highest z-order within that square
-        .setLabelGridSizeAndLimit(
+        .setPointLabelGridSizeAndLimit(
           12, // only limit at z12 and below
           32, // break the tile up into 32x32 px squares
           4 // any only keep the 4 nodes with highest z-order in each 32px square
@@ -94,12 +94,12 @@ public class ToiletsOverlay implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
-    // FlatMapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
+    // FlatmapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using this same profile but the lower-level API
-    FlatMapRunner.createWithArguments(args)
+    FlatmapRunner.create(args)
       .setProfile(new ToiletsOverlay())
-      // override this default with osm="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))
+      // override this default with osm_path="path/to/data.osm.pbf"
+      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"))
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
       .run();

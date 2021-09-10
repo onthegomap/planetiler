@@ -1,8 +1,17 @@
 package com.onthegomap.flatmap.collection;
 
+import static com.onthegomap.flatmap.util.MemoryEstimator.POINTER_BYTES;
+import static com.onthegomap.flatmap.util.MemoryEstimator.estimateIntArraySize;
+import static com.onthegomap.flatmap.util.MemoryEstimator.estimateLongArraySize;
+
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An array of primitives backed by arrays in RAM.
+ *
+ * @param <T> the primitive array type (i.e. {@code int[]} or {@code long[]})
+ */
 abstract class AppendStoreRam<T> implements AppendStore {
 
   final List<T> arrays;
@@ -10,7 +19,6 @@ abstract class AppendStoreRam<T> implements AppendStore {
   final int slabSize;
   final int slabBits;
   final long slabMask;
-
 
   AppendStoreRam(int segmentSizeBytes) {
     this.slabBits = (int) (Math.log(segmentSizeBytes) / Math.log(2));
@@ -22,9 +30,9 @@ abstract class AppendStoreRam<T> implements AppendStore {
     this.arrays = new ArrayList<>();
   }
 
-  T writeSlab() {
-    long idx = size++;
-    int slabIdx = (int) (idx >>> slabBits);
+  /** Returns the slab that the next value should be written to. */
+  T getSlabForWrite() {
+    int slabIdx = (int) (size >>> slabBits);
     while (arrays.size() <= slabIdx) {
       arrays.add(newSlab());
     }
@@ -59,14 +67,15 @@ abstract class AppendStoreRam<T> implements AppendStore {
     }
 
     @Override
-    public void writeInt(int value) {
+    public void appendInt(int value) {
       int offset = (int) (size & slabMask);
-      writeSlab()[offset] = value;
+      getSlabForWrite()[offset] = value;
+      size++;
     }
 
     @Override
     public int getInt(long index) {
-      checkIndex(index);
+      checkIndexInBounds(index);
       int slabIdx = (int) (index >>> slabBits);
       int offset = (int) (index & slabMask);
       int[] slab = arrays.get(slabIdx);
@@ -75,7 +84,7 @@ abstract class AppendStoreRam<T> implements AppendStore {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return arrays.size() * (slabSize * 4L + 24L + 8);
+      return arrays.size() * (estimateIntArraySize(slabSize) + POINTER_BYTES);
     }
   }
 
@@ -95,14 +104,15 @@ abstract class AppendStoreRam<T> implements AppendStore {
     }
 
     @Override
-    public void writeLong(long value) {
+    public void appendLong(long value) {
       int offset = (int) (size & slabMask);
-      writeSlab()[offset] = value;
+      getSlabForWrite()[offset] = value;
+      size++;
     }
 
     @Override
     public long getLong(long index) {
-      checkIndex(index);
+      checkIndexInBounds(index);
       int slabIdx = (int) (index >>> slabBits);
       int offset = (int) (index & slabMask);
       return arrays.get(slabIdx)[offset];
@@ -110,7 +120,7 @@ abstract class AppendStoreRam<T> implements AppendStore {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return arrays.size() * (slabSize * 8L + 24L + 8);
+      return arrays.size() * (estimateLongArraySize(slabSize) + POINTER_BYTES);
     }
   }
 }

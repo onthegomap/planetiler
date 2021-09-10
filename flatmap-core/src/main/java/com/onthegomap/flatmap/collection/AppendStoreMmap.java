@@ -11,8 +11,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 
+/**
+ * An array of primitives backed by memory-mapped file.
+ */
 abstract class AppendStoreMmap implements AppendStore {
 
+  // writes are done using a BufferedOutputStream
   final DataOutputStream outputStream;
   final int segmentBits;
   final long segmentMask;
@@ -47,6 +51,7 @@ abstract class AppendStoreMmap implements AppendStore {
       synchronized (this) {
         if ((result = segments) == null) {
           try {
+            // prepare the memory mapped file: stop writing, start reading
             outputStream.close();
             channel = FileChannel.open(path, StandardOpenOption.READ);
             int segmentCount = (int) (outIdx / segmentBytes + 1);
@@ -80,7 +85,7 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   @Override
-  public long bytesOnDisk() {
+  public long diskUsageBytes() {
     return FileUtils.size(path);
   }
 
@@ -95,7 +100,7 @@ abstract class AppendStoreMmap implements AppendStore {
     }
 
     @Override
-    public void writeInt(int value) {
+    public void appendInt(int value) {
       try {
         outputStream.writeInt(value);
         outIdx += 4;
@@ -106,7 +111,7 @@ abstract class AppendStoreMmap implements AppendStore {
 
     @Override
     public int getInt(long index) {
-      checkIndex(index);
+      checkIndexInBounds(index);
       MappedByteBuffer[] segments = getSegments();
       long byteOffset = index << 2;
       int idx = (int) (byteOffset >>> segmentBits);
@@ -131,7 +136,7 @@ abstract class AppendStoreMmap implements AppendStore {
     }
 
     @Override
-    public void writeLong(long value) {
+    public void appendLong(long value) {
       try {
         outputStream.writeLong(value);
         outIdx += 8;
@@ -142,7 +147,7 @@ abstract class AppendStoreMmap implements AppendStore {
 
     @Override
     public long getLong(long index) {
-      checkIndex(index);
+      checkIndexInBounds(index);
       MappedByteBuffer[] segments = getSegments();
       long byteOffset = index << 3;
       int idx = (int) (byteOffset >>> segmentBits);

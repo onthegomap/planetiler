@@ -276,10 +276,10 @@ public class Tables {
     }
 
     public static final Expression MAPPING = and(or(
-      matchAny("highway", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
-        "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
-        "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
-        "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")),
+        matchAny("highway", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
+          "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
+          "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
+          "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier")),
       matchType("linestring"));
 
     public interface Handler {

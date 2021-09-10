@@ -2,36 +2,36 @@ package com.onthegomap.flatmap.examples;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.FlatMapRunner;
+import com.onthegomap.flatmap.FlatmapRunner;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.VectorTileEncoder;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.Arguments;
-import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
-import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import java.nio.file.Path;
 import java.util.List;
 
 /**
  * Builds a map of bike routes from ways contained in OpenStreetMap relations tagged with
- * <a href="https://wiki.openstreetmap.org/wiki/Tag:route%3Dbicycle">route=bicycle</a> in 3 steps:
- * <ol>
- *   <li>On the first pass through the input file, store relevant information from OSM bike route relations</li>
- *   <li>On the second pass, emit linestrings for each OSM way contained in one of those relations</li>
- *   <li>Before storing each finished tile, Merge linestrings in each tile with the same tags and touching endpoints</li>
- * </ol>
+ * <a href="https://wiki.openstreetmap.org/wiki/Tag:route%3Dbicycle">route=bicycle</a>.
  * <p>
  * To run this example:
  * <ol>
- *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
+ *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
  *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.BikeRouteOverlay osm="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
+ *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
  *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
 public class BikeRouteOverlay implements Profile {
+  /*
+   * The processing happens in 4 steps:
+   * 1. On the first pass through the input file, store relevant information from OSM bike route relations
+   * 2. On the second pass, emit linestrings for each OSM way contained in one of those relations
+   * 3. Before storing each finished tile, Merge linestrings in each tile with the same tags and touching endpoints
+   */
 
   /*
    * Step 1)
@@ -47,10 +47,10 @@ public class BikeRouteOverlay implements Profile {
     @Override long id,
     // Values for tags extracted from the OSM relation:
     String name, String ref, String route, String network
-  ) implements OsmReader.RelationInfo {}
+  ) implements OsmRelationInfo {}
 
   @Override
-  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     // If this is a "route" relation ...
     if (relation.hasTag("type", "route")) {
       // where route=bicycle or route=mtb ...
@@ -87,7 +87,7 @@ public class BikeRouteOverlay implements Profile {
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     // ignore nodes and ways that should only be treated as polygons
     if (sourceFeature.canBeLine()) {
-      // get all of the RouteRelationInfo instances we returned from preprocessOsmRelation that
+      // get all the RouteRelationInfo instances we returned from preprocessOsmRelation that
       // this way belongs to
       for (var routeInfo : sourceFeature.relationInfo(RouteRelationInfo.class)) {
         // (routeInfo.role() also has the "role" of this relation member if needed)
@@ -113,8 +113,8 @@ public class BikeRouteOverlay implements Profile {
    */
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcessLayerFeatures(String layer, int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+    List<VectorTile.Feature> items) {
     // FeatureMerge has several utilities for merging geometries in a layer that share the same tags.
     // `mergeLineStrings` combines lines with the same tags where the endpoints touch.
     // Tiles are 256x256 pixels and all FeatureMerge operations work in tile pixel coordinates.
@@ -166,12 +166,12 @@ public class BikeRouteOverlay implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
-    // FlatMapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
+    // FlatmapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using the lower-level API
-    FlatMapRunner.createWithArguments(args)
+    FlatmapRunner.create(args)
       .setProfile(new BikeRouteOverlay())
-      // override this default with osm="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", "north-america_us_massachusetts.pbf"))
+      // override this default with osm_path="path/to/data.osm.pbf"
+      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"))
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "bikeroutes.mbtiles"))
       .run();

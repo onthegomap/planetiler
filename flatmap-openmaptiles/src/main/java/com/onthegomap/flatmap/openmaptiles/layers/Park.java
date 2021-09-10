@@ -43,9 +43,8 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.GeometryType;
@@ -54,6 +53,7 @@ import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.List;
 import java.util.Locale;
 import org.slf4j.Logger;
@@ -71,7 +71,7 @@ public class Park implements
   private final Translations translations;
   private final Stats stats;
 
-  public Park(Translations translations, Arguments args, Stats stats) {
+  public Park(Translations translations, FlatmapConfig config, Stats stats) {
     this.stats = stats;
     this.translations = translations;
   }
@@ -111,11 +111,12 @@ public class Park implements
 
         features.centroid(LAYER_NAME).setBufferPixels(256)
           .setAttr(Fields.CLASS, clazz)
-          .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-          .setLabelGridPixelSize(14, 100)
+          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+          .setPointLabelGridPixelSize(14, 100)
           .setZorder(Z_ORDER_MIN +
             ("national_park".equals(clazz) ? PARK_NATIONAL_PARK_BOOST : 0) +
-            ((element.source().hasTag("wikipedia") || element.source().hasTag("wikidata")) ? PARK_WIKIPEDIA_BOOST : 0) +
+            ((element.source().hasTag("wikipedia") || element.source().hasTag("wikidata")) ? PARK_WIKIPEDIA_BOOST
+              : 0) +
             areaBoost
           ).setZoomRange(minzoom, 14);
       } catch (GeometryException e) {
@@ -125,7 +126,7 @@ public class Park implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom, List<VectorTileEncoder.Feature> items) {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     LongIntMap counts = new LongIntHashMap();
     for (int i = items.size() - 1; i >= 0; i--) {
       var feature = items.get(i);

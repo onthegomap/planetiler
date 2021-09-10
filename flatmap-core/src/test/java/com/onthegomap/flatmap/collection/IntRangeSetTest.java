@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class IntRangeTest {
+public class IntRangeSetTest {
 
-  private static List<Integer> getInts(IntRange range) {
+  private static List<Integer> getInts(IntRangeSet range) {
     List<Integer> result = new ArrayList<>();
     for (Integer integer : range) {
       result.add(integer);
@@ -19,27 +19,27 @@ public class IntRangeTest {
 
   @Test
   public void testEmptyIntRange() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     assertEquals(List.of(), getInts(range));
   }
 
   @Test
   public void testSingleIntRange() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 1);
     assertEquals(List.of(1), getInts(range));
   }
 
   @Test
   public void testLongerIntRange() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 3);
     assertEquals(List.of(1, 2, 3), getInts(range));
   }
 
   @Test
   public void testTwoIntRanges() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 3);
     range.add(5, 7);
     assertEquals(List.of(1, 2, 3, 5, 6, 7), getInts(range));
@@ -47,7 +47,7 @@ public class IntRangeTest {
 
   @Test
   public void testTwoOverlappingIntRanges() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     range.add(4, 7);
     assertEquals(List.of(1, 2, 3, 4, 5, 6, 7), getInts(range));
@@ -55,7 +55,7 @@ public class IntRangeTest {
 
   @Test
   public void testRemoveSingle() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     range.remove(3);
     assertEquals(List.of(1, 2, 4, 5), getInts(range));
@@ -63,9 +63,9 @@ public class IntRangeTest {
 
   @Test
   public void testRemoveOtherRange() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(4, 6);
     range.removeAll(range2);
     assertEquals(List.of(1, 2, 3), getInts(range));
@@ -73,9 +73,9 @@ public class IntRangeTest {
 
   @Test
   public void testAddOtherRange() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(8, 10);
     range.addAll(range2);
     assertEquals(List.of(1, 2, 3, 4, 5, 8, 9, 10), getInts(range));
@@ -83,9 +83,9 @@ public class IntRangeTest {
 
   @Test
   public void testContains() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(8, 10);
     range.addAll(range2);
     range.remove(3);
@@ -109,9 +109,9 @@ public class IntRangeTest {
 
   @Test
   public void testNoIntersection() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(8, 10);
     range.intersect(range2);
     assertEquals(List.of(), getInts(range));
@@ -119,9 +119,9 @@ public class IntRangeTest {
 
   @Test
   public void testSingleIntersection() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(5, 10);
     range.intersect(range2);
     assertEquals(List.of(5), getInts(range));
@@ -129,9 +129,9 @@ public class IntRangeTest {
 
   @Test
   public void testMultipleIntersection() {
-    IntRange range = new IntRange();
+    IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
-    IntRange range2 = new IntRange();
+    IntRangeSet range2 = new IntRangeSet();
     range2.add(3, 10);
     range2.remove(4);
     range.intersect(range2);

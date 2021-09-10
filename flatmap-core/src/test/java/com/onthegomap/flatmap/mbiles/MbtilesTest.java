@@ -28,9 +28,9 @@ public class MbtilesTest {
   public void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize)
     throws IOException, SQLException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      db.setupSchema();
+      db.createTables();
       if (!deferIndexCreation) {
-        db.addIndex();
+        db.addTileIndex();
       }
       assertNull(db.getTile(0, 0, 0));
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
@@ -47,7 +47,7 @@ public class MbtilesTest {
         }
       }
       if (deferIndexCreation) {
-        db.addIndex();
+        db.addTileIndex();
       }
       if (optimize) {
         db.vacuumAnalyze();
@@ -85,7 +85,7 @@ public class MbtilesTest {
   public void testAddMetadata() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.setupSchema().metadata();
+      var metadata = db.createTables().metadata();
       metadata.setName("name value");
       expected.put("name", "name value");
 
@@ -122,7 +122,7 @@ public class MbtilesTest {
   public void testAddMetadataWorldBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.setupSchema().metadata();
+      var metadata = db.createTables().metadata();
       metadata.setBoundsAndCenter(GeoUtils.WORLD_LAT_LON_BOUNDS);
       expected.put("bounds", "-180,-85.05113,180,85.05113");
       expected.put("center", "0,0,0");
@@ -135,7 +135,7 @@ public class MbtilesTest {
   public void testAddMetadataSmallBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.setupSchema().metadata();
+      var metadata = db.createTables().metadata();
       metadata.setBoundsAndCenter(new Envelope(-73.6632, -69.7598, 41.1274, 43.0185));
       expected.put("bounds", "-73.6632,41.1274,-69.7598,43.0185");
       expected.put("center", "-71.7115,42.07295,7");
@@ -146,7 +146,7 @@ public class MbtilesTest {
 
   private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.setupSchema().metadata();
+      var metadata = db.createTables().metadata();
       metadata.setJson(object);
       var actual = metadata.getAll().get("json");
       assertSameJson(expected, actual);

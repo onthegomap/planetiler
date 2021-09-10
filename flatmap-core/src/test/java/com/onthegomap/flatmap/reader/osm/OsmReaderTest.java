@@ -31,22 +31,12 @@ public class OsmReaderTest {
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
 
-  private static Profile newProfile(
-    Function<OsmElement.Relation, List<OsmReader.RelationInfo>> processRelation) {
-    return new Profile.NullProfile() {
-      @Override
-      public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return processRelation.apply(relation);
-      }
-    };
-  }
-
   @Test
   public void testPoint() throws GeometryException {
     OsmReader reader = newOsmReader();
     var node = new ReaderNode(1, 0, 0);
     node.setTag("key", "value");
-    reader.processPass1(node);
+    reader.processPass1Element(node);
     SourceFeature feature = reader.processNodePass2(node);
     assertTrue(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -68,18 +58,18 @@ public class OsmReaderTest {
   @Test
   public void testLine() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var nodeCache = reader.newNodeGeometryCache();
+    var nodeCache = reader.newNodeLocationProvider();
     var node1 = new ReaderNode(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
     var way = new ReaderWay(3);
     way.getNodes().add(node1.getId(), node2.getId());
     way.setTag("key", "value");
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -108,7 +98,7 @@ public class OsmReaderTest {
   @Test
   public void testPolygonAreaNotSpecified() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var nodeCache = reader.newNodeGeometryCache();
+    var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
@@ -117,13 +107,13 @@ public class OsmReaderTest {
     way.getNodes().add(1, 2, 3, 4, 1);
     way.setTag("key", "value");
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(node3);
-    reader.processPass1(node4);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(node3);
+    reader.processPass1Element(node4);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertTrue(feature.canBePolygon());
@@ -151,7 +141,7 @@ public class OsmReaderTest {
   @Test
   public void testPolygonAreaYes() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var nodeCache = reader.newNodeGeometryCache();
+    var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
@@ -160,13 +150,13 @@ public class OsmReaderTest {
     way.getNodes().add(1, 2, 3, 4, 1);
     way.setTag("area", "yes");
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(node3);
-    reader.processPass1(node4);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(node3);
+    reader.processPass1Element(node4);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertTrue(feature.canBePolygon());
@@ -191,7 +181,7 @@ public class OsmReaderTest {
   @Test
   public void testPolygonAreaNo() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var nodeCache = reader.newNodeGeometryCache();
+    var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
@@ -200,13 +190,13 @@ public class OsmReaderTest {
     way.getNodes().add(1, 2, 3, 4, 1);
     way.setTag("area", "no");
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(node3);
-    reader.processPass1(node4);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(node3);
+    reader.processPass1Element(node4);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -235,10 +225,10 @@ public class OsmReaderTest {
     var way = new ReaderWay(3);
     way.getNodes().add(1);
 
-    reader.processPass1(node1);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(reader.newNodeGeometryCache(), way);
+    SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -261,11 +251,11 @@ public class OsmReaderTest {
     var way = new ReaderWay(3);
     way.getNodes().add(1, 2, 1);
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(way);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(reader.newNodeGeometryCache(), way);
+    SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertTrue(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -294,16 +284,16 @@ public class OsmReaderTest {
   public void testInvalidPolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
 
-    reader.processPass1(node(1, 0.5, 0.5));
-    reader.processPass1(node(2, 0.75, 0.5));
-    reader.processPass1(node(3, 0.5, 0.75));
-    reader.processPass1(node(4, 0.75, 0.75));
+    reader.processPass1Element(node(1, 0.5, 0.5));
+    reader.processPass1Element(node(2, 0.75, 0.5));
+    reader.processPass1Element(node(3, 0.5, 0.75));
+    reader.processPass1Element(node(4, 0.75, 0.75));
     var way = new ReaderWay(6);
     way.setTag("area", "yes");
     way.getNodes().add(1, 2, 3, 4, 1);
-    reader.processPass1(way);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(reader.newNodeGeometryCache(), way);
+    SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertFalse(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertTrue(feature.canBePolygon());
@@ -339,9 +329,9 @@ public class OsmReaderTest {
     OsmReader reader = newOsmReader();
     var way = new ReaderWay(321);
     way.getNodes().add(123, 2222, 333, 444, 123);
-    reader.processPass1(way);
+    reader.processPass1Element(way);
 
-    SourceFeature feature = reader.processWayPass2(reader.newNodeGeometryCache(), way);
+    SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertTrue(feature.canBeLine());
     assertFalse(feature.isPoint());
     assertTrue(feature.canBePolygon());
@@ -363,9 +353,6 @@ public class OsmReaderTest {
 
   private final Function<ReaderElement, Stream<ReaderWay>> ways = elem ->
     elem instanceof ReaderWay way ? Stream.of(way) : Stream.empty();
-
-  private final Function<ReaderElement, Stream<ReaderRelation>> rels = elem ->
-    elem instanceof ReaderRelation rel ? Stream.of(rel) : Stream.empty();
 
   @Test
   public void testMultiPolygon() throws GeometryException {
@@ -397,12 +384,10 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1);
+    elements.forEach(reader::processPass1Element);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
-    var nodeCache = reader.newNodeGeometryCache();
-    elements.stream().flatMap(ways).forEach(way -> {
-      reader.processWayPass2(nodeCache, way);
-    });
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
     var feature = reader.processRelationPass2(relation, nodeCache);
 
@@ -471,12 +456,10 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1);
+    elements.forEach(reader::processPass1Element);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
-    var nodeCache = reader.newNodeGeometryCache();
-    elements.stream().flatMap(ways).forEach(way -> {
-      reader.processWayPass2(nodeCache, way);
-    });
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
     var feature = reader.processRelationPass2(relation, nodeCache);
 
@@ -539,12 +522,10 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1);
+    elements.forEach(reader::processPass1Element);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
-    var nodeCache = reader.newNodeGeometryCache();
-    elements.stream().flatMap(ways).forEach(way -> {
-      reader.processWayPass2(nodeCache, way);
-    });
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
     var feature = reader.processRelationPass2(relation, nodeCache);
 
@@ -592,12 +573,10 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1);
+    elements.forEach(reader::processPass1Element);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
-    var nodeCache = reader.newNodeGeometryCache();
-    elements.stream().flatMap(ways).forEach(way -> {
-      reader.processWayPass2(nodeCache, way);
-    });
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
     var feature = reader.processRelationPass2(relation, nodeCache);
 
@@ -625,12 +604,10 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1);
+    elements.forEach(reader::processPass1Element);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
-    var nodeCache = reader.newNodeGeometryCache();
-    elements.stream().flatMap(ways).forEach(way -> {
-      reader.processWayPass2(nodeCache, way);
-    });
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
 
     var feature = reader.processRelationPass2(relation, nodeCache);
 
@@ -641,20 +618,15 @@ public class OsmReaderTest {
 
   @Test
   public void testWayInRelation() {
-    record OtherRelInfo(long id) implements OsmReader.RelationInfo {}
-    record TestRelInfo(long id, String name) implements OsmReader.RelationInfo {}
-    OsmReader reader = new OsmReader(
-      osmSource,
-      nodeMap,
-      new Profile.NullProfile() {
-        @Override
-        public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-          return List.of(new TestRelInfo(1, "name"));
-        }
-      },
-      stats
-    );
-    var nodeCache = reader.newNodeGeometryCache();
+    record OtherRelInfo(long id) implements OsmRelationInfo {}
+    record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+      @Override
+      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+        return List.of(new TestRelInfo(1, "name"));
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
     var node1 = new ReaderNode(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
     var way = new ReaderWay(3);
@@ -663,12 +635,12 @@ public class OsmReaderTest {
     var relation = new ReaderRelation(4);
     relation.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 3, "rolename"));
 
-    reader.processPass1(node1);
-    reader.processPass1(node2);
-    reader.processPass1(way);
-    reader.processPass1(relation);
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(way);
+    reader.processPass1Element(relation);
 
-    SourceFeature feature = reader.processWayPass2(nodeCache, way);
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
 
     assertEquals(List.of(), feature.relationInfo(OtherRelInfo.class));
     assertEquals(List.of(new OsmReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
@@ -676,12 +648,7 @@ public class OsmReaderTest {
   }
 
   private OsmReader newOsmReader() {
-    return new OsmReader(
-      osmSource,
-      nodeMap,
-      profile,
-      stats
-    );
+    return new OsmReader("osm", osmSource, nodeMap, profile, stats);
   }
 
   // TODO: relation info / storage size

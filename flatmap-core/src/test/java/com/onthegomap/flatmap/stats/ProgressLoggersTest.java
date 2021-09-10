@@ -31,7 +31,7 @@ public class ProgressLoggersTest {
         continueLatch.await();
       });
 
-    var loggers = new ProgressLoggers("prefix")
+    var loggers = ProgressLoggers.create()
       .newLine()
       .addPipelineStats(pipeline);
 

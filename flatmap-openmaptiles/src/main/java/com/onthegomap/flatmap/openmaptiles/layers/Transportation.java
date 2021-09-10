@@ -39,9 +39,8 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.*;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
@@ -49,6 +48,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +103,7 @@ public class Transportation implements
     "paving_stones", "sett", "unhewn_cobblestone", "wood"
   );
   private final Map<String, Integer> MINZOOMS;
-  private static final ZoomFunction.MeterThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
+  private static final ZoomFunction.MeterToPixelThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(7, 50)
     .put(6, 100)
     .put(5, 500)
@@ -111,10 +111,12 @@ public class Transportation implements
   private static final double PIXEL = 256d / 4096d;
   private final boolean z13Paths;
   private final Stats stats;
+  private final FlatmapConfig config;
 
-  public Transportation(Translations translations, Arguments args, Stats stats) {
+  public Transportation(Translations translations, FlatmapConfig config, Stats stats) {
+    this.config = config;
     this.stats = stats;
-    this.z13Paths = args.get(
+    this.z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
       false
@@ -239,11 +241,10 @@ public class Transportation implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
-    // TODO only merge <= z11?
-    double tolerance = zoom >= 14 ? PIXEL : 0.1;
-    double minLength = coalesce(MIN_LENGTH.apply(zoom), PIXEL).doubleValue();
+  public List<VectorTile.Feature> postProcess(int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
+    double tolerance = config.tolerance(zoom);
+    double minLength = coalesce(MIN_LENGTH.apply(zoom), config.minFeatureSize(zoom)).doubleValue();
     return FeatureMerge.mergeLineStrings(items, minLength, tolerance, BUFFER_SIZE);
   }
 

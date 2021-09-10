@@ -3,7 +3,7 @@ package com.graphhopper.reader;
 import java.util.Map;
 
 /**
- * Allows access to protected method ReaderElement.getTags
+ * Utility to gain access to protected method {@link ReaderElement#getTags()}
  */
 public class ReaderElementUtils {
 

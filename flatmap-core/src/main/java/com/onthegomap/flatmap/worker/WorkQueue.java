@@ -6,6 +6,7 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -13,22 +14,42 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+/**
+ * A high-performance blocking queue to hand off work from producing threads to consuming threads.
+ * <p>
+ * Wraps a standard {@link BlockingDeque}, with a few customizations:
+ * <ul>
+ *   <li>items are buffered into configurable-sized batches before putting on the actual queue to reduce contention</li>
+ *   <li>writers can mark the queue "finished" with {@link #close()} and readers will get {@code null} when there are
+ *   no more items to read</li>
+ * </ul>
+ * <p>
+ * Once a thread starts reading from this queue, it needs to finish otherwise all items might not be read.
+ *
+ * @param <T> the type of elements held in this queue
+ */
 public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
 
-  private final ThreadLocal<WriterForThread> writerProvider = ThreadLocal.withInitial(WriterForThread::new);
-  private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
   private final List<WriterForThread> writers = new CopyOnWriteArrayList<>();
+  private final ThreadLocal<WriterForThread> writerProvider = ThreadLocal.withInitial(WriterForThread::new);
   private final List<ReaderForThread> readers = new CopyOnWriteArrayList<>();
+  private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
   private final int pendingBatchesCapacity;
   private final Counter.MultiThreadCounter enqueueCountStatAll;
   private final Counter.MultiThreadCounter enqueueBlockTimeNanosAll;
   private final Counter.MultiThreadCounter dequeueCountStatAll;
   private final Counter.MultiThreadCounter dequeueBlockTimeNanosAll;
-  private volatile boolean hasIncomingData = true;
   private final Counter.MultiThreadCounter pendingCountAll = Counter.newMultiThreadCounter();
+  private volatile boolean hasIncomingData = true;
 
+  /**
+   * @param name     ID to prepend to stats generated about this queue
+   * @param capacity maximum number of pending items that can be held in the queue
+   * @param maxBatch batch size to buffer elements into before handing off to the blocking queue
+   * @param stats    stats to monitor this with
+   */
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
     this.pendingBatchesCapacity = capacity / maxBatch;
     this.batchSize = maxBatch;
@@ -60,10 +81,12 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     }
   }
 
+  /** Returns a writer optimized to accept items from a single thread. */
   public Consumer<T> threadLocalWriter() {
     return writerProvider.get();
   }
 
+  /** Returns a reader optimized to produce items for a single thread. */
   public Supplier<T> threadLocalReader() {
     return readerProvider.get();
   }
@@ -78,15 +101,38 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     return readerProvider.get().get();
   }
 
+  /**
+   * Returns the number of enqueued items that have not been dequeued yet.
+   * <p>
+   * NOTE: this may be larger than the initial capacity because each writer thread can buffer items into a batch and
+   * each reader thread might be reading items from a batch.
+   */
+  public int getPending() {
+    return (int) pendingCountAll.get();
+  }
+
+  /**
+   * Returns the total number of items that can be pending.
+   * <p>
+   * This will be larger than the initial capacity because each writer thread can buffer items into a batch and each
+   * reader thread can read items from a batch.
+   */
+  public int getCapacity() {
+    // actual queue can hold more than the specified capacity because each writer and reader may have a batch they are
+    // working on that is outside the queue
+    return (pendingBatchesCapacity + writers.size() + readers.size()) * batchSize;
+  }
+
+  /** Caches thread-local values so that a single thread can accept new items without having to do thread-local lookups. */
   private class WriterForThread implements Consumer<T> {
 
-    AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
+    final AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
     Queue<T> writeBatch = null;
-    Counter pendingCount = pendingCountAll.counterForThread();
-    Counter enqueueCountStat = enqueueCountStatAll.counterForThread();
-    Counter enqueueBlockTimeNanos = enqueueBlockTimeNanosAll.counterForThread();
+    final Counter pendingCount = pendingCountAll.counterForThread();
+    final Counter enqueueCountStat = enqueueCountStatAll.counterForThread();
+    final Counter enqueueBlockTimeNanos = enqueueBlockTimeNanosAll.counterForThread();
 
-    WriterForThread() {
+    private WriterForThread() {
       writers.add(this);
     }
 
@@ -127,12 +173,13 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
     }
   }
 
+  /** Caches thread-local values so that a single thread can read new items without having to do thread-local lookups. */
   private class ReaderForThread implements Supplier<T> {
 
     Queue<T> readBatch = null;
-    Counter dequeueBlockTimeNanos = dequeueBlockTimeNanosAll.counterForThread();
-    Counter pendingCount = pendingCountAll.counterForThread();
-    Counter dequeueCountStat = dequeueCountStatAll.counterForThread();
+    final Counter dequeueBlockTimeNanos = dequeueBlockTimeNanosAll.counterForThread();
+    final Counter pendingCount = pendingCountAll.counterForThread();
+    final Counter dequeueCountStat = dequeueCountStatAll.counterForThread();
 
     ReaderForThread() {
       readers.add(this);
@@ -172,16 +219,6 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
       dequeueCountStat.inc();
       return result;
     }
-  }
-
-  public int getPending() {
-    return (int) pendingCountAll.get();
-  }
-
-  public int getCapacity() {
-    // actual queue can hold more than the specified capacity because each writer and reader may have a batch they are
-    // working on that is outside of the queue
-    return (pendingBatchesCapacity + writers.size() + readers.size()) * batchSize;
   }
 }
 

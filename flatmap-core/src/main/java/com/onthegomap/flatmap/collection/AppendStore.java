@@ -7,11 +7,18 @@ import java.io.IOException;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
+/**
+ * A large array of primitives. A single thread appends all elements then allows random access from multiple threads.
+ * <p>
+ * {@link AppendStoreRam} stores all data in arrays in RAM and {@link AppendStoreMmap} stores all data in a
+ * memory-mapped file.
+ */
 interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked {
 
+  /** Returns the number of elements in the array */
   long size();
 
-  default void checkIndex(long index) {
+  default void checkIndexInBounds(long index) {
     if (index >= size()) {
       throw new IndexOutOfBoundsException("index: " + index + " size: " + size());
     }
@@ -23,24 +30,30 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
   }
 
   @Override
-  default long bytesOnDisk() {
+  default long diskUsageBytes() {
     return 0;
   }
 
+  /** An array of ints. */
   interface Ints extends AppendStore {
 
-    void writeInt(int value);
+    void appendInt(int value);
 
     int getInt(long index);
   }
 
+  /** An array of longs. */
   interface Longs extends AppendStore {
 
-    void writeLong(long value);
+    void appendLong(long value);
 
     long getLong(long index);
   }
 
+  /**
+   * An array longs that uses 4 bytes to represent each long by using a list of {@link Ints} arrays. Only suitable for
+   * values less than ~20 billion (i.e. OSM node IDs)
+   */
   final class SmallLongs implements Longs {
 
     private static final int BITS = 31;
@@ -55,15 +68,16 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
     }
 
     @Override
-    public void writeLong(long value) {
+    public void appendLong(long value) {
       int block = (int) (value >>> BITS);
       int offset = (int) (value & MASK);
-      ints[block].writeInt(offset);
+      ints[block].appendInt(offset);
       numWritten++;
     }
 
     @Override
     public long getLong(long index) {
+      checkIndexInBounds(index);
       for (int i = 0; i < ints.length; i++) {
         Ints slab = ints[i];
         long size = slab.size();
@@ -72,7 +86,7 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
         }
         index -= size;
       }
-      throw new ArrayIndexOutOfBoundsException("index: " + index + " size: " + size());
+      throw new IndexOutOfBoundsException("index: " + index + " size: " + size());
     }
 
     @Override
@@ -93,8 +107,8 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
     }
 
     @Override
-    public long bytesOnDisk() {
-      return Stream.of(ints).mapToLong(AppendStore::bytesOnDisk).sum();
+    public long diskUsageBytes() {
+      return Stream.of(ints).mapToLong(AppendStore::diskUsageBytes).sum();
     }
   }
 

@@ -13,19 +13,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * An input element read from OpenStreetMap data.
+ * <p>
+ * Graphhopper utilities are used internally for processing OpenStreetMap data, but to avoid leaking graphhopper
+ * dependencies out through the exposed API, convert {@link ReaderElement} instances to OsmElements first.
+ *
+ * @see <a href="https://wiki.openstreetmap.org/wiki/Elements">OSM element data model</a>
+ */
 public interface OsmElement extends WithTags {
 
+  /** OSM element ID */
   long id();
 
   enum Type {
     NODE, WAY, RELATION
   }
 
+  /** An un-handled element read from the .osm.pbf file (i.e. file header). */
   record Other(
     @Override long id,
     @Override Map<String, Object> tags
   ) implements OsmElement {}
 
+  /** A point on the earth's surface. */
   record Node(
     @Override long id,
     @Override Map<String, Object> tags,
@@ -38,6 +49,7 @@ public interface OsmElement extends WithTags {
     }
   }
 
+  /** An ordered list of 2-2,000 nodes that define a polyline. */
   record Way(
     @Override long id,
     @Override Map<String, Object> tags,
@@ -49,6 +61,7 @@ public interface OsmElement extends WithTags {
     }
   }
 
+  /** An ordered list of nodes, ways, and other relations. */
   record Relation(
     @Override long id,
     @Override Map<String, Object> tags,
@@ -65,6 +78,7 @@ public interface OsmElement extends WithTags {
       }
     }
 
+    /** A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member. */
     public static record Member(
       Type type,
       long ref,
@@ -72,6 +86,10 @@ public interface OsmElement extends WithTags {
     ) {}
   }
 
+  /*
+   * Utilities to convert from graphhopper ReaderElements to this class to avoid leaking graphhopper APIs through
+   * the exposed public API.
+   */
   static OsmElement fromGraphhopper(ReaderElement element) {
     if (element instanceof ReaderNode node) {
       return fromGraphopper(node);

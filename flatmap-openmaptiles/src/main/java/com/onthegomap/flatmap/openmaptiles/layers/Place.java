@@ -45,9 +45,8 @@ import static com.onthegomap.flatmap.openmaptiles.Utils.nullOrEmpty;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.PointIndex;
@@ -59,6 +58,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.HashMap;
 import java.util.List;
@@ -114,7 +114,7 @@ public class Place implements
     cities = null;
   }
 
-  public Place(Translations translations, Arguments args, Stats stats) {
+  public Place(Translations translations, FlatmapConfig config, Stats stats) {
     this.translations = translations;
     this.stats = stats;
   }
@@ -160,10 +160,10 @@ public class Place implements
   public void process(Tables.OsmContinentPoint element, FeatureCollector features) {
     if (!nullOrEmpty(element.name())) {
       features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, FieldValues.CLASS_CONTINENT)
         .setAttr(Fields.RANK, 1)
-        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setZoomRange(0, 3);
     }
   }
@@ -196,7 +196,7 @@ public class Place implements
       rank = Math.min(6, Math.max(1, rank));
 
       features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttrs(names)
+        .putAttrs(names)
         .setAttr(Fields.ISO_A2, isoA2)
         .setAttr(Fields.CLASS, FieldValues.CLASS_COUNTRY)
         .setAttr(Fields.RANK, rank)
@@ -221,7 +221,7 @@ public class Place implements
         int rank = Math.min(6, Math.max(1, state.rank));
 
         features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-          .setAttrs(names)
+          .putAttrs(names)
           .setAttr(Fields.CLASS, FieldValues.CLASS_STATE)
           .setAttr(Fields.RANK, rank)
           .setZoomRange(2, 14)
@@ -262,7 +262,7 @@ public class Place implements
       int zOrder = (int) (logWorldArea * ISLAND_ZORDER_RANGE);
 
       features.pointOnSurface(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, "island")
         .setAttr(Fields.RANK, rank)
         .setZoomRange(minzoom, 14)
@@ -276,7 +276,7 @@ public class Place implements
   @Override
   public void process(Tables.OsmIslandPoint element, FeatureCollector features) {
     features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, "island")
       .setAttr(Fields.RANK, 7)
       .setZoomRange(12, 14);
@@ -379,15 +379,15 @@ public class Place implements
             placeType.ordinal() <= PlaceType.SUBURB.ordinal() ? 11 : 14;
 
     var feature = features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, element.place())
       .setAttr(Fields.RANK, rank)
       .setZoomRange(minzoom, 14)
       .setZorder(getZorder(rank, placeType, element.population(), element.name()))
-      .setLabelGridPixelSize(12, 128);
+      .setPointLabelGridPixelSize(12, 128);
 
     if (rank == null) {
-      feature.setLabelGridLimitFunction(LABEL_GRID_LIMITS);
+      feature.setPointLabelGridLimit(LABEL_GRID_LIMITS);
     }
 
     if ("2".equals(capital) || "yes".equals(capital)) {
@@ -398,11 +398,11 @@ public class Place implements
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
     LongIntMap groupCounts = new LongIntHashMap();
     for (int i = items.size() - 1; i >= 0; i--) {
-      VectorTileEncoder.Feature feature = items.get(i);
+      VectorTile.Feature feature = items.get(i);
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
       if (!feature.attrs().containsKey(Fields.RANK)) {

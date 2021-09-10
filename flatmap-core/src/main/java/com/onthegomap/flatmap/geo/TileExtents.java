@@ -3,6 +3,9 @@ package com.onthegomap.flatmap.geo;
 import java.util.function.Predicate;
 import org.locationtech.jts.geom.Envelope;
 
+/**
+ * A function that filters to only tile coordinates that overlap a given {@link Envelope}.
+ */
 public class TileExtents implements Predicate<TileCoord> {
 
   private final ForZoom[] zoomExtents;
@@ -19,6 +22,7 @@ public class TileExtents implements Predicate<TileCoord> {
     return Math.max(0, Math.min(levels, (int) Math.ceil(value * levels)));
   }
 
+  /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
   public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds) {
     ForZoom[] zoomExtents = new ForZoom[maxzoom + 1];
     for (int zoom = 0; zoom <= maxzoom; zoom++) {
@@ -46,7 +50,11 @@ public class TileExtents implements Predicate<TileCoord> {
     return test(tileCoord.x(), tileCoord.y(), tileCoord.z());
   }
 
-  public record ForZoom(int minX, int minY, int maxX, int maxY) {
+  /**
+   * X/Y extents within a given zoom level. {@code minX} and {@code minY} are inclusive and {@code maxX} and {@code
+   * maxY} are exclusive.
+   */
+  public static record ForZoom(int minX, int minY, int maxX, int maxY) {
 
     public boolean test(int x, int y) {
       return testX(x) && testY(y);

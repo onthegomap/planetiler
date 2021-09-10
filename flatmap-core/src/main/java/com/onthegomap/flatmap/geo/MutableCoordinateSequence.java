@@ -2,10 +2,17 @@ package com.onthegomap.flatmap.geo;
 
 import com.carrotsearch.hppc.DoubleArrayList;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
+/**
+ * A 2-dimensional {@link CoordinateSequence} implementation backed by a {@link DoubleArrayList} that supports adding
+ * points.
+ * <p>
+ * Reads are thread-safe but writes are not.
+ */
 public class MutableCoordinateSequence extends PackedCoordinateSequence {
 
   private final DoubleArrayList points = new DoubleArrayList();
@@ -14,6 +21,14 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     super(2, 0);
   }
 
+  /**
+   * Returns a coordinate sequence that translates and scales coordinates on insertion.
+   *
+   * @param relX  x origin of the translation
+   * @param relY  y origin of the translation
+   * @param scale amount to scale by
+   * @return the new empty coordinate sequence
+   */
   public static MutableCoordinateSequence newScalingSequence(double relX, double relY, double scale) {
     return new ScalingSequence(scale, relX, relY);
   }
@@ -57,6 +72,7 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     return env;
   }
 
+  /** Adds a coordinate to the sequence as long as it is different from the current endpoint. */
   public void addPoint(double x, double y) {
     int size = size();
     if (size == 0 || getX(size - 1) != x || getY(size - 1) != y) {
@@ -64,10 +80,12 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     }
   }
 
+  /** Adds a coordinate to the sequence even if it is the same as the current endpoint. */
   public void forceAddPoint(double x, double y) {
     points.add(x, y);
   }
 
+  /** Adds the starting coordinate to the end of this sequence if it has not already been added. */
   public void closeRing() {
     int size = size();
     if (size >= 1) {
@@ -85,6 +103,7 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
     return points.isEmpty();
   }
 
+  /** Implementation that transforms and scales coordinates on insert. */
   private static class ScalingSequence extends MutableCoordinateSequence {
 
     private final double scale;

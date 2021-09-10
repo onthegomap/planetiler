@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.Wikidata;
+import com.onthegomap.flatmap.util.Translations;
+import com.onthegomap.flatmap.util.Wikidata;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -71,7 +71,7 @@ public class LanguageUtilsTest {
     if (!isLatin) {
       assertFalse(isLatin(in));
     } else {
-      assertEquals(isLatin ? in : null, LanguageUtils.getNames(Map.of(
+      assertEquals(in, LanguageUtils.getNames(Map.of(
         "name", in
       ), translations).get("name:latin"));
     }

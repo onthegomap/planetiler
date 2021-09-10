@@ -4,6 +4,7 @@ import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.InvocationTargetException;
@@ -18,11 +19,14 @@ import java.util.stream.Collectors;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
 
+/**
+ * A collection of utilities to gather runtime information about the JVM.
+ */
 public class ProcessInfo {
 
+  // listen on GC events to track memory pool sizes after each GC
   private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
 
-  // listen on GC events to track memory pool sizes after each GC
   static {
     for (GarbageCollectorMXBean garbageCollectorMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
       if (garbageCollectorMXBean instanceof NotificationEmitter emitter) {
@@ -40,20 +44,24 @@ public class ProcessInfo {
     }
   }
 
+  /**
+   * Returns the amount of CPU time this processed hase used according to {@link OperatingSystemMXBean}, or empty if the
+   * JVM does not support this.
+   */
   public static Optional<Duration> getProcessCpuTime() {
+    Long result;
+    Object obj = ManagementFactory.getOperatingSystemMXBean();
+    try {
+      result = callGetter(obj.getClass().getMethod("getProcessCpuTime"), obj, Long.class);
+    } catch (NoSuchMethodException | InvocationTargetException e) {
+      result = null;
+    }
     return Optional
-      .ofNullable(callGetter("getProcessCpuTime", ManagementFactory.getOperatingSystemMXBean(), Long.class))
+      .ofNullable(result)
       .map(Duration::ofNanos);
   }
 
-  private static <T> T callGetter(String getterName, Object obj, Class<T> resultClazz) {
-    try {
-      return callGetter(obj.getClass().getMethod(getterName), obj, resultClazz);
-    } catch (NoSuchMethodException | InvocationTargetException e) {
-      return null;
-    }
-  }
-
+  // reflection helper
   private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
     try {
       return resultClazz.cast(method.invoke(obj));
@@ -80,18 +88,19 @@ public class ProcessInfo {
     return null;
   }
 
+  /** Returns the {@code -Xmx} JVM property in bytes according to {@link Runtime#maxMemory()}. */
   public static long getMaxMemoryBytes() {
     return Runtime.getRuntime().maxMemory();
   }
 
+  /** Processor usage statistics for a thread. */
+  public static record ThreadState(String name, Duration cpuTime, Duration userTime, long id) {
 
-  public static record ThreadState(String name, long cpuTimeNanos, long userTimeNanos, long id) {
-
-    public static final ThreadState DEFAULT = new ThreadState("", 0, 0, -1);
+    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, -1);
 
   }
 
-
+  /** Returns the amount of time this JVM has spent in any kind of garbage collection since startup. */
   public static Duration getGcTime() {
     long total = 0;
     for (final GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -100,10 +109,12 @@ public class ProcessInfo {
     return Duration.ofMillis(total);
   }
 
+  /** Returns a map from memory pool name to the size of that pool in bytes after the last garbage-collection. */
   public static Map<String, Long> getPostGcPoolSizes() {
     return postGcMemoryUsage.get();
   }
 
+  /** Returns the total memory usage in bytes after last GC, or empty if no GC has occurred yet. */
   public static OptionalLong getMemoryUsageAfterLastGC() {
     var lastGcPoolSizes = postGcMemoryUsage.get();
     if (lastGcPoolSizes.isEmpty()) {
@@ -113,6 +124,7 @@ public class ProcessInfo {
     }
   }
 
+  /** Returns a map from thread ID to stats about that thread for every thread that has run, even completed ones. */
   public static Map<Long, ThreadState> getThreadStats() {
     Map<Long, ThreadState> threadState = new TreeMap<>();
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
@@ -120,8 +132,8 @@ public class ProcessInfo {
       threadState.put(thread.getThreadId(),
         new ThreadState(
           thread.getThreadName(),
-          threadMXBean.getThreadCpuTime(thread.getThreadId()),
-          threadMXBean.getThreadUserTime(thread.getThreadId()),
+          Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
+          Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
           thread.getThreadId()
         ));
     }

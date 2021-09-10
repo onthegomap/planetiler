@@ -18,7 +18,7 @@ import org.locationtech.jts.geom.Geometry;
 
 public class ShapefileReaderTest {
 
-  private ShapefileReader reader = new ShapefileReader(
+  private final ShapefileReader reader = new ShapefileReader(
     "test",
     TestUtils.pathToResource("shapefile.zip"),
     new Profile.NullProfile(),

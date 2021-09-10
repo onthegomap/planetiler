@@ -1,4 +1,4 @@
-/*****************************************************************
+/* ****************************************************************
  *  Licensed to the Apache Software Foundation (ASF) under one
  *  or more contributor license agreements.  See the NOTICE file
  *  distributed with this work for additional information
@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.primitives.Ints;
-import com.onthegomap.flatmap.geo.TileCoord;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,24 +37,24 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import vector_tile.VectorTile;
+import vector_tile.VectorTileProto;
 
 /**
  * This class is copied from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
  * and modified based on the changes in VectorTileEncoder, and adapted to junit 5.
  */
-public class VectorTileEncoderTest {
+public class VectorTileTest {
   // Tests adapted from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
 
   private static List<Integer> getCommands(Geometry geom) {
-    return Ints.asList(VectorTileEncoder.encodeGeometry(TRANSFORM_TO_TILE.transform(geom)).commands());
+    return Ints.asList(VectorTile.encodeGeometry(TRANSFORM_TO_TILE.transform(geom)).commands());
   }
 
   @Test
   public void testToGeomType() {
     Geometry geometry = JTS_FACTORY.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
-    assertEquals((byte) VectorTile.Tile.GeomType.LINESTRING.getNumber(),
-      VectorTileEncoder.encodeGeometry(geometry).geomType().asByte());
+    assertEquals((byte) VectorTileProto.Tile.GeomType.LINESTRING.getNumber(),
+      VectorTile.encodeGeometry(geometry).geomType().asByte());
   }
 
   @Test
@@ -94,14 +93,14 @@ public class VectorTileEncoderTest {
     )));
   }
 
-  private static VectorTileEncoder.Feature newVectorTileFeature(String layer, Geometry geom,
+  private static VectorTile.Feature newVectorTileFeature(String layer, Geometry geom,
     Map<String, Object> attrs) {
-    return new VectorTileEncoder.Feature(layer, 1, VectorTileEncoder.encodeGeometry(geom), attrs);
+    return new VectorTile.Feature(layer, 1, VectorTile.encodeGeometry(geom), attrs);
   }
 
   @Test
   public void testNullAttributeValue() {
-    VectorTileEncoder vtm = new VectorTileEncoder();
+    VectorTile vtm = new VectorTile();
     Map<String, Object> attrs = new HashMap<>();
     attrs.put("key1", "value1");
     attrs.put("key2", null);
@@ -114,9 +113,9 @@ public class VectorTileEncoderTest {
     byte[] encoded = vtm.encode();
     assertNotSame(0, encoded.length);
 
-    var decoded = VectorTileEncoder.decode(TileCoord.ofXYZ(0, 0, 0), encoded);
+    var decoded = VectorTile.decode(encoded);
     assertEquals(List
-      .of(new VectorTileEncoder.Feature("DEPCNT", 1, VectorTileEncoder.encodeGeometry(newPoint(3, 6)), Map.of(
+      .of(new VectorTile.Feature("DEPCNT", 1, VectorTile.encodeGeometry(newPoint(3, 6)), Map.of(
         "key1", "value1",
         "key3", "value3"
       ))), decoded);
@@ -125,7 +124,7 @@ public class VectorTileEncoderTest {
 
   @Test
   public void testAttributeTypes() {
-    VectorTileEncoder vtm = new VectorTileEncoder();
+    VectorTile vtm = new VectorTile();
 
     Map<String, Object> attrs = Map.of(
       "key1", "value1",
@@ -143,7 +142,7 @@ public class VectorTileEncoderTest {
     byte[] encoded = vtm.encode();
     assertNotSame(0, encoded.length);
 
-    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
+    List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
     assertEquals(1, decoded.size());
     Map<String, Object> decodedAttributes = decoded.get(0).attrs();
     assertEquals("value1", decodedAttributes.get("key1"));
@@ -197,13 +196,13 @@ public class VectorTileEncoderTest {
 
     Map<String, Object> attrs = Map.of("key1", "value1");
 
-    VectorTileEncoder vtm = new VectorTileEncoder();
+    VectorTile vtm = new VectorTile();
     vtm.addLayerFeatures("mp", List.of(newVectorTileFeature("mp", mp, attrs)));
 
     byte[] encoded = vtm.encode();
     assertTrue(encoded.length > 0);
 
-    var features = VectorTileEncoder.decode(encoded);
+    var features = VectorTile.decode(encoded);
     assertEquals(1, features.size());
     MultiPolygon mp2 = (MultiPolygon) decodeSilently(features.get(0).geometry());
     assertEquals(mp.getNumGeometries(), mp2.getNumGeometries());
@@ -217,12 +216,12 @@ public class VectorTileEncoderTest {
     );
     Map<String, Object> attributes = Map.of("key1", "value1");
 
-    VectorTileEncoder vtm = new VectorTileEncoder();
+    VectorTile vtm = new VectorTile();
     vtm.addLayerFeatures("gc", List.of(newVectorTileFeature("gc", gc, attributes)));
 
     byte[] encoded = vtm.encode();
 
-    var features = VectorTileEncoder.decode(encoded);
+    var features = VectorTile.decode(encoded);
     assertEquals(0, features.size());
   }
 
@@ -307,14 +306,14 @@ public class VectorTileEncoderTest {
     Point point = JTS_FACTORY.createPoint(new CoordinateXY(0, 0));
     Map<String, Object> attrs1 = Map.of("a", 1L, "b", 2L);
     Map<String, Object> attrs2 = Map.of("b", 3L, "c", 2L);
-    byte[] encoded = new VectorTileEncoder().addLayerFeatures("layer1", List.of(
-      new VectorTileEncoder.Feature("layer1", 1L, VectorTileEncoder.encodeGeometry(point), attrs1),
-      new VectorTileEncoder.Feature("layer1", 2L, VectorTileEncoder.encodeGeometry(point), attrs2)
+    byte[] encoded = new VectorTile().addLayerFeatures("layer1", List.of(
+      new VectorTile.Feature("layer1", 1L, VectorTile.encodeGeometry(point), attrs1),
+      new VectorTile.Feature("layer1", 2L, VectorTile.encodeGeometry(point), attrs2)
     )).addLayerFeatures("layer2", List.of(
-      new VectorTileEncoder.Feature("layer2", 3L, VectorTileEncoder.encodeGeometry(point), attrs1)
+      new VectorTile.Feature("layer2", 3L, VectorTile.encodeGeometry(point), attrs1)
     )).encode();
 
-    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
+    List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
     assertEquals(attrs1, decoded.get(0).attrs());
     assertEquals("layer1", decoded.get(0).layer());
 
@@ -334,22 +333,22 @@ public class VectorTileEncoderTest {
   }
 
   private void testRoundTrip(Geometry input, String layer, Map<String, Object> attrs, long id) {
-    VectorTileEncoder.VectorGeometry encodedGeom = VectorTileEncoder.encodeGeometry(input);
+    VectorTile.VectorGeometry encodedGeom = VectorTile.encodeGeometry(input);
     Geometry output = decodeSilently(encodedGeom);
     assertTrue(input.equalsExact(output), "\n" + input + "\n!=\n" + output);
 
-    byte[] encoded = new VectorTileEncoder().addLayerFeatures(layer, List.of(
-      new VectorTileEncoder.Feature(layer, id, VectorTileEncoder.encodeGeometry(input), attrs)
+    byte[] encoded = new VectorTile().addLayerFeatures(layer, List.of(
+      new VectorTile.Feature(layer, id, VectorTile.encodeGeometry(input), attrs)
     )).encode();
 
-    List<VectorTileEncoder.Feature> decoded = VectorTileEncoder.decode(encoded);
-    VectorTileEncoder.Feature expected = new VectorTileEncoder.Feature(layer, id,
-      VectorTileEncoder.encodeGeometry(input), attrs);
+    List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
+    VectorTile.Feature expected = new VectorTile.Feature(layer, id,
+      VectorTile.encodeGeometry(input), attrs);
     assertEquals(List.of(expected), decoded);
     assertSameGeometries(List.of(input), decoded);
   }
 
-  private void assertSameGeometries(List<Geometry> expected, List<VectorTileEncoder.Feature> actual) {
+  private void assertSameGeometries(List<Geometry> expected, List<VectorTile.Feature> actual) {
     assertEquals(expected, actual.stream().map(d -> decodeSilently(d.geometry())).toList());
   }
 }

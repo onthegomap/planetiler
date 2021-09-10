@@ -1,4 +1,4 @@
-/*****************************************************************
+/* ****************************************************************
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -36,14 +36,28 @@ import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.prep.PreparedPolygon;
 
 /**
+ * A utility to reconstruct <a href="https://wiki.openstreetmap.org/wiki/Relation:multipolygon">multipolygons</a> from
+ * individual ways that represent the edges of inner and outer rings.
+ * <p>
+ * Multipolygon way members have an "inner" and "outer" role, but they can be incorrectly specified, so instead
+ * determine the nesting order and alternate outer/inner/outer/inner... from the outermost ring inwards.
+ * <p>
  * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go and
  * https://github.com/omniscale/imposm3/blob/master/geom/ring.go
  */
 public class OsmMultipolygon {
+  /*
+   * Steps to reconstruct a polygon:
+   * 1) connect ways with matching endpoints until closed rings are formed (discard unclosed rings)
+   * 2) sort rings by area descending
+   * 3) process rings in order to find out which is the direct parent containing each ring
+   * 4) iterate from outermost to innermost ring, creating a polygon with holes for each outer/inner ring pair
+   */
 
   private static final double MIN_CLOSE_RING_GAP = 0.1 / GeoUtils.WORLD_CIRCUMFERENCE_METERS;
   private static final Comparator<Ring> BY_AREA_DESCENDING = Comparator.comparingDouble(ring -> -ring.area);
 
+  /** A closed linestring that tracks parent and child rings relationships. */
   private static class Ring {
 
     private final Polygon geom;
@@ -63,6 +77,7 @@ public class OsmMultipolygon {
       );
     }
 
+    /** Returns true if this is an outermost ring and alternate false/true as you work inwards. */
     public boolean isHole() {
       int containedCounter = 0;
       for (Ring ring = this; ring != null; ring = ring.containedBy) {
@@ -72,6 +87,13 @@ public class OsmMultipolygon {
     }
   }
 
+  /**
+   * Builds a multipolygon from linestings containing the locations of nodes in edge segments.
+   *
+   * @param rings linestrings that define the edges of inner/outer rings in the polygon
+   * @return the multipolygon
+   * @throws GeometryException if building the polygon fails
+   */
   public static Geometry build(List<CoordinateSequence> rings) throws GeometryException {
     ObjectIntMap<Coordinate> coordToId = new GHObjectIntHashMap<>();
     List<Coordinate> idToCoord = new ArrayList<>();
@@ -92,6 +114,18 @@ public class OsmMultipolygon {
     return build(idRings, lookupId -> idToCoord.get((int) lookupId), 0, MIN_CLOSE_RING_GAP);
   }
 
+  /**
+   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node ID location
+   * provider.
+   * <p>
+   * Attempts to close rings where endpoints are within {@link #MIN_CLOSE_RING_GAP} units apart.
+   *
+   * @param rings     edge segment node ID sequences
+   * @param nodeCache node location provider
+   * @param osmId     ID of this multipolygon
+   * @return The new multipolygon
+   * @throws GeometryException if building the polygon fails
+   */
   public static Geometry build(
     List<LongArrayList> rings,
     OsmReader.NodeLocationProvider nodeCache,
@@ -100,25 +134,29 @@ public class OsmMultipolygon {
     return build(rings, nodeCache, osmId, MIN_CLOSE_RING_GAP);
   }
 
+  /**
+   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node ID location
+   * provider.
+   * <p>
+   * Attempts to close rings where endpoints are within {@code minGap} units apart.
+   *
+   * @param rings     edge segment node ID sequences
+   * @param nodeCache node location provider
+   * @param osmId     ID of this multipolygon
+   * @param minGap    the minimum units apart to close a linestring
+   * @return The new multipolygon
+   * @throws GeometryException if building the polygon fails
+   */
   public static Geometry build(
     List<LongArrayList> rings,
     OsmReader.NodeLocationProvider nodeCache,
     long osmId,
     double minGap
   ) throws GeometryException {
-    return build(rings, nodeCache, osmId, minGap, false);
+    return doBuild(rings, nodeCache, osmId, minGap, false);
   }
 
-  private static Geometry buildAndFix(
-    List<LongArrayList> rings,
-    OsmReader.NodeLocationProvider nodeCache,
-    long osmId,
-    double minGap
-  ) throws GeometryException {
-    return build(rings, nodeCache, osmId, minGap, true);
-  }
-
-  private static Geometry build(
+  private static Geometry doBuild(
     List<LongArrayList> rings,
     OsmReader.NodeLocationProvider nodeCache,
     long osmId,
@@ -131,17 +169,7 @@ public class OsmMultipolygon {
           "error building multipolygon " + osmId + ": no rings to process");
       }
       List<LongArrayList> idSegments = connectPolygonSegments(rings);
-      List<Ring> polygons = new ArrayList<>(idSegments.size());
-      for (LongArrayList segment : idSegments) {
-        int size = segment.size();
-        long firstId = segment.get(0), lastId = segment.get(size - 1);
-        if (firstId == lastId || tryClose(segment, nodeCache, minGap)) {
-          CoordinateSequence coordinates = nodeCache.getWayGeometry(segment);
-          Polygon poly = GeoUtils.JTS_FACTORY.createPolygon(coordinates);
-          Geometry fixed = fix ? GeoUtils.fixPolygon(poly) : poly;
-          addPolygonRings(polygons, fixed);
-        }
-      }
+      List<Ring> polygons = getClosedRings(nodeCache, minGap, fix, idSegments);
       if (polygons.isEmpty()) {
         throw new GeometryException.Verbose("osm_invalid_multipolygon_empty_after_fix",
           "error building multipolygon " + osmId + ": no rings to process after fixing");
@@ -154,7 +182,9 @@ public class OsmMultipolygon {
       } else if (shells.size() == 1) {
         return shells.iterator().next().toPolygon();
       } else {
-        Polygon[] finished = shells.stream().map(Ring::toPolygon).toArray(Polygon[]::new);
+        Polygon[] finished = shells.stream()
+          .map(Ring::toPolygon)
+          .toArray(Polygon[]::new);
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
       }
     } catch (Exception e) {
@@ -162,11 +192,29 @@ public class OsmMultipolygon {
         throw geoe;
       } else if (e instanceof TopologyException && !fix) {
         // retry but fix every polygon first
-        return buildAndFix(rings, nodeCache, osmId, minGap);
+        return doBuild(rings, nodeCache, osmId, minGap, true);
       } else {
         throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
       }
     }
+  }
+
+  private static List<Ring> getClosedRings(OsmReader.NodeLocationProvider nodeCache, double minGap, boolean fix,
+    List<LongArrayList> idSegments) throws GeometryException {
+    List<Ring> polygons = new ArrayList<>(idSegments.size());
+    for (LongArrayList segment : idSegments) {
+      int size = segment.size();
+      long firstId = segment.get(0), lastId = segment.get(size - 1);
+      if (firstId == lastId || tryClose(segment, nodeCache, minGap)) {
+        CoordinateSequence coordinates = nodeCache.getWayGeometry(segment);
+        Polygon poly = GeoUtils.JTS_FACTORY.createPolygon(coordinates);
+        // the first time through, just process the polygon
+        // if that fails, then the second time attempt to repair the geometry before processing
+        Geometry fixed = fix ? GeoUtils.fixPolygon(poly) : poly;
+        addPolygonRings(polygons, fixed);
+      }
+    }
+    return polygons;
   }
 
   private static void addPolygonRings(List<Ring> polygons, Geometry geom) {
@@ -193,9 +241,12 @@ public class OsmMultipolygon {
       Ring outer = polygons.get(i);
       if (i < numPolygons - 1) {
         PreparedPolygon prepared = new PreparedPolygon(outer.geom);
+        // since the rings are sorted by area descending, the inner loop is only smaller rings
         for (int j = i + 1; j < numPolygons; j++) {
           Ring inner = polygons.get(j);
           if (prepared.contains(inner.geom)) {
+            // keep searching until we find the smallest ring that contains this one
+            // that one is the direct parent
             if (inner.containedBy != null) {
               inner.containedBy.holes.remove(inner);
               shells.remove(inner);

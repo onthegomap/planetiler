@@ -10,7 +10,7 @@ public class TimerTest {
 
   @Test
   public void testTimer() {
-    Timer timer = new Timer().start();
+    Timer timer = Timer.start();
     ProcessTime elapsed1 = timer.elapsed();
     ProcessTime elapsed2 = timer.stop().elapsed();
     ProcessTime elapsed3 = timer.elapsed();

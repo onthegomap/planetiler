@@ -36,21 +36,23 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
+import static com.onthegomap.flatmap.util.MemoryEstimator.CLASS_HEADER_BYTES;
 import static com.onthegomap.flatmap.util.Parse.parseDoubleOrNull;
 import static java.util.Map.entry;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
-import com.onthegomap.flatmap.reader.osm.OsmReader;
+import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.MemoryEstimator;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -85,24 +87,24 @@ public class Building implements OpenMapTilesSchema.Building,
     entry("clay", "#9d8b75") // same as mud
   );
 
-  public Building(Translations translations, Arguments args, Stats stats) {
-    this.mergeZ13Buildings = args.get(
+  public Building(Translations translations, FlatmapConfig config, Stats stats) {
+    this.mergeZ13Buildings = config.arguments().getBoolean(
       "building_merge_z13",
       "building layer: merge nearby buildings at z13",
       true
     );
   }
 
-  private static record BuildingRelationInfo(long id) implements OsmReader.RelationInfo {
+  private static record BuildingRelationInfo(long id) implements OsmRelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return 29;
+      return CLASS_HEADER_BYTES + MemoryEstimator.estimateSizeLong(id);
     }
   }
 
   @Override
-  public List<OsmReader.RelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("type", "building")) {
       return List.of(new BuildingRelationInfo(relation.id()));
     }
@@ -167,8 +169,8 @@ public class Building implements OpenMapTilesSchema.Building,
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
-    return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergePolygons(items, 4, 4, 0.5, 0.5) : items;
+  public List<VectorTile.Feature> postProcess(int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
+    return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergeNearbyPolygons(items, 4, 4, 0.5, 0.5) : items;
   }
 }

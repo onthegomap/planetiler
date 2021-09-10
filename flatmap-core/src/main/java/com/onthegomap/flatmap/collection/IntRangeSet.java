@@ -4,18 +4,28 @@ import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
+import javax.annotation.concurrent.NotThreadSafe;
 
-public class IntRange implements Iterable<Integer> {
+/**
+ * A set of ints backed by a {@link TreeRangeSet} to efficiently represent large continuous ranges.
+ * <p>
+ * This makes iterating through tile coordinates inside ocean polygons significantly faster.
+ */
+@SuppressWarnings("UnstableApiUsage")
+@NotThreadSafe
+public class IntRangeSet implements Iterable<Integer> {
 
   private final TreeRangeSet<Integer> rangeSet = TreeRangeSet.create();
 
-  public IntRange addAll(IntRange range) {
-    rangeSet.addAll(range.rangeSet);
+  /** Mutates and returns this range set, adding all elements in {@code other} to it. */
+  public IntRangeSet addAll(IntRangeSet other) {
+    rangeSet.addAll(other.rangeSet);
     return this;
   }
 
-  public IntRange removeAll(IntRange range) {
-    rangeSet.removeAll(range.rangeSet);
+  /** Mutates and returns this range set, removing all elements in {@code other} from it. */
+  public IntRangeSet removeAll(IntRangeSet other) {
+    rangeSet.removeAll(other.rangeSet);
     return this;
   }
 
@@ -24,12 +34,14 @@ public class IntRange implements Iterable<Integer> {
     return new Iter(rangeSet.asRanges().iterator());
   }
 
-  public IntRange add(int a, int b) {
+  /** Mutates and returns this range set, with range {@code a} to {@code b} (inclusive) added. */
+  public IntRangeSet add(int a, int b) {
     rangeSet.add(Range.closedOpen(a, b + 1));
     return this;
   }
 
-  public IntRange remove(int a) {
+  /** Mutates and returns this range set, with {@code a} removed. */
+  public IntRangeSet remove(int a) {
     rangeSet.remove(Range.closedOpen(a, a + 1));
     return this;
   }
@@ -38,16 +50,18 @@ public class IntRange implements Iterable<Integer> {
     return rangeSet.contains(y);
   }
 
-  public IntRange intersect(IntRange other) {
+  /** Mutates and returns this range set to remove all elements not in {@code other} */
+  public IntRangeSet intersect(IntRangeSet other) {
     rangeSet.removeAll(other.rangeSet.complement());
     return this;
   }
 
+  /** Iterate through all ints in this range */
   private static class Iter implements PrimitiveIterator.OfInt {
 
     private final Iterator<Range<Integer>> rangeIter;
     Range<Integer> range;
-    Integer cur;
+    int cur;
     boolean hasNext = true;
 
     private Iter(Iterator<Range<Integer>> rangeIter) {

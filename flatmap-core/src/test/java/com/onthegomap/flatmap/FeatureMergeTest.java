@@ -19,17 +19,17 @@ import org.locationtech.jts.geom.Geometry;
 
 public class FeatureMergeTest {
 
-  private VectorTileEncoder.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
-    return new VectorTileEncoder.Feature(
+  private VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
+    return new VectorTile.Feature(
       "layer",
       id,
-      VectorTileEncoder.encodeGeometry(geom),
+      VectorTile.encodeGeometry(geom),
       attrs
     );
   }
 
   @Test
-  public void mergeMergeZeroLineStrings() throws GeometryException {
+  public void mergeMergeZeroLineStrings() {
     assertEquals(
       List.of(),
       FeatureMerge.mergeLineStrings(
@@ -42,7 +42,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMergeOneLineStrings() throws GeometryException {
+  public void mergeMergeOneLineStrings() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 20, 20), Map.of())
@@ -59,7 +59,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeDisconnectedLineStrings() throws GeometryException {
+  public void dontMergeDisconnectedLineStrings() {
     assertEquals(
       List.of(
         feature(1, newMultiLineString(
@@ -80,7 +80,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeConnectedLineStringsDifferentAttr() throws GeometryException {
+  public void dontMergeConnectedLineStringsDifferentAttr() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 20, 20), Map.of("a", 1)),
@@ -99,7 +99,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeConnectedLineStringsSameAttrs() throws GeometryException {
+  public void mergeConnectedLineStringsSameAttrs() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 30, 30), Map.of("a", 1))
@@ -117,7 +117,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMultiLineString() throws GeometryException {
+  public void mergeMultiLineString() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 40, 40), Map.of("a", 1))
@@ -138,7 +138,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringIgnoreNonLineString() throws GeometryException {
+  public void mergeLineStringIgnoreNonLineString() {
     assertEquals(
       List.of(
         feature(3, newPoint(5, 5), Map.of("a", 1)),
@@ -160,7 +160,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringRemoveDetailOutsideTile() throws GeometryException {
+  public void mergeLineStringRemoveDetailOutsideTile() {
     assertEquals(
       List.of(
         feature(1, newMultiLineString(
@@ -181,11 +181,11 @@ public class FeatureMergeTest {
       ),
       FeatureMerge.mergeLineStrings(
         List.of(
-          // one point goes out - dont clip
+          // one point goes out - don't clip
           feature(1, newLineString(10, 10, -10, 20), Map.of("a", 1)),
           feature(2, newLineString(-10, 20, 10, 30), Map.of("a", 1)),
           feature(3, newLineString(10, 30, -10, 40), Map.of("a", 1)),
-          // two points goes out - dont clip
+          // two points goes out - don't clip
           feature(4, newLineString(-10, 40, -10, 50), Map.of("a", 1)),
           feature(5, newLineString(-10, 50, 10, 60), Map.of("a", 1)),
           feature(5, newLineString(10, 60, -10, 70), Map.of("a", 1)),
@@ -203,7 +203,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringMinLength() throws GeometryException {
+  public void mergeLineStringMinLength() {
     assertEquals(
       List.of(
         feature(2, newLineString(20, 20, 20, 25), Map.of("a", 1))
@@ -236,8 +236,9 @@ public class FeatureMergeTest {
   public void mergePolygonEmptyList() throws GeometryException {
     assertEquivalentFeatures(
       List.of(),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(),
+        0,
         0,
         0,
         0
@@ -254,11 +255,12 @@ public class FeatureMergeTest {
           rectangle(22, 10, 30, 20)
         ), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(22, 10, 30, 20), Map.of("a", 1))
         ),
+        0,
         0,
         0,
         0
@@ -273,11 +275,12 @@ public class FeatureMergeTest {
         feature(1, rectangle(10, 20), Map.of("a", 1)),
         feature(2, rectangle(20, 10, 30, 20), Map.of("b", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(20, 10, 30, 20), Map.of("b", 1))
         ),
+        0,
         0,
         0,
         0
@@ -291,11 +294,12 @@ public class FeatureMergeTest {
       List.of(
         feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(20, 10, 30, 20), Map.of("a", 1))
         ),
+        0,
         0,
         0,
         1
@@ -309,7 +313,7 @@ public class FeatureMergeTest {
       List.of(
         feature(1, rectangle(10, 10, 40, 20), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, newMultiPolygon(
             rectangle(10, 20),
@@ -317,6 +321,7 @@ public class FeatureMergeTest {
           ), Map.of("a", 1)),
           feature(2, rectangle(15, 10, 35, 20), Map.of("a", 1))
         ),
+        0,
         0,
         0,
         1
@@ -331,11 +336,12 @@ public class FeatureMergeTest {
         feature(2, newLineString(20, 10, 30, 20), Map.of("a", 1)),
         feature(1, rectangle(10, 20), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, newLineString(20, 10, 30, 20), Map.of("a", 1))
         ),
+        0,
         0,
         0,
         0
@@ -349,11 +355,12 @@ public class FeatureMergeTest {
       List.of(
         feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(20.9, 10, 30, 20), Map.of("a", 1))
         ),
+        0,
         0,
         1,
         1
@@ -367,11 +374,12 @@ public class FeatureMergeTest {
       List.of(
         feature(1, rectangle(10, 40), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 40), Map.of("a", 1)),
           feature(2, rectangle(20, 30), Map.of("a", 1))
         ),
+        0,
         0,
         1,
         1
@@ -388,11 +396,12 @@ public class FeatureMergeTest {
           rectangle(21.1, 10, 30, 20)
         ), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(21.1, 10, 30, 20), Map.of("a", 1))
         ),
+        0,
         0,
         1,
         1
@@ -404,13 +413,14 @@ public class FeatureMergeTest {
   public void removePolygonsBelowMinSize() throws GeometryException {
     assertEquivalentFeatures(
       List.of(),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(30, 10, 36, 20), Map.of("a", 1)),
           feature(3, rectangle(35, 10, 40, 20), Map.of("a", 1))
         ),
         101,
+        0,
         0,
         0
       )
@@ -426,7 +436,7 @@ public class FeatureMergeTest {
           rectangle(30, 10, 40, 20)
         ), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, rectangle(10, 20), Map.of("a", 1)),
           feature(2, rectangle(30, 10, 36, 20), Map.of("a", 1)),
@@ -434,13 +444,14 @@ public class FeatureMergeTest {
         ),
         99,
         0,
+        0,
         1
       )
     );
   }
 
-  private static void assertEquivalentFeatures(List<VectorTileEncoder.Feature> expected,
-    List<VectorTileEncoder.Feature> actual) throws GeometryException {
+  private static void assertEquivalentFeatures(List<VectorTile.Feature> expected,
+    List<VectorTile.Feature> actual) throws GeometryException {
     for (var feature : actual) {
       Geometry geom = feature.geometry().decode();
       TestUtils.validateGeometry(geom);
@@ -457,8 +468,8 @@ public class FeatureMergeTest {
     );
   }
 
-  private static void assertTopologicallyEquivalentFeatures(List<VectorTileEncoder.Feature> expected,
-    List<VectorTileEncoder.Feature> actual) throws GeometryException {
+  private static void assertTopologicallyEquivalentFeatures(List<VectorTile.Feature> expected,
+    List<VectorTile.Feature> actual) throws GeometryException {
     for (var feature : actual) {
       Geometry geom = feature.geometry().decode();
       TestUtils.validateGeometry(geom);
@@ -573,8 +584,14 @@ public class FeatureMergeTest {
     try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
-      List<VectorTileEncoder.Feature> features = VectorTileEncoder.decode(gunzipped);
-      List<VectorTileEncoder.Feature> merged = FeatureMerge.mergePolygons(features, 4, 0.5, 0.5);
+      List<VectorTile.Feature> features = VectorTile.decode(gunzipped);
+      List<VectorTile.Feature> merged = FeatureMerge.mergeNearbyPolygons(
+        features,
+        4,
+        0,
+        0.5,
+        0.5
+      );
       int total = 0;
       for (var feature : merged) {
         Geometry geometry = feature.geometry().decode();
@@ -593,12 +610,13 @@ public class FeatureMergeTest {
       List.of(
         feature(1, newPolygon(rectangleCoordList(10, 22), List.of(innerRing)), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, newPolygon(rectangleCoordList(10, 20), List.of(innerRing)), Map.of("a", 1)),
           feature(1, rectangle(20, 10, 22, 22), Map.of("a", 1)),
           feature(1, rectangle(10, 20, 22, 22), Map.of("a", 1))
         ),
+        0,
         0,
         0,
         0
@@ -614,7 +632,7 @@ public class FeatureMergeTest {
       List.of(
         feature(1, rectangle(10, 22), Map.of("a", 1))
       ),
-      FeatureMerge.mergePolygons(
+      FeatureMerge.mergeNearbyPolygons(
         List.of(
           feature(1, newPolygon(rectangleCoordList(10, 20), List.of(innerRing)), Map.of("a", 1)),
           feature(1, rectangle(20, 10, 22, 22), Map.of("a", 1)),

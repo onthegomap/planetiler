@@ -1,9 +1,13 @@
 package com.onthegomap.flatmap.openmaptiles.layers;
 
+import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import com.google.common.collect.Lists;
+import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.geo.GeometryException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DynamicTest;
@@ -32,7 +36,7 @@ public class MountainPeakTest extends AbstractLayerTest {
           "_type", "point",
           "_minzoom", 7,
           "_maxzoom", 14,
-          "_buffer", 64d
+          "_buffer", 100d
         )), peak);
         assertFeatures(14, List.of(Map.of(
           "name:latin", "test",
@@ -149,6 +153,57 @@ public class MountainPeakTest extends AbstractLayerTest {
       pointFeature(
         MountainPeak.LAYER_NAME,
         Map.of("name", "c"),
+        2
+      )
+    )));
+  }
+
+  @Test
+  public void testMountainPeakPostProcessingLimitsFeaturesOutsideZoom() throws GeometryException {
+    assertEquals(Lists.newArrayList(
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        1,
+        VectorTile.encodeGeometry(newPoint(-64, -64)),
+        Map.of("rank", 2),
+        1
+      ),
+      null,
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        3,
+        VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
+        Map.of("rank", 2),
+        2
+      ),
+      null
+    ), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, Lists.newArrayList(
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        1,
+        VectorTile.encodeGeometry(newPoint(-64, -64)),
+        new HashMap<>(),
+        1
+      ),
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        2,
+        VectorTile.encodeGeometry(newPoint(-65, -65)),
+        new HashMap<>(),
+        1
+      ),
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        3,
+        VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
+        new HashMap<>(),
+        2
+      ),
+      new VectorTile.Feature(
+        MountainPeak.LAYER_NAME,
+        4,
+        VectorTile.encodeGeometry(newPoint(256 + 65, 256 + 65)),
+        new HashMap<>(),
         2
       )
     )));

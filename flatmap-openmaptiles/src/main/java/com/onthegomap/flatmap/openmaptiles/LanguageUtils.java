@@ -38,7 +38,7 @@ package com.onthegomap.flatmap.openmaptiles;
 import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 
-import com.onthegomap.flatmap.Translations;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;

@@ -44,9 +44,8 @@ import static java.util.Map.entry;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.FeatureCollector;
-import com.onthegomap.flatmap.Translations;
-import com.onthegomap.flatmap.VectorTileEncoder;
-import com.onthegomap.flatmap.config.Arguments;
+import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.MultiExpression;
@@ -55,6 +54,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.Translations;
 import java.util.List;
 import java.util.Map;
 
@@ -69,7 +69,7 @@ public class Poi implements OpenMapTilesSchema.Poi,
   private final MultiExpression.MultiExpressionIndex<String> classMapping;
   private final Translations translations;
 
-  public Poi(Translations translations, Arguments args, Stats stats) {
+  public Poi(Translations translations, FlatmapConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
     this.translations = translations;
   }
@@ -154,18 +154,18 @@ public class Poi implements OpenMapTilesSchema.Poi,
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
       .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
       .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
-      .setAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setLabelGridPixelSize(14, 64)
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .setPointLabelGridPixelSize(14, 64)
       .setZorder(-rankOrder)
       .setZoomRange(minzoom(element.subclass(), element.mappingKey()), 14);
   }
 
   @Override
-  public List<VectorTileEncoder.Feature> postProcess(int zoom,
-    List<VectorTileEncoder.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
     LongIntMap groupCounts = new LongIntHashMap();
     for (int i = items.size() - 1; i >= 0; i--) {
-      VectorTileEncoder.Feature feature = items.get(i);
+      VectorTile.Feature feature = items.get(i);
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
       if (!feature.attrs().containsKey(Fields.RANK)) {

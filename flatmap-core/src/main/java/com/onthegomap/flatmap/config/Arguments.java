@@ -1,7 +1,6 @@
 package com.onthegomap.flatmap.config;
 
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.stats.Stats;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -36,31 +35,29 @@ public class Arguments {
   }
 
   /**
-   * Parses arguments from JVM system properties prefixed with {@code flatmap.}
+   * Returns arguments from JVM system properties prefixed with {@code flatmap.}
    * <p>
    * For example to set {@code key=value}: {@code java -Dflatmap.key=value -jar ...}
-   *
-   * @return arguments parsed from JVM system properties
    */
   public static Arguments fromJvmProperties() {
     return new Arguments(key -> System.getProperty("flatmap." + key));
   }
 
   /**
-   * Parses arguments from environmental variables prefixed with {@code FLATMAP_}
+   * Returns arguments parsed from environmental variables prefixed with {@code FLATMAP_}
    * <p>
    * For example to set {@code key=value}: {@code FLATMAP_KEY=value java -jar ...}
-   *
-   * @return arguments parsed from environmental variables
    */
   public static Arguments fromEnvironment() {
     return new Arguments(key -> System.getenv("FLATMAP_" + key.toUpperCase(Locale.ROOT)));
   }
 
   /**
-   * Parses command-line arguments.
+   * Returns arguments parsed from command-line arguments.
    * <p>
    * For example to set {@code key=value}: {@code java -jar ... key=value}
+   * <p>
+   * Or to set {@code key=true}: {@code java -jar ... --key}
    *
    * @param args arguments provided to main method
    * @return arguments parsed from command-line arguments
@@ -73,16 +70,16 @@ public class Arguments {
         String key = kv[0].replaceAll("^[\\s-]+", "");
         String value = kv[1];
         parsed.put(key, value);
+      } else if (kv.length == 1) {
+        parsed.put(kv[0].replaceAll("^[\\s-]+", ""), "true");
       }
     }
     return of(parsed);
   }
 
   /**
-   * Parses arguments from a properties file.
+   * Returns arguments provided from a properties file.
    *
-   * @param path path to the properties file
-   * @return arguments parsed from a properties file
    * @see <a href="https://en.wikipedia.org/wiki/.properties">.properties format explanation</a>
    */
   public static Arguments fromConfigFile(Path path) {
@@ -96,7 +93,9 @@ public class Arguments {
   }
 
   /**
-   * Look for arguments in the following priority order:
+   * Returns arguments parsed from command-line arguments, JVM properties, environmental variables, or a config file.
+   * <p>
+   * Priority order:
    * <ol>
    *   <li>command-line arguments: {@code java ... key=value}</li>
    *   <li>jvm properties: {@code java -Dflatmap.key=value ...}</li>
@@ -119,26 +118,28 @@ public class Arguments {
     }
   }
 
-  /**
-   * @param map map that provides the key/value pairs
-   * @return arguments provided by map
-   */
   public static Arguments of(Map<String, String> map) {
     return new Arguments(map::get);
   }
 
-  /**
-   * Shorthand for {@link #of(Map)} which constructs the map from a list of key/value pairs
-   *
-   * @param args list of key/value pairs
-   * @return arguments provided by that list of key/value pairs
-   */
+  /** Shorthand for {@link #of(Map)} which constructs the map from a list of key/value pairs. */
   public static Arguments of(Object... args) {
     Map<String, String> map = new TreeMap<>();
     for (int i = 0; i < args.length; i += 2) {
       map.put(args[i].toString(), args[i + 1].toString());
     }
     return of(map);
+  }
+
+  private String get(String key) {
+    String value = provider.apply(key);
+    if (value == null) {
+      value = provider.apply(key.replace('-', '_'));
+      if (value == null) {
+        value = provider.apply(key.replace('_', '-'));
+      }
+    }
+    return value;
   }
 
   /**
@@ -149,9 +150,14 @@ public class Arguments {
    */
   public Arguments orElse(Arguments other) {
     return new Arguments(key -> {
-      String ourResult = provider.apply(key);
-      return ourResult != null ? ourResult : other.provider.apply(key);
+      String ourResult = get(key);
+      return ourResult != null ? ourResult : other.get(key);
     });
+  }
+
+  private String getArg(String key) {
+    String value = get(key);
+    return value == null ? null : value.trim();
   }
 
   private String getArg(String key, String defaultValue) {
@@ -159,31 +165,21 @@ public class Arguments {
     return value == null ? defaultValue : value;
   }
 
-  private String getArg(String key) {
-    String value = provider.apply(key);
-    return value == null ? null : value.trim();
-  }
-
   /**
-   * Parse an argument as {@link Envelope}, or use bounds from a {@link BoundsProvider} instead.
+   * Returns an {@link Envelope} parsed from {@code key} argument, or null if missing.
    * <p>
    * Format: {@code westLng,southLat,eastLng,northLat}
    *
-   * @param key           argument name
-   * @param description   argument description
-   * @param defaultBounds fallback provider if argument missing (ie. an {@link OsmInputFile} that contains bounds in
-   *                      it's metadata)
-   * @return An envelope parsed from {@code key} or provided by {@code defaultBounds}
+   * @param key         argument name
+   * @param description argument description
+   * @return An envelope parsed from {@code key} or null if missing
    */
-  public Envelope bounds(String key, String description, BoundsProvider defaultBounds) {
+  public Envelope bounds(String key, String description) {
     String input = getArg(key);
-    Envelope result;
-    if (input == null && defaultBounds != null) {
-      // get from input file
-      result = defaultBounds.getBounds();
-    } else if ("world".equalsIgnoreCase(input)) {
+    Envelope result = null;
+    if ("world".equalsIgnoreCase(input)) {
       result = GeoUtils.WORLD_LAT_LON_BOUNDS;
-    } else {
+    } else if (input != null) {
       double[] bounds = Stream.of(input.split("[\\s,]+")).mapToDouble(Double::parseDouble).toArray();
       if (bounds.length != 4) {
         throw new IllegalArgumentException("bounds must have 4 coordinates, got: " + input);
@@ -198,28 +194,13 @@ public class Arguments {
     LOGGER.debug("argument: " + key + "=" + result + " (" + description + ")");
   }
 
-  /**
-   * Return an argument as a string.
-   *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback value if missing
-   * @return the value for {@code key} otherwise {@code defaultValue}
-   */
-  public String get(String key, String description, String defaultValue) {
+  public String getString(String key, String description, String defaultValue) {
     String value = getArg(key, defaultValue);
     logArgValue(key, description, value);
     return value;
   }
 
-  /**
-   * Parse an argument as a {@link Path} to a file.
-   *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback path if missing
-   * @return a path parsed from {@code key} otherwise {@code defaultValue}
-   */
+  /** Returns a {@link Path} parsed from {@code key} argument which may or may not exist. */
   public Path file(String key, String description, Path defaultValue) {
     String value = getArg(key);
     Path file = value == null ? defaultValue : Path.of(value);
@@ -228,12 +209,8 @@ public class Arguments {
   }
 
   /**
-   * Parse an argument as a {@link Path} to a file that must exist for the program to work.
+   * Returns a {@link Path} parsed from {@code key} argument which must exist for the program to function.
    *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback path if missing
-   * @return a path parsed from {@code key} otherwise {@code defaultValue}
    * @throws IllegalArgumentException if the file does not exist
    */
   public Path inputFile(String key, String description, Path defaultValue) {
@@ -244,43 +221,26 @@ public class Arguments {
     return path;
   }
 
-  /**
-   * Parse an argument as a boolean.
-   * <p>
-   * {@code true} is considered true, and anything else will be handled as false.
-   *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback value if missing
-   * @return a boolean parsed from {@code key} otherwise {@code defaultValue}
-   */
-  public boolean get(String key, String description, boolean defaultValue) {
+  /** Returns a boolean parsed from {@code key} argument where {@code "true"} is true and anything else is false. */
+  public boolean getBoolean(String key, String description, boolean defaultValue) {
     boolean value = "true".equalsIgnoreCase(getArg(key, Boolean.toString(defaultValue)));
     logArgValue(key, description, value);
     return value;
   }
 
-  /**
-   * Parse an argument as a list of strings.
-   *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback list if missing
-   * @return a list of strings parsed from {@code key} otherwise {@code defaultValue}
-   */
-  public List<String> get(String key, String description, List<String> defaultValue) {
+  /** Returns a {@link List} parsed from {@code key} argument where values are separated by commas. */
+  public List<String> getList(String key, String description, List<String> defaultValue) {
     String value = getArg(key, String.join(",", defaultValue));
-    List<String> results = Stream.of(value.split("[\\s,]+"))
+    List<String> results = Stream.of(value.split("\\s*,[,\\s]*"))
       .filter(c -> !c.isBlank()).toList();
     logArgValue(key, description, value);
     return results;
   }
 
   /**
-   * Get the number of threads from {@link Runtime#availableProcessors()} but allow the user to override it by setting
-   * the {@code threads} argument.
+   * Returns the number of threads from {@link Runtime#availableProcessors()} but allow the user to override it by
+   * setting the {@code threads} argument.
    *
-   * @return number of threads the program should use
    * @throws NumberFormatException if {@code threads} can't be parsed as an integer
    */
   public int threads() {
@@ -291,20 +251,19 @@ public class Arguments {
   }
 
   /**
-   * Return a {@link Stats} implementation based on the arguments provided.
+   * Returns a {@link Stats} implementation based on the arguments provided.
    * <p>
    * If {@code pushgateway} is set then it uses a stats implementation that pushes to prometheus through a <a
    * href="https://github.com/prometheus/pushgateway">push gateway</a> every {@code pushgateway.interval} seconds.
-   * Otherwise uses an in-memory stats implementation.
-   *
-   * @return the stats implementation to use
+   * Otherwise, uses an in-memory stats implementation.
    */
   public Stats getStats() {
     String prometheus = getArg("pushgateway");
     if (prometheus != null && !prometheus.isBlank()) {
       LOGGER.info("Using prometheus push gateway stats");
-      String job = get("pushgateway.job", "prometheus pushgateway job ID", "flatmap");
-      Duration interval = duration("pushgateway.interval", "how often to send stats to prometheus push gateway", "15s");
+      String job = getString("pushgateway.job", "prometheus pushgateway job ID", "flatmap");
+      Duration interval = getDuration("pushgateway.interval", "how often to send stats to prometheus push gateway",
+        "15s");
       return Stats.prometheusPushGateway(prometheus, job, interval);
     } else {
       LOGGER.info("Using in-memory stats");
@@ -313,15 +272,11 @@ public class Arguments {
   }
 
   /**
-   * Parse an argument as integer
+   * Returns an argument as integer.
    *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback value if missing
-   * @return an integer parsed from {@code key} otherwise {@code defaultValue}
    * @throws NumberFormatException if the argument cannot be parsed as an integer
    */
-  public int integer(String key, String description, int defaultValue) {
+  public int getInteger(String key, String description, int defaultValue) {
     String value = getArg(key, Integer.toString(defaultValue));
     int parsed = Integer.parseInt(value);
     logArgValue(key, description, parsed);
@@ -329,15 +284,23 @@ public class Arguments {
   }
 
   /**
-   * Parse an argument as {@link Duration} (ie. "10s", "90m", "1h30m")
+   * Returns an argument as double.
    *
-   * @param key          argument name
-   * @param description  argument description
-   * @param defaultValue fallback value if missing
-   * @return the parsed duration value
+   * @throws NumberFormatException if the argument cannot be parsed as a double
+   */
+  public double getDouble(String key, String description, double defaultValue) {
+    String value = getArg(key, Double.toString(defaultValue));
+    double parsed = Double.parseDouble(value);
+    logArgValue(key, description, parsed);
+    return parsed;
+  }
+
+  /**
+   * Returns an argument as a {@link Duration} (i.e. "10s", "90m", "1h30m").
+   *
    * @throws DateTimeParseException if the argument cannot be parsed as a duration
    */
-  public Duration duration(String key, String description, String defaultValue) {
+  public Duration getDuration(String key, String description, String defaultValue) {
     String value = getArg(key, defaultValue);
     Duration parsed = Duration.parse("PT" + value);
     logArgValue(key, description, parsed.get(ChronoUnit.SECONDS) + " seconds");

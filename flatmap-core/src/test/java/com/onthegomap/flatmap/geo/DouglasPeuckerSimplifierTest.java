@@ -11,7 +11,7 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 
 public class DouglasPeuckerSimplifierTest {
 
-  int[] rotations = new int[]{0, 45, 90, 180, 270};
+  final int[] rotations = new int[]{0, 45, 90, 180, 270};
 
   private void testSimplify(Geometry in, Geometry expected, double amount) {
     for (int rotation : rotations) {

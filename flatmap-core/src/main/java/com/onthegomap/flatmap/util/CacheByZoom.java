@@ -1,8 +1,13 @@
 package com.onthegomap.flatmap.util;
 
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import java.util.function.IntFunction;
 
+/**
+ * Caches a value that changes by integer zoom level to avoid recomputing it.
+ *
+ * @param <T> return type of the function
+ */
 public class CacheByZoom<T> {
 
   private final int minzoom;
@@ -15,8 +20,16 @@ public class CacheByZoom<T> {
     this.supplier = supplier;
   }
 
-  public static <T> CacheByZoom<T> create(CommonParams params, IntFunction<T> supplier) {
-    return new CacheByZoom<>(params.minzoom(), params.maxzoom(), supplier);
+  /**
+   * Returns a cache for {@code supplier} that can handle a min/max zoom range specified in {@code config}.
+   *
+   * @param config   min/max zoom range this can handle
+   * @param supplier function that will be called with each zoom-level to get the value
+   * @param <T>      return type of the function
+   * @return a cache for {@code supplier} by zom
+   */
+  public static <T> CacheByZoom<T> create(FlatmapConfig config, IntFunction<T> supplier) {
+    return new CacheByZoom<>(config.minzoom(), config.maxzoom(), supplier);
   }
 
   public T get(int zoom) {

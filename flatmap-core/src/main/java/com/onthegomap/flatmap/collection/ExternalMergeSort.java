@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap.collection;
 
-import com.onthegomap.flatmap.config.CommonParams;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.stats.ProcessInfo;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
 import com.onthegomap.flatmap.stats.Stats;
@@ -27,28 +27,37 @@ import java.util.function.Supplier;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A utility that writes {@link SortableFeature SortableFeatures} to disk and uses merge sort to efficiently sort much
+ * more data than fits in RAM.
+ * <p>
+ * Writes append features to a "chunk" file that can be sorted with 1GB or RAM until it is full, then starts writing to
+ * a new chunk. The sort process sorts the chunks, limiting the number of parallel threads by CPU cores and available
+ * RAM. Reads do a k-way merge of the sorted chunks using a priority queue of minimum values from each.
+ * <p>
+ * Only supports single-threaded writes and reads.
+ */
+@NotThreadSafe
 class ExternalMergeSort implements FeatureSort {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureSort.class);
-
   private static final long MAX_CHUNK_SIZE = 1_000_000_000; // 1GB
-
   private final Path dir;
   private final Stats stats;
   private final int chunkSizeLimit;
   private final int workers;
   private final AtomicLong features = new AtomicLong(0);
-
   private final List<Chunk> chunks = new ArrayList<>();
   private final boolean gzip;
-  private final CommonParams config;
-  private Chunk current;
+  private final FlatmapConfig config;
+  private Chunk currentChunk;
   private volatile boolean sorted = false;
 
-  ExternalMergeSort(Path tempDir, CommonParams config, Stats stats) {
+  ExternalMergeSort(Path tempDir, FlatmapConfig config, Stats stats) {
     this(
       tempDir,
       config.threads(),
@@ -62,7 +71,7 @@ class ExternalMergeSort implements FeatureSort {
     );
   }
 
-  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, CommonParams config, Stats stats) {
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, FlatmapConfig config, Stats stats) {
     this.config = config;
     this.dir = dir;
     this.stats = stats;
@@ -84,6 +93,15 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  private static <T> T time(AtomicLong timer, Supplier<T> func) {
+    long start = System.nanoTime();
+    try {
+      return func.get();
+    } finally {
+      timer.addAndGet(System.nanoTime() - start);
+    }
+  }
+
   private DataInputStream newInputStream(Path path) throws IOException {
     InputStream inputStream = new BufferedInputStream(Files.newInputStream(path), 50_000);
     if (gzip) {
@@ -101,12 +119,12 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public void add(Entry item) {
+  public void add(SortableFeature item) {
     try {
       assert !sorted;
       features.incrementAndGet();
-      current.add(item);
-      if (current.bytesInMemory > chunkSizeLimit) {
+      currentChunk.add(item);
+      if (currentChunk.bytesInMemory > chunkSizeLimit) {
         newChunk();
       }
     } catch (IOException e) {
@@ -115,7 +133,7 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public long bytesOnDisk() {
+  public long diskUsageBytes() {
     return FileUtils.directorySize(dir);
   }
 
@@ -124,21 +142,12 @@ class ExternalMergeSort implements FeatureSort {
     return 0;
   }
 
-  private static <T> T time(AtomicLong timer, Supplier<T> func) {
-    long start = System.nanoTime();
-    try {
-      return func.get();
-    } finally {
-      timer.addAndGet(System.nanoTime() - start);
-    }
-  }
-
   @Override
   public void sort() {
     assert !sorted;
-    if (current != null) {
+    if (currentChunk != null) {
       try {
-        current.close();
+        currentChunk.close();
       } catch (IOException e) {
         // ok
       }
@@ -158,7 +167,7 @@ class ExternalMergeSort implements FeatureSort {
         doneCounter.incrementAndGet();
       });
 
-    ProgressLoggers loggers = new ProgressLoggers("sort")
+    ProgressLoggers loggers = ProgressLoggers.create()
       .addPercentCounter("chunks", chunks.size(), doneCounter)
       .addFileSize(this)
       .newLine()
@@ -176,15 +185,16 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public long size() {
+  public long numFeaturesWritten() {
     return features.get();
   }
 
-
   @Override
-  public Iterator<Entry> iterator() {
+  public Iterator<SortableFeature> iterator() {
     assert sorted;
-    PriorityQueue<PeekableScanner> queue = new PriorityQueue<>(chunks.size());
+
+    // k-way merge to interleave all the sorted chunks
+    PriorityQueue<ChunkIterator> queue = new PriorityQueue<>(chunks.size());
     for (Chunk chunk : chunks) {
       if (chunk.itemCount > 0) {
         queue.add(chunk.newReader());
@@ -198,12 +208,12 @@ class ExternalMergeSort implements FeatureSort {
       }
 
       @Override
-      public Entry next() {
-        PeekableScanner scanner = queue.poll();
-        assert scanner != null;
-        Entry next = scanner.next();
-        if (scanner.hasNext()) {
-          queue.add(scanner);
+      public SortableFeature next() {
+        ChunkIterator iterator = queue.poll();
+        assert iterator != null;
+        SortableFeature next = iterator.next();
+        if (iterator.hasNext()) {
+          queue.add(iterator);
         }
         return next;
       }
@@ -213,16 +223,29 @@ class ExternalMergeSort implements FeatureSort {
   private void newChunk() throws IOException {
     Path chunkPath = dir.resolve("chunk" + (chunks.size() + 1));
     chunkPath.toFile().deleteOnExit();
-    if (current != null) {
-      current.close();
+    if (currentChunk != null) {
+      currentChunk.close();
     }
-    chunks.add(current = new Chunk(chunkPath));
+    chunks.add(currentChunk = new Chunk(chunkPath));
   }
 
+  /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
+  private static class FastGzipOutputStream extends GZIPOutputStream {
+
+    public FastGzipOutputStream(OutputStream out) throws IOException {
+      super(out);
+      def.setLevel(Deflater.BEST_SPEED);
+    }
+  }
+
+  /**
+   * An output segment that can be sorted in ~1GB RAM.
+   */
   private class Chunk implements Closeable {
 
     private final Path path;
     private final DataOutputStream outputStream;
+    // estimate how much RAM it would take to sort this chunk
     private int bytesInMemory = 0;
     private int itemCount = 0;
 
@@ -231,11 +254,11 @@ class ExternalMergeSort implements FeatureSort {
       this.outputStream = newOutputStream(path);
     }
 
-    public PeekableScanner newReader() {
-      return new PeekableScanner(path, itemCount);
+    public ChunkIterator newReader() {
+      return new ChunkIterator(path, itemCount);
     }
 
-    public void add(Entry entry) throws IOException {
+    public void add(SortableFeature entry) throws IOException {
       write(outputStream, entry);
       bytesInMemory +=
         // pointer to feature
@@ -251,11 +274,42 @@ class ExternalMergeSort implements FeatureSort {
       itemCount++;
     }
 
-    public class SortableChunk {
+    private SortableChunk readAll() {
+      try (ChunkIterator iterator = newReader()) {
+        SortableFeature[] featuresToSort = new SortableFeature[itemCount];
+        int i = 0;
+        while (iterator.hasNext()) {
+          featuresToSort[i] = iterator.next();
+          i++;
+        }
+        if (i != itemCount) {
+          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
+        }
+        return new SortableChunk(featuresToSort);
+      }
+    }
 
-      private Entry[] featuresToSort;
+    private static void write(DataOutputStream out, SortableFeature entry) throws IOException {
+      // feature header
+      out.writeLong(entry.sortKey());
+      out.writeInt(entry.value().length);
+      // value
+      out.write(entry.value());
+    }
 
-      private SortableChunk(Entry[] featuresToSort) {
+    @Override
+    public void close() throws IOException {
+      outputStream.close();
+    }
+
+    /**
+     * A container for all features in a chunk read into memory for sorting.
+     */
+    private class SortableChunk {
+
+      private SortableFeature[] featuresToSort;
+
+      private SortableChunk(SortableFeature[] featuresToSort) {
         this.featuresToSort = featuresToSort;
       }
 
@@ -266,7 +320,7 @@ class ExternalMergeSort implements FeatureSort {
 
       public SortableChunk flush() {
         try (DataOutputStream out = newOutputStream(path)) {
-          for (Entry feature : featuresToSort) {
+          for (SortableFeature feature : featuresToSort) {
             write(out, feature);
           }
           featuresToSort = null;
@@ -276,42 +330,20 @@ class ExternalMergeSort implements FeatureSort {
         }
       }
     }
-
-    public SortableChunk readAll() {
-      try (PeekableScanner scanner = newReader()) {
-        Entry[] featuresToSort = new Entry[itemCount];
-        int i = 0;
-        while (scanner.hasNext()) {
-          featuresToSort[i] = scanner.next();
-          i++;
-        }
-        if (i != itemCount) {
-          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
-        }
-        return new SortableChunk(featuresToSort);
-      }
-    }
-
-    public static void write(DataOutputStream out, Entry entry) throws IOException {
-      out.writeLong(entry.sortKey());
-      out.writeInt(entry.value().length);
-      out.write(entry.value());
-    }
-
-    @Override
-    public void close() throws IOException {
-      outputStream.close();
-    }
   }
 
-  private class PeekableScanner implements Closeable, Comparable<PeekableScanner>, Iterator<Entry> {
+  /**
+   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
+   * merge using a {@link PriorityQueue}.
+   */
+  private class ChunkIterator implements Closeable, Comparable<ChunkIterator>, Iterator<SortableFeature> {
 
     private final int count;
-    private int read = 0;
     private final DataInputStream input;
-    private Entry next;
+    private int read = 0;
+    private SortableFeature next;
 
-    PeekableScanner(Path path, int count) {
+    ChunkIterator(Path path, int count) {
       this.count = count;
       try {
         input = newInputStream(path);
@@ -327,22 +359,22 @@ class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public Entry next() {
-      Entry current = next;
+    public SortableFeature next() {
+      SortableFeature current = next;
       if ((next = readNextFeature()) == null) {
         close();
       }
       return current;
     }
 
-    private Entry readNextFeature() {
+    private SortableFeature readNextFeature() {
       if (read < count) {
         try {
           long nextSort = input.readLong();
           int length = input.readInt();
           byte[] bytes = input.readNBytes(length);
           read++;
-          return new Entry(nextSort, bytes);
+          return new SortableFeature(nextSort, bytes);
         } catch (IOException e) {
           throw new IllegalStateException(e);
         }
@@ -361,16 +393,8 @@ class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public int compareTo(PeekableScanner o) {
+    public int compareTo(ChunkIterator o) {
       return next.compareTo(o.next);
-    }
-  }
-
-  private static class FastGzipOutputStream extends GZIPOutputStream {
-
-    public FastGzipOutputStream(OutputStream out) throws IOException {
-      super(out);
-      def.setLevel(Deflater.BEST_SPEED);
     }
   }
 }
