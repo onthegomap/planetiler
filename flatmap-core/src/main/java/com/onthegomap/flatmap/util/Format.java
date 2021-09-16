@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import org.apache.commons.text.StringEscapeUtils;
 
 /**
  * Utilities for formatting values as strings.
@@ -105,5 +106,13 @@ public class Format {
   public static String formatSeconds(Duration duration) {
     double seconds = duration.toNanos() * 1d / Duration.ofSeconds(1).toNanos();
     return formatDecimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";
+  }
+
+  /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
+  public static String quote(String string) {
+    if (string == null) {
+      return "null";
+    }
+    return '"' + StringEscapeUtils.escapeJava(string) + '"';
   }
 }

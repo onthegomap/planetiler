@@ -1,73 +1,55 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import static com.onthegomap.flatmap.openmaptiles.Expression.FALSE;
-import static com.onthegomap.flatmap.openmaptiles.Expression.TRUE;
-import static com.onthegomap.flatmap.openmaptiles.Expression.matchType;
+import static com.onthegomap.flatmap.geo.GeoUtils.EMPTY_LINE;
+import static com.onthegomap.flatmap.geo.GeoUtils.EMPTY_POINT;
+import static com.onthegomap.flatmap.geo.GeoUtils.EMPTY_POLYGON;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FlatmapRunner;
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
-import com.onthegomap.flatmap.geo.GeometryException;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
-import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Translations;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class OpenMapTilesProfile implements Profile {
+/**
+ * Delegates the logic for generating a map using OpenMapTiles vector schema to individual implementations in the {@code
+ * layers} package.
+ * <p>
+ * Layer implementations extend these interfaces to subscribe to elements from different sources:
+ * <ul>
+ *   <li>{@link LakeCenterlineProcessor}</li>
+ *   <li>{@link NaturalEarthProcessor}</li>
+ *   <li>{@link OsmWaterPolygonProcessor}</li>
+ *   <li>{@link OsmAllProcessor} to process every OSM feature</li>
+ *   <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
+ *   <li>A {@link Tables.RowHandler} implementation in {@code Tables.java} to process input features filtered and parsed
+ *   according to the imposm3 mappings defined in the OpenMapTiles schema. Each element corresponds to a row in the
+ *   table that imposm3 would have generated, with generated methods for accessing the data that would have been in each
+ *   column</li>
+ * </ul>
+ * Layers can also subscribe to notifications when we finished processing an input source by implementing
+ * {@link FinishHandler} or post-process features in that layer before rendering the output tile by implementing
+ * {@link FeaturePostProcessor}.
+ */
+public class OpenMapTilesProfile extends Profile.ForwardingProfile {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(OpenMapTilesProfile.class);
-
+  // IDs used in stats and logs for each input source, as well as argument/config file overrides to source locations
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPointMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmLineMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> osmPolygonMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> wikidataOsmPointMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> wikidataOsmLineMappings;
-  private final MultiExpression.MultiExpressionIndex<Tables.Constructor> wikidataOsmPolygonMappings;
-  private final List<Layer> layers;
-  private final Map<Class<? extends Tables.Row>, List<Tables.RowHandler<Tables.Row>>> osmDispatchMap;
-  private final Map<String, FeaturePostProcessor> postProcessors;
-  private final List<NaturalEarthProcessor> naturalEarthProcessors;
-  private final List<OsmWaterPolygonProcessor> osmWaterProcessors;
-  private final List<LakeCenterlineProcessor> lakeCenterlineProcessors;
-  private final List<OsmAllProcessor> osmAllProcessors;
-  private final List<OsmRelationPreprocessor> osmRelationPreprocessors;
-  private final List<FinishHandler> finishHandlers;
-  private final Map<Class<? extends Tables.Row>, Set<Class<?>>> osmClassHandlerMap;
-
-  private MultiExpression.MultiExpressionIndex<Tables.Constructor> indexForType(String type, boolean requireWikidata) {
-    return Tables.MAPPINGS
-      .filterKeys(constructor -> {
-        // exclude any mapping that generates a class we don't have a handler for
-        var clz = constructor.create(SimpleFeature.empty(), "").getClass();
-        var handlers = osmClassHandlerMap.getOrDefault(clz, Set.of()).stream();
-        if (requireWikidata) {
-          handlers = handlers.filter(handler -> !IgnoreWikidata.class.isAssignableFrom(handler));
-        }
-        return handlers.findAny().isPresent();
-      })
-      .replace(matchType(type), TRUE)
-      .replace(e -> e instanceof Expression.MatchType, FALSE)
-      .simplify()
-      .index();
-  }
+  /** Index to efficiently find the imposm3 "table row" constructor from an OSM element based on its tags. */
+  private final MultiExpression.Index<RowDispatch> osmMappings;
+  /** Index variant that filters out any table only used by layers that implement IgnoreWikidata class. */
+  private final MultiExpression.Index<Boolean> wikidataMappings;
 
   public OpenMapTilesProfile(FlatmapRunner runner) {
     this(runner.translations(), runner.config(), runner.stats());
@@ -76,213 +58,90 @@ public class OpenMapTilesProfile implements Profile {
   public OpenMapTilesProfile(Translations translations, FlatmapConfig config, Stats stats) {
     List<String> onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
     List<String> excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
-    this.layers = OpenMapTilesSchema.createInstances(translations, config, stats)
-      .stream()
-      .filter(l -> (onlyLayers.isEmpty() || onlyLayers.contains(l.name())) && !excludeLayers.contains(l.name()))
-      .toList();
-    osmDispatchMap = new HashMap<>();
-    Tables.generateDispatchMap(layers).forEach((clazz, handlers) -> {
-      osmDispatchMap.put(clazz, handlers.stream().map(handler -> {
-        @SuppressWarnings("unchecked") Tables.RowHandler<Tables.Row> rawHandler = (Tables.RowHandler<Tables.Row>) handler;
-        return rawHandler;
-      }).toList());
-    });
-    osmClassHandlerMap = Tables.generateHandlerClassMap(layers);
-    this.osmPointMappings = indexForType("point", false);
-    this.osmLineMappings = indexForType("linestring", false);
-    this.osmPolygonMappings = indexForType("polygon", false);
-    this.wikidataOsmPointMappings = indexForType("point", true);
-    this.wikidataOsmLineMappings = indexForType("linestring", true);
-    this.wikidataOsmPolygonMappings = indexForType("polygon", true);
-    postProcessors = new HashMap<>();
-    osmAllProcessors = new ArrayList<>();
-    lakeCenterlineProcessors = new ArrayList<>();
-    naturalEarthProcessors = new ArrayList<>();
-    osmWaterProcessors = new ArrayList<>();
-    osmRelationPreprocessors = new ArrayList<>();
-    finishHandlers = new ArrayList<>();
-    for (Layer layer : layers) {
-      if (layer instanceof FeaturePostProcessor postProcessor) {
-        postProcessors.put(layer.name(), postProcessor);
-      }
-      if (layer instanceof OsmAllProcessor processor) {
-        osmAllProcessors.add(processor);
-      }
-      if (layer instanceof OsmWaterPolygonProcessor processor) {
-        osmWaterProcessors.add(processor);
-      }
-      if (layer instanceof LakeCenterlineProcessor processor) {
-        lakeCenterlineProcessors.add(processor);
-      }
-      if (layer instanceof NaturalEarthProcessor processor) {
-        naturalEarthProcessors.add(processor);
-      }
-      if (layer instanceof OsmRelationPreprocessor processor) {
-        osmRelationPreprocessors.add(processor);
-      }
-      if (layer instanceof FinishHandler processor) {
-        finishHandlers.add(processor);
+
+    // register release/finish/feature postprocessor/osm relationship handler methods...
+    List<Handler> layers = new ArrayList<>();
+    for (Layer layer : OpenMapTilesSchema.createInstances(translations, config, stats)) {
+      if ((onlyLayers.isEmpty() || onlyLayers.contains(layer.name())) && !excludeLayers.contains(layer.name())) {
+        layers.add(layer);
+        registerHandler(layer);
       }
     }
-  }
 
-  @Override
-  public void release() {
-    layers.forEach(Layer::release);
-  }
-
-  @Override
-  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-    List<VectorTile.Feature> items) throws GeometryException {
-    FeaturePostProcessor postProcesor = postProcessors.get(layer);
-    List<VectorTile.Feature> result = null;
-    if (postProcesor != null) {
-      result = postProcesor.postProcess(zoom, items);
-    }
-    return result == null ? items : result;
-  }
-
-  @Override
-  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-    List<OsmRelationInfo> result = null;
-    for (int i = 0; i < osmRelationPreprocessors.size(); i++) {
-      List<OsmRelationInfo> thisResult = osmRelationPreprocessors.get(i)
-        .preprocessOsmRelation(relation);
-      if (thisResult != null) {
-        if (result == null) {
-          result = new ArrayList<>(thisResult);
-        } else {
-          result.addAll(thisResult);
-        }
+    // register per-source input element handlers
+    for (Handler handler : layers) {
+      if (handler instanceof NaturalEarthProcessor processor) {
+        registerSourceHandler(NATURAL_EARTH_SOURCE,
+          (source, features) -> processor.processNaturalEarth(source.getSourceLayer(), source, features));
+      }
+      if (handler instanceof OsmWaterPolygonProcessor processor) {
+        registerSourceHandler(WATER_POLYGON_SOURCE, processor::processOsmWater);
+      }
+      if (handler instanceof LakeCenterlineProcessor processor) {
+        registerSourceHandler(LAKE_CENTERLINE_SOURCE, processor::processLakeCenterline);
+      }
+      if (handler instanceof OsmAllProcessor processor) {
+        registerSourceHandler(OSM_SOURCE, processor::processAllOsm);
       }
     }
-    return result;
-  }
 
-  @Override
-  public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    switch (sourceFeature.getSource()) {
-      case OSM_SOURCE -> {
-        for (var match : getTableMatches(sourceFeature)) {
-          var row = match.match().create(sourceFeature, match.keys().get(0));
-          var handlers = osmDispatchMap.get(row.getClass());
-          if (handlers != null) {
-            for (Tables.RowHandler<Tables.Row> handler : handlers) {
-              handler.process(row, features);
-            }
+    // pre-process layers to build efficient indexes for matching OSM elements based on matching expressions
+    // Map from imposm3 table row class to the layers that implement its handler.
+    var handlerMap = Tables.generateDispatchMap(layers);
+    osmMappings = Tables.MAPPINGS
+      .mapResults(constructor -> {
+        var handlers = handlerMap.getOrDefault(constructor.rowClass(), List.of()).stream()
+          .map(r -> {
+            @SuppressWarnings("unchecked") var handler = (Tables.RowHandler<Tables.Row>) r.handler();
+            return handler;
+          })
+          .toList();
+        return new RowDispatch(constructor.create(), handlers);
+      }).simplify().index();
+    wikidataMappings = Tables.MAPPINGS
+      .mapResults(constructor ->
+        handlerMap.getOrDefault(constructor.rowClass(), List.of()).stream()
+          .anyMatch(handler -> !IgnoreWikidata.class.isAssignableFrom(handler.handlerClass()))
+      ).filterResults(b -> b).simplify().index();
+
+    // register a handler for all OSM elements that forwards to imposm3 "table row" handler methods
+    // based on efficient pre-processed index
+    if (!osmMappings.isEmpty()) {
+      registerSourceHandler(OSM_SOURCE, (source, features) -> {
+        for (var match : getTableMatches(source)) {
+          RowDispatch rowDispatch = match.match();
+          var row = rowDispatch.constructor.create(source, match.keys().get(0));
+          for (Tables.RowHandler<Tables.Row> handler : rowDispatch.handlers()) {
+            handler.process(row, features);
           }
         }
-        for (int i = 0; i < osmAllProcessors.size(); i++) {
-          osmAllProcessors.get(i).processAllOsm(sourceFeature, features);
-        }
-      }
-      case LAKE_CENTERLINE_SOURCE -> {
-        for (LakeCenterlineProcessor lakeCenterlineProcessor : lakeCenterlineProcessors) {
-          lakeCenterlineProcessor.processLakeCenterline(sourceFeature, features);
-        }
-      }
-      case NATURAL_EARTH_SOURCE -> {
-        for (NaturalEarthProcessor naturalEarthProcessor : naturalEarthProcessors) {
-          naturalEarthProcessor.processNaturalEarth(sourceFeature.getSourceLayer(), sourceFeature, features);
-        }
-      }
-      case WATER_POLYGON_SOURCE -> {
-        for (OsmWaterPolygonProcessor osmWaterProcessor : osmWaterProcessors) {
-          osmWaterProcessor.processOsmWater(sourceFeature, features);
-        }
-      }
+      });
     }
   }
 
-  public List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> getTableMatches(
-    SourceFeature sourceFeature) {
-    List<MultiExpression.MultiExpressionIndex.MatchWithTriggers<Tables.Constructor>> result = null;
-    if (sourceFeature.isPoint()) {
-      result = osmPointMappings.getMatchesWithTriggers(sourceFeature.tags());
-    } else {
-      if (sourceFeature.canBeLine()) {
-        result = osmLineMappings.getMatchesWithTriggers(sourceFeature.tags());
-        if (sourceFeature.canBePolygon()) {
-          result.addAll(osmPolygonMappings.getMatchesWithTriggers(sourceFeature.tags()));
-        }
-      } else if (sourceFeature.canBePolygon()) {
-        result = osmPolygonMappings.getMatchesWithTriggers(sourceFeature.tags());
-      }
-    }
-    return result == null ? List.of() : result;
+  /** Returns the imposm3 table row constructors that match an input element's tags. */
+  public List<MultiExpression.Match<RowDispatch>> getTableMatches(SourceFeature input) {
+    return osmMappings.getMatchesWithTriggers(input);
   }
-
-  @Override
-  public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-    Consumer<FeatureCollector.Feature> next) {
-    for (var handler : finishHandlers) {
-      handler.finish(sourceName, featureCollectors, next);
-    }
-  }
-
-  @Override
-  public boolean caresAboutSource(String name) {
-    return switch (name) {
-      case NATURAL_EARTH_SOURCE -> !naturalEarthProcessors.isEmpty();
-      case WATER_POLYGON_SOURCE -> !osmWaterProcessors.isEmpty();
-      case OSM_SOURCE -> !osmAllProcessors.isEmpty() || !osmDispatchMap.isEmpty();
-      case LAKE_CENTERLINE_SOURCE -> !lakeCenterlineProcessors.isEmpty();
-      default -> true;
-    };
-  }
-
-  public interface NaturalEarthProcessor {
-
-    void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features);
-  }
-
-  public interface LakeCenterlineProcessor {
-
-    void processLakeCenterline(SourceFeature feature, FeatureCollector features);
-  }
-
-  public interface OsmWaterPolygonProcessor {
-
-    void processOsmWater(SourceFeature feature, FeatureCollector features);
-  }
-
-  public interface OsmAllProcessor {
-
-    void processAllOsm(SourceFeature feature, FeatureCollector features);
-  }
-
-  public interface FinishHandler {
-
-    void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-      Consumer<FeatureCollector.Feature> next);
-  }
-
-  public interface OsmRelationPreprocessor {
-
-    List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
-  }
-
-  public interface FeaturePostProcessor {
-
-    List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
-      throws GeometryException;
-  }
-
-  public interface IgnoreWikidata {}
 
   @Override
   public boolean caresAboutWikidataTranslation(OsmElement elem) {
     var tags = elem.tags();
     if (elem instanceof OsmElement.Node) {
-      return wikidataOsmPointMappings.matches(tags);
+      return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POINT, tags), false);
     } else if (elem instanceof OsmElement.Way) {
-      return wikidataOsmPolygonMappings.matches(tags) || wikidataOsmLineMappings.matches(tags);
+      return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POLYGON, tags), false)
+        || wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_LINE, tags), false);
     } else if (elem instanceof OsmElement.Relation) {
-      return wikidataOsmPolygonMappings.matches(tags);
+      return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POLYGON, tags), false);
     } else {
       return false;
     }
   }
+
+  /*
+   * Pass-through constants generated from the OpenMapTiles vector schema
+   */
 
   @Override
   public String name() {
@@ -303,4 +162,71 @@ public class OpenMapTilesProfile implements Profile {
   public String version() {
     return OpenMapTilesSchema.VERSION;
   }
+
+  /**
+   * Layers should implement this interface to subscribe to elements from <a href="https://www.naturalearthdata.com/">natural
+   * earth</a>.
+   */
+  public interface NaturalEarthProcessor {
+
+    /**
+     * Process an element from {@code table} in the<a href="https://www.naturalearthdata.com/">natural earth
+     * source</a>.
+     *
+     * @see Profile#processFeature(SourceFeature, FeatureCollector)
+     */
+    void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features);
+  }
+
+  /**
+   * Layers should implement this interface to subscribe to elements from <a href="https://github.com/lukasmartinelli/osm-lakelines">OSM
+   * lake centerlines source</a>.
+   */
+  public interface LakeCenterlineProcessor {
+
+    /**
+     * Process an element from the <a href="https://github.com/lukasmartinelli/osm-lakelines">OSM lake centerlines
+     * source</a>
+     *
+     * @see Profile#processFeature(SourceFeature, FeatureCollector)
+     */
+    void processLakeCenterline(SourceFeature feature, FeatureCollector features);
+  }
+
+  /**
+   * Layers should implement this interface to subscribe to elements from <a href="https://osmdata.openstreetmap.de/data/water-polygons.html">OSM
+   * water polygons source</a>.
+   */
+  public interface OsmWaterPolygonProcessor {
+
+    /**
+     * Process an element from the <a href="https://osmdata.openstreetmap.de/data/water-polygons.html">OSM water
+     * polygons source</a>
+     *
+     * @see Profile#processFeature(SourceFeature, FeatureCollector)
+     */
+    void processOsmWater(SourceFeature feature, FeatureCollector features);
+  }
+
+  /** Layers should implement this interface to subscribe to every OSM element. */
+  public interface OsmAllProcessor {
+
+    /**
+     * Process an OSM element during the second pass through the OSM data file.
+     *
+     * @see Profile#processFeature(SourceFeature, FeatureCollector)
+     */
+    void processAllOsm(SourceFeature feature, FeatureCollector features);
+  }
+
+  /**
+   * Layers should implement to indicate they do not need wikidata name translations to avoid downloading more
+   * translations than are needed.
+   */
+  public interface IgnoreWikidata {}
+
+  private static record RowDispatch(
+    Tables.Constructor constructor,
+    List<Tables.RowHandler<Tables.Row>> handlers
+  ) {}
 }

@@ -35,14 +35,14 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.*;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.*;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
@@ -54,11 +54,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.locationtech.jts.geom.LineString;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation
+ * Defines the logic for generating map elements for roads, shipways, railroads, and paths in the {@code transportation}
+ * layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation">OpenMapTiles
+ * transportation sql files</a>.
  */
 public class Transportation implements
   OpenMapTilesSchema.Transportation,
@@ -70,9 +72,13 @@ public class Transportation implements
   OpenMapTilesProfile.FeaturePostProcessor,
   OpenMapTilesProfile.IgnoreWikidata {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Transportation.class);
+  /*
+   * Generates the shape for roads, trails, ferries, railways with detailed
+   * attributes for rendering, but not any names.  The transportation_name
+   * layer includes names, but less detailed attributes.
+   */
 
-  private static final MultiExpression.MultiExpressionIndex<String> classMapping = FieldMappings.Class.index();
+  private static final MultiExpression.Index<String> classMapping = FieldMappings.Class.index();
   private static final Set<String> RAILWAY_RAIL_VALUES = Set.of(
     FieldValues.SUBCLASS_RAIL,
     FieldValues.SUBCLASS_NARROW_GAUGE,
@@ -102,21 +108,19 @@ public class Transportation implements
     "paved", "asphalt", "cobblestone", "concrete", "concrete:lanes", "concrete:plates", "metal",
     "paving_stones", "sett", "unhewn_cobblestone", "wood"
   );
-  private final Map<String, Integer> MINZOOMS;
   private static final ZoomFunction.MeterToPixelThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(7, 50)
     .put(6, 100)
     .put(5, 500)
     .put(4, 1_000);
-  private static final double PIXEL = 256d / 4096d;
-  private final boolean z13Paths;
+  private final Map<String, Integer> MINZOOMS;
   private final Stats stats;
   private final FlatmapConfig config;
 
   public Transportation(Translations translations, FlatmapConfig config, Stats stats) {
     this.config = config;
     this.stats = stats;
-    this.z13Paths = config.arguments().getBoolean(
+    boolean z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
       false
@@ -134,11 +138,13 @@ public class Transportation implements
     );
   }
 
+  /** Returns a value for {@code surface} tag constrained to a small set of known values from raw OSM data. */
   private static String surface(String value) {
     return value == null ? null : SURFACE_PAVED_VALUES.contains(value) ? FieldValues.SURFACE_PAVED :
       SURFACE_UNPAVED_VALUES.contains(value) ? FieldValues.SURFACE_UNPAVED : null;
   }
 
+  /** Returns a value for {@code service} tag constrained to a small set of known values from raw OSM data. */
   private static String service(String value) {
     return (value == null || !SERVICE_VALUES.contains(value)) ? null : value;
   }
@@ -209,8 +215,8 @@ public class Transportation implements
       }
 
       boolean highwayRamp = highwayIsLink || "steps".equals(highway);
-      Integer rampAboveZ12 = (highwayRamp || element.isRamp()) ? 1 : 0;
-      Integer rampBelowZ12 = highwayRamp ? 1 : 0;
+      int rampAboveZ12 = (highwayRamp || element.isRamp()) ? 1 : 0;
+      int rampBelowZ12 = highwayRamp ? 1 : 0;
 
       FeatureCollector.Feature feature = features.line(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         // main attributes at all zoom levels (used for grouping <= z8)
@@ -228,9 +234,9 @@ public class Transportation implements
         .setAttrWithMinzoom(Fields.HORSE, nullIfEmpty(element.horse()), 9)
         .setAttrWithMinzoom(Fields.MTB_SCALE, nullIfEmpty(element.mtbScale()), 9)
         .setAttrWithMinzoom(Fields.SURFACE, surface(element.surface()), 12)
-        .setMinPixelSize(0)
+        .setMinPixelSize(0) // merge during post-processing, then limit by size
         .setZorder(element.zOrder())
-        .setZoomRange(minzoom, 14);
+        .setMinZoom(minzoom);
 
       if (isFootwayOrSteps(highway)) {
         feature
@@ -238,14 +244,6 @@ public class Transportation implements
           .setAttr(Fields.INDOOR, element.indoor() ? 1 : null);
       }
     }
-  }
-
-  @Override
-  public List<VectorTile.Feature> postProcess(int zoom,
-    List<VectorTile.Feature> items) throws GeometryException {
-    double tolerance = config.tolerance(zoom);
-    double minLength = coalesce(MIN_LENGTH.apply(zoom), config.minFeatureSize(zoom)).doubleValue();
-    return FeatureMerge.mergeLineStrings(items, minLength, tolerance, BUFFER_SIZE);
   }
 
   @Override
@@ -275,7 +273,7 @@ public class Transportation implements
         .setAttrWithMinzoom(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()), 10)
         .setAttrWithMinzoom(Fields.LAYER, nullIf(element.layer(), 0), 9)
         .setZorder(element.zOrder())
-        .setZoomRange(minzoom, 14);
+        .setMinZoom(minzoom);
     }
   }
 
@@ -290,7 +288,7 @@ public class Transportation implements
       .setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()))
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
       .setZorder(element.zOrder())
-      .setZoomRange(12, 14);
+      .setMinZoom(12);
   }
 
   @Override
@@ -304,7 +302,7 @@ public class Transportation implements
       .setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()))
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
       .setZorder(element.zOrder())
-      .setZoomRange(11, 14);
+      .setMinZoom(11);
   }
 
   @Override
@@ -321,8 +319,15 @@ public class Transportation implements
           .setAttr(Fields.BRUNNEL, brunnel("bridge".equals(manMade), false, false))
           .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
           .setZorder(element.zOrder())
-          .setZoomRange(13, 14);
+          .setMinZoom(13);
       }
     }
+  }
+
+  @Override
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+    double tolerance = config.tolerance(zoom);
+    double minLength = coalesce(MIN_LENGTH.apply(zoom), config.minFeatureSize(zoom)).doubleValue();
+    return FeatureMerge.mergeLineStrings(items, minLength, tolerance, BUFFER_SIZE);
   }
 }

@@ -39,8 +39,8 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FeatureMerge;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
@@ -54,7 +54,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover
+ * Defines the logic for generating map elements for natural land cover polygons like ice, sand, and forest in the
+ * {@code landcover} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover">OpenMapTiles
+ * landcover sql files</a>.
  */
 public class Landcover implements
   OpenMapTilesSchema.Landcover,
@@ -62,17 +66,25 @@ public class Landcover implements
   Tables.OsmLandcoverPolygon.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
 
+  /*
+   * Large ice areas come from natural earth and the rest come from OpenStreetMap at higher zoom
+   * levels. At render-time, postProcess() merges polygons into larger connected area based
+   * on the number of points in the original area.  Since postProcess() only has visibility into
+   * features on a single tile, process() needs to pass the number of points the original feature
+   * had through using a temporary "_numpoints" attribute.
+   */
+
   public static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS = ZoomFunction.fromMaxZoomThresholds(Map.of(
     13, 8,
     10, 4,
     9, 2
   ));
-  private static final String NUM_POINTS_ATTR = "_numpoints";
+  private static final String TEMP_NUM_POINTS_ATTR = "_numpoints";
   private static final Set<String> WOOD_OR_FOREST = Set.of(
     FieldValues.SUBCLASS_WOOD,
     FieldValues.SUBCLASS_FOREST
   );
-  private final MultiExpression.MultiExpressionIndex<String> classMapping;
+  private final MultiExpression.Index<String> classMapping;
 
   public Landcover(Translations translations, FlatmapConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
@@ -114,39 +126,40 @@ public class Landcover implements
         .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
         .setAttr(Fields.CLASS, clazz)
         .setAttr(Fields.SUBCLASS, subclass)
-        .setNumPointsAttr(NUM_POINTS_ATTR)
-        .setZoomRange(WOOD_OR_FOREST.contains(subclass) ? 9 : 7, 14);
+        .setNumPointsAttr(TEMP_NUM_POINTS_ATTR)
+        .setMinZoom(WOOD_OR_FOREST.contains(subclass) ? 9 : 7);
     }
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
-    throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
     if (zoom < 7 || zoom > 13) {
       for (var item : items) {
-        item.attrs().remove(NUM_POINTS_ATTR);
+        item.attrs().remove(TEMP_NUM_POINTS_ATTR);
       }
       return items;
     } else { // z7-13
-      String groupKey = "_group";
+      // merging only merges polygons with the same attributes, so use this temporary key
+      // to separate features into layers that will be merged separately
+      String tempGroupKey = "_group";
       List<VectorTile.Feature> result = new ArrayList<>();
       List<VectorTile.Feature> toMerge = new ArrayList<>();
       for (var item : items) {
         Map<String, Object> attrs = item.attrs();
-        Object numPointsObj = attrs.remove(NUM_POINTS_ATTR);
+        Object numPointsObj = attrs.remove(TEMP_NUM_POINTS_ATTR);
         Object subclassObj = attrs.get(Fields.SUBCLASS);
         if (numPointsObj instanceof Number num && subclassObj instanceof String subclass) {
           long numPoints = num.longValue();
           if (zoom >= 10) {
             if (WOOD_OR_FOREST.contains(subclass) && numPoints < 300) {
-              attrs.put(groupKey, numPoints < 50 ? "<50" : "<300");
+              attrs.put(tempGroupKey, numPoints < 50 ? "<50" : "<300");
               toMerge.add(item);
             } else { // don't merge
               result.add(item);
             }
           } else if (zoom == 9) {
             if (WOOD_OR_FOREST.contains(subclass)) {
-              attrs.put(groupKey, numPoints < 50 ? "<50" : numPoints < 300 ? "<300" : ">300");
+              attrs.put(tempGroupKey, numPoints < 50 ? "<50" : numPoints < 300 ? "<300" : ">300");
               toMerge.add(item);
             } else { // don't merge
               result.add(item);
@@ -160,7 +173,7 @@ public class Landcover implements
       }
       var merged = FeatureMerge.mergeOverlappingPolygons(toMerge, 4);
       for (var item : merged) {
-        item.attrs().remove(groupKey);
+        item.attrs().remove(tempGroupKey);
       }
       result.addAll(merged);
       return result;

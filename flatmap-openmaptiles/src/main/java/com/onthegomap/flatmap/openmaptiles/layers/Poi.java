@@ -35,10 +35,10 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIf;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullOrEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIf;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullOrEmpty;
 import static java.util.Map.entry;
 
 import com.carrotsearch.hppc.LongIntHashMap;
@@ -46,12 +46,11 @@ import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
-import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
 import com.onthegomap.flatmap.util.Translations;
@@ -59,28 +58,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi
+ * Defines the logic for generating map elements for things like shops, parks, and schools in the {@code poi} layer from
+ * source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi">OpenMapTiles
+ * poi sql files</a>.
  */
-public class Poi implements OpenMapTilesSchema.Poi,
+public class Poi implements
+  OpenMapTilesSchema.Poi,
   Tables.OsmPoiPoint.Handler,
   Tables.OsmPoiPolygon.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
 
-  private final MultiExpression.MultiExpressionIndex<String> classMapping;
-  private final Translations translations;
-
-  public Poi(Translations translations, FlatmapConfig config, Stats stats) {
-    this.classMapping = FieldMappings.Class.index();
-    this.translations = translations;
-  }
-
-  private String poiClass(String subclass, String mappingKey) {
-    subclass = coalesce(subclass, "");
-    return classMapping.getOrElse(Map.of(
-      "subclass", subclass,
-      "mapping_key", coalesce(mappingKey, "")
-    ), subclass);
-  }
+  /*
+   * process() creates the raw POI feature from OSM elements and postProcess()
+   * assigns the feature rank from order in the tile at render-time.
+   */
 
   private static final Map<String, Integer> CLASS_RANKS = Map.ofEntries(
     entry(FieldValues.CLASS_HOSPITAL, 20),
@@ -106,9 +99,24 @@ public class Poi implements OpenMapTilesSchema.Poi,
     entry(FieldValues.CLASS_CLOTHING_STORE, 700),
     entry(FieldValues.CLASS_BAR, 800)
   );
+  private final MultiExpression.Index<String> classMapping;
+  private final Translations translations;
+
+  public Poi(Translations translations, FlatmapConfig config, Stats stats) {
+    this.classMapping = FieldMappings.Class.index();
+    this.translations = translations;
+  }
 
   static int poiClassRank(String clazz) {
     return CLASS_RANKS.getOrDefault(clazz, 1_000);
+  }
+
+  private String poiClass(String subclass, String mappingKey) {
+    subclass = coalesce(subclass, "");
+    return classMapping.getOrElse(Map.of(
+      "subclass", subclass,
+      "mapping_key", coalesce(mappingKey, "")
+    ), subclass);
   }
 
   private int minzoom(String subclass, String mappingKey) {
@@ -128,7 +136,18 @@ public class Poi implements OpenMapTilesSchema.Poi,
     setupPoiFeature(element, features.centroidIfConvex(LAYER_NAME));
   }
 
-  private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource>
+  private <T extends
+    Tables.WithSubclass &
+    Tables.WithStation &
+    Tables.WithFunicular &
+    Tables.WithSport &
+    Tables.WithInformation &
+    Tables.WithReligion &
+    Tables.WithMappingKey &
+    Tables.WithName &
+    Tables.WithIndoor &
+    Tables.WithLayer &
+    Tables.WithSource>
   void setupPoiFeature(T element, FeatureCollector.Feature output) {
     String rawSubclass = element.subclass();
     if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
@@ -157,12 +176,12 @@ public class Poi implements OpenMapTilesSchema.Poi,
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setPointLabelGridPixelSize(14, 64)
       .setZorder(-rankOrder)
-      .setZoomRange(minzoom(element.subclass(), element.mappingKey()), 14);
+      .setMinZoom(minzoom(element.subclass(), element.mappingKey()));
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom,
-    List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+    // infer the "rank" field from the order of features within each label grid square
     LongIntMap groupCounts = new LongIntHashMap();
     for (int i = items.size() - 1; i >= 0; i--) {
       VectorTile.Feature feature = items.get(i);

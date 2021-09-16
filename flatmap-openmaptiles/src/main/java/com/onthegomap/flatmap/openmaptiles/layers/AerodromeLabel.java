@@ -35,24 +35,29 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
  */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.config.FlatmapConfig;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
-import com.onthegomap.flatmap.openmaptiles.Utils;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
+import com.onthegomap.flatmap.openmaptiles.util.Utils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Translations;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label
+ * Defines the logic for generating map elements in the {@code aerodrome_label} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label">OpenMapTiles
+ * aerodrome_layer sql files</a>.
  */
-public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables.OsmAerodromeLabelPoint.Handler {
+public class AerodromeLabel implements
+  OpenMapTilesSchema.AerodromeLabel,
+  Tables.OsmAerodromeLabelPoint.Handler {
 
-  private final MultiExpression.MultiExpressionIndex<String> classLookup;
+  private final MultiExpression.Index<String> classLookup;
   private final Translations translations;
 
   public AerodromeLabel(Translations translations, FlatmapConfig config, Stats stats) {
@@ -64,11 +69,11 @@ public class AerodromeLabel implements OpenMapTilesSchema.AerodromeLabel, Tables
   public void process(Tables.OsmAerodromeLabelPoint element, FeatureCollector features) {
     features.centroid(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
-      .setZoomRange(10, 14)
+      .setMinZoom(10)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .putAttrs(Utils.elevationTags(element.ele()))
       .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
       .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
-      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source().tags(), FieldValues.CLASS_OTHER));
+      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source(), FieldValues.CLASS_OTHER));
   }
 }

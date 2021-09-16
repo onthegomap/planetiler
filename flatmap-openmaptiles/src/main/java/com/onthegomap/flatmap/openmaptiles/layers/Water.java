@@ -37,51 +37,51 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.config.FlatmapConfig;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
-import com.onthegomap.flatmap.openmaptiles.Utils;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.Utils;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Translations;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/water
+ * Defines the logic for generating map elements for oceans and lakes in the {@code water} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water">OpenMapTiles
+ * water sql files</a>.
  */
-public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.Handler,
-  OpenMapTilesProfile.NaturalEarthProcessor, OpenMapTilesProfile.OsmWaterPolygonProcessor {
+public class Water implements
+  OpenMapTilesSchema.Water,
+  Tables.OsmWaterPolygon.Handler,
+  OpenMapTilesProfile.NaturalEarthProcessor,
+  OpenMapTilesProfile.OsmWaterPolygonProcessor {
 
-  private final MultiExpression.MultiExpressionIndex<String> classMapping;
+  /*
+   * At low zoom levels, use natural earth for oceans and major lakes, and at high zoom levels
+   * use OpenStreetMap data. OpenStreetMap data contains smaller bodies of water, but not
+   * large ocean polygons. For oceans, use https://osmdata.openstreetmap.de/data/water-polygons.html
+   * which infers ocean polygons by preprocessing all coastline elements.
+   */
+
+  private final MultiExpression.Index<String> classMapping;
 
   public Water(Translations translations, FlatmapConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
   }
 
   @Override
-  public void process(Tables.OsmWaterPolygon element, FeatureCollector features) {
-    if (!"bay".equals(element.natural())) {
-      features.polygon(LAYER_NAME)
-        .setBufferPixels(BUFFER_SIZE)
-        .setMinPixelSizeBelowZoom(11, 2)
-        .setZoomRange(6, 14)
-        .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-        .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source().tags(), FieldValues.CLASS_RIVER));
-    }
-  }
-
-  @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     record WaterInfo(int minZoom, int maxZoom, String clazz) {}
     WaterInfo info = switch (table) {
-      case "ne_10m_ocean" -> new WaterInfo(5, 5, FieldValues.CLASS_OCEAN);
-      case "ne_50m_ocean" -> new WaterInfo(2, 4, FieldValues.CLASS_OCEAN);
       case "ne_110m_ocean" -> new WaterInfo(0, 1, FieldValues.CLASS_OCEAN);
+      case "ne_50m_ocean" -> new WaterInfo(2, 4, FieldValues.CLASS_OCEAN);
+      case "ne_10m_ocean" -> new WaterInfo(5, 5, FieldValues.CLASS_OCEAN);
 
-      case "ne_10m_lakes" -> new WaterInfo(4, 5, FieldValues.CLASS_LAKE);
-      case "ne_50m_lakes" -> new WaterInfo(2, 3, FieldValues.CLASS_LAKE);
       case "ne_110m_lakes" -> new WaterInfo(0, 1, FieldValues.CLASS_LAKE);
+      case "ne_50m_lakes" -> new WaterInfo(2, 3, FieldValues.CLASS_LAKE);
+      case "ne_10m_lakes" -> new WaterInfo(4, 5, FieldValues.CLASS_LAKE);
       default -> null;
     };
     if (info != null) {
@@ -97,6 +97,19 @@ public class Water implements OpenMapTilesSchema.Water, Tables.OsmWaterPolygon.H
     features.polygon(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, FieldValues.CLASS_OCEAN)
-      .setZoomRange(6, 14);
+      .setMinZoom(6);
+  }
+
+  @Override
+  public void process(Tables.OsmWaterPolygon element, FeatureCollector features) {
+    if (!"bay".equals(element.natural())) {
+      features.polygon(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setMinPixelSizeBelowZoom(11, 2)
+        .setMinZoom(6)
+        .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
+        .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
+        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source(), FieldValues.CLASS_RIVER));
+    }
   }
 }

@@ -38,9 +38,12 @@ public class GeoUtils {
   public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
   public static final WKBReader WKB_READER = new WKBReader(JTS_FACTORY);
+  public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
+  public static final Point EMPTY_POINT = JTS_FACTORY.createPoint();
+  public static final LineString EMPTY_LINE = JTS_FACTORY.createLineString();
+  public static final Polygon EMPTY_POLYGON = JTS_FACTORY.createPolygon();
   private static final LineString[] EMPTY_LINE_STRING_ARRAY = new LineString[0];
   private static final Polygon[] EMPTY_POLYGON_ARRAY = new Polygon[0];
-  private static final Coordinate[] EMPTY_COORD_ARRAY = new Coordinate[0];
   private static final Point[] EMPTY_POINT_ARRAY = new Point[0];
   private static final double WORLD_RADIUS_METERS = 6_378_137;
   public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;

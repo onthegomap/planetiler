@@ -35,7 +35,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
 import static com.onthegomap.flatmap.util.MemoryEstimator.CLASS_HEADER_BYTES;
 import static com.onthegomap.flatmap.util.Parse.parseDoubleOrNull;
 import static java.util.Map.entry;
@@ -58,14 +58,28 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/building
+ * Defines the logic for generating map elements for buildings in the {@code building} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/building">OpenMapTiles
+ * building sql files</a>.
  */
-public class Building implements OpenMapTilesSchema.Building,
+public class Building implements
+  OpenMapTilesSchema.Building,
   Tables.OsmBuildingPolygon.Handler,
   OpenMapTilesProfile.FeaturePostProcessor,
   OpenMapTilesProfile.OsmRelationPreprocessor {
 
-  private final boolean mergeZ13Buildings;
+  /*
+   * Emit all buildings from OSM data at z14.
+   *
+   * At z13, emit all buildings at process-time, but then at tile render-time,
+   * merge buildings that are overlapping or almost touching into combined
+   * buildings so that entire city blocks show up as a single building polygon.
+   *
+   * THIS IS VERY EXPENSIVE! Merging buildings at z13 adds about 50% to the
+   * total map generation time.  To disable it, set building_merge_z13 argument
+   * to false.
+   */
 
   private static final Map<String, String> MATERIAL_COLORS = Map.ofEntries(
     entry("cement_block", "#6a7880"),
@@ -86,6 +100,7 @@ public class Building implements OpenMapTilesSchema.Building,
     entry("sandstone", "#b4a995"), // same as stone
     entry("clay", "#9d8b75") // same as mud
   );
+  private final boolean mergeZ13Buildings;
 
   public Building(Translations translations, FlatmapConfig config, Stats stats) {
     this.mergeZ13Buildings = config.arguments().getBoolean(
@@ -93,14 +108,6 @@ public class Building implements OpenMapTilesSchema.Building,
       "building layer: merge nearby buildings at z13",
       true
     );
-  }
-
-  private static record BuildingRelationInfo(long id) implements OsmRelationInfo {
-
-    @Override
-    public long estimateMemoryUsageBytes() {
-      return CLASS_HEADER_BYTES + MemoryEstimator.estimateSizeLong(id);
-    }
   }
 
   @Override
@@ -154,12 +161,13 @@ public class Building implements OpenMapTilesSchema.Building,
 
     if (renderHeight < 3660 && renderMinHeight < 3660) {
       var feature = features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setZoomRange(13, 14)
+        .setMinZoom(13)
         .setMinPixelSize(2)
         .setAttrWithMinzoom(Fields.RENDER_HEIGHT, renderHeight, 14)
         .setAttrWithMinzoom(Fields.RENDER_MIN_HEIGHT, renderMinHeight, 14)
         .setAttrWithMinzoom(Fields.COLOUR, color, 14)
-        .setAttrWithMinzoom(Fields.HIDE_3D, hide3d, 14);
+        .setAttrWithMinzoom(Fields.HIDE_3D, hide3d, 14)
+        .setZorder(renderHeight);
       if (mergeZ13Buildings) {
         feature
           .setMinPixelSize(0.1)
@@ -172,5 +180,13 @@ public class Building implements OpenMapTilesSchema.Building,
   public List<VectorTile.Feature> postProcess(int zoom,
     List<VectorTile.Feature> items) throws GeometryException {
     return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergeNearbyPolygons(items, 4, 4, 0.5, 0.5) : items;
+  }
+
+  private static record BuildingRelationInfo(long id) implements OsmRelationInfo {
+
+    @Override
+    public long estimateMemoryUsageBytes() {
+      return CLASS_HEADER_BYTES + MemoryEstimator.estimateSizeLong(id);
+    }
   }
 }

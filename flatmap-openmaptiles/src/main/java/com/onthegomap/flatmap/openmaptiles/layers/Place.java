@@ -38,9 +38,9 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_BITS;
 import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MAX;
 import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullOrEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullOrEmpty;
 
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
@@ -51,10 +51,10 @@ import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.PointIndex;
 import com.onthegomap.flatmap.geo.PolygonIndex;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
@@ -72,11 +72,13 @@ import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.locationtech.jts.geom.Point;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/place
+ * Defines the logic for generating label points for populated places like continents, countries, cities, and towns in
+ * the {@code place} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/place">OpenMapTiles
+ * place sql files</a>.
  */
 public class Place implements
   OpenMapTilesSchema.Place,
@@ -89,23 +91,71 @@ public class Place implements
   Tables.OsmCityPoint.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Place.class);
+  /*
+   * Place labels locations and names come from OpenStreetMap, but we also join with natural
+   * earth state/country geographic areas and city point labels to give a hint for what rank
+   * and minimum zoom level to use for those points.
+   */
 
+  private static final TreeMap<Double, Integer> ISLAND_AREA_RANKS = new TreeMap<>(Map.of(
+    Double.MAX_VALUE, 3,
+    squareMetersToWorldArea(40_000_000), 4,
+    squareMetersToWorldArea(15_000_000), 5,
+    squareMetersToWorldArea(1_000_000), 6
+  ));
+  // constants for packing island label precedence into the z-order field
+  private static final int ISLAND_ZORDER_RANGE = Z_ORDER_MAX;
+  private static final double ISLAND_LOG_AREA_RANGE = Math.log(Math.pow(4, 26)); // 2^14 tiles, 2^12 pixels per tile
+  private static final double CITY_JOIN_DISTANCE = GeoUtils.metersToPixelAtEquator(0, 50_000) / 256d;
+  // constants for packing place label precedence into the z-order fiels
+  private static final int Z_ORDER_RANK_BITS = 4;
+  private static final int Z_ORDER_PLACE_BITS = 4;
+  private static final int Z_ORDER_LENGTH_BITS = 5;
+  private static final int Z_ORDER_POPULATION_BITS =
+    Z_ORDER_BITS - (Z_ORDER_RANK_BITS + Z_ORDER_PLACE_BITS + Z_ORDER_LENGTH_BITS);
+  private static final int Z_ORDER_POPULATION_RANGE = (1 << Z_ORDER_POPULATION_BITS) - 1;
+  private static final double LOG_MAX_POPULATION = Math.log(100_000_000d);
+  private static final Set<String> MAJOR_CITY_PLACES = Set.of("city", "town", "village");
+  private static final ZoomFunction<Number> LABEL_GRID_LIMITS = ZoomFunction.fromMaxZoomThresholds(Map.of(
+    8, 4,
+    9, 8,
+    10, 12,
+    12, 14
+  ), 0);
   private final Translations translations;
   private final Stats stats;
-
-  private static record NaturalEarthRegion(String name, int rank) {
-
-    NaturalEarthRegion(String name, int maxRank, double... ranks) {
-      this(name, (int) Math.ceil(DoubleStream.of(ranks).average().orElse(maxRank)));
-    }
-  }
-
-  private static record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
-
+  // spatial indexes for joining natural earth place labels with their corresponding points
+  // from openstreetmap
   private PolygonIndex<NaturalEarthRegion> countries = PolygonIndex.create();
   private PolygonIndex<NaturalEarthRegion> states = PolygonIndex.create();
   private PointIndex<NaturalEarthPoint> cities = PointIndex.create();
+
+  public Place(Translations translations, FlatmapConfig config, Stats stats) {
+    this.translations = translations;
+    this.stats = stats;
+  }
+
+  /** Returns the portion of the world that {@code squareMeters} covers where 1 is the entire planet. */
+  private static double squareMetersToWorldArea(double squareMeters) {
+    double oneSideMeters = Math.sqrt(squareMeters);
+    double oneSideWorld = GeoUtils.metersToPixelAtEquator(0, oneSideMeters) / 256d;
+    return Math.pow(oneSideWorld, 2);
+  }
+
+  /**
+   * Packs place precedence ordering ({@code rank asc, place asc, population desc, name.length asc}) into the z-order
+   * field.
+   */
+  static int getZorder(Integer rank, PlaceType place, long population, String name) {
+    int zorder = rank == null ? 0 : Math.max(1, 15 - rank);
+    zorder = (zorder << Z_ORDER_PLACE_BITS) | (place == null ? 0 : Math.max(1, 15 - place.ordinal()));
+    double logPop = Math.min(LOG_MAX_POPULATION, Math.log(population));
+    zorder = (zorder << Z_ORDER_POPULATION_BITS) | Math.max(0, Math.min(Z_ORDER_POPULATION_RANGE,
+      (int) Math.round(logPop * Z_ORDER_POPULATION_RANGE / LOG_MAX_POPULATION)));
+    zorder = (zorder << Z_ORDER_LENGTH_BITS) | (name == null ? 0 : Math.max(1, 31 - name.length()));
+
+    return zorder + Z_ORDER_MIN;
+  }
 
   @Override
   public void release() {
@@ -114,13 +164,10 @@ public class Place implements
     cities = null;
   }
 
-  public Place(Translations translations, FlatmapConfig config, Stats stats) {
-    this.translations = translations;
-    this.stats = stats;
-  }
-
   @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
+    // store data from natural earth to help with ranks and min zoom levels when actually
+    // emitting features from openstreetmap data.
     try {
       switch (table) {
         case "ne_10m_admin_0_countries" -> countries.put(feature.worldGeometry(), new NaturalEarthRegion(
@@ -182,6 +229,8 @@ public class Place implements
       return;
     }
     try {
+      // set country rank to 6, unless there is a match in natural earth that indicates it
+      // should be lower
       int rank = 7;
       NaturalEarthRegion country = countries.get(element.source().worldGeometry().getCentroid());
       var names = LanguageUtils.getNames(element.source().tags(), translations);
@@ -200,7 +249,7 @@ public class Place implements
         .setAttr(Fields.ISO_A2, isoA2)
         .setAttr(Fields.CLASS, FieldValues.CLASS_COUNTRY)
         .setAttr(Fields.RANK, rank)
-        .setZoomRange(rank - 1, 14)
+        .setMinZoom(rank - 1)
         .setZorder(-rank);
     } catch (GeometryException e) {
       e.log(stats, "omt_place_country",
@@ -211,7 +260,8 @@ public class Place implements
   @Override
   public void process(Tables.OsmStatePoint element, FeatureCollector features) {
     try {
-      // don't want nearest since we pre-filter the states in the polygon index
+      // want the containing (not nearest) state polygon since we pre-filter the states in the polygon index
+      // use natural earth to filter out any spurious states, and to set the rank field
       NaturalEarthRegion state = states.getOnlyContaining(element.source().worldGeometry().getCentroid());
       if (state != null) {
         var names = LanguageUtils.getNames(element.source().tags(), translations);
@@ -224,7 +274,7 @@ public class Place implements
           .putAttrs(names)
           .setAttr(Fields.CLASS, FieldValues.CLASS_STATE)
           .setAttr(Fields.RANK, rank)
-          .setZoomRange(2, 14)
+          .setMinZoom(2)
           .setZorder(-rank);
       }
     } catch (GeometryException e) {
@@ -232,22 +282,6 @@ public class Place implements
         "Unable to get point for OSM state " + element.source().id());
     }
   }
-
-  private static double squareMeters(double meters) {
-    double oneSideMeters = Math.sqrt(meters);
-    double oneSideWorld = GeoUtils.metersToPixelAtEquator(0, oneSideMeters) / 256d;
-    return Math.pow(oneSideWorld, 2);
-  }
-
-  private static final TreeMap<Double, Integer> ISLAND_AREA_RANKS = new TreeMap<>(Map.of(
-    Double.MAX_VALUE, 3,
-    squareMeters(40_000_000), 4,
-    squareMeters(15_000_000), 5,
-    squareMeters(1_000_000), 6
-  ));
-
-  private static final int ISLAND_ZORDER_RANGE = Z_ORDER_MAX;
-  private static final double ISLAND_LOG_AREA_RANGE = Math.log(Math.pow(4, 26)); // 2^14 tiles, 2^12 pixels per tile
 
   @Override
   public void process(Tables.OsmIslandPolygon element, FeatureCollector features) {
@@ -265,7 +299,7 @@ public class Place implements
         .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, "island")
         .setAttr(Fields.RANK, rank)
-        .setZoomRange(minzoom, 14)
+        .setMinZoom(minzoom)
         .setZorder(zOrder);
     } catch (GeometryException e) {
       e.log(stats, "omt_place_island_poly",
@@ -279,72 +313,16 @@ public class Place implements
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, "island")
       .setAttr(Fields.RANK, 7)
-      .setZoomRange(12, 14);
+      .setMinZoom(12);
   }
-
-  private static final Set<String> majorCityPlaces = Set.of("city", "town", "village");
-  private static final double CITY_JOIN_DISTANCE = GeoUtils.metersToPixelAtEquator(0, 50_000) / 256d;
-
-  enum PlaceType {
-    CITY("city"),
-    TOWN("town"),
-    VILLAGE("village"),
-    HAMLET("hamlet"),
-    SUBURB("suburb"),
-    QUARTER("quarter"),
-    NEIGHBORHOOD("neighbourhood"),
-    ISOLATED_DWELLING("isolated_dwelling"),
-    UNKNOWN("unknown");
-
-    private final String name;
-    private static final Map<String, PlaceType> byName = new HashMap<>();
-
-    static {
-      for (PlaceType place : values()) {
-        byName.put(place.name, place);
-      }
-    }
-
-    PlaceType(String name) {
-      this.name = name;
-    }
-
-    public static PlaceType forName(String name) {
-      return byName.getOrDefault(name, UNKNOWN);
-    }
-  }
-
-  private static final int Z_ORDER_RANK_BITS = 4;
-  private static final int Z_ORDER_PLACE_BITS = 4;
-  private static final int Z_ORDER_LENGTH_BITS = 5;
-  private static final int Z_ORDER_POPULATION_BITS = Z_ORDER_BITS -
-    (Z_ORDER_RANK_BITS + Z_ORDER_PLACE_BITS + Z_ORDER_LENGTH_BITS);
-  private static final int Z_ORDER_POPULATION_RANGE = (1 << Z_ORDER_POPULATION_BITS) - 1;
-  private static final double LOG_MAX_POPULATION = Math.log(100_000_000d);
-
-  // order by rank asc, place asc, population desc, name.length asc
-  static int getZorder(Integer rank, PlaceType place, long population, String name) {
-    int zorder = rank == null ? 0 : Math.max(1, 15 - rank);
-    zorder = (zorder << Z_ORDER_PLACE_BITS) | (place == null ? 0 : Math.max(1, 15 - place.ordinal()));
-    double logPop = Math.min(LOG_MAX_POPULATION, Math.log(population));
-    zorder = (zorder << Z_ORDER_POPULATION_BITS) | Math.max(0, Math.min(Z_ORDER_POPULATION_RANGE,
-      (int) Math.round(logPop * Z_ORDER_POPULATION_RANGE / LOG_MAX_POPULATION)));
-    zorder = (zorder << Z_ORDER_LENGTH_BITS) | (name == null ? 0 : Math.max(1, 31 - name.length()));
-
-    return zorder + Z_ORDER_MIN;
-  }
-
-  private static final ZoomFunction<Number> LABEL_GRID_LIMITS = ZoomFunction.fromMaxZoomThresholds(Map.of(
-    8, 4,
-    9, 8,
-    10, 12,
-    12, 14
-  ), 0);
 
   @Override
   public void process(Tables.OsmCityPoint element, FeatureCollector features) {
     Integer rank = null;
-    if (majorCityPlaces.contains(element.place())) {
+    if (MAJOR_CITY_PLACES.contains(element.place())) {
+      // only for major cities, attempt to find a nearby natural earth label with a similar
+      // name and use that to set a rank from OSM that causes the label to be shown at lower
+      // zoom levels
       try {
         Point point = element.source().worldGeometry().getCentroid();
         List<NaturalEarthPoint> neCities = cities.getWithin(point, CITY_JOIN_DISTANCE);
@@ -382,7 +360,7 @@ public class Place implements
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setAttr(Fields.CLASS, element.place())
       .setAttr(Fields.RANK, rank)
-      .setZoomRange(minzoom, 14)
+      .setMinZoom(minzoom)
       .setZorder(getZorder(rank, placeType, element.population(), element.name()))
       .setPointLabelGridPixelSize(12, 128);
 
@@ -398,8 +376,8 @@ public class Place implements
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom,
-    List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+    // infer the rank field from ordering of the place labels with each label grid square
     LongIntMap groupCounts = new LongIntHashMap();
     for (int i = items.size() - 1; i >= 0; i--) {
       VectorTile.Feature feature = items.get(i);
@@ -411,4 +389,53 @@ public class Place implements
     }
     return items;
   }
+
+  /** Ordering defines the precedence of place classes. */
+  enum PlaceType {
+    CITY("city"),
+    TOWN("town"),
+    VILLAGE("village"),
+    HAMLET("hamlet"),
+    SUBURB("suburb"),
+    QUARTER("quarter"),
+    NEIGHBORHOOD("neighbourhood"),
+    ISOLATED_DWELLING("isolated_dwelling"),
+    UNKNOWN("unknown");
+
+    private static final Map<String, PlaceType> byName = new HashMap<>();
+
+    static {
+      for (PlaceType place : values()) {
+        byName.put(place.name, place);
+      }
+    }
+
+    private final String name;
+
+    PlaceType(String name) {
+      this.name = name;
+    }
+
+    public static PlaceType forName(String name) {
+      return byName.getOrDefault(name, UNKNOWN);
+    }
+  }
+
+  /**
+   * Information extracted from a natural earth geographic region that will be inspected when joining with OpenStreetMap
+   * data.
+   */
+  private static record NaturalEarthRegion(String name, int rank) {
+
+    NaturalEarthRegion(String name, int maxRank, double... ranks) {
+      this(name, (int) Math.ceil(DoubleStream.of(ranks).average().orElse(maxRank)));
+    }
+  }
+
+  /**
+   * Information extracted from a natural earth place label that will be inspected when joining with OpenStreetMap
+   * data.
+   */
+  private static record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
 }
+

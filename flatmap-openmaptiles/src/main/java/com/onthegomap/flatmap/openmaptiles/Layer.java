@@ -1,9 +1,8 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-public interface Layer {
+import com.onthegomap.flatmap.Profile;
 
-  default void release() {
-  }
-
-  String name();
-}
+/** Interface for all vector tile layer implementations that {@link OpenMapTilesProfile} delegates to. */
+public interface Layer extends
+  Profile.ForwardingProfile.Handler,
+  Profile.ForwardingProfile.HandlerForLayer {}

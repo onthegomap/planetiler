@@ -35,8 +35,8 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.config.FlatmapConfig;
@@ -52,12 +52,28 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse
+ * Defines the logic for generating map elements for man-made land use polygons like cemeteries, zoos, and hospitals in
+ * the {@code landuse} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse">OpenMapTiles
+ * landuse sql files</a>.
  */
 public class Landuse implements
   OpenMapTilesSchema.Landuse,
   OpenMapTilesProfile.NaturalEarthProcessor,
   Tables.OsmLandusePolygon.Handler {
+
+  private static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS = ZoomFunction.fromMaxZoomThresholds(Map.of(
+    13, 4,
+    7, 2,
+    6, 1
+  ));
+  private static final Set<String> Z6_CLASSES = Set.of(
+    FieldValues.CLASS_RESIDENTIAL,
+    FieldValues.CLASS_SUBURB,
+    FieldValues.CLASS_QUARTER,
+    FieldValues.CLASS_NEIGHBOURHOOD
+  );
 
   public Landuse(Translations translations, FlatmapConfig config, Stats stats) {
   }
@@ -74,19 +90,6 @@ public class Landuse implements
     }
   }
 
-  private static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS = ZoomFunction.fromMaxZoomThresholds(Map.of(
-    13, 4,
-    7, 2,
-    6, 1
-  ));
-
-  private static final Set<String> Z6_CLASSES = Set.of(
-    FieldValues.CLASS_RESIDENTIAL,
-    FieldValues.CLASS_SUBURB,
-    FieldValues.CLASS_QUARTER,
-    FieldValues.CLASS_NEIGHBOURHOOD
-  );
-
   @Override
   public void process(Tables.OsmLandusePolygon element, FeatureCollector features) {
     String clazz = coalesce(
@@ -101,7 +104,7 @@ public class Landuse implements
       features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         .setAttr(Fields.CLASS, clazz)
         .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
-        .setZoomRange(Z6_CLASSES.contains(clazz) ? 6 : 9, 14);
+        .setMinZoom(Z6_CLASSES.contains(clazz) ? 6 : 9);
     }
   }
 }

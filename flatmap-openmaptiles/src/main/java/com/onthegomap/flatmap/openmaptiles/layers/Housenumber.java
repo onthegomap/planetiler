@@ -43,9 +43,14 @@ import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Translations;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/housenumber
+ * Defines the logic for generating map elements in the {@code housenumber} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/housenumber">OpenMapTiles
+ * housenumber sql files</a>.
  */
-public class Housenumber implements OpenMapTilesSchema.Housenumber, Tables.OsmHousenumberPoint.Handler {
+public class Housenumber implements
+  OpenMapTilesSchema.Housenumber,
+  Tables.OsmHousenumberPoint.Handler {
 
   public Housenumber(Translations translations, FlatmapConfig config, Stats stats) {
   }
@@ -55,6 +60,6 @@ public class Housenumber implements OpenMapTilesSchema.Housenumber, Tables.OsmHo
     features.centroidIfConvex(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.HOUSENUMBER, element.housenumber())
-      .setZoomRange(14, 14);
+      .setMinZoom(14);
   }
 }

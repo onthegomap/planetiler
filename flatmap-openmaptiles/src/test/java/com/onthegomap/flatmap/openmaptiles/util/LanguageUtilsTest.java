@@ -1,7 +1,7 @@
-package com.onthegomap.flatmap.openmaptiles;
+package com.onthegomap.flatmap.openmaptiles.util;
 
 import static com.onthegomap.flatmap.TestUtils.assertSubmap;
-import static com.onthegomap.flatmap.openmaptiles.LanguageUtils.isLatin;
+import static com.onthegomap.flatmap.openmaptiles.util.LanguageUtils.containsOnlyLatinCharacters;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -69,7 +69,7 @@ public class LanguageUtilsTest {
   })
   public void testIsLatin(String in, boolean isLatin) {
     if (!isLatin) {
-      assertFalse(isLatin(in));
+      assertFalse(containsOnlyLatinCharacters(in));
     } else {
       assertEquals(in, LanguageUtils.getNames(Map.of(
         "name", in

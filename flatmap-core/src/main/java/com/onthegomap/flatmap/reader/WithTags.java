@@ -15,7 +15,7 @@ public interface WithTags {
   }
 
   default Object getTag(String key, Object defaultValue) {
-    Object val = tags().get(key);
+    Object val = getTag(key);
     if (val == null) {
       return defaultValue;
     }
@@ -36,13 +36,13 @@ public interface WithTags {
     return value1.equals(actual) || value2.equals(actual);
   }
 
-  /** Returns the {@link Object#toString()} value for {@code key} or {code null} if not present. */
+  /** Returns the {@link Object#toString()} value for {@code key} or {@code null} if not present. */
   default String getString(String key) {
     Object value = getTag(key);
     return value == null ? null : value.toString();
   }
 
-  /** Returns the {@link Object#toString()} value for {@code key} or {code defaultValue} if not present. */
+  /** Returns the {@link Object#toString()} value for {@code key} or {@code defaultValue} if not present. */
   default String getString(String key, String defaultValue) {
     Object value = getTag(key, defaultValue);
     return value == null ? null : value.toString();

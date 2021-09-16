@@ -35,8 +35,8 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.elevationTags;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.elevationTags;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
@@ -44,10 +44,10 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
 import com.onthegomap.flatmap.util.Translations;
@@ -56,12 +56,23 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak
+ * Defines the logic for generating map elements for mountain peak label points in the {@code mountain_peak} layer from
+ * source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak">OpenMapTiles
+ * mountain_peak sql files</a>.
  */
 public class MountainPeak implements
   OpenMapTilesSchema.MountainPeak,
   Tables.OsmPeakPoint.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
+
+  /*
+   * Mountain peaks come from OpenStreetMap data and are ranked by importance (based on if they
+   * have a name or wikipedia page) then by elevation.  Uses the "label grid" feature to limit
+   * label density by only taking the top 5 most important mountain peaks within each 100x100px
+   * square.
+   */
 
   private final Translations translations;
   private final Stats stats;
@@ -84,7 +95,10 @@ public class MountainPeak implements
             (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0) +
             (nullIfEmpty(element.name()) != null ? 10_000 : 0)
         )
-        .setZoomRange(7, 14)
+        .setMinZoom(7)
+        // need to use a larger buffer size to allow enough points through to not cut off
+        // any label grid squares which could lead to inconsistent label ranks for a feature
+        // in adjacent tiles. postProcess() will remove anything outside the desired buffer.
         .setBufferPixels(100)
         .setPointLabelGridSizeAndLimit(13, 100, 5);
     }
@@ -97,8 +111,8 @@ public class MountainPeak implements
       VectorTile.Feature feature = items.get(i);
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
+      // now that we have accurate ranks, remove anything outside the desired buffer
       if (!insideTileBuffer(feature)) {
-        // remove from the output
         items.set(i, null);
       } else if (!feature.attrs().containsKey(Fields.RANK)) {
         feature.attrs().put(Fields.RANK, gridrank);
@@ -107,7 +121,7 @@ public class MountainPeak implements
     return items;
   }
 
-  private boolean insideTileBuffer(double xOrY) {
+  private static boolean insideTileBuffer(double xOrY) {
     return xOrY >= -BUFFER_SIZE && xOrY <= 256 + BUFFER_SIZE;
   }
 

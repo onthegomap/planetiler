@@ -1,10 +1,11 @@
-package com.onthegomap.flatmap.openmaptiles;
+package com.onthegomap.flatmap.openmaptiles.util;
 
 import com.onthegomap.flatmap.util.Parse;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
+/**
+ * Common utilities for working with data and the OpenMapTiles schema in {@code layers} implementations.
+ */
 public class Utils {
 
   public static <T> T coalesce(T a, T b) {
@@ -27,26 +28,22 @@ public class Utils {
     return a != null ? a : b != null ? b : c != null ? c : d != null ? d : e != null ? e : f;
   }
 
-  public static <T> T coalesceLazy(T a, Supplier<T> b) {
-    return a != null ? a : b.get();
-  }
-
-  public static <T, U> T coalesceLazy(T a, Function<U, T> b, U arg) {
-    return a != null ? a : b.apply(arg);
-  }
-
+  /** Returns {@code a} or {@code nullValue} if {@code a} is null. */
   public static <T> T nullIf(T a, T nullValue) {
     return nullValue.equals(a) ? null : a;
   }
 
+  /** Returns {@code a}, or null if {@code a} is "". */
   public static String nullIfEmpty(String a) {
     return (a == null || a.isEmpty()) ? null : a;
   }
 
+  /** Returns true if {@code a} is null, or its {@link Object#toString()} value is "". */
   public static boolean nullOrEmpty(Object a) {
     return a == null || a.toString().isEmpty();
   }
 
+  /** Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation in meters. */
   public static Map<String, Object> elevationTags(int meters) {
     return Map.of(
       "ele", meters,
@@ -54,16 +51,23 @@ public class Utils {
     );
   }
 
+  /**
+   * Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation string in meters, if {@code
+   * meters} can be parsed as a valid number.
+   */
   public static Map<String, Object> elevationTags(String meters) {
     Integer ele = Parse.parseIntSubstring(meters);
     return ele == null ? Map.of() : elevationTags(ele);
   }
 
+  /** Returns "bridge" or "tunnel" string used for "brunnel" attribute by OpenMapTiles schema. */
   public static String brunnel(boolean isBridge, boolean isTunnel) {
     return brunnel(isBridge, isTunnel, false);
   }
 
+  /** Returns "bridge" or "tunnel" or "ford" string used for "brunnel" attribute by OpenMapTiles schema. */
   public static String brunnel(boolean isBridge, boolean isTunnel, boolean isFord) {
     return isBridge ? "bridge" : isTunnel ? "tunnel" : isFord ? "ford" : null;
   }
+
 }

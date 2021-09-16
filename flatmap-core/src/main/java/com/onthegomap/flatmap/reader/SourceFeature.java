@@ -47,18 +47,41 @@ public abstract class SourceFeature implements WithTags {
    *
    * @param tags          string key/value pairs associated with this element
    * @param source        source name that profile can use to distinguish between  elements from different data sources
-   * @param sourceLayer   layer name within {@code source} that profile can use to dinstinguish between different kinds
+   * @param sourceLayer   layer name within {@code source} that profile can use to distinguish between different kinds
    *                      of elements in a given source.
    * @param relationInfos relations that this element is contained within
    * @param id            numeric ID of this feature within this source (i.e. an OSM element ID)
    */
   protected SourceFeature(Map<String, Object> tags, String source, String sourceLayer,
-    List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos, long id) {
+      List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos, long id) {
     this.tags = tags;
     this.source = source;
     this.sourceLayer = sourceLayer;
     this.relationInfos = relationInfos;
     this.id = id;
+  }
+
+  // slight optimization: replace default implementation with direct access to the tags
+  // map to get slightly improved performance when matching elements against expressions
+
+  @Override
+  public Object getTag(String key) {
+    return tags.get(key);
+  }
+
+  @Override
+  public boolean hasTag(String key) {
+    return tags.containsKey(key);
+  }
+
+
+  @Override
+  public Object getTag(String key, Object defaultValue) {
+    Object val = tags.get(key);
+    if (val == null) {
+      return defaultValue;
+    }
+    return val;
   }
 
   @Override
@@ -91,25 +114,25 @@ public abstract class SourceFeature implements WithTags {
   /** Returns and caches {@link Geometry#getCentroid()} of this geometry in world web mercator coordinates. */
   public final Geometry centroid() throws GeometryException {
     return centroid != null ? centroid : (centroid =
-      canBePolygon() ? polygon().getCentroid() :
-        canBeLine() ? line().getCentroid() :
-          worldGeometry().getCentroid());
+        canBePolygon() ? polygon().getCentroid() :
+            canBeLine() ? line().getCentroid() :
+                worldGeometry().getCentroid());
   }
 
   /** Returns and caches {@link Geometry#getInteriorPoint()} of this geometry in world web mercator coordinates. */
   public final Geometry pointOnSurface() throws GeometryException {
     return pointOnSurface != null ? pointOnSurface : (pointOnSurface =
-      canBePolygon() ? polygon().getInteriorPoint() :
-        canBeLine() ? line().getInteriorPoint() :
-          worldGeometry().getInteriorPoint());
+        canBePolygon() ? polygon().getInteriorPoint() :
+            canBeLine() ? line().getInteriorPoint() :
+                worldGeometry().getInteriorPoint());
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {
     if (!canBePolygon()) {
       return centroid();
     } else if (polygon() instanceof Polygon poly &&
-      poly.getNumInteriorRing() == 0 &&
-      GeoUtils.isConvex(poly.getExteriorRing())) {
+        poly.getNumInteriorRing() == 0 &&
+        GeoUtils.isConvex(poly.getExteriorRing())) {
       return centroid();
     } else { // multipolygon, polygon with holes, or concave polygon
       return pointOnSurface();
@@ -221,7 +244,7 @@ public abstract class SourceFeature implements WithTags {
    */
   public double length() throws GeometryException {
     return Double.isNaN(length) ? (length =
-      (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
+        (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
   /** Returns true if this feature can be interpreted as a {@link Point} or {@link MultiPoint}. */
@@ -264,7 +287,7 @@ public abstract class SourceFeature implements WithTags {
    */
   // TODO this should be in a specialized OSM subclass, not the generic superclass
   public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
-    Class<T> relationInfoClass) {
+      Class<T> relationInfoClass) {
     List<OsmReader.RelationMember<T>> result = null;
     if (relationInfos != null) {
       for (OsmReader.RelationMember<?> info : relationInfos) {
@@ -286,4 +309,8 @@ public abstract class SourceFeature implements WithTags {
     return id;
   }
 
+  /** Returns true if this element has any OSM relation info. */
+  public boolean hasRelationInfo() {
+    return relationInfos != null && !relationInfos.isEmpty();
+  }
 }

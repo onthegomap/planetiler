@@ -1,7 +1,9 @@
-package com.onthegomap.flatmap.openmaptiles;
+package com.onthegomap.flatmap.expression;
 
-import static com.onthegomap.flatmap.openmaptiles.Expression.*;
+import static com.onthegomap.flatmap.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -90,5 +92,13 @@ public class ExpressionTest {
       or(not(matchCD), matchCD, and(matchCD, matchCD)),
       or(not(matchCD), matchCD, and(matchCD, matchCD))
         .replace(e -> Set.of(matchAB, matchBC).contains(e), matchCD));
+  }
+
+  @Test
+  public void testContains() {
+    assertTrue(matchCD.contains(e -> e.equals(matchCD)));
+    assertTrue(or(not(matchCD)).contains(e -> e.equals(matchCD)));
+    assertFalse(matchCD.contains(e -> e.equals(matchAB)));
+    assertFalse(or(not(matchCD)).contains(e -> e.equals(matchAB)));
   }
 }

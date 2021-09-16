@@ -35,7 +35,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 
 import com.carrotsearch.hppc.LongObjectMap;
 import com.graphhopper.coll.GHLongObjectHashMap;
@@ -43,10 +43,10 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
@@ -58,16 +58,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name
+ * Defines the logic for generating map elements for ocean and lake names in the {@code water_name} layer from source
+ * features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name">OpenMapTiles
+ * water_name sql files</a>.
  */
-public class WaterName implements OpenMapTilesSchema.WaterName,
+public class WaterName implements
+  OpenMapTilesSchema.WaterName,
   Tables.OsmMarinePoint.Handler,
   Tables.OsmWaterPolygon.Handler,
   OpenMapTilesProfile.NaturalEarthProcessor,
   OpenMapTilesProfile.LakeCenterlineProcessor {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(WaterName.class);
+  /*
+   * Labels for lakes and oceans come primarily from OpenStreetMap data, but we also join
+   * with the lake centerlines source to get linestring geometries for prominent lakes.
+   * We also join with natural earth to make certain important lake/ocean labels visible
+   * at lower zoom levels.
+   */
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(WaterName.class);
+  private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
+    Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
+  private static final double LOG2 = Math.log(2);
   private final Translations translations;
   // need to synchronize updates from multiple threads
   private final LongObjectMap<Geometry> lakeCenterlines = new GHLongObjectHashMap<>();
@@ -75,32 +89,20 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
   private final ConcurrentSkipListMap<String, Integer> importantMarinePoints = new ConcurrentSkipListMap<>();
   private final Stats stats;
 
-  @Override
-  public void release() {
-    lakeCenterlines.release();
-    importantMarinePoints.clear();
-  }
-
   public WaterName(Translations translations, FlatmapConfig config, Stats stats) {
     this.translations = translations;
     this.stats = stats;
   }
 
   @Override
-  public void processNaturalEarth(String table, SourceFeature feature,
-    FeatureCollector features) {
-    if ("ne_10m_geography_marine_polys".equals(table)) {
-      String name = feature.getString("name");
-      Integer scalerank = Parse.parseIntOrNull(feature.getTag("scalerank"));
-      if (name != null && scalerank != null) {
-        name = name.replaceAll("\\s+", " ").trim().toLowerCase();
-        importantMarinePoints.put(name, scalerank);
-      }
-    }
+  public void release() {
+    lakeCenterlines.release();
+    importantMarinePoints.clear();
   }
 
   @Override
   public void processLakeCenterline(SourceFeature feature, FeatureCollector features) {
+    // TODO pull lake centerline computation into flatmap?
     long osmId = Math.abs(feature.getLong("OSM_ID"));
     if (osmId == 0L) {
       LOGGER.warn("Bad lake centerline. Tags: " + feature.tags());
@@ -117,14 +119,27 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
   }
 
   @Override
+  public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
+    // use natural earth named polygons just as a source of name to zoom-level mappings for later
+    if ("ne_10m_geography_marine_polys".equals(table)) {
+      String name = feature.getString("name");
+      Integer scalerank = Parse.parseIntOrNull(feature.getTag("scalerank"));
+      if (name != null && scalerank != null) {
+        name = name.replaceAll("\\s+", " ").trim().toLowerCase();
+        importantMarinePoints.put(name, scalerank);
+      }
+    }
+  }
+
+  @Override
   public void process(Tables.OsmMarinePoint element, FeatureCollector features) {
     if (!element.name().isBlank()) {
       String place = element.place();
       var source = element.source();
-      // use name from OSM, but min zoom from natural earth if it exists
+      // use name from OSM, but get min zoom from natural earth based on fuzzy name match...
       Integer rank = Parse.parseIntOrNull(source.getTag("rank"));
-      Integer nerank;
       String name = element.name().toLowerCase();
+      Integer nerank;
       if ((nerank = importantMarinePoints.get(name)) != null) {
         rank = nerank;
       } else if ((nerank = importantMarinePoints.get(source.getString("name:en", "").toLowerCase())) != null) {
@@ -143,13 +158,9 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
         .putAttrs(LanguageUtils.getNames(source.tags(), translations))
         .setAttr(Fields.CLASS, place)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-        .setZoomRange(minZoom, 14);
+        .setMinZoom(minZoom);
     }
   }
-
-  private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
-    Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
-  private static final double LOG2 = Math.log(2);
 
   @Override
   public void process(Tables.OsmWaterPolygon element, FeatureCollector features) {
@@ -159,9 +170,11 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
         FeatureCollector.Feature feature;
         int minzoom = 9;
         if (centerlineGeometry != null) {
+          // prefer lake centerline if it exists
           feature = features.geometry(LAYER_NAME, centerlineGeometry)
             .setMinPixelSizeBelowZoom(13, 6 * element.name().length());
         } else {
+          // otherwise just use a label point inside the lake
           feature = features.pointOnSurface(LAYER_NAME);
           Geometry geometry = element.source().worldGeometry();
           double area = geometry.getArea();
@@ -173,7 +186,7 @@ public class WaterName implements OpenMapTilesSchema.WaterName,
           .setBufferPixels(BUFFER_SIZE)
           .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
           .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-          .setZoomRange(minzoom, 14);
+          .setMinZoom(minzoom);
       } catch (GeometryException e) {
         e.log(stats, "omt_water_polygon", "Unable to get geometry for water polygon " + element.source().id());
       }

@@ -1,11 +1,13 @@
 package com.onthegomap.flatmap.openmaptiles;
 
-import static com.onthegomap.flatmap.openmaptiles.Expression.*;
+import static com.onthegomap.flatmap.expression.Expression.*;
 import static com.onthegomap.flatmap.openmaptiles.Generate.parseYaml;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.onthegomap.flatmap.expression.Expression;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +27,11 @@ public class GenerateTest {
           - value2
           - '%value3%'
       """));
-    assertEquals(MultiExpression.of(Map.of(
-      "output", or(
+    assertEquals(MultiExpression.of(List.of(
+      MultiExpression.entry("output", or(
         matchAny("key", "value"),
         matchAny("key2", "value2", "%value3%")
-      )
+      ))
     )), parsed);
   }
 
@@ -41,11 +43,11 @@ public class GenerateTest {
           key1: val1
           key2: val2
       """));
-    assertEquals(MultiExpression.of(Map.of(
-      "output", and(
+    assertEquals(MultiExpression.of(List.of(
+      MultiExpression.entry("output", and(
         matchAny("key1", "val1"),
         matchAny("key2", "val2")
-      )
+      ))
     )), parsed);
   }
 
@@ -58,14 +60,14 @@ public class GenerateTest {
             key1: val1
             key2: val2
       """));
-    assertEquals(MultiExpression.of(Map.of(
-      "output", or(
+    assertEquals(MultiExpression.of(List.of(
+      MultiExpression.entry("output", or(
         matchAny("key0", "val0"),
         and(
           matchAny("key1", "val1"),
           matchAny("key2", "val2")
         )
-      )
+      ))
     )), parsed);
   }
 
@@ -79,14 +81,14 @@ public class GenerateTest {
               key2: val2
               key3: val3
       """));
-    assertEquals(MultiExpression.of(Map.of(
-      "output", and(
+    assertEquals(MultiExpression.of(List.of(
+      MultiExpression.entry("output", and(
         matchAny("key1", "val1"),
         or(
           matchAny("key2", "val2"),
           matchAny("key3", "val3")
         )
-      )
+      ))
     )), parsed);
   }
 
@@ -97,11 +99,11 @@ public class GenerateTest {
         key1: val1
         key2:
       """));
-    assertEquals(MultiExpression.of(Map.of(
-      "output", or(
+    assertEquals(MultiExpression.of(List.of(
+      MultiExpression.entry("output", or(
         matchAny("key1", "val1"),
         matchField("key2")
-      )
+      ))
     )), parsed);
   }
 

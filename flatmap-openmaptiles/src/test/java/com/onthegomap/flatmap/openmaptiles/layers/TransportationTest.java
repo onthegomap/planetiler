@@ -270,7 +270,7 @@ public class TransportationTest extends AbstractLayerTest {
     ))));
   }
 
-  OsmElement.Relation relUS = new OsmElement.Relation(1);
+  final OsmElement.Relation relUS = new OsmElement.Relation(1);
 
   {
     relUS.setTag("type", "route");
@@ -279,7 +279,7 @@ public class TransportationTest extends AbstractLayerTest {
     relUS.setTag("ref", "3");
   }
 
-  OsmElement.Relation relMA = new OsmElement.Relation(2);
+  final OsmElement.Relation relMA = new OsmElement.Relation(2);
 
   {
     relMA.setTag("type", "route");

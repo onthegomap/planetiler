@@ -5,7 +5,7 @@ import com.graphhopper.reader.ReaderNode;
 import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.flatmap.config.FlatmapConfig;
-import com.onthegomap.flatmap.openmaptiles.MultiExpression;
+import com.onthegomap.flatmap.expression.MultiExpression;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;

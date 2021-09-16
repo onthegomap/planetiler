@@ -35,13 +35,13 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.openmaptiles.Utils.brunnel;
-import static com.onthegomap.flatmap.openmaptiles.Utils.coalesce;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIf;
-import static com.onthegomap.flatmap.openmaptiles.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwayClass;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.highwaySubclass;
 import static com.onthegomap.flatmap.openmaptiles.layers.Transportation.isFootwayOrSteps;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.brunnel;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIf;
+import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.util.MemoryEstimator.CLASS_HEADER_BYTES;
 import static com.onthegomap.flatmap.util.MemoryEstimator.POINTER_BYTES;
 import static com.onthegomap.flatmap.util.MemoryEstimator.estimateSize;
@@ -52,10 +52,10 @@ import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.openmaptiles.LanguageUtils;
 import com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
+import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
@@ -79,7 +79,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation_name
+ * Defines the logic for generating map elements for road, shipway, rail, and path names in the {@code
+ * transportation_name} layer from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation_name">OpenMapTiles
+ * transportation_name sql files</a>.
  */
 public class TransportationName implements
   OpenMapTilesSchema.TransportationName,
@@ -89,13 +93,28 @@ public class TransportationName implements
   OpenMapTilesProfile.OsmRelationPreprocessor,
   OpenMapTilesProfile.IgnoreWikidata {
 
+  /*
+   * Generate road names from OSM data.  Route network and ref are copied
+   * from relations that roads are a part of - except in Great Britain which
+   * uses a naming convention instead of relations.
+   *
+   * The goal is to make name linestrings as long as possible to give clients
+   * the best chance of showing road names at different zoom levels, so do not
+   * limit linestrings by length at process time and merge them at tile
+   * render-time.
+   *
+   * Any 3-way nodes and intersections break line merging so set the
+   * transportation_name_limit_merge argument to true to add temporary
+   * "is link" and "relation" keys to prevent opposite directions of a
+   * divided highway or on/off ramps from getting merged for main highways.
+   */
+
   // extra temp key used to group on/off-ramps separately from main highways
   private static final String LINK_TEMP_KEY = "__islink";
   private static final String RELATION_ID_TEMP_KEY = "__relid";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
   private static final Pattern GREAT_BRITAIN_REF_NETWORK_PATTERN = Pattern.compile("^[AM][0-9AM()]+");
-  private final Map<String, Integer> MINZOOMS;
   private static final ZoomFunction.MeterToPixelThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(6, 20_000)
     .put(7, 20_000)
@@ -103,15 +122,19 @@ public class TransportationName implements
     .put(9, 8_000)
     .put(10, 8_000)
     .put(11, 8_000);
-  private static final double PIXEL = 256d / 4096d;
+  private static final Comparator<RouteRelation> RELATION_ORDERING = Comparator
+    .<RouteRelation>comparingInt(r -> r.network.ordinal())
+    // TODO also compare network string?
+    .thenComparingInt(r -> r.ref.length())
+    .thenComparing(RouteRelation::ref);
+  private final Map<String, Integer> MINZOOMS;
   private final boolean brunnel;
   private final boolean sizeForShield;
   private final boolean limitMerge;
-  private final boolean z13Paths;
   private final Stats stats;
   private final FlatmapConfig config;
-  private PreparedGeometry greatBritain = null;
   private final AtomicBoolean loggedNoGb = new AtomicBoolean(false);
+  private PreparedGeometry greatBritain = null;
 
   public TransportationName(Translations translations, FlatmapConfig config, Stats stats) {
     this.config = config;
@@ -131,7 +154,7 @@ public class TransportationName implements
       "transportation_name layer: limit merge so we don't combine different relations to help merge long highways",
       false
     );
-    this.z13Paths = config.arguments().getBoolean(
+    boolean z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
       false
@@ -168,7 +191,6 @@ public class TransportationName implements
     if (relation.hasTag("route", "road")) {
       RouteNetwork networkType = null;
       String network = relation.getString("network");
-      String name = relation.getString("name");
       String ref = relation.getString("ref");
 
       if ("US:I".equals(network)) {
@@ -219,7 +241,7 @@ public class TransportationName implements
     FeatureCollector.Feature feature = features.line(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
       .setBufferPixelOverrides(MIN_LENGTH)
-      // TODO abbreviate road names
+      // TODO abbreviate road names - can't port osml10n because it is AGPL
       .putAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
@@ -229,7 +251,7 @@ public class TransportationName implements
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
       .setMinPixelSize(0)
       .setZorder(element.zOrder())
-      .setZoomRange(minzoom, 14);
+      .setMinZoom(minzoom);
 
     if (brunnel) {
       feature.setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()));
@@ -261,6 +283,8 @@ public class TransportationName implements
       .min(RELATION_ORDERING)
       .orElse(null);
     if (relation == null && ref != null) {
+      // GB doesn't use regular relations like everywhere else, so if we are
+      // in GB then use a naming convention instead.
       Matcher refMatcher = GREAT_BRITAIN_REF_NETWORK_PATTERN.matcher(ref);
       if (refMatcher.find()) {
         if (greatBritain == null) {
@@ -286,7 +310,7 @@ public class TransportationName implements
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     double tolerance = config.tolerance(zoom);
     double minLength = coalesce(MIN_LENGTH.apply(zoom), 0).doubleValue();
     // TODO tolerances:
@@ -300,6 +324,7 @@ public class TransportationName implements
           this::getMinLengthForName;
     var result = FeatureMerge.mergeLineStrings(items, lengthLimitCalculator, tolerance, BUFFER_SIZE);
     if (limitMerge) {
+      // remove temp keys that were just used to improve line merging
       for (var feature : result) {
         feature.attrs().remove(LINK_TEMP_KEY);
         feature.attrs().remove(RELATION_ID_TEMP_KEY);
@@ -308,6 +333,7 @@ public class TransportationName implements
     return result;
   }
 
+  /** Returns the minimum pixel length that a name will fit into. */
   private double getMinLengthForName(Map<String, Object> attrs) {
     Object ref = attrs.get(Fields.REF);
     Object name = coalesce(attrs.get(Fields.NAME), ref);
@@ -331,6 +357,7 @@ public class TransportationName implements
     }
   }
 
+  /** Information extracted from route relations to use when processing ways in that relation. */
   private static record RouteRelation(
     String ref,
     RouteNetwork network,
@@ -345,10 +372,4 @@ public class TransportationName implements
         MemoryEstimator.estimateSizeLong(id);
     }
   }
-
-  private static final Comparator<RouteRelation> RELATION_ORDERING = Comparator
-    .<RouteRelation>comparingInt(r -> r.network.ordinal())
-    // TODO also compare network string?
-    .thenComparingInt(r -> r.ref.length())
-    .thenComparing(RouteRelation::ref);
 }

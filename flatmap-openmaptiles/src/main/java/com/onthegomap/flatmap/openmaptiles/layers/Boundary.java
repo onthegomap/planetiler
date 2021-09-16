@@ -82,7 +82,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is ported to Java from https://github.com/openmaptiles/openmaptiles/tree/master/layers/boundary
+ * Defines the logic for generating map elements for country, state, and town boundaries in the {@code boundary} layer
+ * from source features.
+ * <p>
+ * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/boundary">OpenMapTiles
+ * boundary sql files</a>.
  */
 public class Boundary implements
   OpenMapTilesSchema.Boundary,
@@ -91,6 +95,24 @@ public class Boundary implements
   OpenMapTilesProfile.OsmAllProcessor,
   OpenMapTilesProfile.FeaturePostProcessor,
   OpenMapTilesProfile.FinishHandler {
+
+  /*
+   * Uses natural earth at lower zoom levels and OpenStreetMap at higher zoom levels.
+   *
+   * For OpenStreetMap data at higher zoom levels:
+   * 1) Preprocess relations on the first pass to extract info for relations where
+   *    type=boundary and boundary=administrative and store the admin_level for
+   *    later.
+   * 2) When processing individual ways, take the minimum (most important) admin
+   *    level of every relation they are a part of and use that as the admin level
+   *    for the way.
+   * 3) If boundary_country_names argument is true and the way is part of a country
+   *    (admin_level=2) boundary, then hold onto it for later
+   * 4) When we finish processing the OSM source, build country polygons from the
+   *    saved ways and use that to determine which country is on the left and right
+   *    side of each way, then emit the way with ADM0_L and ADM0_R keys set.
+   * 5) Before emitting boundary lines, merge linestrings with the same tags.
+   */
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Boundary.class);
   private static final double COUNTRY_TEST_OFFSET = GeoUtils.metersToPixelAtEquator(0, 10) / 256d;
@@ -195,6 +217,8 @@ public class Boundary implements
       String disputedName = null, claimedBy = null;
       Set<Long> regionIds = new HashSet<>();
       boolean disputed = false;
+      // aggregate all borders this way is a part of - take the lowest
+      // admin level, and assume it is disputed if any relation is disputed.
       for (var info : relationInfos) {
         BoundaryRelation rel = info.relation();
         disputed |= rel.disputed;
@@ -257,7 +281,7 @@ public class Boundary implements
             .setAttr(Fields.DISPUTED, disputed ? 1 : 0)
             .setAttr(Fields.MARITIME, maritime ? 1 : 0)
             .setMinPixelSizeAtAllZooms(0)
-            .setZoomRange(minzoom, 14)
+            .setMinZoom(minzoom)
             .setAttr(Fields.CLAIMED_BY, claimedBy)
             .setAttr(Fields.DISPUTED_NAME, editName(disputedName));
         }
@@ -267,7 +291,7 @@ public class Boundary implements
 
   @Override
   public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-    Consumer<FeatureCollector.Feature> next) {
+    Consumer<FeatureCollector.Feature> emit) {
     if (OpenMapTilesProfile.OSM_SOURCE.equals(sourceName)) {
       var timer = stats.startStage("boundaries");
       LongObjectMap<PreparedGeometry> countryBoundaries = prepareRegionPolygons();
@@ -293,9 +317,9 @@ public class Boundary implements
               .setAttr(Fields.ADM0_L, borderingRegions.left == null ? null : regionNames.get(borderingRegions.left))
               .setAttr(Fields.ADM0_R, borderingRegions.right == null ? null : regionNames.get(borderingRegions.right))
               .setMinPixelSizeAtAllZooms(0)
-              .setZoomRange(key.minzoom, 14);
+              .setMinZoom(key.minzoom);
             for (var feature : features) {
-              next.accept(feature);
+              emit.accept(feature);
             }
           }
         }
@@ -305,19 +329,18 @@ public class Boundary implements
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     double minLength = config.minFeatureSize(zoom);
     double tolerance = config.tolerance(zoom);
     return FeatureMerge.mergeLineStrings(items, attrs -> minLength, tolerance, BUFFER_SIZE);
   }
 
-
+  /** Returns the left and right country for {@code lineString}. */
   private BorderingRegions getBorderingRegions(
     LongObjectMap<PreparedGeometry> countryBoundaries,
     Set<Long> allRegions,
     LineString lineString
   ) {
-    Long rightCountry = null, leftCountry = null;
     Set<Long> validRegions = allRegions.stream()
       .filter(countryBoundaries::containsKey)
       .collect(Collectors.toSet());
@@ -345,15 +368,11 @@ public class Boundary implements
 
     var right = mode(rights);
     if (right != null) {
-      rightCountry = right.getKey();
-      lefts.removeAll(List.of(rightCountry));
+      lefts.removeAll(List.of(right));
     }
     var left = mode(lefts);
-    if (left != null) {
-      leftCountry = left.getKey();
-    }
 
-    if (leftCountry == null && rightCountry == null) {
+    if (left == null && right == null) {
       Coordinate point = GeoUtils.worldToLatLonCoords(GeoUtils.pointAlongOffset(lineString, 0.5, 0)).getCoordinate();
       LOGGER.warn("no left or right country for border between OSM country relations: %s around %.5f, %.5f"
         .formatted(
@@ -363,10 +382,10 @@ public class Boundary implements
         ));
     }
 
-    return new BorderingRegions(leftCountry, rightCountry);
+    return new BorderingRegions(left, right);
   }
 
-
+  /** Returns a map from region ID to prepared geometry optimized for {@code contains} queries. */
   private LongObjectMap<PreparedGeometry> prepareRegionPolygons() {
     LOGGER.info("Creating polygons for " + regionGeometries.size() + " boundaries");
     LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();
@@ -391,10 +410,12 @@ public class Boundary implements
     return countryBoundaries;
   }
 
-  private Map.Entry<Long, Long> mode(List<Long> rights) {
-    return rights.stream()
+  /** Returns most frequently-occurring element in {@code list}. */
+  private static Long mode(List<Long> list) {
+    return list.stream()
       .collect(groupingBy(Function.identity(), counting())).entrySet().stream()
       .max(Map.Entry.comparingByValue())
+      .map(Map.Entry::getKey)
       .orElse(null);
   }
 
@@ -405,6 +426,10 @@ public class Boundary implements
     }
   }
 
+  /**
+   * Minimal set of information extracted from a boundary relation to be used when processing each way in that
+   * relation.
+   */
   private static record BoundaryRelation(
     long id,
     int adminLevel,
@@ -426,6 +451,7 @@ public class Boundary implements
     }
   }
 
+  /** Information to hold onto from processing a way in a boundary relation to determine the left/right region ID later. */
   private static record CountryBoundaryComponent(
     int adminLevel,
     boolean disputed,
@@ -440,6 +466,5 @@ public class Boundary implements
     CountryBoundaryComponent groupingKey() {
       return new CountryBoundaryComponent(adminLevel, disputed, maritime, minzoom, null, regions, claimedBy, name);
     }
-
   }
 }
