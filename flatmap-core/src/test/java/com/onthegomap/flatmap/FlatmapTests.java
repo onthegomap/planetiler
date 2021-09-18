@@ -52,11 +52,15 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.io.InputStreamInStream;
 import org.locationtech.jts.io.WKBReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
  */
 public class FlatmapTests {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(FlatmapTests.class);
 
   private static final String TEST_PROFILE_NAME = "test name";
   private static final String TEST_PROFILE_DESCRIPTION = "test description";
@@ -678,6 +682,7 @@ public class FlatmapTests {
   })
   public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
     throws Exception {
+    LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
     MultiPolygon geometry = (MultiPolygon) new WKBReader()
       .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
     assertNotNull(geometry);

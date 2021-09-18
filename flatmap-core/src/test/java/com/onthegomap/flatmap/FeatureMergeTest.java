@@ -16,8 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeatureMergeTest {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMergeTest.class);
 
   private VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
     return new VectorTile.Feature(
@@ -579,8 +583,9 @@ public class FeatureMergeTest {
     "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
     "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
-  public void testMergeManyPolygons(String file, int x, int y, int z, int expected)
+  public void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
     throws IOException, GeometryException {
+    LOGGER.warn("Testing complex polygon merging for " + file + " " + z + "/" + x + "/" + y + " ...");
     try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
       byte[] tileData = db.getTile(x, y, z);
       byte[] gunzipped = TestUtils.gunzip(tileData);
