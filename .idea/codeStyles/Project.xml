@@ -99,6 +99,9 @@
         <pair source="c" header="h" />
       </extensions>
     </Objective-C-extensions>
+    <Properties>
+      <option name="KEEP_BLANK_LINES" value="true" />
+    </Properties>
     <Python>
       <option name="USE_CONTINUATION_INDENT_FOR_ARGUMENTS" value="true" />
     </Python>
