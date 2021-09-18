@@ -352,7 +352,7 @@ public class FlatmapTests {
       (in, features) -> features.point("layer")
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
-        .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
         .setPointLabelGridSizeAndLimit(13, 128, 2)
         .setBufferPixels(128)
     );
@@ -364,9 +364,9 @@ public class FlatmapTests {
         feature(newPoint(84, 128), Map.of("rank", "3"))
       ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // omit rank=1 due to label grid size
-        feature(newPoint(37, 64), Map.of("rank", "2")),
-        feature(newPoint(42, 64), Map.of("rank", "3"))
+        // omit rank=3 due to label grid size
+        feature(newPoint(32, 64), Map.of("rank", "1")),
+        feature(newPoint(37, 64), Map.of("rank", "2"))
       )
     ), results.tiles);
   }
@@ -1018,15 +1018,14 @@ public class FlatmapTests {
       (in, features) -> features.point("layer")
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
-        .setZorder(Integer.parseInt(in.getTag("rank").toString()))
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
         .setPointLabelGridPixelSize(13, 8)
         .setBufferPixels(8),
       (layer, zoom, items) -> {
         if ("layer".equals(layer) && zoom == 13) {
           List<VectorTile.Feature> result = new ArrayList<>(items.size());
           Map<Long, Integer> rankInGroup = new HashMap<>();
-          for (int i = items.size() - 1; i >= 0; i--) {
-            var item = items.get(i);
+          for (var item : items) {
             result.add(item.copyWithExtraAttrs(Map.of(
               "grouprank", rankInGroup.merge(item.group(), 1, Integer::sum)
             )));
@@ -1045,10 +1044,10 @@ public class FlatmapTests {
         feature(newPoint(84, 128), Map.of("rank", "3"))
       ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L)),
+        feature(newPoint(32, 64), Map.of("rank", "1", "grouprank", 1L)),
+        feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 2L)),
         // separate group
-        feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 1L)),
-        feature(newPoint(32, 64), Map.of("rank", "1", "grouprank", 2L))
+        feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L))
       )
     ), results.tiles);
   }

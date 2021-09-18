@@ -291,7 +291,7 @@ class ExternalMergeSort implements FeatureSort {
 
     private static void write(DataOutputStream out, SortableFeature entry) throws IOException {
       // feature header
-      out.writeLong(entry.sortKey());
+      out.writeLong(entry.key());
       out.writeInt(entry.value().length);
       // value
       out.write(entry.value());

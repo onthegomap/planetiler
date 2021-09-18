@@ -10,7 +10,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A utility that accepts {@link SortableFeature} instances in any order and lets you iterate through them ordered by
- * {@link SortableFeature#sortKey()}.
+ * {@link SortableFeature#key()}.
  * <p>
  * Only supports single-threaded writes and reads.
  */

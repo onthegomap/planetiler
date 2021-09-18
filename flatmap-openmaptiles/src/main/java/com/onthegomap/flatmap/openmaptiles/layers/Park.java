@@ -35,8 +35,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_BITS;
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
+import static com.onthegomap.flatmap.collection.FeatureGroup.SORT_KEY_BITS;
 import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 
@@ -53,6 +52,7 @@ import com.onthegomap.flatmap.openmaptiles.generated.OpenMapTilesSchema;
 import com.onthegomap.flatmap.openmaptiles.generated.Tables;
 import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.stats.Stats;
+import com.onthegomap.flatmap.util.SortKey;
 import com.onthegomap.flatmap.util.Translations;
 import java.util.List;
 import java.util.Locale;
@@ -69,16 +69,16 @@ public class Park implements
   Tables.OsmParkPolygon.Handler,
   OpenMapTilesProfile.FeaturePostProcessor {
 
-  // constants for packing the minimum zoom ordering of park labels into the z-order field
-  private static final int PARK_NATIONAL_PARK_BOOST = 1 << (Z_ORDER_BITS - 1);
-  private static final int PARK_WIKIPEDIA_BOOST = 1 << (Z_ORDER_BITS - 2);
+  // constants for packing the minimum zoom ordering of park labels into the sort-key field
+  private static final int PARK_NATIONAL_PARK_BOOST = 1 << (SORT_KEY_BITS - 1);
+  private static final int PARK_WIKIPEDIA_BOOST = 1 << (SORT_KEY_BITS - 2);
 
   // constants for determining the minimum zoom level for a park label based on its area
   private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
     Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
   private static final double LOG2 = Math.log(2);
-  private static final int PARK_AREA_RANGE = 1 << (Z_ORDER_BITS - 3);
-  private static final double PARK_LOG_RANGE = Math.log(Math.pow(4, 26)); // 2^14 tiles, 2^12 pixels per tile
+  private static final int PARK_AREA_RANGE = 1 << (SORT_KEY_BITS - 3);
+  private static final double SMALLEST_PARK_WORLD_AREA = Math.pow(4, -26); // 2^14 tiles, 2^12 pixels per tile
 
   private final Translations translations;
   private final Stats stats;
@@ -110,20 +110,17 @@ public class Park implements
     if (element.name() != null) {
       try {
         double area = element.source().area();
-        int minzoom = (int) Math.floor(20 - Math.log(area / WORLD_AREA_FOR_70K_SQUARE_METERS) / LOG2);
-        double logWorldArea = Math.min(1d, Math.max(0d, (Math.log(area) + PARK_LOG_RANGE) / PARK_LOG_RANGE));
-        int areaBoost = (int) (logWorldArea * PARK_AREA_RANGE);
-        minzoom = Math.min(14, Math.max(6, minzoom));
+        int minzoom = getMinZoomForArea(area);
 
         features.centroid(LAYER_NAME).setBufferPixels(256)
           .setAttr(Fields.CLASS, clazz)
           .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
           .setPointLabelGridPixelSize(14, 100)
-          .setZorder(Z_ORDER_MIN +
-            ("national_park".equals(clazz) ? PARK_NATIONAL_PARK_BOOST : 0) +
-            ((element.source().hasTag("wikipedia") || element.source().hasTag("wikidata")) ? PARK_WIKIPEDIA_BOOST
-              : 0) +
-            areaBoost
+          .setSortKey(SortKey
+            .orderByTruesFirst("national_park".equals(clazz))
+            .thenByTruesFirst(element.source().hasTag("wikipedia") || element.source().hasTag("wikidata"))
+            .thenByLog(area, 1d, SMALLEST_PARK_WORLD_AREA, 1 << (SORT_KEY_BITS - 2) - 1)
+            .get()
           ).setMinZoom(minzoom);
       } catch (GeometryException e) {
         e.log(stats, "omt_park_area", "Unable to get park area for " + element.source().id());
@@ -131,12 +128,19 @@ public class Park implements
     }
   }
 
+  private int getMinZoomForArea(double area) {
+    // sql filter:    area > 70000*2^(20-zoom_level)
+    // simplifies to: zoom_level > 20 - log(area / 70000) / log(2)
+    int minzoom = (int) Math.floor(20 - Math.log(area / WORLD_AREA_FOR_70K_SQUARE_METERS) / LOG2);
+    minzoom = Math.min(14, Math.max(6, minzoom));
+    return minzoom;
+  }
+
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     // infer the "rank" attribute from point ordering within each label grid square
     LongIntMap counts = new LongIntHashMap();
-    for (int i = items.size() - 1; i >= 0; i--) {
-      var feature = items.get(i);
+    for (VectorTile.Feature feature : items) {
       if (feature.geometry().geomType() == GeometryType.POINT && feature.hasGroup()) {
         int count = counts.getOrDefault(feature.group(), 0) + 1;
         feature.attrs().put("rank", count);

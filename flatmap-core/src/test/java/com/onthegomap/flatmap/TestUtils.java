@@ -385,7 +385,7 @@ public class TestUtils {
     result.put("_maxzoom", feature.getMaxZoom());
     result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));
     result.put("_layer", feature.getLayer());
-    result.put("_zorder", feature.getZorder());
+    result.put("_sortkey", feature.getSortKey());
     result.put("_geom", new NormGeometry(geom));
     result.put("_labelgrid_limit", feature.getPointLabelGridLimitAtZoom(zoom));
     result.put("_labelgrid_size", feature.getPointLabelGridPixelSizeAtZoom(zoom));

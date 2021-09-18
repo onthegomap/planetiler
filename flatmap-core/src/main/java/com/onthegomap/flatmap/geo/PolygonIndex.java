@@ -60,8 +60,8 @@ public class PolygonIndex<T> {
 
   private List<T> postFilterContaining(Point point, List<?> items) {
     List<T> result = new ArrayList<>(items.size());
-    for (int i = 0; i < items.size(); i++) {
-      if (items.get(i) instanceof GeomWithData<?> value && value.poly.contains(point)) {
+    for (Object item : items) {
+      if (item instanceof GeomWithData<?> value && value.poly.contains(point)) {
         @SuppressWarnings("unchecked") T t = (T) value.data;
         result.add(t);
       }
@@ -89,8 +89,8 @@ public class PolygonIndex<T> {
     if (result.isEmpty()) {
       double nearest = Double.MAX_VALUE;
       T nearestValue = null;
-      for (int i = 0; i < items.size(); i++) {
-        if (items.get(i) instanceof GeomWithData<?> value) {
+      for (Object item : items) {
+        if (item instanceof GeomWithData<?> value) {
           double distance = value.poly.distance(point);
           if (distance < nearest) {
             @SuppressWarnings("unchecked") T t = (T) value.data;

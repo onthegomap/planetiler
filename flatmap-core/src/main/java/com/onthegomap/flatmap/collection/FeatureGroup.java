@@ -47,10 +47,10 @@ import org.slf4j.LoggerFactory;
 public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<FeatureGroup.TileFeatures>,
   DiskBacked {
 
-  public static final int Z_ORDER_BITS = 23;
-  public static final int Z_ORDER_MAX = (1 << (Z_ORDER_BITS - 1)) - 1;
-  public static final int Z_ORDER_MIN = -(1 << (Z_ORDER_BITS - 1));
-  private static final int Z_ORDER_MASK = (1 << Z_ORDER_BITS) - 1;
+  public static final int SORT_KEY_BITS = 23;
+  public static final int SORT_KEY_MAX = (1 << (SORT_KEY_BITS - 1)) - 1;
+  public static final int SORT_KEY_MIN = -(1 << (SORT_KEY_BITS - 1));
+  private static final int SORT_KEY_MASK = (1 << SORT_KEY_BITS) - 1;
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
   private final FeatureSort sorter;
   private final Profile profile;
@@ -87,29 +87,30 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   }
 
   /**
-   * Encode sort key by tile asc, layer asc, z-order asc with an extra bit to indicate whether the value contains
-   * grouping information.
+   * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to indicate whether the
+   * value contains grouping information.
    */
-  static long encodeSortKey(int tile, byte layer, int zOrder, boolean hasGroup) {
-    zOrder = -zOrder - 1;
-    return ((long) tile << 32L) | ((long) (layer & 0xff) << 24L) | (((zOrder - Z_ORDER_MIN) & Z_ORDER_MASK) << 1L) | (
-      hasGroup ? 1 : 0);
+  static long encodeKey(int tile, byte layer, int sortKey, boolean hasGroup) {
+    return ((long) tile << 32L)
+      | ((long) (layer & 0xff) << 24L)
+      | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L)
+      | (hasGroup ? 1 : 0);
   }
 
-  static boolean extractHasGroupFromSortKey(long sortKey) {
-    return (sortKey & 1) == 1;
+  static boolean extractHasGroupFromKey(long key) {
+    return (key & 1) == 1;
   }
 
-  static int extractTileFromSortKey(long sortKey) {
-    return (int) (sortKey >> 32L);
+  static int extractTileFromKey(long key) {
+    return (int) (key >> 32L);
   }
 
-  static byte extractLayerIdFromSortKey(long sortKey) {
-    return (byte) (sortKey >> 24);
+  static byte extractLayerIdFromKey(long key) {
+    return (byte) (key >> 24);
   }
 
-  static int extractZorderFromKey(long sortKey) {
-    return Z_ORDER_MAX - ((int) ((sortKey >> 1) & Z_ORDER_MASK));
+  static int extractSortKeyFromKey(long key) {
+    return ((int) ((key >> 1) & SORT_KEY_MASK)) + SORT_KEY_MIN;
   }
 
   private static RenderedFeature.Group peekAtGroupInfo(byte[] encoded) {
@@ -163,18 +164,18 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
           lastEncodedValue = encodedValue = encodeValue(feature.vectorTileFeature(), null, packer);
         }
 
-        return new SortableFeature(encodeSortKey(feature), encodedValue);
+        return new SortableFeature(encodeKey(feature), encodedValue);
       }
     };
   }
 
-  private long encodeSortKey(RenderedFeature feature) {
+  private long encodeKey(RenderedFeature feature) {
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonStrings.encode(vectorTileFeature.layer());
-    return encodeSortKey(
+    return encodeKey(
       feature.tile().encoded(),
       encodedLayer,
-      feature.zOrder(),
+      feature.sortKey(),
       feature.group().isPresent()
     );
   }
@@ -230,7 +231,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
     try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
       long group;
-      if (extractHasGroupFromSortKey(entry.sortKey())) {
+      if (extractHasGroupFromKey(entry.key())) {
         group = unpacker.unpackLong();
         unpacker.unpackInt(); // groupLimit - features over the limit were already discarded
       } else {
@@ -258,7 +259,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       for (int i = 0; i < commandSize; i++) {
         commands[i] = unpacker.unpackInt();
       }
-      String layer = commonStrings.decode(extractLayerIdFromSortKey(entry.sortKey()));
+      String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
       return new VectorTile.Feature(
         layer,
         id,
@@ -295,7 +296,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     SortableFeature firstFeature = entries.next();
     return new Iterator<>() {
       private SortableFeature lastFeature = firstFeature;
-      private int lastTileId = extractTileFromSortKey(firstFeature.sortKey());
+      private int lastTileId = extractTileFromKey(firstFeature.key());
 
       @Override
       public boolean hasNext() {
@@ -311,7 +312,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         while (entries.hasNext()) {
           SortableFeature next = entries.next();
           lastFeature = next;
-          lastTileId = extractTileFromSortKey(lastFeature.sortKey());
+          lastTileId = extractTileFromKey(lastFeature.key());
           if (lastTile != lastTileId) {
             return result;
           }
@@ -380,8 +381,8 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       for (int i = 0; i < entries.size(); i++) {
         SortableFeature a = entries.get(i);
         SortableFeature b = other.entries.get(i);
-        long layerA = extractLayerIdFromSortKey(a.sortKey());
-        long layerB = extractLayerIdFromSortKey(b.sortKey());
+        long layerA = extractLayerIdFromKey(a.key());
+        long layerB = extractLayerIdFromKey(b.key());
         if (layerA != layerB || !Arrays.equals(a.value(), b.value())) {
           return false;
         }
@@ -393,10 +394,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       VectorTile encoder = new VectorTile();
       List<VectorTile.Feature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
-      // they were sorted by z-order descending, so we could limit to only the top items, so reverse them now
-      for (int index = entries.size() - 1; index >= 0; index--) {
-        SortableFeature entry = entries.get(index);
-
+      for (SortableFeature entry : entries) {
         var feature = decodeVectorTileFeature(entry);
         String layer = feature.layer();
 
@@ -440,9 +438,9 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
 
     void add(SortableFeature entry) {
       numFeaturesProcessed.incrementAndGet();
-      long sortKey = entry.sortKey();
-      if (extractHasGroupFromSortKey(sortKey)) {
-        byte thisLayer = extractLayerIdFromSortKey(sortKey);
+      long key = entry.key();
+      if (extractHasGroupFromKey(key)) {
+        byte thisLayer = extractLayerIdFromKey(key);
         if (counts == null) {
           counts = new GHLongLongHashMap();
           layer = thisLayer;

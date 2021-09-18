@@ -2,11 +2,11 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static com.onthegomap.flatmap.TestUtils.rectangle;
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MAX;
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
+import static com.onthegomap.flatmap.collection.FeatureGroup.SORT_KEY_MAX;
+import static com.onthegomap.flatmap.collection.FeatureGroup.SORT_KEY_MIN;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.NATURAL_EARTH_SOURCE;
 import static com.onthegomap.flatmap.openmaptiles.OpenMapTilesProfile.OSM_SOURCE;
-import static com.onthegomap.flatmap.openmaptiles.layers.Place.getZorder;
+import static com.onthegomap.flatmap.openmaptiles.layers.Place.getSortKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -252,37 +252,37 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPlaceZorderRanking() {
-    int[] zorders = new int[]{
+  public void testPlaceSortKeyRanking() {
+    int[] sortKeys = new int[]{
       // max
-      getZorder(0, Place.PlaceType.CITY, 1_000_000_000, "name"),
+      getSortKey(0, Place.PlaceType.CITY, 1_000_000_000, "name"),
 
-      getZorder(0, Place.PlaceType.CITY, 1_000_000_000, "name longer"),
-      getZorder(0, Place.PlaceType.CITY, 1_000_000_000, "x".repeat(32)),
+      getSortKey(0, Place.PlaceType.CITY, 1_000_000_000, "name longer"),
+      getSortKey(0, Place.PlaceType.CITY, 1_000_000_000, "x".repeat(32)),
 
-      getZorder(0, Place.PlaceType.CITY, 10_000_000, "name"),
-      getZorder(0, Place.PlaceType.CITY, 0, "name"),
+      getSortKey(0, Place.PlaceType.CITY, 10_000_000, "name"),
+      getSortKey(0, Place.PlaceType.CITY, 0, "name"),
 
-      getZorder(0, Place.PlaceType.TOWN, 1_000_000_000, "name"),
-      getZorder(0, Place.PlaceType.ISOLATED_DWELLING, 1_000_000_000, "name"),
-      getZorder(0, null, 1_000_000_000, "name"),
+      getSortKey(0, Place.PlaceType.TOWN, 1_000_000_000, "name"),
+      getSortKey(0, Place.PlaceType.ISOLATED_DWELLING, 1_000_000_000, "name"),
+      getSortKey(0, null, 1_000_000_000, "name"),
 
-      getZorder(1, Place.PlaceType.CITY, 1_000_000_000, "name"),
-      getZorder(10, Place.PlaceType.CITY, 1_000_000_000, "name"),
-      getZorder(null, Place.PlaceType.CITY, 1_000_000_000, "name"),
+      getSortKey(1, Place.PlaceType.CITY, 1_000_000_000, "name"),
+      getSortKey(10, Place.PlaceType.CITY, 1_000_000_000, "name"),
+      getSortKey(null, Place.PlaceType.CITY, 1_000_000_000, "name"),
 
       // min
-      getZorder(null, null, 0, null),
+      getSortKey(null, null, 0, null),
     };
-    for (int i = 0; i < zorders.length; i++) {
-      if (zorders[i] < Z_ORDER_MIN) {
-        fail("Item at index " + i + " is < " + Z_ORDER_MIN + ": " + zorders[i]);
+    for (int i = 0; i < sortKeys.length; i++) {
+      if (sortKeys[i] < SORT_KEY_MIN) {
+        fail("Item at index " + i + " is < " + SORT_KEY_MIN + ": " + sortKeys[i]);
       }
-      if (zorders[i] > Z_ORDER_MAX) {
-        fail("Item at index " + i + " is > " + Z_ORDER_MAX + ": " + zorders[i]);
+      if (sortKeys[i] > SORT_KEY_MAX) {
+        fail("Item at index " + i + " is > " + SORT_KEY_MAX + ": " + sortKeys[i]);
       }
     }
-    assertDescending(zorders);
+    assertAscending(sortKeys);
   }
 
   @Test
@@ -453,11 +453,11 @@ public class PlaceTest extends AbstractLayerTest {
     assertEquals(List.of(
       pointFeature(
         layerName,
-        Map.of("rank", 12, "name", "a"),
+        Map.of("rank", 11, "name", "a"),
         1
       ), pointFeature(
         layerName,
-        Map.of("rank", 11, "name", "b"),
+        Map.of("rank", 12, "name", "b"),
         1
       ), pointFeature(
         layerName,

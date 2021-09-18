@@ -2,17 +2,17 @@ package com.onthegomap.flatmap.collection;
 
 import java.util.Arrays;
 
-public record SortableFeature(long sortKey, byte[] value) implements Comparable<SortableFeature> {
+public record SortableFeature(long key, byte[] value) implements Comparable<SortableFeature> {
 
   @Override
   public int compareTo(SortableFeature o) {
-    return Long.compare(sortKey, o.sortKey);
+    return Long.compare(key, o.key);
   }
 
   @Override
   public String toString() {
     return "SortableFeature{" +
-      "sortKey=" + sortKey +
+      "key=" + key +
       ", value=" + Arrays.toString(value) +
       '}';
   }
@@ -28,7 +28,7 @@ public record SortableFeature(long sortKey, byte[] value) implements Comparable<
 
     SortableFeature entry = (SortableFeature) o;
 
-    if (sortKey != entry.sortKey) {
+    if (key != entry.key) {
       return false;
     }
     return Arrays.equals(value, entry.value);
@@ -36,7 +36,7 @@ public record SortableFeature(long sortKey, byte[] value) implements Comparable<
 
   @Override
   public int hashCode() {
-    int result = (int) (sortKey ^ (sortKey >>> 32));
+    int result = (int) (key ^ (key >>> 32));
     result = 31 * result + Arrays.hashCode(value);
     return result;
   }

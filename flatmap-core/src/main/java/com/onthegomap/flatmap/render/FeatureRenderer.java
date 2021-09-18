@@ -131,14 +131,14 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         attrs,
         groupInfo == null ? VectorTile.Feature.NO_GROUP : groupInfo.group()
       ),
-      feature.getZorder(),
+      feature.getSortKey(),
       Optional.ofNullable(groupInfo)
     ));
   }
 
   private void renderPoint(FeatureCollector.Feature feature, MultiPoint points) {
     /*
-     * Attempt to encode multipoints as a single feature sharing attributes and z-order
+     * Attempt to encode multipoints as a single feature sharing attributes and sort-key
      * but if it has label grid data then need to fall back to separate features per point,
      * so they can be filtered individually.
      */
@@ -253,7 +253,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       consumer.accept(new RenderedFeature(
         tile,
         vectorTileFeature,
-        feature.getZorder(),
+        feature.getSortKey(),
         groupInfo
       ));
       emitted++;

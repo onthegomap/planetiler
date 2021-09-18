@@ -55,8 +55,8 @@ public class PointIndex<T> {
     List<?> items = index.query(envelope);
     List<T> result = new ArrayList<>(items.size());
     // then post-filter by circular radius
-    for (int i = 0; i < items.size(); i++) {
-      if (items.get(i) instanceof GeomWithData<?> value) {
+    for (Object item : items) {
+      if (item instanceof GeomWithData<?> value) {
         double distance = value.coord.distance(coord);
         if (distance <= threshold) {
           @SuppressWarnings("unchecked") T t = (T) value.data;
@@ -76,8 +76,8 @@ public class PointIndex<T> {
     List<?> items = index.query(envelope);
     double nearestDistance = Double.MAX_VALUE;
     T nearestValue = null;
-    for (int i = 0; i < items.size(); i++) {
-      if (items.get(i) instanceof GeomWithData<?> value) {
+    for (Object item : items) {
+      if (item instanceof GeomWithData<?> value) {
         double distance = value.coord.distance(coord);
         if (distance < nearestDistance) {
           @SuppressWarnings("unchecked") T t = (T) value.data;

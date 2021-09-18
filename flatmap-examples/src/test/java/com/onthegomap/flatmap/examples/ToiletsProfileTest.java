@@ -36,7 +36,7 @@ public class ToiletsProfileTest {
     assertEquals(Map.of(), feature.getAttrsAtZoom(14));
     assertEquals(0, feature.getMinZoom());
     assertEquals(14, feature.getMaxZoom());
-    assertEquals(1, feature.getZorder());
+    assertEquals(1, feature.getSortKey());
 
     // at z12 - use label grid to limit output
     assertEquals(4, feature.getPointLabelGridLimitAtZoom(12));

@@ -22,6 +22,7 @@ import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.Wikidata;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,17 @@ public abstract class AbstractLayerTest {
     for (int i = 1; i < vals.length; i++) {
       if (vals[i - 1] < vals[i]) {
         fail("element at " + (i - 1) + " is less than element at " + i);
+      }
+    }
+  }
+
+  static void assertAscending(int... vals) {
+    for (int i = 1; i < vals.length; i++) {
+      if (vals[i - 1] > vals[i]) {
+        fail(
+          Arrays.toString(vals) +
+            "\nelement at " + (i - 1) + " (" + vals[i - 1] + ") is greater than element at " + i + " (" + vals[i]
+            + ")");
       }
     }
   }

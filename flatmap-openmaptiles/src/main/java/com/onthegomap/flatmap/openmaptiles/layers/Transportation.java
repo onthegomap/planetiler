@@ -235,7 +235,7 @@ public class Transportation implements
         .setAttrWithMinzoom(Fields.MTB_SCALE, nullIfEmpty(element.mtbScale()), 9)
         .setAttrWithMinzoom(Fields.SURFACE, surface(element.surface()), 12)
         .setMinPixelSize(0) // merge during post-processing, then limit by size
-        .setZorder(element.zOrder())
+        .setSortKey(element.zOrder())
         .setMinZoom(minzoom);
 
       if (isFootwayOrSteps(highway)) {
@@ -272,7 +272,7 @@ public class Transportation implements
         .setAttr(Fields.RAMP, element.isRamp() ? 1 : 0)
         .setAttrWithMinzoom(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()), 10)
         .setAttrWithMinzoom(Fields.LAYER, nullIf(element.layer(), 0), 9)
-        .setZorder(element.zOrder())
+        .setSortKey(element.zOrder())
         .setMinZoom(minzoom);
     }
   }
@@ -287,7 +287,7 @@ public class Transportation implements
       .setAttr(Fields.RAMP, element.isRamp() ? 1 : 0)
       .setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()))
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
-      .setZorder(element.zOrder())
+      .setSortKey(element.zOrder())
       .setMinZoom(12);
   }
 
@@ -301,7 +301,7 @@ public class Transportation implements
       .setAttr(Fields.RAMP, element.isRamp() ? 1 : 0)
       .setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()))
       .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
-      .setZorder(element.zOrder())
+      .setSortKey(element.zOrder())
       .setMinZoom(11);
   }
 
@@ -318,7 +318,7 @@ public class Transportation implements
           .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, element.publicTransport(), element.highway()))
           .setAttr(Fields.BRUNNEL, brunnel("bridge".equals(manMade), false, false))
           .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
-          .setZorder(element.zOrder())
+          .setSortKey(element.zOrder())
           .setMinZoom(13);
       }
     }

@@ -90,7 +90,7 @@ public class MountainPeak implements
         .setAttr(Fields.CLASS, element.source().getTag("natural"))
         .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .putAttrs(elevationTags(meters))
-        .setZorder(
+        .setSortKeyDescending(
           meters +
             (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0) +
             (nullIfEmpty(element.name()) != null ? 10_000 : 0)
@@ -107,7 +107,7 @@ public class MountainPeak implements
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     LongIntMap groupCounts = new LongIntHashMap();
-    for (int i = items.size() - 1; i >= 0; i--) {
+    for (int i = 0; i < items.size(); i++) {
       VectorTile.Feature feature = items.get(i);
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);

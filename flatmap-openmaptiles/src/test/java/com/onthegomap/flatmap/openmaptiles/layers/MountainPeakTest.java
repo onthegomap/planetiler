@@ -2,7 +2,6 @@ package com.onthegomap.flatmap.openmaptiles.layers;
 
 import static com.onthegomap.flatmap.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.google.common.collect.Lists;
 import com.onthegomap.flatmap.VectorTile;
@@ -10,104 +9,116 @@ import com.onthegomap.flatmap.geo.GeometryException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
 
 public class MountainPeakTest extends AbstractLayerTest {
 
-  @TestFactory
-  public List<DynamicTest> mountainPeakProcessing() {
+  @BeforeEach
+  public void setupWikidataTranslation() {
     wikidataTranslations.put(123, "es", "es wd name");
-    return List.of(
-      dynamicTest("happy path", () -> {
-        var peak = process(pointFeature(Map.of(
-          "natural", "peak",
-          "name", "test",
-          "ele", "100",
-          "wikidata", "Q123"
-        )));
-        assertFeatures(14, List.of(Map.of(
-          "class", "peak",
-          "ele", 100,
-          "ele_ft", 328,
+  }
 
-          "_layer", "mountain_peak",
-          "_type", "point",
-          "_minzoom", 7,
-          "_maxzoom", 14,
-          "_buffer", 100d
-        )), peak);
-        assertFeatures(14, List.of(Map.of(
-          "name:latin", "test",
-          "name", "test",
-          "name:es", "es wd name"
-        )), peak);
-      }),
+  @Test
+  public void testHappyPath() {
+    var peak = process(pointFeature(Map.of(
+      "natural", "peak",
+      "name", "test",
+      "ele", "100",
+      "wikidata", "Q123"
+    )));
+    assertFeatures(14, List.of(Map.of(
+      "class", "peak",
+      "ele", 100,
+      "ele_ft", 328,
 
-      dynamicTest("labelgrid", () -> {
-        var peak = process(pointFeature(Map.of(
-          "natural", "peak",
-          "ele", "100"
-        )));
-        assertFeatures(14, List.of(Map.of(
-          "_labelgrid_limit", 0
-        )), peak);
-        assertFeatures(13, List.of(Map.of(
-          "_labelgrid_limit", 5,
-          "_labelgrid_size", 100d
-        )), peak);
-      }),
+      "_layer", "mountain_peak",
+      "_type", "point",
+      "_minzoom", 7,
+      "_maxzoom", 14,
+      "_buffer", 100d
+    )), peak);
+    assertFeatures(14, List.of(Map.of(
+      "name:latin", "test",
+      "name", "test",
+      "name:es", "es wd name"
+    )), peak);
+  }
 
-      dynamicTest("volcano", () ->
-        assertFeatures(14, List.of(Map.of(
-          "class", "volcano"
-        )), process(pointFeature(Map.of(
-          "natural", "volcano",
-          "ele", "100"
-        ))))),
+  @Test
+  public void testLabelGrid() {
+    var peak = process(pointFeature(Map.of(
+      "natural", "peak",
+      "ele", "100"
+    )));
+    assertFeatures(14, List.of(Map.of(
+      "_labelgrid_limit", 0
+    )), peak);
+    assertFeatures(13, List.of(Map.of(
+      "_labelgrid_limit", 5,
+      "_labelgrid_size", 100d
+    )), peak);
+  }
 
-      dynamicTest("no elevation", () ->
-        assertFeatures(14, List.of(), process(pointFeature(Map.of(
-          "natural", "volcano"
-        ))))),
+  @Test
+  public void testVolcano() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "volcano"
+    )), process(pointFeature(Map.of(
+      "natural", "volcano",
+      "ele", "100"
+    ))));
+  }
 
-      dynamicTest("bogus elevation", () ->
-        assertFeatures(14, List.of(), process(pointFeature(Map.of(
-          "natural", "volcano",
-          "ele", "11000"
-        ))))),
+  @Test
+  public void testNoElevation() {
+    assertFeatures(14, List.of(), process(pointFeature(Map.of(
+      "natural", "volcano"
+    ))));
+  }
 
-      dynamicTest("ignore lines", () ->
-        assertFeatures(14, List.of(), process(lineFeature(Map.of(
-          "natural", "peak",
-          "name", "name",
-          "ele", "100"
-        ))))),
+  @Test
+  public void testBogusElevation() {
+    assertFeatures(14, List.of(), process(pointFeature(Map.of(
+      "natural", "volcano",
+      "ele", "11000"
+    ))));
+  }
 
-      dynamicTest("zorder", () -> {
-        assertFeatures(14, List.of(Map.of(
-          "_zorder", 100
-        )), process(pointFeature(Map.of(
-          "natural", "peak",
-          "ele", "100"
-        ))));
-        assertFeatures(14, List.of(Map.of(
-          "_zorder", 10100
-        )), process(pointFeature(Map.of(
-          "natural", "peak",
-          "name", "name",
-          "ele", "100"
-        ))));
-        assertFeatures(14, List.of(Map.of(
-          "_zorder", 20100
-        )), process(pointFeature(Map.of(
-          "natural", "peak",
-          "name", "name",
-          "wikipedia", "wikilink",
-          "ele", "100"
-        ))));
-      })
+  @Test
+  public void testIgnoreLines() {
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "natural", "peak",
+      "name", "name",
+      "ele", "100"
+    ))));
+  }
+
+  private int getSortKey(Map<String, Object> tags) {
+    return process(pointFeature(Map.of(
+      "natural", "peak",
+      "ele", "100"
+    ))).iterator().next().getSortKey();
+  }
+
+  @Test
+  public void testSortKey() {
+    assertAscending(
+      getSortKey(Map.of(
+        "natural", "peak",
+        "name", "name",
+        "wikipedia", "wikilink",
+        "ele", "100"
+      )),
+      getSortKey(Map.of(
+        "natural", "peak",
+        "name", "name",
+        "ele", "100"
+      )),
+      getSortKey(Map.of(
+        "natural", "peak",
+        "ele", "100"
+      ))
     );
   }
 
@@ -128,11 +139,11 @@ public class MountainPeakTest extends AbstractLayerTest {
     assertEquals(List.of(
       pointFeature(
         MountainPeak.LAYER_NAME,
-        Map.of("rank", 2, "name", "a"),
+        Map.of("rank", 1, "name", "a"),
         1
       ), pointFeature(
         MountainPeak.LAYER_NAME,
-        Map.of("rank", 1, "name", "b"),
+        Map.of("rank", 2, "name", "b"),
         1
       ), pointFeature(
         MountainPeak.LAYER_NAME,
@@ -165,7 +176,7 @@ public class MountainPeakTest extends AbstractLayerTest {
         MountainPeak.LAYER_NAME,
         1,
         VectorTile.encodeGeometry(newPoint(-64, -64)),
-        Map.of("rank", 2),
+        Map.of("rank", 1),
         1
       ),
       null,
@@ -173,7 +184,7 @@ public class MountainPeakTest extends AbstractLayerTest {
         MountainPeak.LAYER_NAME,
         3,
         VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
-        Map.of("rank", 2),
+        Map.of("rank", 1),
         2
       ),
       null

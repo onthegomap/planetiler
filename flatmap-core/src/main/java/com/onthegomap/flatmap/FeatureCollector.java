@@ -1,5 +1,6 @@
 package com.onthegomap.flatmap;
 
+import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
@@ -185,7 +186,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * A builder for an output map feature that contains all the information that will be needed to render vector tile
    * features from the input element.
    * <p>
-   * Some feature attributes are set globally (like z-order), and some allow the value to change by zoom-level (like
+   * Some feature attributes are set globally (like sort key), and some allow the value to change by zoom-level (like
    * tags).
    */
   public final class Feature {
@@ -199,7 +200,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private final GeometryType geometryType;
     private final long sourceId;
 
-    private int zOrder = 0;
+    private int sortKey = 0;
 
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
@@ -245,20 +246,35 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the sort order of this feature in the output vector tile where features with higher z-orders appear after
-     * (on top of) lower values.
+     * Returns the value by which features are sorted within a layer in the output vector tile.
      */
-    public int getZorder() {
-      return zOrder;
+    public int getSortKey() {
+      return sortKey;
     }
 
     /**
-     * Sets the sort order of this feature in the output vector tile where features with higher z-orders appear after
-     * (on top of) lower values.
+     * Sets the value by which features are sorted within a layer in the output vector tile. Sort key gets packed into
+     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to {@code
+     * (2^(bits-1))-1}.
+     * <p>
+     * Circles, lines, and polygons are rendered in the order they appear in each layer, so features that appear later
+     * (higher sort key) show up on top of features with a lower sort key.
+     * <p>
+     * For symbols (text/icons) where clients try to avoid label collisions, features are placed in the order they
+     * appear in each layer, so features that appear earlier (lower sort key) will show up at lower zoom levels than
+     * feature that appear later (higher sort key) in a layer.
      */
-    public Feature setZorder(int zOrder) {
-      this.zOrder = zOrder;
+    public Feature setSortKey(int sortKey) {
+      assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX :
+        "Sort key " + sortKey + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", "
+          + FeatureGroup.SORT_KEY_MAX + "]";
+      this.sortKey = sortKey;
       return this;
+    }
+
+    /** Sets the value by which features are sorted from high to low within a layer in the output vector tile. */
+    public Feature setSortKeyDescending(int sortKey) {
+      return setSortKey(FeatureGroup.SORT_KEY_MAX + FeatureGroup.SORT_KEY_MIN - sortKey);
     }
 
     /**
@@ -510,7 +526,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the maximum number of highest z-order points to include in the output vector tile in each square of a
+     * Returns the maximum number of lowest-sort-key points to include in the output vector tile in each square of a
      * grid with size {@link #getPointLabelGridPixelSizeAtZoom(int)}.
      */
     public int getPointLabelGridLimitAtZoom(int zoom) {
@@ -556,7 +572,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the maximum number of points with the highest z-order to include with the same label grid hash in a tile.
+     * Sets the maximum number of points with the lowest sort-key to include with the same label grid hash in a tile.
      * <p>
      * Replaces any previous values set for label grid limit.
      *
@@ -572,7 +588,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /**
      * Limits the density of points on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
-     * features with highest z-order in each square of a {@code size x size} pixel grid.
+     * features with lowest sort-key in each square of a {@code size x size} pixel grid.
      * <p>
      * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and {@link
      * #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit. To set
@@ -584,7 +600,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      *
      * @param maxzoom the zoom-level at and below which we should limit point density
      * @param size    the label grid size to use when computing hashes
-     * @param limit   the number of highest-z-order points to include in each square of the grid
+     * @param limit   the number of lowest-sort-key points to include in each square of the grid
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
      * function</a>
      */

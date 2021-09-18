@@ -35,9 +35,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 */
 package com.onthegomap.flatmap.openmaptiles.layers;
 
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_BITS;
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MAX;
-import static com.onthegomap.flatmap.collection.FeatureGroup.Z_ORDER_MIN;
+import static com.onthegomap.flatmap.collection.FeatureGroup.SORT_KEY_BITS;
 import static com.onthegomap.flatmap.openmaptiles.util.Utils.coalesce;
 import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullIfEmpty;
 import static com.onthegomap.flatmap.openmaptiles.util.Utils.nullOrEmpty;
@@ -58,6 +56,7 @@ import com.onthegomap.flatmap.openmaptiles.util.LanguageUtils;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
 import com.onthegomap.flatmap.util.Parse;
+import com.onthegomap.flatmap.util.SortKey;
 import com.onthegomap.flatmap.util.Translations;
 import com.onthegomap.flatmap.util.ZoomFunction;
 import java.util.HashMap;
@@ -103,18 +102,10 @@ public class Place implements
     squareMetersToWorldArea(15_000_000), 5,
     squareMetersToWorldArea(1_000_000), 6
   ));
-  // constants for packing island label precedence into the z-order field
-  private static final int ISLAND_ZORDER_RANGE = Z_ORDER_MAX;
-  private static final double ISLAND_LOG_AREA_RANGE = Math.log(Math.pow(4, 26)); // 2^14 tiles, 2^12 pixels per tile
+  private static final double MIN_ISLAND_WORLD_AREA = Math.pow(4, -26); // 2^14 tiles, 2^12 pixels per tile
   private static final double CITY_JOIN_DISTANCE = GeoUtils.metersToPixelAtEquator(0, 50_000) / 256d;
-  // constants for packing place label precedence into the z-order fiels
-  private static final int Z_ORDER_RANK_BITS = 4;
-  private static final int Z_ORDER_PLACE_BITS = 4;
-  private static final int Z_ORDER_LENGTH_BITS = 5;
-  private static final int Z_ORDER_POPULATION_BITS =
-    Z_ORDER_BITS - (Z_ORDER_RANK_BITS + Z_ORDER_PLACE_BITS + Z_ORDER_LENGTH_BITS);
-  private static final int Z_ORDER_POPULATION_RANGE = (1 << Z_ORDER_POPULATION_BITS) - 1;
-  private static final double LOG_MAX_POPULATION = Math.log(100_000_000d);
+  // constants for packing place label precedence into the sort-key field
+  private static final double MAX_CITY_POPULATION = 100_000_000d;
   private static final Set<String> MAJOR_CITY_PLACES = Set.of("city", "town", "village");
   private static final ZoomFunction<Number> LABEL_GRID_LIMITS = ZoomFunction.fromMaxZoomThresholds(Map.of(
     8, 4,
@@ -143,18 +134,20 @@ public class Place implements
   }
 
   /**
-   * Packs place precedence ordering ({@code rank asc, place asc, population desc, name.length asc}) into the z-order
-   * field.
+   * Packs place precedence ordering ({@code rank asc, place asc, population desc, name.length asc}) into an integer for
+   * the sort-key field.
    */
-  static int getZorder(Integer rank, PlaceType place, long population, String name) {
-    int zorder = rank == null ? 0 : Math.max(1, 15 - rank);
-    zorder = (zorder << Z_ORDER_PLACE_BITS) | (place == null ? 0 : Math.max(1, 15 - place.ordinal()));
-    double logPop = Math.min(LOG_MAX_POPULATION, Math.log(population));
-    zorder = (zorder << Z_ORDER_POPULATION_BITS) | Math.max(0, Math.min(Z_ORDER_POPULATION_RANGE,
-      (int) Math.round(logPop * Z_ORDER_POPULATION_RANGE / LOG_MAX_POPULATION)));
-    zorder = (zorder << Z_ORDER_LENGTH_BITS) | (name == null ? 0 : Math.max(1, 31 - name.length()));
-
-    return zorder + Z_ORDER_MIN;
+  static int getSortKey(Integer rank, PlaceType place, long population, String name) {
+    return SortKey
+      // ORDER BY "rank" ASC NULLS LAST,
+      .orderByInt(rank == null ? 15 : rank, 0, 15) // 4 bits
+      // place ASC NULLS LAST,
+      .thenByInt(place == null ? 15 : place.ordinal(), 0, 15)  // 4 bits
+      // population DESC NULLS LAST,
+      .thenByLog(population, MAX_CITY_POPULATION, 1, 1 << (SORT_KEY_BITS - 13) - 1)
+      // length(name) ASC
+      .thenByInt(name == null ? 0 : name.length(), 0, 31)  // 5 bits
+      .get();
   }
 
   @Override
@@ -250,7 +243,7 @@ public class Place implements
         .setAttr(Fields.CLASS, FieldValues.CLASS_COUNTRY)
         .setAttr(Fields.RANK, rank)
         .setMinZoom(rank - 1)
-        .setZorder(-rank);
+        .setSortKey(rank);
     } catch (GeometryException e) {
       e.log(stats, "omt_place_country",
         "Unable to get point for OSM country " + element.source().id());
@@ -275,7 +268,7 @@ public class Place implements
           .setAttr(Fields.CLASS, FieldValues.CLASS_STATE)
           .setAttr(Fields.RANK, rank)
           .setMinZoom(2)
-          .setZorder(-rank);
+          .setSortKey(rank);
       }
     } catch (GeometryException e) {
       e.log(stats, "omt_place_state",
@@ -290,17 +283,12 @@ public class Place implements
       int rank = ISLAND_AREA_RANKS.ceilingEntry(area).getValue();
       int minzoom = rank <= 3 ? 8 : rank <= 4 ? 9 : 10;
 
-      // set z-order based on log(area)
-      double logWorldArea = Math
-        .min(1d, Math.max(0d, (Math.log(area) + ISLAND_LOG_AREA_RANGE) / ISLAND_LOG_AREA_RANGE));
-      int zOrder = (int) (logWorldArea * ISLAND_ZORDER_RANGE);
-
       features.pointOnSurface(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .setAttr(Fields.CLASS, "island")
         .setAttr(Fields.RANK, rank)
         .setMinZoom(minzoom)
-        .setZorder(zOrder);
+        .setSortKey(SortKey.orderByLog(area, 1d, MIN_ISLAND_WORLD_AREA).get());
     } catch (GeometryException e) {
       e.log(stats, "omt_place_island_poly",
         "Unable to get point for OSM island polygon " + element.source().id());
@@ -361,7 +349,7 @@ public class Place implements
       .setAttr(Fields.CLASS, element.place())
       .setAttr(Fields.RANK, rank)
       .setMinZoom(minzoom)
-      .setZorder(getZorder(rank, placeType, element.population(), element.name()))
+      .setSortKey(getSortKey(rank, placeType, element.population(), element.name()))
       .setPointLabelGridPixelSize(12, 128);
 
     if (rank == null) {
@@ -379,8 +367,7 @@ public class Place implements
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     // infer the rank field from ordering of the place labels with each label grid square
     LongIntMap groupCounts = new LongIntHashMap();
-    for (int i = items.size() - 1; i >= 0; i--) {
-      VectorTile.Feature feature = items.get(i);
+    for (VectorTile.Feature feature : items) {
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
       if (!feature.attrs().containsKey(Fields.RANK)) {

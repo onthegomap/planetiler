@@ -39,29 +39,29 @@ public class FeatureGroupTest {
   long id = 0;
 
   private void put(int tile, String layer, Map<String, Object> attrs, Geometry geom) {
-    putWithZorder(tile, layer, attrs, geom, 0);
+    putWithSortKey(tile, layer, attrs, geom, 0);
   }
 
-  private void putWithZorder(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder) {
-    putWithGroupAndZorder(tile, layer, attrs, geom, zOrder, false, 0, 0);
+  private void putWithSortKey(int tile, String layer, Map<String, Object> attrs, Geometry geom, int sortKey) {
+    putWithGroupAndSortKey(tile, layer, attrs, geom, sortKey, false, 0, 0);
   }
 
-  private void putWithGroup(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder, long group,
+  private void putWithGroup(int tile, String layer, Map<String, Object> attrs, Geometry geom, int sortKey, long group,
     int limit) {
-    putWithGroupAndZorder(tile, layer, attrs, geom, zOrder, true, group, limit);
+    putWithGroupAndSortKey(tile, layer, attrs, geom, sortKey, true, group, limit);
   }
 
-  private void putWithGroupAndZorder(int tile, String layer, Map<String, Object> attrs, Geometry geom, int zOrder,
+  private void putWithGroupAndSortKey(int tile, String layer, Map<String, Object> attrs, Geometry geom, int sortKey,
     boolean hasGroup, long group, int limit) {
-    putWithIdGroupAndZorder(id++, tile, layer, attrs, geom, zOrder, hasGroup, group, limit);
+    putWithIdGroupAndSortKey(id++, tile, layer, attrs, geom, sortKey, hasGroup, group, limit);
   }
 
-  private void putWithIdGroupAndZorder(long id, int tile, String layer, Map<String, Object> attrs, Geometry geom,
-    int zOrder, boolean hasGroup, long group, int limit) {
+  private void putWithIdGroupAndSortKey(long id, int tile, String layer, Map<String, Object> attrs, Geometry geom,
+    int sortKey, boolean hasGroup, long group, int limit) {
     RenderedFeature feature = new RenderedFeature(
       TileCoord.decode(tile),
       new VectorTile.Feature(layer, id, VectorTile.encodeGeometry(geom), attrs),
-      zOrder,
+      sortKey,
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
     features.accept(features.newRenderedFeatureEncoder().apply(feature));
@@ -112,18 +112,18 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testPutPointsWithZorder() {
-    putWithZorder(
+  public void testPutPointsWithSortKey() {
+    putWithSortKey(
       1, "layer", Map.of("id", 1), newPoint(1, 2), 2
     );
-    putWithZorder(
+    putWithSortKey(
       1, "layer", Map.of("id", 2), newPoint(3, 4), 1
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
-          // order reversed because of z-order
+          // order reversed because of sort-key
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
           new Feature(Map.of("id", 1L), newPoint(1, 2))
         )
@@ -134,22 +134,22 @@ public class FeatureGroupTest {
   public void testLimitPoints() {
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2
-    );
-    putWithGroup(
-      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 2
+      1, "layer", Map.of("id", 3), newPoint(x, y), 2, 1, 2
     );
     putWithGroup(
       1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
+    );
+    putWithGroup(
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 0, 1, 2
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
-          // order reversed because of z-order
           // id=3 omitted because past limit
-          new Feature(Map.of("id", 2L), newPoint(3, 4)),
-          new Feature(Map.of("id", 1L), newPoint(1, 2))
+          // sorted by sortKey ascending
+          new Feature(Map.of("id", 1L), newPoint(1, 2)),
+          new Feature(Map.of("id", 2L), newPoint(3, 4))
         )
       )))), getFeatures());
   }
@@ -170,7 +170,7 @@ public class FeatureGroupTest {
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
-          // order reversed because of z-order
+          // ordered by sort key
           new Feature(Map.of("id", 3L), newPoint(x, y)),
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
           new Feature(Map.of("id", 1L), newPoint(1, 2))
@@ -194,7 +194,7 @@ public class FeatureGroupTest {
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
-          // order reversed because of z-order,
+          // order reversed because of sort-key,
           new Feature(Map.of("id", 3L), newPoint(x, y)),
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
           new Feature(Map.of("id", 1L), newPoint(1, 2))
@@ -206,31 +206,29 @@ public class FeatureGroupTest {
   public void testProfileChangesGeometry() {
     features = new FeatureGroup(sorter, new Profile.NullProfile() {
       @Override
-      public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-        List<VectorTile.Feature> items) {
+      public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
         Collections.reverse(items);
         return items;
       }
     }, Stats.inMemory());
-    int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 2
+      1, "layer", Map.of("id", 3), newPoint(5, 6), 2, 1, 2
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPoint(1, 2), 2, 1, 2
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 0, 1, 2
     );
     putWithGroup(
       1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
     );
     sorter.sort();
-    assertEquals(new TreeMap<>(Map.of(
-      1, new TreeMap<>(Map.of(
+    assertEquals(Map.of(
+      1, Map.of(
         "layer", List.of(
-          // back to same order because profile reversed
-          new Feature(Map.of("id", 1L), newPoint(1, 2)),
-          new Feature(Map.of("id", 2L), newPoint(3, 4))
+          // not sorted by sortKey asc because profile reversed it
+          new Feature(Map.of("id", 2L), newPoint(3, 4)),
+          new Feature(Map.of("id", 1L), newPoint(1, 2))
         )
-      )))), getFeatures());
+      )), getFeatures());
   }
 
   @TestFactory
@@ -243,19 +241,19 @@ public class FeatureGroupTest {
       TileCoord.ofXYZ((1 << 7) - 1, (1 << 7) - 1, 7)
     );
     List<Byte> layers = List.of((byte) 0, (byte) 1, (byte) 255);
-    List<Integer> zOrders = List.of((1 << 22) - 1, 0, -(1 << 22));
+    List<Integer> sortKeys = List.of(-(1 << 22), 0, (1 << 22) - 1);
     List<Boolean> hasGroups = List.of(false, true);
     List<DynamicTest> result = new ArrayList<>();
     for (TileCoord tile : tiles) {
       for (byte layer : layers) {
-        for (int zOrder : zOrders) {
+        for (int sortKey : sortKeys) {
           for (boolean hasGroup : hasGroups) {
-            long sortKey = FeatureGroup.encodeSortKey(tile.encoded(), layer, zOrder, hasGroup);
-            result.add(dynamicTest(tile + " " + layer + " " + zOrder + " " + hasGroup, () -> {
-              assertEquals(tile.encoded(), FeatureGroup.extractTileFromSortKey(sortKey), "tile");
-              assertEquals(layer, FeatureGroup.extractLayerIdFromSortKey(sortKey), "layer");
-              assertEquals(zOrder, FeatureGroup.extractZorderFromKey(sortKey), "zOrder");
-              assertEquals(hasGroup, FeatureGroup.extractHasGroupFromSortKey(sortKey), "hasGroup");
+            long key = FeatureGroup.encodeKey(tile.encoded(), layer, sortKey, hasGroup);
+            result.add(dynamicTest(tile + " " + layer + " " + sortKey + " " + hasGroup, () -> {
+              assertEquals(tile.encoded(), FeatureGroup.extractTileFromKey(key), "tile");
+              assertEquals(layer, FeatureGroup.extractLayerIdFromKey(key), "layer");
+              assertEquals(sortKey, FeatureGroup.extractSortKeyFromKey(key), "sortKey");
+              assertEquals(hasGroup, FeatureGroup.extractHasGroupFromKey(key), "hasGroup");
             }));
           }
         }
@@ -266,33 +264,33 @@ public class FeatureGroupTest {
 
   @ParameterizedTest
   @CsvSource({
-    "0,0,-1,true,   0,0,-2,false",
-    "0,0,2,false,   0,0,1,false",
-    "0,0,1,false,  0,0,-1,false",
-    "-1,0,-1,false, -1,0,-2,false",
-    "-1,0,2,false,  -1,0,1,false",
-    "-1,0,1,false, -1,0,-1,false",
+    "0,0,-2,true,   0,0,-1,false",
+    "0,0,1,false,   0,0,2,false",
+    "0,0,-1,false,  0,0,1,false",
+    "-1,0,-2,false, -1,0,-1,false",
+    "-1,0,1,false,  -1,0,2,false",
+    "-1,0,-1,false, -1,0,1,false",
     "-1,0,-1,false, -1,0,-1,true",
     "1,0,1,false,   1,0,1,true"
   })
   public void testEncodeLongKeyOrdering(
-    int tileA, byte layerA, int zOrderA, boolean hasGroupA,
-    int tileB, byte layerB, int zOrderB, boolean hasGroupB
+    int tileA, byte layerA, int sortKeyA, boolean hasGroupA,
+    int tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
     assertTrue(
-      FeatureGroup.encodeSortKey(tileA, layerA, zOrderA, hasGroupA)
+      FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA)
         <
-        FeatureGroup.encodeSortKey(tileB, layerB, zOrderB, hasGroupB)
+        FeatureGroup.encodeKey(tileB, layerB, sortKeyB, hasGroupB)
     );
   }
 
   @Test
   public void testHasSameFeatures() {
-    // should be the "same" even though z-order is different
-    putWithIdGroupAndZorder(
+    // should be the "same" even though sort-key is different
+    putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 2, "layer", Map.of("id", 1), newPoint(1, 2), 2, true, 2, 3
     );
     sorter.sort();
@@ -302,10 +300,10 @@ public class FeatureGroupTest {
 
   @Test
   public void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 2, "layer", Map.of("id", 1), newPoint(1, 3), 1, true, 2, 3
     );
     sorter.sort();
@@ -315,10 +313,10 @@ public class FeatureGroupTest {
 
   @Test
   public void testDoesNotHaveSameFeaturesWhenAttrsChange() {
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 2, "layer", Map.of("id", 2), newPoint(1, 2), 1, true, 2, 3
     );
     sorter.sort();
@@ -328,10 +326,10 @@ public class FeatureGroupTest {
 
   @Test
   public void testDoesNotHaveSameFeaturesWhenLayerChanges() {
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 2, "layer2", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
     sorter.sort();
@@ -341,10 +339,10 @@ public class FeatureGroupTest {
 
   @Test
   public void testDoesNotHaveSameFeaturesWhenIdChanges() {
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
-    putWithIdGroupAndZorder(
+    putWithIdGroupAndSortKey(
       2, 2, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
     sorter.sort();

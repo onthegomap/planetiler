@@ -694,28 +694,28 @@ public class TransportationTest extends AbstractLayerTest {
       ))));
   }
 
-  private int getWayZorder(Map<String, Object> tags) {
+  private int getWaySortKey(Map<String, Object> tags) {
     var iter = process(lineFeature(tags)).iterator();
-    return iter.next().getZorder();
+    return iter.next().getSortKey();
   }
 
   @Test
-  public void testZorders() {
+  public void testSortKeys() {
     assertDescending(
-      getWayZorder(Map.of("highway", "footway", "layer", "2")),
-      getWayZorder(Map.of("highway", "motorway", "bridge", "yes")),
-      getWayZorder(Map.of("highway", "footway", "bridge", "yes")),
-      getWayZorder(Map.of("highway", "motorway")),
-      getWayZorder(Map.of("highway", "trunk")),
-      getWayZorder(Map.of("railway", "rail")),
-      getWayZorder(Map.of("highway", "primary")),
-      getWayZorder(Map.of("highway", "secondary")),
-      getWayZorder(Map.of("highway", "tertiary")),
-      getWayZorder(Map.of("highway", "motorway_link")),
-      getWayZorder(Map.of("highway", "footway")),
-      getWayZorder(Map.of("highway", "motorway", "tunnel", "yes")),
-      getWayZorder(Map.of("highway", "footway", "tunnel", "yes")),
-      getWayZorder(Map.of("highway", "motorway", "layer", "-2"))
+      getWaySortKey(Map.of("highway", "footway", "layer", "2")),
+      getWaySortKey(Map.of("highway", "motorway", "bridge", "yes")),
+      getWaySortKey(Map.of("highway", "footway", "bridge", "yes")),
+      getWaySortKey(Map.of("highway", "motorway")),
+      getWaySortKey(Map.of("highway", "trunk")),
+      getWaySortKey(Map.of("railway", "rail")),
+      getWaySortKey(Map.of("highway", "primary")),
+      getWaySortKey(Map.of("highway", "secondary")),
+      getWaySortKey(Map.of("highway", "tertiary")),
+      getWaySortKey(Map.of("highway", "motorway_link")),
+      getWaySortKey(Map.of("highway", "footway")),
+      getWaySortKey(Map.of("highway", "motorway", "tunnel", "yes")),
+      getWaySortKey(Map.of("highway", "footway", "tunnel", "yes")),
+      getWaySortKey(Map.of("highway", "motorway", "layer", "-2"))
     );
   }
 }

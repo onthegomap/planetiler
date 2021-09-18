@@ -152,11 +152,11 @@ public class PoiTest extends AbstractLayerTest {
     assertEquals(List.of(
       pointFeature(
         layerName,
-        Map.of("rank", 2, "name", "a"),
+        Map.of("rank", 1, "name", "a"),
         1
       ), pointFeature(
         layerName,
-        Map.of("rank", 1, "name", "b"),
+        Map.of("rank", 2, "name", "b"),
         1
       ), pointFeature(
         layerName,

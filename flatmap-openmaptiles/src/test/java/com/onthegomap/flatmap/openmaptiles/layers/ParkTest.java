@@ -85,51 +85,51 @@ public class ParkTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testZorders() {
-    assertDescending(
-      getLabelZorder(1, Map.of(
+  public void testSortKeys() {
+    assertAscending(
+      getLabelSortKey(1, Map.of(
         "boundary", "national_park",
         "name", "a",
         "wikipedia", "en:park"
       )),
-      getLabelZorder(1e-10, Map.of(
+      getLabelSortKey(1e-10, Map.of(
         "boundary", "national_park",
         "name", "a",
         "wikipedia", "en:Park"
       )),
-      getLabelZorder(1, Map.of(
+      getLabelSortKey(1, Map.of(
         "boundary", "national_park",
         "name", "a"
       )),
-      getLabelZorder(1e-10, Map.of(
+      getLabelSortKey(1e-10, Map.of(
         "boundary", "national_park",
         "name", "a"
       )),
 
-      getLabelZorder(1, Map.of(
+      getLabelSortKey(1, Map.of(
         "boundary", "protected_area",
         "name", "a",
         "wikipedia", "en:park"
       )),
-      getLabelZorder(1e-10, Map.of(
+      getLabelSortKey(1e-10, Map.of(
         "boundary", "protected_area",
         "name", "a",
         "wikipedia", "en:Park"
       )),
-      getLabelZorder(1, Map.of(
+      getLabelSortKey(1, Map.of(
         "boundary", "protected_area",
         "name", "a"
       )),
-      getLabelZorder(1e-10, Map.of(
+      getLabelSortKey(1e-10, Map.of(
         "boundary", "protected_area",
         "name", "a"
       ))
     );
   }
 
-  private int getLabelZorder(double area, Map<String, Object> tags) {
+  private int getLabelSortKey(double area, Map<String, Object> tags) {
     var iter = process(polygonFeatureWithArea(area, tags)).iterator();
     iter.next();
-    return iter.next().getZorder();
+    return iter.next().getSortKey();
   }
 }

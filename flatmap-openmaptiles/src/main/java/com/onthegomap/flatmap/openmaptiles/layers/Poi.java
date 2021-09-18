@@ -175,7 +175,7 @@ public class Poi implements
       .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .setPointLabelGridPixelSize(14, 64)
-      .setZorder(-rankOrder)
+      .setSortKey(rankOrder)
       .setMinZoom(minzoom(element.subclass(), element.mappingKey()));
   }
 
@@ -183,8 +183,7 @@ public class Poi implements
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     // infer the "rank" field from the order of features within each label grid square
     LongIntMap groupCounts = new LongIntHashMap();
-    for (int i = items.size() - 1; i >= 0; i--) {
-      VectorTile.Feature feature = items.get(i);
+    for (VectorTile.Feature feature : items) {
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
       if (!feature.attrs().containsKey(Fields.RANK)) {

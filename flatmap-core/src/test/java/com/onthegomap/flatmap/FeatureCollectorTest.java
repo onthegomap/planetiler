@@ -53,7 +53,7 @@ public class FeatureCollectorTest {
     )));
     collector.point("layername")
       .setZoomRange(12, 14)
-      .setZorder(3)
+      .setSortKey(3)
       .setAttr("attr1", 2)
       .setBufferPixels(10d)
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 100d))
@@ -63,7 +63,7 @@ public class FeatureCollectorTest {
         "_layer", "layername",
         "_minzoom", 12,
         "_maxzoom", 14,
-        "_zorder", 3,
+        "_sortkey", 3,
         "_labelgrid_size", 0d,
         "_labelgrid_limit", 0,
         "attr1", 2,
@@ -112,7 +112,7 @@ public class FeatureCollectorTest {
     )));
     collector.line("layername")
       .setZoomRange(12, 14)
-      .setZorder(3)
+      .setSortKey(3)
       .setAttr("attr1", 2)
       .setMinPixelSize(1)
       .setMinPixelSizeBelowZoom(12, 10);
@@ -121,7 +121,7 @@ public class FeatureCollectorTest {
         "_layer", "layername",
         "_minzoom", 12,
         "_maxzoom", 14,
-        "_zorder", 3,
+        "_sortkey", 3,
         "_minpixelsize", 1d,
         "attr1", 2,
         "_type", "line"
@@ -142,7 +142,7 @@ public class FeatureCollectorTest {
     )));
     collector.polygon("layername")
       .setZoomRange(12, 14)
-      .setZorder(3)
+      .setSortKey(3)
       .setAttr("attr1", 2)
       .inheritAttrFromSource("key")
       .setMinPixelSize(1)
@@ -152,7 +152,7 @@ public class FeatureCollectorTest {
         "_layer", "layername",
         "_minzoom", 12,
         "_maxzoom", 14,
-        "_zorder", 3,
+        "_sortkey", 3,
         "_minpixelsize", 1d,
         "attr1", 2,
         "_type", "polygon"

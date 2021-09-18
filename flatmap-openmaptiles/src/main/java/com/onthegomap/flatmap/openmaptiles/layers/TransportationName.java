@@ -250,7 +250,7 @@ public class TransportationName implements
       .setAttr(Fields.CLASS, highwayClass)
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
       .setMinPixelSize(0)
-      .setZorder(element.zOrder())
+      .setSortKey(element.zOrder())
       .setMinZoom(minzoom);
 
     if (brunnel) {
