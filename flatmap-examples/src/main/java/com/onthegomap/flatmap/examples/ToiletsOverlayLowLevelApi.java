@@ -6,6 +6,7 @@ import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.config.MbtilesMetadata;
 import com.onthegomap.flatmap.mbiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
@@ -48,8 +49,11 @@ public class ToiletsOverlayLowLevelApi {
     Stats stats = Stats.inMemory();
     Profile profile = new ToiletsOverlay();
 
-    // use default settings, but allow overrides from -Dkey=value jvm arguments
+    // use default settings, but only allow overrides from -Dkey=value jvm arguments
     FlatmapConfig config = FlatmapConfig.from(Arguments.fromJvmProperties());
+
+    // extract mbtiles metadata from profile
+    MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile);
 
     // overwrite output each time
     FileUtils.deleteFile(output);
@@ -102,7 +106,7 @@ public class ToiletsOverlayLowLevelApi {
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.
-    MbtilesWriter.writeOutput(featureGroup, output, profile, config, stats);
+    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
 
     // dump recorded timings at the end
     stats.printSummary();

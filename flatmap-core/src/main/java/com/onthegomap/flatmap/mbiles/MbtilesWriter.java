@@ -1,9 +1,9 @@
 package com.onthegomap.flatmap.mbiles;
 
-import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.config.MbtilesMetadata;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.stats.Counter;
 import com.onthegomap.flatmap.stats.ProgressLoggers;
@@ -43,15 +43,14 @@ import org.slf4j.LoggerFactory;
 public class MbtilesWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
-
+  private static final long MAX_FEATURES_PER_BATCH = 10_000;
+  private static final long MAX_TILES_PER_BATCH = 1_000;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final Mbtiles db;
   private final FlatmapConfig config;
-  private final Profile profile;
   private final Stats stats;
   private final LayerStats layerStats;
-
   private final Counter.Readable[] tilesByZoom;
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
@@ -59,13 +58,14 @@ public class MbtilesWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final LongAccumulator maxBatchLength = new LongAccumulator(Long::max, 0);
   private final LongAccumulator minBatchLength = new LongAccumulator(Long::min, Integer.MAX_VALUE);
+  private final MbtilesMetadata mbtilesMetadata;
 
-  MbtilesWriter(FeatureGroup features, Mbtiles db, FlatmapConfig config, Profile profile, Stats stats,
-    LayerStats layerStats) {
+  private MbtilesWriter(FeatureGroup features, Mbtiles db, FlatmapConfig config, MbtilesMetadata mbtilesMeatadata,
+    Stats stats, LayerStats layerStats) {
     this.features = features;
     this.db = db;
     this.config = config;
-    this.profile = profile;
+    this.mbtilesMetadata = mbtilesMeatadata;
     this.stats = stats;
     this.layerStats = layerStats;
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
@@ -87,20 +87,20 @@ public class MbtilesWriter {
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code outputPath}. */
-  public static void writeOutput(FeatureGroup features, Path outputPath, Profile profile, FlatmapConfig config,
-    Stats stats) {
+  public static void writeOutput(FeatureGroup features, Path outputPath, MbtilesMetadata mbtilesMetadata,
+    FlatmapConfig config, Stats stats) {
     try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
-      writeOutput(features, output, () -> FileUtils.fileSize(outputPath), profile, config, stats);
+      writeOutput(features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + outputPath, e);
     }
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize, Profile profile,
-    FlatmapConfig config, Stats stats) {
+  public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize,
+    MbtilesMetadata mbtilesMetadata, FlatmapConfig config, Stats stats) {
     var timer = stats.startStage("mbtiles");
-    MbtilesWriter writer = new MbtilesWriter(features, output, config, profile, stats,
+    MbtilesWriter writer = new MbtilesWriter(features, output, config, mbtilesMetadata, stats,
       features.layerStats());
 
     var pipeline = WorkerPipeline.start("mbtiles", stats);
@@ -167,6 +167,14 @@ public class MbtilesWriter {
     timer.stop();
   }
 
+  private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
+    var bos = new ByteArrayOutputStream(uncompressedData.length);
+    try (var gzipOS = new GZIPOutputStream(bos)) {
+      gzipOS.write(uncompressedData);
+    }
+    return bos.toByteArray();
+  }
+
   private String getLastTileLogDetails() {
     TileCoord lastTile = lastTileWritten.get();
     String blurb;
@@ -188,37 +196,6 @@ public class MbtilesWriter {
     }
     return "last tile: " + blurb;
   }
-
-  /**
-   * Container for a batch of tiles to be processed together in the encoder and writer threads.
-   * <p>
-   * The cost of encoding a tile may vary dramatically by its size (depending on the profile) so batches are sized
-   * dynamically to put as little as 1 large tile, or as many as 10,000 small tiles in a batch to keep encoding threads
-   * busy.
-   *
-   * @param in  the tile data to encode
-   * @param out the future that encoder thread completes to hand finished tile off to writer thread
-   */
-  private static record TileBatch(
-    List<FeatureGroup.TileFeatures> in,
-    CompletableFuture<Queue<Mbtiles.TileEntry>> out
-  ) {
-
-    TileBatch() {
-      this(new ArrayList<>(), new CompletableFuture<>());
-    }
-
-    public int size() {
-      return in.size();
-    }
-
-    public boolean isEmpty() {
-      return in.isEmpty();
-    }
-  }
-
-  private static final long MAX_FEATURES_PER_BATCH = 10_000;
-  private static final long MAX_TILES_PER_BATCH = 1_000;
 
   private void readFeaturesAndBatch(Consumer<TileBatch> next) {
     int currentZoom = Integer.MIN_VALUE;
@@ -307,12 +284,12 @@ public class MbtilesWriter {
     }
 
     db.metadata()
-      .setName(profile.name())
+      .setName(mbtilesMetadata.name())
       .setFormat("pbf")
-      .setDescription(profile.description())
-      .setAttribution(profile.attribution())
-      .setVersion(profile.version())
-      .setType(profile.isOverlay() ? "overlay" : "baselayer")
+      .setDescription(mbtilesMetadata.description())
+      .setAttribution(mbtilesMetadata.attribution())
+      .setVersion(mbtilesMetadata.version())
+      .setType(mbtilesMetadata.type())
       .setBoundsAndCenter(config.bounds().latLon())
       .setMinzoom(config.minzoom())
       .setMaxzoom(config.maxzoom())
@@ -384,11 +361,31 @@ public class MbtilesWriter {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
   }
 
-  private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
-    var bos = new ByteArrayOutputStream(uncompressedData.length);
-    try (var gzipOS = new GZIPOutputStream(bos)) {
-      gzipOS.write(uncompressedData);
+  /**
+   * Container for a batch of tiles to be processed together in the encoder and writer threads.
+   * <p>
+   * The cost of encoding a tile may vary dramatically by its size (depending on the profile) so batches are sized
+   * dynamically to put as little as 1 large tile, or as many as 10,000 small tiles in a batch to keep encoding threads
+   * busy.
+   *
+   * @param in  the tile data to encode
+   * @param out the future that encoder thread completes to hand finished tile off to writer thread
+   */
+  private static record TileBatch(
+    List<FeatureGroup.TileFeatures> in,
+    CompletableFuture<Queue<Mbtiles.TileEntry>> out
+  ) {
+
+    TileBatch() {
+      this(new ArrayList<>(), new CompletableFuture<>());
     }
-    return bos.toByteArray();
+
+    public int size() {
+      return in.size();
+    }
+
+    public boolean isEmpty() {
+      return in.isEmpty();
+    }
   }
 }

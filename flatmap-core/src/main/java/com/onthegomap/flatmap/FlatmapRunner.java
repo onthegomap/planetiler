@@ -4,6 +4,7 @@ import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.config.MbtilesMetadata;
 import com.onthegomap.flatmap.mbiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.NaturalEarthReader;
 import com.onthegomap.flatmap.reader.ShapefileReader;
@@ -436,6 +437,7 @@ public class FlatmapRunner {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
+    MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
 
     if (onlyDownloadSources) {
       // don't check files if not generating map
@@ -503,7 +505,7 @@ public class FlatmapRunner {
 
     featureGroup.prepare();
 
-    MbtilesWriter.writeOutput(featureGroup, output, profile, config, stats);
+    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");

@@ -14,6 +14,7 @@ import com.onthegomap.flatmap.collection.FeatureGroup;
 import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.config.FlatmapConfig;
+import com.onthegomap.flatmap.config.MbtilesMetadata;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
@@ -120,7 +121,8 @@ public class FlatmapTests {
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, profile, config, stats);
+      MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, new MbtilesMetadata(profile, config.arguments()), config,
+        stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
       return new FlatmapResults(tileMap, db.metadata().getAll());
@@ -235,6 +237,31 @@ public class FlatmapTests {
         """,
       results.metadata.get("json")
     );
+  }
+
+  @Test
+  public void testOverrideMetadata() throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of(
+        "threads", "1",
+        "mbtiles_name", "mbtiles_name",
+        "mbtiles_description", "mbtiles_description",
+        "mbtiles_attribution", "mbtiles_attribution",
+        "mbtiles_version", "mbtiles_version",
+        "mbtiles_type", "mbtiles_type"
+      ),
+      List.of(),
+      (sourceFeature, features) -> {
+      }
+    );
+    assertEquals(Map.of(), results.tiles);
+    assertSubmap(Map.of(
+      "name", "mbtiles_name",
+      "description", "mbtiles_description",
+      "attribution", "mbtiles_attribution",
+      "version", "mbtiles_version",
+      "type", "mbtiles_type"
+    ), results.metadata);
   }
 
   @Test
