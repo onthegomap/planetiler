@@ -243,7 +243,6 @@ public class FlatmapTests {
   public void testOverrideMetadata() throws Exception {
     var results = runWithReaderFeatures(
       Map.of(
-        "threads", "1",
         "mbtiles_name", "mbtiles_name",
         "mbtiles_description", "mbtiles_description",
         "mbtiles_attribution", "mbtiles_attribution",
@@ -1271,6 +1270,59 @@ public class FlatmapTests {
           }
         }
       }
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newPoint(64, 128), Map.of("a", 1L)),
+        feature(newPoint(74, 128), Map.of("a", 3L))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // merge 32->37 and 37->42 since they have same attrs
+        feature(newPoint(32, 64), Map.of("a", 1L)),
+        feature(newPoint(37, 64), Map.of("a", 3L))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
+  public void testOsmProfileFinishForwardingProfile() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    ForwardingProfile profile = new ForwardingProfile() {
+      @Override
+      public String name() {
+        return "test";
+      }
+    };
+
+    List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
+    profile.registerSourceHandler("osm", (in, features) -> featureList.add(in));
+    profile.registerHandler((ForwardingProfile.FinishHandler) (name, featureCollectors, next) -> {
+      if ("osm".equals(name)) {
+        for (SourceFeature in : featureList) {
+          var features = featureCollectors.get(in);
+          features.point("layer")
+            .setZoomRange(13, 14)
+            .inheritAttrFromSource("a");
+          for (var feature : features) {
+            next.accept(feature);
+          }
+        }
+      }
+    });
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        with(new ReaderNode(1, lat, lng1), t -> t.setTag("a", 1)),
+        with(new ReaderNode(2, lat, lng2), t -> t.setTag("a", 3))
+      ),
+      profile
     );
 
     assertSubmap(sortListValues(Map.of(

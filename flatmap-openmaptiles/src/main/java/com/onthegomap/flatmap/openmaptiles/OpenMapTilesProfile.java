@@ -6,6 +6,7 @@ import static com.onthegomap.flatmap.geo.GeoUtils.EMPTY_POLYGON;
 
 import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.FlatmapRunner;
+import com.onthegomap.flatmap.ForwardingProfile;
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.expression.MultiExpression;
@@ -39,7 +40,7 @@ import java.util.List;
  * {@link FinishHandler} or post-process features in that layer before rendering the output tile by implementing
  * {@link FeaturePostProcessor}.
  */
-public class OpenMapTilesProfile extends Profile.ForwardingProfile {
+public class OpenMapTilesProfile extends ForwardingProfile {
 
   // IDs used in stats and logs for each input source, as well as argument/config file overrides to source locations
   public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
