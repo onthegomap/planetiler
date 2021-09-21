@@ -24,6 +24,13 @@
     <url>git@github.com:onthegomap/flatmap.git</url>
   </scm>
 
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+    </license>
+  </licenses>
+
   <repositories>
     <repository>
       <id>osgeo</id>

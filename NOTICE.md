@@ -1,8 +1,8 @@
 ## Licenses
 
-FlatMap licensed under MIT license.
+Flatmap licensed under the Apache license, Version 2.0
 
-Copyright 2021 Michael Barry and FlatMap Contributors.
+Copyright 2021 Michael Barry and Flatmap Contributors.
 
 The `flatmap-core` module includes the following software:
 
