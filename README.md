@@ -93,9 +93,10 @@ Some example runtimes (excluding downloading resources):
 
 | Input | Input Size | Profile | Machine | Time | mbtiles size | Logs |
 | --- | --- | --- | --- | --- | --- | --- |
-| s3://osm-pds/2021/planet-211011.osm.pbf | 64.7GB | Basemap | DO 16cpu 128GB RAM | 3h9m (cpu: 42h1m @ 13.3) | 99.6GB | [logs](planet-logs/planet-logs.txt) [VisualVM Profile](planet-logs/planet.nps) |
-| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries | 68.6GB | Basemap | DO 16cpu 128GB RAM | 3h13m (cpu: 43h40m @ 13.5) | 101.4GB | [logs](planet-logs/logs-daylight.txt) |
-| s3://osm-pds/2021/planet-211011.osm.pbf | 64.7GB | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB RAM) | 59m26s (cpu: 27h6m @ 27.4) | 97.3GB | [logs](planet-logs/planet-logs-c5ad.txt) |
+| s3://osm-pds/2021/planet-211011.osm.pbf | 64.7GB | Basemap | DO 16cpu 128GB RAM | 3h9m (cpu: 42h1m @ 13.3) | 99.6GB | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps) |
+| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries | 68.6GB | Basemap | DO 16cpu 128GB RAM | 3h13m (cpu: 43h40m @ 13.5) | 101.4GB | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt) |
+| s3://osm-pds/2021/planet-211011.osm.pbf | 64.7GB | Basemap | Linode 50cpu 128GB RAM | 3h9m (cpu: 42h1m @ 13.3) | 99.6GB | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
+| s3://osm-pds/2021/planet-211011.osm.pbf | 64.7GB | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB RAM) | 59m26s (cpu: 27h6m @ 27.4) | 97.3GB | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt) |
 
 ## Alternatives
 

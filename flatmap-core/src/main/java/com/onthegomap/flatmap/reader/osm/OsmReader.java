@@ -220,6 +220,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     String parseThreadPrefix = "pbfpass2";
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("pbf", osmInputFile.read(parseThreadPrefix, readerThreads))
+      // TODO should use an adaptive batch size to better utilize lots of cpus:
+      //   - make queue size proportional to cores
+      //   - much larger batches when processing points
+      //   - slightly larger batches when processing ways
+      //   - 1_000 is probably fine for relations
       .addBuffer("reader_queue", 50_000, 1_000)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
