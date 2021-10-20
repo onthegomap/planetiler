@@ -4,17 +4,24 @@ import com.onthegomap.flatmap.util.FileUtils;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An array of primitives backed by memory-mapped file.
  */
 abstract class AppendStoreMmap implements AppendStore {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(AppendStoreMmap.class);
 
   // writes are done using a BufferedOutputStream
   final DataOutputStream outputStream;
@@ -79,6 +86,30 @@ abstract class AppendStoreMmap implements AppendStore {
         channel.close();
       }
       if (segments != null) {
+        try {
+          // attempt to force-unmap the file, so we can delete it later
+          // https://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
+          Class<?> unsafeClass;
+          try {
+            unsafeClass = Class.forName("sun.misc.Unsafe");
+          } catch (Exception ex) {
+            unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
+          }
+          Method clean = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
+          clean.setAccessible(true);
+          Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
+          theUnsafeField.setAccessible(true);
+          Object theUnsafe = theUnsafeField.get(null);
+          for (int i = 0; i < segments.length; i++) {
+            var buffer = segments[i];
+            if (buffer != null) {
+              clean.invoke(theUnsafe, buffer);
+              segments[i] = null;
+            }
+          }
+        } catch (Exception e) {
+          LOGGER.info("Unable to unmap " + path + " " + e);
+        }
         Arrays.fill(segments, null);
       }
     }

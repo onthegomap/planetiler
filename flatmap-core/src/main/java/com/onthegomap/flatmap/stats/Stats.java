@@ -2,12 +2,17 @@ package com.onthegomap.flatmap.stats;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
+import com.onthegomap.flatmap.util.FileUtils;
+import com.onthegomap.flatmap.util.Format;
 import com.onthegomap.flatmap.util.LogUtil;
 import com.onthegomap.flatmap.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A utility that collects and reports more detailed statistics about the JVM and running tasks than logs can convey.
@@ -31,9 +36,21 @@ public interface Stats extends AutoCloseable {
     return PrometheusStats.createAndStartPushing(destination, job, interval);
   }
 
-  /** Logs top-level stats at the end of a job like the amount of user and CPU time that each task has taken. */
+  /**
+   * Logs top-level stats at the end of a job like the amount of user and CPU time that each task has taken, and size of
+   * each monitored file.
+   */
   default void printSummary() {
+    Logger LOGGER = LoggerFactory.getLogger(getClass());
+    LOGGER.info("-".repeat(40));
     timers().printSummary();
+    LOGGER.info("-".repeat(40));
+    for (var entry : monitoredFiles().entrySet()) {
+      long size = FileUtils.size(entry.getValue());
+      if (size > 0) {
+        LOGGER.info("\t" + entry.getKey() + "\t" + Format.formatStorage(size, false) + "B");
+      }
+    }
   }
 
   /**
@@ -65,13 +82,18 @@ public interface Stats extends AutoCloseable {
   /** Returns the timers for all stages started with {@link #startStage(String)}. */
   Timers timers();
 
+  /** Returns all the files being monitored. */
+  Map<String, Path> monitoredFiles();
+
   /** Adds a stat that will track the size of a file or directory located at {@code path}. */
-  void monitorFile(String name, Path path);
+  default void monitorFile(String name, Path path) {
+    monitoredFiles().put(name, path);
+  }
 
   /** Adds a stat that will track the estimated in-memory size of {@code object}. */
   void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object);
 
-  /** Tracks a stat with {@code name} that always has a constant {@value}. */
+  /** Tracks a stat with {@code name} that always has a constant {@code value}. */
   default void gauge(String name, Number value) {
     gauge(name, () -> value);
   }
@@ -125,6 +147,7 @@ public interface Stats extends AutoCloseable {
     }
 
     private final Timers timers = new Timers();
+    private final Map<String, Path> monitoredFiles = new ConcurrentSkipListMap<>();
 
     @Override
     public void wroteTile(int zoom, int bytes) {
@@ -136,7 +159,8 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void monitorFile(String name, Path path) {
+    public Map<String, Path> monitoredFiles() {
+      return monitoredFiles;
     }
 
     @Override

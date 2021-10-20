@@ -7,20 +7,20 @@
   <artifactId>flatmap-benchmarks</artifactId>
 
   <parent>
-    <groupId>com.onthegomap</groupId>
+    <groupId>com.onthegomap.flatmap</groupId>
     <artifactId>flatmap-parent</artifactId>
     <version>0.1-SNAPSHOT</version>
   </parent>
 
   <dependencies>
     <dependency>
-      <groupId>com.onthegomap</groupId>
+      <groupId>com.onthegomap.flatmap</groupId>
       <artifactId>flatmap-core</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.onthegomap</groupId>
-      <artifactId>flatmap-openmaptiles</artifactId>
+      <groupId>com.onthegomap.flatmap</groupId>
+      <artifactId>flatmap-basemap</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
   </dependencies>
@@ -31,10 +31,10 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <version>3.3.0</version>
-        <!-- for fatjar assembly descriptor -->
+        <!-- for with-deps assembly descriptor -->
         <dependencies>
           <dependency>
-            <groupId>com.onthegomap</groupId>
+            <groupId>com.onthegomap.flatmap</groupId>
             <artifactId>flatmap-core</artifactId>
             <version>${project.parent.version}</version>
           </dependency>
@@ -47,20 +47,17 @@
             </manifestEntries>
           </archive>
           <descriptorRefs>
-            <descriptorRef>fatjar</descriptorRef>
+            <descriptorRef>with-deps</descriptorRef>
           </descriptorRefs>
         </configuration>
+      </plugin>
 
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-
+      <plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <!-- we don't want to deploy this module -->
+          <skip>true</skip>
+        </configuration>
       </plugin>
     </plugins>
   </build>

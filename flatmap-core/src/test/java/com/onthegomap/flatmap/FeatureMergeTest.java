@@ -1,13 +1,14 @@
 package com.onthegomap.flatmap;
 
 import static com.onthegomap.flatmap.TestUtils.*;
+import static com.onthegomap.flatmap.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.graphhopper.coll.GHIntObjectHashMap;
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -588,7 +589,7 @@ public class FeatureMergeTest {
     LOGGER.warn("Testing complex polygon merging for " + file + " " + z + "/" + x + "/" + y + " ...");
     try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
       byte[] tileData = db.getTile(x, y, z);
-      byte[] gunzipped = TestUtils.gunzip(tileData);
+      byte[] gunzipped = gunzip(tileData);
       List<VectorTile.Feature> features = VectorTile.decode(gunzipped);
       List<VectorTile.Feature> merged = FeatureMerge.mergeNearbyPolygons(
         features,

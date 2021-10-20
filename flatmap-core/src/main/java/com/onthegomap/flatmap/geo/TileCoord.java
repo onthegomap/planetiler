@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.geo;
 
-import com.onthegomap.flatmap.mbiles.Mbtiles;
-import java.text.NumberFormat;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
+import com.onthegomap.flatmap.util.Format;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -9,7 +9,7 @@ import org.locationtech.jts.geom.CoordinateXY;
 /**
  * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
  * <p>
- * In order to encode into a 32-bit integer, only zoom levels <= 14 are supported since we need 4 bits for the
+ * In order to encode into a 32-bit integer, only zoom levels {@code <= 14} are supported since we need 4 bits for the
  * zoom-level, and 14 bits each for the x/y coordinates.
  * <p>
  * Tiles are ordered by z ascending, x ascending, y descending to match index ordering of {@link Mbtiles} sqlite
@@ -19,7 +19,7 @@ import org.locationtech.jts.geom.CoordinateXY;
  * @param x       x coordinate of the tile where 0 is the western-most tile just to the east the international date line
  *                and 2^z-1 is the eastern-most tile
  * @param y       y coordinate of the tile where 0 is the northern-most tile and 2^z-1 is the southern-most tile
- * @param z       zoom level (<= 14)
+ * @param z       zoom level ({@code <= 14})
  */
 @Immutable
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
@@ -29,11 +29,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   // also need to remove hardcoded z14 limits
 
   private static final int XY_MASK = (1 << 14) - 1;
-  private static final NumberFormat format = NumberFormat.getNumberInstance();
-
-  static {
-    format.setMaximumFractionDigits(5);
-  }
 
   public TileCoord {
     assert z <= 14;
@@ -126,7 +121,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl() {
     Coordinate coord = getLatLon();
-    return "https://www.openstreetmap.org/#map=" + z + "/" + format.format(coord.y) + "/" + format.format(coord.x);
+    return Format.osmDebugUrl(z, coord);
   }
 
   /** Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px tiles). */

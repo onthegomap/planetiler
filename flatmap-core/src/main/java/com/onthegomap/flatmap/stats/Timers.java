@@ -17,7 +17,6 @@ public class Timers {
   private final Map<String, Timer> timers = Collections.synchronizedMap(new LinkedHashMap<>());
 
   public void printSummary() {
-    LOGGER.info("-".repeat(50));
     for (var entry : all().entrySet()) {
       LOGGER.info("\t" + entry.getKey() + "\t" + entry.getValue().elapsed());
     }
@@ -27,7 +26,7 @@ public class Timers {
     Timer timer = Timer.start();
     timers.put(name, timer);
     LOGGER.info("Starting...");
-    return () -> LOGGER.info("Finished in " + timers.get(name).stop() + "\n");
+    return () -> LOGGER.info("Finished in " + timers.get(name).stop() + System.lineSeparator());
   }
 
   /** Returns a snapshot of all timers currently running. Will not reflect timers that start after it's called. */

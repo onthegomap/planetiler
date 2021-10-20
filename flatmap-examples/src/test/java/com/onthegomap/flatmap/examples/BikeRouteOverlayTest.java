@@ -9,7 +9,7 @@ import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.VectorTile;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
 import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmReader;

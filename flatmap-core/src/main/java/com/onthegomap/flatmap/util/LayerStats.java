@@ -1,6 +1,6 @@
 package com.onthegomap.flatmap.util;
 
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
 import com.onthegomap.flatmap.render.RenderedFeature;
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +19,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * thread-local handler that can update stats without contention.
  *
  * @see Mbtiles.MetadataJson
- * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content>MBtiles spec</a>
+ * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles spec</a>
  */
 @ThreadSafe
 public class LayerStats implements Consumer<RenderedFeature> {

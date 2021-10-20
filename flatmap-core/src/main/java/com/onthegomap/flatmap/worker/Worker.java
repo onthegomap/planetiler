@@ -137,9 +137,7 @@ public class Worker {
     private final String namePrefix;
 
     private NamedThreadFactory(String name) {
-      SecurityManager s = System.getSecurityManager();
-      group = (s != null) ? s.getThreadGroup() :
-        Thread.currentThread().getThreadGroup();
+      group = Thread.currentThread().getThreadGroup();
       namePrefix = name + "-";
     }
 

@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    open-pull-requests-limit: 1
+    schedule:
+      interval: daily
+      time: "04:30"
+      timezone: America/New_York
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: "com.graphhopper:graphhopper-reader-osm"
+  - package-ecosystem: maven
+    directory: "/flatmap-examples"
+    open-pull-requests-limit: 1
+    schedule:
+      interval: daily
+      time: "04:30"
+      timezone: America/New_York
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: "com.onthegomap.flatmap:*"
+  - package-ecosystem: github-actions
+    directory: "/"
+    open-pull-requests-limit: 1
+    schedule:
+      interval: daily
+      time: "04:30"
+      timezone: America/New_York
+    labels:
+      - dependencies

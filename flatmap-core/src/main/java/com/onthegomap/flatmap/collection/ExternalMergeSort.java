@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.Deflater;
@@ -54,6 +55,8 @@ class ExternalMergeSort implements FeatureSort {
   private final List<Chunk> chunks = new ArrayList<>();
   private final boolean gzip;
   private final FlatmapConfig config;
+  private final int readerLimit;
+  private final int writerLimit;
   private Chunk currentChunk;
   private volatile boolean sorted = false;
 
@@ -83,6 +86,10 @@ class ExternalMergeSort implements FeatureSort {
         "Not enough memory to use chunk size " + chunkSizeLimit + " only have " + memory);
     }
     this.workers = workers;
+    this.readerLimit = Math.max(1, config.arguments()
+      .getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks", 6));
+    this.writerLimit = Math.max(1, config.arguments()
+      .getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks", 6));
     LOGGER.info("Using merge sort feature map, chunk size=" + (chunkSizeLimit / 1_000_000) + "mb workers=" + workers);
     try {
       FileUtils.deleteDirectory(dir);
@@ -153,6 +160,8 @@ class ExternalMergeSort implements FeatureSort {
       }
     }
     var timer = stats.startStage("sort");
+    Semaphore readSemaphore = new Semaphore(readerLimit);
+    Semaphore writeSemaphore = new Semaphore(writerLimit);
     AtomicLong reading = new AtomicLong(0);
     AtomicLong writing = new AtomicLong(0);
     AtomicLong sorting = new AtomicLong(0);
@@ -161,10 +170,21 @@ class ExternalMergeSort implements FeatureSort {
     var pipeline = WorkerPipeline.start("sort", stats)
       .readFromTiny("item_queue", chunks)
       .sinkToConsumer("worker", workers, chunk -> {
-        var toSort = time(reading, chunk::readAll);
-        time(sorting, toSort::sort);
-        time(writing, toSort::flush);
-        doneCounter.incrementAndGet();
+        try {
+          readSemaphore.acquire();
+          var toSort = time(reading, chunk::readAll);
+          readSemaphore.release();
+
+          time(sorting, toSort::sort);
+
+          writeSemaphore.acquire();
+          time(writing, toSort::flush);
+          writeSemaphore.release();
+
+          doneCounter.incrementAndGet();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
       });
 
     ProgressLoggers loggers = ProgressLoggers.create()

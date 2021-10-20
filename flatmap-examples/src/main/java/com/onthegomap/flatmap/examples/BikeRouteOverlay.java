@@ -14,14 +14,14 @@ import java.util.List;
 
 /**
  * Builds a map of bike routes from ways contained in OpenStreetMap relations tagged with
- * <a href="https://wiki.openstreetmap.org/wiki/Tag:route%3Dbicycle">route=bicycle</a>.
+ * <a href="https://wiki.openstreetmap.org/wiki/Tag:route=bicycle">route=bicycle</a>.
  * <p>
  * To run this example:
  * <ol>
  *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
- *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
+ *   <li>then build the examples: {@code mvn clean package}</li>
+ *   <li>then run this example: {@code java -cp target/*-with-deps.jar com.onthegomap.flatmap.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
+ *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles data/bikeroutes.mbtiles}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
@@ -166,12 +166,13 @@ public class BikeRouteOverlay implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
+    String area = args.getString("area", "geofabrik area to download", "monaco");
     // FlatmapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using the lower-level API
     FlatmapRunner.create(args)
       .setProfile(new BikeRouteOverlay())
       // override this default with osm_path="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"))
+      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "bikeroutes.mbtiles"))
       .run();

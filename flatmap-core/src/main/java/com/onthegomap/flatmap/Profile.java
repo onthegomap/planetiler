@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap;
 
 import com.onthegomap.flatmap.geo.GeometryException;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.reader.osm.OsmElement;
 import com.onthegomap.flatmap.reader.osm.OsmRelationInfo;
@@ -37,11 +37,12 @@ public interface Profile {
    * passed along to {@link #processFeature(SourceFeature, FeatureCollector)} for any OSM element in that relation.
    * <p>
    * The result of this method is stored in memory.
+   * <p>
+   * The default implementation returns {@code null} to ignore all relations
    *
    * @param relation the OSM relation
    * @return a list of relation info instances with information extracted from the relation to pass to {@link
    * #processFeature(SourceFeature, FeatureCollector)}, or {@code null} to ignore.
-   * @implNote The default implementation returns {@code null} to ignore all relations
    */
   default List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     return null;
@@ -72,6 +73,8 @@ public interface Profile {
    * linestrings/polygons.
    * <p>
    * Many threads invoke this method concurrently so ensure thread-safe access to any shared data structures.
+   * <p>
+   * The default implementation passes through input features unaltered
    *
    * @param layer the output layer name
    * @param zoom  zoom level of the tile
@@ -80,10 +83,9 @@ public interface Profile {
    * {@code null} if they should be ignored.
    * @throws GeometryException for any recoverable geometric operation failures - the framework will log the error, emit
    *                           the original input features, and continue processing other tiles
-   * @implSpec The default implementation passes through input features unaltered
    */
   default List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-      List<VectorTile.Feature> items) throws GeometryException {
+    List<VectorTile.Feature> items) throws GeometryException {
     return items;
   }
 
@@ -126,8 +128,9 @@ public interface Profile {
   /**
    * Returns {@code true} to set {@code type="overlay"} in {@link Mbtiles} metadata otherwise sets {@code
    * type="baselayer"}
+   * <p>
+   * The default implementation sets {@code type="baselayer"}
    *
-   * @implSpec The default implementation sets {@code type="baselayer"}
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#metadata">MBTiles specification</a>
    */
   default boolean isOverlay() {
@@ -136,10 +139,11 @@ public interface Profile {
 
   /**
    * Defines whether {@link Wikidata} should fetch wikidata translations for the input element.
+   * <p>
+   * The default implementation returns {@code true} for all elements
    *
    * @param elem the input OSM element
    * @return {@code true} to fetch wikidata translations for {@code elem}, {@code false} to ignore
-   * @implSpec the default implementation returns {@code true} for all elements
    */
   default boolean caresAboutWikidataTranslation(OsmElement elem) {
     return true;
@@ -153,15 +157,16 @@ public interface Profile {
    * @param next              a consumer to pass finished map features to
    */
   default void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-      Consumer<FeatureCollector.Feature> next) {
+    Consumer<FeatureCollector.Feature> next) {
   }
 
   /**
    * Returns true if this profile will use any of the elements from an input source.
+   * <p>
+   * The default implementation returns true.
    *
    * @param name the input source name
    * @return {@code true} if this profile uses that source, {@code false} if it is safe to ignore
-   * @implSpec the default implementation returns true
    */
   default boolean caresAboutSource(String name) {
     return true;
@@ -178,7 +183,7 @@ public interface Profile {
 
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-        List<VectorTile.Feature> items) {
+      List<VectorTile.Feature> items) {
       return items;
     }
 

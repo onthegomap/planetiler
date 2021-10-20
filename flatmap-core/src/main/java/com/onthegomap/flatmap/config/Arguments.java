@@ -177,7 +177,7 @@ public class Arguments {
   public Envelope bounds(String key, String description) {
     String input = getArg(key);
     Envelope result = null;
-    if ("world".equalsIgnoreCase(input)) {
+    if ("world".equalsIgnoreCase(input) || "planet".equalsIgnoreCase(input)) {
       result = GeoUtils.WORLD_LAT_LON_BOUNDS;
     } else if (input != null) {
       double[] bounds = Stream.of(input.split("[\\s,]+")).mapToDouble(Double::parseDouble).toArray();
@@ -304,6 +304,18 @@ public class Arguments {
     String value = getArg(key, defaultValue);
     Duration parsed = Duration.parse("PT" + value);
     logArgValue(key, description, parsed.get(ChronoUnit.SECONDS) + " seconds");
+    return parsed;
+  }
+
+  /**
+   * Returns an argument as long.
+   *
+   * @throws NumberFormatException if the argument cannot be parsed as an long
+   */
+  public long getLong(String key, String description, long defaultValue) {
+    String value = getArg(key, Long.toString(defaultValue));
+    long parsed = Long.parseLong(value);
+    logArgValue(key, description, parsed);
     return parsed;
   }
 }

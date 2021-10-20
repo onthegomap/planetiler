@@ -2,9 +2,9 @@ package com.onthegomap.flatmap.util;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.onthegomap.flatmap.config.FlatmapConfig;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -37,17 +37,19 @@ public class Geofabrik {
    * The index is only fetched once and cached after that.
    *
    * @param searchQuery the tokens to search for
+   * @param config      flatmap config with user-agent and timeout to use when downloading files
    * @return the URL of a {@code .osm.pbf} file with name or ID matching {@code searchQuery}
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
-  public static String getDownloadUrl(String searchQuery) {
-    IndexJson index = getAndCacheIndex();
+  public static String getDownloadUrl(String searchQuery, FlatmapConfig config) {
+    IndexJson index = getAndCacheIndex(config);
     return searchIndexForDownloadUrl(searchQuery, index);
   }
 
-  private synchronized static IndexJson getAndCacheIndex() {
+  private synchronized static IndexJson getAndCacheIndex(FlatmapConfig config) {
     if (index == null) {
-      try (InputStream inputStream = new URL("https://download.geofabrik.de/index-v1-nogeom.json").openStream()) {
+      try (InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
+        config)) {
         index = parseIndexJson(inputStream);
       } catch (IOException e) {
         throw new IllegalStateException(e);

@@ -167,8 +167,8 @@ class PrometheusStats implements Stats {
   }
 
   @Override
-  public void monitorFile(String name, Path path) {
-    filesToMonitor.put(name, path);
+  public Map<String, Path> monitoredFiles() {
+    return filesToMonitor;
   }
 
   @Override

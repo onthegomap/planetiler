@@ -1,0 +1,22 @@
+# https://help.github.com/en/actions/automating-your-workflow-with-github-actions/metadata-syntax-for-github-actions
+name: 'Cache data/sources'
+description: 'Save/restore data/sources cache'
+inputs:
+  basedir:
+    description: 'Base dir for computing file hash'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Get Date
+      id: get-data
+      run: |
+        echo "::set-output name=hash::${{ hashFiles('**/FlatmapRunner.java', '**/Downloader.java', '**/Geofabrik.java', '**/BasemapMain.java') }}"
+        echo "::set-output name=date::$(date -u "+%Y-%m-%d")"
+      shell: bash
+      working-directory: ${{ inputs.basedir }}
+    - uses: actions/cache@v2
+      with:
+        path: data/sources
+        key: data-sources-${{ steps.get-data.outputs.date }}-${{ steps.get-data.outputs.hash }}

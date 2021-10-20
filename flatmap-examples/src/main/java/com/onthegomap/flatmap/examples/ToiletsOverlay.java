@@ -16,9 +16,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * To run this example:
  * <ol>
  *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
- *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
+ *   <li>then build the examples: {@code mvn clean package}</li>
+ *   <li>then run this example: {@code java -cp target/*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
+ *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/output.mbtiles}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */

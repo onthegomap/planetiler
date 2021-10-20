@@ -23,12 +23,16 @@ import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.google.common.primitives.Ints;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -37,6 +41,10 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.NoninvertibleTransformationException;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import vector_tile.VectorTileProto;
 
 /**
@@ -335,7 +343,7 @@ public class VectorTileTest {
   private void testRoundTrip(Geometry input, String layer, Map<String, Object> attrs, long id) {
     VectorTile.VectorGeometry encodedGeom = VectorTile.encodeGeometry(input);
     Geometry output = decodeSilently(encodedGeom);
-    assertTrue(input.equalsExact(output), "\n" + input + "\n!=\n" + output);
+    assertTrue(input.equalsExact(output), "%n%s%n!=%n%s".formatted(input, output));
 
     byte[] encoded = new VectorTile().addLayerFeatures(layer, List.of(
       new VectorTile.Feature(layer, id, VectorTile.encodeGeometry(input), attrs)
@@ -350,5 +358,75 @@ public class VectorTileTest {
 
   private void assertSameGeometries(List<Geometry> expected, List<VectorTile.Feature> actual) {
     assertEquals(expected, actual.stream().map(d -> decodeSilently(d.geometry())).toList());
+  }
+
+  @TestFactory
+  public Stream<DynamicTest> testScaleUnscale() throws NoninvertibleTransformationException {
+    var scales = List.of(0, 1, 2, 16);
+    var scaleUp = AffineTransformation.scaleInstance(256d / 4096, 256d / 4096);
+    var scaleDown = scaleUp.getInverse();
+    return Stream.of(
+        newPoint(0, 0),
+        newPoint(0.25, -0.25),
+        newPoint(1.25, 1.25),
+        newPoint(1.5, 1.5),
+        newMultiPoint(
+          newPoint(1.25, 1.25),
+          newPoint(1.5, 1.5)
+        ),
+        newLineString(0, 0, 1.2, 1.2),
+        newLineString(0, 0, 0.1, 0.1),
+        newLineString(0, 0, 1, 1, 1.2, 1.2, 2, 2),
+        newLineString(8000, 8000, 8000, 8001, 8001, 8001),
+        newLineString(-4000, -4000, -4000, -4001, -4001, -4001),
+        newMultiLineString(
+          newLineString(0, 0, 1, 1),
+          newLineString(1.1, 1.1, 2, 2)
+        ),
+        newMultiLineString(
+          newLineString(0, 0, 0.1, 0.1),
+          newLineString(1.1, 1.1, 2, 2)
+        ),
+        newMultiLineString(
+          newLineString(-10, -10, -9, -9),
+          newLineString(0, 0, 0.1, 0.1),
+          newLineString(1.1, 1.1, 2, 2)
+        ),
+        newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
+        newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0.1, 0, 0),
+        newPolygon(0, 0, 1, 0, 1, 0.1, 1, 1, 0, 1, 0, 0),
+        newMultiPolygon(
+          newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
+          newPolygon(0, 0, -1, 0, -1, -1, 0, -1, 0, 0)
+        ),
+        newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0.1, 0, 0)
+      ).map(scaleUp::transform)
+      .flatMap(geometry -> scales.stream().flatMap(scale ->
+        Stream.of(
+          dynamicTest(scaleDown.transform(geometry) + " scale: " + scale, () -> {
+            PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
+            assertSameGeometry(
+              GeometryPrecisionReducer.reduce(geometry, pm),
+              VectorTile.encodeGeometry(geometry, scale).decode()
+            );
+          }),
+          dynamicTest(scaleDown.transform(geometry) + " unscale: " + scale, () -> {
+            PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
+            PrecisionModel pm0 = new PrecisionModel(4096d / 256);
+            assertSameGeometry(
+              GeometryPrecisionReducer.reduce(GeometryPrecisionReducer.reduce(geometry, pm), pm0),
+              VectorTile.encodeGeometry(geometry, scale).unscale().decode()
+            );
+          })
+        )
+      ));
+  }
+
+  private void assertSameGeometry(Geometry expected, Geometry actual) {
+    if (expected.isEmpty() && actual.isEmpty()) {
+      // OK
+    } else {
+      assertSameNormalizedFeature(expected, actual);
+    }
   }
 }

@@ -2,8 +2,10 @@
 
 target/
 *.jar
+!.mvn/wrapper/*.jar
 *.log
 
+*/.idea
 .idea/*
 *.iml
 !.idea/codeStyles

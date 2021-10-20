@@ -37,7 +37,6 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -114,14 +113,14 @@ public class Wikidata {
   public static void fetch(OsmInputFile infile, Path outfile, FlatmapConfig config, Profile profile, Stats stats) {
     var timer = stats.startStage("wikidata");
     int threadsAvailable = Math.max(1, config.threads() - 2);
-    int processThreads = Math.max(1, threadsAvailable / 4);
+    int processThreads = Math.max(1, threadsAvailable / 2);
     int readerThreads = Math.max(1, threadsAvailable - processThreads);
     LOGGER
       .info("Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
     try (Writer writer = Files.newBufferedWriter(outfile)) {
-      HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
+      HttpClient client = HttpClient.newBuilder().connectTimeout(config.httpTimeout()).build();
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile, config);
       fetcher.loadExisting(oldMappings);
 
@@ -130,7 +129,7 @@ public class Wikidata {
         .fromGenerator("pbf", infile.read(pbfParsePrefix, readerThreads))
         .addBuffer("reader_queue", 50_000, 10_000)
         .addWorker("filter", processThreads, fetcher::filter)
-        .addBuffer("fetch_queue", 50_000)
+        .addBuffer("fetch_queue", 1_000_000, 100)
         .sinkTo("fetch", 1, prev -> {
           Long id;
           while ((id = prev.get()) != null) {
@@ -280,7 +279,7 @@ public class Wikidata {
       """.formatted(qidList).replaceAll("\\s+", " ");
 
     HttpRequest request = HttpRequest.newBuilder(URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
-      .timeout(Duration.ofSeconds(30))
+      .timeout(config.httpTimeout())
       .header(USER_AGENT, config.httpUserAgent())
       .header(ACCEPT, "application/sparql-results+json")
       .header(CONTENT_TYPE, "application/sparql-query")
@@ -311,7 +310,7 @@ public class Wikidata {
         Long.toString(cursor.key),
         cursor.value
       )));
-      writer.write("\n");
+      writer.write(System.lineSeparator());
     }
     writer.flush();
   }

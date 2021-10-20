@@ -2,6 +2,7 @@ package com.onthegomap.flatmap;
 
 import static com.onthegomap.flatmap.geo.GeoUtils.JTS_FACTORY;
 import static com.onthegomap.flatmap.geo.GeoUtils.coordinateSequence;
+import static com.onthegomap.flatmap.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,10 +19,10 @@ import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Verify;
 import com.onthegomap.flatmap.reader.SourceFeature;
 import com.onthegomap.flatmap.stats.Stats;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,7 +40,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -192,12 +192,6 @@ public class TestUtils {
 
   public static Geometry round(Geometry input) {
     return round(input, 1e5);
-  }
-
-  public static byte[] gunzip(byte[] zipped) throws IOException {
-    try (var is = new GZIPInputStream(new ByteArrayInputStream(zipped))) {
-      return is.readAllBytes();
-    }
   }
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException, IOException {
@@ -446,7 +440,8 @@ public class TestUtils {
   }
 
   public static void assertPointOnSurface(Geometry surface, Geometry actual) {
-    assertTrue(surface.covers(actual), actual + "\nis not inside\n" + surface);
+    assertTrue(surface.covers(actual),
+      actual + System.lineSeparator() + "is not inside" + System.lineSeparator() + surface);
   }
 
   public static void assertTopologicallyEquivalentFeatures(
@@ -585,41 +580,14 @@ public class TestUtils {
   }
 
   public static void assertNumFeatures(Mbtiles db, String layer, int zoom, Map<String, Object> attrs,
-    Envelope envelope,
-    int expected, Class<? extends Geometry> clazz) {
+    Envelope envelope, int expected, Class<? extends Geometry> clazz) {
     try {
-      int num = 0;
-      for (var tileCoord : db.getAllTileCoords()) {
-        Envelope tileEnv = new Envelope();
-        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMinX(), envelope.getMinY()));
-        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMaxX(), envelope.getMaxY()));
-        if (tileCoord.z() == zoom) {
-          byte[] data = db.getTile(tileCoord);
-          for (var feature : VectorTile.decode(gunzip(data))) {
-            if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
-              Geometry geometry = feature.geometry().decode();
-              num += getGeometryCounts(geometry, clazz);
-            }
-          }
-        }
-      }
+      int num = Verify.getNumFeatures(db, layer, zoom, attrs, envelope, clazz);
 
       assertEquals(expected, num, "z%d features in %s".formatted(zoom, layer));
     } catch (IOException | GeometryException e) {
       fail(e);
     }
-  }
-
-  private static int getGeometryCounts(Geometry geom, Class<? extends Geometry> clazz) {
-    int count = 0;
-    if (geom instanceof GeometryCollection geometryCollection) {
-      for (int i = 0; i < geometryCollection.getNumGeometries(); i++) {
-        count += getGeometryCounts(geometryCollection.getGeometryN(i), clazz);
-      }
-    } else if (clazz.isInstance(geom)) {
-      count = 1;
-    }
-    return count;
   }
 
   public static void assertFeatureNear(Mbtiles db, String layer, Map<String, Object> attrs, double lng, double lat,
@@ -663,13 +631,14 @@ public class TestUtils {
             ));
           } else {
             failures.add("z%d features found in %s but had wrong tags: %s".formatted(
-              zoom, layer, containedInLayerFeatures.stream().collect(Collectors.joining("\n", "\n", "")))
+              zoom, layer, containedInLayerFeatures.stream()
+                .collect(Collectors.joining(System.lineSeparator(), System.lineSeparator(), "")))
             );
           }
         }
       }
       if (!failures.isEmpty()) {
-        fail(String.join("\n", failures));
+        fail(String.join(System.lineSeparator(), failures));
       }
     } catch (GeometryException | IOException e) {
       fail(e);

@@ -7,15 +7,17 @@ import org.locationtech.jts.geom.Puntal;
 import vector_tile.VectorTileProto;
 
 public enum GeometryType {
-  UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN),
-  POINT(VectorTileProto.Tile.GeomType.POINT),
-  LINE(VectorTileProto.Tile.GeomType.LINESTRING),
-  POLYGON(VectorTileProto.Tile.GeomType.POLYGON);
+  UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN, 0),
+  POINT(VectorTileProto.Tile.GeomType.POINT, 1),
+  LINE(VectorTileProto.Tile.GeomType.LINESTRING, 2),
+  POLYGON(VectorTileProto.Tile.GeomType.POLYGON, 4);
 
   private final VectorTileProto.Tile.GeomType protobufType;
+  private int minPoints;
 
-  GeometryType(VectorTileProto.Tile.GeomType protobufType) {
+  GeometryType(VectorTileProto.Tile.GeomType protobufType, int minPoints) {
     this.protobufType = protobufType;
+    this.minPoints = minPoints;
   }
 
   public static GeometryType valueOf(Geometry geom) {
@@ -44,5 +46,9 @@ public enum GeometryType {
 
   public VectorTileProto.Tile.GeomType asProtobufType() {
     return protobufType;
+  }
+
+  public int minPoints() {
+    return minPoints;
   }
 }

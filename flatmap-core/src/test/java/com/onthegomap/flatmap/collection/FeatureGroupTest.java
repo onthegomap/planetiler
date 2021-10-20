@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.flatmap.Profile;
 import com.onthegomap.flatmap.VectorTile;
+import com.onthegomap.flatmap.geo.GeometryType;
 import com.onthegomap.flatmap.geo.TileCoord;
 import com.onthegomap.flatmap.render.RenderedFeature;
 import com.onthegomap.flatmap.stats.Stats;
@@ -348,5 +349,19 @@ public class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertFalse(iter.next().hasSameContents(iter.next()));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "UNKNOWN,0",
+    "LINE,2",
+    "POLYGON,15",
+    "POINT,14"
+  })
+  public void testEncodeDecodeGeometryMetadata(String geomTypeString, int scale) {
+    GeometryType geomType = GeometryType.valueOf(geomTypeString);
+    byte encoded = FeatureGroup.encodeGeomTypeAndScale(new VectorTile.VectorGeometry(new int[0], geomType, scale));
+    assertEquals(geomType, FeatureGroup.decodeGeomType(encoded));
+    assertEquals(scale, FeatureGroup.decodeScale(encoded));
   }
 }

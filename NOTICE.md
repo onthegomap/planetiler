@@ -25,12 +25,10 @@ The `flatmap-core` module includes the following software:
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
   - `TiledGeometry` from [geojson-vt](https://github.com/mapbox/geojson-vt) (ISC license)
   - `VectorTileEncoder`
-    from [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) (Apache
-    license)
+    from [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) (Apache license)
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
 
-Additionally, the `flatmap-openmaptiles` module is a Java port
-of [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
+Additionally, the `flatmap-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)
@@ -41,8 +39,8 @@ of [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
   - `LanguageUtils` ported from OpenMapTiles
 - Schema
   - The cartography and visual design features of the map tile schema are licensed
-    under [CC-BY 4.0](http://creativecommons.org/licenses/by/4.0/). Products or services using maps
-    derived from OpenMapTiles schema need to visibly credit "OpenMapTiles.org" or reference
+    under [CC-BY 4.0](http://creativecommons.org/licenses/by/4.0/). Products or services using maps derived from
+    OpenMapTiles schema need to visibly credit "OpenMapTiles.org" or reference
     "OpenMapTiles" with a link to http://openmaptiles.org/. More
     details [here](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md#design-license-cc-by-40)
 

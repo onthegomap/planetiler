@@ -647,9 +647,36 @@ public class OsmReaderTest {
       feature.relationInfo(TestRelInfo.class));
   }
 
+  @Test
+  public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
+    record TestRelInfo(long id, String name) implements OsmRelationInfo {}
+    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+      @Override
+      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+        return List.of(new TestRelInfo(1, "name"));
+      }
+    }, stats);
+    var nodeCache = reader.newNodeLocationProvider();
+    var node1 = new ReaderNode(1, 0, 0);
+    var node2 = node(2, 0.75, 0.75);
+    var way = new ReaderWay(3);
+    way.getNodes().add(node1.getId(), node2.getId());
+    way.setTag("key", "value");
+    var relation = new ReaderRelation(4);
+    relation.add(new ReaderRelation.Member(ReaderRelation.Member.RELATION, 3, "rolename"));
+    relation.add(new ReaderRelation.Member(ReaderRelation.Member.NODE, 3, "rolename"));
+
+    reader.processPass1Element(node1);
+    reader.processPass1Element(node2);
+    reader.processPass1Element(way);
+    reader.processPass1Element(relation);
+
+    SourceFeature feature = reader.processWayPass2(way, nodeCache);
+
+    assertEquals(List.of(), feature.relationInfo(TestRelInfo.class));
+  }
+
   private OsmReader newOsmReader() {
     return new OsmReader("osm", osmSource, nodeMap, profile, stats);
   }
-
-  // TODO: relation info / storage size
 }

@@ -75,13 +75,105 @@ public class VectorTile {
   // TODO make these configurable
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
-  private static final double SCALE = ((double) EXTENT) / SIZE;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
 
-  private static int[] getCommands(Geometry input) {
-    var encoder = new CommandEncoder();
+  private static int[] getCommands(Geometry input, int scale) {
+    var encoder = new CommandEncoder(scale);
     encoder.accept(input);
     return encoder.result.toArray();
+  }
+
+  /**
+   * Scales a geometry down by a factor of {@code 2^scale} without materializing an intermediate JTS geometry and
+   * returns the encoded result.
+   */
+  private static int[] unscale(int[] commands, int scale, GeometryType geomType) {
+    IntArrayList result = new IntArrayList();
+    int geometryCount = commands.length;
+    int length = 0;
+    int command = 0;
+    int i = 0;
+    int inX = 0, inY = 0;
+    int outX = 0, outY = 0;
+    int startX = 0, startY = 0;
+    double scaleFactor = Math.pow(2, -scale);
+    int lengthIdx = 0;
+    int moveToIdx = 0;
+    int pointsInShape = 0;
+    boolean first = true;
+    while (i < geometryCount) {
+      if (length <= 0) {
+        length = commands[i++];
+        lengthIdx = result.size();
+        result.add(length);
+        command = length & ((1 << 3) - 1);
+        length = length >> 3;
+      }
+
+      if (length > 0) {
+        if (command == Command.MOVE_TO.value) {
+          // degenerate geometry, remove it from output entirely
+          if (!first && pointsInShape < geomType.minPoints()) {
+            int prevCommand = result.get(lengthIdx);
+            result.elementsCount = moveToIdx;
+            result.add(prevCommand);
+            // reset deltas
+            outX = startX;
+            outY = startY;
+          }
+          // keep track of size of next shape...
+          pointsInShape = 0;
+          startX = outX;
+          startY = outY;
+          moveToIdx = result.size() - 1;
+        }
+        first = false;
+        if (command == Command.CLOSE_PATH.value) {
+          pointsInShape++;
+          length--;
+          continue;
+        }
+
+        int dx = commands[i++];
+        int dy = commands[i++];
+
+        length--;
+
+        dx = zigZagDecode(dx);
+        dy = zigZagDecode(dy);
+
+        inX = inX + dx;
+        inY = inY + dy;
+
+        int nextX = (int) Math.round(inX * scaleFactor);
+        int nextY = (int) Math.round(inY * scaleFactor);
+
+        if (nextX == outX && nextY == outY && command == Command.LINE_TO.value) {
+          int commandLength = result.get(lengthIdx) - 8;
+          if (commandLength < 8) {
+            // get rid of lineto section if empty
+            result.elementsCount = lengthIdx;
+          } else {
+            result.set(lengthIdx, commandLength);
+          }
+        } else {
+          pointsInShape++;
+          int dxOut = nextX - outX;
+          int dyOut = nextY - outY;
+          result.add(
+            zigZagEncode(dxOut),
+            zigZagEncode(dyOut)
+          );
+          outX = nextX;
+          outY = nextY;
+        }
+      }
+    }
+    // degenerate geometry, remove it from output entirely
+    if (pointsInShape < geomType.minPoints()) {
+      result.elementsCount = moveToIdx;
+    }
+    return result.toArray();
   }
 
   private static int zigZagEncode(int n) {
@@ -94,9 +186,10 @@ public class VectorTile {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  private static Geometry decodeCommands(GeometryType geomType, int[] commands) throws GeometryException {
+  private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scale) throws GeometryException {
     try {
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
+      double SCALE = (EXTENT << scale) / SIZE;
       int x = 0;
       int y = 0;
 
@@ -219,7 +312,7 @@ public class VectorTile {
       }
 
       if (geometry == null) {
-        geometry = gf.createGeometryCollection(new Geometry[0]);
+        geometry = GeoUtils.EMPTY_GEOMETRY;
       }
 
       return geometry;
@@ -284,7 +377,7 @@ public class VectorTile {
           features.add(new Feature(
             layerName,
             feature.getId(),
-            new VectorGeometry(Ints.toArray(feature.getGeometryList()), GeometryType.valueOf(feature.getType())),
+            new VectorGeometry(Ints.toArray(feature.getGeometryList()), GeometryType.valueOf(feature.getType()), 0),
             attrs
           ));
         }
@@ -303,7 +396,11 @@ public class VectorTile {
    * @return the geometry type and command array for the encoded geometry
    */
   public static VectorGeometry encodeGeometry(Geometry geometry) {
-    return new VectorGeometry(getCommands(geometry), GeometryType.valueOf(geometry));
+    return encodeGeometry(geometry, 0);
+  }
+
+  public static VectorGeometry encodeGeometry(Geometry geometry, int scale) {
+    return new VectorGeometry(getCommands(geometry, scale), GeometryType.valueOf(geometry), scale);
   }
 
   /**
@@ -411,12 +508,28 @@ public class VectorTile {
   /**
    * A vector tile encoded as a list of commands according to the <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">vector
    * tile specification</a>.
+   * <p>
+   * To encode extra precision in intermediate feature geometries, the geometry contained in {@code commands} is scaled
+   * to a tile extent of {@code EXTENT * 2^scale}, so when the {@code scale == 0} the extent is {@link #EXTENT} and when
+   * {@code scale == 2} the extent is 4x{@link #EXTENT}. Geometries must be scaled back to 0 using {@link #unscale()}
+   * before outputting to mbtiles.
    */
-  public static record VectorGeometry(int[] commands, GeometryType geomType) {
+  public static record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
+
+    public VectorGeometry {
+      if (scale < 0) {
+        throw new IllegalArgumentException("scale can not be less than 0, got: " + scale);
+      }
+    }
 
     /** Converts an encoded geometry back to a JTS geometry. */
     public Geometry decode() throws GeometryException {
-      return decodeCommands(geomType, commands);
+      return decodeCommands(geomType, commands, scale);
+    }
+
+    /** Returns this encoded geometry, scaled back to 0, so it is safe to emit to mbtiles output. */
+    public VectorGeometry unscale() {
+      return scale == 0 ? this : new VectorGeometry(VectorTile.unscale(commands, scale, geomType), geomType, 0);
     }
 
     @Override
@@ -491,10 +604,17 @@ public class VectorTile {
      * new geometry.
      */
     public Feature copyWithNewGeometry(Geometry newGeometry) {
+      return copyWithNewGeometry(encodeGeometry(newGeometry));
+    }
+
+    /**
+     * Returns a copy of this feature with {@code geometry} replaced with {@code newGeometry}.
+     */
+    public Feature copyWithNewGeometry(VectorGeometry newGeometry) {
       return new Feature(
         layer,
         id,
-        encodeGeometry(newGeometry),
+        newGeometry,
         attrs,
         group
       );
@@ -521,9 +641,14 @@ public class VectorTile {
   private static class CommandEncoder {
 
     final IntArrayList result = new IntArrayList();
+    private final double SCALE;
     // Initial points use absolute locations, then subsequent points in a geometry use offsets so
     // need to keep track of previous x/y location during the encoding.
     int x = 0, y = 0;
+
+    CommandEncoder(int scale) {
+      this.SCALE = (EXTENT << scale) / SIZE;
+    }
 
     static boolean shouldClosePath(Geometry geometry) {
       return (geometry instanceof Polygon) || (geometry instanceof LinearRing);
@@ -536,44 +661,47 @@ public class VectorTile {
     void accept(Geometry geometry) {
       if (geometry instanceof MultiLineString multiLineString) {
         for (int i = 0; i < multiLineString.getNumGeometries(); i++) {
-          encode(((LineString) multiLineString.getGeometryN(i)).getCoordinateSequence(), false);
+          encode(((LineString) multiLineString.getGeometryN(i)).getCoordinateSequence(), false, GeometryType.LINE);
         }
       } else if (geometry instanceof Polygon polygon) {
         LineString exteriorRing = polygon.getExteriorRing();
-        encode(exteriorRing.getCoordinateSequence(), true);
+        encode(exteriorRing.getCoordinateSequence(), true, GeometryType.POLYGON);
 
         for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
           LineString interiorRing = polygon.getInteriorRingN(i);
-          encode(interiorRing.getCoordinateSequence(), true);
+          encode(interiorRing.getCoordinateSequence(), true, GeometryType.LINE);
         }
       } else if (geometry instanceof MultiPolygon multiPolygon) {
         for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
           accept(multiPolygon.getGeometryN(i));
         }
       } else if (geometry instanceof LineString lineString) {
-        encode(lineString.getCoordinateSequence(), shouldClosePath(geometry));
+        encode(lineString.getCoordinateSequence(), shouldClosePath(geometry), GeometryType.LINE);
       } else if (geometry instanceof Point point) {
-        encode(point.getCoordinateSequence(), false);
+        encode(point.getCoordinateSequence(), false, GeometryType.POINT);
       } else if (geometry instanceof Puntal) {
         encode(new CoordinateArraySequence(geometry.getCoordinates()), shouldClosePath(geometry),
-          geometry instanceof MultiPoint);
+          geometry instanceof MultiPoint, GeometryType.POINT);
       } else {
         LOGGER.warn("Unrecognized geometry type: " + geometry.getGeometryType());
       }
     }
 
-    void encode(CoordinateSequence cs, boolean closePathAtEnd) {
-      encode(cs, closePathAtEnd, false);
+    void encode(CoordinateSequence cs, boolean closePathAtEnd, GeometryType geomType) {
+      encode(cs, closePathAtEnd, false, geomType);
     }
 
-    void encode(CoordinateSequence cs, boolean closePathAtEnd, boolean multiPoint) {
-
+    void encode(CoordinateSequence cs, boolean closePathAtEnd, boolean multiPoint, GeometryType geomType) {
       if (cs.size() == 0) {
         throw new IllegalArgumentException("empty geometry");
       }
 
+      int startIdx = result.size();
+      int numPoints = 0;
       int lineToIndex = 0;
       int lineToLength = 0;
+      int startX = x;
+      int startY = y;
 
       for (int i = 0; i < cs.size(); i++) {
 
@@ -588,7 +716,7 @@ public class VectorTile {
         int _y = (int) Math.round(cy * SCALE);
 
         // prevent point equal to the previous
-        if (i > 0 && _x == x && _y == y) {
+        if (i > 0 && _x == x && _y == y && !multiPoint) {
           lineToLength--;
           continue;
         }
@@ -602,6 +730,7 @@ public class VectorTile {
         // delta, then zigzag
         result.add(zigZagEncode(_x - x));
         result.add(zigZagEncode(_y - y));
+        numPoints++;
 
         x = _x;
         y = _y;
@@ -628,6 +757,15 @@ public class VectorTile {
 
       if (closePathAtEnd) {
         result.add(commandAndLength(Command.CLOSE_PATH, 1));
+        numPoints++;
+      }
+
+      // degenerate geometry, skip emitting
+      if (numPoints < geomType.minPoints()) {
+        result.elementsCount = startIdx;
+        // reset deltas
+        x = startX;
+        y = startY;
       }
     }
   }

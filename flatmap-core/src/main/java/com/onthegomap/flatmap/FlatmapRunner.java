@@ -5,7 +5,7 @@ import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.config.MbtilesMetadata;
-import com.onthegomap.flatmap.mbiles.MbtilesWriter;
+import com.onthegomap.flatmap.mbtiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.NaturalEarthReader;
 import com.onthegomap.flatmap.reader.ShapefileReader;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
@@ -53,7 +53,7 @@ public class FlatmapRunner {
   private static final Logger LOGGER = LoggerFactory.getLogger(FlatmapRunner.class);
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
-  private final List<Path> inputPaths = new ArrayList<>();
+  private final List<InputPath> inputPaths = new ArrayList<>();
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
   private final Stats stats;
@@ -135,7 +135,9 @@ public class FlatmapRunner {
    * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
    *                    name_url} argument is not set.  As a shortcut, can use "geofabrik:monaco" or
    *                    "geofabrik:australia" shorthand to find an extract by name from <a
-   *                    href="https://download.geofabrik.de/">Geofabrik download site</a>.
+   *                    href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
+   *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
+   *                    Open Data Registry</a>.
    * @return this runner instance for chaining
    * @see OsmInputFile
    * @see OsmReader
@@ -333,7 +335,6 @@ public class FlatmapRunner {
    * As long as {@code use_wikidata} is not set to false, then previously-downloaded wikidata translations will be
    * loaded from the cache file so you can run with {@code fetch_wikidata=true} once, then without it each subsequent
    * run to only download translations once.
-   * </ul>
    *
    * @param defaultWikidataCache Path to store downloaded wikidata name translations to, and to read them from on
    *                             subsequent runs. Overridden by {@code wikidata_cache} argument value.
@@ -439,12 +440,14 @@ public class FlatmapRunner {
     ran = true;
     MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
 
-    if (onlyDownloadSources) {
+    if (arguments.getBoolean("help", "show arguments then exit", false)) {
+      System.exit(0);
+    } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (overwrite || config.forceOverwrite()) {
       FileUtils.deleteFile(output);
     } else if (Files.exists(output)) {
-      throw new IllegalArgumentException(output + " already exists, use force to overwrite.");
+      throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
     }
 
     LOGGER.info(
@@ -556,24 +559,26 @@ public class FlatmapRunner {
         toDownload.add(new ToDownload(name, url, path));
       }
     }
-    inputPaths.add(path);
+    inputPaths.add(new InputPath(name, path));
     return path;
   }
 
   private void download() {
     var timer = stats.startStage("download");
-    Downloader downloader = Downloader.create(config());
+    Downloader downloader = Downloader.create(config(), stats());
     for (ToDownload toDownload : toDownload) {
-      downloader.add(toDownload.id, toDownload.url, toDownload.path);
+      if (profile.caresAboutSource(toDownload.id)) {
+        downloader.add(toDownload.id, toDownload.url, toDownload.path);
+      }
     }
     downloader.run();
     timer.stop();
   }
 
   private void ensureInputFilesExist() {
-    for (Path path : inputPaths) {
-      if (!Files.exists(path)) {
-        throw new IllegalArgumentException(path + " does not exist");
+    for (InputPath inputPath : inputPaths) {
+      if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
+        throw new IllegalArgumentException(inputPath.path + " does not exist");
       }
     }
   }
@@ -586,4 +591,6 @@ public class FlatmapRunner {
   }
 
   private static record ToDownload(String id, String url, Path path) {}
+
+  private static record InputPath(String id, Path path) {}
 }

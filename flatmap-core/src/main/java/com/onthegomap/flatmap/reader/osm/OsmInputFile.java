@@ -27,7 +27,7 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
 /**
  * An input file in {@code .osm.pbf} format.
  *
- * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format>OSM PBF Format</a>
+ * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format">OSM PBF Format</a>
  */
 public class OsmInputFile implements Bounds.Provider, OsmSource {
 

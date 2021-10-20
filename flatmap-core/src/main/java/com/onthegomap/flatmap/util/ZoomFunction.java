@@ -12,7 +12,7 @@ import java.util.function.IntFunction;
  */
 public interface ZoomFunction<T> extends IntFunction<T> {
 
-  /** Returns {@code value} when zoom is >= min, and null otherwise. */
+  /** Returns {@code value} when {@code zom >= min}, and null otherwise. */
   static <T> ZoomFunction<T> minZoom(int min, T value) {
     return zoom -> zoom >= min ? value : null;
   }
@@ -22,7 +22,7 @@ public interface ZoomFunction<T> extends IntFunction<T> {
     return zoom -> zoom >= min && zoom <= max ? value : null;
   }
 
-  /** Returns {@code value} when zoom <= max, and null otherwise. */
+  /** Returns {@code value} when {@code zoom <= max}, and null otherwise. */
   static <T> ZoomFunction<T> maxZoom(int max, T value) {
     return zoom -> zoom <= max ? value : null;
   }

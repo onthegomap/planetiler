@@ -7,7 +7,7 @@ import com.onthegomap.flatmap.FeatureCollector;
 import com.onthegomap.flatmap.TestUtils;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.geo.GeoUtils;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
 import com.onthegomap.flatmap.reader.SimpleFeature;
 import java.nio.file.Path;
 import java.util.List;

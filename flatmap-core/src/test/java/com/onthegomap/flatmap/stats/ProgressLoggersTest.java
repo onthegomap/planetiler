@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.flatmap.worker.WorkerPipeline;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -36,14 +37,25 @@ public class ProgressLoggersTest {
       .addPipelineStats(pipeline);
 
     readyLatch.await();
-    String log = loggers.getLog();
 
-    assertEquals("\n    reader( 0%) ->    (0/13) -> worker( 0%  0%) ->    (0/14) -> writer( 0%  0%)",
-      log.replaceAll("[ 0-9][0-9]%", " 0%"));
+    assertEventuallyEquals(
+      System.lineSeparator() + "    reader( 0%) ->    (0/13) -> worker( 0%  0%) ->    (0/14) -> writer( 0%  0%)",
+      () -> loggers.getLog().replaceAll("[ 0-9][0-9]%", " 0%"));
     continueLatch.countDown();
     pipeline.awaitAndLog(loggers, Duration.ofSeconds(10));
     loggers.getLog();
-    assertEquals("\n    reader( -%) ->    (0/13) -> worker( -%  -%) ->    (0/14) -> writer( -%  -%)",
-      loggers.getLog());
+    assertEventuallyEquals(
+      System.lineSeparator() + "    reader( -%) ->    (0/13) -> worker( -%  -%) ->    (0/14) -> writer( -%  -%)",
+      loggers::getLog);
+  }
+
+  private void assertEventuallyEquals(String expected, Supplier<String> actual) throws InterruptedException {
+    for (int i = 0; i < 100; i++) {
+      if (actual.get().equals(expected)) {
+        return;
+      }
+      Thread.sleep(10);
+    }
+    assertEquals(expected, actual.get());
   }
 }

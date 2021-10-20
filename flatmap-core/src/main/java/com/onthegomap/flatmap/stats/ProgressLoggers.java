@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.DoubleFunction;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -33,7 +34,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Logs the progress of a long-running task (percent complete, queue sizes, CPU and memory usage, etc.)
  */
-@SuppressWarnings("UnusedReturnValue")
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public class ProgressLoggers {
 
   private static final String COLOR_RESET = "\u001B[0m";
@@ -123,6 +124,23 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
+    return addRatePercentCounter(name, total, getValue, n -> Format.formatNumeric(n, true));
+  }
+
+  /**
+   * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of bytes to
+   * process.
+   */
+  public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue) {
+    return addRatePercentCounter(name, total, getValue, n -> Format.formatStorage(n, true));
+  }
+
+  /**
+   * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
+   * process.
+   */
+  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
+    Function<Number, String> format) {
     // if there's no total, we can't show progress so fall back to rate logger instead
     if (total == 0) {
       return addRateCounter(name, getValue, true);
@@ -140,8 +158,8 @@ public class ProgressLoggers {
       last.set(valueNow);
       lastTime.set(now);
       String result =
-        "[ " + Format.formatNumeric(valueNow, true) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
-          + " " + Format.formatNumeric(valueDiff / timeDiff, true) + "/s ]";
+        "[ " + format.apply(valueNow) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
+          + " " + format.apply(valueDiff / timeDiff) + "/s ]";
       return valueDiff > 0 ? green(result) : result;
     }));
     return this;
@@ -201,6 +219,20 @@ public class ProgressLoggers {
 
   public ProgressLoggers addFileSize(DiskBacked longSupplier) {
     return add(() -> " " + padRight(formatStorage(longSupplier.diskUsageBytes(), false), 5));
+  }
+
+  /** Adds the total of disk and memory usage of {@code thing}. */
+  public <T extends DiskBacked & MemoryEstimator.HasEstimate> ProgressLoggers addFileSizeAndRam(T thing) {
+    return add(() -> {
+      long bytes = thing.diskUsageBytes() + thing.estimateMemoryUsageBytes();
+      return " " + padRight(formatStorage(bytes, false), 5);
+    });
+  }
+
+  /** Adds the current size of a file on disk. */
+  public ProgressLoggers addFileSize(String name, DiskBacked file) {
+    loggers.add(new ProgressLogger(name, () -> formatStorage(file.diskUsageBytes(), true)));
+    return this;
   }
 
   /**

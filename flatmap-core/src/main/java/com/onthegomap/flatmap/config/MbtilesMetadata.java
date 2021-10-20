@@ -1,7 +1,7 @@
 package com.onthegomap.flatmap.config;
 
 import com.onthegomap.flatmap.Profile;
-import com.onthegomap.flatmap.mbiles.MbtilesWriter;
+import com.onthegomap.flatmap.mbtiles.MbtilesWriter;
 
 /** Controls information that {@link MbtilesWriter} will write to the mbtiles metadata table. */
 public record MbtilesMetadata(

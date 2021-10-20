@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
  * original expression, assuming that the generated code includes:
  * <pre>{@code
- * import static com.onthegomap.flatmap.openmaptiles.expression.Expression.*;
+ * import static com.onthegomap.flatmap.expression.Expression.*;
  * }</pre>
  */
 public interface Expression {

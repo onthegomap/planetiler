@@ -90,7 +90,7 @@ public abstract class ForwardingProfile implements Profile {
     if (handlers != null) {
       for (var handler : handlers) {
         handler.processFeature(sourceFeature, features);
-        // TODO extract common handling for expression-based filtering from openmaptiles to this
+        // TODO extract common handling for expression-based filtering from basemap to this
         // common profile when we have another use-case for it.
       }
     }

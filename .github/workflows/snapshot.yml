@@ -1,0 +1,42 @@
+# This workflow builds a map using the base and branch commit of a PR and uploads
+# the logs as an artifact that update-pr.yml uses to add back as a comment.
+
+name: Publish a Snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tags:
+        description: 'Extra docker image tags ("latest,test")'
+        required: true
+        default: 'latest,snapshot'
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache data/sources
+        uses: ./.github/cache-sources-action
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: 'maven'
+      - run: ./scripts/build-release.sh
+      - run: ./scripts/test-release.sh
+      - name: Log in to the Container Registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: ./scripts/push-release.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAGS: ${{ github.event.inputs.image_tags }}

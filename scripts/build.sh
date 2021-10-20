@@ -4,6 +4,6 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-PROJECT="${1:-flatmap-openmaptiles}"
+PROJECT="${1:-flatmap-dist}"
 
-mvn -DskipTests=true --projects "${PROJECT}" -am clean package
+./mvnw -DskipTests=true --projects "${PROJECT}" -am clean package

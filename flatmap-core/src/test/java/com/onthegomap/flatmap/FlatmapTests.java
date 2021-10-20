@@ -18,8 +18,8 @@ import com.onthegomap.flatmap.config.MbtilesMetadata;
 import com.onthegomap.flatmap.geo.GeoUtils;
 import com.onthegomap.flatmap.geo.GeometryException;
 import com.onthegomap.flatmap.geo.TileCoord;
-import com.onthegomap.flatmap.mbiles.Mbtiles;
-import com.onthegomap.flatmap.mbiles.MbtilesWriter;
+import com.onthegomap.flatmap.mbtiles.Mbtiles;
+import com.onthegomap.flatmap.mbtiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.SimpleFeature;
 import com.onthegomap.flatmap.reader.SimpleReader;
 import com.onthegomap.flatmap.reader.SourceFeature;
@@ -937,7 +937,7 @@ public class FlatmapTests {
         with(new ReaderRelation(18), rel -> {
           rel.setTag("type", "relation");
           rel.setTag("name", "rel name");
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.RELATION, 17, "outer"));
+          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 17, "outer"));
         })
       ),
       in -> in.hasTag("type", "relation") ?
@@ -1129,6 +1129,57 @@ public class FlatmapTests {
         // merge 32->37 and 37->42 since they have same attrs
         feature(newLineString(32, 64, 42, 64), Map.of("group", "1")),
         feature(newLineString(42, 64, 47, 64), Map.of("group", "2"))
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
+  public void testMergeLineStringsIgnoresRoundingIntersections() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat = GeoUtils.getWorldLat(y);
+    double lat2a = GeoUtils.getWorldLat(y + Z14_WIDTH * 0.5 / 4096);
+    double lat2b = GeoUtils.getWorldLat(y + Z14_WIDTH * 1.5 / 4096);
+    double lat3 = GeoUtils.getWorldLat(y + Z14_WIDTH * 10 / 4096);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        // group two parallel lines that almost touch at the midpoint
+        // need to retain extra precision while merging to ensure it
+        // doesn't confuse the line merger
+        newReaderFeature(newLineString(
+          lng1, lat,
+          lng2, lat2a
+        ), Map.of()),
+        newReaderFeature(newLineString(
+          lng2, lat2a,
+          lng3, lat
+        ), Map.of()),
+
+        newReaderFeature(newLineString(
+          lng1, lat3,
+          lng2, lat2b
+        ), Map.of()),
+        newReaderFeature(newLineString(
+          lng2, lat2b,
+          lng3, lat3
+        ), Map.of())
+      ),
+      (in, features) -> features.line("layer").setZoomRange(13, 13),
+      (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newMultiLineString(
+          newLineString(32, 64.3125, 37, 64.0625, 42, 64.3125),
+          newLineString(32, 64, 37, 64.0625, 42, 64)
+        ), Map.of())
       )
     )), sortListValues(results.tiles));
   }

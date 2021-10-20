@@ -190,7 +190,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         packer.packInt(group.limit());
       }
       packer.packLong(vectorTileFeature.id());
-      packer.packByte(vectorTileFeature.geometry().geomType().asByte());
+      packer.packByte(encodeGeomTypeAndScale(vectorTileFeature.geometry()));
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
@@ -238,7 +238,9 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         group = VectorTile.Feature.NO_GROUP;
       }
       long id = unpacker.unpackLong();
-      byte geomType = unpacker.unpackByte();
+      byte geomTypeAndScale = unpacker.unpackByte();
+      GeometryType geomType = decodeGeomType(geomTypeAndScale);
+      int scale = decodeScale(geomTypeAndScale);
       int mapSize = unpacker.unpackMapHeader();
       Map<String, Object> attrs = new HashMap<>(mapSize);
       for (int i = 0; i < mapSize; i++) {
@@ -263,13 +265,27 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       return new VectorTile.Feature(
         layer,
         id,
-        new VectorTile.VectorGeometry(commands, GeometryType.valueOf(geomType)),
+        new VectorTile.VectorGeometry(commands, geomType, scale),
         attrs,
         group
       );
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  static GeometryType decodeGeomType(byte geomTypeAndScale) {
+    return GeometryType.valueOf((byte) (geomTypeAndScale & 0b111));
+  }
+
+  static int decodeScale(byte geomTypeAndScale) {
+    return (geomTypeAndScale & 0xff) >>> 3;
+  }
+
+  static byte encodeGeomTypeAndScale(VectorTile.VectorGeometry geometry) {
+    assert geometry.geomType().asByte() >= 0 && geometry.geomType().asByte() <= 8;
+    assert geometry.scale() >= 0 && geometry.scale() < (1 << 5);
+    return (byte) (geometry.geomType().asByte() | (geometry.scale() << 3));
   }
 
   /** Writes a serialized binary feature to intermediate storage. */
@@ -412,12 +428,28 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       return encoder;
     }
 
+    private static void unscale(List<VectorTile.Feature> features) {
+      for (int i = 0; i < features.size(); i++) {
+        var feature = features.get(i);
+        if (feature != null) {
+          VectorTile.VectorGeometry geometry = feature.geometry();
+          if (geometry.scale() != 0) {
+            features.set(i, feature.copyWithNewGeometry(geometry.unscale()));
+          }
+        }
+      }
+    }
+
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
       List<VectorTile.Feature> features) {
       try {
         List<VectorTile.Feature> postProcessed = profile
           .postProcessLayerFeatures(layer, tileCoord.z(), features);
         features = postProcessed == null ? features : postProcessed;
+        // lines are stored using a higher precision so that rounding does not
+        // introduce artificial intersections between endpoints to confuse line merging,
+        // so we have to reduce the precision here, now that line merging is done.
+        unscale(features);
       } catch (Throwable e) {
         // failures in tile post-processing happen very late so err on the side of caution and
         // log failures, only throwing when it's a fatal error

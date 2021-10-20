@@ -7,7 +7,7 @@ import com.onthegomap.flatmap.collection.LongLongMap;
 import com.onthegomap.flatmap.config.Arguments;
 import com.onthegomap.flatmap.config.FlatmapConfig;
 import com.onthegomap.flatmap.config.MbtilesMetadata;
-import com.onthegomap.flatmap.mbiles.MbtilesWriter;
+import com.onthegomap.flatmap.mbtiles.MbtilesWriter;
 import com.onthegomap.flatmap.reader.osm.OsmInputFile;
 import com.onthegomap.flatmap.reader.osm.OsmReader;
 import com.onthegomap.flatmap.stats.Stats;
@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
  * To run this example:
  * <ol>
  *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
- *   <li>then build the examples: {@code mvn -DskipTests=true --projects flatmap-examples -am clean package}</li>
- *   <li>then run this example: {@code java -cp flatmap-examples/target/flatmap-examples-*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlayLowLevelApi}</li>
- *   <li>then run the demo tileserver: {@code ./scripts/serve-tiles-docker.sh}</li>
+ *   <li>then build the examples: {@code mvn clean package}</li>
+ *   <li>then run this example: {@code java -cp target/*-fatjar.jar com.onthegomap.flatmap.examples.ToiletsOverlayLowLevelApi}</li>
+ *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}</li>
  *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */

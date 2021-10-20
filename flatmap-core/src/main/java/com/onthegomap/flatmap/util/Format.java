@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import org.apache.commons.text.StringEscapeUtils;
+import org.locationtech.jts.geom.Coordinate;
 
 /**
  * Utilities for formatting values as strings.
@@ -114,5 +115,14 @@ public class Format {
       return "null";
     }
     return '"' + StringEscapeUtils.escapeJava(string) + '"';
+  }
+
+  /** Returns an openstreetmap.org map link for a lat/lon */
+  public static String osmDebugUrl(int zoom, Coordinate coord) {
+    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(
+      zoom,
+      coord.y,
+      coord.x
+    );
   }
 }

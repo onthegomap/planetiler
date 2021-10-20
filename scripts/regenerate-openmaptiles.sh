@@ -4,12 +4,12 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-JAR="flatmap-openmaptiles/target/flatmap-openmaptiles-0.1-SNAPSHOT-fatjar.jar"
+JAR="flatmap-dist/target/*-with-deps.jar"
 TAG="${1:-"v3.12.2"}"
 echo "tag=${TAG}"
 
 echo "Building..."
-mvn -DskipTests=true --projects flatmap-openmaptiles -am package
+./mvnw -DskipTests=true --projects flatmap-basemap -am package
 
 echo "Running..."
-java -cp "$JAR" com.onthegomap.flatmap.openmaptiles.Generate -tag="${TAG}"
+java -cp "$JAR" com.onthegomap.flatmap.basemap.Generate -tag="${TAG}"

@@ -1,0 +1,107 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/ce5a3ea16aee1b07487f9960633057d102b626a6/C4_Container.puml
+skinparam WrapWidth 80
+skinparam ranksep 10
+skinparam dpi 200
+
+LAYOUT_LANDSCAPE()
+HIDE_STEREOTYPE()
+
+skinparam rectangle {
+   BorderColor<<diagram>> transparent
+   BackgroundColor<<diagram>> transparent
+}
+sprite slicing slicing.png
+
+Boundary(input, "**1) Process Input Files**") {
+  Boundary(simple, "Read Simple Sources", "Natural Earth & Shapefiles") {
+    System(sr, "Reader")
+  }
+
+  Boundary(osm, "Read OpenStreetMap Data", ".osm.pbf files") {
+    System(profile2, "Profile")
+    Boundary(pass1, "pass 1") {
+      System(osm1n, "Nodes")
+      System(osm1w, "Ways")
+      System(osm1r, "Relations")
+      ' enforce ordering
+      osm1r -[hidden]> osm1w
+      osm1w -[hidden]> osm1n
+    }
+    BiRel_Up(osm1r, profile2, " ")
+    SystemDb(osmnl, "Node locations")
+    SystemDb(osmmem, "Relation Members")
+    SystemDb(osmmp, "Multipolygon geometries")
+    SystemDb(osmrl, "Relation Info")
+    Boundary(pass2, "pass 2") {
+      System(osm2n, "Nodes")
+      System(osm2w, "Ways")
+      System(osm2r, "Relations")
+      ' enforce ordering
+      osm2r -[hidden]> osm2w
+      osm2w -[hidden]> osm2n
+    }
+    Rel(osm1n, osmnl, " ")
+    Rel(osm1r, osmmem, " ")
+    Rel(osm1r, osmrl, " ")
+
+    Rel(osmnl, osm2w, " ")
+    Rel(osmmem, osm2w, " ")
+    Rel(osmrl, osm2w, " ")
+    Rel_Left(osm2w, osmmp, " ")
+    Rel(osmmp, osm2r, " ")
+  }
+
+  Boundary(workers, "Process Workers", "1 per core") {
+    System(profile, "Profile")
+    System(render, "Render Vector Tile Features")
+  }
+
+  ' slicing diagram
+  rectangle "<$slicing{scale=0.5}>" as slicing <<diagram>>
+  slicing -[hidden]> render
+
+  System(writer, "Writer")
+
+  Rel(sr, profile, " ")
+  Rel(osm2n, profile, " ")
+  Rel(osm2w, profile, " ")
+  Rel(osm2r, profile, " ")
+
+  Rel(profile, render, " ")
+  Rel(render, writer, " ")
+}
+
+Boundary(sort, "**2) Sort Features**") {
+    SystemDb(fc1, "Chunk")
+    SystemDb(fc2, "Chunk")
+    SystemDb(fc3, "Chunk")
+    ' enforce ordering
+    fc1 -[hidden]> fc2
+    fc2 -[hidden]> fc3
+    System(sorters, "Sort Workers\n1 per core")
+    BiRel_Up(fc3, sorters, " ")
+}
+
+Rel(writer, fc1, " ")
+Rel(writer, fc2, " ")
+Rel(writer, fc3, " ")
+
+Boundary(mbtiles, "**3) Emit Vector Tiles**") {
+    System(mbtread, "Read Features\nand group into tiles")
+    System(mbtprocess, "Encode & gzip\n1 worker per core")
+    System(mbtwriter, "Batched Writer")
+}
+
+SystemDb(mbtilesdb, "MBTiles", "x,y,z,data")
+
+Rel(fc1, mbtread, " ")
+Rel(fc2, mbtread, " ")
+Rel(fc3, mbtread, " ")
+Rel(mbtread, mbtprocess, " ")
+Rel(mbtprocess, mbtwriter, " ")
+Rel(mbtwriter, mbtilesdb, " ")
+
+
+@enduml
+

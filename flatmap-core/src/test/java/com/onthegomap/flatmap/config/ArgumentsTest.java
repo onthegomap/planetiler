@@ -86,6 +86,17 @@ public class ArgumentsTest {
   }
 
   @Test
+  public void testLong() {
+    long maxInt = Integer.MAX_VALUE;
+    Arguments args = Arguments.of(
+      "long", Long.toString(maxInt * 2)
+    );
+
+    assertEquals(maxInt * 2, args.getLong("long", "key", maxInt + 1L));
+    assertEquals(maxInt + 1L, args.getLong("long2", "key", maxInt + 1L));
+  }
+
+  @Test
   public void testThreads() {
     assertEquals(2, Arguments.of("threads", "2").threads());
     assertTrue(Arguments.of().threads() > 0);

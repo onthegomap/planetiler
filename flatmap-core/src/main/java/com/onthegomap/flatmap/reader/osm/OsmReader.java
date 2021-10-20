@@ -135,19 +135,18 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     var pipeline = WorkerPipeline.start("osm_pass1", stats)
       .fromGenerator("pbf", osmInputFile.read("pbfpass1", parseThreads))
       .addBuffer("reader_queue", 50_000, 10_000)
-      // use only 1 thread since processPass1Element needs to be single-threaded
       .sinkToConsumer("process", 1, this::processPass1Element);
 
     var loggers = ProgressLoggers.create()
       .addRateCounter("nodes", PASS1_NODES, true)
-      .addFileSize(nodeLocationDb)
+      .addFileSizeAndRam(nodeLocationDb)
       .addRateCounter("ways", PASS1_WAYS, true)
       .addRateCounter("rels", PASS1_RELATIONS, true)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
       .newLine()
+      .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
       .addPipelineStats(pipeline);
     pipeline.awaitAndLog(loggers, config.logInterval());
     timer.stop();
@@ -156,6 +155,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   void processPass1Element(ReaderElement readerElement) {
     // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
     // shared data structures which are not thread safe
+    if (readerElement.getId() < 0) {
+      throw new IllegalArgumentException("Negative OSM element IDs not supported: " + readerElement);
+    }
     if (readerElement instanceof ReaderNode node) {
       PASS1_NODES.inc();
       // TODO allow limiting node storage to only ones that profile cares about
@@ -173,7 +175,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
           for (ReaderRelation.Member member : rel.getMembers()) {
             int type = member.getType();
-            if (type == ReaderRelation.Member.WAY || type == ReaderRelation.Member.RELATION) {
+            // TODO handle nodes in relations and super-relations
+            if (type == ReaderRelation.Member.WAY) {
               wayToRelations.put(member.getRef(), encodeRelationMembership(member.getRole(), rel.getId()));
             }
           }
@@ -198,8 +201,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    */
   public void pass2(FeatureGroup writer, FlatmapConfig config) {
     var timer = stats.startStage("osm_pass2");
-    int readerThreads = Math.max(config.threads() / 4, 1);
-    int processThreads = config.threads() - 1;
+    int threads = config.threads();
+    int readerThreads = Math.max(threads / 4, 1);
+    int processThreads = threads - (threads >= 4 ? 1 : 0);
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
@@ -263,7 +267,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     var logger = ProgressLoggers.create()
       .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed)
-      .addFileSize(nodeLocationDb)
+      .addFileSizeAndRam(nodeLocationDb)
       .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed)
       .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
       .addRateCounter("features", writer::numFeaturesWritten)

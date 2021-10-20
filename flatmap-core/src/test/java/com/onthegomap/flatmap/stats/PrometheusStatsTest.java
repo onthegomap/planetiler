@@ -147,7 +147,7 @@ public class PrometheusStatsTest {
 
   private static void assertContainsStat(String regex, String stats) {
     Pattern pattern = Pattern.compile(regex);
-    for (String line : stats.split("\n")) {
+    for (String line : stats.split("[\r\n]+")) {
       if (!line.startsWith("#") && pattern.matcher(line).find()) {
         return;
       }

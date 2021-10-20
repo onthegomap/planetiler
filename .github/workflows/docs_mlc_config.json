@@ -1,0 +1,13 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://github.com/onthegomap/flatmap/.*$"
+    },
+    {
+      "pattern": "^https://onthegomap.github.io/.*$"
+    },
+    {
+      "pattern": "^http://localhost.*$"
+    }
+  ]
+}

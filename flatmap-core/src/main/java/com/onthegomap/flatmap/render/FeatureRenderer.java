@@ -111,7 +111,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
         Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
-        encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo);
+        encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, 0);
         emitted++;
       }
       stats.emittedFeatures(zoom, feature.getLayer(), emitted);
@@ -121,13 +121,13 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   }
 
   private void encodeAndEmitFeature(FeatureCollector.Feature feature, long id, Map<String, Object> attrs,
-    TileCoord tile, Geometry geom, RenderedFeature.Group groupInfo) {
+    TileCoord tile, Geometry geom, RenderedFeature.Group groupInfo, int scale) {
     consumer.accept(new RenderedFeature(
       tile,
       new VectorTile.Feature(
         feature.getLayer(),
         id,
-        VectorTile.encodeGeometry(geom),
+        VectorTile.encodeGeometry(geom, scale),
         attrs,
         groupInfo == null ? VectorTile.Feature.NO_GROUP : groupInfo.group()
       ),
@@ -198,6 +198,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         List<List<CoordinateSequence>> geoms = entry.getValue();
 
         Geometry geom;
+        int scale = 0;
         if (feature.isPolygon()) {
           geom = GeometryCoordinateSequences.reassemblePolygons(geoms);
           /*
@@ -214,10 +215,18 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
           geom = geom.reverse();
         } else {
           geom = GeometryCoordinateSequences.reassembleLineStrings(geoms);
+          // Store lines with extra precision (2^scale) in intermediate feature storage so that
+          // rounding does not introduce artificial endpoint intersections and confuse line merge
+          // post-processing.  Features need to be "unscaled" in FeatureGroup after line merging,
+          // and before emitting to output mbtiles.
+          scale = Math.max(config.maxzoom(), 14) - zoom;
+          // need 14 bits to represent tile coordinates (4096 * 2 for buffer * 2 for zig zag encoding)
+          // so cap the scale factor to avoid overflowing 32-bit integer space
+          scale = Math.min(31 - 14, scale);
         }
 
         if (!geom.isEmpty()) {
-          encodeAndEmitFeature(feature, id, attrs, tile, geom, null);
+          encodeAndEmitFeature(feature, id, attrs, tile, geom, null, scale);
           emitted++;
         }
       } catch (GeometryException e) {
