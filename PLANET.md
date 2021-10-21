@@ -82,9 +82,9 @@ tail -f logs.txt
 ```
 
 It took 3h21m (including 12 minutes downloading source data) to generate a 99GB `output.mbtiles` file. See
-the [full logs](planet-logs/planet-logs.txt) from this run or this summary that it printed at the end. Notice that it
-spent almost an hour emitting z13 tiles. That is because the default basemap profile merges nearby building polygons at
-z13 which is very expensive. You can disable this behavior by setting `--building-merge-z13=false`.
+the [full logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt) from this run or this summary that it printed at the end.
+Notice that it spent almost an hour emitting z13 tiles. That is because the default basemap profile merges nearby
+building polygons at z13 which is very expensive. You can disable this behavior by setting `--building-merge-z13=false`.
 
 ```
 3:21:03 DEB [mbtiles] - Tile stats:
