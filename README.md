@@ -18,7 +18,8 @@ Flatmap is named after the "flatmap" operation that it performs: *map* input ele
 level 0 contains the entire planet in a 256x256 px tile, and each zoom level splits parent tiles into 4 quadrants,
 revealing more detail.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for more details on how Flatmap works.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for more details on how Flatmap works or
+this [blog post](https://medium.com/@onthegomap/dc419f3af75d) for more of the backstory.
 
 ## Demo
 
