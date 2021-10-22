@@ -145,9 +145,11 @@ download regularly-updated tilesets.
 
 ## Limitations
 
-- It is harder to join and group data than when using database. To join input data sources, profiles must explicitly
-  store data when processing a feature to use with later features, or apply post-processing to rendered features
-  immediately before emitting the vector tile.
+- It is harder to join and group data than when using database. Flatmap automatically groups features into tiles, so you
+  can easily post-process nearby features in the same tile before emitting, but if you want to group or join across
+  features in different tiles, then you must explicitly store data when processing a feature to use with later features
+  or store features and defer processing until an input source is
+  finished  ([boundary layer example](https://github.com/onthegomap/flatmap/blob/b364066134c4b47184ccc60323c70bf2c0740e15/flatmap-basemap/src/main/java/com/onthegomap/flatmap/basemap/layers/Boundary.java#L294))
 - Flatmap only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
 ## Roadmap
