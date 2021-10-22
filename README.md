@@ -96,7 +96,7 @@ Some example runtimes (excluding downloading resources):
 | --- | --- | --- | --- | --- | --- |
 | s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap | DO 16cpu 128GB | 3h9m cpu:42h1m avg:13.3 | 99GB | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps) |
 | [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap | DO 16cpu 128GB | 3h13m cpu:43h40m avg:13.5 | 101GB | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt) |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap | Linode 50cpu 128GB | 1h9m cpu:24h36m avg:21.2 | 97GB | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap (without z13 building merge) | Linode 50cpu 128GB | 1h9m cpu:24h36m avg:21.2 | 97GB | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
 | s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB) | 59m cpu:27h6m avg:27.4 | 97GB | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt) |
 
 ## Alternatives
@@ -132,6 +132,7 @@ download regularly-updated tilesets.
 - Java-based [Profile API](flatmap-core/src/main/java/com/onthegomap/flatmap/Profile.java) to customize how source
   elements map to vector tile features, and post-process generated tiles
   using [JTS geometry utilities](https://github.com/locationtech/jts)
+- Merge nearby lines or polygons with the same tags before emitting vector tiles
 - Automatically fixes self-intersecting polygons
 - Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.12.2
 - Optionally download additional name translations for elements from Wikidata
