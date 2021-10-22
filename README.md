@@ -19,7 +19,8 @@ level 0 contains the entire planet in a 256x256 px tile, and each zoom level spl
 revealing more detail.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for more details on how Flatmap works or
-this [blog post](https://medium.com/@onthegomap/dc419f3af75d) for more of the backstory.
+this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
+for more of the backstory.
 
 ## Demo
 
