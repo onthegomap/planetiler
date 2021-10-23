@@ -68,7 +68,7 @@ java -Xmx100g -Xms100g \
   --download-threads=10 --download-chunk-size-mb=1000 \
   `# Also download name translations from wikidata` \
   --fetch-wikidata \
-  `# Personal preference overrides to OpenMapTiles (these are default now)` \
+  `# Personal preference overrides from OpenMapTiles schema (these are default now)` \
   --transportation-name-brunnel=false --transportation-z13-paths=true \
   --mbtiles=output.mbtiles \
   --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee logs.txt
