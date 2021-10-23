@@ -33,7 +33,7 @@ updates:
     ignore:
       - dependency-name: "com.onthegomap.flatmap:*"
     registries:
-      - maven-github
+      - github-flatmap
   - package-ecosystem: github-actions
     directory: "/"
     open-pull-requests-limit: 1
