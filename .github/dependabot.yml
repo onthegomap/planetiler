@@ -1,3 +1,6 @@
+# Configure dependabot automatic version upgrades
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
 version: 2
 updates:
   - package-ecosystem: maven
