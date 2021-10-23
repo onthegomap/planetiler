@@ -200,7 +200,7 @@ public class BasemapTest {
     assertNumFeatures("transportation_name", Map.of(
       "name", "Boulevard du Larvotto",
       "class", "primary"
-    ), 14, 22, LineString.class);
+    ), 14, 12, LineString.class);
   }
 
   @Test
