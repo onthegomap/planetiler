@@ -123,7 +123,7 @@ public class Transportation implements
     boolean z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
-      false
+      true
     );
     MINZOOMS = Map.of(
       FieldValues.CLASS_TRACK, 14,

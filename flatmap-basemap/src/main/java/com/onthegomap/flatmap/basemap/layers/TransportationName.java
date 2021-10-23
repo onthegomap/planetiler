@@ -142,7 +142,7 @@ public class TransportationName implements
     this.brunnel = config.arguments().getBoolean(
       "transportation_name_brunnel",
       "transportation_name layer: set to false to omit brunnel and help merge long highways",
-      true
+      false
     );
     this.sizeForShield = config.arguments().getBoolean(
       "transportation_name_size_for_shield",
@@ -157,7 +157,7 @@ public class TransportationName implements
     boolean z13Paths = config.arguments().getBoolean(
       "transportation_z13_paths",
       "transportation(_name) layer: show paths on z13",
-      false
+      true
     );
     MINZOOMS = Map.of(
       FieldValues.CLASS_TRACK, 14,
