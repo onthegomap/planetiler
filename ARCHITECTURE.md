@@ -42,7 +42,7 @@ each input source:
     - relations: for any multipolygon relation, fetch the member geometries and attempt to reconstruct the multipolygon
       geometry
       using [OsmMultipolygon](flatmap-core/src/main/java/com/onthegomap/flatmap/reader/osm/OsmMultipolygon.java), then
-      emit a polygon source feature with the reconstructed geometry if successfule
+      emit a polygon source feature with the reconstructed geometry if successful
 
 Then, for each [SourceFeature](flatmap-core/src/main/java/com/onthegomap/flatmap/reader/SourceFeature.java), render
 vector tile features according to the [Profile](flatmap-core/src/main/java/com/onthegomap/flatmap/Profile.java) in a
@@ -63,7 +63,7 @@ worker thread (default 1 per core):
       - `sliceY` splits each "column" into "rows" representing the Y coordinate of a vector tile
         - Uses an [IntRangeSet](flatmap-core/src/main/java/com/onthegomap/flatmap/collection/IntRangeSet.java) to
           optimize processing for large filled areas (like oceans)
-      - If any features wrapped past -180 or 180 degrees, then repeat with a 360 or -360 degree offset
+      - If any features wrapped past -180 or 180 degrees longitude, repeat with a 360 or -360 degree offset
     - Reassemble each vector tile geometry and round to tile precision (4096x4096)
       - For polygons, [GeoUtils#snapAndFixPolygon](flatmap-core/src/main/java/com/onthegomap/flatmap/geo/GeoUtils.java)
         uses [JTS](https://github.com/locationtech/jts) utilities to fix any topology errors (i.e. self-intersections)
