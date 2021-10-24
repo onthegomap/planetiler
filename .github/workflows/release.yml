@@ -52,6 +52,8 @@ jobs:
               sha: context.sha
             })
       - run: mv flatmap-dist/target/*with-deps.jar flatmap.jar
+      - run: sha256sum flatmap.jar > flatmap.jar.sha256
+      - run: md5sum flatmap.jar > flatmap.jar.md5
       - name: Log in to the Container Registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
@@ -65,7 +67,7 @@ jobs:
           tag_name: v${{ github.event.inputs.version }}
           draft: true
           files: |
-            flatmap.jar
+            flatmap.jar*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: ./scripts/push-release.sh ${{ github.event.inputs.version }}
