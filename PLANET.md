@@ -47,8 +47,8 @@ with these options:
 Run with `--help` to see all available arguments.
 
 NOTE: The default basemap profile merges nearby buildings at zoom-level 13 (for example,
-see [Boston](https://onthegomap.github.io/flatmap-demo/#13.08/42.35474/-71.06597)). This adds about 50% to the planet
-generation time and can be disabled using `--building-merge-z13=false`.
+see [Boston](https://onthegomap.github.io/flatmap-demo/#13.08/42.35474/-71.06597)). This adds about 14 CPU hours (~50
+minutes with 16 CPUs) to planet generation time and can be disabled using `--building-merge-z13=false`.
 
 ## Example
 
