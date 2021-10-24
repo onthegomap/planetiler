@@ -23,7 +23,8 @@ First, make a copy of this example project. It contains:
   - `com.onthegomap:flatmap-core` test dependency for test utilities
   - `maven-assembly-plugin` build plugin configuration to create a single executable jar file from `mvn package` goal
     command
-- `child.pom.xml` exists for the parent pom.xml to treat this as a child project, you can remove it.
+- `child.pom.xml` exists for the parent pom.xml to treat this as a child project, you can remove it to run as a
+  standalone project
 - [src/main/java/com/onthegomap/flatmap/examples](src/main/java/com/onthegomap/flatmap/examples) - some minimal example
   map profiles:
   - [ToiletsOverlay](src/main/java/com/onthegomap/flatmap/examples/ToiletsOverlay.java) - demonstrates how to build a
@@ -77,7 +78,7 @@ at zoom level 12 and above:
 @Override
 public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
   if (sourceFeature.isPoint() && sourceFeature.hasTag("amenity", "toilets")) {
-    features.point("toilets") // layer name="toilets"
+    features.point("toilets") // create a point in layer named "toilets"
       .setMinZoom(12)
       .setAttr("customers_only", sourceFeature.hasTag("access", "customers"))
       .setAttr("indoor", sourceFeature.getBoolean("indoor"))
@@ -87,7 +88,7 @@ public void processFeature(SourceFeature sourceFeature, FeatureCollector feature
 }
 ```
 
-Next, add a `main` entrypoint method in the same or another class that
+Next, add a `main` entrypoint that
 uses [FlatmapRunner](../flatmap-core/src/main/java/com/onthegomap/flatmap/FlatmapRunner.java) to define input sources
 and default input/output paths:
 
@@ -141,6 +142,8 @@ public void unitTest() {
   );
   List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(node, profile);
   // Then inspect attributes of each of vector tile fetures emitted...
+  assertEquals(1, mapFeatures.length);
+  assertEquals(12, mapFeatures.get(0).getMinZoom());
 }
 ```
 
@@ -173,8 +176,8 @@ for a complete unit and integration test.
 Check out:
 
 - The other [minimal examples](./src/main/java/com/onthegomap/flatmap/examples)
-- The [basemap profile](../flatmap-basemap) for a full-featured example of a complex profile with processing broken-out
-  into a handler per-layer
+- The [basemap profile](../flatmap-basemap) for a full-featured example of a complex profile with processing broken out
+  into a handler per layer
 - [FlatmapRunner](../flatmap-core/src/main/java/com/onthegomap/flatmap/FlatmapRunner.java) for more options when
   invoking the program
 - [FeatureCollector](../flatmap-core/src/main/java/com/onthegomap/flatmap/FeatureCollector.java)

@@ -1,10 +1,10 @@
 # Generating a Map of the World
 
-To generate a map of the world using the built-in [basemap profile](flatmap-basemap) based
-on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles), you will need a machine with java 16 or later installed
-and at least 10x as much disk space and 1.5x as much RAM as the `planet.osm.pbf` file you start from. All testing has
-been done using Digital Ocean droplets with dedicated vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and
-OpenJDK installed through `apt`. Flatmap splits work among cores so the more you have, the less time it takes.
+To generate a map of the world using the built-in [basemap profile](flatmap-basemap), you will need a machine with Java
+16 or later installed and at least 10x as much disk space and 1.5x as much RAM as the `planet.osm.pbf` file you start
+from. All testing has been done using Digital Ocean droplets with dedicated
+vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and OpenJDK 17 installed through `apt`. Flatmap splits work
+among available CPUs so the more you have, the less time it takes.
 
 ### 1) Choose the Data Source
 
@@ -12,14 +12,15 @@ First decide where to get the `planet.osm.pbf` file:
 
 - One of the [official mirrors](https://wiki.openstreetmap.org/wiki/Planet.osm)
 - The [AWS Registry of Open Data](https://registry.opendata.aws/osm/) public S3 mirror (default)
-- Or a [Daylight Distribution](https://daylightmap.org/) snapshot from Facebook that lags a bit, but includes extra
-  quality/consistency checks, and add-ons like ML-detected roads and buildings. NOTE: you need at least
-  `admin.osc.bz2` then combine and re-number using [osmium-tool](https://osmcode.org/osmium-tool/):
+- Or a [Daylight Distribution](https://daylightmap.org/) snapshot from Facebook that includes extra quality/consistency
+  checks, and add-ons like ML-detected roads and buildings. Combine add-ons and re-number
+  using [osmium-tool](https://osmcode.org/osmium-tool/):
   ```bash
   osmium apply-changes daylight.osm.pbf admin.osc.bz2 <buildings.osc.bz2, ...> -o everything.osm.pbf
   osmium renumber everything.osm.pbf -o planet.osm.pbf
   ```
-  This takes about 2.5 hours and needs as much RAM as the `planet.osm.pbf` size.
+  NOTE: you need at least `admin.osc.bz2` for the `boundary` layer to show. This takes about 2.5 hours and needs as much
+  RAM as the `planet.osm.pbf` size.
 
 ### 2) Run Flatmap
 
@@ -29,18 +30,25 @@ Then run `java -Xms100g -Xmx100g -jar flatmap.jar` (replacing `100g` with 1.5x t
 with these options:
 
 - `--bounds=world` to set bounding box to the entire planet
-- `--nodemap-type=sparsearray` to store node locations in a sparse array instead of a sorted table (sorted table is only
-  more efficient for extracts)
-- `--nodemap-storage=ram` to store all node locations in RAM instead of a memory-mapped file (when using `ram` give the
-  JVM 1.5x the input file size instead of 0.5x when using `mmap`)
+- `--nodemap-type=sparsearray` to store node locations in a sparse array instead of a sorted table - `sortedtable` is
+  more efficient when there are large gaps in ID spaces (i.e. extracts) and `sparsearray` is more efficient with no/few
+  ID gaps (planet, or renumbered extracts).
+- `--nodemap-storage=ram` to store all node locations in RAM instead of a memory-mapped file - when using `ram` give the
+  JVM 1.5x the input file size instead of 0.5x when using `mmap`
 - `--download` to fetch [other data sources](NOTICE.md#data) automatically
 - One of these to point flatmap at your data source:
   - `--osm-path=path/to/planet.osm.pbf` to point Flatmap at a file you downloaded
   - `--osm-url=http://url/of/planet.osm.pbf` to download automatically
+  - `--osm-url=s3:211011` to download a specific snapshot from the AWS Registry of Open Data or `--osm-url=s3:latest` to
+    download the latest snapshot
   - `--area=planet` to use the file in `./data/sources/planet.osm.pbf` or download the latest snapshot from AWS S3
     mirror if missing.
 
 Run with `--help` to see all available arguments.
+
+NOTE: The default basemap profile merges nearby buildings at zoom-level 13 (for example,
+see [Boston](https://onthegomap.github.io/flatmap-demo/#13.08/42.35474/-71.06597)). This adds about 50% to the planet
+generation time and can be disabled using `--building-merge-z13=false`.
 
 ## Example
 
@@ -68,8 +76,6 @@ java -Xmx100g -Xms100g \
   --download-threads=10 --download-chunk-size-mb=1000 \
   `# Also download name translations from wikidata` \
   --fetch-wikidata \
-  `# Personal preference overrides from OpenMapTiles schema (these are default now)` \
-  --transportation-name-brunnel=false --transportation-z13-paths=true \
   --mbtiles=output.mbtiles \
   --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee logs.txt
 ```
@@ -82,9 +88,7 @@ tail -f logs.txt
 ```
 
 It took 3h21m (including 12 minutes downloading source data) to generate a 99GB `output.mbtiles` file. See
-the [full logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt) from this run or this summary that it printed at the end.
-Notice that it spent almost an hour emitting z13 tiles. That is because the default basemap profile merges nearby
-building polygons at z13 which is very expensive. You can disable this behavior by setting `--building-merge-z13=false`.
+the [full logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt) from this run or this summary that it printed at the end:
 
 ```
 3:21:03 DEB [mbtiles] - Tile stats:
@@ -128,7 +132,7 @@ building polygons at z13 which is very expensive. You can disable this behavior 
 3:21:03 INF - 	mbtiles	99GB
 ```
 
-Then to generate the extract for [the demo](https://onthegomap.github.io/flatmap-demo/) I ran:
+To generate the extract for [the demo](https://onthegomap.github.io/flatmap-demo/) I ran:
 
 ```bash
 # install node and tilelive-copy
@@ -140,3 +144,6 @@ tilelive-copy --minzoom=0 --maxzoom=4 --bounds=-180,-90,180,90 output.mbtiles de
 # Extract z0-14 for just southern New England
 tilelive-copy --minzoom=0 --maxzoom=14 --bounds=-73.6346,41.1055,-69.5464,42.9439 output.mbtiles demo.mbtiles
 ```
+
+Then I ran [extract.sh](https://github.com/onthegomap/flatmap-demo/blob/main/extract.sh) in the flatmap-demo repo to
+extract tiles from the mbtiles file to disk.

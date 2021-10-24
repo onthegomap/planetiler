@@ -165,7 +165,9 @@ download regularly-updated tilesets.
   - [ ] Poi layer `agg_stop` tag
 - [ ] Get `flatmap-core` into Maven Central
 - [ ] Remove geotools dependency for reading shapefiles (not in Maven Central)
-- [ ] Remove graphhopper dependency for reading OSM files
+- [ ] Remove graphhopper dependency for reading OSM files, and
+  use [LocationsOnWays](https://blog.jochentopf.com/2016-04-20-node-locations-on-ways.html) to skip node location
+  storage when present and reduce memory requirement by 70%.
 - [ ] "Sparse mode" to only store node and relation data for elements used by a profile
 - [ ] Support zoom levels higher than 14
 - [ ] Handle nodes and relations in relations (only ways handled now)
