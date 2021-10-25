@@ -16,12 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest ]
-        #        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         jdk: [ 17 ]
-    #        include:
-    #          - os: ubuntu-latest
-    #            jdk: 16
+        include:
+          - os: ubuntu-latest
+            jdk: 16
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
@@ -62,7 +61,7 @@ jobs:
         # workaround for github maven packages not supporting anonymous access (https://github.community/t/download-from-github-package-registry-without-authentication/14407/111)
         env:
           MAVEN_USERNAME: 'flatmapbot'
-          MAVEN_PASSWORD: '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'
+          MAVEN_PASSWORD: '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'
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar
         working-directory: flatmap-examples
