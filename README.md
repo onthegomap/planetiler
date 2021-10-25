@@ -54,12 +54,12 @@ Or using Docker:
 docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:latest --download --area=monaco
 ```
 
-NOTE: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the basemap profile
+:warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the basemap profile
 including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/water-polygons.html) and ~240MB
 for [Natural Earth Data](https://www.naturalearthdata.com/).
 
 <details>
-<summary>To download a smaller extracts just for Monaco</summary>
+<summary>To download a smaller extracts just for Monaco:</summary>
 
 Java:
 
