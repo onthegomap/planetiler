@@ -54,6 +54,33 @@ Or using Docker:
 docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:latest --download --area=monaco
 ```
 
+NOTE: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the basemap profile
+including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/water-polygons.html) and ~240MB
+for [Natural Earth Data](https://www.naturalearthdata.com/).
+
+<details>
+<summary>To download a smaller extracts just for Monaco</summary>
+
+Java:
+
+```bash
+java -Xmx1g -jar flatmap.jar --download --area=monaco \
+  --water-polygons-url=https://github.com/onthegomap/flatmap/raw/main/flatmap-core/src/test/resources/water-polygons-split-3857.zip \
+  --natural-earth-url=https://github.com/onthegomap/flatmap/raw/main/flatmap-core/src/test/resources/natural_earth_vector.sqlite.zip
+```
+
+Docker:
+
+```bash
+docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:latest --download --area=monaco \
+  --water-polygons-url=https://github.com/onthegomap/flatmap/raw/main/flatmap-core/src/test/resources/water-polygons-split-3857.zip \
+  --natural-earth-url=https://github.com/onthegomap/flatmap/raw/main/flatmap-core/src/test/resources/natural_earth_vector.sqlite.zip
+```
+
+You will need the full data sources to run anywhere besides Monaco.
+
+</details>
+
 #### To view tiles locally:
 
 Using [Node.js](https://nodejs.org/en/download/):
