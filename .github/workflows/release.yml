@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version without leading "v" (1.0, 2.3.4, 0.2-alpha, 5.9-beta.3)'
+        description: 'Version without leading "v" (1.0, 2.3.4, 0.1.0-pre1)'
         required: true
         default: ''
       image_tags:
