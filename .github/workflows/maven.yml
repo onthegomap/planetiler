@@ -51,17 +51,9 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
-          # do not cache to ensure we can resolve dependencies
-          server-id: 'github-flatmap'
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
       - name: Build and test
         run: mvn --batch-mode -no-transfer-progress package --file pom.xml
         working-directory: flatmap-examples
-        # workaround for github maven packages not supporting anonymous access
-        env:
-          MAVEN_USERNAME: 'flatmapbot'
-          MAVEN_PASSWORD: '${{ secrets.PACKAGE_TOKEN }}'
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar
         working-directory: flatmap-examples

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 version="${1:-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)}"
+
+echo -n "${OSSRH_GPG_SECRET_KEY}" | base64 --decode | gpg --batch --import
 
 docker image push ghcr.io/onthegomap/flatmap:"${version}"
 
@@ -13,4 +15,4 @@ do
   docker image push ghcr.io/onthegomap/flatmap:"${TAG}"
 done
 
-./mvnw -B -DskipTests deploy
+./mvnw -B -Dgpg.passphrase="${OSSRH_GPG_SECRET_KEY_PASSWORD}" -DskipTests -Prelease deploy

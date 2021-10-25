@@ -28,6 +28,9 @@ jobs:
           java-version: 17
           distribution: 'temurin'
           cache: 'maven'
+          server-id: ossrh
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
       - run: ./scripts/build-release.sh
       - run: ./scripts/test-release.sh
       - name: Log in to the Container Registry
@@ -40,3 +43,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAGS: ${{ github.event.inputs.image_tags }}
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
