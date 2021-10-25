@@ -36,20 +36,6 @@ First, make a copy of this example project. It contains:
 - [src/test/java/com/onthegomap/flatmap/examples](src/main/java/com/onthegomap/flatmap/examples)
   unit and integration tests for each of the map generators
 
-Until Flatmap gets into Maven Central, to resolve `flatmap-core` dependencies, you will need to create
-a [GitHub personal access token](https://github.com/settings/tokens) with `read:packages` scope, then add the following
-to your `~/.m2/settings.xml`:
-
-```xml
-<servers>
-  <server>
-    <id>github-flatmap</id>
-    <username>username</username>
-    <password>token</password>
-  </server>
-</servers>
-```
-
 Then, create a new class that implements `com.onthegomap.flatmap.Profile`:
 
 ```java

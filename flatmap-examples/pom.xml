@@ -36,15 +36,15 @@
         <enabled>true</enabled>
       </releases>
     </repository>
-    <!-- TODO get flatmap into maven central and remove this: -->
     <repository>
-      <id>github-flatmap</id>
-      <url>https://maven.pkg.github.com/onthegomap/flatmap</url>
+      <id>nexus-snapshots</id>
+      <name>Nexus SNAPSHOT Repository</name>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots/</url>
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
       <releases>
-        <enabled>true</enabled>
+        <enabled>false</enabled>
       </releases>
     </repository>
   </repositories>
