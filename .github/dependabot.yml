@@ -8,7 +8,7 @@ registries:
     url: https://maven.pkg.github.com/onthegomap
     # workaround for github maven packages not supporting anonymous access (https://github.community/t/download-from-github-package-registry-without-authentication/14407/111)
     username: 'flatmapbot'
-    password: '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'
+    password: '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'
 updates:
   - package-ecosystem: maven
     directory: "/"

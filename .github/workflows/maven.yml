@@ -61,7 +61,7 @@ jobs:
         # workaround for github maven packages not supporting anonymous access (https://github.community/t/download-from-github-package-registry-without-authentication/14407/111)
         env:
           MAVEN_USERNAME: 'flatmapbot'
-          MAVEN_PASSWORD: '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'
+          MAVEN_PASSWORD: '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'
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar
         working-directory: flatmap-examples

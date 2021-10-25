@@ -45,7 +45,7 @@ for github packages:
   <server>
     <id>github-flatmap</id>
     <username>flatmapbot</username>
-    <password>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</password>
+    <password>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</password>
   </server>
 </servers>
 ```
