@@ -59,7 +59,7 @@ including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/wate
 for [Natural Earth Data](https://www.naturalearthdata.com/).
 
 <details>
-<summary>To download a smaller extracts just for Monaco:</summary>
+<summary>To download smaller extracts just for Monaco:</summary>
 
 Java:
 
