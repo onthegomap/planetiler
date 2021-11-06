@@ -32,6 +32,8 @@ public class Main {
   );
 
   public static void main(String[] args) throws Exception {
+    // for some reason the container distribution sometimes exits immediately unless this method prints something
+    System.out.println("");
     EntryPoint task = DEFAULT_TASK;
 
     if (args.length > 0) {

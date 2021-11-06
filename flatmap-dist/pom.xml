@@ -17,6 +17,8 @@
     <image.version>${project.version}</image.version>
     <image>ghcr.io/onthegomap/flatmap:${image.version}</image>
     <assembly-phase>package</assembly-phase>
+    <jib.platform-arch>amd64</jib.platform-arch>
+    <jib.platform-os>linux</jib.platform-os>
   </properties>
 
   <dependencies>
@@ -46,10 +48,15 @@
         <configuration>
           <skip>false</skip>
           <from>
-            <!-- eclipse-temurin:16-jdk - fixed hash for build reproducibility -->
             <image>
-              eclipse-temurin@sha256:e732d05ea997f62908b16ec7b47513ebc56ff74a0b689e9ca5683f911779b40e
+              eclipse-temurin:17-jdk
             </image>
+            <platforms>
+              <platform>
+                <architecture>${jib.platform-arch}</architecture>
+                <os>${jib.platform-os}</os>
+              </platform>
+            </platforms>
           </from>
           <to>
             <image>${image}</image>
@@ -61,6 +68,9 @@
               </org.opencontainers.image.source>
             </labels>
             <mainClass>${mainClass}</mainClass>
+            <jvmFlags>
+              <jvmFlag>-Xmx512m</jvmFlag>
+            </jvmFlags>
           </container>
         </configuration>
       </plugin>
@@ -120,6 +130,31 @@
       <properties>
         <assembly-phase>none</assembly-phase>
       </properties>
+    </profile>
+    <profile>
+      <id>jib-multi-arch</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <configuration>
+              <from>
+                <platforms>
+                  <platform>
+                    <architecture>amd64</architecture>
+                    <os>linux</os>
+                  </platform>
+                  <platform>
+                    <architecture>arm64</architecture>
+                    <os>linux</os>
+                  </platform>
+                </platforms>
+              </from>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

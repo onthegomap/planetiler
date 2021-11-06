@@ -10,7 +10,6 @@ target/
 *.iml
 !.idea/codeStyles
 !.idea/vcs.xml
-!.idea/saveactions_settings.xml
 
 TODO
 

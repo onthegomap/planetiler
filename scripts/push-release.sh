@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)}"
+VERSION="${1:-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)}"
 
-docker image push ghcr.io/onthegomap/flatmap:"${version}"
+TAGS=""
+if [ -n "${IMAGE_TAGS:-}" ]; then
+  TAGS="-Djib.to.tags=${IMAGE_TAGS// /}"
+fi
 
-TAGS="${IMAGE_TAGS:-}"
-for TAG in ${TAGS//,/ }
-do
-  echo "Pushing tag ${TAG}"
-  docker image tag ghcr.io/onthegomap/flatmap:"${version}" ghcr.io/onthegomap/flatmap:"${TAG}"
-  docker image push ghcr.io/onthegomap/flatmap:"${TAG}"
-done
+./mvnw -B -ntp -DskipTests "${TAGS}" -Pjib-multi-arch \
+  -Dimage.version="${VERSION}" \
+  -Djib.to.auth.username="${GITHUB_ACTOR}" \
+  -Djib.to.auth.password="${GITHUB_TOKEN}" \
+  package jib:build --file pom.xml
 
 ./mvnw -B -Dgpg.passphrase="${OSSRH_GPG_SECRET_KEY_PASSWORD}" -DskipTests -Prelease deploy
