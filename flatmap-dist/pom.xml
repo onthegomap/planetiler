@@ -68,9 +68,6 @@
               </org.opencontainers.image.source>
             </labels>
             <mainClass>${mainClass}</mainClass>
-            <jvmFlags>
-              <jvmFlag>-Xmx512m</jvmFlag>
-            </jvmFlags>
           </container>
         </configuration>
       </plugin>
