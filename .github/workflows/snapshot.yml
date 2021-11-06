@@ -33,17 +33,12 @@ jobs:
           server-password: MAVEN_PASSWORD
       - run: ./scripts/build-release.sh
       - run: ./scripts/test-release.sh
-      - name: Log in to the Container Registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Install GPG Private Key
         run: |
           echo -n "${{ secrets.OSSRH_GPG_SECRET_KEY }}" | base64 --decode | gpg --batch --import
       - run: ./scripts/push-release.sh
         env:
+          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAGS: ${{ github.event.inputs.image_tags }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
