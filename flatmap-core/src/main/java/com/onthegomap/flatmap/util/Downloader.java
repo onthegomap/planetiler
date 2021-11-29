@@ -1,9 +1,6 @@
 package com.onthegomap.flatmap.util;
 
-import static com.google.common.net.HttpHeaders.ACCEPT_RANGES;
-import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
-import static com.google.common.net.HttpHeaders.RANGE;
-import static com.google.common.net.HttpHeaders.USER_AGENT;
+import static com.google.common.net.HttpHeaders.*;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.onthegomap.flatmap.config.FlatmapConfig;
@@ -28,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -63,10 +61,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public class Downloader {
 
+  private static final int MAX_REDIRECTS = 5;
   private static final Logger LOGGER = LoggerFactory.getLogger(Downloader.class);
   private final FlatmapConfig config;
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
-  private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+  private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
   private final ExecutorService executor;
   private final Stats stats;
   private final long chunkSizeBytes;
@@ -87,12 +86,6 @@ public class Downloader {
 
   public static Downloader create(FlatmapConfig config, Stats stats) {
     return new Downloader(config, stats, config.downloadChunkSizeMB() * 1_000_000L);
-  }
-
-  private static void assertOK(HttpResponse.ResponseInfo responseInfo) {
-    if (responseInfo.statusCode() != 200) {
-      throw new IllegalStateException("Bad response: " + responseInfo.statusCode());
-    }
   }
 
   private static URLConnection getUrlConnection(String urlString, FlatmapConfig config) throws IOException {
@@ -185,7 +178,7 @@ public class Downloader {
   CompletableFuture<?> downloadIfNecessary(ResourceToDownload resourceToDownload) {
     long existingSize = FileUtils.size(resourceToDownload.output);
 
-    return httpHead(resourceToDownload)
+    return httpHeadFollowRedirects(resourceToDownload.url, 0)
       .whenComplete((metadata, err) -> {
         if (metadata != null) {
           resourceToDownload.metadata.complete(metadata);
@@ -198,7 +191,10 @@ public class Downloader {
           LOGGER.info("Skipping " + resourceToDownload.id + ": " + resourceToDownload.output + " already up-to-date");
           return CompletableFuture.completedFuture(null);
         } else {
-          LOGGER.info("Downloading " + resourceToDownload.url + " to " + resourceToDownload.output);
+          String redirectInfo = metadata.canonicalUrl.equals(resourceToDownload.url)
+            ? ""
+            : " (redirected to " + metadata.canonicalUrl + ")";
+          LOGGER.info("Downloading " + resourceToDownload.url + redirectInfo + " to " + resourceToDownload.output);
           FileUtils.delete(resourceToDownload.output);
           FileUtils.createParentDirectories(resourceToDownload.output);
           Path tmpPath = resourceToDownload.tmpPath();
@@ -225,15 +221,35 @@ public class Downloader {
       }, executor);
   }
 
-  CompletableFuture<ResourceMetadata> httpHead(ResourceToDownload resourceToDownload) {
+  private CompletableFuture<ResourceMetadata> httpHeadFollowRedirects(String url, int redirects) {
+    if (redirects > MAX_REDIRECTS) {
+      throw new IllegalStateException("Exceeded " + redirects + " redirects for " + url);
+    }
+    return httpHead(url).thenComposeAsync(response -> response.redirect.isPresent()
+      ? httpHeadFollowRedirects(response.redirect.get(), redirects + 1)
+      : CompletableFuture.completedFuture(response));
+  }
+
+  CompletableFuture<ResourceMetadata> httpHead(String url) {
     return client
-      .sendAsync(newHttpRequest(resourceToDownload.url).method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
+      .sendAsync(newHttpRequest(url).method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
         responseInfo -> {
-          assertOK(responseInfo);
+          int status = responseInfo.statusCode();
+          Optional<String> location = Optional.empty();
+          long contentLength = 0;
           HttpHeaders headers = responseInfo.headers();
-          long contentLength = headers.firstValueAsLong(CONTENT_LENGTH).orElseThrow();
+          if (status >= 300 && status < 400) {
+            location = responseInfo.headers().firstValue(LOCATION);
+            if (location.isEmpty()) {
+              throw new IllegalStateException("Received " + status + " but no location header from " + url);
+            }
+          } else if (responseInfo.statusCode() != 200) {
+            throw new IllegalStateException("Bad response: " + responseInfo.statusCode());
+          } else {
+            contentLength = headers.firstValueAsLong(CONTENT_LENGTH).orElseThrow();
+          }
           boolean supportsRangeRequest = headers.allValues(ACCEPT_RANGES).contains("bytes");
-          ResourceMetadata metadata = new ResourceMetadata(contentLength, supportsRangeRequest);
+          ResourceMetadata metadata = new ResourceMetadata(location, url, contentLength, supportsRangeRequest);
           return HttpResponse.BodyHandlers.replacing(metadata).apply(responseInfo);
         }).thenApply(HttpResponse::body);
   }
@@ -249,6 +265,7 @@ public class Downloader {
      * But it is slower on large files
      */
     return resource.metadata.thenCompose(metadata -> {
+      String canonicalUrl = metadata.canonicalUrl;
       record Range(long start, long end) {
 
         long size() {
@@ -275,8 +292,8 @@ public class Downloader {
             while (range.size() > 0) {
               try (
                 var inputStream = (ranges || range.start > 0)
-                  ? openStreamRange(resource.url, range.start, range.end)
-                  : openStream(resource.url);
+                  ? openStreamRange(canonicalUrl, range.start, range.end)
+                  : openStream(canonicalUrl);
                 var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress);
               ) {
                 // ensure this file has been allocated up to the start of this block
@@ -284,10 +301,10 @@ public class Downloader {
                 fileChannel.position(range.start);
                 long transferred = fileChannel.transferFrom(input, range.start, range.size());
                 if (transferred == 0) {
-                  throw new IOException("Transferred 0 bytes but " + range.size() + " expected: " + resource.url);
+                  throw new IOException("Transferred 0 bytes but " + range.size() + " expected: " + canonicalUrl);
                 } else if (transferred != range.size() && !metadata.acceptRange) {
                   throw new IOException(
-                    "Transferred " + transferred + " bytes but " + range.size() + " expected: " + resource.url
+                    "Transferred " + transferred + " bytes but " + range.size() + " expected: " + canonicalUrl
                       + " and server does not support range requests");
                 }
                 range = new Range(range.start + transferred, range.end);
@@ -306,7 +323,7 @@ public class Downloader {
       .header(USER_AGENT, config.httpUserAgent());
   }
 
-  static record ResourceMetadata(long size, boolean acceptRange) {}
+  static record ResourceMetadata(Optional<String> redirect, String canonicalUrl, long size, boolean acceptRange) {}
 
   static record ResourceToDownload(
     String id, String url, Path output, CompletableFuture<ResourceMetadata> metadata, AtomicLong progress
