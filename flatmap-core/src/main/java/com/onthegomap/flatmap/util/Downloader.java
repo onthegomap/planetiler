@@ -65,7 +65,9 @@ public class Downloader {
   private static final Logger LOGGER = LoggerFactory.getLogger(Downloader.class);
   private final FlatmapConfig config;
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
-  private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+  private final HttpClient client = HttpClient.newBuilder()
+    // explicitly follow redirects to capture final redirect url
+    .followRedirects(HttpClient.Redirect.NEVER).build();
   private final ExecutorService executor;
   private final Stats stats;
   private final long chunkSizeBytes;
