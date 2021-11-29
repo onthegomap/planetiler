@@ -77,7 +77,7 @@ public class DownloaderTest {
     "true,2,0",
     "false,100,1",
     "false,100,2",
-    "false,100,4",
+    "true,2,4",
   })
   public void testDownload(boolean range, int maxLength, int redirects) throws Exception {
     Path dest = path.resolve("out");
