@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -54,36 +55,48 @@ public class DownloaderTest {
       }
 
       @Override
-      CompletableFuture<ResourceMetadata> httpHead(ResourceToDownload resource) {
-        byte[] bytes = resources.get(resource.url());
-        return CompletableFuture.supplyAsync(() -> new ResourceMetadata(bytes.length, supportsRange));
+      CompletableFuture<ResourceMetadata> httpHead(String url) {
+        String[] parts = url.split("#");
+        if (parts.length > 1) {
+          int redirectNum = Integer.parseInt(parts[1]);
+          String next = redirectNum <= 1 ? parts[0] : (parts[0] + "#" + (redirectNum - 1));
+          return CompletableFuture.supplyAsync(
+            () -> new ResourceMetadata(Optional.of(next), url, 0, supportsRange));
+        }
+        byte[] bytes = resources.get(url);
+        return CompletableFuture.supplyAsync(
+          () -> new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange));
       }
     };
   }
 
   @ParameterizedTest
   @CsvSource({
-    "false,100",
-    "true,100",
-    "true,2",
+    "false,100,0",
+    "true,100,0",
+    "true,2,0",
+    "false,100,1",
+    "false,100,2",
+    "true,2,4",
   })
-  public void testDownload(boolean range, int maxLength) throws Exception {
+  public void testDownload(boolean range, int maxLength, int redirects) throws Exception {
     Path dest = path.resolve("out");
     String string = "0123456789";
     String url = "http://url";
+    String initialUrl = url + (redirects > 0 ? "#" + redirects : "");
     Map<String, byte[]> resources = new ConcurrentHashMap<>();
 
     byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
     Downloader downloader = mockDownloader(resources, range, maxLength);
 
     // fails if no data
-    var resource1 = new Downloader.ResourceToDownload("resource", url, dest);
+    var resource1 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
     assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
     assertFalse(Files.exists(dest));
     assertEquals(0, resource1.bytesDownloaded());
 
     // succeeds with data
-    var resource2 = new Downloader.ResourceToDownload("resource", url, dest);
+    var resource2 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
     resources.put(url, bytes);
     downloader.downloadIfNecessary(resource2).get();
     assertEquals(string, Files.readString(dest));
@@ -92,7 +105,7 @@ public class DownloaderTest {
 
     // does not re-request if size is the same
     downloads = 0;
-    var resource3 = new Downloader.ResourceToDownload("resource", url, dest);
+    var resource3 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
     downloader.downloadIfNecessary(resource3).get();
     assertEquals(0, downloads);
     assertEquals(string, Files.readString(dest));
@@ -100,7 +113,7 @@ public class DownloaderTest {
     assertEquals(0, resource3.bytesDownloaded());
 
     // does re-download if size changes
-    var resource4 = new Downloader.ResourceToDownload("resource", url, dest);
+    var resource4 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
     String newContent = "54321";
     resources.put(url, newContent.getBytes(StandardCharsets.UTF_8));
     downloader.downloadIfNecessary(resource4).get();
