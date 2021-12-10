@@ -94,12 +94,13 @@ public class ToiletsOverlay implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
+    String area = args.getString("area", "geofabrik area to download", "monaco");
     // FlatmapRunner is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using this same profile but the lower-level API
     FlatmapRunner.create(args)
       .setProfile(new ToiletsOverlay())
       // override this default with osm_path="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", "input.pbf"))
+      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
       .run();
