@@ -20,7 +20,7 @@ java -jar flatmap-dist/target/*with-deps.jar --download --area=monaco --mbtiles=
 echo "::endgroup::"
 echo "::group::Example (java)"
 rm -f data/out.mbtiles
-java -jar flatmap-dist/target/*with-deps.jar example-bikeroutes --download --area=monaco --mbtiles=data/out.mbtiles
+java -jar flatmap-dist/target/*with-deps.jar example-toilets --download --area=monaco --mbtiles=data/out.mbtiles
 ./scripts/check-mbtiles.sh data/out.mbtiles
 echo "::endgroup::"
 
@@ -32,6 +32,6 @@ docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:"${version}" --area
 echo "::endgroup::"
 echo "::group::Example (docker)"
 rm -f data/out.mbtiles
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:"${version}" example-bikeroutes --area=monaco --mbtiles=data/out.mbtiles
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/flatmap:"${version}" example-toilets --area=monaco --mbtiles=data/out.mbtiles
 ./scripts/check-mbtiles.sh data/out.mbtiles
 echo "::endgroup::"
