@@ -19,7 +19,7 @@
     <graphhopper.version>2.4</graphhopper.version>
     <geotools.version>26.1</geotools.version>
     <log4j.version>2.15.0</log4j.version>
-    <prometheus.version>0.12.0</prometheus.version>
+    <prometheus.version>0.13.0</prometheus.version>
   </properties>
 
   <dependencies>
