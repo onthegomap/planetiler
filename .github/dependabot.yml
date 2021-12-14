@@ -2,13 +2,6 @@
 # https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
-registries:
-  github-flatmap:
-    type: maven-repository
-    url: https://maven.pkg.github.com/onthegomap
-    # workaround for github maven packages not supporting anonymous access
-    username: 'flatmapbot'
-    password: '${{ secrets.PACKAGE_TOKEN }}'
 updates:
   - package-ecosystem: maven
     directory: "/"
@@ -32,8 +25,6 @@ updates:
       - dependencies
     ignore:
       - dependency-name: "com.onthegomap.flatmap:*"
-    registries:
-      - github-flatmap
   - package-ecosystem: github-actions
     directory: "/"
     open-pull-requests-limit: 1
