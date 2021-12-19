@@ -37,7 +37,7 @@ jobs:
         run: mvnw.cmd --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
         shell: cmd
       - name: Run generate.sh
-        run: ./scripts/regenerate-openmaptiles.sh && ./mvnw clean compile -pl flatmap-basemap -am && ./mvnw test -pl flatmap-basemap
+        run: ./scripts/regenerate-openmaptiles.sh && ./mvnw clean test -pl flatmap-basemap -am
 
   examples:
     name: Example project
