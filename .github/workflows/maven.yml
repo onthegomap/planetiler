@@ -36,6 +36,8 @@ jobs:
         if: ${{ contains(matrix.os, 'windows') }}
         run: mvnw.cmd --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
         shell: cmd
+      - name: Run generate.sh
+        run: ./scripts/regenerate-openmaptiles.sh && mvn clean test -pl flatmap-basemap
 
   examples:
     name: Example project
