@@ -36,8 +36,21 @@ jobs:
         if: ${{ contains(matrix.os, 'windows') }}
         run: mvnw.cmd --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
         shell: cmd
-      - name: Run generate.sh
-        run: ./scripts/regenerate-openmaptiles.sh && ./mvnw clean test -pl flatmap-basemap -am
+
+  regenerate:
+    name: Regenerate
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: 17
+          distribution: 'temurin'
+      - run: ./scripts/regenerate-openmaptiles.sh
+      - run: ./mvnw clean install -pl flatmap-basemap -am
+      - run: ./mvnw clean test -pl flatmap-basemap
 
   examples:
     name: Example project
