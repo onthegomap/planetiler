@@ -18,7 +18,7 @@
     <maven.compiler.source>16</maven.compiler.source>
     <maven.compiler.target>16</maven.compiler.target>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.13.0</jackson.version>
+    <jackson.version>2.13.1</jackson.version>
     <junit.version>5.8.2</junit.version>
   </properties>
 
