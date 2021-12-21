@@ -1,6 +1,6 @@
 # Planetiler
 
-Planetiler (_pla&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that
+Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that
 generates [Mapbox Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
 from geographic data sources like [OpenStreetMap](https://www.openstreetmap.org/). Planetiler aims to be fast and
 memory-efficient so that you can build a map of the world in a few hours on a single machine without any external tools
