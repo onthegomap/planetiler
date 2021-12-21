@@ -1,6 +1,6 @@
 # Planetiler
 
-Planetiler (_pla&middot;nuh&middot;tai&middot;lr_, formerly "Flatmap") is a tool that
+Planetiler (_pla&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that
 generates [Mapbox Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
 from geographic data sources like [OpenStreetMap](https://www.openstreetmap.org/). Planetiler aims to be fast and
 memory-efficient so that you can build a map of the world in a few hours on a single machine without any external tools
@@ -175,12 +175,12 @@ download regularly-updated tilesets.
   you can easily post-process nearby features in the same tile before emitting, but if you want to group or join across
   features in different tiles, then you must explicitly store data when processing a feature to use with later features
   or store features and defer processing until an input source is
-  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/b364066134c4b47184ccc60323c70bf2c0740e15/flatmap-basemap/src/main/java/com/onthegomap/flatmap/basemap/layers/Boundary.java#L294))
+  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/b364066134c4b47184ccc60323c70bf2c0740e15/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
 ## Roadmap
 
-- [x] Enough `flatmap-core` functionality to support basemap profile based on OpenMapTiles
+- [x] Enough `planetiler-core` functionality to support basemap profile based on OpenMapTiles
 - [ ] Basemap profile based on OpenMapTiles v3.12.2
   - [x] Port all layers
   - [x] Download name translations from wikidata
@@ -188,7 +188,7 @@ download regularly-updated tilesets.
   - [x] `adm0_l`/`adm0_r` boundary labels
   - [ ] Abbreviate road names to improve visibility
   - [ ] Poi layer `agg_stop` tag
-- [ ] Get `flatmap-core` into Maven Central
+- [ ] Get `planetiler-core` into Maven Central
 - [ ] Remove geotools dependency for reading shapefiles (not in Maven Central)
 - [ ] Remove graphhopper dependency for reading OSM files, and
   use [LocationsOnWays](https://blog.jochentopf.com/2016-04-20-node-locations-on-ways.html) to skip node location
@@ -196,11 +196,11 @@ download regularly-updated tilesets.
 - [ ] "Sparse mode" to only store node and relation data for elements used by a profile
 - [ ] Support zoom levels higher than 14
 - [ ] Handle nodes and relations in relations (only ways handled now)
-- [ ] Lake centerline support in `flatmap-core`
+- [ ] Lake centerline support in `planetiler-core`
 - [ ] Improve line merging to combine nearby parallel roads
 - [ ] Basemap schema improvements for [onthegomap.com](https://onthegomap.com)
 - [ ] Accept other kinds of data sources
-- [ ] Extract reusable utilities for complex schemas from `flatmap-basemap` to `flatmap-core`
+- [ ] Extract reusable utilities for complex schemas from `planetiler-basemap` to `planetiler-core`
 - [ ] Other schemas
 
 ## Contributing
@@ -210,9 +210,9 @@ Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## Support
 
 Have a question or want to share something you've built? Start
-a [GitHub discussion](https://github.com/onthegomap/flatmap/discussions).
+a [GitHub discussion](https://github.com/onthegomap/planetiler/discussions).
 
-Found a bug or have a feature request? Open a [GitHub issue](https://github.com/onthegomap/flatmap/issues) to report.
+Found a bug or have a feature request? Open a [GitHub issue](https://github.com/onthegomap/planetiler/issues) to report.
 
 This is a side project, so support is limited. If you have the time and ability, feel free to open a pull request to fix
 issues or implement new features.
@@ -223,7 +223,7 @@ Planetiler is made possible by these awesome open source projects:
 
 - [OpenMapTiles](https://openmaptiles.org/) for the [schema](https://openmaptiles.org/schema/)
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
-  that the [basemap profile](flatmap-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers)
+  that the [basemap profile](planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers)
   is based on
 - [Graphhopper](https://www.graphhopper.com/) for utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
@@ -231,13 +231,13 @@ Planetiler is made possible by these awesome open source projects:
 - [SQLite JDBC Driver](https://github.com/xerial/sqlite-jdbc) for reading Natural Earth data and writing MBTiles files
 - [MessagePack](https://msgpack.org/) for compact binary encoding of intermediate map features
 - [geojson-vt](https://github.com/mapbox/geojson-vt) for the basis of
-  the [stripe clipping algorithm](flatmap-core/src/main/java/com/onthegomap/planetiler/render/TiledGeometry.java)
-  that flatmap uses to slice geometries into tiles
+  the [stripe clipping algorithm](planetiler-core/src/main/java/com/onthegomap/planetiler/render/TiledGeometry.java)
+  that planetiler uses to slice geometries into tiles
 - [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) for the basis of
-  the [vector tile encoder](flatmap-core/src/main/java/com/onthegomap/planetiler/VectorTile.java)
+  the [vector tile encoder](planetiler-core/src/main/java/com/onthegomap/planetiler/VectorTile.java)
 - [imposm3](https://github.com/omniscale/imposm3) for the basis
-  of [OSM multipolygon processing](flatmap-core/src/main/java/com/onthegomap/planetiler/reader/osm/OsmMultipolygon.java)
-  and [tag parsing utilities](flatmap-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
+  of [OSM multipolygon processing](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/osm/OsmMultipolygon.java)
+  and [tag parsing utilities](planetiler-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 
@@ -251,9 +251,10 @@ overlays for [On The Go Map](https://onthegomap.com).
 Planetiler source code is licensed under the [Apache 2.0 License](LICENSE), so it can be used and modified in commercial
 or other open source projects according to the license guidelines.
 
-Maps built using flatmap do not require any special attribution, but the data or schema used might. Any maps generated
-from OpenStreetMap data must [visibly credit OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Any
-map generated with the profile based on OpenMapTiles or a derivative
+Maps built using planetiler do not require any special attribution, but the data or schema used might. Any maps
+generated from OpenStreetMap data
+must [visibly credit OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Any map generated with the
+profile based on OpenMapTiles or a derivative
 must [visibly credit OpenMapTiles](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md#design-license-cc-by-40)
 as well.
 
