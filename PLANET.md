@@ -1,9 +1,9 @@
 # Generating a Map of the World
 
-To generate a map of the world using the built-in [basemap profile](flatmap-basemap), you will need a machine with Java
-16 or later installed and at least 10x as much disk space and 1.5x as much RAM as the `planet.osm.pbf` file you start
-from. All testing has been done using Digital Ocean droplets with dedicated
-vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and OpenJDK 17 installed through `apt`. Flatmap splits work
+To generate a map of the world using the built-in [basemap profile](planetiler-basemap), you will need a machine with
+Java 16 or later installed and at least 10x as much disk space and 1.5x as much RAM as the `planet.osm.pbf` file you
+start from. All testing has been done using Digital Ocean droplets with dedicated
+vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and OpenJDK 17 installed through `apt`. Planetiler splits work
 among available CPUs so the more you have, the less time it takes.
 
 ### 1) Choose the Data Source
@@ -22,11 +22,11 @@ First decide where to get the `planet.osm.pbf` file:
   NOTE: you need at least `admin.osc.bz2` for the `boundary` layer to show. This takes about 2.5 hours and needs as much
   RAM as the `planet.osm.pbf` size.
 
-### 2) Run Flatmap
+### 2) Run Planetiler
 
-Download the [latest release](https://github.com/onthegomap/flatmap/releases/latest) of `flatmap.jar`.
+Download the [latest release](https://github.com/onthegomap/planetiler/releases/latest) of `planetiler.jar`.
 
-Then run `java -Xms100g -Xmx100g -jar flatmap.jar` (replacing `100g` with 1.5x the `planet.osm.pbf` size)
+Then run `java -Xms100g -Xmx100g -jar planetiler.jar` (replacing `100g` with 1.5x the `planet.osm.pbf` size)
 with these options:
 
 - `--bounds=world` to set bounding box to the entire planet
@@ -36,8 +36,8 @@ with these options:
 - `--nodemap-storage=ram` to store all node locations in RAM instead of a memory-mapped file - when using `ram` give the
   JVM 1.5x the input file size instead of 0.5x when using `mmap`
 - `--download` to fetch [other data sources](NOTICE.md#data) automatically
-- One of these to point flatmap at your data source:
-  - `--osm-path=path/to/planet.osm.pbf` to point Flatmap at a file you downloaded
+- One of these to point planetiler at your data source:
+  - `--osm-path=path/to/planet.osm.pbf` to point Planetiler at a file you downloaded
   - `--osm-url=http://url/of/planet.osm.pbf` to download automatically
   - `--osm-url=s3:211011` to download a specific snapshot from the AWS Registry of Open Data or `--osm-url=s3:latest` to
     download the latest snapshot
@@ -47,14 +47,14 @@ with these options:
 Run with `--help` to see all available arguments.
 
 NOTE: The default basemap profile merges nearby buildings at zoom-level 13 (for example,
-see [Boston](https://onthegomap.github.io/flatmap-demo/#13.08/42.35474/-71.06597)). This adds about 14 CPU hours (~50
+see [Boston](https://onthegomap.github.io/planetiler-demo/#13.08/42.35474/-71.06597)). This adds about 14 CPU hours (~50
 minutes with 16 CPUs) to planet generation time and can be disabled using `--building-merge-z13=false`.
 
 ## Example
 
-To generate the tiles shown on https://onthegomap.github.io/flatmap-demo/ I used the `planet-211011.osm.pbf` (64.7GB) S3
-snapshot, then ran Flatmap on a Digital Ocean Memory-Optimized droplet with 16 CPUs, 128GB RAM, and 1.17TB disk running
-Ubuntu 21.04 x64 in the nyc3 location.
+To generate the tiles shown on https://onthegomap.github.io/planetiler-demo/ I used the `planet-211011.osm.pbf` (64.7GB)
+S3 snapshot, then ran Planetiler on a Digital Ocean Memory-Optimized droplet with 16 CPUs, 128GB RAM, and 1.17TB disk
+running Ubuntu 21.04 x64 in the nyc3 location.
 
 First, I installed java 17 jre and screen:
 
@@ -69,7 +69,7 @@ Then I added a script `runworld.sh` to run with 100GB of RAM:
 set -e
 java -Xmx100g -Xms100g \
   -XX:OnOutOfMemoryError="kill -9 %p" \
-  -jar flatmap.jar \
+  -jar planetiler.jar \
   `# Download the latest planet.osm.pbf from s3://osm-pds bucket` \
   --area=planet --bounds=world --download \
   `# Accelerate the download by fetching the 10 1GB chunks at a time in parallel` \
@@ -132,7 +132,7 @@ the [full logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt) from this run or t
 3:21:03 INF - 	mbtiles	99GB
 ```
 
-To generate the extract for [the demo](https://onthegomap.github.io/flatmap-demo/) I ran:
+To generate the extract for [the demo](https://onthegomap.github.io/planetiler-demo/) I ran:
 
 ```bash
 # install node and tilelive-copy
@@ -145,5 +145,5 @@ tilelive-copy --minzoom=0 --maxzoom=4 --bounds=-180,-90,180,90 output.mbtiles de
 tilelive-copy --minzoom=0 --maxzoom=14 --bounds=-73.6346,41.1055,-69.5464,42.9439 output.mbtiles demo.mbtiles
 ```
 
-Then I ran [extract.sh](https://github.com/onthegomap/flatmap-demo/blob/main/extract.sh) in the flatmap-demo repo to
-extract tiles from the mbtiles file to disk.
+Then I ran [extract.sh](https://github.com/onthegomap/planetiler-demo/blob/main/extract.sh) in the planetiler-demo repo
+to extract tiles from the mbtiles file to disk.

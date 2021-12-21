@@ -4,14 +4,14 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.onthegomap.flatmap</groupId>
-  <artifactId>flatmap-parent</artifactId>
+  <groupId>com.onthegomap.planetiler</groupId>
+  <artifactId>planetiler-parent</artifactId>
   <version>0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Flatmap Parent</name>
-  <description>Flatmap Parent</description>
-  <url>https://github.com/onthegomap/flatmap</url>
+  <name>Planetiler Parent</name>
+  <description>Planetiler Parent</description>
+  <url>https://github.com/onthegomap/planetiler</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -23,13 +23,13 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git@github.com:onthegomap/flatmap.git</connection>
-    <developerConnection>scm:git:git@github.com:onthegomap/flatmap.git</developerConnection>
-    <url>git@github.com:onthegomap/flatmap.git</url>
+    <connection>scm:git:git@github.com:onthegomap/planetiler.git</connection>
+    <developerConnection>scm:git:git@github.com:onthegomap/planetiler.git</developerConnection>
+    <url>git@github.com:onthegomap/planetiler.git</url>
   </scm>
 
   <issueManagement>
-    <url>https://github.com/onthegomap/flatmap/issues</url>
+    <url>https://github.com/onthegomap/planetiler/issues</url>
     <system>GitHub Issues</system>
   </issueManagement>
 
@@ -75,12 +75,12 @@
   </distributionManagement>
 
   <modules>
-    <module>flatmap-core</module>
-    <module>flatmap-basemap</module>
-    <module>flatmap-benchmarks</module>
-    <!-- flatmap-examples/pom.xml can also be run as a standalone maven project -->
-    <module>flatmap-examples/child.pom.xml</module>
-    <module>flatmap-dist</module>
+    <module>planetiler-core</module>
+    <module>planetiler-basemap</module>
+    <module>planetiler-benchmarks</module>
+    <!-- planetiler-examples/pom.xml can also be run as a standalone maven project -->
+    <module>planetiler-examples/child.pom.xml</module>
+    <module>planetiler-dist</module>
   </modules>
 
   <dependencyManagement>

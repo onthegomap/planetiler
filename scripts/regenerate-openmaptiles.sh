@@ -8,7 +8,7 @@ TAG="${1:-"v3.12.2"}"
 echo "tag=${TAG}"
 
 echo "Building..."
-./mvnw -DskipTests=true --projects flatmap-dist -am package
+./mvnw -DskipTests=true --projects planetiler-dist -am package
 
 echo "Running..."
-java -cp flatmap-dist/target/*-with-deps.jar com.onthegomap.flatmap.basemap.Generate -tag="${TAG}"
+java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.basemap.Generate -tag="${TAG}"
