@@ -48,6 +48,7 @@ jobs:
         with:
           java-version: 17
           distribution: 'temurin'
+          cache: 'maven'
       - run: ./scripts/regenerate-openmaptiles.sh
       - run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean install -pl flatmap-basemap -am
       - run: ./mvnw --batch-mode -no-transfer-progress test -pl flatmap-basemap
