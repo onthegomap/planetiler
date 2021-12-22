@@ -49,7 +49,7 @@
           <skip>false</skip>
           <from>
             <image>
-              eclipse-temurin:17-jdk
+              eclipse-temurin:17-jre
             </image>
             <platforms>
               <platform>
