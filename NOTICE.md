@@ -1,10 +1,10 @@
 ## Licenses
 
-Flatmap licensed under the Apache license, Version 2.0
+Planetiler licensed under the Apache license, Version 2.0
 
-Copyright 2021 Michael Barry and Flatmap Contributors.
+Copyright 2021 Michael Barry and Planetiler Contributors.
 
-The `flatmap-core` module includes the following software:
+The `planetiler-core` module includes the following software:
 
 - Maven Dependencies:
   - Jackson for JSON/XML handling (Apache license)
@@ -28,7 +28,7 @@ The `flatmap-core` module includes the following software:
     from [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) (Apache license)
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
 
-Additionally, the `flatmap-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
+Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)

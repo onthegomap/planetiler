@@ -50,8 +50,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - run: ./scripts/regenerate-openmaptiles.sh
-      - run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean install -pl flatmap-basemap -am
-      - run: ./mvnw --batch-mode -no-transfer-progress test -pl flatmap-basemap
+      - run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean install -pl planetiler-basemap -am
+      - run: ./mvnw --batch-mode -no-transfer-progress test -pl planetiler-basemap
 
   examples:
     name: Example project
@@ -67,16 +67,16 @@ jobs:
           distribution: 'temurin'
       - name: Build and test
         run: mvn --batch-mode -no-transfer-progress package --file pom.xml
-        working-directory: flatmap-examples
+        working-directory: planetiler-examples
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar
-        working-directory: flatmap-examples
+        working-directory: planetiler-examples
       - name: Run
-        run: java -jar run.jar --osm-path=../flatmap-core/src/test/resources/monaco-latest.osm.pbf --mbtiles=data/out.mbtiles
-        working-directory: flatmap-examples
+        run: java -jar run.jar --osm-path=../planetiler-core/src/test/resources/monaco-latest.osm.pbf --mbtiles=data/out.mbtiles
+        working-directory: planetiler-examples
       - name: Verify
-        run: java -cp run.jar com.onthegomap.flatmap.mbtiles.Verify data/out.mbtiles
-        working-directory: flatmap-examples
+        run: java -cp run.jar com.onthegomap.planetiler.mbtiles.Verify data/out.mbtiles
+        working-directory: planetiler-examples
 
   run:
     name: Build / Run
@@ -97,10 +97,10 @@ jobs:
         run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
 
       - name: Download data (java)
-        run: java -jar flatmap-dist/target/*with-deps.jar --only-download --area=monaco
+        run: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
 
       - name: Download wikidata (java)
-        run: java -jar flatmap-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
+        run: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
 
       - name: Verify build
         run: ./scripts/test-release.sh CI_ONLY

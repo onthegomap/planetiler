@@ -15,7 +15,7 @@ updates:
     ignore:
       - dependency-name: "com.graphhopper:graphhopper-reader-osm"
   - package-ecosystem: maven
-    directory: "/flatmap-examples"
+    directory: "/planetiler-examples"
     open-pull-requests-limit: 1
     schedule:
       interval: daily
@@ -24,7 +24,7 @@ updates:
     labels:
       - dependencies
     ignore:
-      - dependency-name: "com.onthegomap.flatmap:*"
+      - dependency-name: "com.onthegomap.planetiler:*"
   - package-ecosystem: github-actions
     directory: "/"
     open-pull-requests-limit: 1

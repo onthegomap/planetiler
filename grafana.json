@@ -81,13 +81,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass1_elements_processed_total",
+          "expr": "planetiler_osm_pass1_elements_processed_total",
           "interval": "",
           "legendFormat": "pass1 {{type}}",
           "refId": "A"
         },
         {
-          "expr": "flatmap_osm_pass2_elements_processed_total",
+          "expr": "planetiler_osm_pass2_elements_processed_total",
           "interval": "",
           "legendFormat": "pass2 {{type}}",
           "refId": "B"
@@ -203,20 +203,20 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_osm_pass2_elements_processed_total\n/\nflatmap_osm_pass1_elements_processed_total",
+          "expr": "planetiler_osm_pass2_elements_processed_total\n/\nplanetiler_osm_pass1_elements_processed_total",
           "instant": false,
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_mbtiles_features_processed_total) / sum(flatmap_renderer_features_emitted_total)",
+          "expr": "sum(planetiler_mbtiles_features_processed_total) / sum(planetiler_renderer_features_emitted_total)",
           "interval": "",
           "legendFormat": "mbtiles features",
           "refId": "B"
         },
         {
-          "expr": "{__name__=~\"^flatmap_.*running$\"}>0",
+          "expr": "{__name__=~\"^planetiler_.*running$\"}>0",
           "instant": false,
           "interval": "",
           "legendFormat": "{{__name__}}",
@@ -312,31 +312,31 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_osm_pass1_elements_processed_total[$interval])",
+          "expr": "rate(planetiler_osm_pass1_elements_processed_total[$interval])",
           "interval": "",
           "legendFormat": "pass1 {{type}}",
           "refId": "A"
         },
         {
-          "expr": "rate(flatmap_osm_pass2_elements_processed_total[$interval])",
+          "expr": "rate(planetiler_osm_pass2_elements_processed_total[$interval])",
           "interval": "",
           "legendFormat": "pass2 {{type}}",
           "refId": "B"
         },
         {
-          "expr": "rate(flatmap_mbtiles_features_processed_total[$interval])",
+          "expr": "rate(planetiler_mbtiles_features_processed_total[$interval])",
           "interval": "",
           "legendFormat": "mbtiles features processed",
           "refId": "C"
         },
         {
-          "expr": "sum(rate(flatmap_renderer_features_emitted_total[$interval])) by (layer)",
+          "expr": "sum(rate(planetiler_renderer_features_emitted_total[$interval])) by (layer)",
           "interval": "",
           "legendFormat": "pass2 emitted {{layer}} feature",
           "refId": "D"
         },
         {
-          "expr": "sum(rate(flatmap_mbtiles_tiles_written_total[$interval])) by (zoom)",
+          "expr": "sum(rate(planetiler_mbtiles_tiles_written_total[$interval])) by (zoom)",
           "interval": "",
           "legendFormat": "z{{zoom}} tiles written",
           "refId": "E"
@@ -431,7 +431,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(process_cpu_seconds_total{exported_job=\"flatmap\"}[$interval])",
+          "expr": "rate(process_cpu_seconds_total{exported_job=\"planetiler\"}[$interval])",
           "interval": "",
           "legendFormat": "total",
           "refId": "A"
@@ -629,7 +629,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_bad_input_data_total",
+          "expr": "planetiler_bad_input_data_total",
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
@@ -725,19 +725,19 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_file_mbtiles_size_bytes",
+          "expr": "planetiler_file_mbtiles_size_bytes",
           "interval": "",
           "legendFormat": "mbtiles",
           "refId": "B"
         },
         {
-          "expr": "flatmap_file_nodes_size_bytes",
+          "expr": "planetiler_file_nodes_size_bytes",
           "interval": "",
           "legendFormat": "nodes",
           "refId": "A"
         },
         {
-          "expr": "flatmap_file_features_size_bytes",
+          "expr": "planetiler_file_features_size_bytes",
           "interval": "",
           "legendFormat": "features",
           "refId": "C"
@@ -856,7 +856,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_bytes_used{exported_job=\"flatmap\"}",
+          "expr": "jvm_memory_bytes_used{exported_job=\"planetiler\"}",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -867,7 +867,7 @@
           "refId": "C"
         },
         {
-          "expr": "sum(jvm_memory_pool_post_gc_bytes_total{exported_job=\"flatmap\"})",
+          "expr": "sum(jvm_memory_pool_post_gc_bytes_total{exported_job=\"planetiler\"})",
           "interval": "",
           "legendFormat": "post-GC",
           "refId": "A"
@@ -964,7 +964,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_pool_bytes_used{exported_job=\"flatmap\"}",
+          "expr": "jvm_memory_pool_bytes_used{exported_job=\"planetiler\"}",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -975,7 +975,7 @@
           "refId": "A"
         },
         {
-          "expr": "jvm_buffer_pool_used_bytes{exported_job=\"flatmap\"}",
+          "expr": "jvm_buffer_pool_used_bytes{exported_job=\"planetiler\"}",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -1068,7 +1068,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(jvm_gc_collection_seconds_sum{exported_job=\"flatmap\"}[$interval])) by (instance_alias, job)",
+          "expr": "sum(rate(jvm_gc_collection_seconds_sum{exported_job=\"planetiler\"}[$interval])) by (instance_alias, job)",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -1158,7 +1158,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(jvm_gc_collection_seconds_count{exported_job=\"flatmap\"}[$interval])",
+          "expr": "increase(jvm_gc_collection_seconds_count{exported_job=\"planetiler\"}[$interval])",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -1258,7 +1258,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "(sum(rate(flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"}))",
+              "expr": "(sum(rate(planetiler_osm_pass1_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"}))",
               "interval": "",
               "legendFormat": "blocked enqueueing",
               "refId": "B"
@@ -1270,7 +1270,7 @@
               "refId": "C"
             },
             {
-              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"}[$interval]))* sum(flatmap_osm_pass1_running) > 0",
+              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass1_pbf.*$\"}[$interval]))* sum(planetiler_osm_pass1_running) > 0",
               "interval": "",
               "legendFormat": "PBF parsers",
               "refId": "D"
@@ -1365,7 +1365,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass1_reader_queue_dequeue_block_time_seconds_total[$interval]))",
               "interval": "",
               "legendFormat": "blocked dequeueing",
               "refId": "B"
@@ -1466,13 +1466,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count_total)",
+              "expr": "sum(planetiler_osm_pass1_reader_queue_enqueue_count_total)",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(flatmap_osm_pass1_reader_queue_enqueue_count_total)",
+              "expr": "sum(planetiler_osm_pass1_reader_queue_enqueue_count_total)",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -1567,13 +1567,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(flatmap_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass1_reader_queue_enqueue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -1668,13 +1668,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass1_reader_queue_capacity",
+              "expr": "planetiler_osm_pass1_reader_queue_capacity",
               "interval": "",
               "legendFormat": "capacity",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass1_reader_queue_size",
+              "expr": "planetiler_osm_pass1_reader_queue_size",
               "interval": "",
               "legendFormat": "size",
               "refId": "B"
@@ -1769,13 +1769,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass1_reader_queue_enqueue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass1_reader_queue_enqueue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "enqueue",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass1_reader_queue_dequeue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass1_reader_queue_dequeue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "dequeue",
               "refId": "B"
@@ -1885,19 +1885,19 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "(sum(rate(flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}))\n* sum(flatmap_osm_pass2_running) > 0",
+              "expr": "(sum(rate(planetiler_osm_pass2_reader_queue_enqueue_block_time_seconds_total[$interval]))\n/\ncount(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}))\n* sum(planetiler_osm_pass2_running) > 0",
               "interval": "",
               "legendFormat": "blocked enqueueing",
               "refId": "B"
             },
             {
-              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^pbfpass2.*$\"}[$interval])) * sum(flatmap_osm_pass2_running) > 0",
+              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^pbfpass2.*$\"}[$interval])) * sum(planetiler_osm_pass2_running) > 0",
               "interval": "",
               "legendFormat": "PBF reader",
               "refId": "C"
             },
             {
-              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}[$interval])) * \nsum(flatmap_osm_pass2_running) > 0",
+              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_pbf.*$\"}[$interval])) * \nsum(planetiler_osm_pass2_running) > 0",
               "interval": "",
               "legendFormat": "PBF parsers",
               "refId": "D"
@@ -1992,25 +1992,25 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "sum(rate(planetiler_osm_pass2_reader_queue_dequeue_block_time_seconds_total[$interval])\n/\nplanetiler_osm_pass2_process_threads) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "blocked dequeueing",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_process_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "sum(rate(planetiler_osm_pass2_feature_queue_enqueue_block_time_seconds_total[$interval])\n/\nplanetiler_osm_pass2_process_threads) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "blocked enqueueing",
               "refId": "B"
             },
             {
-              "expr": "sum(avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_process.*$\"}[$interval]))) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "sum(avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_process.*$\"}[$interval]))) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "cpu",
               "refId": "C"
             },
             {
-              "expr": "sum(avg(rate(jvm_thread_user_time_seconds_total{name=~\"^osm_pass2_process.*$\"}[$interval]))) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "sum(avg(rate(jvm_thread_user_time_seconds_total{name=~\"^osm_pass2_process.*$\"}[$interval]))) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "user time",
               "refId": "D"
@@ -2105,19 +2105,19 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_osm_pass2_write_threads) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "sum(rate(planetiler_osm_pass2_feature_queue_dequeue_block_time_seconds_total[$interval])\n/\nplanetiler_osm_pass2_write_threads) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "blocked dequeueing",
               "refId": "A"
             },
             {
-              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_write.*$\"}[$interval])) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "avg(rate(jvm_thread_cpu_time_seconds_total{name=~\"^osm_pass2_write.*$\"}[$interval])) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "cpu",
               "refId": "C"
             },
             {
-              "expr": "avg(rate(jvm_thread_user_time_seconds_total{name=~\"^osm_pass2_write.*$\"}[$interval])) * (sum(flatmap_osm_pass2_running) > 0)",
+              "expr": "avg(rate(jvm_thread_user_time_seconds_total{name=~\"^osm_pass2_write.*$\"}[$interval])) * (sum(planetiler_osm_pass2_running) > 0)",
               "interval": "",
               "legendFormat": "user time",
               "refId": "D"
@@ -2212,13 +2212,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(flatmap_osm_pass2_reader_queue_enqueue_count_total)",
+              "expr": "sum(planetiler_osm_pass2_reader_queue_enqueue_count_total)",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(flatmap_osm_pass2_reader_queue_dequeue_count_total)",
+              "expr": "sum(planetiler_osm_pass2_reader_queue_dequeue_count_total)",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -2313,13 +2313,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass2_reader_queue_enqueue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass2_reader_queue_enqueue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(flatmap_osm_pass2_reader_queue_dequeue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass2_reader_queue_dequeue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -2414,13 +2414,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass2_reader_queue_capacity",
+              "expr": "planetiler_osm_pass2_reader_queue_capacity",
               "interval": "",
               "legendFormat": "capacity",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass2_reader_queue_size",
+              "expr": "planetiler_osm_pass2_reader_queue_size",
               "interval": "",
               "legendFormat": "size",
               "refId": "B"
@@ -2515,13 +2515,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass2_reader_queue_enqueue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass2_reader_queue_enqueue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "enqueue",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass2_reader_queue_dequeue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass2_reader_queue_dequeue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "dequeue",
               "refId": "B"
@@ -2616,13 +2616,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(flatmap_osm_pass2_feature_queue_enqueue_count_total)",
+              "expr": "sum(planetiler_osm_pass2_feature_queue_enqueue_count_total)",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(flatmap_osm_pass2_feature_queue_dequeue_count_total)",
+              "expr": "sum(planetiler_osm_pass2_feature_queue_dequeue_count_total)",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -2717,13 +2717,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(flatmap_osm_pass2_feature_queue_enqueue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass2_feature_queue_enqueue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "emitted",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(flatmap_osm_pass2_feature_queue_dequeue_count_total[$interval]))",
+              "expr": "sum(rate(planetiler_osm_pass2_feature_queue_dequeue_count_total[$interval]))",
               "interval": "",
               "legendFormat": "processed",
               "refId": "B"
@@ -2818,13 +2818,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass2_feature_queue_capacity",
+              "expr": "planetiler_osm_pass2_feature_queue_capacity",
               "interval": "",
               "legendFormat": "capacity",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass2_feature_queue_size",
+              "expr": "planetiler_osm_pass2_feature_queue_size",
               "interval": "",
               "legendFormat": "size",
               "refId": "B"
@@ -2919,13 +2919,13 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "flatmap_osm_pass2_feature_queue_enqueue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass2_feature_queue_enqueue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "enqueue",
               "refId": "A"
             },
             {
-              "expr": "flatmap_osm_pass2_feature_queue_dequeue_block_time_seconds_total",
+              "expr": "planetiler_osm_pass2_feature_queue_dequeue_block_time_seconds_total",
               "interval": "",
               "legendFormat": "dequeue",
               "refId": "B"
@@ -3038,7 +3038,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_mbtiles_writer_queue_enqueue_block_time_seconds_total[$interval])\n/\nflatmap_mbtiles_encoder_threads",
+          "expr": "rate(planetiler_mbtiles_writer_queue_enqueue_block_time_seconds_total[$interval])\n/\nplanetiler_mbtiles_encoder_threads",
           "interval": "",
           "legendFormat": "blocked enqueueing",
           "refId": "B"
@@ -3145,7 +3145,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(flatmap_mbtiles_writer_queue_dequeue_block_time_seconds_total[$interval])\n/\nflatmap_mbtiles_writer_threads",
+          "expr": "rate(planetiler_mbtiles_writer_queue_dequeue_block_time_seconds_total[$interval])\n/\nplanetiler_mbtiles_writer_threads",
           "interval": "",
           "legendFormat": "blocked dequeueing",
           "refId": "B"
@@ -3252,13 +3252,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(flatmap_mbtiles_reader_queue_enqueue_count_total)",
+          "expr": "sum(planetiler_mbtiles_reader_queue_enqueue_count_total)",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(flatmap_mbtiles_reader_queue_dequeue_count_total)",
+          "expr": "sum(planetiler_mbtiles_reader_queue_dequeue_count_total)",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -3353,13 +3353,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(flatmap_mbtiles_reader_queue_enqueue_count_total[$interval]))",
+          "expr": "sum(rate(planetiler_mbtiles_reader_queue_enqueue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "emitted",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(flatmap_mbtiles_reader_queue_dequeue_count_total[$interval]))",
+          "expr": "sum(rate(planetiler_mbtiles_reader_queue_dequeue_count_total[$interval]))",
           "interval": "",
           "legendFormat": "processed",
           "refId": "B"
@@ -3454,19 +3454,19 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_mbtiles_reader_queue_capacity",
+          "expr": "planetiler_mbtiles_reader_queue_capacity",
           "interval": "",
           "legendFormat": "capacity",
           "refId": "A"
         },
         {
-          "expr": "flatmap_mbtiles_reader_queue_size",
+          "expr": "planetiler_mbtiles_reader_queue_size",
           "interval": "",
           "legendFormat": "reader",
           "refId": "B"
         },
         {
-          "expr": "flatmap_mbtiles_writer_queue_size",
+          "expr": "planetiler_mbtiles_writer_queue_size",
           "interval": "",
           "legendFormat": "writer",
           "refId": "C"
@@ -3561,13 +3561,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "flatmap_mbtiles_reader_queue_enqueue_block_time_seconds_total",
+          "expr": "planetiler_mbtiles_reader_queue_enqueue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "enqueue",
           "refId": "A"
         },
         {
-          "expr": "flatmap_mbtiles_reader_queue_dequeue_block_time_seconds_total",
+          "expr": "planetiler_mbtiles_reader_queue_dequeue_block_time_seconds_total",
           "interval": "",
           "legendFormat": "dequeue",
           "refId": "B"
@@ -3675,7 +3675,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "process_open_fds{exported_job=\"flatmap\"}",
+          "expr": "process_open_fds{exported_job=\"planetiler\"}",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -3765,7 +3765,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_threads_current{exported_job=\"flatmap\"}",
+          "expr": "jvm_threads_current{exported_job=\"planetiler\"}",
           "format": "time_series",
           "interval": "30s",
           "intervalFactor": 1,
@@ -3881,7 +3881,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "flatmap",
+  "title": "planetiler",
   "uid": "scLmtpaMz",
   "version": 73
 }

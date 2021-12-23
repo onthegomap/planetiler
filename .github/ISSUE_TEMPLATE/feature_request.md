@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Flatmap
+about: Suggest an idea for Planetiler
 title: "[FEATURE] "
 labels: ''
 assignees: ''

@@ -4,4 +4,4 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-java -ea -jar flatmap-dist/target/*-with-deps.jar verify-mbtiles $*
+java -ea -jar planetiler-dist/target/*-with-deps.jar verify-mbtiles $*

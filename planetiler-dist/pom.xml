@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <artifactId>planetiler-dist</artifactId>
+
+  <parent>
+    <groupId>com.onthegomap.planetiler</groupId>
+    <artifactId>planetiler-parent</artifactId>
+    <version>0.2-SNAPSHOT</version>
+  </parent>
+
+  <properties>
+    <mainClass>com.onthegomap.planetiler.Main</mainClass>
+    <image.version>${project.version}</image.version>
+    <image>ghcr.io/onthegomap/planetiler:${image.version}</image>
+    <assembly-phase>package</assembly-phase>
+    <jib.platform-arch>amd64</jib.platform-arch>
+    <jib.platform-os>linux</jib.platform-os>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-benchmarks</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-basemap</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-examples</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Create a container distribution -->
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <configuration>
+          <skip>false</skip>
+          <from>
+            <image>
+              eclipse-temurin:17-jre
+            </image>
+            <platforms>
+              <platform>
+                <architecture>${jib.platform-arch}</architecture>
+                <os>${jib.platform-os}</os>
+              </platform>
+            </platforms>
+          </from>
+          <to>
+            <image>${image}</image>
+          </to>
+          <container>
+            <labels>
+              <org.opencontainers.image.source>
+                https://github.com/onthegomap/planetiler
+              </org.opencontainers.image.source>
+            </labels>
+            <mainClass>${mainClass}</mainClass>
+          </container>
+        </configuration>
+      </plugin>
+
+      <!-- Create an executable jar from "mvn package" goal -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.3.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.onthegomap.planetiler</groupId>
+            <artifactId>planetiler-core</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Multi-Release>true</Multi-Release>
+            </manifestEntries>
+            <manifest>
+              <mainClass>${mainClass}</mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>with-deps</descriptorRef>
+          </descriptorRefs>
+          <attach>false</attach>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>${assembly-phase}</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <!-- we don't want to deploy this module -->
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <!-- use -Pskip-assembly to skip building executable jars -->
+      <id>skip-assembly</id>
+      <properties>
+        <assembly-phase>none</assembly-phase>
+      </properties>
+    </profile>
+    <profile>
+      <id>jib-multi-arch</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-maven-plugin</artifactId>
+            <configuration>
+              <from>
+                <platforms>
+                  <platform>
+                    <architecture>amd64</architecture>
+                    <os>linux</os>
+                  </platform>
+                  <platform>
+                    <architecture>arm64</architecture>
+                    <os>linux</os>
+                  </platform>
+                </platforms>
+              </from>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

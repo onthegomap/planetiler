@@ -12,7 +12,7 @@ runs:
     - name: Get Date
       id: get-data
       run: |
-        echo "::set-output name=hash::${{ hashFiles('**/FlatmapRunner.java', '**/Downloader.java', '**/Geofabrik.java', '**/BasemapMain.java') }}"
+        echo "::set-output name=hash::${{ hashFiles('**/Planetiler.java', '**/Downloader.java', '**/Geofabrik.java', '**/BasemapMain.java') }}"
         echo "::set-output name=date::$(date -u "+%Y-%m-%d")"
       shell: bash
       working-directory: ${{ inputs.basedir }}

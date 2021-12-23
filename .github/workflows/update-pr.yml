@@ -26,7 +26,7 @@ jobs:
           run_id: ${{ github.event.workflow_run.id }}
           name: build-info
           path: build-info
-          repo: onthegomap/flatmap
+          repo: onthegomap/planetiler
       - name: 'Get build info'
         id: build_info
         run: echo "::set-output name=pr_number::$(cat build-info/pull_request_number)"
@@ -61,7 +61,7 @@ jobs:
           </tr>
           </table>
 
-          https://github.com/onthegomap/flatmap/actions/runs/${{ github.event.workflow_run.id }}
+          https://github.com/onthegomap/planetiler/actions/runs/${{ github.event.workflow_run.id }}
 
           <details><summary>ℹ️ <strong>Base Logs $(cat build-info/base_sha)</strong></summary>
 
