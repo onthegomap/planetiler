@@ -175,7 +175,7 @@ download regularly-updated tilesets.
   you can easily post-process nearby features in the same tile before emitting, but if you want to group or join across
   features in different tiles, then you must explicitly store data when processing a feature to use with later features
   or store features and defer processing until an input source is
-  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/b364066134c4b47184ccc60323c70bf2c0740e15/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
+  finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
 ## Roadmap
