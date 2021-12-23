@@ -4,11 +4,11 @@
 
 Planetiler builds a map in 3 phases:
 
-1. [Process Input Files](#process-input-files) according to
+1. [Process Input Files](#1-process-input-files) according to
    the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) and write rendered tile features
    to intermediate files on disk
-2. [Sort Features](#sort-features) by tile ID
-3. [Emit Vector Tiles](#emit-vector-tiles) by iterating through sorted features to group by tile ID, encoding, and
+2. [Sort Features](#2-sort-features) by tile ID
+3. [Emit Vector Tiles](#3-emit-vector-tiles) by iterating through sorted features to group by tile ID, encoding, and
    writing to the output MBTiles file
 
 ## 1) Process Input Files
