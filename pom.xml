@@ -6,7 +6,7 @@
 
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-parent</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Planetiler Parent</name>
