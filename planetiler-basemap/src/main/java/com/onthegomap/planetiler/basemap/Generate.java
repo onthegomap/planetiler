@@ -690,12 +690,12 @@ public class Generate {
    * Models for deserializing yaml into:
    */
 
-  private static record OpenmaptilesConfig(
+  private record OpenmaptilesConfig(
     OpenmaptilesTileSet tileset
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static record OpenmaptilesTileSet(
+  private record OpenmaptilesTileSet(
     List<String> layers,
     String version,
     String attribution,
@@ -705,51 +705,52 @@ public class Generate {
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static record LayerDetails(
+  private record LayerDetails(
     String id,
     String description,
     Map<String, JsonNode> fields,
     double buffer_size
   ) {}
 
-  private static record Datasource(
+  private record Datasource(
     String type,
     String mapping_file
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static record LayerConfig(
+  private record LayerConfig(
     LayerDetails layer,
     List<Datasource> datasources
   ) {}
 
-  private static record Imposm3Column(
+  private record Imposm3Column(
     String type,
     String name,
     String key,
     boolean from_member
   ) {}
 
-  static record Imposm3Filters(
+  record Imposm3Filters(
     JsonNode reject,
     JsonNode require
   ) {}
 
-  static record Imposm3Table(
+  record Imposm3Table(
     String type,
     @JsonProperty("_resolve_wikidata") boolean resolveWikidata,
     List<Imposm3Column> columns,
     Imposm3Filters filters,
     JsonNode mapping,
-    Map<String, JsonNode> type_mappings
+    Map<String, JsonNode> type_mappings,
+    @JsonProperty("relation_types") List<String> relationTypes
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static record Imposm3Mapping(
+  private record Imposm3Mapping(
     Map<String, Imposm3Table> tables
   ) {}
 
-  private static record OsmTableField(
+  private record OsmTableField(
     String clazz,
     String name,
     String extractCode

@@ -132,7 +132,7 @@ public class WaterTest extends AbstractLayerTest {
       "_minzoom", 6,
       "_maxzoom", 14
     )), process(polygonFeature(Map.of(
-      "waterway", "stream",
+      "waterway", "riverbank",
       "bridge", "1",
       "intermittent", "1"
     ))));
