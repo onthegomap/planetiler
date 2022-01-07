@@ -47,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
@@ -900,8 +901,9 @@ public class PlanetilerTests {
     )), sortListValues(results.tiles));
   }
 
-  @Test
-  public void testOsmMultipolygon() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
+  public void testOsmMultipolygon(String relationType) throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
@@ -927,7 +929,7 @@ public class PlanetilerTests {
         with(new ReaderWay(16), way -> way.getNodes().add(9, 10, 11, 12, 13)),
 
         with(new ReaderRelation(17), rel -> {
-          rel.setTag("type", "multipolygon");
+          rel.setTag("type", relationType);
           rel.setTag("attr", "value");
           rel.setTag("should_emit", "yes");
           rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 14, "outer"));
