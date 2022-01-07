@@ -153,6 +153,39 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testRiverbank() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "river",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "waterway", "riverbank"
+    ))));
+  }
+
+  @Test
+  public void testRiverk() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "river",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "water", "river"
+    ))));
+  }
+
+  @Test
+  public void testSpring() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "lake",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "natural", "spring"
+    ))));
+  }
+
+  @Test
   public void testOceanZoomLevels() {
     assertCoversZoomRange(0, 14, "water",
       process(SimpleFeature.create(
