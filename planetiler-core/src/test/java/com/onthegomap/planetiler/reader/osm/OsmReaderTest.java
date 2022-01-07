@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class OsmReaderTest {
 
@@ -354,8 +356,9 @@ public class OsmReaderTest {
   private final Function<ReaderElement, Stream<ReaderWay>> ways = elem ->
     elem instanceof ReaderWay way ? Stream.of(way) : Stream.empty();
 
-  @Test
-  public void testMultiPolygon() throws GeometryException {
+  @ParameterizedTest
+  @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
+  public void testMultiPolygon(String relationType) throws GeometryException {
     OsmReader reader = newOsmReader();
     var outerway = new ReaderWay(9);
     outerway.getNodes().add(1, 2, 3, 4, 1);
@@ -363,7 +366,7 @@ public class OsmReaderTest {
     innerway.getNodes().add(5, 6, 7, 8, 5);
 
     var relation = new ReaderRelation(11);
-    relation.setTag("type", "multipolygon");
+    relation.setTag("type", relationType);
     relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
     relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
 
