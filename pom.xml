@@ -171,7 +171,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.0.0-M1</version>
+        <version>3.0.0-M2</version>
       </plugin>
     </plugins>
 
@@ -180,7 +180,7 @@
         <plugin>
           <groupId>io.github.zlika</groupId>
           <artifactId>reproducible-build-maven-plugin</artifactId>
-          <version>0.14</version>
+          <version>0.15</version>
           <executions>
             <execution>
               <id>run-when-packaged</id>

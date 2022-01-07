@@ -20,7 +20,7 @@ jobs:
           - os: ubuntu-latest
             jdk: 16
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK ${{ matrix.jdk }}
@@ -39,8 +39,8 @@ jobs:
 
   regenerate:
     name: Regenerate
-    runs-on: macos-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 17
@@ -56,7 +56,7 @@ jobs:
   examples:
     name: Example project
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: actions/checkout@v2
@@ -81,7 +81,7 @@ jobs:
   run:
     name: Build / Run
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - name: Cache data/sources

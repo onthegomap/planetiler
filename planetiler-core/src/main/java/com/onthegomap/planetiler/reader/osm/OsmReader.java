@@ -183,7 +183,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       }
       // TODO allow limiting multipolygon storage to only ones that profile cares about
-      if (rel.hasTag("type", "multipolygon")) {
+      if (isMultipolygon(rel)) {
         for (ReaderRelation.Member member : rel.getMembers()) {
           if (member.getType() == ReaderRelation.Member.WAY) {
             waysInMultipolygon.add(member.getRef());
@@ -191,6 +191,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       }
     }
+  }
+
+  private static boolean isMultipolygon(ReaderRelation relation) {
+    return relation.hasTag("type", "multipolygon", "boundary", "land_area");
   }
 
   /**
@@ -328,7 +332,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   SourceFeature processRelationPass2(ReaderRelation rel, NodeLocationProvider nodeLocations) {
     // Relation info gets used during way processing, except multipolygons which we have to process after we've
     // stored all the node IDs for each way.
-    if (rel.hasTag("type", "multipolygon")) {
+    if (isMultipolygon(rel)) {
       List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.getId());
       return new MultipolygonSourceFeature(rel, nodeLocations, parentRelations);
     } else {
