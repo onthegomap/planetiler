@@ -144,11 +144,30 @@ public class BoundaryTest extends AbstractLayerTest {
       "ne_10m_admin_1_states_provinces_lines",
       0
     )));
+    assertFeatures(0, List.of(Map.of(
+      "_layer", "boundary",
+      "_type", "line",
+      "disputed", 0,
+      "maritime", 0,
+      "admin_level", 4,
+
+      "_minzoom", 4,
+      "_maxzoom", 4,
+      "_buffer", 4d
+    )), process(SimpleFeature.create(
+      newLineString(0, 0, 1, 1),
+      Map.of(
+        "min_zoom", 7.6d
+      ),
+      NATURAL_EARTH_SOURCE,
+      "ne_10m_admin_1_states_provinces_lines",
+      0
+    )));
 
     assertFeatures(0, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       Map.of(
-        "min_zoom", 7.1d
+        "min_zoom", 7.9d
       ),
       NATURAL_EARTH_SOURCE,
       "ne_10m_admin_1_states_provinces_lines",
