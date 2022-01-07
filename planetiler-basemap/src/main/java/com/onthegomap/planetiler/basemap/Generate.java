@@ -58,7 +58,7 @@ public class Generate {
   private static final String LINE_SEPARATOR = System.lineSeparator();
   private static final String GENERATED_FILE_HEADER = """
     /*
-    Copyright (c) 2016, KlokanTech.com & OpenMapTiles contributors.
+    Copyright (c) 2021, MapTiler.com & OpenMapTiles contributors.
     All rights reserved.
 
     Code license: BSD 3-Clause License
