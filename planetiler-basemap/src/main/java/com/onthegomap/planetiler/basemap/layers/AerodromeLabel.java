@@ -36,6 +36,7 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
+import static com.onthegomap.planetiler.basemap.util.Utils.nullOrEmpty;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
@@ -67,13 +68,15 @@ public class AerodromeLabel implements
 
   @Override
   public void process(Tables.OsmAerodromeLabelPoint element, FeatureCollector features) {
+    String clazz = classLookup.getOrElse(element.source(), FieldValues.CLASS_OTHER);
+    boolean important = !nullOrEmpty(element.iata()) && FieldValues.CLASS_INTERNATIONAL.equals(clazz);
     features.centroid(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
-      .setMinZoom(10)
+      .setMinZoom(important ? 8 : 10)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
       .putAttrs(Utils.elevationTags(element.ele()))
       .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
       .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
-      .setAttr(Fields.CLASS, classLookup.getOrElse(element.source(), FieldValues.CLASS_OTHER));
+      .setAttr(Fields.CLASS, clazz);
   }
 }

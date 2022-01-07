@@ -13,7 +13,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testHappyPathPoint() {
+  public void testIntlWithIata() {
     assertFeatures(14, List.of(Map.of(
       "class", "international",
       "ele", 100,
@@ -23,7 +23,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
 
       "_layer", "aerodrome_label",
       "_type", "point",
-      "_minzoom", 10,
+      "_minzoom", 8,
       "_maxzoom", 14,
       "_buffer", 64d
     )), process(pointFeature(Map.of(
@@ -41,7 +41,8 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public void testInternational() {
     assertFeatures(14, List.of(Map.of(
       "class", "international",
-      "_layer", "aerodrome_label"
+      "_layer", "aerodrome_label",
+      "_minzoom", 10 // no IATA
     )), process(pointFeature(Map.of(
       "aeroway", "aerodrome",
       "aerodrome_type", "international"
@@ -52,7 +53,8 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public void testPublic() {
     assertFeatures(14, List.of(Map.of(
       "class", "public",
-      "_layer", "aerodrome_label"
+      "_layer", "aerodrome_label",
+      "_minzoom", 10
     )), process(pointFeature(Map.of(
       "aeroway", "aerodrome",
       "aerodrome_type", "public airport"
@@ -70,7 +72,8 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public void testMilitary() {
     assertFeatures(14, List.of(Map.of(
       "class", "military",
-      "_layer", "aerodrome_label"
+      "_layer", "aerodrome_label",
+      "_minzoom", 10
     )), process(pointFeature(Map.of(
       "aeroway", "aerodrome",
       "aerodrome_type", "military airport"
@@ -88,7 +91,8 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public void testPrivate() {
     assertFeatures(14, List.of(Map.of(
       "class", "private",
-      "_layer", "aerodrome_label"
+      "_layer", "aerodrome_label",
+      "_minzoom", 10
     )), process(pointFeature(Map.of(
       "aeroway", "aerodrome",
       "aerodrome_type", "private"
@@ -106,7 +110,8 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   public void testOther() {
     assertFeatures(14, List.of(Map.of(
       "class", "other",
-      "_layer", "aerodrome_label"
+      "_layer", "aerodrome_label",
+      "_minzoom", 10
     )), process(pointFeature(Map.of(
       "aeroway", "aerodrome"
     ))));
