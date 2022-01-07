@@ -168,7 +168,9 @@ public class Boundary implements
         : new BoundaryInfo(2, 4, 4);
       case "ne_10m_admin_1_states_provinces_lines" -> {
         Double minZoom = Parse.parseDoubleOrNull(feature.getTag("min_zoom"));
-        yield minZoom != null && minZoom <= 7 ? new BoundaryInfo(4, 1, 4) : null;
+        yield minZoom != null && minZoom <= 7 ? new BoundaryInfo(4, 1, 4) :
+          minZoom != null && minZoom <= 7.7 ? new BoundaryInfo(4, 4, 4) :
+            null;
       }
       default -> null;
     };
