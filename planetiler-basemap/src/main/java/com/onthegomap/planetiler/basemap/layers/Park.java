@@ -42,6 +42,7 @@ import static com.onthegomap.planetiler.collection.FeatureGroup.SORT_KEY_BITS;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
@@ -101,10 +102,10 @@ public class Park implements
     );
 
     // park shape
-    features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, clazz)
+    var outline = features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
+      .setAttrWithMinzoom(Fields.CLASS, clazz, 5)
       .setMinPixelSize(2)
-      .setMinZoom(6);
+      .setMinZoom(4);
 
     // park name label point (if it has one)
     if (element.name() != null) {
@@ -112,9 +113,13 @@ public class Park implements
         double area = element.source().area();
         int minzoom = getMinZoomForArea(area);
 
-        features.centroid(LAYER_NAME).setBufferPixels(256)
+        var names = LanguageUtils.getNamesWithoutTranslations(element.source().tags());
+
+        outline.putAttrsWithMinzoom(names, 5);
+
+        features.pointOnSurface(LAYER_NAME).setBufferPixels(256)
           .setAttr(Fields.CLASS, clazz)
-          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+          .putAttrs(names)
           .setPointLabelGridPixelSize(14, 100)
           .setSortKey(SortKey
             .orderByTruesFirst("national_park".equals(clazz))
@@ -132,12 +137,12 @@ public class Park implements
     // sql filter:    area > 70000*2^(20-zoom_level)
     // simplifies to: zoom_level > 20 - log(area / 70000) / log(2)
     int minzoom = (int) Math.floor(20 - Math.log(area / WORLD_AREA_FOR_70K_SQUARE_METERS) / LOG2);
-    minzoom = Math.min(14, Math.max(6, minzoom));
+    minzoom = Math.min(14, Math.max(5, minzoom));
     return minzoom;
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
     // infer the "rank" attribute from point ordering within each label grid square
     LongIntMap counts = new LongIntHashMap();
     for (VectorTile.Feature feature : items) {
@@ -146,6 +151,9 @@ public class Park implements
         feature.attrs().put("rank", count);
         counts.put(feature.group(), count);
       }
+    }
+    if (zoom <= 4) {
+      items = FeatureMerge.mergeOverlappingPolygons(items, 0);
     }
     return items;
   }

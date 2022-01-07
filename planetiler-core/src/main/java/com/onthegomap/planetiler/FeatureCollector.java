@@ -666,6 +666,19 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
+     * {@code minzoom}.
+     * <p>
+     * Replaces values that have already been set.
+     */
+    public Feature putAttrsWithMinzoom(Map<String, Object> attrs, int minzoom) {
+      for (var entry : attrs.entrySet()) {
+        setAttrWithMinzoom(entry.getKey(), entry.getValue(), minzoom);
+      }
+      return this;
+    }
+
+    /**
      * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature.
      * <p>
      * Does not touch attributes that have already been set.

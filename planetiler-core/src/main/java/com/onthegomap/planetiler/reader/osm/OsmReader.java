@@ -592,8 +592,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         if (member.getType() == ReaderRelation.Member.WAY) {
           if (poly != null && !poly.isEmpty()) {
             rings.add(poly);
-          } else {
-            LOGGER.warn("Missing " + role + " OsmWay[" + member.getRef() + "] for multipolygon " + this);
+          } else if (relation.hasTag("type", "multipolygon")) {
+            // boundary and land_area relations might not be complete for extracts, but multipolygons should be
+            LOGGER.warn(
+              "Missing " + role + " OsmWay[" + member.getRef() + "] for " + relation.getTag("type") + " " + this);
           }
         }
       }
