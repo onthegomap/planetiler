@@ -152,14 +152,14 @@ public class Landcover implements
           long numPoints = num.longValue();
           if (zoom >= 10) {
             if (WOOD_OR_FOREST.contains(subclass) && numPoints < 300) {
-              attrs.put(tempGroupKey, numPoints < 50 ? "<50" : "<300");
+              attrs.put(tempGroupKey, "<300");
               toMerge.add(item);
             } else { // don't merge
               result.add(item);
             }
           } else if (zoom == 9) {
             if (WOOD_OR_FOREST.contains(subclass)) {
-              attrs.put(tempGroupKey, numPoints < 50 ? "<50" : numPoints < 300 ? "<300" : ">300");
+              attrs.put(tempGroupKey, numPoints < 300 ? "<300" : ">300");
               toMerge.add(item);
             } else { // don't merge
               result.add(item);
