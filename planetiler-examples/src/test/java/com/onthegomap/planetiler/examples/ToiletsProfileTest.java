@@ -39,13 +39,13 @@ public class ToiletsProfileTest {
     assertEquals(1, feature.getSortKey());
 
     // at z12 - use label grid to limit output
-    assertEquals(4, feature.getPointLabelGridLimitAtZoom(12));
-    assertEquals(32, feature.getPointLabelGridPixelSizeAtZoom(12));
+    assertEquals(4, feature.getLabelGridLimitAtZoom(12));
+    assertEquals(32, feature.getLabelGridPixelSizeAtZoom(12));
     assertEquals(32, feature.getBufferPixelsAtZoom(12));
 
     // at z13 - no label grid (0 disables filtering)
-    assertEquals(0, feature.getPointLabelGridLimitAtZoom(13));
-    assertEquals(0, feature.getPointLabelGridPixelSizeAtZoom(13));
+    assertEquals(0, feature.getLabelGridLimitAtZoom(13));
+    assertEquals(0, feature.getLabelGridPixelSizeAtZoom(13));
     assertEquals(4, feature.getBufferPixelsAtZoom(13));
   }
 

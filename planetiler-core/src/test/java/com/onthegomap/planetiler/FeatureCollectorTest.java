@@ -57,7 +57,7 @@ public class FeatureCollectorTest {
       .setAttr("attr1", 2)
       .setBufferPixels(10d)
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 100d))
-      .setPointLabelGridSizeAndLimit(12, 100, 10);
+      .setLabelGridSizeAndLimit(12, 100, 10);
     assertFeatures(14, List.of(
       Map.of(
         "_layer", "layername",
