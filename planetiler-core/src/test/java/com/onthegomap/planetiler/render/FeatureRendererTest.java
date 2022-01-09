@@ -227,7 +227,7 @@ public class FeatureRendererTest {
       newPoint(0.25, 0.25),
       newPoint(0.25 + 1d / 256, 0.25 + 1d / 256)
     ))
-      .setPointLabelGridPixelSize(10, 10)
+      .setLabelGridPixelSize(10, 10)
       .setZoomRange(0, 1)
       .setBufferPixels(10);
     assertSameNormalizedFeatures(Map.of(
@@ -245,18 +245,18 @@ public class FeatureRendererTest {
   @Test
   public void testLabelGridRequiresBufferPixelsGreaterThanGridSize() {
     assertThrows(AssertionError.class, () -> renderFeatures(pointFeature(newPoint(0.75, 0.75))
-      .setPointLabelGridSizeAndLimit(10, 10, 2)
+      .setLabelGridSizeAndLimit(10, 10, 2)
       .setBufferPixels(9)));
 
     renderFeatures(pointFeature(newPoint(0.75, 0.75))
-      .setPointLabelGridSizeAndLimit(10, 10, 2)
+      .setLabelGridSizeAndLimit(10, 10, 2)
       .setBufferPixels(10));
   }
 
   @Test
   public void testLabelGrid() {
     var feature = pointFeature(newPoint(0.75, 0.75))
-      .setPointLabelGridSizeAndLimit(10, 256, 2)
+      .setLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
       .setBufferPixels(256);
     var rendered = renderFeatures(feature);
@@ -269,7 +269,7 @@ public class FeatureRendererTest {
   @Test
   public void testWrapLabelGrid() {
     var feature = pointFeature(newPoint(1.1, -0.1))
-      .setPointLabelGridSizeAndLimit(10, 256, 2)
+      .setLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
       .setBufferPixels(256);
     var rendered = renderFeatures(feature);

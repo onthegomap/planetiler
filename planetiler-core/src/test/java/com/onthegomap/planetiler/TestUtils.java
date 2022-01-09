@@ -381,8 +381,8 @@ public class TestUtils {
     result.put("_layer", feature.getLayer());
     result.put("_sortkey", feature.getSortKey());
     result.put("_geom", new NormGeometry(geom));
-    result.put("_labelgrid_limit", feature.getPointLabelGridLimitAtZoom(zoom));
-    result.put("_labelgrid_size", feature.getPointLabelGridPixelSizeAtZoom(zoom));
+    result.put("_labelgrid_limit", feature.getLabelGridLimitAtZoom(zoom));
+    result.put("_labelgrid_size", feature.getLabelGridPixelSizeAtZoom(zoom));
     result.put("_minpixelsize", feature.getMinPixelSizeAtZoom(zoom));
     result.put("_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
     result.put("_numpointsattr", feature.getNumPointsAttr());

@@ -364,7 +364,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testLabelGridLimit() throws Exception {
+  public void testLabelGridLimitPoint() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -384,7 +384,7 @@ public class PlanetilerTests {
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
         .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
-        .setPointLabelGridSizeAndLimit(13, 128, 2)
+        .setLabelGridSizeAndLimit(13, 128, 2)
         .setBufferPixels(128)
     );
 
@@ -398,6 +398,91 @@ public class PlanetilerTests {
         // omit rank=3 due to label grid size
         feature(newPoint(32, 64), Map.of("rank", "1")),
         feature(newPoint(37, 64), Map.of("rank", "2"))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testLabelGridLimitPolygon() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lata = GeoUtils.getWorldLat(y);
+    double latb = GeoUtils.getWorldLat(y + Z14_WIDTH / 256);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1a = GeoUtils.getWorldLon(x1);
+    double lng1b = GeoUtils.getWorldLon(x1 + Z14_WIDTH / 256);
+    double lng2a = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng2b = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 11d / 256);
+    double lng3a = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+    double lng3b = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 21d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(rectangle(lng1a, lata, lng1b, latb), Map.of("rank", "1")),
+        newReaderFeature(rectangle(lng2a, lata, lng2b, latb), Map.of("rank", "2")),
+        newReaderFeature(rectangle(lng3a, lata, lng3b, latb), Map.of("rank", "3"))
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+        .setLabelGridSizeAndLimit(13, 128, 2)
+        .setMinPixelSize(0)
+        .setBufferPixels(128)
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(rectangle(64, 128, 65, 129), Map.of("rank", "1")),
+        feature(rectangle(74, 128, 75, 129), Map.of("rank", "2")),
+        feature(rectangle(84, 128, 85, 129), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // omit rank=3 due to label grid size
+        feature(rectangle(32, 64, 32.5, 64.5), Map.of("rank", "1")),
+        feature(rectangle(37, 64, 37.5, 64.5), Map.of("rank", "2"))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testLabelGridLimitLineString() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lata = GeoUtils.getWorldLat(y);
+    double latb = GeoUtils.getWorldLat(y + Z14_WIDTH / 256);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(lng1, lata, lng1, latb), Map.of("rank", "1")),
+        newReaderFeature(newLineString(lng2, lata, lng2, latb), Map.of("rank", "2")),
+        newReaderFeature(newLineString(lng3, lata, lng3, latb), Map.of("rank", "3"))
+      ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+        .setLabelGridSizeAndLimit(13, 128, 2)
+        .setMinPixelSize(0)
+        .setBufferPixels(128)
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(64, 128, 64, 129), Map.of("rank", "1")),
+        feature(newLineString(74, 128, 74, 129), Map.of("rank", "2")),
+        feature(newLineString(84, 128, 84, 129), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        // omit rank=3 due to label grid size
+        feature(newLineString(32, 64, 32, 64.5), Map.of("rank", "1")),
+        feature(newLineString(37, 64, 37, 64.5), Map.of("rank", "2"))
       )
     ), results.tiles);
   }
@@ -1052,7 +1137,7 @@ public class PlanetilerTests {
         .setZoomRange(13, 14)
         .inheritAttrFromSource("rank")
         .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
-        .setPointLabelGridPixelSize(13, 8)
+        .setLabelGridPixelSize(13, 8)
         .setBufferPixels(8),
       (layer, zoom, items) -> {
         if ("layer".equals(layer) && zoom == 13) {
@@ -1081,6 +1166,62 @@ public class PlanetilerTests {
         feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 2L)),
         // separate group
         feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L))
+      )
+    ), results.tiles);
+  }
+
+  @Test
+  public void testPostProcessLineUseLabelGridRank() throws Exception {
+    double y = 0.5 + Z14_WIDTH / 2;
+    double lat1 = GeoUtils.getWorldLat(y);
+    double lat2 = GeoUtils.getWorldLat(y + Z14_WIDTH / 256);
+
+    double x1 = 0.5 + Z14_WIDTH / 4;
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(lng1, lat1, lng1, lat2), Map.of("rank", "1")),
+        newReaderFeature(newLineString(lng2, lat1, lng2, lat2), Map.of("rank", "2")),
+        newReaderFeature(newLineString(lng3, lat1, lng3, lat2), Map.of("rank", "3"))
+      ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(13, 14)
+        .inheritAttrFromSource("rank")
+        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+        .setLabelGridPixelSize(13, 8)
+        .setMinPixelSize(0)
+        .setBufferPixels(8),
+      (layer, zoom, items) -> {
+        if ("layer".equals(layer) && zoom == 13) {
+          List<VectorTile.Feature> result = new ArrayList<>(items.size());
+          Map<Long, Integer> rankInGroup = new HashMap<>();
+          for (var item : items) {
+            result.add(item.copyWithExtraAttrs(Map.of(
+              "grouprank", rankInGroup.merge(item.group(), 1, Integer::sum)
+            )));
+          }
+          return result;
+        } else {
+          return items;
+        }
+      }
+    );
+
+    assertSubmap(Map.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(64, 128, 64, 129), Map.of("rank", "1")),
+        feature(newLineString(74, 128, 74, 129), Map.of("rank", "2")),
+        feature(newLineString(84, 128, 84, 129), Map.of("rank", "3"))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newLineString(32, 64, 32, 64.5), Map.of("rank", "1", "grouprank", 1L)),
+        feature(newLineString(37, 64, 37, 64.5), Map.of("rank", "2", "grouprank", 2L)),
+        // separate group
+        feature(newLineString(42, 64, 42, 64.5), Map.of("rank", "3", "grouprank", 1L))
       )
     ), results.tiles);
   }
