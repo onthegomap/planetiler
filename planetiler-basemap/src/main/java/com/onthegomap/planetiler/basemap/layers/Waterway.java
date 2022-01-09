@@ -47,6 +47,9 @@ import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.basemap.util.Utils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.ZoomFunction;
@@ -63,7 +66,9 @@ public class Waterway implements
   OpenMapTilesSchema.Waterway,
   Tables.OsmWaterwayLinestring.Handler,
   BasemapProfile.FeaturePostProcessor,
-  BasemapProfile.NaturalEarthProcessor {
+  BasemapProfile.NaturalEarthProcessor,
+  BasemapProfile.OsmRelationPreprocessor,
+  BasemapProfile.OsmAllProcessor {
 
   /*
    * Uses Natural Earth at lower zoom-levels and OpenStreetMap at higher zoom levels.
@@ -94,9 +99,14 @@ public class Waterway implements
   );
 
   private static final ZoomFunction.MeterToPixelThresholds MIN_PIXEL_LENGTHS = ZoomFunction.meterThresholds()
+    .put(6, 500_000)
+    .put(7, 400_000)
+    .put(8, 300_000)
     .put(9, 8_000)
     .put(10, 4_000)
     .put(11, 1_000);
+
+  // zoom-level 3-5 come from natural earth
 
   @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
@@ -105,7 +115,6 @@ public class Waterway implements
       ZoomRange zoom = switch (table) {
         case "ne_110m_rivers_lake_centerlines" -> new ZoomRange(3, 3);
         case "ne_50m_rivers_lake_centerlines" -> new ZoomRange(4, 5);
-        case "ne_10m_rivers_lake_centerlines" -> new ZoomRange(6, 8);
         default -> null;
       };
       if (zoom != null) {
@@ -117,10 +126,47 @@ public class Waterway implements
     }
   }
 
+  // zoom-level 6-8 come from OSM river relations
+
+  private record WaterwayRelation(
+    long id,
+    Map<String, Object> names
+  ) implements OsmRelationInfo {}
+
+  @Override
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    if (relation.hasTag("waterway", "river") && !Utils.nullOrEmpty(relation.getString("name"))) {
+      return List.of(new WaterwayRelation(relation.id(), LanguageUtils.getNames(relation.tags(), translations)));
+    }
+    return null;
+  }
+
+  @Override
+  public void processAllOsm(SourceFeature feature, FeatureCollector features) {
+    List<OsmReader.RelationMember<WaterwayRelation>> waterways = feature.relationInfo(WaterwayRelation.class);
+    if (waterways != null && !waterways.isEmpty() && feature.canBeLine()) {
+      for (var waterway : waterways) {
+        String role = waterway.role();
+        if (Utils.nullOrEmpty(role) || "main_stream".equals(role)) {
+          features.line(LAYER_NAME)
+            .setBufferPixels(BUFFER_SIZE)
+            .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
+            .putAttrs(waterway.relation().names())
+            .setZoomRange(6, 8)
+            // at lower zoom levels, we'll merge linestrings and limit length/clip afterwards
+            .setBufferPixelOverrides(MIN_PIXEL_LENGTHS).setMinPixelSizeBelowZoom(11, 0);
+        }
+      }
+    }
+  }
+
+  // zoom-level 9+ come from OSM river ways
+
   @Override
   public void process(Tables.OsmWaterwayLinestring element, FeatureCollector features) {
     String waterway = element.waterway();
     String name = nullIfEmpty(element.name());
+    // TODO would it make more sense to use river relation names if present?
     boolean important = "river".equals(waterway) && name != null;
     int minzoom = important ? 9 : CLASS_MINZOOM.getOrDefault(element.waterway(), 14);
     features.line(LAYER_NAME)
@@ -137,7 +183,7 @@ public class Waterway implements
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
-    if (zoom >= 9 && zoom <= 11) {
+    if (zoom >= 6 && zoom <= 11) {
       return FeatureMerge.mergeLineStrings(
         items,
         MIN_PIXEL_LENGTHS.apply(zoom).doubleValue(),

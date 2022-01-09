@@ -4,14 +4,39 @@ import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SimpleFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 public class WaterwayTest extends AbstractLayerTest {
+
+  @Test
+  public void testOsmWaterwayRelation() {
+    var rel = new OsmElement.Relation(1);
+    rel.setTag("name", "River Relation");
+    rel.setTag("name:es", "ES name");
+    rel.setTag("waterway", "river");
+
+    FeatureCollector features = process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(rel),
+      Map.of()));
+    assertFeatures(14, List.of(Map.of(
+      "class", "river",
+      "name", "River Relation",
+      "name:es", "ES name",
+
+      "_layer", "waterway",
+      "_type", "line",
+      "_minzoom", 6,
+      "_maxzoom", 8,
+      "_buffer", 4d
+    )), features);
+  }
 
   @Test
   public void testWaterwayImportantRiverProcess() {
@@ -161,25 +186,6 @@ public class WaterwayTest extends AbstractLayerTest {
       ),
       NATURAL_EARTH_SOURCE,
       "ne_50m_rivers_lake_centerlines",
-      0
-    )));
-
-    assertFeatures(6, List.of(Map.of(
-      "class", "river",
-      "intermittent", "<null>",
-
-      "_layer", "waterway",
-      "_type", "line",
-      "_minzoom", 6,
-      "_maxzoom", 8
-    )), process(SimpleFeature.create(
-      newLineString(0, 0, 1, 1),
-      Map.of(
-        "featurecla", "River",
-        "name", "name"
-      ),
-      NATURAL_EARTH_SOURCE,
-      "ne_10m_rivers_lake_centerlines",
       0
     )));
   }
