@@ -512,11 +512,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the size in pixels of the grid used to group or limit output points.
+     * Returns the size in pixels of the grid used to group or limit output features.
      *
      * @throws AssertionError when assertions are enabled and the returned value is smaller than the buffer pixel size
      */
-    public double getPointLabelGridPixelSizeAtZoom(int zoom) {
+    public double getLabelGridPixelSizeAtZoom(int zoom) {
       double result = ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
       // TODO is this enough? what about a grid square that ends just before the start of the tile
       assert result <= getBufferPixelsAtZoom(zoom) :
@@ -526,20 +526,22 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Returns the maximum number of lowest-sort-key points to include in the output vector tile in each square of a
-     * grid with size {@link #getPointLabelGridPixelSizeAtZoom(int)}.
+     * Returns the maximum number of lowest-sort-key feature to include in the output vector tile in each square of a
+     * grid with size {@link #getLabelGridPixelSizeAtZoom(int)}.
      */
-    public int getPointLabelGridLimitAtZoom(int zoom) {
+    public int getLabelGridLimitAtZoom(int zoom) {
       return ZoomFunction.applyAsIntOrElse(labelGridLimit, zoom, DEFAULT_LABEL_GRID_LIMIT);
     }
 
     /**
-     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of points rendered in each
-     * zoom-level for limiting the density of features in the output tile, or computing a "rank" key that clients can
-     * use to control label density.
+     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of features rendered in
+     * each zoom-level for limiting the density of features in the output tile, or computing a "rank" key that clients
+     * can use to control label density.
      * <p>
      * If limit is set, features will be dropped automatically before encoding the vector tile, but "rank" must be added
      * explicitly in {@link Profile#postProcessLayerFeatures(String, int, List)}.
+     * <p>
+     * If used for a line or polygon, it computes the grid hash ID based on an arbitrary point from that feature.
      * <p>
      * Replaces any previous values set for label grid pixel size.
      * <p>
@@ -552,27 +554,27 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
      * function</a>
      */
-    public Feature setPointLabelGridPixelSize(ZoomFunction<Number> labelGridSize) {
+    public Feature setLabelGridPixelSize(ZoomFunction<Number> labelGridSize) {
       this.labelGridPixelSize = labelGridSize;
       return this;
     }
 
     /**
-     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of points rendered in each
-     * zoom-level at and below {@code maxzoom}.
+     * Sets the size of a grid in tile pixels that will be used to compute a "location hash" of features rendered in
+     * each zoom-level at and below {@code maxzoom}.
      * <p>
-     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)}. It replaces any previous value
-     * set for label grid size. To set multiple thresholds, use the other method directly.
+     * This is a thin wrapper around {@link #setLabelGridPixelSize(ZoomFunction)}. It replaces any previous value set
+     * for label grid size. To set multiple thresholds, use the other method directly.
      *
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
      * function</a>
      */
-    public Feature setPointLabelGridPixelSize(int maxzoom, double size) {
-      return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size));
+    public Feature setLabelGridPixelSize(int maxzoom, double size) {
+      return setLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size));
     }
 
     /**
-     * Sets the maximum number of points with the lowest sort-key to include with the same label grid hash in a tile.
+     * Sets the maximum number of features with the lowest sort-key to include with the same label grid hash in a tile.
      * <p>
      * Replaces any previous values set for label grid limit.
      *
@@ -581,17 +583,17 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
      * function</a>
      */
-    public Feature setPointLabelGridLimit(ZoomFunction<Number> labelGridLimit) {
+    public Feature setLabelGridLimit(ZoomFunction<Number> labelGridLimit) {
       this.labelGridLimit = labelGridLimit;
       return this;
     }
 
     /**
-     * Limits the density of points on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
+     * Limits the density of features on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
      * features with lowest sort-key in each square of a {@code size x size} pixel grid.
      * <p>
-     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and {@link
-     * #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit. To set
+     * This is a thin wrapper around {@link #setLabelGridPixelSize(ZoomFunction)} and {@link
+     * #setLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit. To set
      * multiple thresholds, use the other methods directly.
      * <p>
      * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
@@ -604,9 +606,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
      * function</a>
      */
-    public Feature setPointLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
-      return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size))
-        .setPointLabelGridLimit(ZoomFunction.maxZoom(maxzoom, limit));
+    public Feature setLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
+      return setLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size))
+        .setLabelGridLimit(ZoomFunction.maxZoom(maxzoom, limit));
     }
 
     // could be expensive, so cache results

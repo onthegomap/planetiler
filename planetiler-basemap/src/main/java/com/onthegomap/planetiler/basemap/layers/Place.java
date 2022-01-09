@@ -350,10 +350,10 @@ public class Place implements
       .setAttr(Fields.RANK, rank)
       .setMinZoom(minzoom)
       .setSortKey(getSortKey(rank, placeType, element.population(), element.name()))
-      .setPointLabelGridPixelSize(12, 128);
+      .setLabelGridPixelSize(12, 128);
 
     if (rank == null) {
-      feature.setPointLabelGridLimit(LABEL_GRID_LIMITS);
+      feature.setLabelGridLimit(LABEL_GRID_LIMITS);
     }
 
     if ("2".equals(capital) || "yes".equals(capital)) {

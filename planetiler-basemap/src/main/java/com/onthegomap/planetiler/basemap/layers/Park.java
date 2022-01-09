@@ -120,7 +120,8 @@ public class Park implements
         features.pointOnSurface(LAYER_NAME).setBufferPixels(256)
           .setAttr(Fields.CLASS, clazz)
           .putAttrs(names)
-          .setPointLabelGridPixelSize(14, 100)
+          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+          .setLabelGridPixelSize(14, 100)
           .setSortKey(SortKey
             .orderByTruesFirst("national_park".equals(clazz))
             .thenByTruesFirst(element.source().hasTag("wikipedia") || element.source().hasTag("wikidata"))
