@@ -171,7 +171,7 @@ public class Place implements
         case "ne_10m_admin_1_states_provinces" -> {
           Double scalerank = Parse.parseDoubleOrNull(feature.getTag("scalerank"));
           Double labelrank = Parse.parseDoubleOrNull(feature.getTag("labelrank"));
-          if (scalerank != null && scalerank <= 3 && labelrank != null && labelrank <= 2) {
+          if (scalerank != null && scalerank <= 6 && labelrank != null && labelrank <= 7) {
             states.put(feature.worldGeometry(), new NaturalEarthRegion(
               feature.getString("name"), 6,
               scalerank,
@@ -265,7 +265,7 @@ public class Place implements
 
         features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
           .putAttrs(names)
-          .setAttr(Fields.CLASS, FieldValues.CLASS_STATE)
+          .setAttr(Fields.CLASS, element.place())
           .setAttr(Fields.RANK, rank)
           .setMinZoom(2)
           .setSortKey(rank);
