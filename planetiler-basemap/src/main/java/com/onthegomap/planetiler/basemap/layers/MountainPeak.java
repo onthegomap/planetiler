@@ -100,7 +100,7 @@ public class MountainPeak implements
         // any label grid squares which could lead to inconsistent label ranks for a feature
         // in adjacent tiles. postProcess() will remove anything outside the desired buffer.
         .setBufferPixels(100)
-        .setLabelGridSizeAndLimit(13, 100, 5);
+        .setPointLabelGridSizeAndLimit(13, 100, 5);
     }
   }
 

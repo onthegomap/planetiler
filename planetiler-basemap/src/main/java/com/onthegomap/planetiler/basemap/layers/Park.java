@@ -121,7 +121,7 @@ public class Park implements
           .setAttr(Fields.CLASS, clazz)
           .putAttrs(names)
           .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-          .setLabelGridPixelSize(14, 100)
+          .setPointLabelGridPixelSize(14, 100)
           .setSortKey(SortKey
             .orderByTruesFirst("national_park".equals(clazz))
             .thenByTruesFirst(element.source().hasTag("wikipedia") || element.source().hasTag("wikidata"))
