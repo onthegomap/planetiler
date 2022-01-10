@@ -174,7 +174,7 @@ public class Poi implements
       .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
       .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setLabelGridPixelSize(14, 64)
+      .setPointLabelGridPixelSize(14, 64)
       .setSortKey(rankOrder)
       .setMinZoom(minzoom(element.subclass(), element.mappingKey()));
   }

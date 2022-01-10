@@ -42,7 +42,7 @@ public class ToiletsOverlay implements Profile {
         .setSortKey(toiletNumber.incrementAndGet())
         // 2) at lower zoom levels, divide each 256x256 px tile into 32x32 px squares and in each square only include
         // the toilets with the lowest sort key within that square
-        .setLabelGridSizeAndLimit(
+        .setPointLabelGridSizeAndLimit(
           12, // only limit at z12 and below
           32, // break the tile up into 32x32 px squares
           4 // any only keep the 4 nodes with lowest sort-key in each 32px square
