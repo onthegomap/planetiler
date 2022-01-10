@@ -11,6 +11,8 @@ See [README.md](../README.md) in the parent directory for instructions on how to
   OpenMapTiles, to revert this behavior set `--transportation-z13-paths=false`
 - `brunnel` tag is excluded from `transportation_name` layer to avoid breaking apart long `transportation_name`
   lines, to revert this behavior set `--transportation-name-brunnel=true`
+- `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
+  or wikipedia page or name)
 
 ## Code Layout
 
