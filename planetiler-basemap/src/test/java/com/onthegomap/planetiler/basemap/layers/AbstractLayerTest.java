@@ -211,4 +211,15 @@ public abstract class AbstractLayerTest {
       profile.postProcessLayerFeatures(layer, zoom, List.of(line1, line2))
     );
   }
+
+  public static Map<String, Object> mapOf(Object... args) {
+    assert args.length % 2 == 0;
+    Map<String, Object> result = new HashMap<>();
+    for (int i = 0; i < args.length; i += 2) {
+      String key = args[i].toString();
+      Object value = args[i + 1];
+      result.put(key, value == null ? "<null>" : value);
+    }
+    return result;
+  }
 }

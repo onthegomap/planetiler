@@ -38,13 +38,7 @@ package com.onthegomap.planetiler.basemap.layers;
 import static com.onthegomap.planetiler.basemap.layers.Transportation.highwayClass;
 import static com.onthegomap.planetiler.basemap.layers.Transportation.highwaySubclass;
 import static com.onthegomap.planetiler.basemap.layers.Transportation.isFootwayOrSteps;
-import static com.onthegomap.planetiler.basemap.util.Utils.brunnel;
-import static com.onthegomap.planetiler.basemap.util.Utils.coalesce;
-import static com.onthegomap.planetiler.basemap.util.Utils.nullIf;
-import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
-import static com.onthegomap.planetiler.util.MemoryEstimator.CLASS_HEADER_BYTES;
-import static com.onthegomap.planetiler.util.MemoryEstimator.POINTER_BYTES;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
+import static com.onthegomap.planetiler.basemap.util.Utils.*;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -54,29 +48,13 @@ import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeoUtils;
-import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.reader.osm.OsmElement;
-import com.onthegomap.planetiler.reader.osm.OsmReader;
-import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.util.Parse;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.ZoomFunction;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Defines the logic for generating map elements for road, shipway, rail, and path names in the {@code
@@ -88,13 +66,13 @@ import org.slf4j.LoggerFactory;
 public class TransportationName implements
   OpenMapTilesSchema.TransportationName,
   Tables.OsmHighwayLinestring.Handler,
-  BasemapProfile.NaturalEarthProcessor,
+  Tables.OsmAerialwayLinestring.Handler,
+  Tables.OsmShipwayLinestring.Handler,
   BasemapProfile.FeaturePostProcessor,
-  BasemapProfile.OsmRelationPreprocessor,
   BasemapProfile.IgnoreWikidata {
 
   /*
-   * Generate road names from OSM data.  Route network and ref are copied
+   * Generate road names from OSM data.  Route networkType and ref are copied
    * from relations that roads are a part of - except in Great Britain which
    * uses a naming convention instead of relations.
    *
@@ -113,8 +91,6 @@ public class TransportationName implements
   private static final String LINK_TEMP_KEY = "__islink";
   private static final String RELATION_ID_TEMP_KEY = "__relid";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
-  private static final Pattern GREAT_BRITAIN_REF_NETWORK_PATTERN = Pattern.compile("^[AM][0-9AM()]+");
   private static final ZoomFunction.MeterToPixelThresholds MIN_LENGTH = ZoomFunction.meterThresholds()
     .put(6, 20_000)
     .put(7, 20_000)
@@ -122,23 +98,22 @@ public class TransportationName implements
     .put(9, 8_000)
     .put(10, 8_000)
     .put(11, 8_000);
-  private static final Comparator<RouteRelation> RELATION_ORDERING = Comparator
-    .<RouteRelation>comparingInt(r -> r.network.ordinal())
-    // TODO also compare network string?
-    .thenComparingInt(r -> r.ref.length())
-    .thenComparing(RouteRelation::ref);
-  private final Map<String, Integer> MINZOOMS;
+  private static final List<String> CONCURRENT_ROUTE_KEYS = List.of(
+    Fields.ROUTE_1,
+    Fields.ROUTE_2,
+    Fields.ROUTE_3,
+    Fields.ROUTE_4,
+    Fields.ROUTE_5,
+    Fields.ROUTE_6
+  );
   private final boolean brunnel;
   private final boolean sizeForShield;
   private final boolean limitMerge;
-  private final Stats stats;
   private final PlanetilerConfig config;
-  private final AtomicBoolean loggedNoGb = new AtomicBoolean(false);
-  private PreparedGeometry greatBritain = null;
+  private Transportation transportation;
 
   public TransportationName(Translations translations, PlanetilerConfig config, Stats stats) {
     this.config = config;
-    this.stats = stats;
     this.brunnel = config.arguments().getBoolean(
       "transportation_name_brunnel",
       "transportation_name layer: set to false to omit brunnel and help merge long highways",
@@ -154,71 +129,19 @@ public class TransportationName implements
       "transportation_name layer: limit merge so we don't combine different relations to help merge long highways",
       false
     );
-    boolean z13Paths = config.arguments().getBoolean(
-      "transportation_z13_paths",
-      "transportation(_name) layer: show paths on z13",
-      true
-    );
-    MINZOOMS = Map.of(
-      FieldValues.CLASS_TRACK, 14,
-      FieldValues.CLASS_PATH, z13Paths ? 13 : 14,
-      FieldValues.CLASS_MINOR, 13,
-      FieldValues.CLASS_TRUNK, 8,
-      FieldValues.CLASS_MOTORWAY, 6
-      // default: 12
-    );
   }
 
-  @Override
-  public void processNaturalEarth(String table, SourceFeature feature,
-    FeatureCollector features) {
-    if ("ne_10m_admin_0_countries".equals(table) && feature.hasTag("iso_a2", "GB")) {
-      // multiple threads call this method concurrently, GB polygon *should* only be found
-      // once, but just to be safe synchronize updates to that field
-      synchronized (this) {
-        try {
-          Geometry boundary = feature.polygon().buffer(GeoUtils.metersToPixelAtEquator(0, 10_000) / 256d);
-          greatBritain = PreparedGeometryFactory.prepare(boundary);
-        } catch (GeometryException e) {
-          LOGGER.error("Failed to get Great Britain Polygon: " + e);
-        }
-      }
-    }
-  }
-
-  @Override
-  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-    if (relation.hasTag("route", "road")) {
-      RouteNetwork networkType = null;
-      String network = relation.getString("network");
-      String ref = relation.getString("ref");
-
-      if ("US:I".equals(network)) {
-        networkType = RouteNetwork.US_INTERSTATE;
-      } else if ("US:US".equals(network)) {
-        networkType = RouteNetwork.US_HIGHWAY;
-      } else if (network != null && network.length() == 5 && network.startsWith("US:")) {
-        networkType = RouteNetwork.US_STATE;
-      } else if (network != null && network.startsWith("CA:transcanada")) {
-        networkType = RouteNetwork.CA_TRANSCANADA;
-      }
-
-      if (networkType != null) {
-        return List.of(new RouteRelation(coalesce(ref, ""), networkType, relation.id()));
-      }
-    }
-    return null;
+  public void needsTransportationLayer(Transportation transportation) {
+    this.transportation = transportation;
   }
 
   @Override
   public void process(Tables.OsmHighwayLinestring element, FeatureCollector features) {
-    List<OsmReader.RelationMember<RouteRelation>> relations = element.source()
-      .relationInfo(RouteRelation.class);
-
     String ref = element.ref();
-    RouteRelation relation = getRouteRelation(element, relations, ref);
-    if (relation != null && nullIfEmpty(relation.ref) != null) {
-      ref = relation.ref;
+    List<Transportation.RouteRelation> relations = transportation.getRouteRelations(element);
+    Transportation.RouteRelation relation = relations.isEmpty() ? null : relations.get(0);
+    if (relation != null && nullIfEmpty(relation.ref()) != null) {
+      ref = relation.ref();
     }
 
     String name = nullIfEmpty(element.name());
@@ -230,13 +153,15 @@ public class TransportationName implements
       return;
     }
 
+    boolean isLink = Transportation.isLink(highway);
     String baseClass = highwayClass.replace("_construction", "");
 
-    int minzoom = MINZOOMS.getOrDefault(baseClass, 12);
-    boolean isLink = highway.endsWith("_link");
-    if (isLink) {
-      minzoom = Math.max(13, minzoom);
-    }
+    int minzoom = FieldValues.CLASS_TRUNK.equals(baseClass) ? 8 :
+      FieldValues.CLASS_MOTORWAY.equals(baseClass) ? 6 :
+        isLink ? 13 : 12; // fallback - get from line minzoom, but floor at 12
+
+    // inherit min zoom threshold from visible road, and ensure we never show a label on a road that's not visible yet.
+    minzoom = Math.max(minzoom, transportation.getMinzoom(element, highwayClass));
 
     FeatureCollector.Feature feature = features.line(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
@@ -246,12 +171,20 @@ public class TransportationName implements
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
-        (relation != null && relation.network != null) ? relation.network.name : ref != null ? "road" : null)
+        (relation != null && relation.networkType() != null) ? relation.networkType().name
+          : !nullOrEmpty(ref) ? "road" : null)
       .setAttr(Fields.CLASS, highwayClass)
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
       .setMinPixelSize(0)
       .setSortKey(element.zOrder())
       .setMinZoom(minzoom);
+
+    // populate route_1, route_2, ... tags
+    for (int i = 0; i < Math.min(CONCURRENT_ROUTE_KEYS.size(), relations.size()); i++) {
+      Transportation.RouteRelation routeRelation = relations.get(i);
+      feature.setAttr(CONCURRENT_ROUTE_KEYS.get(i), routeRelation.network() == null ? null :
+        routeRelation.network() + "=" + coalesce(routeRelation.ref(), ""));
+    }
 
     if (brunnel) {
       feature.setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()));
@@ -265,48 +198,44 @@ public class TransportationName implements
     if (limitMerge) {
       feature
         .setAttr(LINK_TEMP_KEY, isLink ? 1 : 0)
-        .setAttr(RELATION_ID_TEMP_KEY, relation == null ? null : relation.id);
+        .setAttr(RELATION_ID_TEMP_KEY, relation == null ? null : relation.id());
     }
 
     if (isFootwayOrSteps(highway)) {
       feature
-        .setAttrWithMinzoom(Fields.LAYER, nullIf(element.layer(), 0), 12)
+        .setAttrWithMinzoom(Fields.LAYER, nullIfLong(element.layer(), 0), 12)
         .setAttrWithMinzoom(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")), 12)
         .setAttrWithMinzoom(Fields.INDOOR, element.indoor() ? 1 : null, 12);
     }
   }
 
-  private RouteRelation getRouteRelation(Tables.OsmHighwayLinestring element,
-    List<OsmReader.RelationMember<RouteRelation>> relations, String ref) {
-    RouteRelation relation = relations.stream()
-      .map(OsmReader.RelationMember::relation)
-      .min(RELATION_ORDERING)
-      .orElse(null);
-    if (relation == null && ref != null) {
-      // GB doesn't use regular relations like everywhere else, so if we are
-      // in GB then use a naming convention instead.
-      Matcher refMatcher = GREAT_BRITAIN_REF_NETWORK_PATTERN.matcher(ref);
-      if (refMatcher.find()) {
-        if (greatBritain == null) {
-          if (!loggedNoGb.get() && loggedNoGb.compareAndSet(false, true)) {
-            LOGGER.warn("No GB polygon for inferring route network types");
-          }
-        } else {
-          try {
-            Geometry wayGeometry = element.source().worldGeometry();
-            if (greatBritain.intersects(wayGeometry)) {
-              RouteNetwork networkType =
-                "motorway".equals(element.highway()) ? RouteNetwork.GB_MOTORWAY : RouteNetwork.GB_TRUNK;
-              relation = new RouteRelation(refMatcher.group(), networkType, 0);
-            }
-          } catch (GeometryException e) {
-            e.log(stats, "omt_transportation_name_gb_test",
-              "Unable to test highway against GB route network: " + element.source().id());
-          }
-        }
-      }
+  @Override
+  public void process(Tables.OsmAerialwayLinestring element, FeatureCollector features) {
+    if (!nullOrEmpty(element.name())) {
+      features.line(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setBufferPixelOverrides(MIN_LENGTH)
+        .putAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
+        .setAttr(Fields.CLASS, "aerialway")
+        .setAttr(Fields.SUBCLASS, element.aerialway())
+        .setMinPixelSize(0)
+        .setSortKey(element.zOrder())
+        .setMinZoom(12);
     }
-    return relation;
+  }
+
+  @Override
+  public void process(Tables.OsmShipwayLinestring element, FeatureCollector features) {
+    if (!nullOrEmpty(element.name())) {
+      features.line(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setBufferPixelOverrides(MIN_LENGTH)
+        .putAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
+        .setAttr(Fields.CLASS, element.shipway())
+        .setMinPixelSize(0)
+        .setSortKey(element.zOrder())
+        .setMinZoom(12);
+    }
   }
 
   @Override
@@ -341,35 +270,4 @@ public class TransportationName implements
       name instanceof String str ? str.length() * 6 : Double.MAX_VALUE;
   }
 
-  private enum RouteNetwork {
-
-    US_INTERSTATE("us-interstate"),
-    US_HIGHWAY("us-highway"),
-    US_STATE("us-state"),
-    CA_TRANSCANADA("ca-transcanada"),
-    GB_MOTORWAY("gb-motorway"),
-    GB_TRUNK("gb-trunk");
-
-    final String name;
-
-    RouteNetwork(String name) {
-      this.name = name;
-    }
-  }
-
-  /** Information extracted from route relations to use when processing ways in that relation. */
-  private static record RouteRelation(
-    String ref,
-    RouteNetwork network,
-    @Override long id
-  ) implements OsmRelationInfo {
-
-    @Override
-    public long estimateMemoryUsageBytes() {
-      return CLASS_HEADER_BYTES +
-        POINTER_BYTES + estimateSize(ref) +
-        POINTER_BYTES + // network
-        MemoryEstimator.estimateSizeLong(id);
-    }
-  }
 }

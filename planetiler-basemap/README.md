@@ -7,8 +7,6 @@ See [README.md](../README.md) in the parent directory for instructions on how to
 
 - Road name abbreviations are not implemented yet in the `transportation_name` layer
 - `agg_stop` tag not implemented yet in the `poi` layer
-- Paths are visible at z13 and z14 in `transportation` and `transportation_name` layers instead of just z14 in
-  OpenMapTiles, to revert this behavior set `--transportation-z13-paths=false`
 - `brunnel` tag is excluded from `transportation_name` layer to avoid breaking apart long `transportation_name`
   lines, to revert this behavior set `--transportation-name-brunnel=true`
 - `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
