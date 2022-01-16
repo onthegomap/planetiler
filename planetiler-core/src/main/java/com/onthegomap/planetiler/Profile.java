@@ -33,6 +33,28 @@ public interface Profile {
   // TODO might want to break this apart into sub-interfaces that ForwardingProfile (and MbtilesMetadata) can use too
 
   /**
+   * Allows profile to extract any information it needs from a {@link OsmElement.Node} during the first pass through OSM
+   * elements.
+   * <p>
+   * The default implementation does nothing.
+   *
+   * @param node the OSM node
+   */
+  default void preprocessOsmNode(OsmElement.Node node) {
+  }
+
+  /**
+   * Allows profile to extract any information it needs from a {@link OsmElement.Way} during the first pass through OSM
+   * elements.
+   * <p>
+   * The default implementation does nothing.
+   *
+   * @param way the OSM way
+   */
+  default void preprocessOsmWay(OsmElement.Way way) {
+  }
+
+  /**
    * Extracts information from <a href="https://wiki.openstreetmap.org/wiki/Relation">OSM relations</a> that will be
    * passed along to {@link #processFeature(SourceFeature, FeatureCollector)} for any OSM element in that relation.
    * <p>
