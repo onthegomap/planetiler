@@ -35,8 +35,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
@@ -1032,6 +1034,55 @@ public class PlanetilerTests {
   }
 
   @Test
+  public void testPreprocessOsmNodesAndWays() throws Exception {
+    Set<Long> nodes1 = new HashSet<>();
+    Set<Long> nodes2 = new HashSet<>();
+    var profile = new Profile.NullProfile() {
+      @Override
+      public void preprocessOsmNode(OsmElement.Node node) {
+        if (node.hasTag("a", "b")) {
+          nodes1.add(node.id());
+        }
+      }
+
+      @Override
+      public void preprocessOsmWay(OsmElement.Way way) {
+        if (nodes1.contains(way.nodes().get(0))) {
+          nodes2.add(way.nodes().get(0));
+        }
+      }
+
+      @Override
+      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+        if (sourceFeature.isPoint() && nodes2.contains(sourceFeature.id())) {
+          features.point("start_nodes")
+            .setMaxZoom(0);
+        }
+      }
+    };
+    var results = run(
+      Map.of("threads", "1"),
+      (featureGroup, p, config) -> processOsmFeatures(featureGroup, p, config, List.of(
+        with(new ReaderNode(1, 0, 0), node -> node.setTag("a", "b")),
+        new ReaderNode(2, GeoUtils.getWorldLat(0.375), 0),
+        with(new ReaderWay(3), way -> {
+          way.getNodes().add(1, 2);
+        }),
+        with(new ReaderWay(4), way -> {
+          way.getNodes().add(1, 2);
+        })
+      )),
+      profile
+    );
+
+    assertSubmap(sortListValues(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(
+        feature(newPoint(128, 128), Map.of())
+      )
+    )), sortListValues(results.tiles));
+  }
+
+  @Test
   public void testPostProcessNodeUseLabelGridRank() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
@@ -1421,11 +1472,11 @@ public class PlanetilerTests {
       throws GeometryException;
   }
 
-  private static record PlanetilerResults(
+  private record PlanetilerResults(
     Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata
   ) {}
 
-  private static record TestProfile(
+  private record TestProfile(
     @Override String name,
     @Override String description,
     @Override String attribution,

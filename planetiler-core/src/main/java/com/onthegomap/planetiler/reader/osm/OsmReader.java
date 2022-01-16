@@ -160,10 +160,12 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
     if (readerElement instanceof ReaderNode node) {
       PASS1_NODES.inc();
+      profile.preprocessOsmNode(OsmElement.fromGraphopper(node));
       // TODO allow limiting node storage to only ones that profile cares about
       nodeLocationDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
-    } else if (readerElement instanceof ReaderWay) {
+    } else if (readerElement instanceof ReaderWay way) {
       PASS1_WAYS.inc();
+      profile.preprocessOsmWay(OsmElement.fromGraphopper(way));
     } else if (readerElement instanceof ReaderRelation rel) {
       PASS1_RELATIONS.inc();
       // don't leak graphhopper classes out through public API

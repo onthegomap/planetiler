@@ -27,6 +27,10 @@ import java.util.function.Consumer;
 public abstract class ForwardingProfile implements Profile {
 
   private final List<Handler> handlers = new ArrayList<>();
+  /** Handlers that pre-process OSM nodes during pass 1 through the data. */
+  private final List<OsmNodePreprocessor> osmNodePreprocessors = new ArrayList<>();
+  /** Handlers that pre-process OSM ways during pass 1 through the data. */
+  private final List<OsmWayPreprocessor> osmWayPreprocessors = new ArrayList<>();
   /** Handlers that pre-process OSM relations during pass 1 through the data. */
   private final List<OsmRelationPreprocessor> osmRelationPreprocessors = new ArrayList<>();
   /** Handlers that get a callback when each source is finished reading. */
@@ -53,6 +57,12 @@ public abstract class ForwardingProfile implements Profile {
    */
   public void registerHandler(Handler handler) {
     this.handlers.add(handler);
+    if (handler instanceof OsmNodePreprocessor osmNodePreprocessor) {
+      osmNodePreprocessors.add(osmNodePreprocessor);
+    }
+    if (handler instanceof OsmWayPreprocessor osmWayPreprocessor) {
+      osmWayPreprocessors.add(osmWayPreprocessor);
+    }
     if (handler instanceof OsmRelationPreprocessor osmRelationPreprocessor) {
       osmRelationPreprocessors.add(osmRelationPreprocessor);
     }
@@ -62,6 +72,20 @@ public abstract class ForwardingProfile implements Profile {
     if (handler instanceof FeaturePostProcessor postProcessor) {
       postProcessors.computeIfAbsent(postProcessor.name(), name -> new ArrayList<>())
         .add(postProcessor);
+    }
+  }
+
+  @Override
+  public void preprocessOsmNode(OsmElement.Node node) {
+    for (OsmNodePreprocessor osmNodePreprocessor : osmNodePreprocessors) {
+      osmNodePreprocessor.preprocessOsmNode(node);
+    }
+  }
+
+  @Override
+  public void preprocessOsmWay(OsmElement.Way way) {
+    for (OsmWayPreprocessor osmWayPreprocessor : osmWayPreprocessors) {
+      osmWayPreprocessor.preprocessOsmWay(way);
     }
   }
 
@@ -157,6 +181,30 @@ public abstract class ForwardingProfile implements Profile {
      */
     void finish(String sourceName, FeatureCollector.Factory featureCollectors,
       Consumer<FeatureCollector.Feature> emit);
+  }
+
+  /** Handlers should implement this interface to pre-process OSM nodes during pass 1 through the data. */
+  public interface OsmNodePreprocessor extends Handler {
+
+    /**
+     * Extracts information from an OSM node during pass 1 of the input OSM data that the profile may need during
+     * pass2.
+     *
+     * @see Profile#preprocessOsmNode(OsmElement.Node)
+     */
+    void preprocessOsmNode(OsmElement.Node node);
+  }
+
+
+  /** Handlers should implement this interface to pre-process OSM ways during pass 1 through the data. */
+  public interface OsmWayPreprocessor extends Handler {
+
+    /**
+     * Extracts information from an OSM way during pass 1 of the input OSM data that the profile may need during pass2.
+     *
+     * @see Profile#preprocessOsmWay(OsmElement.Way)
+     */
+    void preprocessOsmWay(OsmElement.Way way);
   }
 
   /** Handlers should implement this interface to pre-process OSM relations during pass 1 through the data. */

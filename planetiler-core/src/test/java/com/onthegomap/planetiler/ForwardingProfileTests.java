@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +25,38 @@ public class ForwardingProfileTests {
       return "test";
     }
   };
+
+  @Test
+  public void testPreprocessOsmNode() {
+    var node1 = new OsmElement.Node(1, 2, 3);
+    var node2 = new OsmElement.Node(2, 3, 4);
+    List<OsmElement.Node> calledWith = new ArrayList<>();
+    profile.registerHandler((ForwardingProfile.OsmNodePreprocessor) calledWith::add);
+    profile.preprocessOsmNode(node1);
+    assertEquals(List.of(node1), calledWith);
+
+    List<OsmElement.Node> calledWith2 = new ArrayList<>();
+    profile.registerHandler((ForwardingProfile.OsmNodePreprocessor) calledWith2::add);
+    profile.preprocessOsmNode(node2);
+    assertEquals(List.of(node1, node2), calledWith);
+    assertEquals(List.of(node2), calledWith2);
+  }
+
+  @Test
+  public void testPreprocessOsmWay() {
+    var way1 = new OsmElement.Way(1);
+    var way2 = new OsmElement.Way(2);
+    List<OsmElement.Way> calledWith = new ArrayList<>();
+    profile.registerHandler((ForwardingProfile.OsmWayPreprocessor) calledWith::add);
+    profile.preprocessOsmWay(way1);
+    assertEquals(List.of(way1), calledWith);
+
+    List<OsmElement.Way> calledWith2 = new ArrayList<>();
+    profile.registerHandler((ForwardingProfile.OsmWayPreprocessor) calledWith2::add);
+    profile.preprocessOsmWay(way2);
+    assertEquals(List.of(way1, way2), calledWith);
+    assertEquals(List.of(way2), calledWith2);
+  }
 
   @Test
   public void testPreprocessOsmRelation() {
