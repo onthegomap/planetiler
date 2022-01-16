@@ -371,20 +371,23 @@ public class Transportation implements
         .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, element.publicTransport(), highway))
         .setAttr(Fields.BRUNNEL, brunnel(element.isBridge(), element.isTunnel(), element.isFord()))
         .setAttr(Fields.NETWORK, networkType != null ? networkType.name : null)
-        // rest at z9+
-        .setAttrWithMinzoom(Fields.SERVICE, service, 12)
-        .setAttrWithMinzoom(Fields.ONEWAY, nullIfInt(element.isOneway(), 0), 12)
-        .setAttr(Fields.RAMP, minzoom >= 12 ? rampAboveZ12 :
-          ((ZoomFunction<Integer>) z -> z < 9 ? null : z >= 12 ? rampAboveZ12 : rampBelowZ12))
+        // z8+
+        .setAttrWithMinzoom(Fields.EXPRESSWAY, element.expressway() && !"motorway".equals(highway) ? 1 : null, 8)
+        // z9+
         .setAttrWithMinzoom(Fields.LAYER, nullIfLong(element.layer(), 0), 9)
         .setAttrWithMinzoom(Fields.BICYCLE, nullIfEmpty(element.bicycle()), 9)
         .setAttrWithMinzoom(Fields.FOOT, nullIfEmpty(element.foot()), 9)
         .setAttrWithMinzoom(Fields.HORSE, nullIfEmpty(element.horse()), 9)
         .setAttrWithMinzoom(Fields.MTB_SCALE, nullIfEmpty(element.mtbScale()), 9)
-        .setAttrWithMinzoom(Fields.SURFACE, surface(element.surface()), 12)
         .setAttrWithMinzoom(Fields.ACCESS, access(element.access()), 9)
-        .setAttrWithMinzoom(Fields.EXPRESSWAY, element.expressway() && !"motorway".equals(highway) ? 1 : null, 8)
         .setAttrWithMinzoom(Fields.TOLL, element.toll() ? 1 : null, 9)
+        // sometimes z9+, sometimes z12+
+        .setAttr(Fields.RAMP, minzoom >= 12 ? rampAboveZ12 :
+          ((ZoomFunction<Integer>) z -> z < 9 ? null : z >= 12 ? rampAboveZ12 : rampBelowZ12))
+        // z12+
+        .setAttrWithMinzoom(Fields.SERVICE, service, 12)
+        .setAttrWithMinzoom(Fields.ONEWAY, nullIfInt(element.isOneway(), 0), 12)
+        .setAttrWithMinzoom(Fields.SURFACE, surface(element.surface()), 12)
         .setMinPixelSize(0) // merge during post-processing, then limit by size
         .setSortKey(element.zOrder())
         .setMinZoom(minzoom);
@@ -528,7 +531,7 @@ public class Transportation implements
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     double tolerance = config.tolerance(zoom);
-    double minLength = coalesce(MIN_LENGTH.apply(zoom), config.minFeatureSize(zoom)).doubleValue();
+    double minLength = coalesce(MIN_LENGTH.apply(zoom), 0).doubleValue();
     // TODO preserve direction for one-way?
     return FeatureMerge.mergeLineStrings(items, minLength, tolerance, BUFFER_SIZE);
   }
