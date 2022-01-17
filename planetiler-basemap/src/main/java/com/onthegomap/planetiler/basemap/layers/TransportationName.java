@@ -40,18 +40,25 @@ import static com.onthegomap.planetiler.basemap.layers.Transportation.highwaySub
 import static com.onthegomap.planetiler.basemap.layers.Transportation.isFootwayOrSteps;
 import static com.onthegomap.planetiler.basemap.util.Utils.*;
 
+import com.carrotsearch.hppc.LongArrayList;
+import com.carrotsearch.hppc.LongByteHashMap;
+import com.carrotsearch.hppc.LongByteMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
+import com.onthegomap.planetiler.ForwardingProfile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Parse;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.ZoomFunction;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -65,11 +72,14 @@ import java.util.function.Function;
  */
 public class TransportationName implements
   OpenMapTilesSchema.TransportationName,
+  Tables.OsmHighwayPoint.Handler,
   Tables.OsmHighwayLinestring.Handler,
   Tables.OsmAerialwayLinestring.Handler,
   Tables.OsmShipwayLinestring.Handler,
   BasemapProfile.FeaturePostProcessor,
-  BasemapProfile.IgnoreWikidata {
+  BasemapProfile.IgnoreWikidata,
+  ForwardingProfile.OsmNodePreprocessor,
+  ForwardingProfile.OsmWayPreprocessor {
 
   /*
    * Generate road names from OSM data.  Route networkType and ref are copied
@@ -111,6 +121,7 @@ public class TransportationName implements
   private final boolean limitMerge;
   private final PlanetilerConfig config;
   private Transportation transportation;
+  private final LongByteMap motorwayJunctionHighwayClasses = new LongByteHashMap();
 
   public TransportationName(Translations translations, PlanetilerConfig config, Stats stats) {
     this.config = config;
@@ -133,6 +144,60 @@ public class TransportationName implements
 
   public void needsTransportationLayer(Transportation transportation) {
     this.transportation = transportation;
+  }
+
+
+  @Override
+  public void preprocessOsmNode(OsmElement.Node node) {
+    if (node.hasTag("highway", "motorway_junction")) {
+      motorwayJunctionHighwayClasses.put(node.id(), HighwayClass.UNKNOWN.value);
+    }
+  }
+
+  @Override
+  public void preprocessOsmWay(OsmElement.Way way) {
+    String highway = way.getString("highway");
+    if (highway != null) {
+      HighwayClass cls = HighwayClass.from(highway);
+      if (cls != HighwayClass.UNKNOWN) {
+        LongArrayList nodes = way.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+          long node = nodes.get(i);
+          if (motorwayJunctionHighwayClasses.containsKey(node)) {
+            byte oldValue = motorwayJunctionHighwayClasses.get(node);
+            byte newValue = cls.value;
+            if (newValue > oldValue) {
+              motorwayJunctionHighwayClasses.put(node, newValue);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Override
+  public void process(Tables.OsmHighwayPoint element, FeatureCollector features) {
+    // TODO filter-out junctions without name or ref?
+    long id = element.source().id();
+    byte value = motorwayJunctionHighwayClasses.getOrDefault(id, (byte) -1);
+    if (value > 0) {
+      HighwayClass cls = HighwayClass.from(value);
+      if (cls != HighwayClass.UNKNOWN) {
+        String subclass = FieldValues.SUBCLASS_JUNCTION;
+        String ref = element.ref();
+
+        features.point(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .putAttrs(LanguageUtils.getNamesWithoutTranslations(element.source().tags()))
+          .setAttr(Fields.REF, ref)
+          .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
+          .setAttr(Fields.CLASS, highwayClass(cls.highwayValue, null, null, null))
+          .setAttr(Fields.SUBCLASS, subclass)
+          .setAttr(Fields.LAYER, nullIfLong(element.layer(), 0))
+          .setSortKeyDescending(element.zOrder())
+          .setMinZoom(10);
+      }
+    }
   }
 
   @Override
@@ -270,4 +335,38 @@ public class TransportationName implements
       name instanceof String str ? str.length() * 6 : Double.MAX_VALUE;
   }
 
+  private enum HighwayClass {
+    MOTORWAY("motorway", 6),
+    TRUNK("trunk", 5),
+    PRIMARY("primary", 4),
+    SECONDARY("secondary", 3),
+    TERTIARY("tertiary", 2),
+    UNCLASSIFIED("unclassified", 1),
+    UNKNOWN("", 0);
+
+    private static final Map<String, HighwayClass> indexByString = new HashMap<>();
+    private static final Map<Byte, HighwayClass> indexByByte = new HashMap<>();
+    final byte value;
+    final String highwayValue;
+
+    HighwayClass(String highwayValue, int id) {
+      this.highwayValue = highwayValue;
+      this.value = (byte) id;
+    }
+
+    static {
+      Arrays.stream(values()).forEach(cls -> {
+        indexByString.put(cls.highwayValue, cls);
+        indexByByte.put(cls.value, cls);
+      });
+    }
+
+    static HighwayClass from(String highway) {
+      return indexByString.getOrDefault(highway, UNKNOWN);
+    }
+
+    static HighwayClass from(byte value) {
+      return indexByByte.getOrDefault(value, UNKNOWN);
+    }
+  }
 }

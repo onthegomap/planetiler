@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
@@ -335,6 +336,55 @@ public class TransportationTest extends AbstractLayerTest {
       "route_1", "US:I=90",
       "brunnel", "<null>",
       "_minzoom", 6
+    )), features);
+  }
+
+  @Test
+  public void testMotorwayJunction() {
+    var otherNode1 = new OsmElement.Node(1, 1, 1);
+    var junctionNode = new OsmElement.Node(2, 1, 2);
+    var otherNode2 = new OsmElement.Node(3, 1, 3);
+    var otherNode3 = new OsmElement.Node(4, 2, 3);
+
+    junctionNode.setTag("highway", "motorway_junction");
+    junctionNode.setTag("name", "exit 1");
+    junctionNode.setTag("layer", "1");
+    junctionNode.setTag("ref", "12");
+
+    // 2 ways meet at junctionNode (id=2) - use most important class of a highway intersecting it (motorway)
+    var way1 = new OsmElement.Way(5);
+    way1.setTag("highway", "motorway");
+    way1.nodes().add(otherNode1.id(), junctionNode.id(), otherNode2.id());
+    var way2 = new OsmElement.Way(6);
+    way2.setTag("highway", "primary");
+    way2.nodes().add(junctionNode.id(), otherNode3.id());
+
+    profile.preprocessOsmNode(otherNode1);
+    profile.preprocessOsmNode(junctionNode);
+    profile.preprocessOsmNode(otherNode2);
+    profile.preprocessOsmNode(otherNode3);
+
+    profile.preprocessOsmWay(way1);
+    profile.preprocessOsmWay(way2);
+
+    FeatureCollector features = process(SimpleFeature.create(
+      newPoint(1, 2),
+      junctionNode.tags(),
+      OSM_SOURCE,
+      null,
+      junctionNode.id()
+    ));
+
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation_name",
+      "class", "motorway",
+      "subclass", "junction",
+      "name", "exit 1",
+      "ref", "12",
+      "ref_length", 2,
+      "layer", 1L,
+      "_type", "point",
+      "_minzoom", 10
     )), features);
   }
 
