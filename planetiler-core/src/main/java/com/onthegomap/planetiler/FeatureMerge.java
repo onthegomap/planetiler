@@ -302,7 +302,9 @@ public class FeatureMerge {
   ) {
     LinkedHashMap<Map<String, Object>, List<VectorTile.Feature>> groupedByAttrs = new LinkedHashMap<>();
     for (VectorTile.Feature feature : features) {
-      if (feature.geometry().geomType() != geometryType) {
+      if (feature == null) {
+        // ignore
+      } else if (feature.geometry().geomType() != geometryType) {
         // just ignore and pass through non-polygon features
         others.add(feature);
       } else {

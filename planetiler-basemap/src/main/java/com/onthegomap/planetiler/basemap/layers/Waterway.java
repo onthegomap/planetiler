@@ -37,6 +37,9 @@ package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 
+import com.carrotsearch.hppc.LongObjectHashMap;
+import com.google.common.util.concurrent.AtomicDouble;
+import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.VectorTile;
@@ -46,6 +49,7 @@ import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.basemap.util.Utils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -81,14 +85,6 @@ public class Waterway implements
    * short segment of it goes through this tile.
    */
 
-  private final Translations translations;
-  private final PlanetilerConfig config;
-
-  public Waterway(Translations translations, PlanetilerConfig config, Stats stats) {
-    this.config = config;
-    this.translations = translations;
-  }
-
   private static final Map<String, Integer> CLASS_MINZOOM = Map.of(
     "river", 12,
     "canal", 12,
@@ -97,6 +93,18 @@ public class Waterway implements
     "drain", 13,
     "ditch", 13
   );
+  private static final String TEMP_REL_ID_ADDR = "_relid";
+
+  private final Translations translations;
+  private final PlanetilerConfig config;
+  private final Stats stats;
+  private final LongObjectHashMap<AtomicDouble> riverRelationLengths = new GHLongObjectHashMap<>();
+
+  public Waterway(Translations translations, PlanetilerConfig config, Stats stats) {
+    this.config = config;
+    this.translations = translations;
+    this.stats = stats;
+  }
 
   private static final ZoomFunction.MeterToPixelThresholds MIN_PIXEL_LENGTHS = ZoomFunction.meterThresholds()
     .put(6, 500_000)
@@ -136,6 +144,7 @@ public class Waterway implements
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("waterway", "river") && !Utils.nullOrEmpty(relation.getString("name"))) {
+      riverRelationLengths.put(relation.id(), new AtomicDouble());
       return List.of(new WaterwayRelation(relation.id(), LanguageUtils.getNames(relation.tags(), translations)));
     }
     return null;
@@ -148,13 +157,22 @@ public class Waterway implements
       for (var waterway : waterways) {
         String role = waterway.role();
         if (Utils.nullOrEmpty(role) || "main_stream".equals(role)) {
+          long relId = waterway.relation().id();
+          try {
+            AtomicDouble counter = riverRelationLengths.get(relId);
+            if (counter != null) {
+              counter.addAndGet(feature.length());
+            }
+          } catch (GeometryException e) {
+            e.log(stats, "waterway_decode", "Unable to get waterway length for " + feature.id());
+          }
           features.line(LAYER_NAME)
+            .setAttr(TEMP_REL_ID_ADDR, relId)
             .setBufferPixels(BUFFER_SIZE)
             .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
             .putAttrs(waterway.relation().names())
             .setZoomRange(6, 8)
-            // at lower zoom levels, we'll merge linestrings and limit length/clip afterwards
-            .setBufferPixelOverrides(MIN_PIXEL_LENGTHS).setMinPixelSizeBelowZoom(11, 0);
+            .setMinPixelSize(0);
         }
       }
     }
@@ -166,7 +184,6 @@ public class Waterway implements
   public void process(Tables.OsmWaterwayLinestring element, FeatureCollector features) {
     String waterway = element.waterway();
     String name = nullIfEmpty(element.name());
-    // TODO would it make more sense to use river relation names if present?
     boolean important = "river".equals(waterway) && name != null;
     int minzoom = important ? 9 : CLASS_MINZOOM.getOrDefault(element.waterway(), 14);
     features.line(LAYER_NAME)
@@ -183,7 +200,22 @@ public class Waterway implements
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
-    if (zoom >= 6 && zoom <= 11) {
+    if (zoom >= 6 && zoom <= 8) {
+      // remove ways for river relations if relation is not long enough
+      double minSizeAtZoom = MIN_PIXEL_LENGTHS.apply(zoom).doubleValue() / Math.pow(2, zoom) / 256d;
+      for (int i = 0; i < items.size(); i++) {
+        Object relIdObj = items.get(i).attrs().remove(TEMP_REL_ID_ADDR);
+        if (relIdObj instanceof Long relId && riverRelationLengths.get(relId).get() < minSizeAtZoom) {
+          items.set(i, null);
+        }
+      }
+      return FeatureMerge.mergeLineStrings(
+        items,
+        config.minFeatureSize(zoom),
+        config.tolerance(zoom),
+        BUFFER_SIZE
+      );
+    } else if (zoom >= 9 && zoom <= 11) {
       return FeatureMerge.mergeLineStrings(
         items,
         MIN_PIXEL_LENGTHS.apply(zoom).doubleValue(),

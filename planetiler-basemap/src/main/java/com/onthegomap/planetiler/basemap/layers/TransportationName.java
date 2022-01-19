@@ -177,7 +177,6 @@ public class TransportationName implements
 
   @Override
   public void process(Tables.OsmHighwayPoint element, FeatureCollector features) {
-    // TODO filter-out junctions without name or ref?
     long id = element.source().id();
     byte value = motorwayJunctionHighwayClasses.getOrDefault(id, (byte) -1);
     if (value > 0) {
