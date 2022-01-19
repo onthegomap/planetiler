@@ -181,4 +181,30 @@ public class PoiTest extends AbstractLayerTest {
       )
     )));
   }
+
+  @Test
+  public void testEmbassy() {
+    assertFeatures(7, List.of(Map.of(
+      "_layer", "poi",
+      "class", "diplomatic",
+      "subclass", "diplomatic",
+      "name", "The Embassy"
+    )), process(pointFeature(Map.of(
+      "office", "diplomatic",
+      "name", "The Embassy"
+    ))));
+  }
+
+  @Test
+  public void testLocksmith() {
+    assertFeatures(7, List.of(Map.of(
+      "_layer", "poi",
+      "class", "shop",
+      "subclass", "locksmith",
+      "name", "The Locksmith"
+    )), process(pointFeature(Map.of(
+      "shop", "locksmith",
+      "name", "The Locksmith"
+    ))));
+  }
 }

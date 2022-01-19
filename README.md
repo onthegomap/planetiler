@@ -160,7 +160,7 @@ download regularly-updated tilesets.
   using [JTS geometry utilities](https://github.com/locationtech/jts)
 - Merge nearby lines or polygons with the same tags before emitting vector tiles
 - Automatically fixes self-intersecting polygons
-- Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.12.2
+- Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13
 - Optionally download additional name translations for elements from Wikidata
 - Export real-time stats to a [prometheus push gateway](https://github.com/prometheus/pushgateway) using
   `--pushgateway=http://user:password@ip` argument (and a [grafana dashboard](grafana.json) for viewing)
@@ -181,7 +181,7 @@ download regularly-updated tilesets.
 ## Roadmap
 
 - [x] Enough `planetiler-core` functionality to support basemap profile based on OpenMapTiles
-- [ ] Basemap profile based on OpenMapTiles v3.12.2
+- [ ] Basemap profile based on OpenMapTiles v3.13
   - [x] Port all layers
   - [x] Download name translations from wikidata
   - [x] Merge buildings at z13

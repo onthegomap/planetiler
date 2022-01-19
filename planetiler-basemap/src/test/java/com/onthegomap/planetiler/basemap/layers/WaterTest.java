@@ -132,7 +132,7 @@ public class WaterTest extends AbstractLayerTest {
       "_minzoom", 6,
       "_maxzoom", 14
     )), process(polygonFeature(Map.of(
-      "waterway", "stream",
+      "waterway", "riverbank",
       "bridge", "1",
       "intermittent", "1"
     ))));
@@ -149,6 +149,39 @@ public class WaterTest extends AbstractLayerTest {
     )), process(polygonFeature(Map.of(
       "landuse", "salt_pond",
       "bridge", "1"
+    ))));
+  }
+
+  @Test
+  public void testRiverbank() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "river",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "waterway", "riverbank"
+    ))));
+  }
+
+  @Test
+  public void testRiverk() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "river",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "water", "river"
+    ))));
+  }
+
+  @Test
+  public void testSpring() {
+    assertFeatures(11, List.of(Map.of(
+      "class", "lake",
+      "_layer", "water",
+      "_type", "polygon"
+    )), process(polygonFeature(Map.of(
+      "natural", "spring"
     ))));
   }
 

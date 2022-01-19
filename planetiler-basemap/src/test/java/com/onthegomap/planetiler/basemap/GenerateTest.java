@@ -211,7 +211,8 @@ public class GenerateTest {
         List.of(),
         null,
         null,
-        props
+        props,
+        List.of()
       ));
     assertEquals(or(
       and(

@@ -1,11 +1,15 @@
 package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.Lists;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.SimpleFeature;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +35,7 @@ public class MountainPeakTest extends AbstractLayerTest {
       "class", "peak",
       "ele", 100,
       "ele_ft", 328,
+      "customary_ft", "<null>",
 
       "_layer", "mountain_peak",
       "_type", "point",
@@ -71,6 +76,17 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testSaddle() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "saddle"
+    )), process(pointFeature(Map.of(
+      "natural", "saddle",
+      "ele", "100"
+    ))));
+  }
+
+
+  @Test
   public void testNoElevation() {
     assertFeatures(14, List.of(), process(pointFeature(Map.of(
       "natural", "volcano"
@@ -86,12 +102,74 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoreLines() {
+  public void testIgnorePeakLines() {
     assertFeatures(14, List.of(), process(lineFeature(Map.of(
       "natural", "peak",
       "name", "name",
       "ele", "100"
     ))));
+  }
+
+  @Test
+  public void testMountainLinestring() {
+    assertFeatures(14, List.of(Map.of(
+      "class", "ridge",
+      "name", "Ridge",
+
+      "_layer", "mountain_peak",
+      "_type", "line",
+      "_minzoom", 13,
+      "_maxzoom", 14,
+      "_buffer", 100d
+    )), process(lineFeature(Map.of(
+      "natural", "ridge",
+      "name", "Ridge"
+    ))));
+  }
+
+  @Test
+  public void testCustomaryFt() {
+    process(SimpleFeature.create(
+      rectangle(0, 0.1),
+      Map.of("iso_a2", "US"),
+      NATURAL_EARTH_SOURCE,
+      "ne_10m_admin_0_countries",
+      0
+    ));
+
+    // inside US - customary_ft=1
+    assertFeatures(14, List.of(Map.of(
+      "class", "volcano",
+      "customary_ft", 1,
+      "ele", 100,
+      "ele_ft", 328
+    )), process(SimpleFeature.create(
+      newPoint(0, 0),
+      new HashMap<>(Map.<String, Object>of(
+        "natural", "volcano",
+        "ele", "100"
+      )),
+      OSM_SOURCE,
+      null,
+      0
+    )));
+
+    // outside US - customary_ft omitted
+    assertFeatures(14, List.of(Map.of(
+      "class", "volcano",
+      "customary_ft", "<null>",
+      "ele", 100,
+      "ele_ft", 328
+    )), process(SimpleFeature.create(
+      newPoint(1, 1),
+      new HashMap<>(Map.<String, Object>of(
+        "natural", "volcano",
+        "ele", "100"
+      )),
+      OSM_SOURCE,
+      null,
+      0
+    )));
   }
 
   private int getSortKey(Map<String, Object> tags) {

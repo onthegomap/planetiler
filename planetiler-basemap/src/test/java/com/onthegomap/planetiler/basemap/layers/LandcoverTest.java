@@ -130,6 +130,9 @@ public class LandcoverTest extends AbstractLayerTest {
     )), process(polygonFeature(Map.of(
       "natural", "dune"
     ))));
+    assertFeatures(10, List.of(), process(polygonFeature(Map.of(
+      "landuse", "park"
+    ))));
   }
 
   @Test
@@ -137,6 +140,7 @@ public class LandcoverTest extends AbstractLayerTest {
     Map<String, Object> map = Map.of("subclass", "wood");
 
     assertMerges(List.of(map, map, map, map, map, map), List.of(
+      // don't merge any
       feature(rectangle(10, 20), Map.of("_numpoints", 48, "subclass", "wood")),
       feature(rectangle(10, 20), Map.of("_numpoints", 49, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 50, "subclass", "wood")),
@@ -144,19 +148,23 @@ public class LandcoverTest extends AbstractLayerTest {
       feature(rectangle(12, 18), Map.of("_numpoints", 300, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 301, "subclass", "wood"))
     ), 14);
-    assertMerges(List.of(map, map, map, map), List.of(
+    assertMerges(List.of(map, map, map), List.of(
+      // < 300 - merge
       feature(rectangle(10, 20), Map.of("_numpoints", 48, "subclass", "wood")),
       feature(rectangle(10, 20), Map.of("_numpoints", 49, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 50, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 299, "subclass", "wood")),
+      // >= 300 - don't merge
       feature(rectangle(12, 18), Map.of("_numpoints", 300, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 301, "subclass", "wood"))
     ), 13);
-    assertMerges(List.of(map, map, map), List.of(
+    assertMerges(List.of(map, map), List.of(
+      // < 300 - merge
       feature(rectangle(10, 20), Map.of("_numpoints", 48, "subclass", "wood")),
       feature(rectangle(10, 20), Map.of("_numpoints", 49, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 50, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 299, "subclass", "wood")),
+      // >= 300 - merge
       feature(rectangle(12, 18), Map.of("_numpoints", 300, "subclass", "wood")),
       feature(rectangle(12, 18), Map.of("_numpoints", 301, "subclass", "wood"))
     ), 9);

@@ -59,6 +59,18 @@ public class LanduseTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testGraveYardBecomesCemetery() {
+    assertFeatures(14, List.of(
+      Map.of("_layer", "poi"),
+      Map.of(
+        "_layer", "landuse",
+        "class", "cemetery"
+      )), process(polygonFeature(Map.of(
+      "amenity", "grave_yard"
+    ))));
+  }
+
+  @Test
   public void testOsmLanduseLowerZoom() {
     assertFeatures(6, List.of(Map.of(
       "_layer", "landuse",

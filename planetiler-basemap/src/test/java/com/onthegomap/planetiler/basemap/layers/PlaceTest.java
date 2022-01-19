@@ -131,8 +131,8 @@ public class PlaceTest extends AbstractLayerTest {
       rectangle(0.4, 0.6),
       Map.of(
         "name", "Massachusetts - not important",
-        "scalerank", 4,
-        "labelrank", 4,
+        "scalerank", 8,
+        "labelrank", 8,
         "datarank", 1
       ),
       NATURAL_EARTH_SOURCE,
@@ -187,6 +187,44 @@ public class PlaceTest extends AbstractLayerTest {
         "wikidata", "Q771",
         "name", "Massachusetts",
         "name:en", "Massachusetts"
+      ),
+      OSM_SOURCE,
+      null,
+      0
+    )));
+  }
+
+  @Test
+  public void testProvince() {
+    wikidataTranslations.put(95027, "es", "provincia de Lugo");
+    process(SimpleFeature.create(
+      rectangle(0, 0.25),
+      Map.of(
+        "name", "Nova Scotia",
+        "scalerank", 3,
+        "labelrank", 3,
+        "datarank", 3
+      ),
+      NATURAL_EARTH_SOURCE,
+      "ne_10m_admin_1_states_provinces",
+      0
+    ));
+
+    assertFeatures(4, List.of(Map.of(
+      "_layer", "place",
+      "class", "province",
+      "name", "Lugo",
+      "name:es", "provincia de Lugo",
+      "rank", 3,
+
+      "_type", "point",
+      "_minzoom", 2
+    )), process(SimpleFeature.create(
+      newPoint(0.1, 0.1),
+      Map.of(
+        "place", "province",
+        "wikidata", "Q95027",
+        "name", "Lugo"
       ),
       OSM_SOURCE,
       null,

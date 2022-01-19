@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, KlokanTech.com & OpenMapTiles contributors.
+Copyright (c) 2021, MapTiler.com & OpenMapTiles contributors.
 All rights reserved.
 
 Code license: BSD 3-Clause License
@@ -103,13 +103,15 @@ public class Water implements
   @Override
   public void process(Tables.OsmWaterPolygon element, FeatureCollector features) {
     if (!"bay".equals(element.natural())) {
+      String clazz = "riverbank".equals(element.waterway()) ? FieldValues.CLASS_RIVER :
+        classMapping.getOrElse(element.source(), FieldValues.CLASS_LAKE);
       features.polygon(LAYER_NAME)
         .setBufferPixels(BUFFER_SIZE)
         .setMinPixelSizeBelowZoom(11, 2)
         .setMinZoom(6)
         .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
         .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-        .setAttr(Fields.CLASS, classMapping.getOrElse(element.source(), FieldValues.CLASS_RIVER));
+        .setAttr(Fields.CLASS, clazz);
     }
   }
 }

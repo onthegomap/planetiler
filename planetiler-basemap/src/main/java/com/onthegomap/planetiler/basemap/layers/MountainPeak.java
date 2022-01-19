@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, KlokanTech.com & OpenMapTiles contributors.
+Copyright (c) 2021, MapTiler.com & OpenMapTiles contributors.
 All rights reserved.
 
 Code license: BSD 3-Clause License
@@ -48,12 +48,18 @@ import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Parse;
 import com.onthegomap.planetiler.util.Translations;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Defines the logic for generating map elements for mountain peak label points in the {@code mountain_peak} layer from
@@ -63,8 +69,10 @@ import org.locationtech.jts.geom.Point;
  * mountain_peak sql files</a>.
  */
 public class MountainPeak implements
+  BasemapProfile.NaturalEarthProcessor,
   OpenMapTilesSchema.MountainPeak,
   Tables.OsmPeakPoint.Handler,
+  Tables.OsmMountainLinestring.Handler,
   BasemapProfile.FeaturePostProcessor {
 
   /*
@@ -73,9 +81,13 @@ public class MountainPeak implements
    * label density by only taking the top 5 most important mountain peaks within each 100x100px
    * square.
    */
+  private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
 
   private final Translations translations;
   private final Stats stats;
+  // keep track of areas that prefer feet to meters to set customary_ft=1 (just U.S.)
+  private PreparedGeometry unitedStates = null;
+  private final AtomicBoolean loggedNoUS = new AtomicBoolean(false);
 
   public MountainPeak(Translations translations, PlanetilerConfig config, Stats stats) {
     this.translations = translations;
@@ -83,10 +95,26 @@ public class MountainPeak implements
   }
 
   @Override
+  public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
+    if ("ne_10m_admin_0_countries".equals(table) && feature.hasTag("iso_a2", "US")) {
+      // multiple threads call this method concurrently, US polygon *should* only be found
+      // once, but just to be safe synchronize updates to that field
+      synchronized (this) {
+        try {
+          Geometry boundary = feature.polygon();
+          unitedStates = PreparedGeometryFactory.prepare(boundary);
+        } catch (GeometryException e) {
+          LOGGER.error("Failed to get United States Polygon for mountain_peak layer: " + e);
+        }
+      }
+    }
+  }
+
+  @Override
   public void process(Tables.OsmPeakPoint element, FeatureCollector features) {
     Integer meters = Parse.parseIntSubstring(element.ele());
     if (meters != null && Math.abs(meters) < 10_000) {
-      features.point(LAYER_NAME)
+      var feature = features.point(LAYER_NAME)
         .setAttr(Fields.CLASS, element.source().getTag("natural"))
         .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .putAttrs(elevationTags(meters))
@@ -101,7 +129,44 @@ public class MountainPeak implements
         // in adjacent tiles. postProcess() will remove anything outside the desired buffer.
         .setBufferPixels(100)
         .setPointLabelGridSizeAndLimit(13, 100, 5);
+
+      if (peakInAreaUsingFeet(element)) {
+        feature.setAttr(Fields.CUSTOMARY_FT, 1);
+      }
     }
+  }
+
+  @Override
+  public void process(Tables.OsmMountainLinestring element, FeatureCollector features) {
+    // TODO rank is approximate to sort important/named ridges before others, should switch to labelgrid for linestrings later
+    int rank = 3 -
+      (nullIfEmpty(element.wikipedia()) != null ? 1 : 0) -
+      (nullIfEmpty(element.name()) != null ? 1 : 0);
+    features.line(LAYER_NAME)
+      .setAttr(Fields.CLASS, element.source().getTag("natural"))
+      .setAttr(Fields.RANK, rank)
+      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+      .setSortKey(rank)
+      .setMinZoom(13)
+      .setBufferPixels(100);
+  }
+
+  /** Returns true if {@code element} is a point in an area where feet are used insead of meters (the US). */
+  private boolean peakInAreaUsingFeet(Tables.OsmPeakPoint element) {
+    if (unitedStates == null) {
+      if (!loggedNoUS.get() && loggedNoUS.compareAndSet(false, true)) {
+        LOGGER.warn("No US polygon for inferring mountain_peak customary_ft tag");
+      }
+    } else {
+      try {
+        Geometry wayGeometry = element.source().worldGeometry();
+        return unitedStates.intersects(wayGeometry);
+      } catch (GeometryException e) {
+        e.log(stats, "omt_mountain_peak_us_test",
+          "Unable to test mountain_peak against US polygon: " + element.source().id());
+      }
+    }
+    return false;
   }
 
   @Override

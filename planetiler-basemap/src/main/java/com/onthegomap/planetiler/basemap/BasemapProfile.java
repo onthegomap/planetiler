@@ -10,6 +10,8 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
+import com.onthegomap.planetiler.basemap.layers.Transportation;
+import com.onthegomap.planetiler.basemap.layers.TransportationName;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -61,10 +63,27 @@ public class BasemapProfile extends ForwardingProfile {
 
     // register release/finish/feature postprocessor/osm relationship handler methods...
     List<Handler> layers = new ArrayList<>();
+    Transportation transportationLayer = null;
+    TransportationName transportationNameLayer = null;
     for (Layer layer : OpenMapTilesSchema.createInstances(translations, config, stats)) {
       if ((onlyLayers.isEmpty() || onlyLayers.contains(layer.name())) && !excludeLayers.contains(layer.name())) {
         layers.add(layer);
         registerHandler(layer);
+        if (layer instanceof TransportationName transportationName) {
+          transportationNameLayer = transportationName;
+        }
+      }
+      if (layer instanceof Transportation transportation) {
+        transportationLayer = transportation;
+      }
+    }
+
+    // special-case: transportation_name layer depends on transportation layer
+    if (transportationNameLayer != null) {
+      transportationNameLayer.needsTransportationLayer(transportationLayer);
+      if (!layers.contains(transportationLayer)) {
+        layers.add(transportationLayer);
+        registerHandler(transportationLayer);
       }
     }
 

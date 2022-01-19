@@ -4,7 +4,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-TAG="${1:-"v3.12.2"}"
+TAG="${1:-"v3.13"}"
 echo "tag=${TAG}"
 
 echo "Building..."

@@ -42,6 +42,14 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testIgnoreUndergroundBuilding() {
+    assertFeatures(14, List.of(), process(polygonFeature(Map.of(
+      "building", "yes",
+      "location", "underground"
+    ))));
+  }
+
+  @Test
   public void testAirportBuildings() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "building",

@@ -28,9 +28,14 @@ public class Utils {
     return a != null ? a : b != null ? b : c != null ? c : d != null ? d : e != null ? e : f;
   }
 
-  /** Returns {@code a} or {@code nullValue} if {@code a} is null. */
-  public static <T> T nullIf(T a, T nullValue) {
-    return nullValue.equals(a) ? null : a;
+  /** Boxes {@code a} into an {@link Integer}, or {@code null} if {@code a} is {@code nullValue}. */
+  public static Long nullIfLong(long a, long nullValue) {
+    return a == nullValue ? null : a;
+  }
+
+  /** Boxes {@code a} into a {@link Long}, or {@code null} if {@code a} is {@code nullValue}. */
+  public static Integer nullIfInt(int a, int nullValue) {
+    return a == nullValue ? null : a;
   }
 
   /** Returns {@code a}, or null if {@code a} is "". */

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, KlokanTech.com & OpenMapTiles contributors.
+Copyright (c) 2021, MapTiler.com & OpenMapTiles contributors.
 All rights reserved.
 
 Code license: BSD 3-Clause License
@@ -36,8 +36,8 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.basemap.util.Utils.coalesce;
-import static com.onthegomap.planetiler.basemap.util.Utils.nullIf;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
+import static com.onthegomap.planetiler.basemap.util.Utils.nullIfLong;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullOrEmpty;
 import static java.util.Map.entry;
 
@@ -170,7 +170,7 @@ public class Poi implements
     output.setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, poiClass)
       .setAttr(Fields.SUBCLASS, subclass)
-      .setAttr(Fields.LAYER, nullIf(element.layer(), 0))
+      .setAttr(Fields.LAYER, nullIfLong(element.layer(), 0))
       .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
       .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
