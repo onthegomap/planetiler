@@ -514,6 +514,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
   }
 
+  /** Returns {@code true} if a way can be interpreted as a line. */
+  public static boolean canBeLine(boolean closed, String area, int points) {
+    return (!closed || !"yes".equals(area)) && points >= 2;
+  }
+
+  /** Returns {@code true} if a way can be interpreted as a polygon. */
+  public static boolean canBePolygon(boolean closed, String area, int points) {
+    return (closed && !"no".equals(area)) && points >= 4;
+  }
+
   /**
    * A {@link LineString} or {@link Polygon} created from an OSM way.
    * <p>
@@ -529,8 +539,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeLocations,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
       super(way, false,
-        (!closed || !"yes".equals(area)) && way.getNodes().size() >= 2, // line
-        (closed && !"no".equals(area)) && way.getNodes().size() >= 4, // polygon
+        OsmReader.canBeLine(closed, area, way.getNodes().size()),
+        OsmReader.canBePolygon(closed, area, way.getNodes().size()),
         relationInfo
       );
       this.nodeIds = way.getNodes();

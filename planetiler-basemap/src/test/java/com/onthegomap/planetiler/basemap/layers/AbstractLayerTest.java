@@ -131,6 +131,17 @@ public abstract class AbstractLayerTest {
     );
   }
 
+  SourceFeature closedWayFeature(Map<String, Object> props) {
+    return SimpleFeature.createFakeOsmFeature(
+      newLineString(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
+      new HashMap<>(props),
+      OSM_SOURCE,
+      null,
+      0,
+      null
+    );
+  }
+
   SourceFeature polygonFeatureWithArea(double area, Map<String, Object> props) {
     return SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(area))),

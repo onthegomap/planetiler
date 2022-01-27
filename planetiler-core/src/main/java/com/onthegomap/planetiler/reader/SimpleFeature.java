@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 
@@ -77,7 +79,26 @@ public class SimpleFeature extends SourceFeature {
   /** Returns a new feature with OSM relation info. Useful for setting up inputs for OSM unit tests. */
   public static SimpleFeature createFakeOsmFeature(Geometry latLonGeometry, Map<String, Object> tags, String source,
     String sourceLayer, long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations) {
-    return new SimpleFeature(latLonGeometry, null, tags, source, sourceLayer, id, relations);
+    String area = (String) tags.get("area");
+    return new SimpleFeature(latLonGeometry, null, tags, source, sourceLayer, id, relations) {
+      @Override
+      public boolean canBePolygon() {
+        return latLonGeometry instanceof Polygonal || (latLonGeometry instanceof LineString line
+          && OsmReader.canBePolygon(line.isClosed(), area, latLonGeometry.getNumPoints()));
+      }
+
+      @Override
+      public boolean canBeLine() {
+        return latLonGeometry instanceof MultiLineString || (latLonGeometry instanceof LineString line
+          && OsmReader.canBeLine(line.isClosed(), area, latLonGeometry.getNumPoints()));
+      }
+
+      @Override
+      protected Geometry computePolygon() {
+        var geom = worldGeometry();
+        return geom instanceof LineString line ? GeoUtils.JTS_FACTORY.createPolygon(line.getCoordinates()) : geom;
+      }
+    };
   }
 
   @Override
