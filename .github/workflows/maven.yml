@@ -10,7 +10,7 @@ on:
 jobs:
   # TODO: add format/checkstyle
   build:
-    name: Java ${{ matrix.jdk }} / ${{ matrix.os }}
+    name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
     strategy:
       fail-fast: false
       matrix:
@@ -19,6 +19,9 @@ jobs:
         include:
           - os: ubuntu-latest
             jdk: 16
+          - os: ubuntu-latest
+            jdk: 17
+            args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
@@ -31,10 +34,10 @@ jobs:
           cache: 'maven'
       - name: Build with mvnw (linux/mac)
         if: ${{ !contains(matrix.os, 'windows') }}
-        run: ./mvnw --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
+        run: ./mvnw ${{matrix.args}} --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
       - name: Build with mvnw.cmd (windows)
         if: ${{ contains(matrix.os, 'windows') }}
-        run: mvnw.cmd --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
+        run: mvnw.cmd ${{matrix.args}} --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
         shell: cmd
 
   regenerate:
