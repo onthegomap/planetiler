@@ -513,8 +513,9 @@ public class Transportation implements
   public void process(Tables.OsmHighwayPolygon element, FeatureCollector features) {
     String manMade = element.manMade();
     if (isBridgeOrPier(manMade) ||
-      // ignore underground pedestrian areas
-      (element.isArea() && element.layer() >= 0)) {
+      // only allow closed ways where area=yes, and multipolygons
+      // and ignore underground pedestrian areas
+      (!element.source().canBeLine() && element.layer() >= 0)) {
       String highwayClass = highwayClass(element.highway(), element.publicTransport(), null, element.manMade());
       if (highwayClass != null) {
         features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)

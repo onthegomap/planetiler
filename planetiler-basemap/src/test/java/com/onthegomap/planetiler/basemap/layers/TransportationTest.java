@@ -990,7 +990,7 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testPedestrianArea() {
-    assertFeatures(10, List.of(Map.of(
+    Map<String, Object> pedestrianArea = Map.of(
       "_layer", "transportation",
       "class", "path",
       "subclass", "pedestrian",
@@ -998,13 +998,36 @@ public class TransportationTest extends AbstractLayerTest {
       "_minzoom", 13,
       "_maxzoom", 14,
       "_type", "polygon"
-    )), process(polygonFeature(Map.of(
+    );
+    Map<String, Object> circularPath = Map.of(
+      "_layer", "transportation",
+      "class", "path",
+      "subclass", "pedestrian",
+
+      "_minzoom", 14,
+      "_maxzoom", 14,
+      "_type", "line"
+    );
+    assertFeatures(14, List.of(pedestrianArea), process(closedWayFeature(Map.of(
       "highway", "pedestrian",
       "area", "yes",
       "foot", "yes"
     ))));
+    assertFeatures(14, List.of(pedestrianArea), process(polygonFeature(Map.of(
+      "highway", "pedestrian",
+      "foot", "yes"
+    ))));
+    assertFeatures(14, List.of(circularPath), process(closedWayFeature(Map.of(
+      "highway", "pedestrian",
+      "foot", "yes"
+    ))));
+    assertFeatures(14, List.of(circularPath), process(closedWayFeature(Map.of(
+      "highway", "pedestrian",
+      "foot", "yes",
+      "area", "no"
+    ))));
     // ignore underground pedestrian areas
-    assertFeatures(10, List.of(),
+    assertFeatures(14, List.of(),
       process(polygonFeature(Map.of(
         "highway", "pedestrian",
         "area", "yes",
