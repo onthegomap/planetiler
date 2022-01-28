@@ -41,6 +41,7 @@ public interface Stats extends AutoCloseable {
    * each monitored file.
    */
   default void printSummary() {
+    Format format = Format.defaultInstance();
     Logger LOGGER = LoggerFactory.getLogger(getClass());
     LOGGER.info("-".repeat(40));
     timers().printSummary();
@@ -48,7 +49,7 @@ public interface Stats extends AutoCloseable {
     for (var entry : monitoredFiles().entrySet()) {
       long size = FileUtils.size(entry.getValue());
       if (size > 0) {
-        LOGGER.info("\t" + entry.getKey() + "\t" + Format.formatStorage(size, false) + "B");
+        LOGGER.info("\t" + entry.getKey() + "\t" + format.storage(size, false) + "B");
       }
     }
   }

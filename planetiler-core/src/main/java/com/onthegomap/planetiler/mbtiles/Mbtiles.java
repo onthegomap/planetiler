@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -429,7 +430,7 @@ public final class Mbtiles implements Closeable {
   /** Data contained in the metadata table. */
   public class Metadata {
 
-    private static final NumberFormat nf = NumberFormat.getNumberInstance();
+    private static final NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
 
     static {
       nf.setMaximumFractionDigits(5);

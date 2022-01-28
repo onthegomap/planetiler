@@ -2,9 +2,12 @@ package com.onthegomap.planetiler.util;
 
 import java.text.NumberFormat;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.text.StringEscapeUtils;
 import org.locationtech.jts.geom.Coordinate;
 
@@ -13,7 +16,31 @@ import org.locationtech.jts.geom.Coordinate;
  */
 public class Format {
 
-  private Format() {
+  public static final Locale DEFAULT_LOCALE = Locale.getDefault(Locale.Category.FORMAT);
+  public static final ConcurrentMap<Locale, Format> instances = new ConcurrentHashMap<>();
+  private final NumberFormat pf;
+  private final NumberFormat nf;
+  private final NumberFormat intF;
+
+  private Format(Locale locale) {
+    pf = NumberFormat.getPercentInstance(locale);
+    pf.setMaximumFractionDigits(0);
+    nf = NumberFormat.getNumberInstance(locale);
+    nf.setMaximumFractionDigits(1);
+    intF = NumberFormat.getNumberInstance(locale);
+    intF.setMaximumFractionDigits(0);
+  }
+
+  public static Format forLocale(Locale locale) {
+    Format format = instances.get(locale);
+    if (format == null) {
+      format = instances.computeIfAbsent(locale, Format::new);
+    }
+    return format;
+  }
+
+  public static Format defaultInstance() {
+    return forLocale(DEFAULT_LOCALE);
   }
 
   private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
@@ -30,16 +57,6 @@ public class Format {
     Map.entry(1_000_000_000_000L, "T"),
     Map.entry(1_000_000_000_000_000L, "Q")
   ));
-
-  private static final NumberFormat pf = NumberFormat.getPercentInstance();
-  private static final NumberFormat nf = NumberFormat.getNumberInstance();
-  private static final NumberFormat intF = NumberFormat.getNumberInstance();
-
-  static {
-    pf.setMaximumFractionDigits(0);
-    nf.setMaximumFractionDigits(1);
-    intF.setMaximumFractionDigits(0);
-  }
 
   public static String padRight(String str, int size) {
     StringBuilder strBuilder = new StringBuilder(str);
@@ -58,16 +75,16 @@ public class Format {
   }
 
   /** Returns a number of bytes formatted like "123" "1.2k" "240M", etc. */
-  public static String formatStorage(Number num, boolean pad) {
+  public String storage(Number num, boolean pad) {
     return format(num, pad, STORAGE_SUFFIXES);
   }
 
   /** Returns a number formatted like "123" "1.2k" "2.5B", etc. */
-  public static String formatNumeric(Number num, boolean pad) {
+  public String numeric(Number num, boolean pad) {
     return format(num, pad, NUMERIC_SUFFIXES);
   }
 
-  private static String format(Number num, boolean pad, NavigableMap<Long, String> suffixes) {
+  private String format(Number num, boolean pad, NavigableMap<Long, String> suffixes) {
     long value = num.longValue();
     double doubleValue = num.doubleValue();
     if (value < 0) {
@@ -85,28 +102,28 @@ public class Format {
 
     long truncated = value / (divideBy / 10);
     boolean hasDecimal = truncated < 100 && (truncated % 10 != 0);
-    return padLeft(hasDecimal ? (truncated / 10d) + suffix : (truncated / 10) + suffix, pad ? 4 : 0);
+    return padLeft(hasDecimal ? decimal(truncated / 10d) + suffix : (truncated / 10) + suffix, pad ? 4 : 0);
   }
 
   /** Returns 0.0-1.0 as a "0%" - "100%" with no decimal points. */
-  public static String formatPercent(double value) {
+  public String percent(double value) {
     return pf.format(value);
   }
 
   /** Returns a number formatted with 1 decimal point. */
-  public static String formatDecimal(double value) {
+  public String decimal(double value) {
     return nf.format(value);
   }
 
   /** Returns a number formatted with 0 decimal points. */
-  public static String formatInteger(Number value) {
+  public String integer(Number value) {
     return intF.format(value);
   }
 
   /** Returns a duration formatted as fractional seconds with 1 decimal point. */
-  public static String formatSeconds(Duration duration) {
+  public String seconds(Duration duration) {
     double seconds = duration.toNanos() * 1d / Duration.ofSeconds(1).toNanos();
-    return formatDecimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";
+    return decimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";
   }
 
   /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */

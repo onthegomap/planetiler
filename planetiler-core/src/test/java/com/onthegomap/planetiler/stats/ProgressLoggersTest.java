@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ public class ProgressLoggersTest {
         continueLatch.await();
       });
 
-    var loggers = ProgressLoggers.create()
+    var loggers = ProgressLoggers.createForLocale(Locale.US)
       .newLine()
       .addPipelineStats(pipeline);
 
