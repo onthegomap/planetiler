@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Locale;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -9,40 +10,43 @@ public class FormatTest {
 
   @ParameterizedTest
   @CsvSource({
-    "1.5,1",
-    "999,999",
-    "1000,1k",
-    "9999,9.9k",
-    "10001,10k",
-    "99999,99k",
-    "999999,999k",
-    "9999999,9.9M",
-    "-9999999,-",
-    "5.5e12,5.5T",
+    "1.5,1,en",
+    "999,999,en",
+    "1000,1k,en",
+    "9999,9.9k,en",
+    "10001,10k,en",
+    "99999,99k,en",
+    "999999,999k,en",
+    "9999999,9.9M,en",
+    "-9999999,-,en",
+    "5.5e12,5.5T,en",
+    "5.5e12,'5,5T',fr",
   })
-  public void testFormatNumeric(Double number, String formatted) {
-    assertEquals(Format.formatNumeric(number, false), formatted);
+  public void testFormatNumeric(Double number, String expected, Locale locale) {
+    assertEquals(expected, Format.forLocale(locale).numeric(number, false));
   }
 
   @ParameterizedTest
   @CsvSource({
-    "999,999",
-    "1000,1k",
-    "9999,9.9k",
-    "5.5e9,5.5G",
+    "999,999,en",
+    "1000,1k,en",
+    "9999,9.9k,en",
+    "5.5e9,5.5G,en",
+    "5.5e9,'5,5G',fr",
   })
-  public void testFormatStorage(Double number, String formatted) {
-    assertEquals(formatted, Format.formatStorage(number, false));
+  public void testFormatStorage(Double number, String expected, Locale locale) {
+    assertEquals(expected, Format.forLocale(locale).storage(number, false));
   }
 
   @ParameterizedTest
   @CsvSource({
-    "0,0%",
-    "1,100%",
-    "0.11111,11%",
+    "0,0%,en",
+    "1,100%,en",
+    "0.11111,11%,en",
+    "0.11111,11 %,fr",
   })
-  public void testFormatPercent(Double number, String formatted) {
-    assertEquals(formatted, Format.formatPercent(number));
+  public void testFormatPercent(Double number, String formatted, Locale locale) {
+    assertEquals(formatted, Format.forLocale(locale).percent(number));
   }
 
   @ParameterizedTest
@@ -60,12 +64,13 @@ public class FormatTest {
 
   @ParameterizedTest
   @CsvSource({
-    "0,0",
-    "0.1,0.1",
-    "0.11,0.1",
-    "1111.11,'1,111.1'",
+    "0,0,en",
+    "0.1,0.1,en",
+    "0.11,0.1,en",
+    "1111.11,'1,111.1',en",
+    "1111.11,'1.111,1',it",
   })
-  public void testFormatDecimal(Double in, String out) {
-    assertEquals(out, Format.formatDecimal(in));
+  public void testFormatDecimal(Double in, String out, Locale locale) {
+    assertEquals(out, Format.forLocale(locale).decimal(in));
   }
 }

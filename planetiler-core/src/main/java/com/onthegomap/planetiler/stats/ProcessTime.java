@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.stats;
 
 import com.onthegomap.planetiler.util.Format;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -27,11 +28,16 @@ public record ProcessTime(Duration wall, Optional<Duration> cpu) {
     return new ProcessTime(wall.minus(other.wall), cpu.flatMap(thisCpu -> other.cpu.map(thisCpu::minus)));
   }
 
+  public String toString(Locale locale) {
+    Format format = Format.forLocale(locale);
+    Optional<String> deltaCpu = cpu.map(format::seconds);
+    String avgCpus = cpu.map(cpuTime -> " avg:" + format.decimal(cpuTime.toNanos() * 1d / wall.toNanos()))
+      .orElse("");
+    return format.seconds(wall) + " cpu:" + deltaCpu.orElse("-") + avgCpus;
+  }
+
   @Override
   public String toString() {
-    Optional<String> deltaCpu = cpu.map(Format::formatSeconds);
-    String avgCpus = cpu.map(cpuTime -> " avg:" + Format.formatDecimal(cpuTime.toNanos() * 1d / wall.toNanos()))
-      .orElse("");
-    return Format.formatSeconds(wall) + " cpu:" + deltaCpu.orElse("-") + avgCpus;
+    return toString(Format.DEFAULT_LOCALE);
   }
 }

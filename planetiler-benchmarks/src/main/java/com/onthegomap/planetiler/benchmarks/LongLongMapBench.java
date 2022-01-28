@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class LongLongMapBench {
 
   public static void main(String[] args) throws InterruptedException {
+    Format format = Format.defaultInstance();
     Path path = Path.of("./llmaptest");
     FileUtils.delete(path);
     LongLongMap map = LongLongMap.from(args[0], args[1], path);
@@ -45,14 +46,14 @@ public class LongLongMapBench {
         counter.count = i;
       }
       long end = System.nanoTime();
-      String rate = Format.formatNumeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
+      String rate = format.numeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
       System.err.println("Loaded " + entries + " in " + Duration.ofNanos(end - start).toSeconds() + "s (" + rate + ")");
       writeRate.set(rate);
     }).awaitAndLog(loggers, Duration.ofSeconds(10));
 
     map.get(1);
-    System.err.println("Storage: " + Format.formatStorage(map.diskUsageBytes(), false));
-    System.err.println("RAM: " + Format.formatStorage(map.estimateMemoryUsageBytes(), false));
+    System.err.println("Storage: " + format.storage(map.diskUsageBytes(), false));
+    System.err.println("RAM: " + format.storage(map.estimateMemoryUsageBytes(), false));
 
     Counter.Readable readCount = Counter.newMultiThreadCounter();
     loggers = ProgressLoggers.create()
@@ -95,7 +96,7 @@ public class LongLongMapBench {
     }
     long end = System.nanoTime();
     long read = readCount.getAsLong();
-    String readRate = Format.formatNumeric(read * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
+    String readRate = format.numeric(read * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
     System.err.println("Read " + read + " in 30s (" + readRate + ")");
     System.err.println(
       String.join("\t",
@@ -103,9 +104,9 @@ public class LongLongMapBench {
         args[1],
         args[2],
         args[3],
-        Format.formatStorage(map.estimateMemoryUsageBytes(), false),
-        Format.formatStorage(map.diskUsageBytes(), false),
-        Format.formatStorage(FileUtils.size(path), false),
+        format.storage(map.estimateMemoryUsageBytes(), false),
+        format.storage(map.diskUsageBytes(), false),
+        format.storage(FileUtils.size(path), false),
         writeRate.get(),
         readRate
       )

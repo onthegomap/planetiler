@@ -329,6 +329,7 @@ public class MbtilesWriter {
   }
 
   private void printTileStats() {
+    Format format = Format.defaultInstance();
     LOGGER.debug("Tile stats:");
     long sumSize = 0;
     long sumCount = 0;
@@ -340,14 +341,14 @@ public class MbtilesWriter {
       sumCount += totalCount;
       long maxSize = maxTileSizesByZoom[z].get();
       LOGGER.debug("z" + z +
-        " avg:" + Format.formatStorage(totalSize / Math.max(totalCount, 1), false) +
-        " max:" + Format.formatStorage(maxSize, false));
+        " avg:" + format.storage(totalSize / Math.max(totalCount, 1), false) +
+        " max:" + format.storage(maxSize, false));
     }
     LOGGER.debug("all" +
-      " avg:" + Format.formatStorage(sumSize / Math.max(sumCount, 1), false) +
-      " max:" + Format.formatStorage(maxMax, false));
-    LOGGER.debug(" # features: " + Format.formatInteger(featuresProcessed.get()));
-    LOGGER.debug("    # tiles: " + Format.formatInteger(this.tilesEmitted()));
+      " avg:" + format.storage(sumSize / Math.max(sumCount, 1), false) +
+      " max:" + format.storage(maxMax, false));
+    LOGGER.debug(" # features: " + format.integer(featuresProcessed.get()));
+    LOGGER.debug("    # tiles: " + format.integer(this.tilesEmitted()));
   }
 
   private long tilesEmitted() {

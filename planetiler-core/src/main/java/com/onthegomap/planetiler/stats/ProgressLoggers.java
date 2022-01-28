@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.stats;
 
-import static com.onthegomap.planetiler.util.Format.*;
+import static com.onthegomap.planetiler.util.Format.padLeft;
+import static com.onthegomap.planetiler.util.Format.padRight;
 
 import com.graphhopper.util.Helper;
 import com.onthegomap.planetiler.util.DiskBacked;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -44,6 +46,7 @@ public class ProgressLoggers {
   private static final String FG_BLUE = "\u001B[34m";
   private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
   private final List<Object> loggers = new ArrayList<>();
+  private final Format format;
 
   private static String fg(String fg, String string) {
     return fg + string + COLOR_RESET;
@@ -65,11 +68,16 @@ public class ProgressLoggers {
     return fg(FG_BLUE, string);
   }
 
-  private ProgressLoggers() {
+  private ProgressLoggers(Locale locale) {
+    this.format = Format.forLocale(locale);
   }
 
   public static ProgressLoggers create() {
-    return new ProgressLoggers();
+    return createForLocale(Format.DEFAULT_LOCALE);
+  }
+
+  public static ProgressLoggers createForLocale(Locale locale) {
+    return new ProgressLoggers(locale);
   }
 
   /** Adds "name: [ numCompleted rate/s ]" to the logger. */
@@ -98,7 +106,8 @@ public class ProgressLoggers {
       }
       last.set(valueNow);
       lastTime.set(now);
-      String result = "[ " + formatNumeric(valueNow, true) + " " + formatNumeric(valueDiff / timeDiff, true) + "/s ]";
+      String result =
+        "[ " + format.numeric(valueNow, true) + " " + format.numeric(valueDiff / timeDiff, true) + "/s ]";
       return color && valueDiff > 0 ? green(result) : result;
     }));
     return this;
@@ -124,7 +133,7 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> Format.formatNumeric(n, true));
+    return addRatePercentCounter(name, total, getValue, n -> format.numeric(n, true));
   }
 
   /**
@@ -132,7 +141,7 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> Format.formatStorage(n, true));
+    return addRatePercentCounter(name, total, getValue, n -> format.storage(n, true));
   }
 
   /**
@@ -140,7 +149,7 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
-    Function<Number, String> format) {
+    Function<Number, String> formatter) {
     // if there's no total, we can't show progress so fall back to rate logger instead
     if (total == 0) {
       return addRateCounter(name, getValue, true);
@@ -158,8 +167,8 @@ public class ProgressLoggers {
       last.set(valueNow);
       lastTime.set(now);
       String result =
-        "[ " + format.apply(valueNow) + " " + padLeft(formatPercent(1f * valueNow / total), 4)
-          + " " + format.apply(valueDiff / timeDiff) + "/s ]";
+        "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4)
+          + " " + formatter.apply(valueDiff / timeDiff) + "/s ]";
       return valueDiff > 0 ? green(result) : result;
     }));
     return this;
@@ -173,7 +182,7 @@ public class ProgressLoggers {
     loggers.add(new ProgressLogger(name, () -> {
       long valueNow = getValue.get();
       return "[ " + padLeft("" + valueNow, 3) + " / " + padLeft("" + total, 3) + " " + padLeft(
-        formatPercent(1f * valueNow / total), 4) + " ]";
+        format.percent(1f * valueNow / total), 4) + " ]";
     }));
     return this;
   }
@@ -182,9 +191,9 @@ public class ProgressLoggers {
   public ProgressLoggers addQueueStats(WorkQueue<?> queue) {
     loggers.add(new WorkerPipelineLogger(() ->
       " -> " + padLeft("(" +
-        formatNumeric(queue.getPending(), false)
+        format.numeric(queue.getPending(), false)
         + "/" +
-        formatNumeric(queue.getCapacity(), false)
+        format.numeric(queue.getCapacity(), false)
         + ")", 9)
     ));
     return this;
@@ -209,7 +218,7 @@ public class ProgressLoggers {
     return add(() -> {
       String bytes;
       try {
-        bytes = formatStorage(Files.size(file), false);
+        bytes = format.storage(Files.size(file), false);
       } catch (IOException e) {
         bytes = "-";
       }
@@ -218,20 +227,20 @@ public class ProgressLoggers {
   }
 
   public ProgressLoggers addFileSize(DiskBacked longSupplier) {
-    return add(() -> " " + padRight(formatStorage(longSupplier.diskUsageBytes(), false), 5));
+    return add(() -> " " + padRight(format.storage(longSupplier.diskUsageBytes(), false), 5));
   }
 
   /** Adds the total of disk and memory usage of {@code thing}. */
   public <T extends DiskBacked & MemoryEstimator.HasEstimate> ProgressLoggers addFileSizeAndRam(T thing) {
     return add(() -> {
       long bytes = thing.diskUsageBytes() + thing.estimateMemoryUsageBytes();
-      return " " + padRight(formatStorage(bytes, false), 5);
+      return " " + padRight(format.storage(bytes, false), 5);
     });
   }
 
   /** Adds the current size of a file on disk. */
   public ProgressLoggers addFileSize(String name, DiskBacked file) {
-    loggers.add(new ProgressLogger(name, () -> formatStorage(file.diskUsageBytes(), true)));
+    loggers.add(new ProgressLogger(name, () -> format.storage(file.diskUsageBytes(), true)));
     return this;
   }
 
@@ -240,16 +249,16 @@ public class ProgressLoggers {
    * used after last GC to the output.
    */
   public ProgressLoggers addProcessStats() {
-    addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, num -> blue(Format.formatDecimal(num)));
+    addOptionalDeltaLogger("cpus", ProcessInfo::getProcessCpuTime, num -> blue(format.decimal(num)));
     addDeltaLogger("gc", ProcessInfo::getGcTime, num -> {
-      String formatted = Format.formatPercent(num);
+      String formatted = format.percent(num);
       return num > 0.6 ? red(formatted) : num > 0.3 ? yellow(formatted) : formatted;
     });
     loggers.add(new ProgressLogger("mem",
-      () -> formatStorage(Helper.getUsedMB() * Helper.MB, false) + "/" +
-        formatStorage(Helper.getTotalMB() * Helper.MB, false) +
+      () -> format.storage(Helper.getUsedMB() * Helper.MB, false) + "/" +
+        format.storage(Helper.getTotalMB() * Helper.MB, false) +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
-          .mapToObj(value -> " postGC: " + blue(formatStorage(value, false)))
+          .mapToObj(value -> " postGC: " + blue(format.storage(value, false)))
           .findFirst()
           .orElse("")
     ));
@@ -298,7 +307,7 @@ public class ProgressLoggers {
               return " -%";
             }
             long last = lastThreads.getOrDefault(thread.id(), ProcessInfo.ThreadState.DEFAULT).cpuTime().toNanos();
-            return padLeft(formatPercent(1d * (thread.cpuTime().toNanos() - last) / timeDiff), 3);
+            return padLeft(format.percent(1d * (thread.cpuTime().toNanos() - last) / timeDiff), 3);
           }).collect(Collectors.joining(" ", "(", ")"));
 
         lastTime.set(currentTime);
@@ -329,7 +338,7 @@ public class ProgressLoggers {
 
   /** Adds the current estimated size of an in-memory object to the output. */
   public ProgressLoggers addInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
-    loggers.add(new ProgressLogger(name, () -> formatStorage(object.estimateMemoryUsageBytes(), true)));
+    loggers.add(new ProgressLogger(name, () -> format.storage(object.estimateMemoryUsageBytes(), true)));
     return this;
   }
 
@@ -371,7 +380,7 @@ public class ProgressLoggers {
     }
   }
 
-  private static record ProgressLogger(String name, Supplier<String> fn) {
+  private record ProgressLogger(String name, Supplier<String> fn) {
 
     @Override
     public String toString() {
@@ -379,7 +388,7 @@ public class ProgressLoggers {
     }
   }
 
-  private static record WorkerPipelineLogger(Supplier<String> fn) {
+  private record WorkerPipelineLogger(Supplier<String> fn) {
 
     @Override
     public String toString() {
