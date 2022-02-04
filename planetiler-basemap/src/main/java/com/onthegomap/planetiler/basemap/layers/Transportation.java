@@ -222,7 +222,7 @@ public class Transportation implements
       "highway", coalesce(highway, ""),
       "public_transport", coalesce(publicTransport, ""),
       "construction", coalesce(construction, "")
-    ), manMade) : manMade;
+    ), null) : manMade;
   }
 
   static String highwaySubclass(String highwayClass, String publicTransport, String highway) {
