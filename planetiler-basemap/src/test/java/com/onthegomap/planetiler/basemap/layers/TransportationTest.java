@@ -446,8 +446,18 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testBridgeConstruction() {
-    // https://www.openstreetmap.org/way/658335918 was returning class=bridge, should just ignore
-    assertFeatures(13, List.of(), process(lineFeature(Map.of(
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "highway", "construction",
+      "construction", "bridge",
+      "man_made", "bridge",
+      "layer", "1"
+    ))));
+    assertFeatures(14, List.of(Map.of(
+      "_layer", "transportation",
+      "class", "minor_construction",
+      "brunnel", "bridge",
+      "layer", 1L
+    )), process(closedWayFeature(Map.of(
       "highway", "construction",
       "construction", "bridge",
       "man_made", "bridge",
