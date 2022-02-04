@@ -160,29 +160,41 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     }
     if (readerElement instanceof ReaderNode node) {
       PASS1_NODES.inc();
-      profile.preprocessOsmNode(OsmElement.fromGraphopper(node));
+      try {
+        profile.preprocessOsmNode(OsmElement.fromGraphopper(node));
+      } catch (Exception e) {
+        LOGGER.error("Error preprocessing OSM node " + node.getId(), e);
+      }
       // TODO allow limiting node storage to only ones that profile cares about
       nodeLocationDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
     } else if (readerElement instanceof ReaderWay way) {
       PASS1_WAYS.inc();
-      profile.preprocessOsmWay(OsmElement.fromGraphopper(way));
+      try {
+        profile.preprocessOsmWay(OsmElement.fromGraphopper(way));
+      } catch (Exception e) {
+        LOGGER.error("Error preprocessing OSM way " + way.getId(), e);
+      }
     } else if (readerElement instanceof ReaderRelation rel) {
       PASS1_RELATIONS.inc();
       // don't leak graphhopper classes out through public API
       OsmElement.Relation osmRelation = OsmElement.fromGraphopper(rel);
-      List<OsmRelationInfo> infos = profile.preprocessOsmRelation(osmRelation);
-      if (infos != null) {
-        for (OsmRelationInfo info : infos) {
-          relationInfo.put(rel.getId(), info);
-          relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-          for (ReaderRelation.Member member : rel.getMembers()) {
-            int type = member.getType();
-            // TODO handle nodes in relations and super-relations
-            if (type == ReaderRelation.Member.WAY) {
-              wayToRelations.put(member.getRef(), encodeRelationMembership(member.getRole(), rel.getId()));
+      try {
+        List<OsmRelationInfo> infos = profile.preprocessOsmRelation(osmRelation);
+        if (infos != null) {
+          for (OsmRelationInfo info : infos) {
+            relationInfo.put(rel.getId(), info);
+            relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
+            for (ReaderRelation.Member member : rel.getMembers()) {
+              int type = member.getType();
+              // TODO handle nodes in relations and super-relations
+              if (type == ReaderRelation.Member.WAY) {
+                wayToRelations.put(member.getRef(), encodeRelationMembership(member.getRole(), rel.getId()));
+              }
             }
           }
         }
+      } catch (Exception e) {
+        LOGGER.error("Error preprocessing OSM relation " + rel.getId(), e);
       }
       // TODO allow limiting multipolygon storage to only ones that profile cares about
       if (isMultipolygon(rel)) {
@@ -263,9 +275,19 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           // write them intermediate storage
           if (feature != null) {
             FeatureCollector features = featureCollectors.get(feature);
-            profile.processFeature(feature, features);
-            for (FeatureCollector.Feature renderable : features) {
-              renderer.accept(renderable);
+            try {
+              profile.processFeature(feature, features);
+              for (FeatureCollector.Feature renderable : features) {
+                renderer.accept(renderable);
+              }
+            } catch (Exception e) {
+              String type = switch (readerElement.getType()) {
+                case ReaderElement.NODE -> "node";
+                case ReaderElement.WAY -> "way";
+                case ReaderElement.RELATION -> "relation";
+                default -> "element";
+              };
+              LOGGER.error("Error processing OSM " + type + " " + readerElement.getId(), e);
             }
           }
         }
@@ -292,9 +314,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
-    profile.finish(name,
-      new FeatureCollector.Factory(config, stats),
-      createFeatureRenderer(writer, config, writer));
+    try {
+      profile.finish(name,
+        new FeatureCollector.Factory(config, stats),
+        createFeatureRenderer(writer, config, writer));
+    } catch (Exception e) {
+      LOGGER.error("Error calling profile.finish", e);
+    }
     timer.stop();
   }
 

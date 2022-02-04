@@ -1607,4 +1607,19 @@ public class PlanetilerTests {
       assertEquals(2146, features, "num buildings");
     }
   }
+
+  @Test
+  public void testHandleProfileException() throws Exception {
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      List.of(
+        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+      ),
+      (in, features) -> {
+        throw new IllegalStateException("intentional exception!");
+      }
+    );
+
+    assertSubmap(Map.of(), results.tiles);
+  }
 }

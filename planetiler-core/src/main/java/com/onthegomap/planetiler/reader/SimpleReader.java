@@ -14,6 +14,8 @@ import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Envelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for utilities that read {@link SourceFeature SourceFeatures} from a simple data source where geometries
@@ -24,6 +26,8 @@ import org.locationtech.jts.geom.Envelope;
  * them in parallel according to the profile in {@link #process(FeatureGroup, PlanetilerConfig)}.
  */
 public abstract class SimpleReader implements Closeable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SimpleReader.class);
 
   protected final Stats stats;
   protected final String sourceName;
@@ -60,9 +64,13 @@ public abstract class SimpleReader implements Closeable {
           featuresRead.incrementAndGet();
           FeatureCollector features = featureCollectors.get(sourceFeature);
           if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
-            profile.processFeature(sourceFeature, features);
-            for (FeatureCollector.Feature renderable : features) {
-              renderer.accept(renderable);
+            try {
+              profile.processFeature(sourceFeature, features);
+              for (FeatureCollector.Feature renderable : features) {
+                renderer.accept(renderable);
+              }
+            } catch (Exception e) {
+              LOGGER.error("Error processing " + sourceFeature, e);
             }
           }
         }
