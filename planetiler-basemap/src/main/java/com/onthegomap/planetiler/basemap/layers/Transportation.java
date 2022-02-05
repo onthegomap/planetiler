@@ -288,7 +288,7 @@ public class Transportation implements
         default -> (relation.hasTag("osmc:symbol") || relation.hasTag("colour")) ? 2 : 3;
       };
 
-      if (networkType != null || rank < 3) {
+      if (network != null || rank < 3) {
         return List.of(new RouteRelation(coalesce(ref, ""), network, networkType, (byte) rank, relation.id()));
       }
     }
