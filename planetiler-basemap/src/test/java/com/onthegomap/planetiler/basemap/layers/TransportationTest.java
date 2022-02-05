@@ -340,6 +340,38 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testRouteWithoutNetworkType() {
+    var rel = new OsmElement.Relation(1);
+    rel.setTag("type", "route");
+    rel.setTag("route", "road");
+    rel.setTag("network", "US:NJ:NJTP");
+    rel.setTag("ref", "NJTP");
+    rel.setTag("name", "New Jersey Turnpike (mainline)");
+
+    FeatureCollector rendered = process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(rel),
+      Map.of(
+        "highway", "motorway",
+        "name", "New Jersey Turnpike",
+        "ref", "I 95;NJTP"
+      )));
+
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "motorway",
+      "_minzoom", 4
+    ), Map.of(
+      "_layer", "transportation_name",
+      "class", "motorway",
+      "name", "New Jersey Turnpike",
+      "ref", "NJTP",
+      "ref_length", 4,
+      "route_1", "US:NJ:NJTP=NJTP",
+      "_minzoom", 6
+    )), rendered);
+  }
+
+  @Test
   public void testMotorwayJunction() {
     var otherNode1 = new OsmElement.Node(1, 1, 1);
     var junctionNode = new OsmElement.Node(2, 1, 2);
