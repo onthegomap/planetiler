@@ -498,6 +498,24 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testIgnoreManMadeWhenNotBridgeOrPier() {
+    // https://github.com/onthegomap/planetiler/issues/69
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "man_made", "storage_tank",
+      "service", "driveway"
+    ))));
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "man_made", "courtyard",
+      "service", "driveway"
+    ))));
+    assertFeatures(14, List.of(), process(lineFeature(Map.of(
+      "man_made", "courtyard",
+      "service", "driveway",
+      "name", "Named Driveway"
+    ))));
+  }
+
+  @Test
   public void testRaceway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",

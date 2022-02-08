@@ -1,7 +1,7 @@
 # Planetiler
 
-Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that
-generates [Mapbox Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
+Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that generates
+[Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
 from geographic data sources like [OpenStreetMap](https://www.openstreetmap.org/). Planetiler aims to be fast and
 memory-efficient so that you can build a map of the world in a few hours on a single machine without any external tools
 or database.
@@ -209,7 +209,7 @@ Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Support
 
-Have a question or want to share something you've built? Start
+For general questions, check out the #planetiler channel on [osmus.slack.com](https://osmus.slack.com/), or start
 a [GitHub discussion](https://github.com/onthegomap/planetiler/discussions).
 
 Found a bug or have a feature request? Open a [GitHub issue](https://github.com/onthegomap/planetiler/issues) to report.
