@@ -10,19 +10,26 @@ import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -475,6 +482,9 @@ public class Planetiler {
       download();
     }
     ensureInputFilesExist();
+    Files.createDirectories(tmpDir);
+    checkDiskSpace();
+    checkMemory();
     if (onlyDownloadSources) {
       return; // exit only if just downloading
     }
@@ -514,6 +524,83 @@ public class Planetiler {
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
+  }
+
+  private void checkDiskSpace() {
+    Map<FileStore, Long> bytesRequested = new HashMap<>();
+    long osmSize = osmInputFile.diskUsageBytes();
+    long nodeMapSize = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize);
+    long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
+    long outputSize = profile.estimateOutputBytes(osmSize);
+
+    try {
+      bytesRequested.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
+      bytesRequested.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
+      bytesRequested.merge(Files.getFileStore(output.getParent()), outputSize, Long::sum);
+      for (var entry : bytesRequested.entrySet()) {
+        var fs = entry.getKey();
+        var requested = entry.getValue();
+        long available = fs.getUnallocatedSpace();
+        if (available < requested) {
+          var format = Format.defaultInstance();
+          String warning =
+            "Planetiler needs ~" + format.storage(requested) + " on " + fs + " which only has "
+              + format.storage(available) + " available";
+          if (config.force() || requested < available * 1.25) {
+            LOGGER.warn(warning + ", may fail.");
+          } else {
+            throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+          }
+        }
+      }
+    } catch (IOException e) {
+      LOGGER.warn("Unable to check disk space requirements, may run out of room " + e);
+    }
+
+  }
+
+  private void checkMemory() {
+    var format = Format.defaultInstance();
+    long nodeMap = LongLongMap.estimateMemoryUsage(config.nodeMapType(), config.nodeMapStorage(),
+      osmInputFile.diskUsageBytes());
+    long profile = profile().estimateRamRequired(osmInputFile.diskUsageBytes());
+    long requested = nodeMap + profile;
+    long jvmMemory = ProcessInfo.getMaxMemoryBytes();
+
+    if (jvmMemory < requested) {
+      String warning =
+        "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only "
+          + format.storage(jvmMemory) + " is available";
+      if (config.force() || requested < jvmMemory * 1.25) {
+        LOGGER.warn(warning + ", may fail.");
+      } else {
+        throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+      }
+    }
+
+    long nodeMapBytes = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(),
+      osmInputFile.diskUsageBytes());
+    if (nodeMapBytes > 0
+      && ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
+      long systemMemory = os.getTotalMemorySize();
+      long availableForDiskCache = systemMemory - jvmMemory;
+      if (nodeMapBytes > availableForDiskCache) {
+        LOGGER.warn(
+          """
+            Planetiler will store node locations in a %s memory-mapped file. It is recommended to have at least that
+            much free RAM available on the system for the OS to cache the memory-mapped file, or else the import may
+            slow down substantially. There is %s total memory available and the JVM will use %s which only leaves %s.
+            You may want to reduce the -Xmx JVM setting, run on a system with more RAM, or increase -Xmx to at least
+            %s and use --nodemap-storage=ram instead.
+            """.formatted(
+            format.storage(nodeMapBytes),
+            format.storage(systemMemory),
+            format.storage(jvmMemory),
+            format.storage(systemMemory - jvmMemory),
+            format.storage(jvmMemory + nodeMapBytes)
+          ));
+      }
+    }
   }
 
   public Arguments arguments() {

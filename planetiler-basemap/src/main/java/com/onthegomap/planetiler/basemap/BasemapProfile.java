@@ -182,6 +182,24 @@ public class BasemapProfile extends ForwardingProfile {
     return OpenMapTilesSchema.VERSION;
   }
 
+  @Override
+  public long estimateIntermediateDiskBytes(long osmFileSize) {
+    // in late 2021, a 60gb OSM file used 200GB for intermediate storage
+    return osmFileSize * 200 / 60;
+  }
+
+  @Override
+  public long estimateOutputBytes(long osmFileSize) {
+    // in late 2021, a 60gb OSM file generated a 100GB output file
+    return osmFileSize * 100 / 60;
+  }
+
+  @Override
+  public long estimateRamRequired(long osmFileSize) {
+    // 30gb for a 60gb OSM file is generally safe, although less might be OK too
+    return osmFileSize / 2;
+  }
+
   /**
    * Layers should implement this interface to subscribe to elements from <a href="https://www.naturalearthdata.com/">natural
    * earth</a>.
@@ -244,7 +262,7 @@ public class BasemapProfile extends ForwardingProfile {
    */
   public interface IgnoreWikidata {}
 
-  private static record RowDispatch(
+  private record RowDispatch(
     Tables.Constructor constructor,
     List<Tables.RowHandler<Tables.Row>> handlers
   ) {}

@@ -6,6 +6,8 @@ import com.graphhopper.reader.osm.pbf.PbfDecoder;
 import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
 import com.graphhopper.reader.osm.pbf.Sink;
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -29,7 +31,7 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
  *
  * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format">OSM PBF Format</a>
  */
-public class OsmInputFile implements Bounds.Provider, OsmSource {
+public class OsmInputFile implements Bounds.Provider, OsmSource, DiskBacked {
 
   private final Path path;
 
@@ -115,7 +117,12 @@ public class OsmInputFile implements Bounds.Provider, OsmSource {
     return next -> readTo(next, poolName, threads);
   }
 
-  private static record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
+  @Override
+  public long diskUsageBytes() {
+    return FileUtils.size(path);
+  }
+
+  private record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
 
     @Override
     public void process(ReaderElement readerElement) {

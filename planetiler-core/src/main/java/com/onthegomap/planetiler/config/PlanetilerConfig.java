@@ -61,7 +61,7 @@ public record PlanetilerConfig(
       arguments.getBoolean("defer_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
-      arguments.getBoolean("force", "force overwriting output file", false),
+      arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
         6),

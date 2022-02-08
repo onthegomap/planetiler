@@ -1608,6 +1608,63 @@ public class PlanetilerTests {
     }
   }
 
+  private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
+    Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
+      .setProfile(profile)
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
+      .run();
+  }
+
+  @Test
+  public void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+        @Override
+        public long estimateIntermediateDiskBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
+    );
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+        @Override
+        public long estimateOutputBytes(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
+    );
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+        @Override
+        public long estimateRamRequired(long osmSize) {
+          return Long.MAX_VALUE / 10L;
+        }
+      }, false)
+    );
+  }
+
+  @Test
+  public void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateIntermediateDiskBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateOutputBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateRamRequired(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
+  }
+
   @Test
   public void testHandleProfileException() throws Exception {
     var results = runWithOsmElements(
