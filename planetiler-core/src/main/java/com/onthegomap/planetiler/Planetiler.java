@@ -444,7 +444,7 @@ public class Planetiler {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
-    } else if (overwrite || config.forceOverwrite()) {
+    } else if (overwrite || config.force()) {
       FileUtils.deleteFile(output);
     } else if (Files.exists(output)) {
       throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");

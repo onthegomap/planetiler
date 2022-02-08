@@ -15,7 +15,7 @@ public record PlanetilerConfig(
   boolean deferIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
-  boolean forceOverwrite,
+  boolean force,
   boolean gzipTempStorage,
   int sortMaxReaders,
   int sortMaxWriters,
