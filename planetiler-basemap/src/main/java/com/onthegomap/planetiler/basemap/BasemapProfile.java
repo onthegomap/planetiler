@@ -58,11 +58,20 @@ public class BasemapProfile extends ForwardingProfile {
   }
 
   public BasemapProfile(Translations translations, PlanetilerConfig config, Stats stats) {
+    List<Layer> extraLayers = ExtraLayers.EXTRA_LAYER_CONSTRUCTORS.stream()
+      .map(constructor -> constructor.create(translations, config, stats))
+      .toList();
+
     List<String> onlyLayers = config.arguments().getList("only_layers", "Include only certain layers", List.of());
     List<String> excludeLayers = config.arguments().getList("exclude_layers", "Exclude certain layers", List.of());
+    List<String> extraLayerIds = config.arguments().getList("extra_layers", "Include only certain layers", List.of());
 
     // register release/finish/feature postprocessor/osm relationship handler methods...
     List<Handler> layers = new ArrayList<>();
+
+    // but only use the extra layers requested by the user
+    extraLayers.stream().filter(layer -> extraLayerIds.contains(layer.name())).forEach(layers::add);
+
     Transportation transportationLayer = null;
     TransportationName transportationNameLayer = null;
     for (Layer layer : OpenMapTilesSchema.createInstances(translations, config, stats)) {
