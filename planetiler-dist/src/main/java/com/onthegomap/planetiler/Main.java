@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.basemap.BasemapMain;
 import com.onthegomap.planetiler.basemap.util.VerifyMonaco;
 import com.onthegomap.planetiler.benchmarks.BasemapMapping;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
+import com.onthegomap.planetiler.benchmarks.OsmReadBench;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
@@ -28,7 +29,8 @@ public class Main {
     "benchmark-mapping", BasemapMapping::main,
     "benchmark-longlongmap", LongLongMapBench::main,
     "verify-mbtiles", Verify::main,
-    "verify-monaco", VerifyMonaco::main
+    "verify-monaco", VerifyMonaco::main,
+    "benchmark-osm", OsmReadBench::main
   );
 
   public static void main(String[] args) throws Exception {
