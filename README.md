@@ -209,7 +209,8 @@ Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Support
 
-For general questions, check out the #planetiler channel on [osmus.slack.com](https://osmus.slack.com/), or start
+For general questions, check out the #planetiler channel on [OSM-US Slack](https://osmus.slack.com/) (get an
+invite [here](https://osmus-slack.herokuapp.com/)), or start
 a [GitHub discussion](https://github.com/onthegomap/planetiler/discussions).
 
 Found a bug or have a feature request? Open a [GitHub issue](https://github.com/onthegomap/planetiler/issues) to report.
