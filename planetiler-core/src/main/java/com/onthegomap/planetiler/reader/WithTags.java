@@ -36,6 +36,17 @@ public interface WithTags {
     return value1.equals(actual) || value2.equals(actual);
   }
 
+  /** Returns true if the value for {@code key} is any of {@code value1s}. */
+  default boolean hasTag(String key, Object... values) {
+    Object actual = getTag(key);
+    for (Object value : values) {
+      if (value.equals(actual)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Returns the {@link Object#toString()} value for {@code key} or {@code null} if not present. */
   default String getString(String key) {
     Object value = getTag(key);
