@@ -19,7 +19,7 @@ jobs:
       packages: write
     steps:
       - name: Ensure version does not start with 'v'
-        uses: actions/github-script@v5
+        uses: actions/github-script@v6
         with:
           github-token: ${{ github.token }}
           script: |
@@ -44,7 +44,7 @@ jobs:
       - run: ./scripts/build-release.sh
       - run: ./scripts/test-release.sh "${{ github.event.inputs.version }}"
       - name: Create tag
-        uses: actions/github-script@v5
+        uses: actions/github-script@v6
         with:
           github-token: ${{ github.token }}
           script: |
