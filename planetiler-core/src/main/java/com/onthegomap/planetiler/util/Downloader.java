@@ -230,7 +230,7 @@ public class Downloader {
 
   private void checkDiskSpace(Path destination, long size) {
     try {
-      var fs = Files.getFileStore(destination.getParent());
+      var fs = Files.getFileStore(destination.toAbsolutePath().getParent());
       var totalPendingBytes = bytesToDownload.merge(fs, size, Long::sum);
       var availableBytes = fs.getUnallocatedSpace();
       if (totalPendingBytes > availableBytes) {

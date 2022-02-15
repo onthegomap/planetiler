@@ -22,13 +22,13 @@ import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -536,7 +536,7 @@ public class Planetiler {
     try {
       bytesRequested.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
       bytesRequested.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
-      bytesRequested.merge(Files.getFileStore(output.getParent()), outputSize, Long::sum);
+      bytesRequested.merge(Files.getFileStore(output.toAbsolutePath().getParent()), outputSize, Long::sum);
       for (var entry : bytesRequested.entrySet()) {
         var fs = entry.getKey();
         var requested = entry.getValue();
@@ -570,35 +570,12 @@ public class Planetiler {
     if (jvmMemory < requested) {
       String warning =
         "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only "
-          + format.storage(jvmMemory) + " is available";
+          + format.storage(jvmMemory) + " is available, try setting -Xmx=" + format.storage(requested).toLowerCase(
+          Locale.ROOT);
       if (config.force() || requested < jvmMemory * 1.25) {
         LOGGER.warn(warning + ", may fail.");
       } else {
         throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-      }
-    }
-
-    long nodeMapBytes = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(),
-      osmInputFile.diskUsageBytes());
-    if (nodeMapBytes > 0
-      && ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
-      long systemMemory = os.getTotalMemorySize();
-      long availableForDiskCache = systemMemory - jvmMemory;
-      if (nodeMapBytes > availableForDiskCache) {
-        LOGGER.warn(
-          """
-            Planetiler will store node locations in a %s memory-mapped file. It is recommended to have at least that
-            much free RAM available on the system for the OS to cache the memory-mapped file, or else the import may
-            slow down substantially. There is %s total memory available and the JVM will use %s which only leaves %s.
-            You may want to reduce the -Xmx JVM setting, run on a system with more RAM, or increase -Xmx to at least
-            %s and use --nodemap-storage=ram instead.
-            """.formatted(
-            format.storage(nodeMapBytes),
-            format.storage(systemMemory),
-            format.storage(jvmMemory),
-            format.storage(systemMemory - jvmMemory),
-            format.storage(jvmMemory + nodeMapBytes)
-          ));
       }
     }
   }
