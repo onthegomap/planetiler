@@ -124,9 +124,9 @@
       <version>31.0.1-jre</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.lucene</groupId>
-      <artifactId>lucene-misc</artifactId>
-      <version>8.11.1</version>
+      <groupId>com.github.jnr</groupId>
+      <artifactId>jnr-ffi</artifactId>
+      <version>2.2.11</version>
     </dependency>
   </dependencies>
 

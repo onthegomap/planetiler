@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.Madvise;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
@@ -38,20 +39,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.Inflater;
-import org.apache.lucene.store.NativePosixUtil;
 import org.openstreetmap.osmosis.osmbinary.Fileformat;
 import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 public class OsmReadBench {
-
-  static {
-    try {
-      Class.forName("org.apache.lucene.store.NativePosixUtil");
-      System.out.println("Successfully loaded NativePosixUtil, madvise should work");
-    } catch (ClassNotFoundException | UnsatisfiedLinkError | NoClassDefFoundError e) {
-      System.err.println("Failed to load NativePosixUtil, madvise random won't do anything:  " + e);
-    }
-  }
 
   public static final int cpus = Runtime.getRuntime().availableProcessors();
 
@@ -366,8 +357,10 @@ public class OsmReadBench {
           long segmentLength = Math.min(segmentBytes, outIdx - segmentStart);
           MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
           try {
-            NativePosixUtil.madvise(buffer, NativePosixUtil.RANDOM);
+            Madvise.random(buffer);
+            System.err.println("Successfully madvise random'ed");
           } catch (IOException | UnsatisfiedLinkError | NoClassDefFoundError e) {
+            System.err.println("Failed ot madvise random " + e);
           }
           segments[i++] = buffer;
         }
