@@ -358,9 +358,9 @@ public class OsmReadBench {
           MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
           try {
             Madvise.random(buffer);
-            System.err.println("Successfully madvise random'ed");
+            System.err.println("Successful madvise random");
           } catch (IOException | UnsatisfiedLinkError | NoClassDefFoundError e) {
-            System.err.println("Failed ot madvise random " + e);
+            System.err.println("Failed to madvise random " + e);
           }
           segments[i++] = buffer;
         }
