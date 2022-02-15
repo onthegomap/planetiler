@@ -190,6 +190,23 @@ public class GeoUtils {
     return (x << 32) | (y & LOWER_32_BIT_MASK);
   }
 
+  private static final double LAT_MULT = (1 << 30) / 200d;
+  private static final double LON_MULT = (1 << 30) / 400d;
+
+  public static long packLatLon(double lon, double lat) {
+    long x = (long) ((lon + 200) * LON_MULT);
+    long y = (long) ((lat + 100) * LAT_MULT);
+    return (x << 32) | y;
+  }
+
+  public static double unpackLon(long value) {
+    return ((value >>> 32) / LON_MULT) - 200;
+  }
+
+  public static double unpackLat(long value) {
+    return ((value & LOWER_32_BIT_MASK) / LAT_MULT) - 100;
+  }
+
   /**
    * Returns the web mercator Y coordinate of the latitude/longitude encoded with {@link #encodeFlatLocation(double,
    * double)}.

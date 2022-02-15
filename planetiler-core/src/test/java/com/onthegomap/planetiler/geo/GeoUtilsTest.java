@@ -40,6 +40,10 @@ public class GeoUtilsTest {
 
     Geometry roundTripped = worldToLatLonCoords(actual);
     assertEquals(round(input), round(roundTripped));
+
+    long encoded2 = packLatLon(lon, lat);
+    assertEquals(lon, unpackLon(encoded2), 1e-5);
+    assertEquals(lat, unpackLat(encoded2), 1e-5);
   }
 
   @Test

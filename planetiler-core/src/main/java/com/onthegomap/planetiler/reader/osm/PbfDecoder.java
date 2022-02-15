@@ -25,27 +25,26 @@ import org.slf4j.LoggerFactory;
  *
  * @author Brett Henderson
  */
-public class PbfDecoder {
+public class PbfDecoder implements Iterable<OsmElement> {
 
-  private final byte[] rawBlob;
-  private final Consumer<OsmElement> receiver;
+  private final Osmformat.PrimitiveBlock block;
   private PbfFieldDecoder fieldDecoder;
 
-  private PbfDecoder(byte[] rawBlob, Consumer<OsmElement> receiver) {
-    this.rawBlob = rawBlob;
-    this.receiver = receiver;
+  private PbfDecoder(byte[] rawBlob) throws IOException {
+    byte[] data = readBlobContent(rawBlob);
+    block = Osmformat.PrimitiveBlock.parseFrom(data);
+    fieldDecoder = new PbfFieldDecoder(block);
   }
 
-  private void run() throws IOException {
-    byte[] data = readBlobContent(rawBlob);
-    Osmformat.PrimitiveBlock block = Osmformat.PrimitiveBlock.parseFrom(data);
-    fieldDecoder = new PbfFieldDecoder(block);
-    for (Osmformat.PrimitiveGroup primitiveGroup : block.getPrimitivegroupList()) {
-      processNodes(primitiveGroup.getDense());
-      processNodes(primitiveGroup.getNodesList());
-      processWays(primitiveGroup.getWaysList());
-      processRelations(primitiveGroup.getRelationsList());
-    }
+  @Override
+  public Iterator<OsmElement> iterator() {
+    return block.getPrimitivegroupList().stream()
+      .<OsmElement>mapMulti((primitiveGroup, next) -> {
+        processNodes(primitiveGroup.getDense(), next);
+        processNodes(primitiveGroup.getNodesList(), next);
+        processWays(primitiveGroup.getWaysList(), next);
+        processRelations(primitiveGroup.getRelationsList(), next);
+      }).iterator();
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PbfDecoder.class);
@@ -91,7 +90,7 @@ public class PbfDecoder {
     return null;
   }
 
-  private void processNodes(List<Osmformat.Node> nodes) {
+  private void processNodes(List<Osmformat.Node> nodes, Consumer<OsmElement> receiver) {
     for (Osmformat.Node node : nodes) {
       receiver.accept(new OsmElement.Node(
         node.getId(),
@@ -102,7 +101,7 @@ public class PbfDecoder {
     }
   }
 
-  private void processNodes(Osmformat.DenseNodes nodes) {
+  private void processNodes(Osmformat.DenseNodes nodes, Consumer<OsmElement> receiver) {
     List<Long> idList = nodes.getIdList();
     List<Long> latList = nodes.getLatList();
     List<Long> lonList = nodes.getLonList();
@@ -145,7 +144,7 @@ public class PbfDecoder {
     }
   }
 
-  private void processWays(List<Osmformat.Way> ways) {
+  private void processWays(List<Osmformat.Way> ways, Consumer<OsmElement> receiver) {
     for (Osmformat.Way way : ways) {
       // Build up the list of way nodes for the way. The node ids are
       // delta encoded meaning that each id is stored as a delta against
@@ -167,7 +166,7 @@ public class PbfDecoder {
     }
   }
 
-  private void processRelations(List<Osmformat.Relation> relations) {
+  private void processRelations(List<Osmformat.Relation> relations, Consumer<OsmElement> receiver) {
     for (Osmformat.Relation relation : relations) {
 
       int num = relation.getMemidsCount();
@@ -196,16 +195,15 @@ public class PbfDecoder {
     }
   }
 
-  public static List<OsmElement> decode(byte[] raw) {
-    List<OsmElement> result = new ArrayList<>();
-    decode(raw, result::add);
-    return result;
+  public static void decode(byte[] raw, Consumer<OsmElement> consumer) {
+    for (OsmElement element : decode(raw)) {
+      consumer.accept(element);
+    }
   }
 
-  public static void decode(byte[] raw, Consumer<OsmElement> consumer) {
+  public static Iterable<OsmElement> decode(byte[] raw) {
     try {
-      var decoder = new PbfDecoder(raw, consumer);
-      decoder.run();
+      return new PbfDecoder(raw);
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to process PBF blob", e);
     }
