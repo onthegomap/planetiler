@@ -20,6 +20,8 @@ The `planetiler-core` module includes the following software:
   - org.xerial:sqlite-jdbc (Apache license)
   - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
   - com.google.guava:guava (Apache license)
+  - org.openstreetmap.osmosis:osmosis-osm-binary (LGPL 3.0)
+  - com.carrotsearch:hppc (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -27,6 +29,8 @@ The `planetiler-core` module includes the following software:
   - `VectorTileEncoder`
     from [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) (Apache license)
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
+  - `PbfDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
+  - `PbfFieldDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 

@@ -4,7 +4,7 @@ import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongIntHashMap;
-import com.graphhopper.util.StopWatch;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.util.Arrays;
 import org.slf4j.Logger;
@@ -81,7 +81,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
     /** Sort the keys and values arrays by key */
     private void doPrepare() {
-      StopWatch watch = new StopWatch().start();
+      Timer timer = Timer.start();
 
       LOGGER.debug("Sorting long long multimap...");
       long[] sortedKeys = keys.toArray();
@@ -114,7 +114,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       }
       keys.buffer = sortedKeys;
       values.buffer = sortedValues;
-      LOGGER.debug("Sorted long long multimap " + watch.stop());
+      LOGGER.debug("Sorted long long multimap " + timer.stop());
     }
 
     @Override

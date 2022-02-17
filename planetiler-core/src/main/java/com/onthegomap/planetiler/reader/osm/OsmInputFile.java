@@ -1,24 +1,20 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.google.protobuf.ByteString;
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.osm.pbf.PbfDecoder;
-import com.graphhopper.reader.osm.pbf.PbfStreamSplitter;
-import com.graphhopper.reader.osm.pbf.Sink;
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
-import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.function.Consumer;
+import java.nio.file.StandardOpenOption;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.locationtech.jts.geom.Envelope;
+import org.openstreetmap.osmosis.osmbinary.Fileformat;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.Blob;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.BlobHeader;
 import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBBox;
@@ -29,12 +25,18 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
  *
  * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format">OSM PBF Format</a>
  */
-public class OsmInputFile implements Bounds.Provider, OsmSource {
+public class OsmInputFile implements Bounds.Provider {
 
   private final Path path;
+  private final boolean lazy;
+
+  public OsmInputFile(Path path, boolean lazyReads) {
+    this.path = path;
+    lazy = lazyReads;
+  }
 
   public OsmInputFile(Path path) {
-    this.path = path;
+    this(path, false);
   }
 
   /**
@@ -86,44 +88,109 @@ public class OsmInputFile implements Bounds.Provider, OsmSource {
     }
   }
 
-  /**
-   * Reads all elements from the input file using {@code threads} threads to decode blocks in parallel and writes them
-   * to {@code next}.
-   *
-   * @throws IOException if an error is encountered reading the file
-   */
-  public void readTo(Consumer<ReaderElement> next, String poolName, int threads) throws IOException {
-    ThreadFactory threadFactory = Executors.defaultThreadFactory();
-    ExecutorService executorService = Executors.newFixedThreadPool(threads, (runnable) -> {
-      Thread thread = threadFactory.newThread(runnable);
-      thread.setName(poolName + "-" + thread.getName());
-      return thread;
-    });
-    try (var stream = new BufferedInputStream(Files.newInputStream(path), 50_000)) {
-      PbfStreamSplitter streamSplitter = new PbfStreamSplitter(new DataInputStream(stream));
-      var sink = new ReaderElementSink(next);
-      PbfDecoder pbfDecoder = new PbfDecoder(streamSplitter, executorService, threads + 1, sink);
-      pbfDecoder.run();
-    } finally {
-      executorService.shutdownNow();
+  private static int readInt(FileChannel channel) throws IOException {
+    ByteBuffer buf = ByteBuffer.allocate(4);
+    channel.read(buf);
+    return buf.flip().getInt();
+  }
+
+  private static byte[] readBytes(FileChannel channel, int length) throws IOException {
+    ByteBuffer buf = ByteBuffer.allocate(length);
+    channel.read(buf);
+    return buf.flip().array();
+  }
+
+  private static byte[] readBytes(FileChannel channel, long offset, int length) throws IOException {
+    ByteBuffer buf = ByteBuffer.allocate(length);
+    channel.read(buf, offset);
+    return buf.flip().array();
+  }
+
+  public static OsmSource readFrom(Path path) {
+    return new OsmInputFile(path).newReader();
+  }
+
+  public OsmSource newReader() {
+    return lazy ? new LazyReader() : new EagerReader();
+  }
+
+  private FileChannel openChannel() {
+    try {
+      return FileChannel.open(path, StandardOpenOption.READ);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 
-  /** Starts a {@link WorkerPipeline} with all elements read from this input file. */
-  @Override
-  public WorkerPipeline.SourceStep<ReaderElement> read(String poolName, int threads) {
-    return next -> readTo(next, poolName, threads);
-  }
+  private class EagerReader implements OsmSource {
 
-  private static record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
+    record EagerBlock(@Override int id, byte[] bytes) implements Block {
 
-    @Override
-    public void process(ReaderElement readerElement) {
-      queue.accept(readerElement);
+      public Iterable<OsmElement> parse() {
+        return PbfDecoder.decode(bytes);
+      }
     }
 
     @Override
-    public void complete() {
+    public WorkerPipeline.SourceStep<Block> readBlocks() {
+      return next -> {
+        int blockId = 0;
+        try (FileChannel channel = openChannel()) {
+          while (channel.position() < channel.size()) {
+            int headerSize = readInt(channel);
+            byte[] headerBytes = readBytes(channel, headerSize);
+            Fileformat.BlobHeader header = Fileformat.BlobHeader.parseFrom(headerBytes);
+            byte[] blockBytes = readBytes(channel, header.getDatasize());
+            if ("OSMData".equals(header.getType())) {
+              next.accept(new EagerBlock(blockId++, blockBytes));
+            }
+          }
+        }
+      };
+    }
+  }
+
+  private class LazyReader implements OsmSource {
+
+    FileChannel lazyReadChannel = openChannel();
+
+    record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
+
+      public Iterable<OsmElement> parse() {
+        try {
+          return PbfDecoder.decode(readBytes(channel, offset, length));
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+    }
+
+    @Override
+    public WorkerPipeline.SourceStep<Block> readBlocks() {
+      return next -> {
+        int blockId = 0;
+        try (FileChannel channel = openChannel()) {
+          while (channel.position() < channel.size()) {
+            int headerSize = readInt(channel);
+            byte[] headerBytes = readBytes(channel, headerSize);
+            Fileformat.BlobHeader header = Fileformat.BlobHeader.parseFrom(headerBytes);
+            int blockSize = header.getDatasize();
+            if ("OSMData".equals(header.getType())) {
+              next.accept(new LazyBlock(blockId++, channel.position(), blockSize, lazyReadChannel));
+            }
+            channel.position(channel.position() + blockSize);
+          }
+        }
+      };
+    }
+
+    @Override
+    public void close() {
+      try {
+        lazyReadChannel.close();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
   }
 }

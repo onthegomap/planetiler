@@ -28,7 +28,8 @@ public record PlanetilerConfig(
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
-  double simplifyToleranceBelowMaxZoom
+  double simplifyToleranceBelowMaxZoom,
+  boolean osmLazyReads
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -86,7 +87,10 @@ public record PlanetilerConfig(
         256d / 4096),
       arguments.getDouble("simplify_tolerance",
         "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level",
-        0.1d)
+        0.1d),
+      arguments.getBoolean("osm_lazy_reads",
+        "Read OSM blocks from disk in worker threads",
+        false)
     );
   }
 

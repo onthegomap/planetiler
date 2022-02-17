@@ -1,16 +1,26 @@
 package com.onthegomap.planetiler.reader.osm;
 
-import com.graphhopper.reader.ReaderElement;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 
-public interface OsmSource {
+public interface OsmSource extends AutoCloseable {
 
   /**
    * Returns a source that initiates a {@link WorkerPipeline} with raw OSM elements.
    *
-   * @param poolName string ID used when creating worker threads to decode OSM blocks
-   * @param threads  maximum number of threads to use when processing elements in parallel
    * @return work for a source thread
    */
-  WorkerPipeline.SourceStep<ReaderElement> read(String poolName, int threads);
+  WorkerPipeline.SourceStep<Block> readBlocks();
+
+  @Override
+  default void close() {
+  }
+
+  interface Block {
+
+    static Block of(Iterable<? extends OsmElement> items) {
+      return () -> items;
+    }
+
+    Iterable<? extends OsmElement> parse();
+  }
 }
