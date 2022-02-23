@@ -31,6 +31,7 @@ import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
@@ -62,6 +63,7 @@ import org.slf4j.LoggerFactory;
 public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsmReader.class);
+  private static final Format FORMAT = Format.defaultInstance();
   private static final int ROLE_BITS = 16;
   private static final int MAX_ROLES = (1 << ROLE_BITS) - 10;
   private static final int ROLE_SHIFT = 64 - ROLE_BITS;
@@ -149,6 +151,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
       .addPipelineStats(pipeline);
     pipeline.awaitAndLog(loggers, config.logInterval());
+    LOGGER.debug(
+      "nodes: " + FORMAT.integer(PASS1_NODES.get()) +
+        " ways: " + FORMAT.integer(PASS1_WAYS.get()) +
+        " relations: " + FORMAT.integer(PASS1_RELATIONS.get()));
     timer.stop();
   }
 
@@ -314,6 +320,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
+    LOGGER.debug(
+      "nodes: " + FORMAT.integer(nodesProcessed.get()) +
+        " ways: " + FORMAT.integer(waysProcessed.get()) +
+        " relations: " + FORMAT.integer(relsProcessed.get()));
+
+    timer.stop();
+
     try {
       profile.finish(name,
         new FeatureCollector.Factory(config, stats),
@@ -321,7 +334,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
     }
-    timer.stop();
   }
 
   private FeatureRenderer createFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
