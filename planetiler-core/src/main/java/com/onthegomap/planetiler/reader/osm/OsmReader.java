@@ -217,7 +217,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       } else if (element instanceof OsmElement.Relation relation) {
         relations++;
-        PASS1_RELATIONS.inc();
         try {
           List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
           if (infos != null) {
@@ -315,7 +314,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
                 waitForWays.await();
                 waysDone = true;
               }
-              rels.inc();
               feature = processRelationPass2(relation, nodeLocations);
             }
             // render features specified by profile and hand them off to next step that will
