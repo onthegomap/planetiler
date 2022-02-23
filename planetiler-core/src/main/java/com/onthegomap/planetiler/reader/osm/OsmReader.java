@@ -176,10 +176,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     loggers.awaitAndLog(joinFutures(pipeline.done(), consumer.done()), config.logInterval());
 
-    LOGGER.debug(
-      "nodes: " + FORMAT.integer(PASS1_NODES.get()) +
-        " ways: " + FORMAT.integer(PASS1_WAYS.get()) +
-        " relations: " + FORMAT.integer(PASS1_RELATIONS.get()));
+    LOGGER.debug("processed " +
+      FORMAT.integer(PASS1_BLOCKS.get()) + " blocks " +
+      FORMAT.integer(PASS1_NODES.get()) + " nodes " +
+      FORMAT.integer(PASS1_WAYS.get()) + " ways " +
+      FORMAT.integer(PASS1_RELATIONS.get()) + " relations");
     timer.stop();
   }
 
@@ -264,7 +265,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   public void pass2(FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage("osm_pass2");
     int threads = config.threads();
-    int processThreads = Math.max(threads - 1, 1);
+    int processThreads = Math.max(threads < 4 ? threads : (threads - 1), 1);
     Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
@@ -360,10 +361,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
-    LOGGER.debug(
-      "nodes: " + FORMAT.integer(nodesProcessed.get()) +
-        " ways: " + FORMAT.integer(waysProcessed.get()) +
-        " relations: " + FORMAT.integer(relsProcessed.get()));
+    LOGGER.debug("processed " +
+      FORMAT.integer(blocksProcessed.get()) + " blocks " +
+      FORMAT.integer(nodesProcessed.get()) + " nodes " +
+      FORMAT.integer(waysProcessed.get()) + " ways " +
+      FORMAT.integer(relsProcessed.get()) + " relations");
 
     timer.stop();
 
