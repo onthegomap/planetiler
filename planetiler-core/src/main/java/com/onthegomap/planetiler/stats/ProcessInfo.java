@@ -18,11 +18,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A collection of utilities to gather runtime information about the JVM.
  */
 public class ProcessInfo {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessInfo.class);
 
   // listen on GC events to track memory pool sizes after each GC
   private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
@@ -41,6 +45,13 @@ public class ProcessInfo {
           }
         }, null, null);
       }
+    }
+
+    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+    if (threadBean.isThreadContentionMonitoringSupported()) {
+      ManagementFactory.getThreadMXBean().setThreadContentionMonitoringEnabled(true);
+    } else {
+      LOGGER.debug("Thread contention monitoring not supported, will not have access to waiting/blocking time stats.");
     }
   }
 
@@ -94,9 +105,12 @@ public class ProcessInfo {
   }
 
   /** Processor usage statistics for a thread. */
-  public static record ThreadState(String name, Duration cpuTime, Duration userTime, long id) {
+  public record ThreadState(
+    String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id
+  ) {
 
-    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, -1);
+    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, Duration.ZERO,
+      Duration.ZERO, -1);
 
   }
 
@@ -134,6 +148,8 @@ public class ProcessInfo {
           thread.getThreadName(),
           Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
           Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
+          Duration.ofMillis(thread.getWaitedTime()),
+          Duration.ofMillis(thread.getBlockedTime()),
           thread.getThreadId()
         ));
     }

@@ -296,7 +296,7 @@ public class Downloader {
                 var inputStream = (ranges || range.start > 0)
                   ? openStreamRange(canonicalUrl, range.start, range.end)
                   : openStream(canonicalUrl);
-                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress);
+                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress)
               ) {
                 // ensure this file has been allocated up to the start of this block
                 fileChannel.write(ByteBuffer.allocate(1), range.start);
@@ -325,9 +325,9 @@ public class Downloader {
       .header(USER_AGENT, config.httpUserAgent());
   }
 
-  static record ResourceMetadata(Optional<String> redirect, String canonicalUrl, long size, boolean acceptRange) {}
+  record ResourceMetadata(Optional<String> redirect, String canonicalUrl, long size, boolean acceptRange) {}
 
-  static record ResourceToDownload(
+  record ResourceToDownload(
     String id, String url, Path output, CompletableFuture<ResourceMetadata> metadata, AtomicLong progress
   ) {
 
@@ -347,7 +347,7 @@ public class Downloader {
   /**
    * Wrapper for a {@link ReadableByteChannel} that captures progress information.
    */
-  private static record ProgressChannel(ReadableByteChannel inner, AtomicLong progress) implements ReadableByteChannel {
+  private record ProgressChannel(ReadableByteChannel inner, AtomicLong progress) implements ReadableByteChannel {
 
     @Override
     public int read(ByteBuffer dst) throws IOException {

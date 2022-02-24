@@ -583,14 +583,14 @@ public class Planetiler {
     }
   }
 
-  private static record Stage(String id, List<String> details, RunnableThatThrows task) {
+  private record Stage(String id, List<String> details, RunnableThatThrows task) {
 
     Stage(String id, String description, RunnableThatThrows task) {
       this(id, List.of(id + ": " + description), task);
     }
   }
 
-  private static record ToDownload(String id, String url, Path path) {}
+  private record ToDownload(String id, String url, Path path) {}
 
-  private static record InputPath(String id, Path path) {}
+  private record InputPath(String id, Path path) {}
 }

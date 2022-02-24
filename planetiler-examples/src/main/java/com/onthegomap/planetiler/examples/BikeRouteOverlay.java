@@ -42,7 +42,7 @@ public class BikeRouteOverlay implements Profile {
    */
 
   // Minimal container for data we extract from OSM bicycle route relations. This is held in RAM so keep it small.
-  private static record RouteRelationInfo(
+  private record RouteRelationInfo(
     // OSM ID of the relation (required):
     @Override long id,
     // Values for tags extracted from the OSM relation:

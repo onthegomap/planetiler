@@ -244,7 +244,7 @@ public class BasemapProfile extends ForwardingProfile {
    */
   public interface IgnoreWikidata {}
 
-  private static record RowDispatch(
+  private record RowDispatch(
     Tables.Constructor constructor,
     List<Tables.RowHandler<Tables.Row>> handlers
   ) {}

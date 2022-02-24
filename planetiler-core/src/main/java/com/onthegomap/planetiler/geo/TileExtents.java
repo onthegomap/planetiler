@@ -54,7 +54,7 @@ public class TileExtents implements Predicate<TileCoord> {
    * X/Y extents within a given zoom level. {@code minX} and {@code minY} are inclusive and {@code maxX} and {@code
    * maxY} are exclusive.
    */
-  public static record ForZoom(int minX, int minY, int maxX, int maxY) {
+  public record ForZoom(int minX, int minY, int maxX, int maxY) {
 
     public boolean test(int x, int y) {
       return testX(x) && testY(y);

@@ -100,9 +100,9 @@ public class Geofabrik {
     }
   }
 
-  static record PropertiesJson(String id, String parent, String name, Map<String, String> urls) {}
+  record PropertiesJson(String id, String parent, String name, Map<String, String> urls) {}
 
-  static record FeatureJson(PropertiesJson properties) {}
+  record FeatureJson(PropertiesJson properties) {}
 
-  static record IndexJson(List<FeatureJson> features) {}
+  record IndexJson(List<FeatureJson> features) {}
 }

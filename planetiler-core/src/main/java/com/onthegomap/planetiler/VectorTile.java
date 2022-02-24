@@ -514,7 +514,7 @@ public class VectorTile {
    * {@code scale == 2} the extent is 4x{@link #EXTENT}. Geometries must be scaled back to 0 using {@link #unscale()}
    * before outputting to mbtiles.
    */
-  public static record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
+  public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
 
     public VectorGeometry {
       if (scale < 0) {
@@ -576,7 +576,7 @@ public class VectorTile {
    *                 populated when this feature was deserialized from {@link FeatureGroup}, not when parsed from a tile
    *                 since vector tile schema does not encode group.
    */
-  public static record Feature(
+  public record Feature(
     String layer,
     long id,
     VectorGeometry geometry,
@@ -770,7 +770,7 @@ public class VectorTile {
     }
   }
 
-  private static final record EncodedFeature(IntArrayList tags, long id, VectorGeometry geometry) {
+  private record EncodedFeature(IntArrayList tags, long id, VectorGeometry geometry) {
 
     EncodedFeature(Feature in) {
       this(new IntArrayList(), in.id(), in.geometry());

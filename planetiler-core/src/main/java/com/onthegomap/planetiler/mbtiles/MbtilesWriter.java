@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.mbtiles;
 
 import static com.onthegomap.planetiler.util.Gzip.gzip;
+import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -163,10 +164,8 @@ public class MbtilesWriter {
       .newLine()
       .add(writer::getLastTileLogDetails);
 
-    encodeBranch.awaitAndLog(loggers, config.logInterval());
-    if (writeBranch != null) {
-      writeBranch.awaitAndLog(loggers, config.logInterval());
-    }
+    var doneFuture = writeBranch == null ? encodeBranch.done() : joinFutures(writeBranch.done(), encodeBranch.done());
+    loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
   }
@@ -362,7 +361,7 @@ public class MbtilesWriter {
    * @param in  the tile data to encode
    * @param out the future that encoder thread completes to hand finished tile off to writer thread
    */
-  private static record TileBatch(
+  private record TileBatch(
     List<FeatureGroup.TileFeatures> in,
     CompletableFuture<Queue<Mbtiles.TileEntry>> out
   ) {

@@ -309,7 +309,7 @@ public class TestUtils {
     }
   }
 
-  public static record NormGeometry(Geometry geom) implements GeometryComparision {
+  public record NormGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
@@ -327,7 +327,7 @@ public class TestUtils {
     }
   }
 
-  private static record ExactGeometry(Geometry geom) implements GeometryComparision {
+  private record ExactGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
@@ -345,7 +345,7 @@ public class TestUtils {
     }
   }
 
-  public static record TopoGeometry(Geometry geom) implements GeometryComparision {
+  public record TopoGeometry(Geometry geom) implements GeometryComparision {
 
     @Override
     public boolean equals(Object o) {
@@ -363,7 +363,7 @@ public class TestUtils {
     }
   }
 
-  public static record ComparableFeature(
+  public record ComparableFeature(
     GeometryComparision geometry,
     Map<String, Object> attrs
   ) {}
@@ -490,18 +490,18 @@ public class TestUtils {
   }
 
   @JacksonXmlRootElement(localName = "node")
-  public static record Node(
+  public record Node(
     long id, double lat, double lon
   ) {}
 
   @JacksonXmlRootElement(localName = "nd")
-  public static record NodeRef(
+  public record NodeRef(
     long ref
   ) {}
 
-  public static record Tag(String k, String v) {}
+  public record Tag(String k, String v) {}
 
-  public static record Way(
+  public record Way(
     long id,
     @JacksonXmlProperty(localName = "nd")
     @JacksonXmlElementWrapper(useWrapping = false)
@@ -512,12 +512,12 @@ public class TestUtils {
   ) {}
 
   @JacksonXmlRootElement(localName = "member")
-  public static record RelationMember(
+  public record RelationMember(
     String type, long ref, String role
   ) {}
 
   @JacksonXmlRootElement(localName = "relation")
-  public static record Relation(
+  public record Relation(
     long id,
     @JacksonXmlProperty(localName = "member")
     @JacksonXmlElementWrapper(useWrapping = false)
@@ -528,7 +528,7 @@ public class TestUtils {
   ) {}
 
   //  @JsonIgnoreProperties(ignoreUnknown = true)
-  public static record OsmXml(
+  public record OsmXml(
     String version,
     String generator,
     String copyright,
@@ -585,7 +585,7 @@ public class TestUtils {
       int num = Verify.getNumFeatures(db, layer, zoom, attrs, envelope, clazz);
 
       assertEquals(expected, num, "z%d features in %s".formatted(zoom, layer));
-    } catch (IOException | GeometryException e) {
+    } catch (GeometryException e) {
       fail(e);
     }
   }

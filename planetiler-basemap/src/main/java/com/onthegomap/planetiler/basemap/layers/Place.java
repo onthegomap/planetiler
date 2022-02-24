@@ -412,7 +412,7 @@ public class Place implements
    * Information extracted from a natural earth geographic region that will be inspected when joining with OpenStreetMap
    * data.
    */
-  private static record NaturalEarthRegion(String name, int rank) {
+  private record NaturalEarthRegion(String name, int rank) {
 
     NaturalEarthRegion(String name, int maxRank, double... ranks) {
       this(name, (int) Math.ceil(DoubleStream.of(ranks).average().orElse(maxRank)));
@@ -423,6 +423,6 @@ public class Place implements
    * Information extracted from a natural earth place label that will be inspected when joining with OpenStreetMap
    * data.
    */
-  private static record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
+  private record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
 }
 

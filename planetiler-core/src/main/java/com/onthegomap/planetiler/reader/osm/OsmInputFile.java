@@ -115,7 +115,7 @@ public class OsmInputFile implements Bounds.Provider, OsmSource {
     return next -> readTo(next, poolName, threads);
   }
 
-  private static record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
+  private record ReaderElementSink(Consumer<ReaderElement> queue) implements Sink {
 
     @Override
     public void process(ReaderElement readerElement) {

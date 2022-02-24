@@ -79,7 +79,7 @@ public interface OsmElement extends WithTags {
     }
 
     /** A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member. */
-    public static record Member(
+    public record Member(
       Type type,
       long ref,
       String role

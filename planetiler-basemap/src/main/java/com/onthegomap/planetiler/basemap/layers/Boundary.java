@@ -421,7 +421,7 @@ public class Boundary implements
       .orElse(null);
   }
 
-  private static record BorderingRegions(Long left, Long right) {
+  private record BorderingRegions(Long left, Long right) {
 
     public static BorderingRegions empty() {
       return new BorderingRegions(null, null);
@@ -432,7 +432,7 @@ public class Boundary implements
    * Minimal set of information extracted from a boundary relation to be used when processing each way in that
    * relation.
    */
-  private static record BoundaryRelation(
+  private record BoundaryRelation(
     long id,
     int adminLevel,
     boolean disputed,
@@ -454,7 +454,7 @@ public class Boundary implements
   }
 
   /** Information to hold onto from processing a way in a boundary relation to determine the left/right region ID later. */
-  private static record CountryBoundaryComponent(
+  private record CountryBoundaryComponent(
     int adminLevel,
     boolean disputed,
     boolean maritime,
