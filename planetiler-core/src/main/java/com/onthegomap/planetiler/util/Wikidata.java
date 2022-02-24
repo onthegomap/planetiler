@@ -128,8 +128,7 @@ public class Wikidata {
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 1_000_000, 100)
         .sinkTo("fetch", 1, prev -> {
-          Long id;
-          while ((id = prev.get()) != null) {
+          for (Long id : prev) {
             fetcher.fetch(id);
           }
           fetcher.flush();

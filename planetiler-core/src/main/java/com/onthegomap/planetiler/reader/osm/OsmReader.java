@@ -13,7 +13,6 @@ import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
-import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.collection.SortableFeature;
@@ -297,7 +296,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
 
-        for (var block : IterableOnce.of(prev)) {
+        for (var block : prev) {
           int blockNodes = 0, blockWays = 0, blockRelations = 0;
           for (var element : block.parse()) {
             SourceFeature feature = null;
