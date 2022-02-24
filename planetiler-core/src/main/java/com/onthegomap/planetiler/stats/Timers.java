@@ -30,7 +30,7 @@ public class Timers {
       String name = entry.getKey();
       var elapsed = entry.getValue().timer.elapsed();
       LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
-      for (String detail : getStageDetails(name, false)) {
+      for (String detail : getStageDetails(name, true)) {
         LOGGER.info("\t  " + detail);
       }
     }
@@ -97,7 +97,7 @@ public class Timers {
     LOGGER.info("Starting...");
     return () -> {
       LOGGER.info("Finished in " + timers.get(name).timer.stop());
-      for (var details : getStageDetails(name, false)) {
+      for (var details : getStageDetails(name, true)) {
         LOGGER.info("  " + details);
       }
       currentStage.set(last);
