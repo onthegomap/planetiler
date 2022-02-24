@@ -256,11 +256,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         Counter ways = waysProcessed.counterForThread();
         Counter rels = relsProcessed.counterForThread();
 
-        ReaderElement readerElement;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
-        while ((readerElement = prev.get()) != null) {
+        for (ReaderElement readerElement : prev) {
           SourceFeature feature = null;
           if (readerElement instanceof ReaderNode node) {
             nodes.inc();
