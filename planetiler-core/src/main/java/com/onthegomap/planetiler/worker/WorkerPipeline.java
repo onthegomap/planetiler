@@ -151,7 +151,7 @@ public record WorkerPipeline<T>(
   }
 
   /** Builder for a new topology that does not yet have any steps. */
-  public static record Empty(String prefix, Stats stats) {
+  public record Empty(String prefix, Stats stats) {
 
     /**
      * Adds an initial step that runs {@code producer} in {@code threads} worker threads to produce items for this
@@ -213,7 +213,7 @@ public record WorkerPipeline<T>(
    *
    * @param <O> type of elements that the next step must process
    */
-  public static record Builder<O>(
+  public record Builder<O>(
     String prefix,
     String name,
     // keep track of previous elements so that build can wire-up the computation graph
@@ -276,8 +276,7 @@ public record WorkerPipeline<T>(
      */
     public WorkerPipeline<O> sinkToConsumer(String name, int threads, Consumer<O> consumer) {
       return sinkTo(name, threads, (prev) -> {
-        O item;
-        while ((item = prev.get()) != null) {
+        for (O item : prev) {
           consumer.accept(item);
         }
       });

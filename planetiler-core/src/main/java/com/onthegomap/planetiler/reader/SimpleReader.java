@@ -57,10 +57,9 @@ public abstract class SimpleReader implements Closeable {
       .fromGenerator("read", read())
       .addBuffer("read_queue", 1000)
       .<SortableFeature>addWorker("process", threads, (prev, next) -> {
-        SourceFeature sourceFeature;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         FeatureRenderer renderer = newFeatureRenderer(writer, config, next);
-        while ((sourceFeature = prev.get()) != null) {
+        for (SourceFeature sourceFeature : prev) {
           featuresRead.incrementAndGet();
           FeatureCollector features = featureCollectors.get(sourceFeature);
           if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {

@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -131,8 +130,7 @@ public class Wikidata {
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 1_000_000, 100)
         .sinkTo("fetch", 1, prev -> {
-          Long id;
-          while ((id = prev.get()) != null) {
+          for (Long id : prev) {
             fetcher.fetch(id);
           }
           fetcher.flush();
@@ -217,9 +215,8 @@ public class Wikidata {
   }
 
   /** Only pass elements that the profile cares about to next step in pipeline. */
-  private void filter(Supplier<ReaderElement> prev, Consumer<Long> next) {
-    ReaderElement elem;
-    while ((elem = prev.get()) != null) {
+  private void filter(Iterable<ReaderElement> prev, Consumer<Long> next) {
+    for (ReaderElement elem : prev) {
       switch (elem.getType()) {
         case ReaderElement.NODE -> nodes.inc();
         case ReaderElement.WAY -> ways.inc();
