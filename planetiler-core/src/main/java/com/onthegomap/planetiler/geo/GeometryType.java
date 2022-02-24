@@ -13,7 +13,7 @@ public enum GeometryType {
   POLYGON(VectorTileProto.Tile.GeomType.POLYGON, 4);
 
   private final VectorTileProto.Tile.GeomType protobufType;
-  private int minPoints;
+  private final int minPoints;
 
   GeometryType(VectorTileProto.Tile.GeomType protobufType, int minPoints) {
     this.protobufType = protobufType;

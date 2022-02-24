@@ -50,10 +50,10 @@ Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https:/
 
 ## Data
 
-|source | license | used as default | included in repo |
-|-------|---------|-----------------|------------------|
-| OpenStreetMap (OSM) data | [ODBL](https://www.openstreetmap.org/copyright) | yes | yes
-| Natural Earth | [public domain](https://www.naturalearthdata.com/about/terms-of-use/) | yes | yes
-| OSM Lakelines | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes | no
-| OSM Water Polygons | [acknowledgement](https://osmdata.openstreetmap.de/info/license.html), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes | yes
-| Wikidata name translations | [CCO](https://www.wikidata.org/wiki/Wikidata:Licensing) | no | no
+| source                     | license                                                                                                                              | used as default | included in repo |
+|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------|------------------|
+| OpenStreetMap (OSM) data   | [ODBL](https://www.openstreetmap.org/copyright)                                                                                      | yes             | yes              |
+| Natural Earth              | [public domain](https://www.naturalearthdata.com/about/terms-of-use/)                                                                | yes             | yes              |
+| OSM Lakelines              | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright)               | yes             | no               |
+| OSM Water Polygons         | [acknowledgement](https://osmdata.openstreetmap.de/info/license.html), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes             | yes              |
+| Wikidata name translations | [CCO](https://www.wikidata.org/wiki/Wikidata:Licensing)                                                                              | no              | no               |

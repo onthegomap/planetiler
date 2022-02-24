@@ -480,7 +480,7 @@ public class GeoUtils {
   }
 
   /** Helper class to sort polygons by area of their outer shell. */
-  private static record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
+  private record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
 
     PolyAndArea(Polygon poly) {
       this(poly, Area.ofRing(poly.getExteriorRing().getCoordinateSequence()));

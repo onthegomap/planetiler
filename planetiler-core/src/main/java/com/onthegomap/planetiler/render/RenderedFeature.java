@@ -32,5 +32,5 @@ public record RenderedFeature(
    *              this is the 4th feature in a group with lowest sort-key then the feature is included if {@code limit
    *              <= 4}
    */
-  public static record Group(long group, int limit) {}
+  public record Group(long group, int limit) {}
 }

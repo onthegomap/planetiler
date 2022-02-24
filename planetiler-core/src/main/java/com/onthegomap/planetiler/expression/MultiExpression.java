@@ -308,13 +308,13 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
   }
 
   /** An expression/value pair with unique ID to store whether we evaluated it yet. */
-  private static record EntryWithId<T>(T result, Expression expression, int id) {}
+  private record EntryWithId<T>(T result, Expression expression, int id) {}
 
   /**
    * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
    */
-  public static record Entry<T>(T result, Expression expression) {}
+  public record Entry<T>(T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public static record Match<T>(T match, List<String> keys) {}
+  public record Match<T>(T match, List<String> keys) {}
 }

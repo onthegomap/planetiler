@@ -182,7 +182,7 @@ public class Building implements
     return (mergeZ13Buildings && zoom == 13) ? FeatureMerge.mergeNearbyPolygons(items, 4, 4, 0.5, 0.5) : items;
   }
 
-  private static record BuildingRelationInfo(long id) implements OsmRelationInfo {
+  private record BuildingRelationInfo(long id) implements OsmRelationInfo {
 
     @Override
     public long estimateMemoryUsageBytes() {

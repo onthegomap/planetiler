@@ -28,8 +28,7 @@ public class WorkerPipelineTest {
         next.accept(1);
       }).addBuffer("reader_queue", 1)
       .<Integer>addWorker("process", 1, (prev, next) -> {
-        Integer item;
-        while ((item = prev.get()) != null) {
+        for (Integer item : prev) {
           next.accept(item * 2 + 1);
           next.accept(item * 2 + 2);
         }
@@ -76,8 +75,7 @@ public class WorkerPipelineTest {
       .readFrom("reader", List.of(0, 1))
       .addBuffer("reader_queue", 1)
       .<Integer>addWorker("process", 1, (prev, next) -> {
-        Integer item;
-        while ((item = prev.get()) != null) {
+        for (Integer item : prev) {
           next.accept(item * 2 + 1);
           next.accept(item * 2 + 2);
         }
@@ -106,8 +104,7 @@ public class WorkerPipelineTest {
         if (failureStage == 2) {
           throw new ExpectedException();
         }
-        Integer item;
-        while ((item = prev.get()) != null) {
+        for (Integer item : prev) {
           next.accept(item * 2 + 1);
           next.accept(item * 2 + 2);
         }

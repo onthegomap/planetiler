@@ -80,7 +80,7 @@ public class FeatureGroupTest {
     return map;
   }
 
-  private static record Feature(Map<String, Object> attrs, Geometry geom) {}
+  private record Feature(Map<String, Object> attrs, Geometry geom) {}
 
   @Test
   public void testPutPoints() {

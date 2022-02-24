@@ -175,7 +175,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
-  public static record Factory(PlanetilerConfig config, Stats stats) {
+  public record Factory(PlanetilerConfig config, Stats stats) {
 
     public FeatureCollector get(SourceFeature source) {
       return new FeatureCollector(source, config, stats);

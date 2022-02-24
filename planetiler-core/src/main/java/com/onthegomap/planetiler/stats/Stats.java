@@ -43,6 +43,7 @@ public interface Stats extends AutoCloseable {
   default void printSummary() {
     Format format = Format.defaultInstance();
     Logger LOGGER = LoggerFactory.getLogger(getClass());
+    System.out.println();
     LOGGER.info("-".repeat(40));
     timers().printSummary();
     LOGGER.info("-".repeat(40));

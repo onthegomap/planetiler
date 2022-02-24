@@ -15,7 +15,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.Hppc;
-import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -43,7 +42,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -215,8 +213,8 @@ public class Wikidata {
   }
 
   /** Only pass elements that the profile cares about to next step in pipeline. */
-  private void filter(Supplier<OsmSource.Block> prev, Consumer<Long> next) {
-    for (var block : IterableOnce.of(prev)) {
+  private void filter(Iterable<OsmSource.Block> prev, Consumer<Long> next) {
+    for (var block : prev) {
       int blockNodes = 0, blockWays = 0, blockRelations = 0;
       for (var elem : block.parse()) {
         if (elem instanceof OsmElement.Node) {
