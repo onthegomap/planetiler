@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
@@ -109,13 +110,21 @@ public class ProcessInfo {
     String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id
   ) {
 
+    private static long zeroIfUnsupported(LongSupplier supplier) {
+      try {
+        return supplier.getAsLong();
+      } catch (UnsupportedOperationException e) {
+        return 0;
+      }
+    }
+
     public ThreadState(ThreadMXBean threadMXBean, ThreadInfo thread) {
       this(
         thread.getThreadName(),
-        Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
-        Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
-        Duration.ofMillis(thread.getWaitedTime()),
-        Duration.ofMillis(thread.getBlockedTime()),
+        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadCpuTime(thread.getThreadId()))),
+        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadUserTime(thread.getThreadId()))),
+        Duration.ofMillis(zeroIfUnsupported(thread::getWaitedTime)),
+        Duration.ofMillis(zeroIfUnsupported(thread::getBlockedTime)),
         thread.getThreadId());
     }
 
