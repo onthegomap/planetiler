@@ -44,7 +44,7 @@ public class PrometheusStatsTest {
     assertContainsStat("^planetiler_task1_elapsed_time_seconds [0-9\\.]+$", stats);
     assertContainsStat("^planetiler_task1_cpu_time_seconds [0-9\\.]+$", stats);
 
-    assertFalse(stats.timers().all().get("task1").running());
+    assertFalse(stats.timers().all().get("task1").timer().running());
   }
 
   @Test

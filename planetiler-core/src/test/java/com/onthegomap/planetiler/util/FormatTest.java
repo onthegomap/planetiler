@@ -1,7 +1,9 @@
 package com.onthegomap.planetiler.util;
 
+import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Duration;
 import java.util.Locale;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -72,5 +74,23 @@ public class FormatTest {
   })
   public void testFormatDecimal(Double in, String out, Locale locale) {
     assertEquals(out, Format.forLocale(locale).decimal(in));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0s,en",
+    "0.1,0.1s,en",
+    "0.1,'0,1s',it",
+    "0.999,1s,en",
+    "1.1,1s,en",
+    "59,59s,en",
+    "60,1m,en",
+    "61.1,1m1s,en",
+    "3599,59m59s,en",
+    "3600,1h,en",
+    "3601,1h1s,en",
+  })
+  public void testFormatDuration(double seconds, String out, Locale locale) {
+    assertEquals(out, Format.forLocale(locale).duration(Duration.ofNanos((long) (seconds * NANOSECONDS_PER_SECOND))));
   }
 }
