@@ -47,6 +47,7 @@ public class Worker {
         LOGGER.trace("Starting worker");
         try {
           task.run();
+          stats.timers().finishedWorker(prefix);
         } catch (Throwable e) {
           System.err.println("Worker " + id + " died");
           throwRuntimeException(e);

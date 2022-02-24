@@ -109,9 +109,29 @@ public class ProcessInfo {
     String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id
   ) {
 
+    public ThreadState(ThreadMXBean threadMXBean, ThreadInfo thread) {
+      this(
+        thread.getThreadName(),
+        Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
+        Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
+        Duration.ofMillis(thread.getWaitedTime()),
+        Duration.ofMillis(thread.getBlockedTime()),
+        thread.getThreadId());
+    }
+
     public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, Duration.ZERO,
       Duration.ZERO, -1);
 
+    /** Adds up the timers in two {@code ThreadState} instances */
+    public static ThreadState sum(ThreadState a, ThreadState b) {
+      return new ThreadState("<multiple threads>",
+        a.cpuTime.plus(b.cpuTime),
+        a.userTime.plus(b.userTime),
+        a.waiting.plus(b.waiting),
+        a.blocking.plus(b.blocking),
+        -1
+      );
+    }
   }
 
   /** Returns the amount of time this JVM has spent in any kind of garbage collection since startup. */
@@ -143,16 +163,14 @@ public class ProcessInfo {
     Map<Long, ThreadState> threadState = new TreeMap<>();
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     for (ThreadInfo thread : threadMXBean.dumpAllThreads(false, false)) {
-      threadState.put(thread.getThreadId(),
-        new ThreadState(
-          thread.getThreadName(),
-          Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
-          Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
-          Duration.ofMillis(thread.getWaitedTime()),
-          Duration.ofMillis(thread.getBlockedTime()),
-          thread.getThreadId()
-        ));
+      threadState.put(thread.getThreadId(), new ThreadState(threadMXBean, thread));
     }
     return threadState;
+  }
+
+  public static ThreadState getCurrentThreadStats() {
+    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    ThreadInfo thread = threadMXBean.getThreadInfo(Thread.currentThread().getId());
+    return new ThreadState(threadMXBean, thread);
   }
 }

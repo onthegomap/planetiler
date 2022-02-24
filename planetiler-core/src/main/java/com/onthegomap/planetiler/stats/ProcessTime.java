@@ -30,10 +30,10 @@ public record ProcessTime(Duration wall, Optional<Duration> cpu) {
 
   public String toString(Locale locale) {
     Format format = Format.forLocale(locale);
-    Optional<String> deltaCpu = cpu.map(format::seconds);
+    Optional<String> deltaCpu = cpu.map(format::duration);
     String avgCpus = cpu.map(cpuTime -> " avg:" + format.decimal(cpuTime.toNanos() * 1d / wall.toNanos()))
       .orElse("");
-    return format.seconds(wall) + " cpu:" + deltaCpu.orElse("-") + avgCpus;
+    return format.duration(wall) + " cpu:" + deltaCpu.orElse("-") + avgCpus;
   }
 
   @Override

@@ -220,7 +220,7 @@ class PrometheusStats implements Stats {
       List<MetricFamilySamples> result = new ArrayList<>();
       for (var entry : timers.all().entrySet()) {
         String name = entry.getKey();
-        Timer timer = entry.getValue();
+        Timer timer = entry.getValue().timer();
         result.add(gaugeMetric(name + "_running", timer.running() ? 1 : 0));
         ProcessTime time = timer.elapsed();
         result.add(gaugeMetric(name + "_elapsed_time_seconds", time.wall().toNanos() / NANOSECONDS_PER_SECOND));
