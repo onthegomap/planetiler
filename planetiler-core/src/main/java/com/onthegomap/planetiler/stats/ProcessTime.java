@@ -16,16 +16,21 @@ import java.util.Optional;
  * LOGGER.log("Expensive work took " + end.minus(start));
  * }</pre>
  */
-public record ProcessTime(Duration wall, Optional<Duration> cpu) {
+public record ProcessTime(Duration wall, Optional<Duration> cpu, Duration gc) {
 
   /** Takes a snapshot of current wall and CPU time of this JVM. */
   public static ProcessTime now() {
-    return new ProcessTime(Duration.ofNanos(System.nanoTime()), ProcessInfo.getProcessCpuTime());
+    return new ProcessTime(Duration.ofNanos(System.nanoTime()), ProcessInfo.getProcessCpuTime(),
+      ProcessInfo.getGcTime());
   }
 
   /** Returns the amount of time elapsed between {@code other} and {@code this}. */
   ProcessTime minus(ProcessTime other) {
-    return new ProcessTime(wall.minus(other.wall), cpu.flatMap(thisCpu -> other.cpu.map(thisCpu::minus)));
+    return new ProcessTime(
+      wall.minus(other.wall),
+      cpu.flatMap(thisCpu -> other.cpu.map(thisCpu::minus)),
+      gc.minus(other.gc)
+    );
   }
 
   public String toString(Locale locale) {
@@ -33,7 +38,7 @@ public record ProcessTime(Duration wall, Optional<Duration> cpu) {
     Optional<String> deltaCpu = cpu.map(format::duration);
     String avgCpus = cpu.map(cpuTime -> " avg:" + format.decimal(cpuTime.toNanos() * 1d / wall.toNanos()))
       .orElse("");
-    return format.duration(wall) + " cpu:" + deltaCpu.orElse("-") + avgCpus;
+    return format.duration(wall) + " cpu:" + deltaCpu.orElse("-") + " gc:" + format.duration(gc) + avgCpus;
   }
 
   @Override

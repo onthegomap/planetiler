@@ -132,12 +132,12 @@ public class ProcessInfo {
       Duration.ZERO, -1);
 
     /** Adds up the timers in two {@code ThreadState} instances */
-    public static ThreadState sum(ThreadState a, ThreadState b) {
+    public ThreadState plus(ThreadState other) {
       return new ThreadState("<multiple threads>",
-        a.cpuTime.plus(b.cpuTime),
-        a.userTime.plus(b.userTime),
-        a.waiting.plus(b.waiting),
-        a.blocking.plus(b.blocking),
+        cpuTime.plus(other.cpuTime),
+        userTime.plus(other.userTime),
+        waiting.plus(other.waiting),
+        blocking.plus(other.blocking),
         -1
       );
     }
@@ -177,7 +177,7 @@ public class ProcessInfo {
     return threadState;
   }
 
-  public static ThreadState getCurrentThreadStats() {
+  public static ThreadState getCurrentThreadState() {
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     ThreadInfo thread = threadMXBean.getThreadInfo(Thread.currentThread().getId());
     return new ThreadState(threadMXBean, thread);

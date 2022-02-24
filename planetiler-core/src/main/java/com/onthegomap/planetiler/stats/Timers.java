@@ -19,25 +19,17 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class Timers {
 
-  record ThreadInfo(ProcessInfo.ThreadState state, String prefix) {}
-
-  record Stage(Timer timer, List<ThreadInfo> threadStats) {
-
-    Stage(Timer timer) {
-      this(timer, new CopyOnWriteArrayList<>());
-    }
-  }
-
   private static final Logger LOGGER = LoggerFactory.getLogger(Stats.InMemory.class);
   private static final Format FORMAT = Format.defaultInstance();
   private final Map<String, Stage> timers = Collections.synchronizedMap(new LinkedHashMap<>());
   private final AtomicReference<Stage> currentStage = new AtomicReference<>();
 
   public void printSummary() {
+    int maxLength = (int) all().keySet().stream().mapToLong(String::length).max().orElse(0);
     for (var entry : all().entrySet()) {
       String name = entry.getKey();
       var elapsed = entry.getValue().timer.elapsed();
-      LOGGER.info("\t" + name + "\t" + elapsed);
+      LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
       for (String detail : getStageDetails(name)) {
         LOGGER.info("\t  " + detail);
       }
@@ -51,16 +43,18 @@ public class Timers {
     List<String> threads = stage.threadStats.stream().map(d -> d.prefix).distinct().toList();
     for (String thread : threads) {
       StringBuilder result = new StringBuilder();
-      List<ProcessInfo.ThreadState> threadStates = stage.threadStats.stream().filter(t -> t.prefix.equals(thread))
-        .map(t -> t.state).toList();
+      List<ThreadInfo> threadStates = stage.threadStats.stream()
+        .filter(t -> t.prefix.equals(thread))
+        .toList();
       int num = threadStates.size();
-      ProcessInfo.ThreadState sum = threadStates.stream().reduce(ProcessInfo.ThreadState.DEFAULT,
-        ProcessInfo.ThreadState::sum);
+      ProcessInfo.ThreadState sum = threadStates.stream()
+        .map(d -> d.state)
+        .reduce(ProcessInfo.ThreadState.DEFAULT, ProcessInfo.ThreadState::plus);
       double totalNanos = elapsed.wall().multipliedBy(num).toNanos();
       result.append(thread.replace(name + "_", ""))
         .append("(")
         .append(num)
-        .append("x")
+        .append("x ")
         .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
         .append(" cpu:")
         .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
@@ -76,6 +70,14 @@ public class Timers {
       Duration waitTime = sum.waiting().dividedBy(num);
       if (waitTime.compareTo(Duration.ofSeconds(1)) > 0) {
         result.append(" wait:").append(FORMAT.duration(waitTime));
+      }
+      Duration totalThreadElapsedTime = threadStates.stream().map(d -> d.elapsed)
+        .reduce(Duration::plus)
+        .orElse(Duration.ZERO)
+        .dividedBy(num);
+      Duration doneTime = elapsed.wall().minus(totalThreadElapsedTime);
+      if (doneTime.compareTo(Duration.ofSeconds(1)) > 0) {
+        result.append(" done:").append(FORMAT.duration(doneTime));
       }
       result.append(")");
       resultList.add(result.toString());
@@ -97,10 +99,10 @@ public class Timers {
     };
   }
 
-  public void finishedWorker(String prefix) {
+  public void finishedWorker(String prefix, Duration elapsed) {
     Stage stage = currentStage.get();
     if (stage != null) {
-      stage.threadStats.add(new ThreadInfo(ProcessInfo.getCurrentThreadStats(), prefix));
+      stage.threadStats.add(new ThreadInfo(ProcessInfo.getCurrentThreadState(), prefix, elapsed));
     }
   }
 
@@ -115,5 +117,14 @@ public class Timers {
   public interface Finishable {
 
     void stop();
+  }
+
+  record ThreadInfo(ProcessInfo.ThreadState state, String prefix, Duration elapsed) {}
+
+  record Stage(Timer timer, List<ThreadInfo> threadStats) {
+
+    Stage(Timer timer) {
+      this(timer, new CopyOnWriteArrayList<>());
+    }
   }
 }

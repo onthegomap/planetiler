@@ -46,8 +46,9 @@ public class Worker {
         String id = Thread.currentThread().getName();
         LOGGER.trace("Starting worker");
         try {
+          long start = System.nanoTime();
           task.run();
-          stats.timers().finishedWorker(prefix);
+          stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
         } catch (Throwable e) {
           System.err.println("Worker " + id + " died");
           throwRuntimeException(e);
