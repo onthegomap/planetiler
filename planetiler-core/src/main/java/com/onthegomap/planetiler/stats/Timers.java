@@ -30,17 +30,21 @@ public class Timers {
       String name = entry.getKey();
       var elapsed = entry.getValue().timer.elapsed();
       LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
-      for (String detail : getStageDetails(name)) {
+      for (String detail : getStageDetails(name, false)) {
         LOGGER.info("\t  " + detail);
       }
     }
   }
 
-  private List<String> getStageDetails(String name) {
+  private List<String> getStageDetails(String name, boolean pad) {
     List<String> resultList = new ArrayList<>();
     Stage stage = timers.get(name);
     var elapsed = stage.timer.elapsed();
     List<String> threads = stage.threadStats.stream().map(d -> d.prefix).distinct().toList();
+    int maxLength = !pad ? 0 : (int) (threads.stream()
+      .map(n -> n.replace(name + "_", ""))
+      .mapToLong(String::length)
+      .max().orElse(0)) + 1;
     for (String thread : threads) {
       StringBuilder result = new StringBuilder();
       List<ThreadInfo> threadStates = stage.threadStats.stream()
@@ -51,10 +55,9 @@ public class Timers {
         .map(d -> d.state)
         .reduce(ProcessInfo.ThreadState.DEFAULT, ProcessInfo.ThreadState::plus);
       double totalNanos = elapsed.wall().multipliedBy(num).toNanos();
-      result.append(thread.replace(name + "_", ""))
-        .append("(")
-        .append(num)
-        .append("x ")
+      result.append(Format.padRight(thread.replace(name + "_", ""), maxLength))
+        .append(Format.padLeft(Integer.toString(num), 2))
+        .append("x(")
         .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
         .append(" cpu:")
         .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
@@ -94,7 +97,9 @@ public class Timers {
     LOGGER.info("Starting...");
     return () -> {
       LOGGER.info("Finished in " + timers.get(name).timer.stop());
-      LOGGER.info("  " + String.join(" -> ", getStageDetails(name)));
+      for (var details : getStageDetails(name, false)) {
+        LOGGER.info("  " + details);
+      }
       currentStage.set(last);
     };
   }
