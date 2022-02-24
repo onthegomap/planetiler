@@ -5,7 +5,7 @@ import java.util.function.Supplier;
 
 /**
  * A {@link Supplier} that returns {@code null} when there are no elements left, with an {@link Iterable} view to
- * support for comprehensions.
+ * support for each loops.
  *
  * @param <T> Type of element returned
  */
