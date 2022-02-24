@@ -20,7 +20,7 @@ To edit the code:
     select: `File -> Invalidate Caches... -> Just Restart`.
   - If you see a "Project JDK is not defined" error, then choose `Setup SDK` and point IntelliJ at the Java 16 or later
     installed on your system
-- Recommended: Under `Preferences -> Tools -> Actions on Save` select `Reformat code` and `Optimize imports` to
+- Recommended: Under `Preferences -> Tools -> Actions on Save` (or `File -> Settings -> Tools -> Actions on Save` on Linux) select `Reformat code` and `Optimize imports` to
   automatically format code on save.
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run 'All Tests'`
