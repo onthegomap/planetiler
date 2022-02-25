@@ -33,7 +33,7 @@ public class BasemapMain {
       // override any of these with arguments: --osm_path=... or --osm_url=...
       // or OSM_PATH=... OSM_URL=... environmental argument
       // or osm_path=... osm_url=... in a config file
-      .addShapefileSource("EPSG:3857", BasemapProfile.LAKELINES_SOURCE,
+      .addShapefileSource("EPSG:3857", BasemapProfile.LAKE_CENTERLINE_SOURCE,
         sourcesDir.resolve("lake_centerline.shp.zip"),
         "https://github.com/lukasmartinelli/osm-lakelines/releases/download/v0.9/lake_centerline.shp.zip")
       .addShapefileSource(BasemapProfile.WATER_POLYGON_SOURCE,

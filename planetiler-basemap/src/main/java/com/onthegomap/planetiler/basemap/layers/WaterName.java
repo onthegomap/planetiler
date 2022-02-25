@@ -38,12 +38,12 @@ package com.onthegomap.planetiler.basemap.layers;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 
 import com.carrotsearch.hppc.LongObjectMap;
+import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
-import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -84,7 +84,7 @@ public class WaterName implements
   private static final double LOG2 = Math.log(2);
   private final Translations translations;
   // need to synchronize updates from multiple threads
-  private final LongObjectMap<Geometry> lakeCenterlines = Hppc.newLongObjectHashMap();
+  private final LongObjectMap<Geometry> lakeCenterlines = new GHLongObjectHashMap<>();
   // may be updated concurrently by multiple threads
   private final ConcurrentSkipListMap<String, Integer> importantMarinePoints = new ConcurrentSkipListMap<>();
   private final Stats stats;

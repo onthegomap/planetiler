@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import com.carrotsearch.hppc.LongLongHashMap;
+import com.graphhopper.coll.GHLongLongHashMap;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -473,7 +474,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       if (extractHasGroupFromKey(key)) {
         byte thisLayer = extractLayerIdFromKey(key);
         if (counts == null) {
-          counts = Hppc.newLongLongHashMap();
+          counts = new GHLongLongHashMap();
           layer = thisLayer;
         } else if (thisLayer != layer) {
           layer = thisLayer;

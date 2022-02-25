@@ -17,7 +17,8 @@ import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongObjectMap;
 import com.carrotsearch.hppc.ObjectIntMap;
 import com.carrotsearch.hppc.cursors.LongObjectCursor;
-import com.onthegomap.planetiler.collection.Hppc;
+import com.graphhopper.coll.GHLongObjectHashMap;
+import com.graphhopper.coll.GHObjectIntHashMap;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import java.util.ArrayList;
@@ -94,7 +95,7 @@ public class OsmMultipolygon {
    * @throws GeometryException if building the polygon fails
    */
   public static Geometry build(List<CoordinateSequence> rings) throws GeometryException {
-    ObjectIntMap<Coordinate> coordToId = Hppc.newObjectIntHashMap();
+    ObjectIntMap<Coordinate> coordToId = new GHObjectIntHashMap<>();
     List<Coordinate> idToCoord = new ArrayList<>();
     int id = 0;
     List<LongArrayList> idRings = new ArrayList<>(rings.size());
@@ -313,7 +314,7 @@ public class OsmMultipolygon {
   }
 
   static List<LongArrayList> connectPolygonSegments(List<LongArrayList> outer) {
-    LongObjectMap<LongArrayList> endpointIndex = Hppc.newLongObjectHashMap(outer.size() * 2);
+    LongObjectMap<LongArrayList> endpointIndex = new GHLongObjectHashMap<>(outer.size() * 2);
     List<LongArrayList> completeRings = new ArrayList<>(outer.size());
 
     for (LongArrayList ids : outer) {

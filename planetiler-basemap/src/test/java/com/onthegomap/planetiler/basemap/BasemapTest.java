@@ -50,7 +50,7 @@ public class BasemapTest {
       "natural_earth_path", TestUtils.pathToResource("natural_earth_vector.sqlite.zip"),
       "water_polygons_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
       // no centerlines in monaco - so fake it out with an empty source
-      "lakelines_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
+      "lake_centerlines_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
 
       // Override temp dir location
       "tmp", tmpDir.toString(),

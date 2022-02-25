@@ -42,12 +42,12 @@ import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 
 import com.carrotsearch.hppc.LongObjectMap;
+import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
-import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -390,7 +390,7 @@ public class Boundary implements
   /** Returns a map from region ID to prepared geometry optimized for {@code contains} queries. */
   private LongObjectMap<PreparedGeometry> prepareRegionPolygons() {
     LOGGER.info("Creating polygons for " + regionGeometries.size() + " boundaries");
-    LongObjectMap<PreparedGeometry> countryBoundaries = Hppc.newLongObjectHashMap();
+    LongObjectMap<PreparedGeometry> countryBoundaries = new GHLongObjectHashMap<>();
     for (var entry : regionGeometries.entrySet()) {
       Long regionId = entry.getKey();
       Polygonizer polygonizer = new Polygonizer();

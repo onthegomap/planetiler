@@ -37,8 +37,9 @@ package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 
-import com.carrotsearch.hppc.LongObjectMap;
+import com.carrotsearch.hppc.LongObjectHashMap;
 import com.google.common.util.concurrent.AtomicDouble;
+import com.graphhopper.coll.GHLongObjectHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.VectorTile;
@@ -47,7 +48,6 @@ import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
 import com.onthegomap.planetiler.basemap.util.Utils;
-import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -98,7 +98,7 @@ public class Waterway implements
   private final Translations translations;
   private final PlanetilerConfig config;
   private final Stats stats;
-  private final LongObjectMap<AtomicDouble> riverRelationLengths = Hppc.newLongObjectHashMap();
+  private final LongObjectHashMap<AtomicDouble> riverRelationLengths = new GHLongObjectHashMap<>();
 
   public Waterway(Translations translations, PlanetilerConfig config, Stats stats) {
     this.config = config;
