@@ -38,7 +38,8 @@ public record ProcessTime(Duration wall, Optional<Duration> cpu, Duration gc) {
     Optional<String> deltaCpu = cpu.map(format::duration);
     String avgCpus = cpu.map(cpuTime -> " avg:" + format.decimal(cpuTime.toNanos() * 1d / wall.toNanos()))
       .orElse("");
-    return format.duration(wall) + " cpu:" + deltaCpu.orElse("-") + " gc:" + format.duration(gc) + avgCpus;
+    String gcString = gc.compareTo(Duration.ofSeconds(1)) > 0 ? (" gc:" + format.duration(gc)) : "";
+    return format.duration(wall) + " cpu:" + deltaCpu.orElse("-") + gcString + avgCpus;
   }
 
   @Override
