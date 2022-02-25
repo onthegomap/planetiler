@@ -90,19 +90,28 @@ public class OsmInputFile implements Bounds.Provider {
 
   private static int readInt(FileChannel channel) throws IOException {
     ByteBuffer buf = ByteBuffer.allocate(4);
-    channel.read(buf);
+    int read = channel.read(buf);
+    if (read != 4) {
+      throw new IOException("Tried to read 4 bytes but only got " + read);
+    }
     return buf.flip().getInt();
   }
 
   private static byte[] readBytes(FileChannel channel, int length) throws IOException {
     ByteBuffer buf = ByteBuffer.allocate(length);
-    channel.read(buf);
+    int read = channel.read(buf);
+    if (read != length) {
+      throw new IOException("Tried to read " + length + " bytes but only got " + read);
+    }
     return buf.flip().array();
   }
 
   private static byte[] readBytes(FileChannel channel, long offset, int length) throws IOException {
     ByteBuffer buf = ByteBuffer.allocate(length);
-    channel.read(buf, offset);
+    int read = channel.read(buf, offset);
+    if (read != length) {
+      throw new IOException("Tried to read " + length + " bytes at " + offset + " but only got " + read);
+    }
     return buf.flip().array();
   }
 
