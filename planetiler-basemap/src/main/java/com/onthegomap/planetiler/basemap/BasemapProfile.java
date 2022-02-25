@@ -44,7 +44,7 @@ import java.util.List;
 public class BasemapProfile extends ForwardingProfile {
 
   // IDs used in stats and logs for each input source, as well as argument/config file overrides to source locations
-  public static final String LAKE_CENTERLINE_SOURCE = "lake_centerlines";
+  public static final String LAKELINES_SOURCE = "lakelines";
   public static final String WATER_POLYGON_SOURCE = "water_polygons";
   public static final String NATURAL_EARTH_SOURCE = "natural_earth";
   public static final String OSM_SOURCE = "osm";
@@ -97,7 +97,7 @@ public class BasemapProfile extends ForwardingProfile {
         registerSourceHandler(WATER_POLYGON_SOURCE, processor::processOsmWater);
       }
       if (handler instanceof LakeCenterlineProcessor processor) {
-        registerSourceHandler(LAKE_CENTERLINE_SOURCE, processor::processLakeCenterline);
+        registerSourceHandler(LAKELINES_SOURCE, processor::processLakeCenterline);
       }
       if (handler instanceof OsmAllProcessor processor) {
         registerSourceHandler(OSM_SOURCE, processor::processAllOsm);

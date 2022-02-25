@@ -134,8 +134,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     int parseThreads = Math.max(1, config.threads() - 2);
     int pendingBlocks = parseThreads * 10;
     var parsedBatches = new WorkQueue<CompletableFuture<List<OsmElement>>>("elements", pendingBlocks, 1, stats);
-    var pipeline = WorkerPipeline.start("osm_pass1", stats)
-      .<BlockWithResult>fromGenerator("pbf", next -> {
+    var pipeline = WorkerPipeline.start("osm_pass1", stats);
+    var readBranch = pipeline
+      .<BlockWithResult>fromGenerator("read", next -> {
         osmSource.readBlocks().run((block) -> {
           CompletableFuture<List<OsmElement>> result = new CompletableFuture<>();
           parsedBatches.accept(result);
@@ -144,7 +145,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         parsedBatches.close();
       })
       .addBuffer("pbf_blocks", pendingBlocks)
-      .sinkToConsumer("process", parseThreads, block -> {
+      .sinkToConsumer("parse", parseThreads, block -> {
         List<OsmElement> result = new ArrayList<>();
         for (var element : block.block.parse()) {
           // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
@@ -156,7 +157,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         block.result.complete(result);
       });
 
-    var consumer = WorkerPipeline.start("osm_pass1_consumer", stats)
+    var processBranch = pipeline
       .readFromQueue(parsedBatches)
       .sinkToConsumer("process", 1, this::processPass1BlockWhenReady);
 
@@ -170,16 +171,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .newLine()
-      .addPipelineStats(pipeline)
-      .addPipelineStats(consumer);
+      .addPipelineStats(readBranch)
+      .addPipelineStats(processBranch);
 
-    loggers.awaitAndLog(joinFutures(pipeline.done(), consumer.done()), config.logInterval());
+    loggers.awaitAndLog(joinFutures(readBranch.done(), processBranch.done()), config.logInterval());
 
     LOGGER.debug("processed " +
-      FORMAT.integer(PASS1_BLOCKS.get()) + " blocks " +
-      FORMAT.integer(PASS1_NODES.get()) + " nodes " +
-      FORMAT.integer(PASS1_WAYS.get()) + " ways " +
-      FORMAT.integer(PASS1_RELATIONS.get()) + " relations");
+      "blocks:" + FORMAT.integer(PASS1_BLOCKS.get()) +
+      " nodes:" + FORMAT.integer(PASS1_NODES.get()) +
+      " ways:" + FORMAT.integer(PASS1_WAYS.get()) +
+      " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
     timer.stop();
   }
 
@@ -280,9 +281,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     // use a count down latch to wait for all threads to finish processing ways
     CountDownLatch waitForWays = new CountDownLatch(processThreads);
 
-    String parseThreadPrefix = "pbfpass2";
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
-      .fromGenerator("pbf", osmSource.readBlocks())
+      .fromGenerator("read", osmSource.readBlocks())
       .addBuffer("pbf_blocks", 100)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
@@ -361,10 +361,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     pipeline.awaitAndLog(logger, config.logInterval());
 
     LOGGER.debug("processed " +
-      FORMAT.integer(blocksProcessed.get()) + " blocks " +
-      FORMAT.integer(nodesProcessed.get()) + " nodes " +
-      FORMAT.integer(waysProcessed.get()) + " ways " +
-      FORMAT.integer(relsProcessed.get()) + " relations");
+      "blocks:" + FORMAT.integer(blocksProcessed.get()) +
+      " nodes:" + FORMAT.integer(nodesProcessed.get()) +
+      " ways:" + FORMAT.integer(waysProcessed.get()) +
+      " relations:" + FORMAT.integer(relsProcessed.get()));
 
     timer.stop();
 
@@ -566,14 +566,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   /** A {@link Point} created from an OSM node. */
   private class NodeSourceFeature extends OsmFeature {
 
-    private final double lon;
-    private final double lat;
     private final long encodedLocation;
 
     NodeSourceFeature(OsmElement.Node node) {
       super(node, true, false, false, null);
-      this.lon = node.lon();
-      this.lat = node.lat();
       this.encodedLocation = node.encodedLocation();
     }
 

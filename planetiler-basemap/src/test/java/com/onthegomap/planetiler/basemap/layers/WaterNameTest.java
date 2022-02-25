@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.basemap.layers;
 
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.rectangle;
-import static com.onthegomap.planetiler.basemap.BasemapProfile.LAKE_CENTERLINE_SOURCE;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.LAKELINES_SOURCE;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
 
@@ -59,7 +59,7 @@ public class WaterNameTest extends AbstractLayerTest {
       new HashMap<>(Map.<String, Object>of(
         "OSM_ID", -10
       )),
-      LAKE_CENTERLINE_SOURCE,
+      LAKELINES_SOURCE,
       null,
       0
     )));
