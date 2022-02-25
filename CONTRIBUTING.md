@@ -3,7 +3,7 @@
 Pull requests are welcome! To set up your development environment:
 
 - Fork the repo
-- [Install Java 16 or later](https://adoptium.net/installation.html)
+- Install Java 16 or later. You can download Java manually from [Adoptium](https://adoptium.net/installation.html) or use their installers for [Windows](https://adoptium.net/installation.html#windows-msi), [macOS](https://adoptium.net/installation.html#macos-pkg), and [Linux](https://github.com/adoptium/website-v2/blob/main/src/asciidoc-pages/installation/linux.adoc).
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
   you run it):
   - on max/linux: `./mvnw clean test`
