@@ -26,7 +26,7 @@
     <dependency>
       <groupId>org.commonmark</groupId>
       <artifactId>commonmark</artifactId>
-      <version>0.18.1</version>
+      <version>0.18.2</version>
     </dependency>
 
     <dependency>
