@@ -38,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -65,7 +66,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private static final int ROLE_SHIFT = 64 - ROLE_BITS;
   private static final int ROLE_MASK = (1 << ROLE_BITS) - 1;
   private static final long NOT_ROLE_MASK = (1L << ROLE_SHIFT) - 1L;
-  private final OsmSource osmSource;
+  private final OsmBlockSource osmBlockSource;
   private final Stats stats;
   private final LongLongMap nodeLocationDb;
   private final Counter.Readable PASS1_BLOCKS = Counter.newSingleThreadCounter();
@@ -95,17 +96,17 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   /**
    * Constructs a new {@code OsmReader} from
    *
-   * @param name           ID for this reader to use in stats and logs
-   * @param osmSource      the file to read raw nodes, ways, and relations from
-   * @param nodeLocationDb store that will temporarily hold node locations (encoded as a long) between passes to
-   *                       reconstruct way geometries
-   * @param profile        logic that defines what map features to emit for each source feature
-   * @param stats          to keep track of counters and timings
+   * @param name              ID for this reader to use in stats and logs
+   * @param osmSourceProvider the file to read raw nodes, ways, and relations from
+   * @param nodeLocationDb    store that will temporarily hold node locations (encoded as a long) between passes to
+   *                          reconstruct way geometries
+   * @param profile           logic that defines what map features to emit for each source feature
+   * @param stats             to keep track of counters and timings
    */
-  public OsmReader(String name, OsmSource osmSource, LongLongMap nodeLocationDb, Profile profile,
+  public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb, Profile profile,
     Stats stats) {
     this.name = name;
-    this.osmSource = osmSource;
+    this.osmBlockSource = osmSourceProvider.get();
     this.nodeLocationDb = nodeLocationDb;
     this.stats = stats;
     this.profile = profile;
@@ -129,7 +130,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param config user-provided arguments to control the number of threads, and log interval
    */
   public void pass1(PlanetilerConfig config) {
-    record BlockWithResult(OsmSource.Block block, CompletableFuture<List<OsmElement>> result) {}
+    record BlockWithResult(OsmBlockSource.Block block, CompletableFuture<List<OsmElement>> result) {}
     var timer = stats.startStage("osm_pass1");
     int parseThreads = Math.max(1, config.threads() - 2);
     int pendingBlocks = parseThreads * 10;
@@ -137,7 +138,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
     var readBranch = pipeline
       .<BlockWithResult>fromGenerator("read", next -> {
-        osmSource.readBlocks().run((block) -> {
+        osmBlockSource.forEachBlock((block) -> {
           CompletableFuture<List<OsmElement>> result = new CompletableFuture<>();
           parsedBatches.accept(result);
           next.accept(new BlockWithResult(block, result));
@@ -282,7 +283,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     CountDownLatch waitForWays = new CountDownLatch(processThreads);
 
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
-      .fromGenerator("read", osmSource.readBlocks())
+      .fromGenerator("read", osmBlockSource::forEachBlock)
       .addBuffer("pbf_blocks", 100)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
@@ -462,7 +463,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     nodeLocationDb.close();
     roleIds.release();
     roleIdsReverse.release();
-    osmSource.close();
+    osmBlockSource.close();
   }
 
   NodeLocationProvider newNodeLocationProvider() {

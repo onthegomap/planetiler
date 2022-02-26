@@ -161,8 +161,7 @@ public class Planetiler {
       ifSourceUsed(name, () -> {
         try (
           var nodeLocations = LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath);
-          var osmSource = thisInputFile.newReader();
-          var osmReader = new OsmReader(name, osmSource, nodeLocations, profile(), stats)
+          var osmReader = new OsmReader(name, thisInputFile, nodeLocations, profile(), stats)
         ) {
           osmReader.pass1(config);
           osmReader.pass2(featureGroup, config);

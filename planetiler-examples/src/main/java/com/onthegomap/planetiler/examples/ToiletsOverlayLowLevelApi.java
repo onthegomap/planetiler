@@ -87,7 +87,7 @@ public class ToiletsOverlayLowLevelApi {
        * any node locations.
        */
       var nodeLocations = LongLongMap.noop();
-      var osmReader = new OsmReader("osm", new OsmInputFile(input).newReader(), nodeLocations, profile, stats)
+      var osmReader = new OsmReader("osm", new OsmInputFile(input), nodeLocations, profile, stats)
     ) {
       // Normally you need to run OsmReader.pass1(config) first which stores node locations and preprocesses relations for
       // way processing, and counts elements. But since this profile only processes nodes we can skip pass 1.

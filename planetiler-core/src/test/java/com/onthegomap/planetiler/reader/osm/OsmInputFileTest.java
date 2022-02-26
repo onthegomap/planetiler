@@ -69,9 +69,9 @@ public class OsmInputFileTest {
       AtomicReference<OsmElement.Way> way = new AtomicReference<>();
       AtomicReference<OsmElement.Relation> rel = new AtomicReference<>();
       var file = new OsmInputFile(path, lazy);
-      try (var osmReader = file.newReader()) {
+      try (var osmReader = file.get()) {
         WorkerPipeline.start("test", Stats.inMemory())
-          .fromGenerator("pbf", osmReader.readBlocks())
+          .fromGenerator("pbf", osmReader::forEachBlock)
           .addBuffer("pbf_blocks", 100)
           .sinkToConsumer("counter", 1, block -> {
             for (var elem : block.parse()) {

@@ -23,7 +23,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class OsmReaderTest {
 
-  public final OsmSource osmSource = () -> (next) -> {
+  public final OsmBlockSource osmSource = next -> {
   };
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
@@ -605,7 +605,7 @@ public class OsmReaderTest {
   public void testWayInRelation() {
     record OtherRelInfo(long id) implements OsmRelationInfo {}
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
@@ -632,7 +632,7 @@ public class OsmReaderTest {
   @Test
   public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
@@ -656,6 +656,6 @@ public class OsmReaderTest {
   }
 
   private OsmReader newOsmReader() {
-    return new OsmReader("osm", osmSource, nodeMap, profile, stats);
+    return new OsmReader("osm", () -> osmSource, nodeMap, profile, stats);
   }
 }

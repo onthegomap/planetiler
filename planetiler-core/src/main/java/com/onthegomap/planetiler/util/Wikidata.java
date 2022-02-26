@@ -17,9 +17,9 @@ import com.graphhopper.coll.GHLongObjectHashMap;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
-import com.onthegomap.planetiler.reader.osm.OsmSource;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
@@ -123,7 +123,7 @@ public class Wikidata {
 
       String pbfParsePrefix = "pbfwikidata";
       var pipeline = WorkerPipeline.start("wikidata", stats)
-        .fromGenerator("pbf", infile.newReader().readBlocks())
+        .fromGenerator("pbf", infile.get()::forEachBlock)
         .addBuffer("pbf_blocks", processThreads * 2)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 1_000_000, 100)
@@ -213,7 +213,7 @@ public class Wikidata {
   }
 
   /** Only pass elements that the profile cares about to next step in pipeline. */
-  private void filter(Iterable<OsmSource.Block> prev, Consumer<Long> next) {
+  private void filter(Iterable<OsmBlockSource.Block> prev, Consumer<Long> next) {
     for (var block : prev) {
       int blockNodes = 0, blockWays = 0, blockRelations = 0;
       for (var elem : block.parse()) {

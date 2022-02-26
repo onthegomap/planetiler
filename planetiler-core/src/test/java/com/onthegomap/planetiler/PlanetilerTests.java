@@ -19,10 +19,10 @@ import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
-import com.onthegomap.planetiler.reader.osm.OsmSource;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
@@ -100,15 +100,15 @@ public class PlanetilerTests {
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
     List<? extends OsmElement> osmElements) throws IOException {
-    OsmSource elems = () -> next -> {
+    OsmBlockSource elems = next -> {
       // process the same order they come in from an OSM file
-      next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
-      next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
-      next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
-      next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
+    try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }
@@ -771,15 +771,17 @@ public class PlanetilerTests {
         List<? extends OsmElement> osmElements = List.<OsmElement>of(
           with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
         );
-        OsmSource elems = () -> next -> {
+        OsmBlockSource elems = next -> {
           // process the same order they come in from an OSM file
-          next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
-          next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
-          next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
-          next.accept(OsmSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
+          next.accept(
+            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
+          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
+          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
+          next.accept(
+            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
         };
         var nodeMap = LongLongMap.newInMemorySortedTable();
-        try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
+        try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
           // skip pass 1
           reader.pass2(featureGroup, config);
         }

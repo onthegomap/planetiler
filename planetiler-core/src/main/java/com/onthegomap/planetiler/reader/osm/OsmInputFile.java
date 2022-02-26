@@ -1,31 +1,28 @@
 package com.onthegomap.planetiler.reader.osm;
 
-import com.google.protobuf.ByteString;
 import com.onthegomap.planetiler.config.Bounds;
-import com.onthegomap.planetiler.worker.WorkerPipeline;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.locationtech.jts.geom.Envelope;
-import org.openstreetmap.osmosis.osmbinary.Fileformat;
-import org.openstreetmap.osmosis.osmbinary.Fileformat.Blob;
 import org.openstreetmap.osmosis.osmbinary.Fileformat.BlobHeader;
-import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBBox;
-import org.openstreetmap.osmosis.osmbinary.Osmformat.HeaderBlock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An input file in {@code .osm.pbf} format.
  *
  * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format">OSM PBF Format</a>
  */
-public class OsmInputFile implements Bounds.Provider {
+public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(OsmInputFile.class);
 
   private final Path path;
   private final boolean lazy;
@@ -37,55 +34,6 @@ public class OsmInputFile implements Bounds.Provider {
 
   public OsmInputFile(Path path) {
     this(path, false);
-  }
-
-  /**
-   * Returns the bounding box of this file from the header block.
-   *
-   * @throws IllegalArgumentException if an error is encountered reading the file
-   */
-  @Override
-  public Envelope getLatLonBounds() {
-    try (var input = Files.newInputStream(path)) {
-      // Read the "bbox" field of the header block of the input file.
-      // https://wiki.openstreetmap.org/wiki/PBF_Format
-      var dataInput = new DataInputStream(input);
-      int headerSize = dataInput.readInt();
-      if (headerSize > 64 * 1024) {
-        throw new IllegalArgumentException("Header longer than 64 KiB: " + path);
-      }
-      byte[] buf = dataInput.readNBytes(headerSize);
-      BlobHeader header = BlobHeader.parseFrom(buf);
-      if (!header.getType().equals("OSMHeader")) {
-        throw new IllegalArgumentException("Expecting OSMHeader got " + header.getType() + " in " + path);
-      }
-      buf = dataInput.readNBytes(header.getDatasize());
-      Blob blob = Blob.parseFrom(buf);
-      ByteString data;
-      if (blob.hasRaw()) {
-        data = blob.getRaw();
-      } else if (blob.hasZlibData()) {
-        byte[] buf2 = new byte[blob.getRawSize()];
-        Inflater decompresser = new Inflater();
-        decompresser.setInput(blob.getZlibData().toByteArray());
-        decompresser.inflate(buf2);
-        decompresser.end();
-        data = ByteString.copyFrom(buf2);
-      } else {
-        throw new IllegalArgumentException("Header does not have raw or zlib data");
-      }
-      HeaderBlock headerblock = HeaderBlock.parseFrom(data);
-      HeaderBBox bbox = headerblock.getBbox();
-      // always specified in nanodegrees
-      return new Envelope(
-        bbox.getLeft() / 1e9,
-        bbox.getRight() / 1e9,
-        bbox.getBottom() / 1e9,
-        bbox.getTop() / 1e9
-      );
-    } catch (IOException | DataFormatException e) {
-      throw new IllegalArgumentException(e);
-    }
   }
 
   private static int readInt(FileChannel channel) throws IOException {
@@ -115,11 +63,56 @@ public class OsmInputFile implements Bounds.Provider {
     return buf.flip().array();
   }
 
-  public static OsmSource readFrom(Path path) {
-    return new OsmInputFile(path).newReader();
+  public static OsmBlockSource readFrom(Path path) {
+    return new OsmInputFile(path).get();
   }
 
-  public OsmSource newReader() {
+  private static void validateHeader(byte[] data) {
+    OsmHeader header = PbfDecoder.decodeHeader(data);
+    List<String> unsupportedFeatures = header.requiredFeatures().stream()
+      .filter(feature -> !(feature.equals("OsmSchema-V0.6") || feature.equals("DenseNodes")))
+      .toList();
+    if (!unsupportedFeatures.isEmpty()) {
+      throw new RuntimeException("PBF file contains unsupported features " + unsupportedFeatures);
+    }
+  }
+
+  private static BlobHeader readBlobHeader(FileChannel channel) throws IOException {
+    int headerSize = readInt(channel);
+    if (headerSize > 64 * 1024) {
+      throw new IllegalArgumentException("Header longer than 64 KiB");
+    }
+    byte[] headerBytes = readBytes(channel, headerSize);
+    return BlobHeader.parseFrom(headerBytes);
+  }
+
+  /**
+   * Returns the bounding box of this file from the header block.
+   *
+   * @throws IllegalArgumentException if an error is encountered reading the file
+   */
+  @Override
+  public Envelope getLatLonBounds() {
+    return getHeader().bounds();
+  }
+
+  /**
+   * Returns details from the header block for this osm.pbf file.
+   *
+   * @throws IllegalArgumentException if an error is encountered reading the file
+   */
+  public OsmHeader getHeader() {
+    try (var channel = openChannel()) {
+      BlobHeader header = readBlobHeader(channel);
+      byte[] blobBytes = readBytes(channel, header.getDatasize());
+      return PbfDecoder.decodeHeader(blobBytes);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(e);
+    }
+  }
+
+  @Override
+  public OsmBlockSource get() {
     return lazy ? new LazyReader() : new EagerReader();
   }
 
@@ -131,7 +124,29 @@ public class OsmInputFile implements Bounds.Provider {
     }
   }
 
-  private class EagerReader implements OsmSource {
+  private class EagerReader implements OsmBlockSource {
+
+    @Override
+    public void forEachBlock(Consumer<Block> consumer) {
+      int blockId = 0;
+      try (FileChannel channel = openChannel()) {
+        final long size = channel.size();
+        while (channel.position() < size) {
+          BlobHeader header = readBlobHeader(channel);
+          byte[] blockBytes = readBytes(channel, header.getDatasize());
+          String headerType = header.getType();
+          if ("OSMData".equals(headerType)) {
+            consumer.accept(new EagerBlock(blockId++, blockBytes));
+          } else if ("OSMHeader".equals(headerType)) {
+            validateHeader(blockBytes);
+          } else {
+            LOGGER.warn("Unrecognized OSM PBF blob header type: " + headerType);
+          }
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
 
     record EagerBlock(@Override int id, byte[] bytes) implements Block {
 
@@ -139,29 +154,44 @@ public class OsmInputFile implements Bounds.Provider {
         return PbfDecoder.decode(bytes);
       }
     }
-
-    @Override
-    public WorkerPipeline.SourceStep<Block> readBlocks() {
-      return next -> {
-        int blockId = 0;
-        try (FileChannel channel = openChannel()) {
-          while (channel.position() < channel.size()) {
-            int headerSize = readInt(channel);
-            byte[] headerBytes = readBytes(channel, headerSize);
-            Fileformat.BlobHeader header = Fileformat.BlobHeader.parseFrom(headerBytes);
-            byte[] blockBytes = readBytes(channel, header.getDatasize());
-            if ("OSMData".equals(header.getType())) {
-              next.accept(new EagerBlock(blockId++, blockBytes));
-            }
-          }
-        }
-      };
-    }
   }
 
-  private class LazyReader implements OsmSource {
+  private class LazyReader implements OsmBlockSource {
 
     FileChannel lazyReadChannel = openChannel();
+
+    @Override
+    public void forEachBlock(Consumer<Block> consumer) {
+      int blockId = 0;
+      try (FileChannel channel = openChannel()) {
+        final long size = channel.size();
+        while (channel.position() < size) {
+          BlobHeader header = readBlobHeader(channel);
+          int blockSize = header.getDatasize();
+          String headerType = header.getType();
+          long blockStartPosition = channel.position();
+          if ("OSMData".equals(headerType)) {
+            consumer.accept(new LazyBlock(blockId++, blockStartPosition, blockSize, lazyReadChannel));
+          } else if ("OSMHeader".equals(headerType)) {
+            validateHeader(readBytes(channel, blockStartPosition, blockSize));
+          } else {
+            LOGGER.warn("Unrecognized OSM PBF blob header type: " + headerType);
+          }
+          channel.position(blockStartPosition + blockSize);
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    @Override
+    public void close() {
+      try {
+        lazyReadChannel.close();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
 
     record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
 
@@ -171,34 +201,6 @@ public class OsmInputFile implements Bounds.Provider {
         } catch (IOException e) {
           throw new UncheckedIOException(e);
         }
-      }
-    }
-
-    @Override
-    public WorkerPipeline.SourceStep<Block> readBlocks() {
-      return next -> {
-        int blockId = 0;
-        try (FileChannel channel = openChannel()) {
-          while (channel.position() < channel.size()) {
-            int headerSize = readInt(channel);
-            byte[] headerBytes = readBytes(channel, headerSize);
-            Fileformat.BlobHeader header = Fileformat.BlobHeader.parseFrom(headerBytes);
-            int blockSize = header.getDatasize();
-            if ("OSMData".equals(header.getType())) {
-              next.accept(new LazyBlock(blockId++, channel.position(), blockSize, lazyReadChannel));
-            }
-            channel.position(channel.position() + blockSize);
-          }
-        }
-      };
-    }
-
-    @Override
-    public void close() {
-      try {
-        lazyReadChannel.close();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
       }
     }
   }

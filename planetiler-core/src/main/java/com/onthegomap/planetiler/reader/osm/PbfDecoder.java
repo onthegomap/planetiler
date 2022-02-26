@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import org.locationtech.jts.geom.Envelope;
 import org.openstreetmap.osmosis.osmbinary.Fileformat;
 import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
@@ -93,7 +94,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
         node.getId(),
         buildTags(node.getKeysList(), node.getValsList()),
         fieldDecoder.decodeLatitude(node.getLat()),
-        fieldDecoder.decodeLatitude(node.getLon())
+        fieldDecoder.decodeLongitude(node.getLon())
       ));
     }
   }
@@ -207,6 +208,26 @@ public class PbfDecoder implements Iterable<OsmElement> {
       return new PbfDecoder(raw);
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to process PBF blob", e);
+    }
+  }
+
+  public static OsmHeader decodeHeader(byte[] raw) {
+    try {
+      byte[] data = readBlobContent(raw);
+      Osmformat.HeaderBlock header = Osmformat.HeaderBlock.parseFrom(data);
+      Osmformat.HeaderBBox bbox = header.getBbox();
+      Envelope bounds = new Envelope(
+        bbox.getLeft() / 1e9,
+        bbox.getRight() / 1e9,
+        bbox.getBottom() / 1e9,
+        bbox.getTop() / 1e9
+      );
+      return new OsmHeader(
+        bounds,
+        header.getRequiredFeaturesList()
+      );
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to decode PBF header", e);
     }
   }
 }

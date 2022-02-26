@@ -31,7 +31,7 @@ public class BasemapMapping {
       .addRateCounter("inputs", inputs::size)
       .addProcessStats();
     try (var reader = OsmInputFile.readFrom(Path.of("data", "sources", "massachusetts.osm.pbf"))) {
-      reader.readBlocks().run(block -> {
+      reader.forEachBlock(block -> {
         for (var element : block.parse()) {
           if (random.nextDouble() < 0.2) {
             if (inputs.size() % 1_000_000 == 0) {
