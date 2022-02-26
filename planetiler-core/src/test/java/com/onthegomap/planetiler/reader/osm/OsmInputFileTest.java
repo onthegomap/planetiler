@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,10 +52,27 @@ public class OsmInputFileTest {
     new OsmElement.Relation.Member(OsmElement.Type.NODE, 4939122068L, "platform"),
     new OsmElement.Relation.Member(OsmElement.Type.NODE, 3805333988L, "stop")
   ));
+  private final Envelope expectedBounds = new Envelope(7.409205, 7.448637, 43.72335, 43.75169);
 
   @Test
   public void testGetBounds() {
-    assertEquals(new Envelope(7.409205, 7.448637, 43.72335, 43.75169), new OsmInputFile(path).getLatLonBounds());
+    assertEquals(expectedBounds, new OsmInputFile(path).getLatLonBounds());
+  }
+
+  @Test
+  public void testGetHeader() {
+    assertEquals(new OsmHeader(
+        expectedBounds,
+        List.of("OsmSchema-V0.6", "DenseNodes"),
+        List.of(),
+        "osmium/1.8.0",
+        "",
+        Instant.parse("2021-04-21T20:21:46Z"),
+        2947,
+        "http://download.geofabrik.de/europe/monaco-updates"
+      ),
+      new OsmInputFile(path).getHeader()
+    );
   }
 
   @ParameterizedTest
@@ -74,7 +92,7 @@ public class OsmInputFileTest {
           .fromGenerator("pbf", osmReader::forEachBlock)
           .addBuffer("pbf_blocks", 100)
           .sinkToConsumer("counter", 1, block -> {
-            for (var elem : block.parse()) {
+            for (var elem : block.decodeElements()) {
               if (elem instanceof OsmElement.Node n) {
                 if (n.id() == expectedNode.id()) {
                   node.set(n);

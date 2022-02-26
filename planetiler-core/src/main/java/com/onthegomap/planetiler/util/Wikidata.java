@@ -116,14 +116,17 @@ public class Wikidata {
     LOGGER.info("Starting with " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
-    try (Writer writer = Files.newBufferedWriter(outfile)) {
+    try (
+      Writer writer = Files.newBufferedWriter(outfile);
+      OsmBlockSource osmSource = infile.get()
+    ) {
       HttpClient client = HttpClient.newBuilder().connectTimeout(config.httpTimeout()).build();
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile, config);
       fetcher.loadExisting(oldMappings);
 
       String pbfParsePrefix = "pbfwikidata";
       var pipeline = WorkerPipeline.start("wikidata", stats)
-        .fromGenerator("pbf", infile.get()::forEachBlock)
+        .fromGenerator("pbf", osmSource::forEachBlock)
         .addBuffer("pbf_blocks", processThreads * 2)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 1_000_000, 100)
@@ -135,6 +138,7 @@ public class Wikidata {
         });
 
       ProgressLoggers loggers = ProgressLoggers.create()
+        .addRateCounter("blocks", fetcher.blocks)
         .addRateCounter("nodes", fetcher.nodes, true)
         .addRateCounter("ways", fetcher.ways, true)
         .addRateCounter("rels", fetcher.rels, true)
@@ -216,7 +220,7 @@ public class Wikidata {
   private void filter(Iterable<OsmBlockSource.Block> prev, Consumer<Long> next) {
     for (var block : prev) {
       int blockNodes = 0, blockWays = 0, blockRelations = 0;
-      for (var elem : block.parse()) {
+      for (var elem : block.decodeElements()) {
         if (elem instanceof OsmElement.Node) {
           blockNodes++;
         } else if (elem instanceof OsmElement.Way) {

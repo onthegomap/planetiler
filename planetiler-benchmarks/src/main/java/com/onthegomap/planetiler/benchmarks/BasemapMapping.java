@@ -32,7 +32,7 @@ public class BasemapMapping {
       .addProcessStats();
     try (var reader = OsmInputFile.readFrom(Path.of("data", "sources", "massachusetts.osm.pbf"))) {
       reader.forEachBlock(block -> {
-        for (var element : block.parse()) {
+        for (var element : block.decodeElements()) {
           if (random.nextDouble() < 0.2) {
             if (inputs.size() % 1_000_000 == 0) {
               logger.log();

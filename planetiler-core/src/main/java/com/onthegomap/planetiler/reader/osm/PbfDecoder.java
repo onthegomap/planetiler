@@ -5,6 +5,7 @@ package com.onthegomap.planetiler.reader.osm;
 import com.carrotsearch.hppc.LongArrayList;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,9 +20,8 @@ import org.openstreetmap.osmosis.osmbinary.Fileformat;
 import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
- * Converts PBF block data into decoded entities ready to be passed into an Osmosis pipeline. This class is designed to
- * be passed into a pool of worker threads to allow multi-threaded decoding.
- * <p>
+ * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an iterator over blocks
+ * to give more control over the parallelism.
  *
  * @author Brett Henderson
  */
@@ -38,6 +38,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   @Override
   public Iterator<OsmElement> iterator() {
+    // TODO change to Iterables.concat(processNodes, processWays, processRelations)
     return block.getPrimitivegroupList().stream()
       .<OsmElement>mapMulti((primitiveGroup, next) -> {
         processNodes(primitiveGroup.getDense(), next);
@@ -197,12 +198,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
     }
   }
 
-  public static void decode(byte[] raw, Consumer<OsmElement> consumer) {
-    for (OsmElement element : decode(raw)) {
-      consumer.accept(element);
-    }
-  }
-
+  /** Decompresses and parses a block of primitive OSM elements. */
   public static Iterable<OsmElement> decode(byte[] raw) {
     try {
       return new PbfDecoder(raw);
@@ -211,6 +207,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
     }
   }
 
+  /** Decompresses and parses a header block of an OSM input file. */
   public static OsmHeader decodeHeader(byte[] raw) {
     try {
       byte[] data = readBlobContent(raw);
@@ -224,7 +221,13 @@ public class PbfDecoder implements Iterable<OsmElement> {
       );
       return new OsmHeader(
         bounds,
-        header.getRequiredFeaturesList()
+        header.getRequiredFeaturesList(),
+        header.getOptionalFeaturesList(),
+        header.getWritingprogram(),
+        header.getSource(),
+        Instant.ofEpochSecond(header.getOsmosisReplicationTimestamp()),
+        header.getOsmosisReplicationSequenceNumber(),
+        header.getOsmosisReplicationBaseUrl()
       );
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to decode PBF header", e);

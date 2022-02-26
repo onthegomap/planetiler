@@ -27,6 +27,13 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
   private final Path path;
   private final boolean lazy;
 
+  /**
+   * Creates a new OSM input file reader.
+   *
+   * @param path      Path to the file
+   * @param lazyReads If {@code true}, defers reading the actual content of each block from disk until the block is
+   *                  decoded in a worker thread.
+   */
   public OsmInputFile(Path path, boolean lazyReads) {
     this.path = path;
     lazy = lazyReads;
@@ -124,6 +131,10 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
     }
   }
 
+  /**
+   * An OSM block reader that iterates through the input file in a single thread, reading the raw bytes of each block
+   * and passing them off to worker threads.
+   */
   private class EagerReader implements OsmBlockSource {
 
     @Override
@@ -148,14 +159,20 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
       }
     }
 
-    record EagerBlock(@Override int id, byte[] bytes) implements Block {
+    private record EagerBlock(@Override int id, byte[] bytes) implements Block {
 
-      public Iterable<OsmElement> parse() {
+      public Iterable<OsmElement> decodeElements() {
         return PbfDecoder.decode(bytes);
       }
     }
   }
 
+  /**
+   * An OSM block reader that iterates through the input file in a single thread, skipping over each block and just
+   * passing the position/offset to workers so they can read the contents from disk in parallel.
+   * <p>
+   * This may result in a speedup on some systems.
+   */
   private class LazyReader implements OsmBlockSource {
 
     FileChannel lazyReadChannel = openChannel();
@@ -193,9 +210,9 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
       }
     }
 
-    record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
+    private record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
 
-      public Iterable<OsmElement> parse() {
+      public Iterable<OsmElement> decodeElements() {
         try {
           return PbfDecoder.decode(readBytes(channel, offset, length));
         } catch (IOException e) {

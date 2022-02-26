@@ -8,6 +8,7 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat;
 /**
  * Manages decoding of the lower level PBF data structures.
  * <p>
+ * This class is copied from Osmosis.
  *
  * @author Brett Henderson
  * <p>

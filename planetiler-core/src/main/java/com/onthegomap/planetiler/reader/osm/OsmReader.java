@@ -148,7 +148,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addBuffer("pbf_blocks", pendingBlocks)
       .sinkToConsumer("parse", parseThreads, block -> {
         List<OsmElement> result = new ArrayList<>();
-        for (var element : block.block.parse()) {
+        for (var element : block.block.decodeElements()) {
           // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
           if (element instanceof OsmElement.Node node) {
             node.encodedLocation();
@@ -299,7 +299,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
         for (var block : prev) {
           int blockNodes = 0, blockWays = 0, blockRelations = 0;
-          for (var element : block.parse()) {
+          for (var element : block.decodeElements()) {
             SourceFeature feature = null;
             if (element instanceof OsmElement.Node node) {
               blockNodes++;
@@ -338,6 +338,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           ways.incBy(blockWays);
           rels.incBy(blockRelations);
         }
+
+        // TODO some blocks finish early which leaves the other threads idle near the end
+        // could shuffle work of last few blocks to pull in completion time
 
         // just in case a worker skipped over all relations
         waitForWays.countDown();
