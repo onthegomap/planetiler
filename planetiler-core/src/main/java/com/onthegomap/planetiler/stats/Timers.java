@@ -30,9 +30,8 @@ public class Timers {
       String name = entry.getKey();
       var elapsed = entry.getValue().timer.elapsed();
       LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
-      var details = getStageDetails(name, false);
-      if (!details.isEmpty()) {
-        LOGGER.info("\t  " + String.join(" -> ", details));
+      for (String detail : getStageDetails(name, true)) {
+        LOGGER.info("\t  " + detail);
       }
     }
   }
@@ -57,10 +56,10 @@ public class Timers {
         .reduce(ProcessInfo.ThreadState.DEFAULT, ProcessInfo.ThreadState::plus);
       double totalNanos = elapsed.wall().multipliedBy(num).toNanos();
       result.append(Format.padRight(thread.replace(name + "_", ""), maxLength))
-        .append(pad ? Format.padLeft(Integer.toString(num), 2) : ("@%d".formatted(num)))
+        .append(Format.padLeft(Integer.toString(num), 2))
         .append("x(")
         .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
-        .append(pad ? " cpu:" : " ")
+        .append(" cpu:")
         .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
 
       Duration systemTime = sum.cpuTime().minus(sum.userTime()).dividedBy(num);
