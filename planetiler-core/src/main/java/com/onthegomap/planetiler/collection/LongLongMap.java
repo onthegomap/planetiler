@@ -157,6 +157,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     private final AppendStore.Longs keys;
     private final AppendStore.Longs values;
     private long lastChunk = -1;
+    private long lastKey = -1;
 
     public SortedTable(AppendStore.Longs keys, AppendStore.Longs values) {
       this.keys = keys;
@@ -165,6 +166,10 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
     @Override
     public void put(long key, long value) {
+      if (key <= lastKey) {
+        throw new IllegalArgumentException("Nodes must be sorted ascending by ID, " + key + " came after " + lastKey);
+      }
+      lastKey = key;
       long idx = keys.size();
       long chunk = key >>> 8;
       if (chunk != lastChunk) {
@@ -236,6 +241,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     private final AppendStore.Longs values;
     private int lastChunk = -1;
     private int lastOffset = 0;
+    private long lastKey = -1;
 
     public SparseArray(AppendStore.Longs values) {
       this.values = values;
@@ -243,6 +249,10 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
     @Override
     public void put(long key, long value) {
+      if (key <= lastKey) {
+        throw new IllegalArgumentException("Nodes must be sorted ascending by ID, " + key + " came after " + lastKey);
+      }
+      lastKey = key;
       long idx = values.size();
       int chunk = (int) (key >>> 8);
       int offset = (int) (key & 255);

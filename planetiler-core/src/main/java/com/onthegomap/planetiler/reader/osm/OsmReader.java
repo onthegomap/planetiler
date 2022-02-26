@@ -148,10 +148,25 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addBuffer("pbf_blocks", pendingBlocks)
       .sinkToConsumer("parse", parseThreads, block -> {
         List<OsmElement> result = new ArrayList<>();
+        boolean nodesDone = false, waysDone = false;
         for (var element : block.block.decodeElements()) {
           // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
           if (element instanceof OsmElement.Node node) {
             node.encodedLocation();
+            if (nodesDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id()
+                  + " after a way or relation");
+            }
+          } else if (element instanceof OsmElement.Way way) {
+            nodesDone = true;
+            if (waysDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
+                  + " after a relation");
+            }
+          } else if (element instanceof OsmElement.Relation) {
+            nodesDone = waysDone = true;
           }
           result.add(element);
         }
