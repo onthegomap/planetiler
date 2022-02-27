@@ -89,7 +89,7 @@ public class IterableOnceTest {
       iters++;
     }
     assertEquals(List.of(1, 2, 3, 4), result.stream().sorted().toList());
-    assertEquals(3, iters);
+    assertEquals(2, iters);
   }
 
   @Test
