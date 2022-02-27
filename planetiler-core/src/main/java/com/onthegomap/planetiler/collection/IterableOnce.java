@@ -14,18 +14,27 @@ public interface IterableOnce<T> extends Iterable<T>, Supplier<T> {
   @Override
   default Iterator<T> iterator() {
     return new Iterator<>() {
-      T next = get();
+      T next = null;
+      boolean stale = true;
+
+      private void advance() {
+        if (stale) {
+          next = get();
+          stale = false;
+        }
+      }
 
       @Override
       public boolean hasNext() {
+        advance();
         return next != null;
       }
 
       @Override
       public T next() {
-        T result = next;
-        next = get();
-        return result;
+        advance();
+        stale = true;
+        return next;
       }
     };
   }

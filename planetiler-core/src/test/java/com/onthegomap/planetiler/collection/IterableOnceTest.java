@@ -1,9 +1,6 @@
 package com.onthegomap.planetiler.collection;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -11,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 public class IterableOnceTest {
@@ -92,5 +90,21 @@ public class IterableOnceTest {
     }
     assertEquals(List.of(1, 2, 3, 4), result.stream().sorted().toList());
     assertEquals(3, iters);
+  }
+
+  @Test
+  public void testWaitsToCallNext() {
+    var iter = Stream.of(1, 2).peek(i -> {
+      if (i == 2) {
+        throw new Error();
+      }
+    }).iterator();
+    IterableOnce<Integer> items = iter::next;
+    var iter2 = items.iterator();
+    assertTrue(iter2.hasNext());
+    assertEquals(1, iter2.next());
+    assertThrows(Error.class, () -> {
+      iter2.hasNext();
+    });
   }
 }
