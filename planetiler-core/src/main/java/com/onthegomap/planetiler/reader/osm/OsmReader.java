@@ -133,7 +133,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     record BlockWithResult(OsmBlockSource.Block block, CompletableFuture<List<OsmElement>> result) {}
     var timer = stats.startStage("osm_pass1");
     int parseThreads = Math.max(1, config.threads() - 2);
-    int pendingBlocks = parseThreads * 10;
+    int pendingBlocks = parseThreads * 2;
     var parsedBatches = new WorkQueue<CompletableFuture<List<OsmElement>>>("elements", pendingBlocks, 1, stats);
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
     var readBranch = pipeline
