@@ -185,11 +185,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .sinkToConsumer("process", 1, this::processPass1Block);
 
     var loggers = ProgressLoggers.create()
-      .addRateCounter("blocks", PASS1_BLOCKS)
       .addRateCounter("nodes", PASS1_NODES, true)
       .addFileSizeAndRam(nodeLocationDb)
       .addRateCounter("ways", PASS1_WAYS, true)
       .addRateCounter("rels", PASS1_RELATIONS, true)
+      .addRateCounter("blocks", PASS1_BLOCKS)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
@@ -363,13 +363,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .sinkToConsumer("write", 1, writer);
 
     var logger = ProgressLoggers.create()
-      .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed)
-      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed)
+      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed, true)
       .addFileSizeAndRam(nodeLocationDb)
-      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed)
-      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
+      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed, true)
+      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed, true)
       .addRateCounter("features", writer::numFeaturesWritten)
       .addFileSize(writer)
+      .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed, false)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)

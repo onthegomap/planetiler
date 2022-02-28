@@ -152,7 +152,7 @@ public class MbtilesWriter {
     }
 
     var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed)
+      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
       .addFileSize(features)
       .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)

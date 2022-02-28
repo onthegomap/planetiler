@@ -83,7 +83,7 @@ public abstract class SimpleReader implements Closeable {
       });
 
     var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("read", featureCount, featuresRead)
+      .addRatePercentCounter("read", featureCount, featuresRead, true)
       .addRateCounter("write", featuresWritten)
       .addFileSize(writer)
       .newLine()
