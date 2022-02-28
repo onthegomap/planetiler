@@ -29,5 +29,9 @@ public interface OsmBlockSource extends Closeable {
 
     /** Decompress and parse OSM elements from this block. */
     Iterable<? extends OsmElement> decodeElements();
+
+    default int id() {
+      return -1;
+    }
   }
 }

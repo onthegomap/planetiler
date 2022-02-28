@@ -22,10 +22,12 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
@@ -33,9 +35,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -130,16 +130,23 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param config user-provided arguments to control the number of threads, and log interval
    */
   public void pass1(PlanetilerConfig config) {
-    record BlockWithResult(OsmBlockSource.Block block, CompletableFuture<List<OsmElement>> result) {}
+    record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
     var timer = stats.startStage("osm_pass1");
     int parseThreads = Math.max(1, config.threads() - 2);
     int pendingBlocks = parseThreads * 2;
-    var parsedBatches = new WorkQueue<CompletableFuture<List<OsmElement>>>("elements", pendingBlocks, 1, stats);
+    // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
+    // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
+    // like nodes without any tags, but limit the number of pending heavy entities like relations
+    int handoffQueueBatches = Math.max(
+      10,
+      (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
+    );
+    var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
     var readBranch = pipeline
       .<BlockWithResult>fromGenerator("read", next -> {
         osmBlockSource.forEachBlock((block) -> {
-          CompletableFuture<List<OsmElement>> result = new CompletableFuture<>();
+          WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
           parsedBatches.accept(result);
           next.accept(new BlockWithResult(block, result));
         });
@@ -150,8 +157,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         List<OsmElement> result = new ArrayList<>();
         boolean nodesDone = false, waysDone = false;
         for (var element : block.block.decodeElements()) {
-          // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
           if (element instanceof OsmElement.Node node) {
+            // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
             node.encodedLocation();
             if (nodesDone) {
               throw new IllegalArgumentException(
@@ -168,14 +175,14 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           } else if (element instanceof OsmElement.Relation) {
             nodesDone = waysDone = true;
           }
-          result.add(element);
+          block.result.accept(element, element.cost());
         }
-        block.result.complete(result);
+        block.result.close();
       });
 
     var processBranch = pipeline
       .readFromQueue(parsedBatches)
-      .sinkToConsumer("process", 1, this::processPass1BlockWhenReady);
+      .sinkToConsumer("process", 1, this::processPass1Block);
 
     var loggers = ProgressLoggers.create()
       .addRateCounter("blocks", PASS1_BLOCKS)
@@ -198,14 +205,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       " ways:" + FORMAT.integer(PASS1_WAYS.get()) +
       " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
     timer.stop();
-  }
-
-  private void processPass1BlockWhenReady(CompletableFuture<List<OsmElement>> elements) {
-    try {
-      processPass1Block(elements.get());
-    } catch (InterruptedException | ExecutionException e) {
-      throw new IllegalStateException(e);
-    }
   }
 
   void processPass1Block(Iterable<? extends OsmElement> elements) {

@@ -20,6 +20,8 @@ public interface OsmElement extends WithTags {
   /** OSM element ID */
   long id();
 
+  int cost();
+
   enum Type {
     NODE, WAY, RELATION
   }
@@ -28,7 +30,13 @@ public interface OsmElement extends WithTags {
   record Other(
     @Override long id,
     @Override Map<String, Object> tags
-  ) implements OsmElement {}
+  ) implements OsmElement {
+
+    @Override
+    public int cost() {
+      return 1 + tags.size();
+    }
+  }
 
   /** A point on the earth's surface. */
   final class Node implements OsmElement {
@@ -83,6 +91,11 @@ public interface OsmElement extends WithTags {
     }
 
     @Override
+    public int cost() {
+      return 1 + tags.size();
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == this) {
         return true;
@@ -123,6 +136,11 @@ public interface OsmElement extends WithTags {
     public Way(long id) {
       this(id, new HashMap<>(), new LongArrayList(5));
     }
+
+    @Override
+    public int cost() {
+      return 1 + tags.size() + nodes.size();
+    }
   }
 
   /** An ordered list of nodes, ways, and other relations. */
@@ -140,6 +158,11 @@ public interface OsmElement extends WithTags {
       if (members == null) {
         members = Collections.emptyList();
       }
+    }
+
+    @Override
+    public int cost() {
+      return 1 + tags.size() + members.size() * 3;
     }
 
     /** A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member. */
