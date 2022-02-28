@@ -3,6 +3,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Instant;
@@ -12,7 +13,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.IntUnaryOperator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.locationtech.jts.geom.Envelope;
@@ -34,18 +35,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
     byte[] data = readBlobContent(rawBlob);
     block = Osmformat.PrimitiveBlock.parseFrom(data);
     fieldDecoder = new PbfFieldDecoder(block);
-  }
-
-  @Override
-  public Iterator<OsmElement> iterator() {
-    // TODO change to Iterables.concat(processNodes, processWays, processRelations)
-    return block.getPrimitivegroupList().stream()
-      .<OsmElement>mapMulti((primitiveGroup, next) -> {
-        processNodes(primitiveGroup.getDense(), next);
-        processNodes(primitiveGroup.getNodesList(), next);
-        processWays(primitiveGroup.getWaysList(), next);
-        processRelations(primitiveGroup.getRelationsList(), next);
-      }).iterator();
   }
 
   private static byte[] readBlobContent(byte[] input) throws IOException {
@@ -72,130 +61,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
     }
 
     return blobData;
-  }
-
-  private Map<String, Object> buildTags(List<Integer> keys, List<Integer> values) {
-    Iterator<Integer> keyIterator = keys.iterator();
-    Iterator<Integer> valueIterator = values.iterator();
-    if (keyIterator.hasNext()) {
-      Map<String, Object> tags = new HashMap<>(keys.size());
-      while (keyIterator.hasNext()) {
-        String key = fieldDecoder.decodeString(keyIterator.next());
-        String value = fieldDecoder.decodeString(valueIterator.next());
-        tags.put(key, value);
-      }
-      return tags;
-    }
-    return Collections.emptyMap();
-  }
-
-  private void processNodes(List<Osmformat.Node> nodes, Consumer<OsmElement> receiver) {
-    for (Osmformat.Node node : nodes) {
-      receiver.accept(new OsmElement.Node(
-        node.getId(),
-        buildTags(node.getKeysList(), node.getValsList()),
-        fieldDecoder.decodeLatitude(node.getLat()),
-        fieldDecoder.decodeLongitude(node.getLon())
-      ));
-    }
-  }
-
-  private void processNodes(Osmformat.DenseNodes nodes, Consumer<OsmElement> receiver) {
-    List<Long> idList = nodes.getIdList();
-    List<Long> latList = nodes.getLatList();
-    List<Long> lonList = nodes.getLonList();
-
-    Iterator<Integer> keysValuesIterator = nodes.getKeysValsList().iterator();
-    long nodeId = 0;
-    long latitude = 0;
-    long longitude = 0;
-    for (int i = 0; i < idList.size(); i++) {
-      // Delta decode node fields.
-      nodeId += idList.get(i);
-      latitude += latList.get(i);
-      longitude += lonList.get(i);
-
-      // Build the tags. The key and value string indexes are sequential
-      // in the same PBF array. Each set of tags is delimited by an index
-      // with a value of 0.
-      Map<String, Object> tags = null;
-      while (keysValuesIterator.hasNext()) {
-        int keyIndex = keysValuesIterator.next();
-        if (keyIndex == 0) {
-          break;
-        }
-        int valueIndex = keysValuesIterator.next();
-
-        if (tags == null) {
-          // divide by 2 as key&value, multiple by 2 because of the better approximation
-          tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsList().size() / 2) / idList.size()));
-        }
-
-        tags.put(fieldDecoder.decodeString(keyIndex), fieldDecoder.decodeString(valueIndex));
-      }
-
-      receiver.accept(new OsmElement.Node(
-        nodeId,
-        tags == null ? Collections.emptyMap() : tags,
-        ((double) latitude) / 10000000,
-        ((double) longitude) / 10000000)
-      );
-    }
-  }
-
-  private void processWays(List<Osmformat.Way> ways, Consumer<OsmElement> receiver) {
-    for (Osmformat.Way way : ways) {
-      // Build up the list of way nodes for the way. The node ids are
-      // delta encoded meaning that each id is stored as a delta against
-      // the previous one.
-      long nodeId = 0;
-      int numNodes = way.getRefsCount();
-      LongArrayList wayNodesList = new LongArrayList(numNodes);
-      wayNodesList.elementsCount = numNodes;
-      long[] wayNodes = wayNodesList.buffer;
-      for (int i = 0; i < numNodes; i++) {
-        long nodeIdOffset = way.getRefs(i);
-        nodeId += nodeIdOffset;
-        wayNodes[i] = nodeId;
-      }
-
-      receiver.accept(new OsmElement.Way(
-        way.getId(),
-        buildTags(way.getKeysList(), way.getValsList()),
-        wayNodesList
-      ));
-    }
-  }
-
-  private void processRelations(List<Osmformat.Relation> relations, Consumer<OsmElement> receiver) {
-    for (Osmformat.Relation relation : relations) {
-
-      int num = relation.getMemidsCount();
-
-      List<OsmElement.Relation.Member> members = new ArrayList<>(num);
-
-      long memberId = 0;
-      for (int i = 0; i < num; i++) {
-        memberId += relation.getMemids(i);
-        var memberType = switch (relation.getTypes(i)) {
-          case WAY -> OsmElement.Relation.Type.WAY;
-          case NODE -> OsmElement.Relation.Type.NODE;
-          case RELATION -> OsmElement.Relation.Type.RELATION;
-        };
-        members.add(new OsmElement.Relation.Member(
-          memberType,
-          memberId,
-          fieldDecoder.decodeString(relation.getRolesSid(i))
-        ));
-      }
-
-      // Add the bound object to the results.
-      receiver.accept(new OsmElement.Relation(
-        relation.getId(),
-        buildTags(relation.getKeysList(), relation.getValsList()),
-        members
-      ));
-    }
   }
 
   /** Decompresses and parses a block of primitive OSM elements. */
@@ -231,6 +96,202 @@ public class PbfDecoder implements Iterable<OsmElement> {
       );
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to decode PBF header", e);
+    }
+  }
+
+  @Override
+  public Iterator<OsmElement> iterator() {
+    return Iterators.concat(block.getPrimitivegroupList().stream().map(primitiveGroup -> Iterators.concat(
+      new DenseNodeIterator(primitiveGroup.getDense()),
+      new NodeIterator(primitiveGroup.getNodesList()),
+      new WayIterator(primitiveGroup.getWaysList()),
+      new RelationIterator(primitiveGroup.getRelationsList())
+    )).iterator());
+  }
+
+  private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
+    if (num > 0) {
+      Map<String, Object> tags = new HashMap<>(num);
+      for (int i = 0; i < num; i++) {
+        String k = fieldDecoder.decodeString(key.applyAsInt(i));
+        String v = fieldDecoder.decodeString(value.applyAsInt(i));
+        tags.put(k, v);
+      }
+      return tags;
+    }
+    return Collections.emptyMap();
+  }
+
+  private class NodeIterator implements Iterator<OsmElement.Node> {
+
+    private final List<Osmformat.Node> nodes;
+    int i;
+
+    public NodeIterator(List<Osmformat.Node> nodes) {
+      this.nodes = nodes;
+      i = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return i < nodes.size();
+    }
+
+    @Override
+    public OsmElement.Node next() {
+      var node = nodes.get(i++);
+      return new OsmElement.Node(
+        node.getId(),
+        buildTags(node.getKeysCount(), node::getKeys, node::getVals),
+        fieldDecoder.decodeLatitude(node.getLat()),
+        fieldDecoder.decodeLongitude(node.getLon())
+      );
+    }
+  }
+
+  private class RelationIterator implements Iterator<OsmElement.Relation> {
+
+    private final List<Osmformat.Relation> relations;
+    int i;
+
+    public RelationIterator(List<Osmformat.Relation> relations) {
+      this.relations = relations;
+      i = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return i < relations.size();
+    }
+
+    @Override
+    public OsmElement.Relation next() {
+      var relation = relations.get(i++);
+      int num = relation.getMemidsCount();
+
+      List<OsmElement.Relation.Member> members = new ArrayList<>(num);
+
+      long memberId = 0;
+      for (int i = 0; i < num; i++) {
+        memberId += relation.getMemids(i);
+        var memberType = switch (relation.getTypes(i)) {
+          case WAY -> OsmElement.Relation.Type.WAY;
+          case NODE -> OsmElement.Relation.Type.NODE;
+          case RELATION -> OsmElement.Relation.Type.RELATION;
+        };
+        members.add(new OsmElement.Relation.Member(
+          memberType,
+          memberId,
+          fieldDecoder.decodeString(relation.getRolesSid(i))
+        ));
+      }
+
+      // Add the bound object to the results.
+      return new OsmElement.Relation(
+        relation.getId(),
+        buildTags(relation.getKeysCount(), relation::getKeys, relation::getVals),
+        members
+      );
+    }
+  }
+
+  private class WayIterator implements Iterator<OsmElement.Way> {
+
+    private final List<Osmformat.Way> ways;
+    int i;
+
+    public WayIterator(List<Osmformat.Way> ways) {
+      this.ways = ways;
+      i = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return i < ways.size();
+    }
+
+    @Override
+    public OsmElement.Way next() {
+      var way = ways.get(i++);
+      // Build up the list of way nodes for the way. The node ids are
+      // delta encoded meaning that each id is stored as a delta against
+      // the previous one.
+      long nodeId = 0;
+      int numNodes = way.getRefsCount();
+      LongArrayList wayNodesList = new LongArrayList(numNodes);
+      wayNodesList.elementsCount = numNodes;
+      long[] wayNodes = wayNodesList.buffer;
+      for (int i = 0; i < numNodes; i++) {
+        long nodeIdOffset = way.getRefs(i);
+        nodeId += nodeIdOffset;
+        wayNodes[i] = nodeId;
+      }
+
+      return new OsmElement.Way(
+        way.getId(),
+        buildTags(way.getKeysCount(), way::getKeys, way::getVals),
+        wayNodesList
+      );
+    }
+  }
+
+  private class DenseNodeIterator implements Iterator<OsmElement.Node> {
+
+    final Osmformat.DenseNodes nodes;
+    long nodeId;
+    long latitude;
+    long longitude;
+    int i;
+    int kvIndex;
+
+    public DenseNodeIterator(Osmformat.DenseNodes nodes) {
+      this.nodes = nodes;
+      nodeId = 0;
+      latitude = 0;
+      longitude = 0;
+      i = 0;
+      kvIndex = 0;
+    }
+
+
+    @Override
+    public boolean hasNext() {
+      return i < nodes.getIdCount();
+    }
+
+    @Override
+    public OsmElement.Node next() {
+      // Delta decode node fields.
+      nodeId += nodes.getId(i);
+      latitude += nodes.getLat(i);
+      longitude += nodes.getLon(i);
+      i++;
+
+      // Build the tags. The key and value string indexes are sequential
+      // in the same PBF array. Each set of tags is delimited by an index
+      // with a value of 0.
+      Map<String, Object> tags = null;
+      while (kvIndex < nodes.getKeysValsCount()) {
+        int keyIndex = nodes.getKeysVals(kvIndex++);
+        if (keyIndex == 0) {
+          break;
+        }
+        int valueIndex = nodes.getKeysVals(kvIndex++);
+
+        if (tags == null) {
+          // divide by 2 as key&value, multiple by 2 because of the better approximation
+          tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
+        }
+
+        tags.put(fieldDecoder.decodeString(keyIndex), fieldDecoder.decodeString(valueIndex));
+      }
+
+      return new OsmElement.Node(
+        nodeId,
+        tags == null ? Collections.emptyMap() : tags,
+        ((double) latitude) / 10000000,
+        ((double) longitude) / 10000000
+      );
     }
   }
 }
