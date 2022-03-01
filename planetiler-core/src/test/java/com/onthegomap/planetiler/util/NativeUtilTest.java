@@ -36,6 +36,8 @@ public class NativeUtilTest {
           System.out.println("madvise failed, but the system may not support it");
         }
       }
+    } finally {
+      Files.delete(path);
     }
   }
 }
