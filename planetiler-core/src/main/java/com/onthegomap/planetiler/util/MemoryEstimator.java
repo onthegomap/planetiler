@@ -1,14 +1,6 @@
 package com.onthegomap.planetiler.util;
 
-import com.carrotsearch.hppc.ByteArrayList;
-import com.carrotsearch.hppc.IntArrayList;
-import com.carrotsearch.hppc.IntObjectHashMap;
-import com.carrotsearch.hppc.LongArrayList;
-import com.carrotsearch.hppc.LongHashSet;
-import com.carrotsearch.hppc.LongIntHashMap;
-import com.carrotsearch.hppc.LongLongHashMap;
-import com.carrotsearch.hppc.LongObjectHashMap;
-import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.carrotsearch.hppc.Accountable;
 
 /**
  * Utilities to estimate the size of in-memory objects.
@@ -23,30 +15,6 @@ public class MemoryEstimator {
 
   public static long estimateSize(HasEstimate object) {
     return object == null ? 0 : object.estimateMemoryUsageBytes();
-  }
-
-  public static long estimateSize(LongHashSet object) {
-    return object == null ? 0 : estimateSize(object.keys);
-  }
-
-  public static long estimateSize(LongLongHashMap object) {
-    return object == null ? 0 : (estimateSize(object.keys) + estimateSize(object.values));
-  }
-
-  public static long estimateSize(LongIntHashMap object) {
-    return object == null ? 0 : (estimateSize(object.keys) + estimateSize(object.values));
-  }
-
-  public static long estimateSize(LongArrayList object) {
-    return object == null ? 0 : estimateSize(object.buffer);
-  }
-
-  public static long estimateSize(IntArrayList object) {
-    return object == null ? 0 : estimateSize(object.buffer);
-  }
-
-  public static long estimateSize(ByteArrayList object) {
-    return object == null ? 0 : estimateSize(object.buffer);
   }
 
   public static long estimateSize(String string) {
@@ -70,27 +38,10 @@ public class MemoryEstimator {
   }
 
   /**
-   * Estimates the size of the key and value arrays from {@code object} but omits the size of the actual objects that
-   * values point to.
+   * Estimates the size of an HPPC {@link Accountable} instance.
    */
-  public static long estimateSizeWithoutValues(IntObjectHashMap<?> object) {
-    return object == null ? 0 : (estimateSize(object.keys) + estimateSize(object.values));
-  }
-
-  /**
-   * Estimates the size of the key and value arrays from {@code object} but omits the size of the actual objects that
-   * values point to.
-   */
-  public static <T> long estimateSizeWithoutValues(LongObjectHashMap<T> object) {
-    return object == null ? 0 : (estimateSize(object.keys) + estimateSize(object.values));
-  }
-
-  /**
-   * Estimates the size of the key and value arrays from {@code object} but omits the size of the actual objects that
-   * keys point to.
-   */
-  public static long estimateSizeWithoutKeys(ObjectIntHashMap<?> object) {
-    return object == null ? 0 : (estimateSize(object.keys) + estimateSize(object.values));
+  public static long estimateSize(Accountable object) {
+    return object == null ? 0 : object.ramBytesAllocated();
   }
 
   public static long estimateArraySize(int length, long entrySize) {

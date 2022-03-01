@@ -1,8 +1,6 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSizeWithoutKeys;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSizeWithoutValues;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
@@ -477,9 +475,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += estimateSize(waysInMultipolygon);
     size += estimateSize(multipolygonWayGeometries);
     size += estimateSize(wayToRelations);
-    size += estimateSizeWithoutValues(relationInfo);
-    size += MemoryEstimator.estimateSizeWithoutValues(roleIdsReverse);
-    size += estimateSizeWithoutKeys(roleIds);
+    size += estimateSize(relationInfo);
+    size += estimateSize(roleIdsReverse);
+    size += estimateSize(roleIds);
     size += roleSizes.get();
     size += relationInfoSizes.get();
     return size;
