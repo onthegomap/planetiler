@@ -41,7 +41,6 @@ import static com.onthegomap.planetiler.basemap.util.Utils.nullIfLong;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullOrEmpty;
 import static java.util.Map.entry;
 
-import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.VectorTile;
@@ -49,6 +48,7 @@ import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.stats.Stats;
@@ -182,7 +182,7 @@ public class Poi implements
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     // infer the "rank" field from the order of features within each label grid square
-    LongIntMap groupCounts = new LongIntHashMap();
+    LongIntMap groupCounts = Hppc.newLongIntHashMap();
     for (VectorTile.Feature feature : items) {
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);

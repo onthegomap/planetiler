@@ -5,7 +5,6 @@ import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
 
 import com.carrotsearch.hppc.LongHashSet;
-import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.LongObjectMap;
 import com.carrotsearch.hppc.LongSet;
 import com.carrotsearch.hppc.cursors.LongObjectCursor;
@@ -13,9 +12,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.graphhopper.coll.GHLongObjectHashMap;
-import com.graphhopper.util.StopWatch;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
@@ -23,6 +21,7 @@ import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -88,7 +87,7 @@ public class Wikidata {
   private static LongObjectMap<Map<String, String>> parseResults(InputStream results) throws IOException {
     JsonNode node = objectMapper.readTree(results);
     ArrayNode bindings = (ArrayNode) node.get("results").get("bindings");
-    LongObjectMap<Map<String, String>> resultMap = new LongObjectHashMap<>();
+    LongObjectMap<Map<String, String>> resultMap = Hppc.newLongObjectHashMap();
     bindings.elements().forEachRemaining(row -> {
       long id = extractIdFromWikidataIRI(row.get("id").get("value").asText());
       Map<String, String> map = resultMap.get(id);
@@ -163,12 +162,11 @@ public class Wikidata {
    * Returns translations parsed from {@code path} that was written by a previous run of the downloader.
    */
   public static WikidataTranslations load(Path path) {
-    StopWatch watch = new StopWatch().start();
+    Timer timer = Timer.start();
     try (BufferedReader fis = Files.newBufferedReader(path)) {
       WikidataTranslations result = load(fis);
       LOGGER.info(
-        "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + watch
-          .stop());
+        "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
       return result;
     } catch (IOException e) {
       LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
@@ -247,7 +245,7 @@ public class Wikidata {
 
   void flush() {
     try {
-      StopWatch timer = new StopWatch().start();
+      Timer timer = Timer.start();
       LongObjectMap<Map<String, String>> results = queryWikidata(qidsToFetch);
       batches.inc();
       LOGGER.info("Fetched batch " + batches.get() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
@@ -276,7 +274,7 @@ public class Wikidata {
   private LongObjectMap<Map<String, String>> queryWikidata(List<Long> qidsToFetch)
     throws IOException, InterruptedException {
     if (qidsToFetch.isEmpty()) {
-      return new GHLongObjectHashMap<>();
+      return Hppc.newLongObjectHashMap();
     }
     String qidList = qidsToFetch.stream().map(id -> "wd:Q" + id).collect(Collectors.joining(" "));
     String query = """
@@ -353,7 +351,7 @@ public class Wikidata {
 
   public static class WikidataTranslations implements Translations.TranslationProvider {
 
-    private final LongObjectMap<Map<String, String>> data = new GHLongObjectHashMap<>();
+    private final LongObjectMap<Map<String, String>> data = Hppc.newLongObjectHashMap();
 
     public WikidataTranslations() {
     }

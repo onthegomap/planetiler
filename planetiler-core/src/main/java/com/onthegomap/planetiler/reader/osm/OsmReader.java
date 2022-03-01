@@ -13,6 +13,7 @@ import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.collection.SortableFeature;
@@ -81,7 +82,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   // for routes (750k rels 40m ways) and boundaries (650k rels, 8m ways)
   // need to store route info to use later when processing ways
   // <~500mb
-  private LongObjectHashMap<OsmRelationInfo> relationInfo = new LongObjectHashMap<>();
+  private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)

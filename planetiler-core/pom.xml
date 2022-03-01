@@ -16,7 +16,6 @@
   </parent>
 
   <properties>
-    <graphhopper.version>2.4</graphhopper.version>
     <geotools.version>26.3</geotools.version>
     <log4j.version>2.17.2</log4j.version>
     <prometheus.version>0.15.0</prometheus.version>
@@ -24,9 +23,14 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.graphhopper</groupId>
-      <artifactId>graphhopper-reader-osm</artifactId>
-      <version>${graphhopper.version}</version>
+      <groupId>com.carrotsearch</groupId>
+      <artifactId>hppc</artifactId>
+      <version>0.8.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openstreetmap.osmosis</groupId>
+      <artifactId>osmosis-osm-binary</artifactId>
+      <version>0.48.3</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>

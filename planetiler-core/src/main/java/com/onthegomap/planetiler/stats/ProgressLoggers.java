@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.stats;
 import static com.onthegomap.planetiler.util.Format.padLeft;
 import static com.onthegomap.planetiler.util.Format.padRight;
 
-import com.graphhopper.util.Helper;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
@@ -255,8 +254,8 @@ public class ProgressLoggers {
       return num > 0.6 ? red(formatted) : num > 0.3 ? yellow(formatted) : formatted;
     });
     loggers.add(new ProgressLogger("mem",
-      () -> format.storage(Helper.getUsedMB() * Helper.MB, false) + "/" +
-        format.storage(Helper.getTotalMB() * Helper.MB, false) +
+      () -> format.storage(ProcessInfo.getUsedMemoryBytes(), false) + "/" +
+        format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
           .mapToObj(value -> " postGC: " + blue(format.storage(value, false)))
           .findFirst()
