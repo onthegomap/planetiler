@@ -13,10 +13,10 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public class NativeUtilTest {
+public class MmapUtilTest {
 
   @Test
-  public void testMadvise(@TempDir Path dir) throws IOException {
+  public void testMadviseAndUnmap(@TempDir Path dir) throws IOException {
     String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
     String data = "test";
     int bytes = data.getBytes(StandardCharsets.UTF_8).length;
@@ -25,7 +25,7 @@ public class NativeUtilTest {
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
       MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, bytes);
       try {
-        NativeUtil.madvise(buffer, NativeUtil.Madvice.RANDOM);
+        MmapUtil.madvise(buffer, MmapUtil.Madvice.RANDOM);
         byte[] received = new byte[bytes];
         buffer.get(received);
         assertEquals(data, new String(received, StandardCharsets.UTF_8));
@@ -35,6 +35,8 @@ public class NativeUtilTest {
         } else {
           System.out.println("madvise failed, but the system may not support it");
         }
+      } finally {
+        MmapUtil.unmap(buffer);
       }
     } finally {
       Files.delete(path);

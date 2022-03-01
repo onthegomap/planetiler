@@ -28,37 +28,25 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import jnr.ffi.LibraryLoader;
 import jnr.ffi.types.size_t;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Wrappers around native utilities.
+ * Wrapper for native madvise function to be used via the public API {@link MmapUtil#madvise(ByteBuffer,
+ * MmapUtil.Madvice)}.
  * <p>
- * Ported from <a href="https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend
- * NativeIO class</a>.
+ * Ported from <a href="https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
+ *
+ * @see <a href="https://man7.org/linux/man-pages/man2/madvise.2.html">madvise(2) — Linux manual page</a>
  */
-public class NativeUtil {
+class Madvise {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(NativeUtil.class);
   private static final NativeC nativeC = LibraryLoader.create(NativeC.class).load("c");
-  private static int pageSize;
+  static int pageSize;
 
   static {
     try {
       pageSize = nativeC.getpagesize(); // 4096 on most Linux
     } catch (UnsatisfiedLinkError e) {
       pageSize = -1;
-    }
-  }
-
-  /** Attempts to invoke native utility and logs an error message if not available. */
-  public static void init() {
-    if (pageSize < 0) {
-      try {
-        madvise(ByteBuffer.allocateDirect(1), Madvice.RANDOM);
-      } catch (IOException e) {
-        LOGGER.info("madvise not available on this system");
-      }
     }
   }
 
@@ -73,15 +61,14 @@ public class NativeUtil {
   }
 
   /**
-   * Give a hint to the system how a mapped memory segment will be used so the OS can optimize performance for that
-   * use-case.
+   * Give a hint to the system how a mapped memory segment will be used so the OS can optimize performance.
    *
    * @param buffer The mapped memory segment.
    * @param value  The advice to use.
    * @throws IOException If an error occurs or madvise not available on this system
    * @see <a href="https://man7.org/linux/man-pages/man2/madvise.2.html">madvise(2) — Linux manual page</a>
    */
-  public static void madvise(ByteBuffer buffer, Madvice value) throws IOException {
+  static void madvise(ByteBuffer buffer, int value) throws IOException {
     if (pageSize <= 0) {
       throw new IOException("madvise failed, pagesize not available");
     }
@@ -91,7 +78,7 @@ public class NativeUtil {
     long alignedAddress = alignedAddress(address);
     long alignedSize = alignedSize(alignedAddress, capacity);
     try {
-      int val = nativeC.madvise(alignedAddress, alignedSize, value.value);
+      int val = nativeC.madvise(alignedAddress, alignedSize, value);
       if (val != 0) {
         throw new IOException(String.format("System call madvise failed with code: %d", val));
       }
@@ -100,20 +87,7 @@ public class NativeUtil {
     }
   }
 
-  /** Values from https://man7.org/linux/man-pages/man2/madvise.2.html */
-  public enum Madvice {
-    NORMAL(0),
-    RANDOM(1),
-    SEQUENTIAL(2),
-    WILLNEED(3),
-    DONTNEED(4);
-    final int value;
-
-    Madvice(int value) {
-      this.value = value;
-    }
-  }
-
+  /** JNR-FFI will automatically compile these to wrappers around native functions with the same signatures. */
   public interface NativeC {
 
     int madvise(@size_t long address, @size_t long size, int advice);

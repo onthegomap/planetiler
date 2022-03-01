@@ -1,13 +1,10 @@
 package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.util.NativeUtil;
+import com.onthegomap.planetiler.util.MmapUtil;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -35,7 +32,7 @@ abstract class AppendStoreMmap implements AppendStore {
   private volatile FileChannel channel;
 
   static {
-    NativeUtil.init();
+    MmapUtil.init();
   }
 
   AppendStoreMmap(Path path) {
@@ -74,7 +71,7 @@ abstract class AppendStoreMmap implements AppendStore {
               long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
               MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
               try {
-                NativeUtil.madvise(thisBuffer, NativeUtil.Madvice.RANDOM);
+                MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
               } catch (IOException e) {
                 if (!madviseFailed) { // log once
                   LOGGER.info(
@@ -103,27 +100,8 @@ abstract class AppendStoreMmap implements AppendStore {
       }
       if (segments != null) {
         try {
-          // attempt to force-unmap the file, so we can delete it later
-          // https://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
-          Class<?> unsafeClass;
-          try {
-            unsafeClass = Class.forName("sun.misc.Unsafe");
-          } catch (Exception ex) {
-            unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
-          }
-          Method clean = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-          clean.setAccessible(true);
-          Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-          theUnsafeField.setAccessible(true);
-          Object theUnsafe = theUnsafeField.get(null);
-          for (int i = 0; i < segments.length; i++) {
-            var buffer = segments[i];
-            if (buffer != null) {
-              clean.invoke(theUnsafe, buffer);
-              segments[i] = null;
-            }
-          }
-        } catch (Exception e) {
+          MmapUtil.unmap(segments);
+        } catch (IOException e) {
           LOGGER.info("Unable to unmap " + path + " " + e);
         }
         Arrays.fill(segments, null);
