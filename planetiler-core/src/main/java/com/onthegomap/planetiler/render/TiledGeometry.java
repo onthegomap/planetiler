@@ -20,7 +20,7 @@ package com.onthegomap.planetiler.render;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import com.carrotsearch.hppc.cursors.IntObjectCursor;
-import com.graphhopper.coll.GHIntObjectHashMap;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.IntRangeSet;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
@@ -310,8 +310,8 @@ class TiledGeometry {
   private IntObjectMap<List<MutableCoordinateSequence>> sliceX(CoordinateSequence segment) {
     double leftLimit = -buffer;
     double rightLimit = 1 + buffer;
-    IntObjectMap<List<MutableCoordinateSequence>> newGeoms = new GHIntObjectHashMap<>();
-    IntObjectMap<MutableCoordinateSequence> xSlices = new GHIntObjectHashMap<>();
+    IntObjectMap<List<MutableCoordinateSequence>> newGeoms = Hppc.newIntObjectHashMap();
+    IntObjectMap<MutableCoordinateSequence> xSlices = Hppc.newIntObjectHashMap();
     int end = segment.size() - 1;
     for (int i = 0; i < end; i++) {
       double ax = segment.getX(i);
@@ -415,7 +415,7 @@ class TiledGeometry {
     IntRangeSet rightFilled = null;
     IntRangeSet leftFilled = null;
 
-    IntObjectMap<MutableCoordinateSequence> ySlices = new GHIntObjectHashMap<>();
+    IntObjectMap<MutableCoordinateSequence> ySlices = Hppc.newIntObjectHashMap();
     if (x < 0 || x >= maxTilesAtThisZoom) {
       return null;
     }
