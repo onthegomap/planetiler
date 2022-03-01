@@ -513,8 +513,13 @@ public class Planetiler {
       stage.task.run();
     }
 
-    LOGGER.info("Deleting node.db to make room for mbtiles");
+    LOGGER.info("Deleting node.db to make room for output file");
     profile.release();
+    for (var inputPath : inputPaths) {
+      if (inputPath.freeAfterReading()) {
+        LOGGER.info("Deleting " + inputPath.id + "(" + inputPath.path + ") to make room for output file");
+      }
+    }
 
     featureGroup.prepare();
 
@@ -527,36 +532,54 @@ public class Planetiler {
   }
 
   private void checkDiskSpace() {
-    Map<FileStore, Long> bytesRequested = new HashMap<>();
+    Map<FileStore, Long> readPhaseBytes = new HashMap<>();
+    Map<FileStore, Long> writePhaseBytes = new HashMap<>();
     long osmSize = osmInputFile.diskUsageBytes();
     long nodeMapSize = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize);
     long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
     long outputSize = profile.estimateOutputBytes(osmSize);
 
     try {
-      bytesRequested.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
-      bytesRequested.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
-      bytesRequested.merge(Files.getFileStore(output.toAbsolutePath().getParent()), outputSize, Long::sum);
-      for (var entry : bytesRequested.entrySet()) {
-        var fs = entry.getKey();
-        var requested = entry.getValue();
-        long available = fs.getUnallocatedSpace();
-        if (available < requested) {
-          var format = Format.defaultInstance();
-          String warning =
-            "Planetiler needs ~" + format.storage(requested) + " on " + fs + " which only has "
-              + format.storage(available) + " available";
-          if (config.force() || requested < available * 1.25) {
-            LOGGER.warn(warning + ", may fail.");
-          } else {
-            throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-          }
+      // node locations only needed while reading inputs
+      readPhaseBytes.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
+      // feature db persists across read/write phase
+      readPhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
+      writePhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
+      // output only needed during write phase
+      writePhaseBytes.merge(Files.getFileStore(output.toAbsolutePath().getParent()), outputSize, Long::sum);
+      // if the user opts to remove an input source after reading to free up additional space for the output...
+      for (var input : inputPaths) {
+        if (input.freeAfterReading()) {
+          writePhaseBytes.merge(Files.getFileStore(input.path), -Files.size(input.path), Long::sum);
         }
       }
+
+      checkDiskSpaceOnDevices(readPhaseBytes, "read");
+      checkDiskSpaceOnDevices(writePhaseBytes, "write");
     } catch (IOException e) {
       LOGGER.warn("Unable to check disk space requirements, may run out of room " + e);
     }
 
+  }
+
+  private void checkDiskSpaceOnDevices(Map<FileStore, Long> readPhaseBytes, String phase) throws IOException {
+    for (var entry : readPhaseBytes.entrySet()) {
+      var fs = entry.getKey();
+      var requested = entry.getValue();
+      long available = fs.getUnallocatedSpace();
+      if (available < requested) {
+        var format = Format.defaultInstance();
+        String warning =
+          "Planetiler needs ~" + format.storage(requested) + " on " + fs + " during " + phase
+            + " phase, which only has "
+            + format.storage(available) + " available";
+        if (config.force() || requested < available * 1.25) {
+          LOGGER.warn(warning + ", may fail.");
+        } else {
+          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+        }
+      }
+    }
   }
 
   private void checkMemory() {
@@ -617,13 +640,15 @@ public class Planetiler {
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
+    boolean freeAfterReading = arguments.getBoolean(name + "_free_after_read",
+      name + " delete after reading to make space for output (reduces peak disk usage)", false);
     if (downloadSources) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
       if (!Files.exists(path) && url != null) {
         toDownload.add(new ToDownload(name, url, path));
       }
     }
-    inputPaths.add(new InputPath(name, path));
+    inputPaths.add(new InputPath(name, path, freeAfterReading));
     return path;
   }
 
@@ -656,5 +681,5 @@ public class Planetiler {
 
   private record ToDownload(String id, String url, Path path) {}
 
-  private record InputPath(String id, Path path) {}
+  private record InputPath(String id, Path path, boolean freeAfterReading) {}
 }
