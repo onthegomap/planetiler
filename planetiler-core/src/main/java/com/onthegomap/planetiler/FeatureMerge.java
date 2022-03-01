@@ -3,7 +3,7 @@ package com.onthegomap.planetiler;
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.carrotsearch.hppc.IntStack;
-import com.graphhopper.coll.GHIntObjectHashMap;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.DouglasPeuckerSimplifier;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -394,7 +394,7 @@ public class FeatureMerge {
       env.expandBy(minDist);
       envelopeIndex.insert(env, i);
     }
-    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    IntObjectMap<IntArrayList> result = Hppc.newIntObjectHashMap();
     for (int _i = 0; _i < geometries.size(); _i++) {
       int i = _i;
       Geometry a = geometries.get(i);

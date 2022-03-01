@@ -226,7 +226,7 @@ Planetiler is made possible by these awesome open source projects:
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
   that the [basemap profile](planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers)
   is based on
-- [Graphhopper](https://www.graphhopper.com/) for utilities to process OpenStreetMap data in Java
+- [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
 - [Geotools](https://github.com/geotools/geotools) for shapefile processing
 - [SQLite JDBC Driver](https://github.com/xerial/sqlite-jdbc) for reading Natural Earth data and writing MBTiles files
@@ -239,6 +239,8 @@ Planetiler is made possible by these awesome open source projects:
 - [imposm3](https://github.com/omniscale/imposm3) for the basis
   of [OSM multipolygon processing](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/osm/OsmMultipolygon.java)
   and [tag parsing utilities](planetiler-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
+- [HPPC](http://labs.carrotsearch.com/) for high-performance primitive Java collections
+- [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

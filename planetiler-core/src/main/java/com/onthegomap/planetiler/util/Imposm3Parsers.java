@@ -14,7 +14,7 @@
 package com.onthegomap.planetiler.util;
 
 import com.carrotsearch.hppc.ObjectIntMap;
-import com.graphhopper.coll.GHObjectIntHashMap;
+import com.onthegomap.planetiler.collection.Hppc;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,7 +30,7 @@ public class Imposm3Parsers {
     return object == null ? null : object.toString();
   }
 
-  private static final ObjectIntMap<String> defaultRank = new GHObjectIntHashMap<>();
+  private static final ObjectIntMap<String> defaultRank = Hppc.newObjectIntHashMap();
 
   static {
     defaultRank.put("minor", 3);

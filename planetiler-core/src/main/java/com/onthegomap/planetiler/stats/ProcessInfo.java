@@ -105,6 +105,11 @@ public class ProcessInfo {
     return Runtime.getRuntime().maxMemory();
   }
 
+  /** Returns the JVM used memory. */
+  public static long getUsedMemoryBytes() {
+    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  }
+
   /** Processor usage statistics for a thread. */
   public record ThreadState(
     String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id

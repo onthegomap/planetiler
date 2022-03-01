@@ -38,7 +38,6 @@ package com.onthegomap.planetiler.basemap.layers;
 import static com.onthegomap.planetiler.basemap.util.Utils.elevationTags;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 
-import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.VectorTile;
@@ -46,6 +45,7 @@ import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -171,7 +171,7 @@ public class MountainPeak implements
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
-    LongIntMap groupCounts = new LongIntHashMap();
+    LongIntMap groupCounts = Hppc.newLongIntHashMap();
     for (int i = 0; i < items.size(); i++) {
       VectorTile.Feature feature = items.get(i);
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
