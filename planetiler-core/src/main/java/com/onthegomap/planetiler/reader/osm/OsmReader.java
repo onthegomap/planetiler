@@ -27,6 +27,7 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -295,6 +296,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     // since multiple threads process OSM elements, and we must process all ways before processing any relations,
     // use a count down latch to wait for all threads to finish processing ways
     CountDownLatch waitForWays = new CountDownLatch(processThreads);
+    // Use a Distributor to keep all worker threads busy when processing the final blocks of relations by offloading
+    // items to threads that are done reading blocks
+    Distributor<OsmElement.Relation> relationDistributor = Distributor.createWithCapacity(1_000);
 
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("read", osmBlockSource::forEachBlock)
@@ -308,11 +312,18 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
         var waysDone = false;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
-        NodeLocationProvider nodeLocations = newNodeLocationProvider();
+        final NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
+        var relationHandler = relationDistributor.forThread(relation -> {
+          var feature = processRelationPass2(relation, nodeLocations);
+          if (feature != null) {
+            render(featureCollectors, renderer, relation, feature);
+          }
+          rels.inc();
+        });
 
         for (var block : prev) {
-          int blockNodes = 0, blockWays = 0, blockRelations = 0;
+          int blockNodes = 0, blockWays = 0;
           for (var element : block.decodeElements()) {
             SourceFeature feature = null;
             if (element instanceof OsmElement.Node node) {
@@ -322,42 +333,30 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               blockWays++;
               feature = processWayPass2(way, nodeLocations);
             } else if (element instanceof OsmElement.Relation relation) {
-              blockRelations++;
               // ensure all ways finished processing before we start relations
               if (!waysDone && waitForWays.getCount() > 0) {
                 waitForWays.countDown();
                 waitForWays.await();
                 waysDone = true;
               }
-              feature = processRelationPass2(relation, nodeLocations);
+              relationHandler.accept(relation);
             }
             // render features specified by profile and hand them off to next step that will
             // write them intermediate storage
             if (feature != null) {
-              FeatureCollector features = featureCollectors.get(feature);
-              try {
-                profile.processFeature(feature, features);
-                for (FeatureCollector.Feature renderable : features) {
-                  renderer.accept(renderable);
-                }
-              } catch (Exception e) {
-                String type = element.getClass().getSimpleName();
-                LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
-              }
+              render(featureCollectors, renderer, element, feature);
             }
           }
 
           blocks.inc();
           nodes.incBy(blockNodes);
           ways.incBy(blockWays);
-          rels.incBy(blockRelations);
         }
-
-        // TODO some blocks finish early which leaves the other threads idle near the end
-        // could shuffle work of last few blocks to pull in completion time
-
         // just in case a worker skipped over all relations
         waitForWays.countDown();
+
+        // do work for other threads that are still processing blocks of relations
+        relationHandler.close();
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
       .sinkToConsumer("write", 1, writer);
@@ -392,6 +391,20 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         createFeatureRenderer(writer, config, writer));
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
+    }
+  }
+
+  private void render(FeatureCollector.Factory featureCollectors, FeatureRenderer renderer, OsmElement element,
+    SourceFeature feature) {
+    FeatureCollector features = featureCollectors.get(feature);
+    try {
+      profile.processFeature(feature, features);
+      for (FeatureCollector.Feature renderable : features) {
+        renderer.accept(renderable);
+      }
+    } catch (Exception e) {
+      String type = element.getClass().getSimpleName();
+      LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
     }
   }
 
