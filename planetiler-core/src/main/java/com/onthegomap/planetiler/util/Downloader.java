@@ -168,7 +168,7 @@ public class Downloader {
     for (var toDownload : toDownloadList) {
       try {
         long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
-        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded);
+        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
       }

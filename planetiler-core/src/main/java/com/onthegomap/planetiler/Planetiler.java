@@ -150,7 +150,7 @@ public class Planetiler {
       throw new IllegalArgumentException("Currently only one OSM input file is supported");
     }
     Path path = getPath(name, "OSM input file", defaultPath, defaultUrl);
-    var thisInputFile = new OsmInputFile(path);
+    var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
     return appendStage(new Stage(
       name,

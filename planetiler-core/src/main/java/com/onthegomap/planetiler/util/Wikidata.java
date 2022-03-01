@@ -14,10 +14,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.graphhopper.coll.GHLongObjectHashMap;
-import com.graphhopper.reader.ReaderElement;
 import com.graphhopper.util.StopWatch;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.stats.Counter;
@@ -61,6 +61,7 @@ public class Wikidata {
   private static final Logger LOGGER = LoggerFactory.getLogger(Wikidata.class);
   private static final Pattern wikidataIRIMatcher = Pattern.compile("http://www.wikidata.org/entity/Q([0-9]+)");
   private static final Pattern qidPattern = Pattern.compile("Q([0-9]+)");
+  private final Counter.Readable blocks = Counter.newMultiThreadCounter();
   private final Counter.Readable nodes = Counter.newMultiThreadCounter();
   private final Counter.Readable ways = Counter.newMultiThreadCounter();
   private final Counter.Readable rels = Counter.newMultiThreadCounter();
@@ -111,22 +112,22 @@ public class Wikidata {
    */
   public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats) {
     var timer = stats.startStage("wikidata");
-    int threadsAvailable = Math.max(1, config.threads() - 2);
-    int processThreads = Math.max(1, threadsAvailable / 2);
-    int readerThreads = Math.max(1, threadsAvailable - processThreads);
-    LOGGER
-      .info("Starting with " + readerThreads + " reader threads and " + processThreads + " process threads");
+    int processThreads = Math.max(1, config.threads() - 1);
+    LOGGER.info("Starting with " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
-    try (Writer writer = Files.newBufferedWriter(outfile)) {
+    try (
+      Writer writer = Files.newBufferedWriter(outfile);
+      OsmBlockSource osmSource = infile.get()
+    ) {
       HttpClient client = HttpClient.newBuilder().connectTimeout(config.httpTimeout()).build();
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile, config);
       fetcher.loadExisting(oldMappings);
 
       String pbfParsePrefix = "pbfwikidata";
       var pipeline = WorkerPipeline.start("wikidata", stats)
-        .fromGenerator("pbf", infile.read(pbfParsePrefix, readerThreads))
-        .addBuffer("reader_queue", 50_000, 10_000)
+        .fromGenerator("pbf", osmSource::forEachBlock)
+        .addBuffer("pbf_blocks", processThreads * 2)
         .addWorker("filter", processThreads, fetcher::filter)
         .addBuffer("fetch_queue", 1_000_000, 100)
         .sinkTo("fetch", 1, prev -> {
@@ -137,6 +138,7 @@ public class Wikidata {
         });
 
       ProgressLoggers loggers = ProgressLoggers.create()
+        .addRateCounter("blocks", fetcher.blocks)
         .addRateCounter("nodes", fetcher.nodes, true)
         .addRateCounter("ways", fetcher.ways, true)
         .addRateCounter("rels", fetcher.rels, true)
@@ -215,23 +217,31 @@ public class Wikidata {
   }
 
   /** Only pass elements that the profile cares about to next step in pipeline. */
-  private void filter(Iterable<ReaderElement> prev, Consumer<Long> next) {
-    for (ReaderElement elem : prev) {
-      switch (elem.getType()) {
-        case ReaderElement.NODE -> nodes.inc();
-        case ReaderElement.WAY -> ways.inc();
-        case ReaderElement.RELATION -> rels.inc();
-      }
-      Object wikidata = elem.getTag("wikidata");
-      if (wikidata instanceof String wikidataString) {
-        OsmElement osmElement = OsmElement.fromGraphhopper(elem);
-        if (profile.caresAboutWikidataTranslation(osmElement)) {
-          long qid = parseQid(wikidataString);
-          if (qid > 0) {
-            next.accept(qid);
+  private void filter(Iterable<OsmBlockSource.Block> prev, Consumer<Long> next) {
+    for (var block : prev) {
+      int blockNodes = 0, blockWays = 0, blockRelations = 0;
+      for (var elem : block.decodeElements()) {
+        if (elem instanceof OsmElement.Node) {
+          blockNodes++;
+        } else if (elem instanceof OsmElement.Way) {
+          blockWays++;
+        } else if (elem instanceof OsmElement.Relation) {
+          blockRelations++;
+        }
+        Object wikidata = elem.getString("wikidata");
+        if (wikidata instanceof String wikidataString) {
+          if (profile.caresAboutWikidataTranslation(elem)) {
+            long qid = parseQid(wikidataString);
+            if (qid > 0) {
+              next.accept(qid);
+            }
           }
         }
       }
+      blocks.inc();
+      nodes.incBy(blockNodes);
+      ways.incBy(blockWays);
+      rels.incBy(blockRelations);
     }
   }
 

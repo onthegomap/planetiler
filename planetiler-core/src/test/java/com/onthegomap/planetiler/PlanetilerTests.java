@@ -6,10 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderNode;
-import com.graphhopper.reader.ReaderRelation;
-import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.config.Arguments;
@@ -23,10 +19,10 @@ import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
-import com.onthegomap.planetiler.reader.osm.OsmSource;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
@@ -77,7 +73,7 @@ public class PlanetilerTests {
   private static final int Z4_TILES = 1 << 4;
   private final Stats stats = Stats.inMemory();
 
-  private static <T extends ReaderElement> T with(T elem, Consumer<T> fn) {
+  private static <T extends OsmElement> T with(T elem, Consumer<T> fn) {
     fn.accept(elem);
     return elem;
   }
@@ -103,16 +99,16 @@ public class PlanetilerTests {
   }
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
-    List<? extends ReaderElement> osmElements) throws IOException {
-    OsmSource elems = (name, threads) -> next -> {
+    List<? extends OsmElement> osmElements) throws IOException {
+    OsmBlockSource elems = next -> {
       // process the same order they come in from an OSM file
-      osmElements.stream().filter(e -> e.getType() == ReaderElement.FILEHEADER).forEachOrdered(next);
-      osmElements.stream().filter(e -> e.getType() == ReaderElement.NODE).forEachOrdered(next);
-      osmElements.stream().filter(e -> e.getType() == ReaderElement.WAY).forEachOrdered(next);
-      osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
+      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
+    try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }
@@ -175,7 +171,7 @@ public class PlanetilerTests {
 
   private PlanetilerResults runWithOsmElements(
     Map<String, String> args,
-    List<ReaderElement> features,
+    List<OsmElement> features,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
   ) throws Exception {
     return run(
@@ -187,7 +183,7 @@ public class PlanetilerTests {
 
   private PlanetilerResults runWithOsmElements(
     Map<String, String> args,
-    List<ReaderElement> features,
+    List<OsmElement> features,
     Profile profileToUse
   ) throws Exception {
     return run(
@@ -199,7 +195,7 @@ public class PlanetilerTests {
 
   private PlanetilerResults runWithOsmElements(
     Map<String, String> args,
-    List<ReaderElement> features,
+    List<OsmElement> features,
     Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
     BiConsumer<SourceFeature, FeatureCollector> profileFunction
   ) throws Exception {
@@ -745,7 +741,7 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
       ),
       (in, features) -> {
         if (in.isPoint()) {
@@ -772,18 +768,20 @@ public class PlanetilerTests {
     var results = run(
       Map.of("threads", "1"),
       (featureGroup, profile, config) -> {
-        List<? extends ReaderElement> osmElements = List.<ReaderElement>of(
-          with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+        List<? extends OsmElement> osmElements = List.<OsmElement>of(
+          with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
         );
-        OsmSource elems = (name, threads) -> next -> {
+        OsmBlockSource elems = next -> {
           // process the same order they come in from an OSM file
-          osmElements.stream().filter(e -> e.getType() == ReaderElement.FILEHEADER).forEachOrdered(next);
-          osmElements.stream().filter(e -> e.getType() == ReaderElement.NODE).forEachOrdered(next);
-          osmElements.stream().filter(e -> e.getType() == ReaderElement.WAY).forEachOrdered(next);
-          osmElements.stream().filter(e -> e.getType() == ReaderElement.RELATION).forEachOrdered(next);
+          next.accept(
+            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
+          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
+          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
+          next.accept(
+            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
         };
         var nodeMap = LongLongMap.newInMemorySortedTable();
-        try (var reader = new OsmReader("osm", elems, nodeMap, profile, Stats.inMemory())) {
+        try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
           // skip pass 1
           reader.pass2(featureGroup, config);
         }
@@ -813,7 +811,7 @@ public class PlanetilerTests {
     assertThrows(RuntimeException.class, () -> runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
       ),
       (in, features) -> {
         throw new Error();
@@ -826,11 +824,11 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new ReaderNode(1, 0, 0),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        with(new ReaderWay(3), way -> {
+        new OsmElement.Node(1, 0, 0),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        with(new OsmElement.Way(3), way -> {
           way.setTag("attr", "value");
-          way.getNodes().add(1, 2);
+          way.nodes().add(1, 2);
         })
       ),
       (in, features) -> {
@@ -858,13 +856,13 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new ReaderNode(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
-        with(new ReaderWay(6), way -> {
+        new OsmElement.Node(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        with(new OsmElement.Way(6), way -> {
           way.setTag("attr", "value");
-          way.getNodes().add(1, 2, 3, 4, 1);
+          way.nodes().add(1, 2, 3, 4, 1);
         })
       ),
       (in, features) -> {
@@ -910,38 +908,38 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new ReaderNode(1, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.125)),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.875)),
-        new ReaderNode(3, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.875)),
-        new ReaderNode(4, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.125)),
+        new OsmElement.Node(1, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.125)),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.875)),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.875)),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.125)),
 
-        new ReaderNode(5, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
-        new ReaderNode(6, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(7, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        new ReaderNode(8, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(5, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+        new OsmElement.Node(6, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(7, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+        new OsmElement.Node(8, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
 
-        new ReaderNode(9, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.375)),
-        new ReaderNode(10, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.625)),
-        new ReaderNode(11, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.625)),
-        new ReaderNode(12, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.375)),
-        new ReaderNode(13, GeoUtils.getWorldLat(0.375 + 1e-12), GeoUtils.getWorldLon(0.375)),
+        new OsmElement.Node(9, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.375)),
+        new OsmElement.Node(10, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.625)),
+        new OsmElement.Node(11, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.625)),
+        new OsmElement.Node(12, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.375)),
+        new OsmElement.Node(13, GeoUtils.getWorldLat(0.375 + 1e-12), GeoUtils.getWorldLon(0.375)),
 
-        with(new ReaderWay(14), way -> way.getNodes().add(1, 2, 3, 4, 1)),
-        with(new ReaderWay(15), way -> way.getNodes().add(5, 6, 7, 8, 5)),
-        with(new ReaderWay(16), way -> way.getNodes().add(9, 10, 11, 12, 13)),
+        with(new OsmElement.Way(14), way -> way.nodes().add(1, 2, 3, 4, 1)),
+        with(new OsmElement.Way(15), way -> way.nodes().add(5, 6, 7, 8, 5)),
+        with(new OsmElement.Way(16), way -> way.nodes().add(9, 10, 11, 12, 13)),
 
-        with(new ReaderRelation(17), rel -> {
+        with(new OsmElement.Relation(17), rel -> {
           rel.setTag("type", relationType);
           rel.setTag("attr", "value");
           rel.setTag("should_emit", "yes");
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 14, "outer"));
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 15, null)); // missing
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 16, "inner")); // incorrect
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 14, "outer"));
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 15, null)); // missing
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 16, "inner")); // incorrect
         }),
-        with(new ReaderRelation(18), rel -> {
+        with(new OsmElement.Relation(18), rel -> {
           rel.setTag("type", "relation");
           rel.setTag("name", "rel name");
-          rel.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 17, "outer"));
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 17, "outer"));
         })
       ),
       in -> in.hasTag("type", "relation") ?
@@ -984,21 +982,21 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        new ReaderNode(1, 0, 0),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.375), 0),
-        new ReaderNode(3, GeoUtils.getWorldLat(0.25), 0),
-        new ReaderNode(4, GeoUtils.getWorldLat(0.125), 0),
-        with(new ReaderWay(5), way -> {
+        new OsmElement.Node(1, 0, 0),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
+        new OsmElement.Node(3, GeoUtils.getWorldLat(0.25), 0),
+        new OsmElement.Node(4, GeoUtils.getWorldLat(0.125), 0),
+        with(new OsmElement.Way(5), way -> {
           way.setTag("attr", "value1");
-          way.getNodes().add(1, 2);
+          way.nodes().add(1, 2);
         }),
-        with(new ReaderWay(6), way -> {
+        with(new OsmElement.Way(6), way -> {
           way.setTag("attr", "value2");
-          way.getNodes().add(3, 4);
+          way.nodes().add(3, 4);
         }),
-        with(new ReaderRelation(6), rel -> {
+        with(new OsmElement.Relation(6), rel -> {
           rel.setTag("name", "relation name");
-          rel.add(new ReaderRelation.Member(ReaderRelation.WAY, 6, "role"));
+          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 6, "role"));
         })
       ),
       (relation) -> {
@@ -1063,13 +1061,13 @@ public class PlanetilerTests {
     var results = run(
       Map.of("threads", "1"),
       (featureGroup, p, config) -> processOsmFeatures(featureGroup, p, config, List.of(
-        with(new ReaderNode(1, 0, 0), node -> node.setTag("a", "b")),
-        new ReaderNode(2, GeoUtils.getWorldLat(0.375), 0),
-        with(new ReaderWay(3), way -> {
-          way.getNodes().add(1, 2);
+        with(new OsmElement.Node(1, 0, 0), node -> node.setTag("a", "b")),
+        new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
+        with(new OsmElement.Way(3), way -> {
+          way.nodes().add(1, 2);
         }),
-        with(new ReaderWay(4), way -> {
-          way.getNodes().add(1, 2);
+        with(new OsmElement.Way(4), way -> {
+          way.nodes().add(1, 2);
         })
       )),
       profile
@@ -1352,8 +1350,8 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        with(new ReaderNode(1, lat, lng1), t -> t.setTag("a", 1)),
-        with(new ReaderNode(2, lat, lng2), t -> t.setTag("a", 3))
+        with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
+        with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))
       ),
       new Profile.NullProfile() {
         private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
@@ -1428,8 +1426,8 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        with(new ReaderNode(1, lat, lng1), t -> t.setTag("a", 1)),
-        with(new ReaderNode(2, lat, lng2), t -> t.setTag("a", 3))
+        with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
+        with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))
       ),
       profile
     );
@@ -1530,31 +1528,31 @@ public class PlanetilerTests {
   public void testBadRelation() throws Exception {
     // this threw an exception in OsmMultipolygon.build
     OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
-    List<ReaderElement> elements = new ArrayList<>();
+    List<OsmElement> elements = new ArrayList<>();
     for (var node : orEmpty(osmInfo.nodes())) {
-      elements.add(new ReaderNode(node.id(), node.lat(), node.lon()));
+      elements.add(new OsmElement.Node(node.id(), node.lat(), node.lon()));
     }
     for (var way : orEmpty(osmInfo.ways())) {
-      ReaderWay readerWay = new ReaderWay(way.id());
+      var readerWay = new OsmElement.Way(way.id());
       elements.add(readerWay);
       for (var tag : orEmpty(way.tags())) {
         readerWay.setTag(tag.k(), tag.v());
       }
       for (var nodeRef : orEmpty(way.nodeRefs())) {
-        readerWay.getNodes().add(nodeRef.ref());
+        readerWay.nodes().add(nodeRef.ref());
       }
     }
     for (var relation : orEmpty(osmInfo.relation())) {
-      ReaderRelation readerRelation = new ReaderRelation(relation.id());
+      var readerRelation = new OsmElement.Relation(relation.id());
       elements.add(readerRelation);
       for (var tag : orEmpty(relation.tags())) {
         readerRelation.setTag(tag.k(), tag.v());
       }
       for (var member : orEmpty(relation.members())) {
-        readerRelation.add(new ReaderRelation.Member(switch (member.type()) {
-          case "way" -> ReaderRelation.Member.WAY;
-          case "relation" -> ReaderRelation.Member.RELATION;
-          case "node" -> ReaderRelation.Member.NODE;
+        readerRelation.members().add(new OsmElement.Relation.Member(switch (member.type()) {
+          case "way" -> OsmElement.Type.WAY;
+          case "relation" -> OsmElement.Type.RELATION;
+          case "node" -> OsmElement.Type.NODE;
           default -> throw new IllegalStateException("Unexpected value: " + member.type());
         }, member.ref(), member.role()));
       }
@@ -1613,10 +1611,17 @@ public class PlanetilerTests {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
-        with(new ReaderNode(1, 0, 0), t -> t.setTag("attr", "value"))
+        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
       ),
       (in, features) -> {
-        throw new IllegalStateException("intentional exception!");
+        throw new IllegalStateException("intentional exception!") {
+
+          // suppress stack trace in logs
+          @Override
+          public synchronized Throwable fillInStackTrace() {
+            return this;
+          }
+        };
       }
     );
 

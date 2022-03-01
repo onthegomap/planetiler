@@ -121,7 +121,7 @@ public class MbtilesWriter {
        */
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
-        .<TileBatch>fromGenerator("reader", next -> {
+        .<TileBatch>fromGenerator("read", next -> {
           writer.readFeaturesAndBatch(batch -> {
             next.accept(batch);
             writerQueue.accept(batch); // also send immediately to writer
@@ -130,12 +130,12 @@ public class MbtilesWriter {
           // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
         }, 1)
         .addBuffer("reader_queue", queueSize)
-        .sinkTo("encoder", config.threads(), writer::tileEncoderSink);
+        .sinkTo("encode", config.threads(), writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
       writeBranch = pipeline.readFromQueue(writerQueue)
         // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("writer", 1, writer::tileWriter);
+        .sinkTo("write", 1, writer::tileWriter);
     } else {
       /*
        * If we don't need to emit tiles in order, just send the features to the encoder, and when it finishes with
@@ -143,16 +143,16 @@ public class MbtilesWriter {
        */
       encodeBranch = pipeline
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator("reader", writer::readFeaturesAndBatch, 1)
+        .fromGenerator("read", writer::readFeaturesAndBatch, 1)
         .addBuffer("reader_queue", queueSize)
         .addWorker("encoder", config.threads(), writer::tileEncoder)
         .addBuffer("writer_queue", queueSize)
         // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("writer", 1, writer::tileWriter);
+        .sinkTo("write", 1, writer::tileWriter);
     }
 
     var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed)
+      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
       .addFileSize(features)
       .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)

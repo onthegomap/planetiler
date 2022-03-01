@@ -6,10 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderNode;
-import com.graphhopper.reader.ReaderRelation;
-import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -27,18 +23,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class OsmReaderTest {
 
-  public final OsmSource osmSource = (name, threads) -> next -> {
+  public final OsmBlockSource osmSource = next -> {
   };
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
 
+
   @Test
   public void testPoint() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var node = new ReaderNode(1, 0, 0);
+    var node = new OsmElement.Node(1, 0, 0);
     node.setTag("key", "value");
-    reader.processPass1Element(node);
+    reader.processPass1Block(List.of(node));
     SourceFeature feature = reader.processNodePass2(node);
     assertTrue(feature.isPoint());
     assertFalse(feature.canBePolygon());
@@ -61,15 +58,13 @@ public class OsmReaderTest {
   public void testLine() throws GeometryException {
     OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeLocationProvider();
-    var node1 = new ReaderNode(1, 0, 0);
+    var node1 = new OsmElement.Node(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
-    var way = new ReaderWay(3);
-    way.getNodes().add(node1.getId(), node2.getId());
+    var way = new OsmElement.Way(3);
+    way.nodes().add(node1.id(), node2.id());
     way.setTag("key", "value");
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, node2, way));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
@@ -105,15 +100,11 @@ public class OsmReaderTest {
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
     var node4 = node(4, 0.75, 0.5);
-    var way = new ReaderWay(3);
-    way.getNodes().add(1, 2, 3, 4, 1);
+    var way = new OsmElement.Way(3);
+    way.nodes().add(1, 2, 3, 4, 1);
     way.setTag("key", "value");
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(node3);
-    reader.processPass1Element(node4);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, node2, node3, node4, way));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
@@ -148,15 +139,11 @@ public class OsmReaderTest {
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
     var node4 = node(4, 0.75, 0.5);
-    var way = new ReaderWay(3);
-    way.getNodes().add(1, 2, 3, 4, 1);
+    var way = new OsmElement.Way(3);
+    way.nodes().add(1, 2, 3, 4, 1);
     way.setTag("area", "yes");
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(node3);
-    reader.processPass1Element(node4);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, node2, node3, node4, way));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertFalse(feature.canBeLine());
@@ -188,15 +175,11 @@ public class OsmReaderTest {
     var node2 = node(2, 0.5, 0.75);
     var node3 = node(3, 0.75, 0.75);
     var node4 = node(4, 0.75, 0.5);
-    var way = new ReaderWay(5);
-    way.getNodes().add(1, 2, 3, 4, 1);
+    var way = new OsmElement.Way(5);
+    way.nodes().add(1, 2, 3, 4, 1);
     way.setTag("area", "no");
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(node3);
-    reader.processPass1Element(node4);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, node2, node3, node4, way));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
     assertTrue(feature.canBeLine());
@@ -224,11 +207,10 @@ public class OsmReaderTest {
   public void testLineWithTooFewPoints() throws GeometryException {
     OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
-    var way = new ReaderWay(3);
-    way.getNodes().add(1);
+    var way = new OsmElement.Way(3);
+    way.nodes().add(1);
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, way));
 
     SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertFalse(feature.canBeLine());
@@ -250,12 +232,10 @@ public class OsmReaderTest {
     OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
-    var way = new ReaderWay(3);
-    way.getNodes().add(1, 2, 1);
+    var way = new OsmElement.Way(3);
+    way.nodes().add(1, 2, 1);
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(way);
+    reader.processPass1Block(List.of(node1, node2, way));
 
     SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertTrue(feature.canBeLine());
@@ -286,14 +266,16 @@ public class OsmReaderTest {
   public void testInvalidPolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
 
-    reader.processPass1Element(node(1, 0.5, 0.5));
-    reader.processPass1Element(node(2, 0.75, 0.5));
-    reader.processPass1Element(node(3, 0.5, 0.75));
-    reader.processPass1Element(node(4, 0.75, 0.75));
-    var way = new ReaderWay(6);
+    reader.processPass1Block(List.of(
+      node(1, 0.5, 0.5),
+      node(2, 0.75, 0.5),
+      node(3, 0.5, 0.75),
+      node(4, 0.75, 0.75)
+    ));
+    var way = new OsmElement.Way(6);
     way.setTag("area", "yes");
-    way.getNodes().add(1, 2, 3, 4, 1);
-    reader.processPass1Element(way);
+    way.nodes().add(1, 2, 3, 4, 1);
+    reader.processPass1Block(List.of(way));
 
     SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertFalse(feature.canBeLine());
@@ -322,16 +304,16 @@ public class OsmReaderTest {
     assertEquals(1.207, feature.length(), 1e-2);
   }
 
-  private ReaderNode node(long id, double x, double y) {
-    return new ReaderNode(id, GeoUtils.getWorldLat(y), GeoUtils.getWorldLon(x));
+  private OsmElement.Node node(long id, double x, double y) {
+    return new OsmElement.Node(id, GeoUtils.getWorldLat(y), GeoUtils.getWorldLon(x));
   }
 
   @Test
   public void testLineReferencingNonexistentNode() {
     OsmReader reader = newOsmReader();
-    var way = new ReaderWay(321);
-    way.getNodes().add(123, 2222, 333, 444, 123);
-    reader.processPass1Element(way);
+    var way = new OsmElement.Way(321);
+    way.nodes().add(123, 2222, 333, 444, 123);
+    reader.processPass1Block(List.of(way));
 
     SourceFeature feature = reader.processWayPass2(way, reader.newNodeLocationProvider());
     assertTrue(feature.canBeLine());
@@ -350,27 +332,27 @@ public class OsmReaderTest {
     assertThrows(GeometryException.class, feature::length);
   }
 
-  private final Function<ReaderElement, Stream<ReaderNode>> nodes = elem ->
-    elem instanceof ReaderNode node ? Stream.of(node) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Node>> nodes = elem ->
+    elem instanceof OsmElement.Node node ? Stream.of(node) : Stream.empty();
 
-  private final Function<ReaderElement, Stream<ReaderWay>> ways = elem ->
-    elem instanceof ReaderWay way ? Stream.of(way) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Way>> ways = elem ->
+    elem instanceof OsmElement.Way way ? Stream.of(way) : Stream.empty();
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
   public void testMultiPolygon(String relationType) throws GeometryException {
     OsmReader reader = newOsmReader();
-    var outerway = new ReaderWay(9);
-    outerway.getNodes().add(1, 2, 3, 4, 1);
-    var innerway = new ReaderWay(10);
-    innerway.getNodes().add(5, 6, 7, 8, 5);
+    var outerway = new OsmElement.Way(9);
+    outerway.nodes().add(1, 2, 3, 4, 1);
+    var innerway = new OsmElement.Way(10);
+    innerway.nodes().add(5, 6, 7, 8, 5);
 
-    var relation = new ReaderRelation(11);
+    var relation = new OsmElement.Relation(11);
     relation.setTag("type", relationType);
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
 
-    List<ReaderElement> elements = List.of(
+    List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
       node(2, 0.9, 0.1),
       node(3, 0.9, 0.9),
@@ -387,7 +369,7 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1Element);
+    reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
@@ -422,21 +404,21 @@ public class OsmReaderTest {
   @Test
   public void testMultipolygonInfersCorrectParent() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var outerway = new ReaderWay(13);
-    outerway.getNodes().add(1, 2, 3, 4, 1);
-    var innerway = new ReaderWay(14);
-    innerway.getNodes().add(5, 6, 7, 8, 5);
-    var innerinnerway = new ReaderWay(15);
-    innerinnerway.getNodes().add(9, 10, 11, 12, 9);
+    var outerway = new OsmElement.Way(13);
+    outerway.nodes().add(1, 2, 3, 4, 1);
+    var innerway = new OsmElement.Way(14);
+    innerway.nodes().add(5, 6, 7, 8, 5);
+    var innerinnerway = new OsmElement.Way(15);
+    innerinnerway.nodes().add(9, 10, 11, 12, 9);
 
-    var relation = new ReaderRelation(16);
+    var relation = new OsmElement.Relation(16);
     relation.setTag("type", "multipolygon");
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
     // nested hole marked as inner, but should actually be outer
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerinnerway.getId(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
 
-    List<ReaderElement> elements = List.of(
+    List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
       node(2, 0.9, 0.1),
       node(3, 0.9, 0.9),
@@ -459,7 +441,7 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1Element);
+    reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
@@ -488,21 +470,21 @@ public class OsmReaderTest {
   @Test
   public void testInvalidMultipolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
-    var outerway = new ReaderWay(13);
-    outerway.getNodes().add(1, 2, 3, 4, 1);
-    var innerway = new ReaderWay(14);
-    innerway.getNodes().add(5, 6, 7, 8, 5);
-    var innerinnerway = new ReaderWay(15);
-    innerinnerway.getNodes().add(9, 10, 11, 12, 9);
+    var outerway = new OsmElement.Way(13);
+    outerway.nodes().add(1, 2, 3, 4, 1);
+    var innerway = new OsmElement.Way(14);
+    innerway.nodes().add(5, 6, 7, 8, 5);
+    var innerinnerway = new OsmElement.Way(15);
+    innerinnerway.nodes().add(9, 10, 11, 12, 9);
 
-    var relation = new ReaderRelation(16);
+    var relation = new OsmElement.Relation(16);
     relation.setTag("type", "multipolygon");
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerway.getId(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
     // nested hole marked as inner, but should actually be outer
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, innerinnerway.getId(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
 
-    List<ReaderElement> elements = List.of(
+    List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
       node(2, 0.9, 0.1),
       node(3, 0.9, 0.9),
@@ -525,7 +507,7 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1Element);
+    reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
@@ -558,14 +540,14 @@ public class OsmReaderTest {
   @Test
   public void testMultiPolygonRefersToNonexistentNode() {
     OsmReader reader = newOsmReader();
-    var outerway = new ReaderWay(5);
-    outerway.getNodes().add(1, 2, 3, 4, 1);
+    var outerway = new OsmElement.Way(5);
+    outerway.nodes().add(1, 2, 3, 4, 1);
 
-    var relation = new ReaderRelation(6);
+    var relation = new OsmElement.Relation(6);
     relation.setTag("type", "multipolygon");
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, outerway.getId(), "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
 
-    List<ReaderElement> elements = List.of(
+    List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
 //      node(2, 0.9, 0.1), MISSING!
       node(3, 0.9, 0.9),
@@ -576,7 +558,7 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1Element);
+    reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
@@ -592,11 +574,11 @@ public class OsmReaderTest {
   public void testMultiPolygonRefersToNonexistentWay() {
     OsmReader reader = newOsmReader();
 
-    var relation = new ReaderRelation(6);
+    var relation = new OsmElement.Relation(6);
     relation.setTag("type", "multipolygon");
-    relation.add(new ReaderRelation.Member(ReaderRelation.WAY, 5, "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 5, "outer"));
 
-    List<ReaderElement> elements = List.of(
+    List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
       node(2, 0.9, 0.1),
       node(3, 0.9, 0.9),
@@ -607,7 +589,7 @@ public class OsmReaderTest {
       relation
     );
 
-    elements.forEach(reader::processPass1Element);
+    reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
     var nodeCache = reader.newNodeLocationProvider();
     elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
@@ -623,25 +605,22 @@ public class OsmReaderTest {
   public void testWayInRelation() {
     record OtherRelInfo(long id) implements OsmRelationInfo {}
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
       }
     }, stats);
     var nodeCache = reader.newNodeLocationProvider();
-    var node1 = new ReaderNode(1, 0, 0);
+    var node1 = new OsmElement.Node(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
-    var way = new ReaderWay(3);
-    way.getNodes().add(node1.getId(), node2.getId());
+    var way = new OsmElement.Way(3);
+    way.nodes().add(node1.id(), node2.id());
     way.setTag("key", "value");
-    var relation = new ReaderRelation(4);
-    relation.add(new ReaderRelation.Member(ReaderRelation.Member.WAY, 3, "rolename"));
+    var relation = new OsmElement.Relation(4);
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 3, "rolename"));
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(way);
-    reader.processPass1Element(relation);
+    reader.processPass1Block(List.of(node1, node2, way, relation));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
 
@@ -653,26 +632,23 @@ public class OsmReaderTest {
   @Test
   public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
       }
     }, stats);
     var nodeCache = reader.newNodeLocationProvider();
-    var node1 = new ReaderNode(1, 0, 0);
+    var node1 = new OsmElement.Node(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
-    var way = new ReaderWay(3);
-    way.getNodes().add(node1.getId(), node2.getId());
+    var way = new OsmElement.Way(3);
+    way.nodes().add(node1.id(), node2.id());
     way.setTag("key", "value");
-    var relation = new ReaderRelation(4);
-    relation.add(new ReaderRelation.Member(ReaderRelation.Member.RELATION, 3, "rolename"));
-    relation.add(new ReaderRelation.Member(ReaderRelation.Member.NODE, 3, "rolename"));
+    var relation = new OsmElement.Relation(4);
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, 3, "rolename"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.NODE, 3, "rolename"));
 
-    reader.processPass1Element(node1);
-    reader.processPass1Element(node2);
-    reader.processPass1Element(way);
-    reader.processPass1Element(relation);
+    reader.processPass1Block(List.of(node1, node2, way, relation));
 
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
 
@@ -680,6 +656,6 @@ public class OsmReaderTest {
   }
 
   private OsmReader newOsmReader() {
-    return new OsmReader("osm", osmSource, nodeMap, profile, stats);
+    return new OsmReader("osm", () -> osmSource, nodeMap, profile, stats);
   }
 }

@@ -27,6 +27,8 @@ The `planetiler-core` module includes the following software:
   - `VectorTileEncoder`
     from [java-vector-tile](https://github.com/ElectronicChartCentre/java-vector-tile) (Apache license)
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
+  - `PbfDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
+  - `PbfFieldDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 

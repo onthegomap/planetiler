@@ -30,8 +30,10 @@ public class Timers {
       String name = entry.getKey();
       var elapsed = entry.getValue().timer.elapsed();
       LOGGER.info("\t" + Format.padRight(name, maxLength) + " " + elapsed);
-      for (String detail : getStageDetails(name, true)) {
-        LOGGER.info("\t  " + detail);
+      if (elapsed.wall().compareTo(Duration.ofSeconds(1)) > 0) {
+        for (String detail : getStageDetails(name, true)) {
+          LOGGER.info("\t  " + detail);
+        }
       }
     }
   }
@@ -59,7 +61,7 @@ public class Timers {
         .append(Format.padLeft(Integer.toString(num), 2))
         .append("x(")
         .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
-        .append(" cpu:")
+        .append(" ")
         .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
 
       Duration systemTime = sum.cpuTime().minus(sum.userTime()).dividedBy(num);

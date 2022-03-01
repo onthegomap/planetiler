@@ -124,24 +124,24 @@ public class ProgressLoggers {
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
    * process.
    */
-  public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value) {
-    return addRatePercentCounter(name, total, value::get);
+  public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value, boolean color) {
+    return addRatePercentCounter(name, total, value::get, color);
   }
 
   /**
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
    * process.
    */
-  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> format.numeric(n, true));
+  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue, boolean color) {
+    return addRatePercentCounter(name, total, getValue, n -> format.numeric(n, true), color);
   }
 
   /**
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of bytes to
    * process.
    */
-  public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> format.storage(n, true));
+  public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue, boolean color) {
+    return addRatePercentCounter(name, total, getValue, n -> format.storage(n, true), color);
   }
 
   /**
@@ -149,10 +149,10 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
-    Function<Number, String> formatter) {
+    Function<Number, String> formatter, boolean color) {
     // if there's no total, we can't show progress so fall back to rate logger instead
     if (total == 0) {
-      return addRateCounter(name, getValue, true);
+      return addRateCounter(name, getValue, color);
     }
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
@@ -169,7 +169,7 @@ public class ProgressLoggers {
       String result =
         "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4)
           + " " + formatter.apply(valueDiff / timeDiff) + "/s ]";
-      return valueDiff > 0 ? green(result) : result;
+      return (color && valueDiff > 0) ? green(result) : result;
     }));
     return this;
   }
@@ -366,6 +366,7 @@ public class ProgressLoggers {
     while (!await(future, logInterval)) {
       log();
     }
+    log();
   }
 
   /** Returns true if the future is done, false if {@code duration} has elapsed. */
