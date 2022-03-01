@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.NativeUtil;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -33,8 +34,12 @@ abstract class AppendStoreMmap implements AppendStore {
   private volatile MappedByteBuffer[] segments;
   private volatile FileChannel channel;
 
+  static {
+    NativeUtil.init();
+  }
+
   AppendStoreMmap(Path path) {
-    this(path, 1 << 20); // 1MB
+    this(path, 1 << 30); // 1GB
   }
 
   AppendStoreMmap(Path path, long segmentSizeBytes) {
@@ -58,6 +63,7 @@ abstract class AppendStoreMmap implements AppendStore {
       synchronized (this) {
         if ((result = segments) == null) {
           try {
+            boolean madviseFailed = false;
             // prepare the memory mapped file: stop writing, start reading
             outputStream.close();
             channel = FileChannel.open(path, StandardOpenOption.READ);
@@ -66,7 +72,17 @@ abstract class AppendStoreMmap implements AppendStore {
             int i = 0;
             for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
               long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
-              result[i++] = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
+              MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
+              try {
+                NativeUtil.madvise(thisBuffer, NativeUtil.Madvice.RANDOM);
+              } catch (IOException e) {
+                if (!madviseFailed) { // log once
+                  LOGGER.info(
+                    "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
+                  madviseFailed = true;
+                }
+              }
+              result[i++] = thisBuffer;
             }
             segments = result;
           } catch (IOException e) {
