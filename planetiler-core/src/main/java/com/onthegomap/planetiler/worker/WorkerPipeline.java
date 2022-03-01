@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.worker;
 
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import java.time.Duration;
@@ -10,7 +11,6 @@ import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * A mini-framework for chaining sequential steps that run in dedicated threads with a queue between each.
@@ -107,7 +107,7 @@ public record WorkerPipeline<T>(
      * @param next call {@code next.accept} to pass items to the next step of the pipeline
      * @throws Exception if an error occurs, will be rethrown by {@link #await()} as a {@link RuntimeException}
      */
-    void run(Supplier<I> prev, Consumer<O> next) throws Exception;
+    void run(IterableOnce<I> prev, Consumer<O> next) throws Exception;
   }
 
   /**
@@ -125,7 +125,7 @@ public record WorkerPipeline<T>(
      *             elements to process
      * @throws Exception if an error occurs, will be rethrown by {@link #await()} as a {@link RuntimeException}
      */
-    void run(Supplier<I> prev) throws Exception;
+    void run(IterableOnce<I> prev) throws Exception;
   }
 
   /**
@@ -151,7 +151,7 @@ public record WorkerPipeline<T>(
   }
 
   /** Builder for a new topology that does not yet have any steps. */
-  public static record Empty(String prefix, Stats stats) {
+  public record Empty(String prefix, Stats stats) {
 
     /**
      * Adds an initial step that runs {@code producer} in {@code threads} worker threads to produce items for this
@@ -213,7 +213,7 @@ public record WorkerPipeline<T>(
    *
    * @param <O> type of elements that the next step must process
    */
-  public static record Builder<O>(
+  public record Builder<O>(
     String prefix,
     String name,
     // keep track of previous elements so that build can wire-up the computation graph
@@ -276,8 +276,7 @@ public record WorkerPipeline<T>(
      */
     public WorkerPipeline<O> sinkToConsumer(String name, int threads, Consumer<O> consumer) {
       return sinkTo(name, threads, (prev) -> {
-        O item;
-        while ((item = prev.get()) != null) {
+        for (O item : prev) {
           consumer.accept(item);
         }
       });

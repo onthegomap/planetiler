@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.stats;
 import static com.onthegomap.planetiler.util.Format.padLeft;
 import static com.onthegomap.planetiler.util.Format.padRight;
 
-import com.graphhopper.util.Helper;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
@@ -124,24 +123,24 @@ public class ProgressLoggers {
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
    * process.
    */
-  public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value) {
-    return addRatePercentCounter(name, total, value::get);
+  public ProgressLoggers addRatePercentCounter(String name, long total, AtomicLong value, boolean color) {
+    return addRatePercentCounter(name, total, value::get, color);
   }
 
   /**
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of items to
    * process.
    */
-  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> format.numeric(n, true));
+  public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue, boolean color) {
+    return addRatePercentCounter(name, total, getValue, n -> format.numeric(n, true), color);
   }
 
   /**
    * Adds "name: [ numCompleted pctComplete% rate/s ]" to the logger where {@code total} is the total number of bytes to
    * process.
    */
-  public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue) {
-    return addRatePercentCounter(name, total, getValue, n -> format.storage(n, true));
+  public ProgressLoggers addStorageRatePercentCounter(String name, long total, LongSupplier getValue, boolean color) {
+    return addRatePercentCounter(name, total, getValue, n -> format.storage(n, true), color);
   }
 
   /**
@@ -149,10 +148,10 @@ public class ProgressLoggers {
    * process.
    */
   public ProgressLoggers addRatePercentCounter(String name, long total, LongSupplier getValue,
-    Function<Number, String> formatter) {
+    Function<Number, String> formatter, boolean color) {
     // if there's no total, we can't show progress so fall back to rate logger instead
     if (total == 0) {
-      return addRateCounter(name, getValue, true);
+      return addRateCounter(name, getValue, color);
     }
     AtomicLong last = new AtomicLong(getValue.getAsLong());
     AtomicLong lastTime = new AtomicLong(System.nanoTime());
@@ -169,7 +168,7 @@ public class ProgressLoggers {
       String result =
         "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4)
           + " " + formatter.apply(valueDiff / timeDiff) + "/s ]";
-      return valueDiff > 0 ? green(result) : result;
+      return (color && valueDiff > 0) ? green(result) : result;
     }));
     return this;
   }
@@ -255,8 +254,8 @@ public class ProgressLoggers {
       return num > 0.6 ? red(formatted) : num > 0.3 ? yellow(formatted) : formatted;
     });
     loggers.add(new ProgressLogger("mem",
-      () -> format.storage(Helper.getUsedMB() * Helper.MB, false) + "/" +
-        format.storage(Helper.getTotalMB() * Helper.MB, false) +
+      () -> format.storage(ProcessInfo.getUsedMemoryBytes(), false) + "/" +
+        format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
           .mapToObj(value -> " postGC: " + blue(format.storage(value, false)))
           .findFirst()
@@ -366,6 +365,7 @@ public class ProgressLoggers {
     while (!await(future, logInterval)) {
       log();
     }
+    log();
   }
 
   /** Returns true if the future is done, false if {@code duration} has elapsed. */

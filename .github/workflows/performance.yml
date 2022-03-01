@@ -45,7 +45,7 @@ jobs:
           java-version: 17
           distribution: 'temurin'
           cache: 'maven'
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '14'
       - run: npm install -g strip-ansi-cli@3.0.2

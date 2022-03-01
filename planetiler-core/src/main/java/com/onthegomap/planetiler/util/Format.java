@@ -131,6 +131,18 @@ public class Format {
     return decimal(seconds < 1 ? seconds : Math.round(seconds)) + "s";
   }
 
+  /** Returns a duration formatted like "1h2m" or "2m3s". */
+  public String duration(Duration duration) {
+    Duration simplified;
+    double seconds = duration.toNanos() * 1d / Duration.ofSeconds(1).toNanos();
+    if (seconds < 1) {
+      return decimal(seconds) + "s";
+    } else {
+      simplified = Duration.ofSeconds(Math.round(seconds));
+    }
+    return simplified.toString().replace("PT", "").toLowerCase(Locale.ROOT);
+  }
+
   /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
   public static String quote(String string) {
     if (string == null) {

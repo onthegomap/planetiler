@@ -239,7 +239,7 @@ public final class Mbtiles implements Closeable {
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#vector-tileset-metadata">MBtiles
    * schema</a>
    */
-  public static record MetadataJson(
+  public record MetadataJson(
     @JsonProperty("vector_layers")
     List<VectorLayer> vectorLayers
   ) {
@@ -277,7 +277,7 @@ public final class Mbtiles implements Closeable {
       }
     }
 
-    public static record VectorLayer(
+    public record VectorLayer(
       @JsonProperty("id") String id,
       @JsonProperty("fields") Map<String, FieldType> fields,
       @JsonProperty("description") Optional<String> description,
@@ -312,7 +312,7 @@ public final class Mbtiles implements Closeable {
   }
 
   /** Contents of a row of the tiles table. */
-  public static record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
+  public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
 
     @Override
     public boolean equals(Object o) {

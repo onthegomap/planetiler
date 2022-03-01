@@ -35,7 +35,7 @@ public class LongLongMapBench {
     }
     LocalCounter counter = new LocalCounter();
     ProgressLoggers loggers = ProgressLoggers.create()
-      .addRatePercentCounter("entries", entries, () -> counter.count)
+      .addRatePercentCounter("entries", entries, () -> counter.count, true)
       .newLine()
       .addProcessStats();
     AtomicReference<String> writeRate = new AtomicReference<>();

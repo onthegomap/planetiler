@@ -39,7 +39,6 @@ import static com.onthegomap.planetiler.basemap.util.Utils.coalesce;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 import static com.onthegomap.planetiler.collection.FeatureGroup.SORT_KEY_BITS;
 
-import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -48,6 +47,7 @@ import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -145,7 +145,7 @@ public class Park implements
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
     // infer the "rank" attribute from point ordering within each label grid square
-    LongIntMap counts = new LongIntHashMap();
+    LongIntMap counts = Hppc.newLongIntHashMap();
     for (VectorTile.Feature feature : items) {
       if (feature.geometry().geomType() == GeometryType.POINT && feature.hasGroup()) {
         int count = counts.getOrDefault(feature.group(), 0) + 1;

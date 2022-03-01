@@ -14,9 +14,9 @@ public class TimersTest {
     timers.printSummary();
 
     var finish = timers.startTimer("task2");
-    assertTrue(timers.all().get("task2").running());
+    assertTrue(timers.all().get("task2").timer().running());
     finish.stop();
-    assertFalse(timers.all().get("task2").running());
+    assertFalse(timers.all().get("task2").timer().running());
 
     timers.printSummary();
   }

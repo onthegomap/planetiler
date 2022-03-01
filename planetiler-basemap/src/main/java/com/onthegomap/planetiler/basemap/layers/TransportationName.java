@@ -41,7 +41,6 @@ import static com.onthegomap.planetiler.basemap.layers.Transportation.isFootwayO
 import static com.onthegomap.planetiler.basemap.util.Utils.*;
 
 import com.carrotsearch.hppc.LongArrayList;
-import com.carrotsearch.hppc.LongByteHashMap;
 import com.carrotsearch.hppc.LongByteMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
@@ -51,6 +50,7 @@ import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.stats.Stats;
@@ -121,7 +121,7 @@ public class TransportationName implements
   private final boolean limitMerge;
   private final PlanetilerConfig config;
   private Transportation transportation;
-  private final LongByteMap motorwayJunctionHighwayClasses = new LongByteHashMap();
+  private final LongByteMap motorwayJunctionHighwayClasses = Hppc.newLongByteHashMap();
 
   public TransportationName(Translations translations, PlanetilerConfig config, Stats stats) {
     this.config = config;

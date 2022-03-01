@@ -19,7 +19,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 @ThreadSafe
 public class PolygonIndex<T> {
 
-  private static record GeomWithData<T>(Polygon poly, T data) {}
+  private record GeomWithData<T>(Polygon poly, T data) {}
 
   private final STRtree index = new STRtree();
 

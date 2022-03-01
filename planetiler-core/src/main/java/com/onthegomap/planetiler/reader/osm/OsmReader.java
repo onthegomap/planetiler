@@ -1,25 +1,17 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSizeWithoutKeys;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSizeWithoutValues;
+import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongHashSet;
+import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.ObjectIntHashMap;
-import com.graphhopper.coll.GHIntObjectHashMap;
-import com.graphhopper.coll.GHLongHashSet;
-import com.graphhopper.coll.GHLongObjectHashMap;
-import com.graphhopper.coll.GHObjectIntHashMap;
-import com.graphhopper.reader.ReaderElement;
-import com.graphhopper.reader.ReaderElementUtils;
-import com.graphhopper.reader.ReaderNode;
-import com.graphhopper.reader.ReaderRelation;
-import com.graphhopper.reader.ReaderWay;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.collection.SortableFeature;
@@ -29,9 +21,14 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.worker.Distributor;
+import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
+import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -62,14 +60,16 @@ import org.slf4j.LoggerFactory;
 public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsmReader.class);
+  private static final Format FORMAT = Format.defaultInstance();
   private static final int ROLE_BITS = 16;
   private static final int MAX_ROLES = (1 << ROLE_BITS) - 10;
   private static final int ROLE_SHIFT = 64 - ROLE_BITS;
   private static final int ROLE_MASK = (1 << ROLE_BITS) - 1;
   private static final long NOT_ROLE_MASK = (1L << ROLE_SHIFT) - 1L;
-  private final OsmSource osmInputFile;
+  private final OsmBlockSource osmBlockSource;
   private final Stats stats;
   private final LongLongMap nodeLocationDb;
+  private final Counter.Readable PASS1_BLOCKS = Counter.newSingleThreadCounter();
   private final Counter.Readable PASS1_NODES = Counter.newSingleThreadCounter();
   private final Counter.Readable PASS1_WAYS = Counter.newSingleThreadCounter();
   private final Counter.Readable PASS1_RELATIONS = Counter.newSingleThreadCounter();
@@ -80,38 +80,39 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   // for routes (750k rels 40m ways) and boundaries (650k rels, 8m ways)
   // need to store route info to use later when processing ways
   // <~500mb
-  private GHLongObjectHashMap<OsmRelationInfo> relationInfo = new GHLongObjectHashMap<>();
+  private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
-  private LongHashSet waysInMultipolygon = new GHLongHashSet();
+  private LongHashSet waysInMultipolygon = new LongHashSet();
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
   // keep track of data needed to encode/decode role strings into a long
-  private final ObjectIntHashMap<String> roleIds = new GHObjectIntHashMap<>();
-  private final IntObjectHashMap<String> roleIdsReverse = new GHIntObjectHashMap<>();
+  private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
+  private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
   private final AtomicLong roleSizes = new AtomicLong(0);
 
   /**
    * Constructs a new {@code OsmReader} from
    *
-   * @param name           ID for this reader to use in stats and logs
-   * @param osmInputFile   the file to read raw nodes, ways, and relations from
-   * @param nodeLocationDb store that will temporarily hold node locations (encoded as a long) between passes to
-   *                       reconstruct way geometries
-   * @param profile        logic that defines what map features to emit for each source feature
-   * @param stats          to keep track of counters and timings
+   * @param name              ID for this reader to use in stats and logs
+   * @param osmSourceProvider the file to read raw nodes, ways, and relations from
+   * @param nodeLocationDb    store that will temporarily hold node locations (encoded as a long) between passes to
+   *                          reconstruct way geometries
+   * @param profile           logic that defines what map features to emit for each source feature
+   * @param stats             to keep track of counters and timings
    */
-  public OsmReader(String name, OsmSource osmInputFile, LongLongMap nodeLocationDb, Profile profile,
+  public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb, Profile profile,
     Stats stats) {
     this.name = name;
-    this.osmInputFile = osmInputFile;
+    this.osmBlockSource = osmSourceProvider.get();
     this.nodeLocationDb = nodeLocationDb;
     this.stats = stats;
     this.profile = profile;
     stats.monitorInMemoryObject("osm_relations", this);
     stats.counter("osm_pass1_elements_processed", "type", () -> Map.of(
+      "blocks", PASS1_BLOCKS,
       "nodes", PASS1_NODES,
       "ways", PASS1_WAYS,
       "relations", PASS1_RELATIONS
@@ -129,85 +130,144 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param config user-provided arguments to control the number of threads, and log interval
    */
   public void pass1(PlanetilerConfig config) {
+    record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
     var timer = stats.startStage("osm_pass1");
-    String pbfParsePrefix = "pbfpass1";
     int parseThreads = Math.max(1, config.threads() - 2);
-    var pipeline = WorkerPipeline.start("osm_pass1", stats)
-      .fromGenerator("pbf", osmInputFile.read("pbfpass1", parseThreads))
-      .addBuffer("reader_queue", 50_000, 10_000)
-      .sinkToConsumer("process", 1, this::processPass1Element);
+    int pendingBlocks = parseThreads * 2;
+    // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
+    // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
+    // like nodes without any tags, but limit the number of pending heavy entities like relations
+    int handoffQueueBatches = Math.max(
+      10,
+      (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
+    );
+    var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
+    var pipeline = WorkerPipeline.start("osm_pass1", stats);
+    var readBranch = pipeline
+      .<BlockWithResult>fromGenerator("read", next -> {
+        osmBlockSource.forEachBlock((block) -> {
+          WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
+          parsedBatches.accept(result);
+          next.accept(new BlockWithResult(block, result));
+        });
+        parsedBatches.close();
+      })
+      .addBuffer("pbf_blocks", pendingBlocks)
+      .sinkToConsumer("parse", parseThreads, block -> {
+        List<OsmElement> result = new ArrayList<>();
+        boolean nodesDone = false, waysDone = false;
+        for (var element : block.block.decodeElements()) {
+          if (element instanceof OsmElement.Node node) {
+            // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
+            node.encodedLocation();
+            if (nodesDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id()
+                  + " after a way or relation");
+            }
+          } else if (element instanceof OsmElement.Way way) {
+            nodesDone = true;
+            if (waysDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
+                  + " after a relation");
+            }
+          } else if (element instanceof OsmElement.Relation) {
+            nodesDone = waysDone = true;
+          }
+          block.result.accept(element, element.cost());
+        }
+        block.result.close();
+      });
+
+    var processBranch = pipeline
+      .readFromQueue(parsedBatches)
+      .sinkToConsumer("process", 1, this::processPass1Block);
 
     var loggers = ProgressLoggers.create()
       .addRateCounter("nodes", PASS1_NODES, true)
       .addFileSizeAndRam(nodeLocationDb)
       .addRateCounter("ways", PASS1_WAYS, true)
       .addRateCounter("rels", PASS1_RELATIONS, true)
+      .addRateCounter("blocks", PASS1_BLOCKS)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .newLine()
-      .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
-      .addPipelineStats(pipeline);
-    pipeline.awaitAndLog(loggers, config.logInterval());
+      .addPipelineStats(readBranch)
+      .addPipelineStats(processBranch);
+
+    loggers.awaitAndLog(joinFutures(readBranch.done(), processBranch.done()), config.logInterval());
+
+    LOGGER.debug("processed " +
+      "blocks:" + FORMAT.integer(PASS1_BLOCKS.get()) +
+      " nodes:" + FORMAT.integer(PASS1_NODES.get()) +
+      " ways:" + FORMAT.integer(PASS1_WAYS.get()) +
+      " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
     timer.stop();
   }
 
-  void processPass1Element(ReaderElement readerElement) {
-    // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
-    // shared data structures which are not thread safe
-    if (readerElement.getId() < 0) {
-      throw new IllegalArgumentException("Negative OSM element IDs not supported: " + readerElement);
-    }
-    if (readerElement instanceof ReaderNode node) {
-      PASS1_NODES.inc();
-      try {
-        profile.preprocessOsmNode(OsmElement.fromGraphopper(node));
-      } catch (Exception e) {
-        LOGGER.error("Error preprocessing OSM node " + node.getId(), e);
+  void processPass1Block(Iterable<? extends OsmElement> elements) {
+    int nodes = 0, ways = 0, relations = 0;
+    for (OsmElement element : elements) {
+      // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
+      // shared data structures which are not thread safe
+      if (element.id() < 0) {
+        throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
       }
-      // TODO allow limiting node storage to only ones that profile cares about
-      nodeLocationDb.put(node.getId(), GeoUtils.encodeFlatLocation(node.getLon(), node.getLat()));
-    } else if (readerElement instanceof ReaderWay way) {
-      PASS1_WAYS.inc();
-      try {
-        profile.preprocessOsmWay(OsmElement.fromGraphopper(way));
-      } catch (Exception e) {
-        LOGGER.error("Error preprocessing OSM way " + way.getId(), e);
-      }
-    } else if (readerElement instanceof ReaderRelation rel) {
-      PASS1_RELATIONS.inc();
-      // don't leak graphhopper classes out through public API
-      OsmElement.Relation osmRelation = OsmElement.fromGraphopper(rel);
-      try {
-        List<OsmRelationInfo> infos = profile.preprocessOsmRelation(osmRelation);
-        if (infos != null) {
-          for (OsmRelationInfo info : infos) {
-            relationInfo.put(rel.getId(), info);
-            relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-            for (ReaderRelation.Member member : rel.getMembers()) {
-              int type = member.getType();
-              // TODO handle nodes in relations and super-relations
-              if (type == ReaderRelation.Member.WAY) {
-                wayToRelations.put(member.getRef(), encodeRelationMembership(member.getRole(), rel.getId()));
+      if (element instanceof OsmElement.Node node) {
+        nodes++;
+        try {
+          profile.preprocessOsmNode(node);
+        } catch (Exception e) {
+          LOGGER.error("Error preprocessing OSM node " + node.id(), e);
+        }
+        // TODO allow limiting node storage to only ones that profile cares about
+        nodeLocationDb.put(node.id(), node.encodedLocation());
+      } else if (element instanceof OsmElement.Way way) {
+        ways++;
+        try {
+          profile.preprocessOsmWay(way);
+        } catch (Exception e) {
+          LOGGER.error("Error preprocessing OSM way " + way.id(), e);
+        }
+      } else if (element instanceof OsmElement.Relation relation) {
+        relations++;
+        try {
+          List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
+          if (infos != null) {
+            for (OsmRelationInfo info : infos) {
+              relationInfo.put(relation.id(), info);
+              relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
+              for (var member : relation.members()) {
+                var type = member.type();
+                // TODO handle nodes in relations and super-relations
+                if (type == OsmElement.Type.WAY) {
+                  wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                }
               }
             }
           }
+        } catch (Exception e) {
+          LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
         }
-      } catch (Exception e) {
-        LOGGER.error("Error preprocessing OSM relation " + rel.getId(), e);
-      }
-      // TODO allow limiting multipolygon storage to only ones that profile cares about
-      if (isMultipolygon(rel)) {
-        for (ReaderRelation.Member member : rel.getMembers()) {
-          if (member.getType() == ReaderRelation.Member.WAY) {
-            waysInMultipolygon.add(member.getRef());
+        // TODO allow limiting multipolygon storage to only ones that profile cares about
+        if (isMultipolygon(relation)) {
+          for (var member : relation.members()) {
+            if (member.type() == OsmElement.Type.WAY) {
+              waysInMultipolygon.add(member.ref());
+            }
           }
         }
       }
     }
+    PASS1_BLOCKS.inc();
+    PASS1_NODES.incBy(nodes);
+    PASS1_WAYS.incBy(ways);
+    PASS1_RELATIONS.incBy(relations);
   }
 
-  private static boolean isMultipolygon(ReaderRelation relation) {
+  private static boolean isMultipolygon(OsmElement.Relation relation) {
     return relation.hasTag("type", "multipolygon", "boundary", "land_area");
   }
 
@@ -220,12 +280,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   public void pass2(FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage("osm_pass2");
     int threads = config.threads();
-    int readerThreads = Math.max(threads / 4, 1);
-    int processThreads = threads - (threads >= 4 ? 1 : 0);
+    int processThreads = Math.max(threads < 4 ? threads : (threads - 1), 1);
+    Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
     Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
     stats.counter("osm_pass2_elements_processed", "type", () -> Map.of(
+      "blocks", blocksProcessed,
       "nodes", nodesProcessed,
       "ways", waysProcessed,
       "relations", relsProcessed
@@ -233,86 +294,95 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     // since multiple threads process OSM elements, and we must process all ways before processing any relations,
     // use a count down latch to wait for all threads to finish processing ways
-    CountDownLatch waysDone = new CountDownLatch(processThreads);
+    CountDownLatch waitForWays = new CountDownLatch(processThreads);
+    // Use a Distributor to keep all worker threads busy when processing the final blocks of relations by offloading
+    // items to threads that are done reading blocks
+    Distributor<OsmElement.Relation> relationDistributor = Distributor.createWithCapacity(1_000);
 
-    String parseThreadPrefix = "pbfpass2";
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
-      .fromGenerator("pbf", osmInputFile.read(parseThreadPrefix, readerThreads))
-      // TODO should use an adaptive batch size to better utilize lots of cpus:
-      //   - make queue size proportional to cores
-      //   - much larger batches when processing points
-      //   - slightly larger batches when processing ways
-      //   - 1_000 is probably fine for relations
-      .addBuffer("reader_queue", 50_000, 1_000)
+      .fromGenerator("read", osmBlockSource::forEachBlock)
+      .addBuffer("pbf_blocks", 100)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
+        Counter blocks = blocksProcessed.counterForThread();
         Counter nodes = nodesProcessed.counterForThread();
         Counter ways = waysProcessed.counterForThread();
         Counter rels = relsProcessed.counterForThread();
 
-        ReaderElement readerElement;
+        var waysDone = false;
         var featureCollectors = new FeatureCollector.Factory(config, stats);
-        NodeLocationProvider nodeLocations = newNodeLocationProvider();
+        final NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
-        while ((readerElement = prev.get()) != null) {
-          SourceFeature feature = null;
-          if (readerElement instanceof ReaderNode node) {
-            nodes.inc();
-            feature = processNodePass2(node);
-          } else if (readerElement instanceof ReaderWay way) {
-            ways.inc();
-            feature = processWayPass2(way, nodeLocations);
-          } else if (readerElement instanceof ReaderRelation rel) {
-            // ensure all ways finished processing before we start relations
-            if (waysDone.getCount() > 0) {
-              waysDone.countDown();
-              waysDone.await();
-            }
-            rels.inc();
-            feature = processRelationPass2(rel, nodeLocations);
-          }
-          // render features specified by profile and hand them off to next step that will
-          // write them intermediate storage
+        var relationHandler = relationDistributor.forThread(relation -> {
+          var feature = processRelationPass2(relation, nodeLocations);
           if (feature != null) {
-            FeatureCollector features = featureCollectors.get(feature);
-            try {
-              profile.processFeature(feature, features);
-              for (FeatureCollector.Feature renderable : features) {
-                renderer.accept(renderable);
+            render(featureCollectors, renderer, relation, feature);
+          }
+          rels.inc();
+        });
+
+        for (var block : prev) {
+          int blockNodes = 0, blockWays = 0;
+          for (var element : block.decodeElements()) {
+            SourceFeature feature = null;
+            if (element instanceof OsmElement.Node node) {
+              blockNodes++;
+              feature = processNodePass2(node);
+            } else if (element instanceof OsmElement.Way way) {
+              blockWays++;
+              feature = processWayPass2(way, nodeLocations);
+            } else if (element instanceof OsmElement.Relation relation) {
+              // ensure all ways finished processing before we start relations
+              if (!waysDone && waitForWays.getCount() > 0) {
+                waitForWays.countDown();
+                waitForWays.await();
+                waysDone = true;
               }
-            } catch (Exception e) {
-              String type = switch (readerElement.getType()) {
-                case ReaderElement.NODE -> "node";
-                case ReaderElement.WAY -> "way";
-                case ReaderElement.RELATION -> "relation";
-                default -> "element";
-              };
-              LOGGER.error("Error processing OSM " + type + " " + readerElement.getId(), e);
+              relationHandler.accept(relation);
+            }
+            // render features specified by profile and hand them off to next step that will
+            // write them intermediate storage
+            if (feature != null) {
+              render(featureCollectors, renderer, element, feature);
             }
           }
-        }
 
+          blocks.inc();
+          nodes.incBy(blockNodes);
+          ways.incBy(blockWays);
+        }
         // just in case a worker skipped over all relations
-        waysDone.countDown();
+        waitForWays.countDown();
+
+        // do work for other threads that are still processing blocks of relations
+        relationHandler.close();
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
       .sinkToConsumer("write", 1, writer);
 
     var logger = ProgressLoggers.create()
-      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed)
+      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed, true)
       .addFileSizeAndRam(nodeLocationDb)
-      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed)
-      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed)
+      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed, true)
+      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed, true)
       .addRateCounter("features", writer::numFeaturesWritten)
       .addFileSize(writer)
+      .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed, false)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .newLine()
-      .addThreadPoolStats("parse", parseThreadPrefix + "-pool")
       .addPipelineStats(pipeline);
 
     pipeline.awaitAndLog(logger, config.logInterval());
+
+    LOGGER.debug("processed " +
+      "blocks:" + FORMAT.integer(blocksProcessed.get()) +
+      " nodes:" + FORMAT.integer(nodesProcessed.get()) +
+      " ways:" + FORMAT.integer(waysProcessed.get()) +
+      " relations:" + FORMAT.integer(relsProcessed.get()));
+
+    timer.stop();
 
     try {
       profile.finish(name,
@@ -321,7 +391,20 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
     }
-    timer.stop();
+  }
+
+  private void render(FeatureCollector.Factory featureCollectors, FeatureRenderer renderer, OsmElement element,
+    SourceFeature feature) {
+    FeatureCollector features = featureCollectors.get(feature);
+    try {
+      profile.processFeature(feature, features);
+      for (FeatureCollector.Feature renderable : features) {
+        renderer.accept(renderable);
+      }
+    } catch (Exception e) {
+      String type = element.getClass().getSimpleName();
+      LOGGER.error("Error processing OSM " + type + " " + element.id(), e);
+    }
   }
 
   private FeatureRenderer createFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
@@ -334,34 +417,34 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     );
   }
 
-  SourceFeature processNodePass2(ReaderNode node) {
+  SourceFeature processNodePass2(OsmElement.Node node) {
     // nodes are simple because they already contain their location
     return new NodeSourceFeature(node);
   }
 
-  SourceFeature processWayPass2(ReaderWay way, NodeLocationProvider nodeLocations) {
+  SourceFeature processWayPass2(OsmElement.Way way, NodeLocationProvider nodeLocations) {
     // ways contain an ordered list of node IDs, so we need to join that with node locations
     // from pass1 to reconstruct the geometry.
-    LongArrayList nodes = way.getNodes();
-    if (waysInMultipolygon.contains(way.getId())) {
+    LongArrayList nodes = way.nodes();
+    if (waysInMultipolygon.contains(way.id())) {
       // if this is part of a multipolygon, store the node IDs for this way ID so that when
       // we get to the multipolygon we can go from way IDs -> node IDs -> node locations.
       synchronized (this) { // multiple threads may update this concurrently
-        multipolygonWayGeometries.putAll(way.getId(), nodes);
+        multipolygonWayGeometries.putAll(way.id(), nodes);
       }
     }
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);
     // area tag used to differentiate between whether a closed way should be treated as a polygon or linestring
-    String area = way.getTag("area");
-    List<RelationMember<OsmRelationInfo>> rels = getRelationMembershipForWay(way.getId());
+    String area = way.getString("area");
+    List<RelationMember<OsmRelationInfo>> rels = getRelationMembershipForWay(way.id());
     return new WaySourceFeature(way, closed, area, nodeLocations, rels);
   }
 
-  SourceFeature processRelationPass2(ReaderRelation rel, NodeLocationProvider nodeLocations) {
+  SourceFeature processRelationPass2(OsmElement.Relation rel, NodeLocationProvider nodeLocations) {
     // Relation info gets used during way processing, except multipolygons which we have to process after we've
     // stored all the node IDs for each way.
     if (isMultipolygon(rel)) {
-      List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.getId());
+      List<RelationMember<OsmRelationInfo>> parentRelations = getRelationMembershipForWay(rel.id());
       return new MultipolygonSourceFeature(rel, nodeLocations, parentRelations);
     } else {
       return null;
@@ -392,9 +475,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     size += estimateSize(waysInMultipolygon);
     size += estimateSize(multipolygonWayGeometries);
     size += estimateSize(wayToRelations);
-    size += estimateSizeWithoutValues(relationInfo);
-    size += MemoryEstimator.estimateSizeWithoutValues(roleIdsReverse);
-    size += estimateSizeWithoutKeys(roleIds);
+    size += estimateSize(relationInfo);
+    size += estimateSize(roleIdsReverse);
+    size += estimateSize(roleIds);
     size += roleSizes.get();
     size += relationInfoSizes.get();
     return size;
@@ -409,6 +492,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     nodeLocationDb.close();
     roleIds.release();
     roleIdsReverse.release();
+    osmBlockSource.close();
   }
 
   NodeLocationProvider newNodeLocationProvider() {
@@ -435,7 +519,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param role     "role" of the relation member
    * @param relation user-provided data about the relation from pass1
    */
-  public static record RelationMember<T extends OsmRelationInfo>(String role, T relation) {}
+  public record RelationMember<T extends OsmRelationInfo>(String role, T relation) {}
 
   /** Raw relation membership data that gets encoded/decoded into a long. */
   private record RelationMembership(String role, long relationId) {}
@@ -473,9 +557,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     private Geometry latLonGeom;
     private Geometry worldGeom;
 
-    public OsmFeature(ReaderElement elem, boolean point, boolean line, boolean polygon,
+    public OsmFeature(OsmElement elem, boolean point, boolean line, boolean polygon,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
-      super(ReaderElementUtils.getTags(elem), name, null, relationInfo, elem.getId());
+      super(elem.tags(), name, null, relationInfo, elem.id());
       this.point = point;
       this.line = line;
       this.polygon = polygon;
@@ -512,20 +596,18 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   /** A {@link Point} created from an OSM node. */
   private class NodeSourceFeature extends OsmFeature {
 
-    private final double lon;
-    private final double lat;
+    private final long encodedLocation;
 
-    NodeSourceFeature(ReaderNode node) {
+    NodeSourceFeature(OsmElement.Node node) {
       super(node, true, false, false, null);
-      this.lon = node.getLon();
-      this.lat = node.getLat();
+      this.encodedLocation = node.encodedLocation();
     }
 
     @Override
     protected Geometry computeWorldGeometry() {
       return GeoUtils.point(
-        GeoUtils.getWorldX(lon),
-        GeoUtils.getWorldY(lat)
+        GeoUtils.decodeWorldX(encodedLocation),
+        GeoUtils.decodeWorldY(encodedLocation)
       );
     }
 
@@ -562,14 +644,14 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     private final NodeLocationProvider nodeLocations;
     private final LongArrayList nodeIds;
 
-    public WaySourceFeature(ReaderWay way, boolean closed, String area, NodeLocationProvider nodeLocations,
+    public WaySourceFeature(OsmElement.Way way, boolean closed, String area, NodeLocationProvider nodeLocations,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
       super(way, false,
-        OsmReader.canBeLine(closed, area, way.getNodes().size()),
-        OsmReader.canBePolygon(closed, area, way.getNodes().size()),
+        OsmReader.canBeLine(closed, area, way.nodes().size()),
+        OsmReader.canBePolygon(closed, area, way.nodes().size()),
         relationInfo
       );
-      this.nodeIds = way.getNodes();
+      this.nodeIds = way.nodes();
       this.nodeLocations = nodeLocations;
     }
 
@@ -611,10 +693,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    */
   private class MultipolygonSourceFeature extends OsmFeature {
 
-    private final ReaderRelation relation;
+    private final OsmElement.Relation relation;
     private final NodeLocationProvider nodeLocations;
 
-    public MultipolygonSourceFeature(ReaderRelation relation, NodeLocationProvider nodeLocations,
+    public MultipolygonSourceFeature(OsmElement.Relation relation, NodeLocationProvider nodeLocations,
       List<RelationMember<OsmRelationInfo>> parentRelations) {
       super(relation, false, false, true, parentRelations);
       this.relation = relation;
@@ -623,17 +705,17 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     @Override
     protected Geometry computeWorldGeometry() throws GeometryException {
-      List<LongArrayList> rings = new ArrayList<>(relation.getMembers().size());
-      for (ReaderRelation.Member member : relation.getMembers()) {
-        String role = member.getRole();
-        LongArrayList poly = multipolygonWayGeometries.get(member.getRef());
-        if (member.getType() == ReaderRelation.Member.WAY) {
+      List<LongArrayList> rings = new ArrayList<>(relation.members().size());
+      for (OsmElement.Relation.Member member : relation.members()) {
+        String role = member.role();
+        LongArrayList poly = multipolygonWayGeometries.get(member.ref());
+        if (member.type() == OsmElement.Type.WAY) {
           if (poly != null && !poly.isEmpty()) {
             rings.add(poly);
           } else if (relation.hasTag("type", "multipolygon")) {
             // boundary and land_area relations might not be complete for extracts, but multipolygons should be
             LOGGER.warn(
-              "Missing " + role + " OsmWay[" + member.getRef() + "] for " + relation.getTag("type") + " " + this);
+              "Missing " + role + " OsmWay[" + member.ref() + "] for " + relation.getTag("type") + " " + this);
           }
         }
       }

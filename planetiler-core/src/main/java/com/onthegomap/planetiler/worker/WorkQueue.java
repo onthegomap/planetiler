@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.worker;
 
+import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayDeque;
@@ -12,7 +13,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * A high-performance blocking queue to hand off work from producing threads to consuming threads.
@@ -28,7 +28,7 @@ import java.util.function.Supplier;
  *
  * @param <T> the type of elements held in this queue
  */
-public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
+public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T> {
 
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
@@ -87,7 +87,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   }
 
   /** Returns a reader optimized to produce items for a single thread. */
-  public Supplier<T> threadLocalReader() {
+  public IterableOnce<T> threadLocalReader() {
     return readerProvider.get();
   }
 
@@ -174,7 +174,7 @@ public class WorkQueue<T> implements AutoCloseable, Supplier<T>, Consumer<T> {
   }
 
   /** Caches thread-local values so that a single thread can read new items without having to do thread-local lookups. */
-  private class ReaderForThread implements Supplier<T> {
+  private class ReaderForThread implements IterableOnce<T> {
 
     Queue<T> readBatch = null;
     final Counter dequeueBlockTimeNanos = dequeueBlockTimeNanosAll.counterForThread();

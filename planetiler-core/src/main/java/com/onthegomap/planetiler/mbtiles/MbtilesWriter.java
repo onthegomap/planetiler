@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.mbtiles;
 
 import static com.onthegomap.planetiler.util.Gzip.gzip;
+import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
@@ -31,7 +32,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -121,7 +121,7 @@ public class MbtilesWriter {
        */
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
-        .<TileBatch>fromGenerator("reader", next -> {
+        .<TileBatch>fromGenerator("read", next -> {
           writer.readFeaturesAndBatch(batch -> {
             next.accept(batch);
             writerQueue.accept(batch); // also send immediately to writer
@@ -130,12 +130,12 @@ public class MbtilesWriter {
           // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
         }, 1)
         .addBuffer("reader_queue", queueSize)
-        .sinkTo("encoder", config.threads(), writer::tileEncoderSink);
+        .sinkTo("encode", config.threads(), writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
       writeBranch = pipeline.readFromQueue(writerQueue)
         // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("writer", 1, writer::tileWriter);
+        .sinkTo("write", 1, writer::tileWriter);
     } else {
       /*
        * If we don't need to emit tiles in order, just send the features to the encoder, and when it finishes with
@@ -143,16 +143,16 @@ public class MbtilesWriter {
        */
       encodeBranch = pipeline
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator("reader", writer::readFeaturesAndBatch, 1)
+        .fromGenerator("read", writer::readFeaturesAndBatch, 1)
         .addBuffer("reader_queue", queueSize)
         .addWorker("encoder", config.threads(), writer::tileEncoder)
         .addBuffer("writer_queue", queueSize)
         // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("writer", 1, writer::tileWriter);
+        .sinkTo("write", 1, writer::tileWriter);
     }
 
     var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed)
+      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
       .addFileSize(features)
       .addRateCounter("tiles", writer::tilesEmitted)
       .addFileSize(fileSize)
@@ -164,10 +164,8 @@ public class MbtilesWriter {
       .newLine()
       .add(writer::getLastTileLogDetails);
 
-    encodeBranch.awaitAndLog(loggers, config.logInterval());
-    if (writeBranch != null) {
-      writeBranch.awaitAndLog(loggers, config.logInterval());
-    }
+    var doneFuture = writeBranch == null ? encodeBranch.done() : joinFutures(writeBranch.done(), encodeBranch.done());
+    loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
   }
@@ -219,21 +217,20 @@ public class MbtilesWriter {
     }
   }
 
-  private void tileEncoderSink(Supplier<TileBatch> prev) throws IOException {
+  private void tileEncoderSink(Iterable<TileBatch> prev) throws IOException {
     tileEncoder(prev, batch -> {
       // no next step
     });
   }
 
-  private void tileEncoder(Supplier<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
-    TileBatch batch;
+  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
     /*
      * To optimize emitting many identical consecutive tiles (like large ocean areas), memoize output to avoid
      * recomputing if the input hasn't changed.
      */
     byte[] lastBytes = null, lastEncoded = null;
 
-    while ((batch = prev.get()) != null) {
+    for (TileBatch batch : prev) {
       Queue<Mbtiles.TileEntry> result = new ArrayDeque<>(batch.size());
       FeatureGroup.TileFeatures last = null;
       // each batch contains tile ordered by z asc, x asc, y desc
@@ -268,7 +265,7 @@ public class MbtilesWriter {
     }
   }
 
-  private void tileWriter(Supplier<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
+  private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
     db.createTables();
     if (!config.deferIndexCreation()) {
       db.addTileIndex();
@@ -292,8 +289,7 @@ public class MbtilesWriter {
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
     try (var batchedWriter = db.newBatchedTileWriter()) {
-      TileBatch batch;
-      while ((batch = tileBatches.get()) != null) {
+      for (TileBatch batch : tileBatches) {
         Queue<Mbtiles.TileEntry> tiles = batch.out.get();
         Mbtiles.TileEntry tile;
         while ((tile = tiles.poll()) != null) {
@@ -365,7 +361,7 @@ public class MbtilesWriter {
    * @param in  the tile data to encode
    * @param out the future that encoder thread completes to hand finished tile off to writer thread
    */
-  private static record TileBatch(
+  private record TileBatch(
     List<FeatureGroup.TileFeatures> in,
     CompletableFuture<Queue<Mbtiles.TileEntry>> out
   ) {

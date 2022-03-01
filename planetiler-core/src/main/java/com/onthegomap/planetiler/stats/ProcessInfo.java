@@ -15,14 +15,19 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A collection of utilities to gather runtime information about the JVM.
  */
 public class ProcessInfo {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessInfo.class);
 
   // listen on GC events to track memory pool sizes after each GC
   private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
@@ -41,6 +46,13 @@ public class ProcessInfo {
           }
         }, null, null);
       }
+    }
+
+    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+    if (threadBean.isThreadContentionMonitoringSupported()) {
+      ManagementFactory.getThreadMXBean().setThreadContentionMonitoringEnabled(true);
+    } else {
+      LOGGER.debug("Thread contention monitoring not supported, will not have access to waiting/blocking time stats.");
     }
   }
 
@@ -93,11 +105,47 @@ public class ProcessInfo {
     return Runtime.getRuntime().maxMemory();
   }
 
+  /** Returns the JVM used memory. */
+  public static long getUsedMemoryBytes() {
+    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  }
+
   /** Processor usage statistics for a thread. */
-  public static record ThreadState(String name, Duration cpuTime, Duration userTime, long id) {
+  public record ThreadState(
+    String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id
+  ) {
 
-    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, -1);
+    private static long zeroIfUnsupported(LongSupplier supplier) {
+      try {
+        return supplier.getAsLong();
+      } catch (UnsupportedOperationException e) {
+        return 0;
+      }
+    }
 
+    public ThreadState(ThreadMXBean threadMXBean, ThreadInfo thread) {
+      this(
+        thread.getThreadName(),
+        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadCpuTime(thread.getThreadId()))),
+        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadUserTime(thread.getThreadId()))),
+        Duration.ofMillis(zeroIfUnsupported(thread::getWaitedTime)),
+        Duration.ofMillis(zeroIfUnsupported(thread::getBlockedTime)),
+        thread.getThreadId());
+    }
+
+    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, Duration.ZERO,
+      Duration.ZERO, -1);
+
+    /** Adds up the timers in two {@code ThreadState} instances */
+    public ThreadState plus(ThreadState other) {
+      return new ThreadState("<multiple threads>",
+        cpuTime.plus(other.cpuTime),
+        userTime.plus(other.userTime),
+        waiting.plus(other.waiting),
+        blocking.plus(other.blocking),
+        -1
+      );
+    }
   }
 
   /** Returns the amount of time this JVM has spent in any kind of garbage collection since startup. */
@@ -129,14 +177,14 @@ public class ProcessInfo {
     Map<Long, ThreadState> threadState = new TreeMap<>();
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     for (ThreadInfo thread : threadMXBean.dumpAllThreads(false, false)) {
-      threadState.put(thread.getThreadId(),
-        new ThreadState(
-          thread.getThreadName(),
-          Duration.ofNanos(threadMXBean.getThreadCpuTime(thread.getThreadId())),
-          Duration.ofNanos(threadMXBean.getThreadUserTime(thread.getThreadId())),
-          thread.getThreadId()
-        ));
+      threadState.put(thread.getThreadId(), new ThreadState(threadMXBean, thread));
     }
     return threadState;
+  }
+
+  public static ThreadState getCurrentThreadState() {
+    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    ThreadInfo thread = threadMXBean.getThreadInfo(Thread.currentThread().getId());
+    return new ThreadState(threadMXBean, thread);
   }
 }

@@ -172,7 +172,7 @@ public class Downloader {
     for (var toDownload : toDownloadList) {
       try {
         long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
-        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded);
+        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
       }
@@ -322,7 +322,7 @@ public class Downloader {
                 var inputStream = (ranges || range.start > 0)
                   ? openStreamRange(canonicalUrl, range.start, range.end)
                   : openStream(canonicalUrl);
-                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress);
+                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress)
               ) {
                 // ensure this file has been allocated up to the start of this block
                 fileChannel.write(ByteBuffer.allocate(1), range.start);

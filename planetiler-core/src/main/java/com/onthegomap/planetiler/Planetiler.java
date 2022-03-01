@@ -157,7 +157,7 @@ public class Planetiler {
       throw new IllegalArgumentException("Currently only one OSM input file is supported");
     }
     Path path = getPath(name, "OSM input file", defaultPath, defaultUrl);
-    var thisInputFile = new OsmInputFile(path);
+    var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
     return appendStage(new Stage(
       name,
@@ -647,14 +647,14 @@ public class Planetiler {
     }
   }
 
-  private static record Stage(String id, List<String> details, RunnableThatThrows task) {
+  private record Stage(String id, List<String> details, RunnableThatThrows task) {
 
     Stage(String id, String description, RunnableThatThrows task) {
       this(id, List.of(id + ": " + description), task);
     }
   }
 
-  private static record ToDownload(String id, String url, Path path) {}
+  private record ToDownload(String id, String url, Path path) {}
 
-  private static record InputPath(String id, Path path) {}
+  private record InputPath(String id, Path path) {}
 }

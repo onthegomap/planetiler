@@ -40,7 +40,6 @@ import static com.onthegomap.planetiler.basemap.util.Utils.nullIfEmpty;
 import static com.onthegomap.planetiler.basemap.util.Utils.nullOrEmpty;
 import static com.onthegomap.planetiler.collection.FeatureGroup.SORT_KEY_BITS;
 
-import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.VectorTile;
@@ -48,6 +47,7 @@ import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -366,7 +366,7 @@ public class Place implements
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
     // infer the rank field from ordering of the place labels with each label grid square
-    LongIntMap groupCounts = new LongIntHashMap();
+    LongIntMap groupCounts = Hppc.newLongIntHashMap();
     for (VectorTile.Feature feature : items) {
       int gridrank = groupCounts.getOrDefault(feature.group(), 1);
       groupCounts.put(feature.group(), gridrank + 1);
@@ -412,7 +412,7 @@ public class Place implements
    * Information extracted from a natural earth geographic region that will be inspected when joining with OpenStreetMap
    * data.
    */
-  private static record NaturalEarthRegion(String name, int rank) {
+  private record NaturalEarthRegion(String name, int rank) {
 
     NaturalEarthRegion(String name, int maxRank, double... ranks) {
       this(name, (int) Math.ceil(DoubleStream.of(ranks).average().orElse(maxRank)));
@@ -423,6 +423,6 @@ public class Place implements
    * Information extracted from a natural earth place label that will be inspected when joining with OpenStreetMap
    * data.
    */
-  private static record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
+  private record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
 }
 

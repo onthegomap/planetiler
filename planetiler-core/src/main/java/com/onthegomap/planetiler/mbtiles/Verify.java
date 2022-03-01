@@ -54,11 +54,10 @@ public class Verify {
    * @param envelope lat/lon bounding box to limit check
    * @param clazz    {@link Geometry} subclass to limit
    * @return number of features found
-   * @throws IOException       if an error occurs reading from the file
    * @throws GeometryException if an invalid geometry is encountered
    */
   public static int getNumFeatures(Mbtiles db, String layer, int zoom, Map<String, Object> attrs, Envelope envelope,
-    Class<? extends Geometry> clazz) throws IOException, GeometryException {
+    Class<? extends Geometry> clazz) throws GeometryException {
     int num = 0;
     for (var tileCoord : db.getAllTileCoords()) {
       Envelope tileEnv = new Envelope();
@@ -161,7 +160,7 @@ public class Verify {
       try {
         int count = getNumFeatures(mbtiles, layer, zoom, tags, bounds, geometryType);
         return count >= minCount ? Optional.empty() : Optional.of("found " + count);
-      } catch (IOException | GeometryException e) {
+      } catch (GeometryException e) {
         return Optional.of("error: " + e);
       }
     });
@@ -232,5 +231,5 @@ public class Verify {
     return checks.stream().filter(check -> check.error.isPresent()).count();
   }
 
-  public static record Check(String name, Optional<String> error) {}
+  public record Check(String name, Optional<String> error) {}
 }

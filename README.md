@@ -118,12 +118,12 @@ See the [planetiler-examples](planetiler-examples) project.
 
 Some example runtimes (excluding downloading resources):
 
-| Input | Profile | Machine | Time | mbtiles size | Logs |
-| --- | --- | --- | --- | --- | --- |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap | DO 16cpu 128GB | 3h9m cpu:42h1m avg:13.3 | 99GB | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps) |
-| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap | DO 16cpu 128GB | 3h13m cpu:43h40m avg:13.5 | 101GB | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt) |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap (without z13 building merge) | Linode 50cpu 128GB | 1h9m cpu:24h36m avg:21.2 | 97GB | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB) | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB) | 59m cpu:27h6m avg:27.4 | 97GB | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt) |
+| Input                                                                                                                                     | Profile                              | Machine                     | Time                      | mbtiles size | Logs                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------|-----------------------------|---------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap                              | DO 16cpu 128GB              | 3h9m cpu:42h1m avg:13.3   | 99GB         | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps)         |
+| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap                              | DO 16cpu 128GB              | 3h13m cpu:43h40m avg:13.5 | 101GB        | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt)                                                                         |
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge) | Linode 50cpu 128GB          | 1h9m cpu:24h36m avg:21.2  | 97GB         | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB) | 59m cpu:27h6m avg:27.4    | 97GB         | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt)                                                                         |
 
 ## Alternatives
 
@@ -209,7 +209,8 @@ Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Support
 
-For general questions, check out the #planetiler channel on [osmus.slack.com](https://osmus.slack.com/), or start
+For general questions, check out the #planetiler channel on [OSM-US Slack](https://osmus.slack.com/) (get an
+invite [here](https://osmus-slack.herokuapp.com/)), or start
 a [GitHub discussion](https://github.com/onthegomap/planetiler/discussions).
 
 Found a bug or have a feature request? Open a [GitHub issue](https://github.com/onthegomap/planetiler/issues) to report.
@@ -225,7 +226,7 @@ Planetiler is made possible by these awesome open source projects:
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
   that the [basemap profile](planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers)
   is based on
-- [Graphhopper](https://www.graphhopper.com/) for utilities to process OpenStreetMap data in Java
+- [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
 - [Geotools](https://github.com/geotools/geotools) for shapefile processing
 - [SQLite JDBC Driver](https://github.com/xerial/sqlite-jdbc) for reading Natural Earth data and writing MBTiles files
@@ -238,6 +239,8 @@ Planetiler is made possible by these awesome open source projects:
 - [imposm3](https://github.com/omniscale/imposm3) for the basis
   of [OSM multipolygon processing](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/osm/OsmMultipolygon.java)
   and [tag parsing utilities](planetiler-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
+- [HPPC](http://labs.carrotsearch.com/) for high-performance primitive Java collections
+- [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

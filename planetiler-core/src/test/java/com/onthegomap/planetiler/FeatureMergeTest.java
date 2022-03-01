@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
-import com.graphhopper.coll.GHIntObjectHashMap;
+import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
@@ -506,7 +506,7 @@ public class FeatureMergeTest {
 
   @SafeVarargs
   private static IntObjectMap<IntArrayList> adjacencyListFromGroups(List<Integer>... groups) {
-    IntObjectMap<IntArrayList> result = new GHIntObjectHashMap<>();
+    IntObjectMap<IntArrayList> result = Hppc.newIntObjectHashMap();
     for (List<Integer> group : groups) {
       for (int i = 0; i < group.size(); i++) {
         Integer a = group.get(i);
@@ -528,7 +528,7 @@ public class FeatureMergeTest {
   @Test
   public void testExtractConnectedComponentsEmpty() {
     assertEquals(
-      List.of(), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 0)
+      List.of(), FeatureMerge.extractConnectedComponents(Hppc.newIntObjectHashMap(), 0)
     );
   }
 
@@ -537,7 +537,7 @@ public class FeatureMergeTest {
     assertEquals(
       List.of(
         IntArrayList.from(0)
-      ), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 1)
+      ), FeatureMerge.extractConnectedComponents(Hppc.newIntObjectHashMap(), 1)
     );
   }
 
@@ -547,7 +547,7 @@ public class FeatureMergeTest {
       List.of(
         IntArrayList.from(0),
         IntArrayList.from(1)
-      ), FeatureMerge.extractConnectedComponents(new GHIntObjectHashMap<>(), 2)
+      ), FeatureMerge.extractConnectedComponents(Hppc.newIntObjectHashMap(), 2)
     );
   }
 
