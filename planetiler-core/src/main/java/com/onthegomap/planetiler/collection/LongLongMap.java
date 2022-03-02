@@ -45,6 +45,11 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
    */
   static LongLongMap from(String name, String storage, Path path) {
     // TODO turn these storage and long long map types into enums
+    if ("array".equals(name)) {
+      FileUtils.createDirectory(path);
+      return new ArrayLongLongMapMmap(path.resolve("nodes"));
+    }
+
     boolean ram = switch (storage) {
       case "ram", "direct" -> true;
       case "mmap" -> false;

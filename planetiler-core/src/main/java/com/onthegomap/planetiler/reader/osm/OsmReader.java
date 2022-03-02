@@ -150,6 +150,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
       // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
       int parseThreads = Math.max(1, config.threads() - 1);
+      allNodesDone = new CountDownLatch(parseThreads);
       var parallelPipeline = pipeline
         .fromGenerator("read", osmBlockSource::forEachBlock)
         .addBuffer("pbf_blocks", parseThreads * 2)
@@ -161,6 +162,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       // and a handle that the result will go on to the single-threaded writer, and the writer emits new nodes when
       // they are ready
       int parseThreads = Math.max(1, config.threads() - 2);
+      allNodesDone = new CountDownLatch(1);
       int pendingBlocks = parseThreads * 2;
       // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
       // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
@@ -212,6 +214,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     timer.stop();
   }
 
+  CountDownLatch allNodesDone;
+
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
     boolean nodesDone = false, waysDone = false;
     try (var nodeWriter = nodeLocationDb.newWriter()) {
@@ -238,7 +242,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             // TODO allow limiting node storage to only ones that profile cares about
             nodeWriter.put(node.id(), node.encodedLocation());
           } else if (element instanceof OsmElement.Way way) {
-            nodesDone = true;
+            if (!nodesDone) {
+              nodesDone = true;
+              allNodesDone.countDown();
+            }
+            try {
+              allNodesDone.await();
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
             if (waysDone) {
               throw new IllegalArgumentException(
                 "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
@@ -251,7 +263,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               LOGGER.error("Error preprocessing OSM way " + way.id(), e);
             }
           } else if (element instanceof OsmElement.Relation relation) {
-            nodesDone = waysDone = true;
+            if (!nodesDone) {
+              nodesDone = true;
+              allNodesDone.countDown();
+            }
+            waysDone = true;
             relations++;
             try {
               List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);

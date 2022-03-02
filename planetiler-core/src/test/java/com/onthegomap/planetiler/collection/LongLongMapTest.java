@@ -3,8 +3,11 @@ package com.onthegomap.planetiler.collection;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public abstract class LongLongMapTest {
 
@@ -96,6 +99,32 @@ public abstract class LongLongMapTest {
     @BeforeEach
     public void setup() {
       this.map = new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
+    }
+  }
+
+  public static class ArrayMmap extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup(@TempDir Path path) {
+      var underlying = new ArrayLongLongMapMmap(path.resolve("node.db"));
+      var writer = underlying.newWriter();
+      this.map = new LongLongMap.SequentialWrites() {
+        @Override
+        public void put(long key, long value) {
+          writer.put(key, value);
+        }
+
+        @Override
+        public long get(long key) {
+          return underlying.get(key);
+        }
+
+        @Override
+        public void close() throws IOException {
+          writer.close();
+          underlying.close();
+        }
+      };
     }
   }
 }

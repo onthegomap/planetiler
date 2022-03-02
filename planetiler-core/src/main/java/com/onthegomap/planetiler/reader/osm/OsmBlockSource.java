@@ -24,8 +24,8 @@ public interface OsmBlockSource extends Closeable {
   interface Block extends Iterable<OsmElement> {
 
     /** Create a fake block from existing elements - useful for tests. */
-    static Block of(Iterable<OsmElement> items) {
-      return () -> items;
+    static Block of(Iterable<? extends OsmElement> items) {
+      return () -> (Iterable<OsmElement>) items;
     }
 
     /** Decompress and parse OSM elements from this block. */
