@@ -144,7 +144,9 @@ public class Waterway implements
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("waterway", "river") && !Utils.nullOrEmpty(relation.getString("name"))) {
-      riverRelationLengths.put(relation.id(), new AtomicDouble());
+      synchronized (riverRelationLengths) {
+        riverRelationLengths.put(relation.id(), new AtomicDouble());
+      }
       return List.of(new WaterwayRelation(relation.id(), LanguageUtils.getNames(relation.tags(), translations)));
     }
     return null;

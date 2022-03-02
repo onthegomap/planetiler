@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 public abstract class LongLongMapTest {
 
-  protected LongLongMap map;
+  protected LongLongMap.SequentialWrites map;
 
   @Test
   public void missingValue() {
@@ -88,6 +88,14 @@ public abstract class LongLongMapTest {
     @BeforeEach
     public void setup() {
       this.map = new LongLongMap.SparseArray(new AppendStoreRam.Longs());
+    }
+  }
+
+  public static class Direct extends LongLongMapTest {
+
+    @BeforeEach
+    public void setup() {
+      this.map = new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
     }
   }
 }

@@ -84,6 +84,14 @@ public class AppendStoreTest {
     }
   }
 
+  static class DirectInt extends IntsTest {
+
+    @BeforeEach
+    public void setup() {
+      this.store = new AppendStoreDirect.Ints(4 << 2);
+    }
+  }
+
   static class RamLong extends LongsTest {
 
     @BeforeEach
@@ -100,6 +108,14 @@ public class AppendStoreTest {
     }
   }
 
+  static class DirectLong extends LongsTest {
+
+    @BeforeEach
+    public void setup() {
+      this.store = new AppendStoreDirect.Longs(4 << 2);
+    }
+  }
+
   static class MMapSmallLong extends LongsTest {
 
     @BeforeEach
@@ -113,6 +129,14 @@ public class AppendStoreTest {
     @BeforeEach
     public void setup() {
       this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(4 << 2));
+    }
+  }
+
+  static class DirectSmallLong extends LongsTest {
+
+    @BeforeEach
+    public void setup() {
+      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreDirect.Ints(4 << 2));
     }
   }
 }

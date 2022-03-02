@@ -38,31 +38,37 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
    * Returns a new longlong map from config strings.
    *
    * @param name    which implementation to use: {@code "noop"}, {@code "sortedtable"} or {@code "sparsearray"}
-   * @param storage how to store data: {@code "ram"} or {@code "mmap"}
+   * @param storage how to store data: {@code "ram"}, {@code "mmap"}, or {@code "direct"}
    * @param path    where to store data (if mmap)
    * @return A longlong map instance
    * @throws IllegalArgumentException if {@code name} or {@code storage} is not valid
    */
   static LongLongMap from(String name, String storage, Path path) {
+    // TODO turn these storage and long long map types into enums
     boolean ram = switch (storage) {
-      case "ram" -> true;
+      case "ram", "direct" -> true;
       case "mmap" -> false;
       default -> throw new IllegalArgumentException("Unexpected storage value: " + storage);
     };
+    boolean direct = "direct".equals(storage);
 
     return switch (name) {
       case "noop" -> noop();
-      case "sortedtable" -> ram ? newInMemorySortedTable() : newDiskBackedSortedTable(path);
-      case "sparsearray" -> ram ? newInMemorySparseArray() : newDiskBackedSparseArray(path);
+      case "sortedtable" -> ram ? (direct ? newDirectSortedTable() : newInMemorySortedTable())
+        : newDiskBackedSortedTable(path);
+      case "sparsearray" -> ram ? (direct ? newDirectSparseArray() : newInMemorySparseArray())
+        : newDiskBackedSparseArray(path);
       default -> throw new IllegalArgumentException("Unexpected value: " + name);
     };
   }
 
   /** Returns a longlong map that stores no data and throws on read */
   static LongLongMap noop() {
-    return new LongLongMap() {
+    return new ParallelWrites() {
       @Override
-      public void put(long key, long value) {
+      public Writer newWriter() {
+        return (key, value) -> {
+        };
       }
 
       @Override
@@ -89,6 +95,17 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     );
   }
 
+  /**
+   * Returns a longlong map stored in off-heap (direct) memory that uses 12-bytes per node and binary search to find
+   * values.
+   */
+  static LongLongMap newDirectSortedTable() {
+    return new SortedTable(
+      new AppendStore.SmallLongs(i -> new AppendStoreDirect.Ints()),
+      new AppendStoreDirect.Longs()
+    );
+  }
+
   /** Returns a memory-mapped longlong map that uses 12-bytes per node and binary search to find values. */
   static LongLongMap newDiskBackedSortedTable(Path dir) {
     FileUtils.createDirectory(dir);
@@ -107,6 +124,14 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   }
 
   /**
+   * Returns a longlong map stored off-heap in direct byte buffers that uses 8-bytes per node and O(1) lookup but wastes
+   * space storing lots of 0's when the key space is fragmented.
+   */
+  static LongLongMap newDirectSparseArray() {
+    return new SparseArray(new AppendStoreDirect.Longs());
+  }
+
+  /**
    * Returns a memory-mapped longlong map that uses 8-bytes per node and O(1) lookup but wastes space storing lots of
    * 0's when the key space is fragmented.
    */
@@ -114,11 +139,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     return new SparseArray(new AppendStoreMmap.Longs(path));
   }
 
-  /**
-   * Writes the value for a key. Not thread safe! All writes must come from a single thread, in order by key. No writes
-   * can be performed after the first read.
-   */
-  void put(long key, long value);
+  Writer newWriter();
 
   /**
    * Returns the value for a key. Safe to be called by multiple threads after all values have been written. After the
@@ -144,10 +165,36 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     return result;
   }
 
+  interface Writer extends AutoCloseable {
+
+    /**
+     * Writes the value for a key. Not thread safe! All writes must come from a single thread, in order by key. No
+     * writes can be performed after the first read.
+     */
+    void put(long key, long value);
+
+    @Override
+    default void close() {
+    }
+  }
+
+  interface SequentialWrites extends LongLongMap {
+
+    void put(long key, long value);
+
+    @Override
+    default Writer newWriter() {
+      return this::put;
+    }
+  }
+
+  interface ParallelWrites extends LongLongMap {
+  }
+
   /**
    * A longlong map that stores keys and values sorted by key and does a binary search to lookup values.
    */
-  class SortedTable implements LongLongMap {
+  class SortedTable implements LongLongMap, SequentialWrites {
 
     /*
      * It's not actually a binary search, it keeps track of the first index of each block of 256 keys, so it
@@ -230,7 +277,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
    * A longlong map that only stores values and uses the key as an index into the array, with some tweaks to avoid
    * storing many sequential 0's.
    */
-  class SparseArray implements LongLongMap {
+  class SparseArray implements LongLongMap, SequentialWrites {
 
     // The key space is broken into chunks of 256 and for each chunk, store:
     // 1) the index in the outputs array for the first key in the block

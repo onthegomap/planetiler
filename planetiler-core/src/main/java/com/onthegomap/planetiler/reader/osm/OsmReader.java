@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -83,9 +84,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
+  private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
   private LongHashSet waysInMultipolygon = new LongHashSet();
+  private final Object waysInMultipolygonLock = new Object();
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
   // keep track of data needed to encode/decode role strings into a long
@@ -130,60 +133,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param config user-provided arguments to control the number of threads, and log interval
    */
   public void pass1(PlanetilerConfig config) {
-    record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
     var timer = stats.startStage("osm_pass1");
-    int parseThreads = Math.max(1, config.threads() - 2);
-    int pendingBlocks = parseThreads * 2;
-    // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
-    // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
-    // like nodes without any tags, but limit the number of pending heavy entities like relations
-    int handoffQueueBatches = Math.max(
-      10,
-      (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
-    );
-    var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
-    var readBranch = pipeline
-      .<BlockWithResult>fromGenerator("read", next -> {
-        osmBlockSource.forEachBlock((block) -> {
-          WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
-          parsedBatches.accept(result);
-          next.accept(new BlockWithResult(block, result));
-        });
-        parsedBatches.close();
-      })
-      .addBuffer("pbf_blocks", pendingBlocks)
-      .sinkToConsumer("parse", parseThreads, block -> {
-        List<OsmElement> result = new ArrayList<>();
-        boolean nodesDone = false, waysDone = false;
-        for (var element : block.block.decodeElements()) {
-          if (element instanceof OsmElement.Node node) {
-            // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
-            node.encodedLocation();
-            if (nodesDone) {
-              throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id()
-                  + " after a way or relation");
-            }
-          } else if (element instanceof OsmElement.Way way) {
-            nodesDone = true;
-            if (waysDone) {
-              throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
-                  + " after a relation");
-            }
-          } else if (element instanceof OsmElement.Relation) {
-            nodesDone = waysDone = true;
-          }
-          block.result.accept(element, element.cost());
-        }
-        block.result.close();
-      });
-
-    var processBranch = pipeline
-      .readFromQueue(parsedBatches)
-      .sinkToConsumer("process", 1, this::processPass1Block);
-
+    CompletableFuture<?> done;
     var loggers = ProgressLoggers.create()
       .addRateCounter("nodes", PASS1_NODES, true)
       .addFileSizeAndRam(nodeLocationDb)
@@ -193,11 +145,64 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .newLine()
-      .addPipelineStats(readBranch)
-      .addPipelineStats(processBranch);
+      .newLine();
 
-    loggers.awaitAndLog(joinFutures(readBranch.done(), processBranch.done()), config.logInterval());
+    if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
+      // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
+      int parseThreads = Math.max(1, config.threads() - 1);
+      var parallelPipeline = pipeline
+        .fromGenerator("read", osmBlockSource::forEachBlock)
+        .addBuffer("pbf_blocks", parseThreads * 2)
+        .sinkTo("process", parseThreads, this::processPass1Blocks);
+      loggers.addPipelineStats(parallelPipeline);
+      done = parallelPipeline.done();
+    } else {
+      // If the node location writer requires sequential writes, then the reader hands off the block to workers
+      // and a handle that the result will go on to the single-threaded writer, and the writer emits new nodes when
+      // they are ready
+      int parseThreads = Math.max(1, config.threads() - 2);
+      int pendingBlocks = parseThreads * 2;
+      // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
+      // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
+      // like nodes without any tags, but limit the number of pending heavy entities like relations
+      int handoffQueueBatches = Math.max(
+        10,
+        (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
+      );
+      record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
+      var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
+      var readBranch = pipeline
+        .<BlockWithResult>fromGenerator("read", next -> {
+          osmBlockSource.forEachBlock((block) -> {
+            WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
+            parsedBatches.accept(result);
+            next.accept(new BlockWithResult(block, result));
+          });
+          parsedBatches.close();
+        })
+        .addBuffer("pbf_blocks", pendingBlocks)
+        .sinkToConsumer("parse", parseThreads, block -> {
+          for (var element : block.block.decodeElements()) {
+            if (element instanceof OsmElement.Node node) {
+              // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
+              node.encodedLocation();
+            }
+            block.result.accept(element, element.cost());
+          }
+          block.result.close();
+        });
+
+      var processBranch = pipeline
+        .readFromQueue(parsedBatches)
+        .sinkTo("process", 1, this::processPass1Blocks);
+
+      loggers
+        .addPipelineStats(readBranch)
+        .addPipelineStats(processBranch);
+      done = joinFutures(readBranch.done(), processBranch.done());
+    }
+
+    loggers.awaitAndLog(done, config.logInterval());
 
     LOGGER.debug("processed " +
       "blocks:" + FORMAT.integer(PASS1_BLOCKS.get()) +
@@ -207,64 +212,85 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     timer.stop();
   }
 
-  void processPass1Block(Iterable<? extends OsmElement> elements) {
-    int nodes = 0, ways = 0, relations = 0;
-    for (OsmElement element : elements) {
-      // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
-      // shared data structures which are not thread safe
-      if (element.id() < 0) {
-        throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
-      }
-      if (element instanceof OsmElement.Node node) {
-        nodes++;
-        try {
-          profile.preprocessOsmNode(node);
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM node " + node.id(), e);
-        }
-        // TODO allow limiting node storage to only ones that profile cares about
-        nodeLocationDb.put(node.id(), node.encodedLocation());
-      } else if (element instanceof OsmElement.Way way) {
-        ways++;
-        try {
-          profile.preprocessOsmWay(way);
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM way " + way.id(), e);
-        }
-      } else if (element instanceof OsmElement.Relation relation) {
-        relations++;
-        try {
-          List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
-          if (infos != null) {
-            for (OsmRelationInfo info : infos) {
-              relationInfo.put(relation.id(), info);
-              relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-              for (var member : relation.members()) {
-                var type = member.type();
-                // TODO handle nodes in relations and super-relations
-                if (type == OsmElement.Type.WAY) {
-                  wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+  void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
+    boolean nodesDone = false, waysDone = false;
+    try (var nodeWriter = nodeLocationDb.newWriter()) {
+      for (var block : blocks) {
+        int nodes = 0, ways = 0, relations = 0;
+        for (OsmElement element : block) {
+          // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
+          // shared data structures which are not thread safe
+          if (element.id() < 0) {
+            throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
+          }
+          if (element instanceof OsmElement.Node node) {
+            if (nodesDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id()
+                  + " after a way or relation");
+            }
+            nodes++;
+            try {
+              profile.preprocessOsmNode(node);
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM node " + node.id(), e);
+            }
+            // TODO allow limiting node storage to only ones that profile cares about
+            nodeWriter.put(node.id(), node.encodedLocation());
+          } else if (element instanceof OsmElement.Way way) {
+            nodesDone = true;
+            if (waysDone) {
+              throw new IllegalArgumentException(
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
+                  + " after a relation");
+            }
+            ways++;
+            try {
+              profile.preprocessOsmWay(way);
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM way " + way.id(), e);
+            }
+          } else if (element instanceof OsmElement.Relation relation) {
+            nodesDone = waysDone = true;
+            relations++;
+            try {
+              List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
+              if (infos != null) {
+                synchronized (wayToRelationsLock) {
+                  for (OsmRelationInfo info : infos) {
+                    relationInfo.put(relation.id(), info);
+                    relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
+                    for (var member : relation.members()) {
+                      var type = member.type();
+                      // TODO handle nodes in relations and super-relations
+                      if (type == OsmElement.Type.WAY) {
+                        wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
+            }
+            // TODO allow limiting multipolygon storage to only ones that profile cares about
+            if (isMultipolygon(relation)) {
+              synchronized (waysInMultipolygonLock) {
+                for (var member : relation.members()) {
+                  if (member.type() == OsmElement.Type.WAY) {
+                    waysInMultipolygon.add(member.ref());
+                  }
                 }
               }
             }
           }
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
         }
-        // TODO allow limiting multipolygon storage to only ones that profile cares about
-        if (isMultipolygon(relation)) {
-          for (var member : relation.members()) {
-            if (member.type() == OsmElement.Type.WAY) {
-              waysInMultipolygon.add(member.ref());
-            }
-          }
-        }
+        PASS1_BLOCKS.inc();
+        PASS1_NODES.incBy(nodes);
+        PASS1_WAYS.incBy(ways);
+        PASS1_RELATIONS.incBy(relations);
       }
     }
-    PASS1_BLOCKS.inc();
-    PASS1_NODES.incBy(nodes);
-    PASS1_WAYS.incBy(ways);
-    PASS1_RELATIONS.incBy(relations);
   }
 
   private static boolean isMultipolygon(OsmElement.Relation relation) {
