@@ -515,6 +515,7 @@ public class Planetiler {
     for (var inputPath : inputPaths) {
       if (inputPath.freeAfterReading()) {
         LOGGER.info("Deleting " + inputPath.id + "(" + inputPath.path + ") to make room for output file");
+        FileUtils.delete(inputPath.path());
       }
     }
 
