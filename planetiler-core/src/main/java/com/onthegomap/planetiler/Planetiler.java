@@ -10,19 +10,26 @@ import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import java.io.IOException;
+import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -444,7 +451,7 @@ public class Planetiler {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
-    } else if (overwrite || config.forceOverwrite()) {
+    } else if (overwrite || config.force()) {
       FileUtils.deleteFile(output);
     } else if (Files.exists(output)) {
       throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
@@ -475,17 +482,17 @@ public class Planetiler {
       download();
     }
     ensureInputFilesExist();
-    if (onlyDownloadSources) {
-      return; // exit only if just downloading
-    }
+    Files.createDirectories(tmpDir);
+    checkDiskSpace();
+    checkMemory();
     if (fetchWikidata) {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
     if (useWikidata) {
       translations().addTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
-    if (onlyFetchWikidata) {
-      return; // exit only if just fetching wikidata
+    if (onlyDownloadSources || onlyFetchWikidata) {
+      return; // exit only if just fetching wikidata or downloading sources
     }
     if (osmInputFile != null) {
       config.bounds().setFallbackProvider(osmInputFile);
@@ -503,8 +510,13 @@ public class Planetiler {
       stage.task.run();
     }
 
-    LOGGER.info("Deleting node.db to make room for mbtiles");
+    LOGGER.info("Deleting node.db to make room for output file");
     profile.release();
+    for (var inputPath : inputPaths) {
+      if (inputPath.freeAfterReading()) {
+        LOGGER.info("Deleting " + inputPath.id + "(" + inputPath.path + ") to make room for output file");
+      }
+    }
 
     featureGroup.prepare();
 
@@ -514,6 +526,78 @@ public class Planetiler {
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
+  }
+
+  private void checkDiskSpace() {
+    Map<FileStore, Long> readPhaseBytes = new HashMap<>();
+    Map<FileStore, Long> writePhaseBytes = new HashMap<>();
+    long osmSize = osmInputFile.diskUsageBytes();
+    long nodeMapSize = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize);
+    long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
+    long outputSize = profile.estimateOutputBytes(osmSize);
+
+    try {
+      // node locations only needed while reading inputs
+      readPhaseBytes.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
+      // feature db persists across read/write phase
+      readPhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
+      writePhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
+      // output only needed during write phase
+      writePhaseBytes.merge(Files.getFileStore(output.toAbsolutePath().getParent()), outputSize, Long::sum);
+      // if the user opts to remove an input source after reading to free up additional space for the output...
+      for (var input : inputPaths) {
+        if (input.freeAfterReading()) {
+          writePhaseBytes.merge(Files.getFileStore(input.path), -Files.size(input.path), Long::sum);
+        }
+      }
+
+      checkDiskSpaceOnDevices(readPhaseBytes, "read");
+      checkDiskSpaceOnDevices(writePhaseBytes, "write");
+    } catch (IOException e) {
+      LOGGER.warn("Unable to check disk space requirements, may run out of room " + e);
+    }
+
+  }
+
+  private void checkDiskSpaceOnDevices(Map<FileStore, Long> readPhaseBytes, String phase) throws IOException {
+    for (var entry : readPhaseBytes.entrySet()) {
+      var fs = entry.getKey();
+      var requested = entry.getValue();
+      long available = fs.getUnallocatedSpace();
+      if (available < requested) {
+        var format = Format.defaultInstance();
+        String warning =
+          "Planetiler needs ~" + format.storage(requested) + " on " + fs + " during " + phase
+            + " phase, which only has "
+            + format.storage(available) + " available";
+        if (config.force() || requested < available * 1.25) {
+          LOGGER.warn(warning + ", may fail.");
+        } else {
+          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+        }
+      }
+    }
+  }
+
+  private void checkMemory() {
+    var format = Format.defaultInstance();
+    long nodeMap = LongLongMap.estimateMemoryUsage(config.nodeMapType(), config.nodeMapStorage(),
+      osmInputFile.diskUsageBytes());
+    long profile = profile().estimateRamRequired(osmInputFile.diskUsageBytes());
+    long requested = nodeMap + profile;
+    long jvmMemory = ProcessInfo.getMaxMemoryBytes();
+
+    if (jvmMemory < requested) {
+      String warning =
+        "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only "
+          + format.storage(jvmMemory) + " is available, try setting -Xmx=" + format.storage(requested).toLowerCase(
+          Locale.ROOT);
+      if (config.force() || requested < jvmMemory * 1.25) {
+        LOGGER.warn(warning + ", may fail.");
+      } else {
+        throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+      }
+    }
   }
 
   public Arguments arguments() {
@@ -553,13 +637,15 @@ public class Planetiler {
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
+    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
+      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
     if (downloadSources) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
       if (!Files.exists(path) && url != null) {
         toDownload.add(new ToDownload(name, url, path));
       }
     }
-    inputPaths.add(new InputPath(name, path));
+    inputPaths.add(new InputPath(name, path, freeAfterReading));
     return path;
   }
 
@@ -592,5 +678,5 @@ public class Planetiler {
 
   private record ToDownload(String id, String url, Path path) {}
 
-  private record InputPath(String id, Path path) {}
+  private record InputPath(String id, Path path, boolean freeAfterReading) {}
 }

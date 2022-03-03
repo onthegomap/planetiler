@@ -133,7 +133,10 @@ public class FileUtils {
       if (Files.isDirectory(path)) {
         Files.createDirectories(path);
       } else {
-        Files.createDirectories(path.getParent());
+        Path parent = path.getParent();
+        if (parent != null) {
+          Files.createDirectories(parent);
+        }
       }
     } catch (IOException e) {
       throw new IllegalStateException("Unable to create parent directories " + path, e);

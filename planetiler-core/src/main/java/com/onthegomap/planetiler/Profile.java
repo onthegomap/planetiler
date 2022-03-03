@@ -195,6 +195,30 @@ public interface Profile {
   }
 
   /**
+   * Returns an estimate for how many bytes of disk this profile will use for intermediate feature storage to warn when
+   * running with insufficient disk space.
+   */
+  default long estimateIntermediateDiskBytes(long osmFileSize) {
+    return 0L;
+  }
+
+  /**
+   * Returns an estimate for how many bytes the output file will be to warn when running with insufficient disk space.
+   */
+  default long estimateOutputBytes(long osmFileSize) {
+    return 0L;
+  }
+
+  /**
+   * Returns an estimate for how many bytes of RAM this will use to warn when running with insufficient memory.
+   * <p>
+   * This should include memory for things the profile stores in memory, as well as relations and multipolygons.
+   */
+  default long estimateRamRequired(long osmFileSize) {
+    return 0L;
+  }
+
+  /**
    * A default implementation of {@link Profile} that emits no output elements.
    */
   class NullProfile implements Profile {

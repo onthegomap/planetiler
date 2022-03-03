@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -20,7 +22,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see <a href="https://wiki.openstreetmap.org/wiki/PBF_Format">OSM PBF Format</a>
  */
-public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
+public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, DiskBacked {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsmInputFile.class);
 
@@ -121,6 +123,11 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource> {
   @Override
   public OsmBlockSource get() {
     return lazy ? new LazyReader() : new EagerReader();
+  }
+
+  @Override
+  public long diskUsageBytes() {
+    return FileUtils.size(path);
   }
 
   private FileChannel openChannel() {
