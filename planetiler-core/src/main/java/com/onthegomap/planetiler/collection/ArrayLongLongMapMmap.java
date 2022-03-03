@@ -32,6 +32,7 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   CopyOnWriteArrayList<AtomicLong> segments = new CopyOnWriteArrayList<>();
   final ConcurrentMap<Long, ByteBuffer> writeBuffers = new ConcurrentHashMap<>();
   private FileChannel readChannel = null;
+  private volatile long tail = 0;
 
   public ArrayLongLongMapMmap(Path path) {
     this.path = path;
@@ -72,7 +73,22 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
-  record ToFlush(ByteBuffer buf, long offset) {}
+  record ToFlush(ByteBuffer buffer, long offset, long id) {}
+
+  record BufferActions(List<ToFlush> toFlush, List<Long> toAllocate) {}
+
+  private synchronized List<ToFlush> getSegmentsToFlush() {
+    List<ToFlush> toFlush = new ArrayList<>();
+    var minSegment = segments.stream().mapToLong(AtomicLong::get).min().getAsLong();
+    while (tail < minSegment) {
+      var buffer = writeBuffers.remove(tail);
+      if (buffer != null) {
+        toFlush.add(new ToFlush(buffer, tail << segmentBits, tail));
+      }
+      tail++;
+    }
+    return toFlush;
+  }
 
   @Override
   public Writer newWriter() {
@@ -88,40 +104,38 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         long offset = key << 3;
         long segment = offset >>> segmentBits;
         if (segment > lastSegment) {
-          List<ToFlush> chunksToFlush = new ArrayList<>();
-          synchronized (writeBuffers) {
+
+          synchronized (this) {
+            // iterate through the tail-end and free up chunks that aren't needed anymore
             currentSeg.set(segment);
-            var minSegment = segments.stream().mapToLong(AtomicLong::get).min().getAsLong();
-            for (Long oldKey : writeBuffers.keySet()) {
-              if (oldKey < minSegment) {
-                // no one else needs this segment, flush it
-                var toFlush = writeBuffers.remove(oldKey);
-                if (toFlush != null) {
-                  chunksToFlush.add(new ToFlush(toFlush, oldKey << segmentBits));
-//                  limitInMemoryChunks.release();
-                }
+            var toFlushes = getSegmentsToFlush();
+            System.err.println(
+              Thread.currentThread().getName() + " segments=" + segments + " toFlush=" + toFlushes.stream().map(
+                ToFlush::id).toList());
+            for (var toFlush : toFlushes) {
+              System.err.println("    " + Thread.currentThread().getName() + " flushing " + toFlush.id);
+              try {
+                writeChannel.write(toFlush.buffer, toFlush.offset);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
               }
+              limitInMemoryChunks.release();
             }
+
+            // wait on adding a new buffer to head until the number of pending buffers is small enough
             buffer = writeBuffers.computeIfAbsent(segment, i -> {
-//              try {
-//                limitInMemoryChunks.acquire();
-//              } catch (InterruptedException e) {
-//                e.printStackTrace();
-//                throw new RuntimeException(e);
-//              }
+              System.err.println("    " + Thread.currentThread().getName() + " allocating " + segment);
+              try {
+                limitInMemoryChunks.acquire();
+              } catch (InterruptedException e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+              }
               return ByteBuffer.allocateDirect(1 << segmentBits);
             });
           }
           lastSegment = segment;
           segmentOffset = segment << segmentBits;
-          for (var chunk : chunksToFlush) {
-            try {
-              writeChannel.write(chunk.buf, chunk.offset);
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            }
-            chunk.buf.clear();
-          }
         }
         buffer.putLong((int) (offset - segmentOffset), value);
       }
