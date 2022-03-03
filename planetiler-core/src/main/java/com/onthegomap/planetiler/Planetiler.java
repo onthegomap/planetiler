@@ -485,17 +485,14 @@ public class Planetiler {
     Files.createDirectories(tmpDir);
     checkDiskSpace();
     checkMemory();
-    if (onlyDownloadSources) {
-      return; // exit only if just downloading
-    }
     if (fetchWikidata) {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
     if (useWikidata) {
       translations().addTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
-    if (onlyFetchWikidata) {
-      return; // exit only if just fetching wikidata
+    if (onlyDownloadSources || onlyFetchWikidata) {
+      return; // exit only if just fetching wikidata or downloading sources
     }
     if (osmInputFile != null) {
       config.bounds().setFallbackProvider(osmInputFile);
@@ -640,8 +637,8 @@ public class Planetiler {
 
   private Path getPath(String name, String type, Path defaultPath, String defaultUrl) {
     Path path = arguments.file(name + "_path", name + " " + type + " path", defaultPath);
-    boolean freeAfterReading = arguments.getBoolean(name + "_free_after_read",
-      name + " delete after reading to make space for output (reduces peak disk usage)", false);
+    boolean freeAfterReading = arguments.getBoolean("free_" + name + "_after_read",
+      "delete " + name + " input file after reading to make space for output (reduces peak disk usage)", false);
     if (downloadSources) {
       String url = arguments.getString(name + "_url", name + " " + type + " url", defaultUrl);
       if (!Files.exists(path) && url != null) {
