@@ -23,4 +23,4 @@ jobs:
 
       - name: Install intellij
         run: |
-          apt install intellij-idea-community --classic
+          snap install intellij-idea-community --classic
