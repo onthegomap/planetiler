@@ -28,4 +28,4 @@ jobs:
 
       - name: Format
         run: |
-          intellij-idea-community format . -r -s .idea/codeStyles/Project.xml
+          intellij-idea-community format -r -s .idea/codeStyles/Project.xml **/*.java
