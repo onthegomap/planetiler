@@ -1,7 +1,5 @@
 ---
-name: Bug report
-about: Create a report to help improve Planetiler
-title: "[BUG] "
+name: Bug report about: Create a report to help improve Planetiler title: "[BUG] "
 labels: ''
 assignees: ''
 
