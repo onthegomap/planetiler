@@ -1,0 +1,26 @@
+name: format
+
+on:
+  push:
+    branches: [ ci-format ]
+
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout branch'
+        uses: actions/checkout@v3
+        with:
+          path: branch
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install intellij
+        run: |
+          apt install intellij-idea-community --classic
