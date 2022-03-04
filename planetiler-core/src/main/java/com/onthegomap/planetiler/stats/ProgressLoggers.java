@@ -256,6 +256,11 @@ public class ProgressLoggers {
     loggers.add(new ProgressLogger("mem",
       () -> format.storage(ProcessInfo.getUsedMemoryBytes(), false) + "/" +
         format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
+        ProcessInfo.getDirectMemoryUsage().stream()
+          .filter(usage -> usage > 0)
+          .mapToObj(mem -> " direct: " + format.storage(mem))
+          .findFirst()
+          .orElse("") +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
           .mapToObj(value -> " postGC: " + blue(format.storage(value, false)))
           .findFirst()

@@ -27,11 +27,11 @@ jobs:
         with:
           access_token: ${{ github.token }}
       - name: 'Checkout branch'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: branch
       - name: 'Checkout base'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: base
           ref: ${{ github.event.pull_request.base.sha }}

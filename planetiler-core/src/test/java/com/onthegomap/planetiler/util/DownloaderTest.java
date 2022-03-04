@@ -1,9 +1,6 @@
 package com.onthegomap.planetiler.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
@@ -18,6 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -121,5 +119,34 @@ public class DownloaderTest {
     assertEquals(newContent, Files.readString(dest));
     assertEquals(FileUtils.size(path), FileUtils.size(dest));
     assertEquals(5, resource4.bytesDownloaded());
+  }
+
+  @Test
+  public void testDownloadFailsIfTooBig() {
+    var downloader = new Downloader(config, stats, 2L) {
+
+      @Override
+      InputStream openStream(String url) {
+        throw new AssertionError("Shouldn't get here");
+      }
+
+      @Override
+      InputStream openStreamRange(String url, long start, long end) {
+        throw new AssertionError("Shouldn't get here");
+      }
+
+      @Override
+      CompletableFuture<ResourceMetadata> httpHead(String url) {
+        return CompletableFuture.completedFuture(new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true));
+      }
+    };
+
+    Path dest = path.resolve("out");
+    String url = "http://url";
+
+    var resource1 = new Downloader.ResourceToDownload("resource", url, dest);
+    var exception = assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
+    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
+    assertTrue(exception.getMessage().contains("--force"), exception.getMessage());
   }
 }

@@ -79,6 +79,11 @@ public class Format {
     return format(num, pad, STORAGE_SUFFIXES);
   }
 
+  /** Alias for {@link #storage(Number, boolean)} where {@code pad=false}. */
+  public String storage(Number num) {
+    return storage(num, false);
+  }
+
   /** Returns a number formatted like "123" "1.2k" "2.5B", etc. */
   public String numeric(Number num, boolean pad) {
     return format(num, pad, NUMERIC_SUFFIXES);
