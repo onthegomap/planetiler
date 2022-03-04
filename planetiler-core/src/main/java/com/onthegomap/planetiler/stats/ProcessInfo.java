@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.stats;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -71,6 +72,16 @@ public class ProcessInfo {
     return Optional
       .ofNullable(result)
       .map(Duration::ofNanos);
+  }
+
+  /**
+   * Returns the amount direct (off-heap) memory used by the JVM.
+   */
+  public static OptionalLong getDirectMemoryUsage() {
+    return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
+      .filter(bufferPool -> "direct".equals(bufferPool.getName()))
+      .mapToLong(BufferPoolMXBean::getMemoryUsed)
+      .findFirst();
   }
 
   // reflection helper
