@@ -24,3 +24,7 @@ jobs:
       - name: Install intellij
         run: |
           sudo snap install intellij-idea-community --classic
+
+      - name: Format
+        run: |
+          intellij-idea-community format . -s .idea/codeStyles/Project.xml
