@@ -30,6 +30,10 @@ To edit the code:
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run 'All Tests'`
 
+To format the code:
+
+- Run `intellij-idea-community format . -r -s .idea/codeStyles/Project.xml`
+
 Any pull request should:
 
 - Include at least one unit test to verify the change in behavior
@@ -41,4 +45,4 @@ Any pull request should:
 
 GitHub Workflows will run regression tests on any pull request.
 
-TODO: Set up checkstyle and an auto-formatter to enforce standards, so you can use any IDE.
+TODO: Set up checkstyle to enforce standards, so you can use any IDE.
