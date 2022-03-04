@@ -2,7 +2,8 @@ name: format
 
 on:
   push:
-    branches: [ ci-format ]
+    branches: [ main ]
+  pull_request:
 
 jobs:
   format:
@@ -27,4 +28,4 @@ jobs:
 
       - name: Format
         run: |
-          intellij-idea-community format . -s .idea/codeStyles/Project.xml
+          intellij-idea-community format . -r -s .idea/codeStyles/Project.xml
