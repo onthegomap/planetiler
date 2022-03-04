@@ -29,6 +29,7 @@ To edit the code:
   automatically format code on save.
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run 'All Tests'`
+- Format with `intellij-idea-community format -r -s .idea/codeStyles/Project.xml **/*.java`
 
 Any pull request should:
 
@@ -41,4 +42,4 @@ Any pull request should:
 
 GitHub Workflows will run regression tests on any pull request.
 
-TODO: Set up checkstyle and an auto-formatter to enforce standards, so you can use any IDE.
+TODO: Set up checkstyle to enforce standards, so you can use any IDE.
