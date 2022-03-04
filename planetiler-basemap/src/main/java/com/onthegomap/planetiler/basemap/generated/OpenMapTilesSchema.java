@@ -1572,9 +1572,8 @@ public class OpenMapTilesSchema {
        * from population and city class). You can use the <strong>rank</strong> to limit density of labels or improve
        * the text hierarchy. The rank value is a combination of the Natural Earth <code>scalerank</code>,
        * <code>labelrank</code> and <code>datarank</code> values for countries and states and for cities consists out
-       * of
-       * a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do not
-       * have a Natural Earth <code>scalerank</code>.
+       * of a shifted Natural Earth <code>scalerank</code> combined with a local rank within a grid for cities that do
+       * not have a Natural Earth <code>scalerank</code>.
        */
       public static final String RANK = "rank";
     }
