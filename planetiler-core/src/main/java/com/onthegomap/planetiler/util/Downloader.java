@@ -177,7 +177,8 @@ public class Downloader {
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
       }
     }
-    loggers.awaitAndLog(downloads, config.logInterval());
+    loggers.add(" ").addProcessStats()
+      .awaitAndLog(downloads, config.logInterval());
     executor.shutdown();
   }
 
