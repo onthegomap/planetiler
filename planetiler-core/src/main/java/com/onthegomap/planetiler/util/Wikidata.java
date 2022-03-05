@@ -298,7 +298,7 @@ public class Wikidata {
       } catch (IOException e) {
         boolean lastTry = i == config.httpRetries();
         if (!lastTry) {
-          LOGGER.info("sparql query failed, retrying: " + e);
+          LOGGER.warn("sparql query failed, retrying: " + e);
         } else {
           LOGGER.error("sparql query failed, exhausted retries: " + e);
           throw e;
