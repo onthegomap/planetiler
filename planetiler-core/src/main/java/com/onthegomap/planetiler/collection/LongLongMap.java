@@ -71,11 +71,13 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   static long estimateMemoryUsage(String name, String storage, long osmFileSize) {
     boolean ram = isRam(storage);
     long nodes = estimateNumNodes(osmFileSize);
+    long maxNodeId = estimateMaxNodeId(osmFileSize);
 
     return switch (name) {
       case "noop" -> 0;
-      case "sortedtable" -> 300_000_000L + (ram ? 12 * nodes : 0L);
+      case "sortedtable" -> 300_000_000L + (ram ? (Integer.BYTES + Long.BYTES) * nodes : 0L);
       case "sparsearray" -> 300_000_000L + (ram ? 9 * nodes : 0L);
+      case "array" -> ram ? Long.BYTES * maxNodeId : 0;
       default -> throw new IllegalArgumentException("Unexpected value: " + name);
     };
   }
@@ -86,10 +88,12 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       return 0;
     } else {
       long nodes = estimateNumNodes(osmFileSize);
+      long maxNodeId = estimateMaxNodeId(osmFileSize);
       return switch (name) {
         case "noop" -> 0;
-        case "sortedtable" -> 12 * nodes;
+        case "sortedtable" -> (Integer.BYTES + Long.BYTES) * nodes;
         case "sparsearray" -> 9 * nodes;
+        case "array" -> Long.BYTES * maxNodeId;
         default -> throw new IllegalArgumentException("Unexpected value: " + name);
       };
     }
@@ -104,8 +108,13 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   }
 
   private static long estimateNumNodes(long osmFileSize) {
-    // In February 2022, planet.pbf was 62GB with 750m nodes, so scale from there
-    return Math.round(750_000_000d * (osmFileSize / 62_000_000_000d));
+    // On 2/14/2022, planet.pbf was 66691979646 bytes with ~750m nodes, so scale from there
+    return Math.round(750_000_000d * (osmFileSize / 66_691_979_646d));
+  }
+
+  private static long estimateMaxNodeId(long osmFileSize) {
+    // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~950m, so scale from there
+    return Math.round(950_000_000d * (osmFileSize / 66_691_979_646d));
   }
 
   /** Returns a longlong map that stores no data and throws on read */

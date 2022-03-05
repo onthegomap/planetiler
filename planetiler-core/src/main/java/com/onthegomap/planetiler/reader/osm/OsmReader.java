@@ -245,6 +245,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             if (!nodesDone) {
               nodesDone = true;
               allNodesDone.countDown();
+              nodeWriter.close();
             }
             try {
               allNodesDone.await();
@@ -266,6 +267,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             if (!nodesDone) {
               nodesDone = true;
               allNodesDone.countDown();
+              nodeWriter.close();
             }
             waysDone = true;
             relations++;
