@@ -48,13 +48,15 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   public void init() {
     try {
       System.err.println("init: " + writeBuffers);
-//      for (Integer oldKey : writeBuffers.keySet()) {
-//        // no one else needs this segment, flush it
-//        var toFlush = writeBuffers.remove(oldKey);
-//        if (toFlush != null) {
-//          toFlush.flush();
-//        }
-//      }
+      for (Integer oldKey : writeBuffers.keySet()) {
+        if (oldKey < Integer.MAX_VALUE) {
+          // no one else needs this segment, flush it
+          var toFlush = writeBuffers.remove(oldKey);
+          if (toFlush != null) {
+            toFlush.flush();
+          }
+        }
+      }
       writeChannel.close();
       readChannel = FileChannel.open(path, READ, WRITE);
       long outIdx = readChannel.size() + 8;
@@ -108,8 +110,8 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
     synchronized void flush() {
       try {
-        ByteBuffer buffer = result.get();
         System.err.println("    " + Thread.currentThread().getName() + " flushing " + id);
+        ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         buffer.clear();
         result = null;
@@ -133,7 +135,13 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     List<Segment> flush = new ArrayList<>();
     List<Segment> allocate = new ArrayList<>();
     var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
-    if (min == Integer.MAX_VALUE) {
+    if (min == Integer.MAX_VALUE || value == Integer.MAX_VALUE) {
+      for (Integer key : writeBuffers.keySet()) {
+        var segment = writeBuffers.remove(key);
+        if (segment != null) {
+          flush.add(segment);
+        }
+      }
       return new SegmentActions(flush, allocate, null);
     }
     while (tail < min) {
