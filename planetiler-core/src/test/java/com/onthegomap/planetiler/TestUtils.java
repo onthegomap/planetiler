@@ -62,8 +62,8 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
 
 public class TestUtils {
 
-  public static final AffineTransformation TRANSFORM_TO_TILE = AffineTransformation
-    .scaleInstance(256d / 4096d, 256d / 4096d);
+  public static final AffineTransformation TRANSFORM_TO_TILE =
+      AffineTransformation.scaleInstance(256d / 4096d, 256d / 4096d);
 
   public static List<Coordinate> newCoordinateList(double... coords) {
     List<Coordinate> result = new ArrayList<>(coords.length / 2);
@@ -113,14 +113,14 @@ public class TestUtils {
     return rectangleCoordList(-buffer, 256 + buffer);
   }
 
-  public static List<Coordinate> rectangleCoordList(double minX, double minY, double maxX, double maxY) {
+  public static List<Coordinate> rectangleCoordList(
+      double minX, double minY, double maxX, double maxY) {
     return newCoordinateList(
-      minX, minY,
-      maxX, minY,
-      maxX, maxY,
-      minX, maxY,
-      minX, minY
-    );
+        minX, minY,
+        maxX, minY,
+        maxX, maxY,
+        minX, maxY,
+        minX, minY);
   }
 
   public static List<Coordinate> rectangleCoordList(double min, double max) {
@@ -141,10 +141,10 @@ public class TestUtils {
 
   public static Polygon newPolygon(List<Coordinate> outer, List<List<Coordinate>> inner) {
     return GeoUtils.JTS_FACTORY.createPolygon(
-      GeoUtils.JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
-      inner.stream().map(i -> GeoUtils.JTS_FACTORY.createLinearRing(i.toArray(new Coordinate[0])))
-        .toArray(LinearRing[]::new)
-    );
+        GeoUtils.JTS_FACTORY.createLinearRing(outer.toArray(new Coordinate[0])),
+        inner.stream()
+            .map(i -> GeoUtils.JTS_FACTORY.createLinearRing(i.toArray(new Coordinate[0])))
+            .toArray(LinearRing[]::new));
   }
 
   public static LineString newLineString(double... coords) {
@@ -179,7 +179,7 @@ public class TestUtils {
     return new GeometryTransformer() {
       @Override
       protected CoordinateSequence transformCoordinates(
-        CoordinateSequence coords, Geometry parent) {
+          CoordinateSequence coords, Geometry parent) {
         for (int i = 0; i < coords.size(); i++) {
           for (int j = 0; j < coords.getDimension(); j++) {
             coords.setOrdinate(i, j, Math.round(coords.getOrdinate(i, j) * delta) / delta);
@@ -194,12 +194,15 @@ public class TestUtils {
     return round(input, 1e5);
   }
 
-  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException, IOException {
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db)
+      throws SQLException, IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
       var bytes = gunzip(tile.bytes());
-      var decoded = VectorTile.decode(bytes).stream()
-        .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
+      var decoded =
+          VectorTile.decode(bytes).stream()
+              .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs()))
+              .toList();
       tiles.put(tile.tile(), decoded);
     }
     return tiles;
@@ -216,26 +219,27 @@ public class TestUtils {
   public static Set<Mbtiles.TileEntry> getAllTiles(Mbtiles db) throws SQLException {
     Set<Mbtiles.TileEntry> result = new HashSet<>();
     try (Statement statement = db.connection().createStatement()) {
-      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
+      ResultSet rs =
+          statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
       while (rs.next()) {
         int z = rs.getInt("zoom_level");
         int rawy = rs.getInt("tile_row");
         int x = rs.getInt("tile_column");
-        result.add(new Mbtiles.TileEntry(
-          TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z),
-          rs.getBytes("tile_data")
-        ));
+        result.add(
+            new Mbtiles.TileEntry(
+                TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z), rs.getBytes("tile_data")));
       }
     }
     return result;
   }
 
-  public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual) {
+  public static <K extends Comparable<? super K>> void assertSubmap(
+      Map<K, ?> expectedSubmap, Map<K, ?> actual) {
     assertSubmap(expectedSubmap, actual, "");
   }
 
-  public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual,
-    String message) {
+  public static <K extends Comparable<? super K>> void assertSubmap(
+      Map<K, ?> expectedSubmap, Map<K, ?> actual, String message) {
     Map<K, Object> actualFiltered = new TreeMap<>();
     Map<K, Object> others = new TreeMap<>();
     for (K key : actual.keySet()) {
@@ -277,8 +281,9 @@ public class TestUtils {
       for (int i = 0; i < poly.getNumInteriorRing(); i++) {
         int _i = i;
         var inner = poly.getInteriorRingN(i);
-        assertFalse(Orientation.isCCW(inner.getCoordinateSequence()),
-          () -> "inner " + _i + " not CW: " + poly);
+        assertFalse(
+            Orientation.isCCW(inner.getCoordinateSequence()),
+            () -> "inner " + _i + " not CW: " + poly);
         assertTrue(outer.getNumPoints() >= 4, () -> "inner " + _i + " too few points: " + poly);
         assertTrue(inner.isClosed(), () -> "inner " + _i + " not closed: " + poly);
       }
@@ -363,10 +368,7 @@ public class TestUtils {
     }
   }
 
-  public record ComparableFeature(
-    GeometryComparision geometry,
-    Map<String, Object> attrs
-  ) {}
+  public record ComparableFeature(GeometryComparision geometry, Map<String, Object> attrs) {}
 
   public static ComparableFeature feature(Geometry geom, Map<String, Object> attrs) {
     return new ComparableFeature(new NormGeometry(geom), attrs);
@@ -384,7 +386,8 @@ public class TestUtils {
     result.put("_labelgrid_limit", feature.getPointLabelGridLimitAtZoom(zoom));
     result.put("_labelgrid_size", feature.getPointLabelGridPixelSizeAtZoom(zoom));
     result.put("_minpixelsize", feature.getMinPixelSizeAtZoom(zoom));
-    result.put("_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
+    result.put(
+        "_type", geom instanceof Puntal ? "point" : geom instanceof Lineal ? "line" : "polygon");
     result.put("_numpointsattr", feature.getNumPointsAttr());
     return result;
   }
@@ -392,66 +395,58 @@ public class TestUtils {
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
   public static void assertSameJson(String expected, String actual) throws JsonProcessingException {
-    assertEquals(
-      objectMapper.readTree(expected),
-      objectMapper.readTree(actual)
-    );
+    assertEquals(objectMapper.readTree(expected), objectMapper.readTree(actual));
   }
 
-  public static <T> Map<TileCoord, Collection<T>> mapTileFeatures(Map<TileCoord, Collection<Geometry>> in,
-    Function<Geometry, T> fn) {
+  public static <T> Map<TileCoord, Collection<T>> mapTileFeatures(
+      Map<TileCoord, Collection<Geometry>> in, Function<Geometry, T> fn) {
     TreeMap<TileCoord, Collection<T>> out = new TreeMap<>();
     for (var entry : in.entrySet()) {
-      out.put(entry.getKey(), entry.getValue().stream().map(fn)
-        .sorted(Comparator.comparing(Object::toString))
-        .collect(Collectors.toList()));
+      out.put(
+          entry.getKey(),
+          entry.getValue().stream()
+              .map(fn)
+              .sorted(Comparator.comparing(Object::toString))
+              .collect(Collectors.toList()));
     }
     return out;
   }
 
   public static void assertExactSameFeatures(
-    Map<TileCoord, Collection<Geometry>> expected,
-    Map<TileCoord, Collection<Geometry>> actual
-  ) {
+      Map<TileCoord, Collection<Geometry>> expected, Map<TileCoord, Collection<Geometry>> actual) {
     assertEquals(
-      mapTileFeatures(expected, ExactGeometry::new),
-      mapTileFeatures(actual, ExactGeometry::new)
-    );
+        mapTileFeatures(expected, ExactGeometry::new), mapTileFeatures(actual, ExactGeometry::new));
   }
 
   public static void assertSameNormalizedFeatures(
-    Map<TileCoord, Collection<Geometry>> expected,
-    Map<TileCoord, Collection<Geometry>> actual
-  ) {
+      Map<TileCoord, Collection<Geometry>> expected, Map<TileCoord, Collection<Geometry>> actual) {
     assertEquals(
-      mapTileFeatures(expected, NormGeometry::new),
-      mapTileFeatures(actual, NormGeometry::new)
-    );
+        mapTileFeatures(expected, NormGeometry::new), mapTileFeatures(actual, NormGeometry::new));
   }
 
-  public static void assertSameNormalizedFeature(Geometry expected, Geometry actual, Geometry... otherActuals) {
+  public static void assertSameNormalizedFeature(
+      Geometry expected, Geometry actual, Geometry... otherActuals) {
     assertEquals(new NormGeometry(expected), new NormGeometry(actual), "arg 2 != arg 1");
     if (otherActuals != null && otherActuals.length > 0) {
       for (int i = 0; i < otherActuals.length; i++) {
-        assertEquals(new NormGeometry(expected), new NormGeometry(otherActuals[i]),
-          "arg " + (i + 3) + " != arg 1");
+        assertEquals(
+            new NormGeometry(expected),
+            new NormGeometry(otherActuals[i]),
+            "arg " + (i + 3) + " != arg 1");
       }
     }
   }
 
   public static void assertPointOnSurface(Geometry surface, Geometry actual) {
-    assertTrue(surface.covers(actual),
-      actual + System.lineSeparator() + "is not inside" + System.lineSeparator() + surface);
+    assertTrue(
+        surface.covers(actual),
+        actual + System.lineSeparator() + "is not inside" + System.lineSeparator() + surface);
   }
 
   public static void assertTopologicallyEquivalentFeatures(
-    Map<TileCoord, Collection<Geometry>> expected,
-    Map<TileCoord, Collection<Geometry>> actual
-  ) {
+      Map<TileCoord, Collection<Geometry>> expected, Map<TileCoord, Collection<Geometry>> actual) {
     assertEquals(
-      mapTileFeatures(expected, TopoGeometry::new),
-      mapTileFeatures(actual, TopoGeometry::new)
-    );
+        mapTileFeatures(expected, TopoGeometry::new), mapTileFeatures(actual, TopoGeometry::new));
   }
 
   public static void assertTopologicallyEquivalentFeature(Geometry expected, Geometry actual) {
@@ -460,29 +455,27 @@ public class TestUtils {
 
   public static List<Coordinate> worldCoordinateList(double... coords) {
     List<Coordinate> points = newCoordinateList(coords);
-    points.forEach(c -> {
-      c.x = GeoUtils.getWorldLon(c.x);
-      c.y = GeoUtils.getWorldLat(c.y);
-    });
+    points.forEach(
+        c -> {
+          c.x = GeoUtils.getWorldLon(c.x);
+          c.y = GeoUtils.getWorldLat(c.y);
+        });
     return points;
   }
 
   public static List<Coordinate> worldRectangle(double min, double max) {
     return worldCoordinateList(
-      min, min,
-      max, min,
-      max, max,
-      min, max,
-      min, min
-    );
+        min, min,
+        max, min,
+        max, max,
+        min, max,
+        min, min);
   }
 
   public static void assertListsContainSameElements(List<?> expected, List<?> actual) {
     var comparator = Comparator.comparing(Object::toString);
     assertEquals(
-      expected.stream().sorted(comparator).toList(),
-      actual.stream().sorted(comparator).toList()
-    );
+        expected.stream().sorted(comparator).toList(), actual.stream().sorted(comparator).toList());
   }
 
   public static LinearRing newLinearRing(double... coords) {
@@ -490,60 +483,44 @@ public class TestUtils {
   }
 
   @JacksonXmlRootElement(localName = "node")
-  public record Node(
-    long id, double lat, double lon
-  ) {}
+  public record Node(long id, double lat, double lon) {}
 
   @JacksonXmlRootElement(localName = "nd")
-  public record NodeRef(
-    long ref
-  ) {}
+  public record NodeRef(long ref) {}
 
   public record Tag(String k, String v) {}
 
   public record Way(
-    long id,
-    @JacksonXmlProperty(localName = "nd")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<NodeRef> nodeRefs,
-    @JacksonXmlProperty(localName = "tag")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Tag> tags
-  ) {}
+      long id,
+      @JacksonXmlProperty(localName = "nd") @JacksonXmlElementWrapper(useWrapping = false)
+          List<NodeRef> nodeRefs,
+      @JacksonXmlProperty(localName = "tag") @JacksonXmlElementWrapper(useWrapping = false)
+          List<Tag> tags) {}
 
   @JacksonXmlRootElement(localName = "member")
-  public record RelationMember(
-    String type, long ref, String role
-  ) {}
+  public record RelationMember(String type, long ref, String role) {}
 
   @JacksonXmlRootElement(localName = "relation")
   public record Relation(
-    long id,
-    @JacksonXmlProperty(localName = "member")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<RelationMember> members,
-    @JacksonXmlProperty(localName = "tag")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Tag> tags
-  ) {}
+      long id,
+      @JacksonXmlProperty(localName = "member") @JacksonXmlElementWrapper(useWrapping = false)
+          List<RelationMember> members,
+      @JacksonXmlProperty(localName = "tag") @JacksonXmlElementWrapper(useWrapping = false)
+          List<Tag> tags) {}
 
   //  @JsonIgnoreProperties(ignoreUnknown = true)
   public record OsmXml(
-    String version,
-    String generator,
-    String copyright,
-    String attribution,
-    String license,
-    @JacksonXmlProperty(localName = "node")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Node> nodes,
-    @JacksonXmlProperty(localName = "way")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Way> ways,
-    @JacksonXmlProperty(localName = "relation")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Relation> relation
-  ) {}
+      String version,
+      String generator,
+      String copyright,
+      String attribution,
+      String license,
+      @JacksonXmlProperty(localName = "node") @JacksonXmlElementWrapper(useWrapping = false)
+          List<Node> nodes,
+      @JacksonXmlProperty(localName = "way") @JacksonXmlElementWrapper(useWrapping = false)
+          List<Way> ways,
+      @JacksonXmlProperty(localName = "relation") @JacksonXmlElementWrapper(useWrapping = false)
+          List<Relation> relation) {}
 
   private static final XmlMapper xmlMapper = new XmlMapper();
 
@@ -557,14 +534,13 @@ public class TestUtils {
   }
 
   public static FeatureCollector newFeatureCollectorFor(SourceFeature feature) {
-    var featureCollectorFactory = new FeatureCollector.Factory(
-      PlanetilerConfig.defaults(),
-      Stats.inMemory()
-    );
+    var featureCollectorFactory =
+        new FeatureCollector.Factory(PlanetilerConfig.defaults(), Stats.inMemory());
     return featureCollectorFactory.get(feature);
   }
 
-  public static List<FeatureCollector.Feature> processSourceFeature(SourceFeature sourceFeature, Profile profile) {
+  public static List<FeatureCollector.Feature> processSourceFeature(
+      SourceFeature sourceFeature, Profile profile) {
     FeatureCollector collector = newFeatureCollectorFor(sourceFeature);
     profile.processFeature(sourceFeature, collector);
     List<FeatureCollector.Feature> result = new ArrayList<>();
@@ -572,15 +548,20 @@ public class TestUtils {
     return result;
   }
 
-
   public static void assertContains(String substring, String string) {
     if (!string.contains(substring)) {
       fail("'%s' did not contain '%s'".formatted(string, substring));
     }
   }
 
-  public static void assertNumFeatures(Mbtiles db, String layer, int zoom, Map<String, Object> attrs,
-    Envelope envelope, int expected, Class<? extends Geometry> clazz) {
+  public static void assertNumFeatures(
+      Mbtiles db,
+      String layer,
+      int zoom,
+      Map<String, Object> attrs,
+      Envelope envelope,
+      int expected,
+      Class<? extends Geometry> clazz) {
     try {
       int num = Verify.getNumFeatures(db, layer, zoom, attrs, envelope, clazz);
 
@@ -590,8 +571,14 @@ public class TestUtils {
     }
   }
 
-  public static void assertFeatureNear(Mbtiles db, String layer, Map<String, Object> attrs, double lng, double lat,
-    int minzoom, int maxzoom) {
+  public static void assertFeatureNear(
+      Mbtiles db,
+      String layer,
+      Map<String, Object> attrs,
+      double lng,
+      double lat,
+      int minzoom,
+      int maxzoom) {
     try {
       List<String> failures = new ArrayList<>();
       outer:
@@ -600,7 +587,8 @@ public class TestUtils {
         var coord = TileCoord.aroundLngLat(lng, lat, zoom);
         Geometry tilePoint = GeoUtils.point(coord.lngLatToTileCoords(lng, lat));
         byte[] tile = db.getTile(coord);
-        List<VectorTile.Feature> features = tile == null ? List.of() : VectorTile.decode(gunzip(tile));
+        List<VectorTile.Feature> features =
+            tile == null ? List.of() : VectorTile.decode(gunzip(tile));
 
         Set<String> containedInLayers = new TreeSet<>();
         Set<String> containedInLayerFeatures = new TreeSet<>();
@@ -626,14 +614,18 @@ public class TestUtils {
           if (containedInLayers.isEmpty()) {
             failures.add("z%d no features were found in any layer".formatted(zoom));
           } else if (!containedInLayers.contains(layer)) {
-            failures.add("z%d features found in %s but not %s".formatted(
-              zoom, containedInLayers, layer
-            ));
+            failures.add(
+                "z%d features found in %s but not %s".formatted(zoom, containedInLayers, layer));
           } else {
-            failures.add("z%d features found in %s but had wrong tags: %s".formatted(
-              zoom, layer, containedInLayerFeatures.stream()
-                .collect(Collectors.joining(System.lineSeparator(), System.lineSeparator(), "")))
-            );
+            failures.add(
+                "z%d features found in %s but had wrong tags: %s"
+                    .formatted(
+                        zoom,
+                        layer,
+                        containedInLayerFeatures.stream()
+                            .collect(
+                                Collectors.joining(
+                                    System.lineSeparator(), System.lineSeparator(), ""))));
           }
         }
       }

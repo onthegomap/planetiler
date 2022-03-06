@@ -10,10 +10,10 @@ import java.util.Set;
 
 /**
  * Holds planetiler configuration and utilities for translating element names to other languages.
- * <p>
- * {@link #defaultProvider(List)} filters {@code name:lang} tags from the input to a set of allowed output languages.
- * You can also add {@link Wikidata.WikidataTranslations} to use translated names from Wikidata items that the {@code
- * wikidata} tag on a source feature points to.
+ *
+ * <p>{@link #defaultProvider(List)} filters {@code name:lang} tags from the input to a set of
+ * allowed output languages. You can also add {@link Wikidata.WikidataTranslations} to use
+ * translated names from Wikidata items that the {@code wikidata} tag on a source feature points to.
  */
 public class Translations {
 
@@ -36,7 +36,8 @@ public class Translations {
   }
 
   /**
-   * Returns a new instance that extracts name translations from {@code name:lang} tags in input features.
+   * Returns a new instance that extracts name translations from {@code name:lang} tags in input
+   * features.
    *
    * @param languages the set of 2-letter language codes to limit output translations to
    */
@@ -45,15 +46,17 @@ public class Translations {
   }
 
   /**
-   * Mutates this translation instance to add {@code provider} which will be used only if all existing providers fail to
-   * produce a translation for a given language.
+   * Mutates this translation instance to add {@code provider} which will be used only if all
+   * existing providers fail to produce a translation for a given language.
    */
   public Translations addTranslationProvider(TranslationProvider provider) {
     providers.add(provider);
     return this;
   }
 
-  /** Convenience wrapper for {@link #addTranslations(Map, Map)} that creates a new map for results. */
+  /**
+   * Convenience wrapper for {@link #addTranslations(Map, Map)} that creates a new map for results.
+   */
   public Map<String, Object> getTranslations(Map<String, Object> tags) {
     Map<String, Object> result = new HashMap<>();
     addTranslations(result, tags);
@@ -61,8 +64,8 @@ public class Translations {
   }
 
   /**
-   * Gets name translations for {@code input} using all registered providers and puts the results into {@code output}
-   * where {@code key=name:lang} and value is the translated name.
+   * Gets name translations for {@code input} using all registered providers and puts the results
+   * into {@code output} where {@code key=name:lang} and value is the translated name.
    */
   public void addTranslations(Map<String, Object> output, Map<String, Object> input) {
     for (TranslationProvider provider : providers) {
@@ -87,7 +90,6 @@ public class Translations {
     this.shouldTransliterate = shouldTransliterate;
     return this;
   }
-
 
   /** A source of name translations. */
   public interface TranslationProvider {
@@ -119,14 +121,15 @@ public class Translations {
     }
   }
 
-  private static final Transliterator TO_LATIN_TRANSLITERATOR = Transliterator.getInstance("Any-Latin");
+  private static final Transliterator TO_LATIN_TRANSLITERATOR =
+      Transliterator.getInstance("Any-Latin");
 
   /**
-   * Attempts to translate non-latin characters to latin characters that preserve the <em>sound</em> of the word (as
-   * opposed to translation which attempts to preserve meaning) using ICU4j.
-   * <p>
-   * NOTE: This can be expensive and transliteration is synchronized deep down in ICU4j internals which limits benefit
-   * of running in multiple threads, so exhaust all other options first.
+   * Attempts to translate non-latin characters to latin characters that preserve the <em>sound</em>
+   * of the word (as opposed to translation which attempts to preserve meaning) using ICU4j.
+   *
+   * <p>NOTE: This can be expensive and transliteration is synchronized deep down in ICU4j internals
+   * which limits benefit of running in multiple threads, so exhaust all other options first.
    */
   public static String transliterate(String input) {
     return input == null ? null : TO_LATIN_TRANSLITERATOR.transform(input);

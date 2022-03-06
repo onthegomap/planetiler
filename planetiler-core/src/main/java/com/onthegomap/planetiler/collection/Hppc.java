@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.collection;
 
-
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongByteHashMap;
 import com.carrotsearch.hppc.LongByteMap;
@@ -10,7 +9,8 @@ import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.ObjectIntHashMap;
 
 /**
- * Static factory method for <a href="https://github.com/carrotsearch/hppc">High Performance Primitive Collections</a>.
+ * Static factory method for <a href="https://github.com/carrotsearch/hppc">High Performance
+ * Primitive Collections</a>.
  */
 public class Hppc {
 

@@ -18,12 +18,12 @@ import org.locationtech.jts.geom.Geometry;
 
 public class ShapefileReaderTest {
 
-  private final ShapefileReader reader = new ShapefileReader(
-    "test",
-    TestUtils.pathToResource("shapefile.zip"),
-    new Profile.NullProfile(),
-    Stats.inMemory()
-  );
+  private final ShapefileReader reader =
+      new ShapefileReader(
+          "test",
+          TestUtils.pathToResource("shapefile.zip"),
+          new Profile.NullProfile(),
+          Stats.inMemory());
 
   @AfterEach
   public void close() {
@@ -42,14 +42,18 @@ public class ShapefileReaderTest {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
       WorkerPipeline.start("test", Stats.inMemory())
-        .fromGenerator("shapefile", reader.read())
-        .addBuffer("reader_queue", 100, 1)
-        .sinkToConsumer("counter", 1, elem -> {
-          assertTrue(elem.getTag("name") instanceof String);
-          assertEquals("test", elem.getSource());
-          assertNull(elem.getSourceLayer());
-          points.add(elem.latLonGeometry());
-        }).await();
+          .fromGenerator("shapefile", reader.read())
+          .addBuffer("reader_queue", 100, 1)
+          .sinkToConsumer(
+              "counter",
+              1,
+              elem -> {
+                assertTrue(elem.getTag("name") instanceof String);
+                assertEquals("test", elem.getSource());
+                assertNull(elem.getSourceLayer());
+                points.add(elem.latLonGeometry());
+              })
+          .await();
       assertEquals(86, points.size());
       var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
       var centroid = gc.getCentroid();

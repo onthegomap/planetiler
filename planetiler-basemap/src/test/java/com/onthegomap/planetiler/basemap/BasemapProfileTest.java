@@ -13,11 +13,13 @@ import org.junit.jupiter.api.Test;
 
 public class BasemapProfileTest {
 
-  private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
-  private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
-    .addTranslationProvider(wikidataTranslations);
-  private final BasemapProfile profile = new BasemapProfile(translations, PlanetilerConfig.defaults(),
-    Stats.inMemory());
+  private final Wikidata.WikidataTranslations wikidataTranslations =
+      new Wikidata.WikidataTranslations();
+  private final Translations translations =
+      Translations.defaultProvider(List.of("en", "es", "de"))
+          .addTranslationProvider(wikidataTranslations);
+  private final BasemapProfile profile =
+      new BasemapProfile(translations, PlanetilerConfig.defaults(), Stats.inMemory());
 
   @Test
   public void testCaresAboutWikidata() {

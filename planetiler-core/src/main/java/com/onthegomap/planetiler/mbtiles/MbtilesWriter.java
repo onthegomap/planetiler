@@ -38,8 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to an
- * {@link Mbtiles} file.
+ * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and
+ * writes them to an {@link Mbtiles} file.
  */
 public class MbtilesWriter {
 
@@ -59,23 +59,31 @@ public class MbtilesWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
 
-  private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMeatadata,
-    Stats stats, LayerStats layerStats) {
+  private MbtilesWriter(
+      FeatureGroup features,
+      Mbtiles db,
+      PlanetilerConfig config,
+      MbtilesMetadata mbtilesMeatadata,
+      Stats stats,
+      LayerStats layerStats) {
     this.features = features;
     this.db = db;
     this.config = config;
     this.mbtilesMetadata = mbtilesMeatadata;
     this.stats = stats;
     this.layerStats = layerStats;
-    tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
-      .mapToObj(i -> Counter.newSingleThreadCounter())
-      .toArray(Counter.Readable[]::new);
-    totalTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
-      .mapToObj(i -> Counter.newMultiThreadCounter())
-      .toArray(Counter.Readable[]::new);
-    maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
-      .mapToObj(i -> new LongAccumulator(Long::max, 0))
-      .toArray(LongAccumulator[]::new);
+    tilesByZoom =
+        IntStream.rangeClosed(0, config.maxzoom())
+            .mapToObj(i -> Counter.newSingleThreadCounter())
+            .toArray(Counter.Readable[]::new);
+    totalTileSizesByZoom =
+        IntStream.rangeClosed(0, config.maxzoom())
+            .mapToObj(i -> Counter.newMultiThreadCounter())
+            .toArray(Counter.Readable[]::new);
+    maxTileSizesByZoom =
+        IntStream.rangeClosed(0, config.maxzoom())
+            .mapToObj(i -> new LongAccumulator(Long::max, 0))
+            .toArray(LongAccumulator[]::new);
     memoizedTiles = stats.longCounter("mbtiles_memoized_tiles");
     featuresProcessed = stats.longCounter("mbtiles_features_processed");
     Map<String, Counter.Readable> countsByZoom = new LinkedHashMap<>();
@@ -86,31 +94,39 @@ public class MbtilesWriter {
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code outputPath}. */
-  public static void writeOutput(FeatureGroup features, Path outputPath, MbtilesMetadata mbtilesMetadata,
-    PlanetilerConfig config, Stats stats) {
+  public static void writeOutput(
+      FeatureGroup features,
+      Path outputPath,
+      MbtilesMetadata mbtilesMetadata,
+      PlanetilerConfig config,
+      Stats stats) {
     try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
-      writeOutput(features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
+      writeOutput(
+          features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + outputPath, e);
     }
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize,
-    MbtilesMetadata mbtilesMetadata, PlanetilerConfig config, Stats stats) {
+  public static void writeOutput(
+      FeatureGroup features,
+      Mbtiles output,
+      DiskBacked fileSize,
+      MbtilesMetadata mbtilesMetadata,
+      PlanetilerConfig config,
+      Stats stats) {
     var timer = stats.startStage("mbtiles");
-    MbtilesWriter writer = new MbtilesWriter(features, output, config, mbtilesMetadata, stats,
-      features.layerStats());
+    MbtilesWriter writer =
+        new MbtilesWriter(features, output, config, mbtilesMetadata, stats, features.layerStats());
 
     var pipeline = WorkerPipeline.start("mbtiles", stats);
 
     // a larger tile queue size helps keep cores busy, but needs a lot of RAM
     // 5k works fine with 100GB of RAM, so adjust the queue size down from there
     // but no less than 100
-    int queueSize = Math.max(
-      100,
-      (int) (5_000d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
-    );
+    int queueSize =
+        Math.max(100, (int) (5_000d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d));
 
     WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
     if (config.emitTilesInOrder()) {
@@ -119,52 +135,66 @@ public class MbtilesWriter {
        * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
        * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
        */
-      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
-      encodeBranch = pipeline
-        .<TileBatch>fromGenerator("read", next -> {
-          writer.readFeaturesAndBatch(batch -> {
-            next.accept(batch);
-            writerQueue.accept(batch); // also send immediately to writer
-          });
-          writerQueue.close();
-          // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        }, 1)
-        .addBuffer("reader_queue", queueSize)
-        .sinkTo("encode", config.threads(), writer::tileEncoderSink);
+      WorkQueue<TileBatch> writerQueue =
+          new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
+      encodeBranch =
+          pipeline
+              .<TileBatch>fromGenerator(
+                  "read",
+                  next -> {
+                    writer.readFeaturesAndBatch(
+                        batch -> {
+                          next.accept(batch);
+                          writerQueue.accept(batch); // also send immediately to writer
+                        });
+                    writerQueue.close();
+                    // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
+                  },
+                  1)
+              .addBuffer("reader_queue", queueSize)
+              .sinkTo("encode", config.threads(), writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
-      writeBranch = pipeline.readFromQueue(writerQueue)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
+      writeBranch =
+          pipeline
+              .readFromQueue(writerQueue)
+              // use only 1 thread since tileWriter needs to be single-threaded
+              .sinkTo("write", 1, writer::tileWriter);
     } else {
       /*
        * If we don't need to emit tiles in order, just send the features to the encoder, and when it finishes with
        * a tile send that to the writer.
        */
-      encodeBranch = pipeline
-        // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator("read", writer::readFeaturesAndBatch, 1)
-        .addBuffer("reader_queue", queueSize)
-        .addWorker("encoder", config.threads(), writer::tileEncoder)
-        .addBuffer("writer_queue", queueSize)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
+      encodeBranch =
+          pipeline
+              // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
+              .fromGenerator("read", writer::readFeaturesAndBatch, 1)
+              .addBuffer("reader_queue", queueSize)
+              .addWorker("encoder", config.threads(), writer::tileEncoder)
+              .addBuffer("writer_queue", queueSize)
+              // use only 1 thread since tileWriter needs to be single-threaded
+              .sinkTo("write", 1, writer::tileWriter);
     }
 
-    var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
-      .addFileSize(features)
-      .addRateCounter("tiles", writer::tilesEmitted)
-      .addFileSize(fileSize)
-      .newLine()
-      .addProcessStats()
-      .newLine()
-      .addPipelineStats(encodeBranch)
-      .addPipelineStats(writeBranch)
-      .newLine()
-      .add(writer::getLastTileLogDetails);
+    var loggers =
+        ProgressLoggers.create()
+            .addRatePercentCounter(
+                "features", features.numFeaturesWritten(), writer.featuresProcessed, true)
+            .addFileSize(features)
+            .addRateCounter("tiles", writer::tilesEmitted)
+            .addFileSize(fileSize)
+            .newLine()
+            .addProcessStats()
+            .newLine()
+            .addPipelineStats(encodeBranch)
+            .addPipelineStats(writeBranch)
+            .newLine()
+            .add(writer::getLastTileLogDetails);
 
-    var doneFuture = writeBranch == null ? encodeBranch.done() : joinFutures(writeBranch.done(), encodeBranch.done());
+    var doneFuture =
+        writeBranch == null
+            ? encodeBranch.done()
+            : joinFutures(writeBranch.done(), encodeBranch.done());
     loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
@@ -179,11 +209,15 @@ public class MbtilesWriter {
       var extentForZoom = config.bounds().tileExtents().getForZoom(lastTile.z());
       int zMinX = extentForZoom.minX();
       int zMaxX = extentForZoom.maxX();
-      blurb = "%d/%d/%d (z%d %s%%) %s".formatted(
-        lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), (100 * (lastTile.x() + 1 - zMinX)) / (zMaxX - zMinX),
-        lastTile.getDebugUrl()
-      );
+      blurb =
+          "%d/%d/%d (z%d %s%%) %s"
+              .formatted(
+                  lastTile.z(),
+                  lastTile.x(),
+                  lastTile.y(),
+                  lastTile.z(),
+                  (100 * (lastTile.x() + 1 - zMinX)) / (zMaxX - zMinX),
+                  lastTile.getDebugUrl());
     }
     return "last tile: " + blurb;
   }
@@ -200,9 +234,9 @@ public class MbtilesWriter {
         currentZoom = z;
       }
       long thisTileFeatures = feature.getNumFeaturesToEmit();
-      if (tilesInThisBatch > 0 &&
-        (tilesInThisBatch >= MAX_TILES_PER_BATCH ||
-          ((featuresInThisBatch + thisTileFeatures) > MAX_FEATURES_PER_BATCH))) {
+      if (tilesInThisBatch > 0
+          && (tilesInThisBatch >= MAX_TILES_PER_BATCH
+              || ((featuresInThisBatch + thisTileFeatures) > MAX_FEATURES_PER_BATCH))) {
         next.accept(batch);
         batch = new TileBatch();
         featuresInThisBatch = 0;
@@ -218,9 +252,11 @@ public class MbtilesWriter {
   }
 
   private void tileEncoderSink(Iterable<TileBatch> prev) throws IOException {
-    tileEncoder(prev, batch -> {
-      // no next step
-    });
+    tileEncoder(
+        prev,
+        batch -> {
+          // no next step
+        });
   }
 
   private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
@@ -250,7 +286,8 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           if (encoded.length > 1_000_000) {
-            LOGGER.warn(tileFeatures.tileCoord() + " " + (encoded.length / 1024) + "kb uncompressed");
+            LOGGER.warn(
+                tileFeatures.tileCoord() + " " + (encoded.length / 1024) + "kb uncompressed");
           }
         }
         int zoom = tileFeatures.tileCoord().z();
@@ -265,25 +302,27 @@ public class MbtilesWriter {
     }
   }
 
-  private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
+  private void tileWriter(Iterable<TileBatch> tileBatches)
+      throws ExecutionException, InterruptedException {
     db.createTables();
     if (!config.deferIndexCreation()) {
       db.addTileIndex();
     } else {
-      LOGGER.info("Deferring index creation. Add later by executing: " + Mbtiles.ADD_TILE_INDEX_SQL);
+      LOGGER.info(
+          "Deferring index creation. Add later by executing: " + Mbtiles.ADD_TILE_INDEX_SQL);
     }
 
     db.metadata()
-      .setName(mbtilesMetadata.name())
-      .setFormat("pbf")
-      .setDescription(mbtilesMetadata.description())
-      .setAttribution(mbtilesMetadata.attribution())
-      .setVersion(mbtilesMetadata.version())
-      .setType(mbtilesMetadata.type())
-      .setBoundsAndCenter(config.bounds().latLon())
-      .setMinzoom(config.minzoom())
-      .setMaxzoom(config.maxzoom())
-      .setJson(layerStats.getTileStats());
+        .setName(mbtilesMetadata.name())
+        .setFormat("pbf")
+        .setDescription(mbtilesMetadata.description())
+        .setAttribution(mbtilesMetadata.attribution())
+        .setVersion(mbtilesMetadata.version())
+        .setType(mbtilesMetadata.type())
+        .setBoundsAndCenter(config.bounds().latLon())
+        .setMinzoom(config.minzoom())
+        .setMaxzoom(config.maxzoom())
+        .setJson(layerStats.getTileStats());
 
     TileCoord lastTile = null;
     Timer time = null;
@@ -294,8 +333,8 @@ public class MbtilesWriter {
         Mbtiles.TileEntry tile;
         while ((tile = tiles.poll()) != null) {
           TileCoord tileCoord = tile.tile();
-          assert lastTile == null || lastTile.compareTo(tileCoord) < 0 : "Tiles out of order %s before %s"
-            .formatted(lastTile, tileCoord);
+          assert lastTile == null || lastTile.compareTo(tileCoord) < 0
+              : "Tiles out of order %s before %s".formatted(lastTile, tileCoord);
           lastTile = tile.tile();
           int z = tileCoord.z();
           if (z != currentZ) {
@@ -336,13 +375,20 @@ public class MbtilesWriter {
       sumSize += totalSize;
       sumCount += totalCount;
       long maxSize = maxTileSizesByZoom[z].get();
-      LOGGER.debug("z" + z +
-        " avg:" + format.storage(totalSize / Math.max(totalCount, 1), false) +
-        " max:" + format.storage(maxSize, false));
+      LOGGER.debug(
+          "z"
+              + z
+              + " avg:"
+              + format.storage(totalSize / Math.max(totalCount, 1), false)
+              + " max:"
+              + format.storage(maxSize, false));
     }
-    LOGGER.debug("all" +
-      " avg:" + format.storage(sumSize / Math.max(sumCount, 1), false) +
-      " max:" + format.storage(maxMax, false));
+    LOGGER.debug(
+        "all"
+            + " avg:"
+            + format.storage(sumSize / Math.max(sumCount, 1), false)
+            + " max:"
+            + format.storage(maxMax, false));
     LOGGER.debug(" # features: " + format.integer(featuresProcessed.get()));
     LOGGER.debug("    # tiles: " + format.integer(this.tilesEmitted()));
   }
@@ -353,18 +399,16 @@ public class MbtilesWriter {
 
   /**
    * Container for a batch of tiles to be processed together in the encoder and writer threads.
-   * <p>
-   * The cost of encoding a tile may vary dramatically by its size (depending on the profile) so batches are sized
-   * dynamically to put as little as 1 large tile, or as many as 10,000 small tiles in a batch to keep encoding threads
-   * busy.
    *
-   * @param in  the tile data to encode
+   * <p>The cost of encoding a tile may vary dramatically by its size (depending on the profile) so
+   * batches are sized dynamically to put as little as 1 large tile, or as many as 10,000 small
+   * tiles in a batch to keep encoding threads busy.
+   *
+   * @param in the tile data to encode
    * @param out the future that encoder thread completes to hand finished tile off to writer thread
    */
   private record TileBatch(
-    List<FeatureGroup.TileFeatures> in,
-    CompletableFuture<Queue<Mbtiles.TileEntry>> out
-  ) {
+      List<FeatureGroup.TileFeatures> in, CompletableFuture<Queue<Mbtiles.TileEntry>> out) {
 
     TileBatch() {
       this(new ArrayList<>(), new CompletableFuture<>());

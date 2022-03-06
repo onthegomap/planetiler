@@ -8,10 +8,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A high-performance blocking queue to hand off work from a single producing thread to single consuming thread.
- * <p>
- * Each element has a weight and each batch has a target maximum weight to put more lightweight objects in a batch or
- * fewer heavy-weight ones.
+ * A high-performance blocking queue to hand off work from a single producing thread to single
+ * consuming thread.
+ *
+ * <p>Each element has a weight and each batch has a target maximum weight to put more lightweight
+ * objects in a batch or fewer heavy-weight ones.
  *
  * @param <T> the type of elements held in this queue
  */
@@ -26,8 +27,8 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
   Queue<T> readBatch = null;
 
   /**
-   * Creates a new {@code WeightedHandoffQueue} with {@code outer} maximum number of pending batches and {@code inner}
-   * maximum batch weight.
+   * Creates a new {@code WeightedHandoffQueue} with {@code outer} maximum number of pending batches
+   * and {@code inner} maximum batch weight.
    */
   public WeightedHandoffQueue(int outer, int inner) {
     this.writeLimit = inner;
@@ -70,7 +71,6 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
     }
   }
 
-
   @Override
   public T get() {
     Queue<T> itemBatch = readBatch;
@@ -92,7 +92,7 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
             }
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            break;// signal EOF
+            break; // signal EOF
           }
         } else if (itemBatch == DONE) {
           done = true;
@@ -104,4 +104,3 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
     return itemBatch == null ? null : itemBatch.poll();
   }
 }
-

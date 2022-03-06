@@ -22,13 +22,13 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 public class DownloaderTest {
 
-  @TempDir
-  Path path;
+  @TempDir Path path;
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
   private final Stats stats = Stats.inMemory();
   private long downloads = 0;
 
-  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange, int maxLength) {
+  private Downloader mockDownloader(
+      Map<String, byte[]> resources, boolean supportsRange, int maxLength) {
     return new Downloader(config, stats, 2L) {
 
       @Override
@@ -36,7 +36,8 @@ public class DownloaderTest {
         downloads++;
         assertTrue(resources.containsKey(url), "no resource for " + url);
         byte[] bytes = resources.get(url);
-        return new ByteArrayInputStream(maxLength < bytes.length ? Arrays.copyOf(bytes, maxLength) : bytes);
+        return new ByteArrayInputStream(
+            maxLength < bytes.length ? Arrays.copyOf(bytes, maxLength) : bytes);
       }
 
       @Override
@@ -59,11 +60,11 @@ public class DownloaderTest {
           int redirectNum = Integer.parseInt(parts[1]);
           String next = redirectNum <= 1 ? parts[0] : (parts[0] + "#" + (redirectNum - 1));
           return CompletableFuture.supplyAsync(
-            () -> new ResourceMetadata(Optional.of(next), url, 0, supportsRange));
+              () -> new ResourceMetadata(Optional.of(next), url, 0, supportsRange));
         }
         byte[] bytes = resources.get(url);
         return CompletableFuture.supplyAsync(
-          () -> new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange));
+            () -> new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange));
       }
     };
   }
@@ -123,29 +124,33 @@ public class DownloaderTest {
 
   @Test
   public void testDownloadFailsIfTooBig() {
-    var downloader = new Downloader(config, stats, 2L) {
+    var downloader =
+        new Downloader(config, stats, 2L) {
 
-      @Override
-      InputStream openStream(String url) {
-        throw new AssertionError("Shouldn't get here");
-      }
+          @Override
+          InputStream openStream(String url) {
+            throw new AssertionError("Shouldn't get here");
+          }
 
-      @Override
-      InputStream openStreamRange(String url, long start, long end) {
-        throw new AssertionError("Shouldn't get here");
-      }
+          @Override
+          InputStream openStreamRange(String url, long start, long end) {
+            throw new AssertionError("Shouldn't get here");
+          }
 
-      @Override
-      CompletableFuture<ResourceMetadata> httpHead(String url) {
-        return CompletableFuture.completedFuture(new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true));
-      }
-    };
+          @Override
+          CompletableFuture<ResourceMetadata> httpHead(String url) {
+            return CompletableFuture.completedFuture(
+                new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true));
+          }
+        };
 
     Path dest = path.resolve("out");
     String url = "http://url";
 
     var resource1 = new Downloader.ResourceToDownload("resource", url, dest);
-    var exception = assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
+    var exception =
+        assertThrows(
+            ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
     assertInstanceOf(IllegalArgumentException.class, exception.getCause());
     assertTrue(exception.getMessage().contains("--force"), exception.getMessage());
   }

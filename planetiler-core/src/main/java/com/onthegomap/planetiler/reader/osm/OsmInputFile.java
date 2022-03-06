@@ -32,9 +32,9 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
   /**
    * Creates a new OSM input file reader.
    *
-   * @param path      Path to the file
-   * @param lazyReads If {@code true}, defers reading the actual content of each block from disk until the block is
-   *                  decoded in a worker thread.
+   * @param path Path to the file
+   * @param lazyReads If {@code true}, defers reading the actual content of each block from disk
+   *     until the block is decoded in a worker thread.
    */
   public OsmInputFile(Path path, boolean lazyReads) {
     this.path = path;
@@ -67,7 +67,8 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
     ByteBuffer buf = ByteBuffer.allocate(length);
     int read = channel.read(buf, offset);
     if (read != length) {
-      throw new IOException("Tried to read " + length + " bytes at " + offset + " but only got " + read);
+      throw new IOException(
+          "Tried to read " + length + " bytes at " + offset + " but only got " + read);
     }
     return buf.flip().array();
   }
@@ -78,9 +79,10 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
 
   private static void validateHeader(byte[] data) {
     OsmHeader header = PbfDecoder.decodeHeader(data);
-    List<String> unsupportedFeatures = header.requiredFeatures().stream()
-      .filter(feature -> !(feature.equals("OsmSchema-V0.6") || feature.equals("DenseNodes")))
-      .toList();
+    List<String> unsupportedFeatures =
+        header.requiredFeatures().stream()
+            .filter(feature -> !(feature.equals("OsmSchema-V0.6") || feature.equals("DenseNodes")))
+            .toList();
     if (!unsupportedFeatures.isEmpty()) {
       throw new RuntimeException("PBF file contains unsupported features " + unsupportedFeatures);
     }
@@ -139,8 +141,8 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
   }
 
   /**
-   * An OSM block reader that iterates through the input file in a single thread, reading the raw bytes of each block
-   * and passing them off to worker threads.
+   * An OSM block reader that iterates through the input file in a single thread, reading the raw
+   * bytes of each block and passing them off to worker threads.
    */
   private class EagerReader implements OsmBlockSource {
 
@@ -175,10 +177,11 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
   }
 
   /**
-   * An OSM block reader that iterates through the input file in a single thread, skipping over each block and just
-   * passing the position/offset to workers so they can read the contents from disk in parallel.
-   * <p>
-   * This may result in a speedup on some systems.
+   * An OSM block reader that iterates through the input file in a single thread, skipping over each
+   * block and just passing the position/offset to workers so they can read the contents from disk
+   * in parallel.
+   *
+   * <p>This may result in a speedup on some systems.
    */
   private class LazyReader implements OsmBlockSource {
 
@@ -195,7 +198,8 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
           String headerType = header.getType();
           long blockStartPosition = channel.position();
           if ("OSMData".equals(headerType)) {
-            consumer.accept(new LazyBlock(blockId++, blockStartPosition, blockSize, lazyReadChannel));
+            consumer.accept(
+                new LazyBlock(blockId++, blockStartPosition, blockSize, lazyReadChannel));
           } else if ("OSMHeader".equals(headerType)) {
             validateHeader(readBytes(channel, blockStartPosition, blockSize));
           } else {
@@ -217,7 +221,8 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
       }
     }
 
-    private record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
+    private record LazyBlock(@Override int id, long offset, int length, FileChannel channel)
+        implements Block {
 
       public Iterable<OsmElement> decodeElements() {
         try {

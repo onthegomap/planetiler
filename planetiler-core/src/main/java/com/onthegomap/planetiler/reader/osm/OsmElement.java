@@ -23,14 +23,13 @@ public interface OsmElement extends WithTags {
   int cost();
 
   enum Type {
-    NODE, WAY, RELATION
+    NODE,
+    WAY,
+    RELATION
   }
 
   /** An un-handled element read from the .osm.pbf file (i.e. file header). */
-  record Other(
-    @Override long id,
-    @Override Map<String, Object> tags
-  ) implements OsmElement {
+  record Other(@Override long id, @Override Map<String, Object> tags) implements OsmElement {
 
     @Override
     public int cost() {
@@ -49,12 +48,7 @@ public interface OsmElement extends WithTags {
     // bailed out of a record to make encodedLocation lazy since it is fairly expensive to compute
     private long encodedLocation = MISSING_LOCATION;
 
-    public Node(
-      long id,
-      Map<String, Object> tags,
-      double lat,
-      double lon
-    ) {
+    public Node(long id, Map<String, Object> tags, double lat, double lon) {
       this.id = id;
       this.tags = tags;
       this.lat = lat;
@@ -104,10 +98,10 @@ public interface OsmElement extends WithTags {
         return false;
       }
       var that = (Node) obj;
-      return this.id == that.id &&
-        Objects.equals(this.tags, that.tags) &&
-        Double.doubleToLongBits(this.lat) == Double.doubleToLongBits(that.lat) &&
-        Double.doubleToLongBits(this.lon) == Double.doubleToLongBits(that.lon);
+      return this.id == that.id
+          && Objects.equals(this.tags, that.tags)
+          && Double.doubleToLongBits(this.lat) == Double.doubleToLongBits(that.lat)
+          && Double.doubleToLongBits(this.lon) == Double.doubleToLongBits(that.lon);
     }
 
     @Override
@@ -117,21 +111,14 @@ public interface OsmElement extends WithTags {
 
     @Override
     public String toString() {
-      return "Node[" +
-        "id=" + id + ", " +
-        "tags=" + tags + ", " +
-        "lat=" + lat + ", " +
-        "lon=" + lon + ']';
+      return "Node[" + "id=" + id + ", " + "tags=" + tags + ", " + "lat=" + lat + ", " + "lon="
+          + lon + ']';
     }
-
   }
 
   /** An ordered list of 2-2,000 nodes that define a polyline. */
-  record Way(
-    @Override long id,
-    @Override Map<String, Object> tags,
-    LongArrayList nodes
-  ) implements OsmElement {
+  record Way(@Override long id, @Override Map<String, Object> tags, LongArrayList nodes)
+      implements OsmElement {
 
     public Way(long id) {
       this(id, new HashMap<>(), new LongArrayList(5));
@@ -144,11 +131,8 @@ public interface OsmElement extends WithTags {
   }
 
   /** An ordered list of nodes, ways, and other relations. */
-  record Relation(
-    @Override long id,
-    @Override Map<String, Object> tags,
-    List<Member> members
-  ) implements OsmElement {
+  record Relation(@Override long id, @Override Map<String, Object> tags, List<Member> members)
+      implements OsmElement {
 
     public Relation(long id) {
       this(id, new HashMap<>(), new ArrayList<>());
@@ -165,11 +149,10 @@ public interface OsmElement extends WithTags {
       return 1 + tags.size() + members.size() * 3;
     }
 
-    /** A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member. */
-    public record Member(
-      Type type,
-      long ref,
-      String role
-    ) {}
+    /**
+     * A node, way, or relation contained in a relation with an optional "role" to clarify the
+     * purpose of each member.
+     */
+    public record Member(Type type, long ref, String role) {}
   }
 }

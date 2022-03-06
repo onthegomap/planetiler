@@ -61,18 +61,20 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Defines the logic for generating river map elements in the {@code waterway} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/waterway">OpenMapTiles
+ * Defines the logic for generating river map elements in the {@code waterway} layer from source
+ * features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/waterway">OpenMapTiles
  * waterway sql files</a>.
  */
-public class Waterway implements
-  OpenMapTilesSchema.Waterway,
-  Tables.OsmWaterwayLinestring.Handler,
-  BasemapProfile.FeaturePostProcessor,
-  BasemapProfile.NaturalEarthProcessor,
-  BasemapProfile.OsmRelationPreprocessor,
-  BasemapProfile.OsmAllProcessor {
+public class Waterway
+    implements OpenMapTilesSchema.Waterway,
+        Tables.OsmWaterwayLinestring.Handler,
+        BasemapProfile.FeaturePostProcessor,
+        BasemapProfile.NaturalEarthProcessor,
+        BasemapProfile.OsmRelationPreprocessor,
+        BasemapProfile.OsmAllProcessor {
 
   /*
    * Uses Natural Earth at lower zoom-levels and OpenStreetMap at higher zoom levels.
@@ -85,14 +87,13 @@ public class Waterway implements
    * short segment of it goes through this tile.
    */
 
-  private static final Map<String, Integer> CLASS_MINZOOM = Map.of(
-    "river", 12,
-    "canal", 12,
-
-    "stream", 13,
-    "drain", 13,
-    "ditch", 13
-  );
+  private static final Map<String, Integer> CLASS_MINZOOM =
+      Map.of(
+          "river", 12,
+          "canal", 12,
+          "stream", 13,
+          "drain", 13,
+          "ditch", 13);
   private static final String TEMP_REL_ID_ADDR = "_relid";
 
   private final Translations translations;
@@ -106,13 +107,14 @@ public class Waterway implements
     this.stats = stats;
   }
 
-  private static final ZoomFunction.MeterToPixelThresholds MIN_PIXEL_LENGTHS = ZoomFunction.meterThresholds()
-    .put(6, 500_000)
-    .put(7, 400_000)
-    .put(8, 300_000)
-    .put(9, 8_000)
-    .put(10, 4_000)
-    .put(11, 1_000);
+  private static final ZoomFunction.MeterToPixelThresholds MIN_PIXEL_LENGTHS =
+      ZoomFunction.meterThresholds()
+          .put(6, 500_000)
+          .put(7, 400_000)
+          .put(8, 300_000)
+          .put(9, 8_000)
+          .put(10, 4_000)
+          .put(11, 1_000);
 
   // zoom-level 3-5 come from natural earth
 
@@ -120,39 +122,41 @@ public class Waterway implements
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     if (feature.hasTag("featurecla", "River")) {
       record ZoomRange(int min, int max) {}
-      ZoomRange zoom = switch (table) {
-        case "ne_110m_rivers_lake_centerlines" -> new ZoomRange(3, 3);
-        case "ne_50m_rivers_lake_centerlines" -> new ZoomRange(4, 5);
-        default -> null;
-      };
+      ZoomRange zoom =
+          switch (table) {
+            case "ne_110m_rivers_lake_centerlines" -> new ZoomRange(3, 3);
+            case "ne_50m_rivers_lake_centerlines" -> new ZoomRange(4, 5);
+            default -> null;
+          };
       if (zoom != null) {
-        features.line(LAYER_NAME)
-          .setBufferPixels(BUFFER_SIZE)
-          .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
-          .setZoomRange(zoom.min, zoom.max);
+        features
+            .line(LAYER_NAME)
+            .setBufferPixels(BUFFER_SIZE)
+            .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
+            .setZoomRange(zoom.min, zoom.max);
       }
     }
   }
 
   // zoom-level 6-8 come from OSM river relations
 
-  private record WaterwayRelation(
-    long id,
-    Map<String, Object> names
-  ) implements OsmRelationInfo {}
+  private record WaterwayRelation(long id, Map<String, Object> names) implements OsmRelationInfo {}
 
   @Override
   public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
     if (relation.hasTag("waterway", "river") && !Utils.nullOrEmpty(relation.getString("name"))) {
       riverRelationLengths.put(relation.id(), new AtomicDouble());
-      return List.of(new WaterwayRelation(relation.id(), LanguageUtils.getNames(relation.tags(), translations)));
+      return List.of(
+          new WaterwayRelation(
+              relation.id(), LanguageUtils.getNames(relation.tags(), translations)));
     }
     return null;
   }
 
   @Override
   public void processAllOsm(SourceFeature feature, FeatureCollector features) {
-    List<OsmReader.RelationMember<WaterwayRelation>> waterways = feature.relationInfo(WaterwayRelation.class);
+    List<OsmReader.RelationMember<WaterwayRelation>> waterways =
+        feature.relationInfo(WaterwayRelation.class);
     if (waterways != null && !waterways.isEmpty() && feature.canBeLine()) {
       for (var waterway : waterways) {
         String role = waterway.role();
@@ -166,13 +170,14 @@ public class Waterway implements
           } catch (GeometryException e) {
             e.log(stats, "waterway_decode", "Unable to get waterway length for " + feature.id());
           }
-          features.line(LAYER_NAME)
-            .setAttr(TEMP_REL_ID_ADDR, relId)
-            .setBufferPixels(BUFFER_SIZE)
-            .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
-            .putAttrs(waterway.relation().names())
-            .setZoomRange(6, 8)
-            .setMinPixelSize(0);
+          features
+              .line(LAYER_NAME)
+              .setAttr(TEMP_REL_ID_ADDR, relId)
+              .setBufferPixels(BUFFER_SIZE)
+              .setAttr(Fields.CLASS, FieldValues.CLASS_RIVER)
+              .putAttrs(waterway.relation().names())
+              .setZoomRange(6, 8)
+              .setMinPixelSize(0);
         }
       }
     }
@@ -186,16 +191,19 @@ public class Waterway implements
     String name = nullIfEmpty(element.name());
     boolean important = "river".equals(waterway) && name != null;
     int minzoom = important ? 9 : CLASS_MINZOOM.getOrDefault(element.waterway(), 14);
-    features.line(LAYER_NAME)
-      .setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, element.waterway())
-      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setMinZoom(minzoom)
-      // details only at higher zoom levels so that named rivers can be merged more aggressively
-      .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-      .setAttrWithMinzoom(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0, 12)
-      // at lower zoom levels, we'll merge linestrings and limit length/clip afterwards
-      .setBufferPixelOverrides(MIN_PIXEL_LENGTHS).setMinPixelSizeBelowZoom(11, 0);
+    features
+        .line(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setAttr(Fields.CLASS, element.waterway())
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .setMinZoom(minzoom)
+        // details only at higher zoom levels so that named rivers can be merged more aggressively
+        .setAttrWithMinzoom(
+            Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
+        .setAttrWithMinzoom(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0, 12)
+        // at lower zoom levels, we'll merge linestrings and limit length/clip afterwards
+        .setBufferPixelOverrides(MIN_PIXEL_LENGTHS)
+        .setMinPixelSizeBelowZoom(11, 0);
   }
 
   @Override
@@ -205,23 +213,16 @@ public class Waterway implements
       double minSizeAtZoom = MIN_PIXEL_LENGTHS.apply(zoom).doubleValue() / Math.pow(2, zoom) / 256d;
       for (int i = 0; i < items.size(); i++) {
         Object relIdObj = items.get(i).attrs().remove(TEMP_REL_ID_ADDR);
-        if (relIdObj instanceof Long relId && riverRelationLengths.get(relId).get() < minSizeAtZoom) {
+        if (relIdObj instanceof Long relId
+            && riverRelationLengths.get(relId).get() < minSizeAtZoom) {
           items.set(i, null);
         }
       }
       return FeatureMerge.mergeLineStrings(
-        items,
-        config.minFeatureSize(zoom),
-        config.tolerance(zoom),
-        BUFFER_SIZE
-      );
+          items, config.minFeatureSize(zoom), config.tolerance(zoom), BUFFER_SIZE);
     } else if (zoom >= 9 && zoom <= 11) {
       return FeatureMerge.mergeLineStrings(
-        items,
-        MIN_PIXEL_LENGTHS.apply(zoom).doubleValue(),
-        config.tolerance(zoom),
-        BUFFER_SIZE
-      );
+          items, MIN_PIXEL_LENGTHS.apply(zoom).doubleValue(), config.tolerance(zoom), BUFFER_SIZE);
     }
     return items;
   }

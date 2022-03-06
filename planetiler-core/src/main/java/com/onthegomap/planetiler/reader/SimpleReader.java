@@ -18,12 +18,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Base class for utilities that read {@link SourceFeature SourceFeatures} from a simple data source where geometries
- * can be read in a single pass, like {@link ShapefileReader} but not {@link OsmReader} which requires complex
- * multi-pass processing.
- * <p>
- * Implementations provide features through {@link #read()} and {@link #getCount()} and this class handles processing
- * them in parallel according to the profile in {@link #process(FeatureGroup, PlanetilerConfig)}.
+ * Base class for utilities that read {@link SourceFeature SourceFeatures} from a simple data source
+ * where geometries can be read in a single pass, like {@link ShapefileReader} but not {@link
+ * OsmReader} which requires complex multi-pass processing.
+ *
+ * <p>Implementations provide features through {@link #read()} and {@link #getCount()} and this
+ * class handles processing them in parallel according to the profile in {@link
+ * #process(FeatureGroup, PlanetilerConfig)}.
  */
 public abstract class SimpleReader implements Closeable {
 
@@ -40,7 +41,8 @@ public abstract class SimpleReader implements Closeable {
   }
 
   /**
-   * Renders map features for all elements from this data source based on the mapping logic defined in {@code profile}.
+   * Renders map features for all elements from this data source based on the mapping logic defined
+   * in {@code profile}.
    *
    * @param writer consumer for rendered features
    * @param config user-defined parameters controlling number of threads and log interval
@@ -53,68 +55,77 @@ public abstract class SimpleReader implements Closeable {
     AtomicLong featuresRead = new AtomicLong(0);
     AtomicLong featuresWritten = new AtomicLong(0);
 
-    var pipeline = WorkerPipeline.start(sourceName, stats)
-      .fromGenerator("read", read())
-      .addBuffer("read_queue", 1000)
-      .<SortableFeature>addWorker("process", threads, (prev, next) -> {
-        var featureCollectors = new FeatureCollector.Factory(config, stats);
-        FeatureRenderer renderer = newFeatureRenderer(writer, config, next);
-        for (SourceFeature sourceFeature : prev) {
-          featuresRead.incrementAndGet();
-          FeatureCollector features = featureCollectors.get(sourceFeature);
-          if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
-            try {
-              profile.processFeature(sourceFeature, features);
-              for (FeatureCollector.Feature renderable : features) {
-                renderer.accept(renderable);
-              }
-            } catch (Exception e) {
-              LOGGER.error("Error processing " + sourceFeature, e);
-            }
-          }
-        }
-      })
-      // output large batches since each input may map to many tiny output features (i.e. slicing ocean tiles)
-      // which turns enqueueing into the bottleneck
-      .addBuffer("write_queue", 50_000, 1_000)
-      .sinkToConsumer("write", 1, (item) -> {
-        featuresWritten.incrementAndGet();
-        writer.accept(item);
-      });
+    var pipeline =
+        WorkerPipeline.start(sourceName, stats)
+            .fromGenerator("read", read())
+            .addBuffer("read_queue", 1000)
+            .<SortableFeature>addWorker(
+                "process",
+                threads,
+                (prev, next) -> {
+                  var featureCollectors = new FeatureCollector.Factory(config, stats);
+                  FeatureRenderer renderer = newFeatureRenderer(writer, config, next);
+                  for (SourceFeature sourceFeature : prev) {
+                    featuresRead.incrementAndGet();
+                    FeatureCollector features = featureCollectors.get(sourceFeature);
+                    if (sourceFeature
+                        .latLonGeometry()
+                        .getEnvelopeInternal()
+                        .intersects(latLonBounds)) {
+                      try {
+                        profile.processFeature(sourceFeature, features);
+                        for (FeatureCollector.Feature renderable : features) {
+                          renderer.accept(renderable);
+                        }
+                      } catch (Exception e) {
+                        LOGGER.error("Error processing " + sourceFeature, e);
+                      }
+                    }
+                  }
+                })
+            // output large batches since each input may map to many tiny output features (i.e.
+            // slicing ocean tiles)
+            // which turns enqueueing into the bottleneck
+            .addBuffer("write_queue", 50_000, 1_000)
+            .sinkToConsumer(
+                "write",
+                1,
+                (item) -> {
+                  featuresWritten.incrementAndGet();
+                  writer.accept(item);
+                });
 
-    var loggers = ProgressLoggers.create()
-      .addRatePercentCounter("read", featureCount, featuresRead, true)
-      .addRateCounter("write", featuresWritten)
-      .addFileSize(writer)
-      .newLine()
-      .addProcessStats()
-      .newLine()
-      .addPipelineStats(pipeline);
+    var loggers =
+        ProgressLoggers.create()
+            .addRatePercentCounter("read", featureCount, featuresRead, true)
+            .addRateCounter("write", featuresWritten)
+            .addFileSize(writer)
+            .newLine()
+            .addProcessStats()
+            .newLine()
+            .addPipelineStats(pipeline);
 
     pipeline.awaitAndLog(loggers, config.logInterval());
 
     // hook for profile to do any post-processing after this source is read
-    profile.finish(sourceName,
-      new FeatureCollector.Factory(config, stats),
-      newFeatureRenderer(writer, config, writer)
-    );
+    profile.finish(
+        sourceName,
+        new FeatureCollector.Factory(config, stats),
+        newFeatureRenderer(writer, config, writer));
     timer.stop();
   }
 
-
-  private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
-    Consumer<SortableFeature> next) {
+  private FeatureRenderer newFeatureRenderer(
+      FeatureGroup writer, PlanetilerConfig config, Consumer<SortableFeature> next) {
     var encoder = writer.newRenderedFeatureEncoder();
-    return new FeatureRenderer(
-      config,
-      rendered -> next.accept(encoder.apply(rendered)),
-      stats
-    );
+    return new FeatureRenderer(config, rendered -> next.accept(encoder.apply(rendered)), stats);
   }
 
   /** Returns the number of features to be read from this source to use for displaying progress. */
   public abstract long getCount();
 
-  /** Returns a source that initiates a {@link WorkerPipeline} with elements from this data provider. */
+  /**
+   * Returns a source that initiates a {@link WorkerPipeline} with elements from this data provider.
+   */
   public abstract WorkerPipeline.SourceStep<? extends SourceFeature> read();
 }

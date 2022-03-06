@@ -21,10 +21,8 @@ public class BenchmarkOsmRead {
 
     while (true) {
       Timer timer = Timer.start();
-      try (
-        var nodes = LongLongMap.noop();
-        var reader = new OsmReader("osm", file, nodes, profile, stats)
-      ) {
+      try (var nodes = LongLongMap.noop();
+          var reader = new OsmReader("osm", file, nodes, profile, stats)) {
         reader.pass1(config);
       }
       System.err.println(timer.stop());

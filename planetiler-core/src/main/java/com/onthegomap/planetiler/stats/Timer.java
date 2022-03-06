@@ -2,9 +2,7 @@ package com.onthegomap.planetiler.stats;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-/**
- * Measures the amount of wall and CPU time that a task takes.
- */
+/** Measures the amount of wall and CPU time that a task takes. */
 @ThreadSafe
 public class Timer {
 
@@ -20,8 +18,8 @@ public class Timer {
   }
 
   /**
-   * Sets the end time to now, and makes {@link #running()} return false. Calling multiple times will extend the end
-   * time.
+   * Sets the end time to now, and makes {@link #running()} return false. Calling multiple times
+   * will extend the end time.
    */
   public Timer stop() {
     synchronized (this) {
@@ -37,7 +35,10 @@ public class Timer {
     }
   }
 
-  /** Returns the time from start to now if the task is still running, or start to end if it has finished. */
+  /**
+   * Returns the time from start to now if the task is still running, or start to end if it has
+   * finished.
+   */
   public ProcessTime elapsed() {
     synchronized (this) {
       return (end == null ? ProcessTime.now() : end).minus(start);

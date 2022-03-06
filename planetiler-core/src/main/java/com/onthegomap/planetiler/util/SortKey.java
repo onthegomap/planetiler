@@ -4,23 +4,25 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 
 /**
- * A utility to compute integer sort keys for {@link FeatureCollector.Feature#setSortKey(int)} where the integer key
- * ordering approximates the desired ordering.
- * <p>
- * Sort keys get packed into {@link FeatureGroup#SORT_KEY_BITS} bits, so sort key components need to specify the range
- * and number of levels the range gets packed into.  Requests that exceed the total number of available levels will
- * fail.
- * <p>
- * To sort by a field descending, specify its range from high to low.
- * <p>
- * For example this SQL ordering:
+ * A utility to compute integer sort keys for {@link FeatureCollector.Feature#setSortKey(int)} where
+ * the integer key ordering approximates the desired ordering.
+ *
+ * <p>Sort keys get packed into {@link FeatureGroup#SORT_KEY_BITS} bits, so sort key components need
+ * to specify the range and number of levels the range gets packed into. Requests that exceed the
+ * total number of available levels will fail.
+ *
+ * <p>To sort by a field descending, specify its range from high to low.
+ *
+ * <p>For example this SQL ordering:
+ *
  * <pre>{@code
  * ORDER BY rank ASC,
  * population DESC,
  * length(name) ASC
  * }</pre>
- * <p>
- * would become:
+ *
+ * <p>would become:
+ *
  * <pre>{@code
  * feature.setSortKey(
  *   SortKey
@@ -37,54 +39,62 @@ public class SortKey {
   private long possibleValues = 1;
   private int result = 0;
 
-  private SortKey() {
-  }
+  private SortKey() {}
 
-  /** Returns a new sort key where elements with {@code value == true} sort after ones where {@code value == false} */
+  /**
+   * Returns a new sort key where elements with {@code value == true} sort after ones where {@code
+   * value == false}
+   */
   public static SortKey orderByTruesLast(boolean value) {
     return new SortKey().thenByTruesLast(value);
   }
 
-  /** Returns a new sort key where elements with {@code value == true} sort after ones where {@code value == false} */
+  /**
+   * Returns a new sort key where elements with {@code value == true} sort after ones where {@code
+   * value == false}
+   */
   public static SortKey orderByTruesFirst(boolean value) {
     return new SortKey().thenByTruesFirst(value);
   }
 
   /**
-   * Returns a new sort key where elements with {@code value == start} appear before elements with {@code value ==
-   * end}.
+   * Returns a new sort key where elements with {@code value == start} appear before elements with
+   * {@code value == end}.
    */
   public static SortKey orderByInt(int value, int start, int end) {
     return new SortKey().thenByInt(value, start, end);
   }
 
   /**
-   * Returns a new sort key where elements with {@code value == start} appear before elements with {@code value == end}
-   * and the entire range is compressed into {@code levels} distinct levels for comparison.
+   * Returns a new sort key where elements with {@code value == start} appear before elements with
+   * {@code value == end} and the entire range is compressed into {@code levels} distinct levels for
+   * comparison.
    */
   public static SortKey orderByDouble(double value, double start, double end, int levels) {
     return new SortKey().thenByDouble(value, start, end, levels);
   }
 
   /**
-   * Returns a new sort key where elements with {@code value == start} appear before elements with {@code value == end}
-   * and the log of the entire range is compressed into the maximum allowed number of distinct levels for comparison.
+   * Returns a new sort key where elements with {@code value == start} appear before elements with
+   * {@code value == end} and the log of the entire range is compressed into the maximum allowed
+   * number of distinct levels for comparison.
    */
   public static SortKey orderByLog(double value, double start, double end) {
     return new SortKey().thenByLog(value, start, end, MAX);
   }
 
   /**
-   * Returns a new sort key where elements with {@code value == start} appear before elements with {@code value == end}
-   * and the log of the entire range is compressed into {@code levels} distinct levels for comparison.
+   * Returns a new sort key where elements with {@code value == start} appear before elements with
+   * {@code value == end} and the log of the entire range is compressed into {@code levels} distinct
+   * levels for comparison.
    */
   public static SortKey orderByLog(double value, double min, double max, int levels) {
     return new SortKey().thenByLog(value, min, max, levels);
   }
 
   /**
-   * Breaks the input range {@code [min, max]} into {@code levels} discrete levels, and returns an integer corresponding
-   * to the level for {@code value}.
+   * Breaks the input range {@code [min, max]} into {@code levels} discrete levels, and returns an
+   * integer corresponding to the level for {@code value}.
    */
   private static int doubleRangeToInt(double value, double min, double max, int levels) {
     return Math.min(levels - 1, (int) Math.floor(((value - min) / (max - min)) * levels));
@@ -96,24 +106,24 @@ public class SortKey {
   }
 
   /**
-   * Adds a field to this sort key where if all previous values are equal, then elements where {@code value == true}
-   * sort before elements where {@code value == false}.
+   * Adds a field to this sort key where if all previous values are equal, then elements where
+   * {@code value == true} sort before elements where {@code value == false}.
    */
   public SortKey thenByTruesFirst(boolean value) {
     return thenByInt(value ? 0 : 1, 0, 1);
   }
 
   /**
-   * Adds a field to this sort key where if all previous values are equal, then elements where {@code value == true}
-   * sort after elements where {@code value == false}.
+   * Adds a field to this sort key where if all previous values are equal, then elements where
+   * {@code value == true} sort after elements where {@code value == false}.
    */
   public SortKey thenByTruesLast(boolean value) {
     return thenByInt(value ? 1 : 0, 0, 1);
   }
 
   /**
-   * Adds a field to this sort key where if all previous values are equal, then elements where {@code value == start}
-   * sort before elements where {@code value == end}.
+   * Adds a field to this sort key where if all previous values are equal, then elements where
+   * {@code value == start} sort before elements where {@code value == end}.
    */
   public SortKey thenByInt(int value, int start, int end) {
     if (start > end) {
@@ -127,9 +137,9 @@ public class SortKey {
   }
 
   /**
-   * Adds a field to this sort key where if all previous values are equal, then elements where {@code value == start}
-   * sort before elements where {@code value == end} and the range {@code [min, max]} is broken into {@code levels}
-   * discrete levels.
+   * Adds a field to this sort key where if all previous values are equal, then elements where
+   * {@code value == start} sort before elements where {@code value == end} and the range {@code
+   * [min, max]} is broken into {@code levels} discrete levels.
    */
   public SortKey thenByDouble(double value, double start, double end, int levels) {
     assert levels > 0 : "levels must be > 0 got " + levels;
@@ -145,9 +155,9 @@ public class SortKey {
   }
 
   /**
-   * Adds a field to this sort key where if all previous values are equal, then elements where {@code value == start}
-   * sort before elements where {@code value == end} and the range {@code [min, max]} is broken into {@code levels}
-   * discrete levels based on the log of the input.
+   * Adds a field to this sort key where if all previous values are equal, then elements where
+   * {@code value == start} sort before elements where {@code value == end} and the range {@code
+   * [min, max]} is broken into {@code levels} discrete levels based on the log of the input.
    */
   public SortKey thenByLog(double value, double start, double end, int levels) {
     assert levels > 0 : "levels must be > 0 got " + levels;

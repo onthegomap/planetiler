@@ -4,7 +4,8 @@ import com.onthegomap.planetiler.util.Parse;
 import java.util.Map;
 
 /**
- * Common utilities for working with data and the OpenMapTiles schema in {@code layers} implementations.
+ * Common utilities for working with data and the OpenMapTiles schema in {@code layers}
+ * implementations.
  */
 public class Utils {
 
@@ -48,17 +49,16 @@ public class Utils {
     return a == null || a.toString().isEmpty();
   }
 
-  /** Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation in meters. */
+  /**
+   * Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation in meters.
+   */
   public static Map<String, Object> elevationTags(int meters) {
-    return Map.of(
-      "ele", meters,
-      "ele_ft", (int) Math.round(meters * 3.2808399)
-    );
+    return Map.of("ele", meters, "ele_ft", (int) Math.round(meters * 3.2808399));
   }
 
   /**
-   * Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation string in meters, if {@code
-   * meters} can be parsed as a valid number.
+   * Returns a map with {@code ele} (meters) and {ele_ft} attributes from an elevation string in
+   * meters, if {@code meters} can be parsed as a valid number.
    */
   public static Map<String, Object> elevationTags(String meters) {
     Integer ele = Parse.parseIntSubstring(meters);
@@ -70,9 +70,11 @@ public class Utils {
     return brunnel(isBridge, isTunnel, false);
   }
 
-  /** Returns "bridge" or "tunnel" or "ford" string used for "brunnel" attribute by OpenMapTiles schema. */
+  /**
+   * Returns "bridge" or "tunnel" or "ford" string used for "brunnel" attribute by OpenMapTiles
+   * schema.
+   */
   public static String brunnel(boolean isBridge, boolean isTunnel, boolean isFord) {
     return isBridge ? "bridge" : isTunnel ? "tunnel" : isFord ? "ford" : null;
   }
-
 }

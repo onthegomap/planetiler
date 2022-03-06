@@ -15,29 +15,30 @@ import java.util.stream.Stream;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * A utility to search <a href="https://download.geofabrik.de/">Geofabrik Download Server</a> for a {@code .osm.pbf}
- * download URL by name.
+ * A utility to search <a href="https://download.geofabrik.de/">Geofabrik Download Server</a> for a
+ * {@code .osm.pbf} download URL by name.
  *
- * @see <a href="https://download.geofabrik.de/technical.html">Geofabrik JSON index technical details</a>
+ * @see <a href="https://download.geofabrik.de/technical.html">Geofabrik JSON index technical
+ *     details</a>
  */
 @ThreadSafe
 public class Geofabrik {
 
   private static volatile IndexJson index = null;
-  private static final ObjectMapper objectMapper = new ObjectMapper()
-    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  private static final ObjectMapper objectMapper =
+      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   /**
-   * Fetches the Geofabrik index and searches for a {@code .osm.pbf} resource to download where ID or name field
-   * contains all the tokens in {@code searchQuery}.
-   * <p>
-   * If an exact match is found, returns that. Otherwise, looks for a resource that contains  {@code searchQuery} as a
-   * substring.
-   * <p>
-   * The index is only fetched once and cached after that.
+   * Fetches the Geofabrik index and searches for a {@code .osm.pbf} resource to download where ID
+   * or name field contains all the tokens in {@code searchQuery}.
+   *
+   * <p>If an exact match is found, returns that. Otherwise, looks for a resource that contains
+   * {@code searchQuery} as a substring.
+   *
+   * <p>The index is only fetched once and cached after that.
    *
    * @param searchQuery the tokens to search for
-   * @param config      planetiler config with user-agent and timeout to use when downloading files
+   * @param config planetiler config with user-agent and timeout to use when downloading files
    * @return the URL of a {@code .osm.pbf} file with name or ID matching {@code searchQuery}
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
@@ -46,10 +47,10 @@ public class Geofabrik {
     return searchIndexForDownloadUrl(searchQuery, index);
   }
 
-  private synchronized static IndexJson getAndCacheIndex(PlanetilerConfig config) {
+  private static synchronized IndexJson getAndCacheIndex(PlanetilerConfig config) {
     if (index == null) {
-      try (InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
-        config)) {
+      try (InputStream inputStream =
+          Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json", config)) {
         index = parseIndexJson(inputStream);
       } catch (IOException e) {
         throw new IllegalStateException(e);
@@ -73,8 +74,8 @@ public class Geofabrik {
     for (var feature : index.features) {
       PropertiesJson properties = feature.properties;
       if (properties.urls.containsKey("pbf")) {
-        if (tokenize(properties.id).equals(searchTokens) ||
-          tokenize(properties.name).equals(searchTokens)) {
+        if (tokenize(properties.id).equals(searchTokens)
+            || tokenize(properties.name).equals(searchTokens)) {
           exact.add(properties);
         } else if (tokenize(properties.name).containsAll(searchTokens)) {
           approx.add(properties);
@@ -83,15 +84,19 @@ public class Geofabrik {
     }
     if (exact.size() > 1) {
       throw new IllegalArgumentException(
-        "Multiple exact matches for '" + searchQuery + "': " + exact.stream().map(d -> d.id).collect(
-          Collectors.joining(", ")));
+          "Multiple exact matches for '"
+              + searchQuery
+              + "': "
+              + exact.stream().map(d -> d.id).collect(Collectors.joining(", ")));
     } else if (exact.size() == 1) {
       return exact.get(0).urls.get("pbf");
     } else {
       if (approx.size() > 1) {
         throw new IllegalArgumentException(
-          "Multiple approximate matches for '" + searchQuery + "': " + approx.stream().map(d -> d.id).collect(
-            Collectors.joining(", ")));
+            "Multiple approximate matches for '"
+                + searchQuery
+                + "': "
+                + approx.stream().map(d -> d.id).collect(Collectors.joining(", ")));
       } else if (approx.size() == 1) {
         return approx.get(0).urls.get("pbf");
       } else {

@@ -44,41 +44,44 @@ import com.onthegomap.planetiler.util.Translations;
 
 /**
  * Defines the logic for generating map elements in the {@code aeroway} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aeroway">OpenMapTiles
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aeroway">OpenMapTiles
  * aeroway sql files</a>.
  */
-public class Aeroway implements
-  OpenMapTilesSchema.Aeroway,
-  Tables.OsmAerowayLinestring.Handler,
-  Tables.OsmAerowayPolygon.Handler,
-  Tables.OsmAerowayPoint.Handler {
+public class Aeroway
+    implements OpenMapTilesSchema.Aeroway,
+        Tables.OsmAerowayLinestring.Handler,
+        Tables.OsmAerowayPolygon.Handler,
+        Tables.OsmAerowayPoint.Handler {
 
-  public Aeroway(Translations translations, PlanetilerConfig config, Stats stats) {
-  }
+  public Aeroway(Translations translations, PlanetilerConfig config, Stats stats) {}
 
   @Override
   public void process(Tables.OsmAerowayPolygon element, FeatureCollector features) {
-    features.polygon(LAYER_NAME)
-      .setMinZoom(10)
-      .setMinPixelSize(2)
-      .setAttr(Fields.CLASS, element.aeroway())
-      .setAttr(Fields.REF, element.ref());
+    features
+        .polygon(LAYER_NAME)
+        .setMinZoom(10)
+        .setMinPixelSize(2)
+        .setAttr(Fields.CLASS, element.aeroway())
+        .setAttr(Fields.REF, element.ref());
   }
 
   @Override
   public void process(Tables.OsmAerowayLinestring element, FeatureCollector features) {
-    features.line(LAYER_NAME)
-      .setMinZoom(10)
-      .setAttr(Fields.CLASS, element.aeroway())
-      .setAttr(Fields.REF, element.ref());
+    features
+        .line(LAYER_NAME)
+        .setMinZoom(10)
+        .setAttr(Fields.CLASS, element.aeroway())
+        .setAttr(Fields.REF, element.ref());
   }
 
   @Override
   public void process(Tables.OsmAerowayPoint element, FeatureCollector features) {
-    features.point(LAYER_NAME)
-      .setMinZoom(14)
-      .setAttr(Fields.CLASS, element.aeroway())
-      .setAttr(Fields.REF, element.ref());
+    features
+        .point(LAYER_NAME)
+        .setMinZoom(14)
+        .setAttr(Fields.CLASS, element.aeroway())
+        .setAttr(Fields.REF, element.ref());
   }
 }

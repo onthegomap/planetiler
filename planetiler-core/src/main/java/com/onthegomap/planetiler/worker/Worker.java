@@ -17,9 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Executes a task in parallel across multiple threads.
- */
+/** Executes a task in parallel across multiple threads. */
 public class Worker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Worker.class);
@@ -29,10 +27,10 @@ public class Worker {
   /**
    * Constructs a new worker and immediately starts {@code threads} thread all running {@code task}.
    *
-   * @param prefix  string ID to add to logs and stats
-   * @param stats   stats collector for this thread pool
+   * @param prefix string ID to add to logs and stats
+   * @param stats stats collector for this thread pool
    * @param threads number of parallel threads to run {@code task} in
-   * @param task    the work to do in each thread
+   * @param task the work to do in each thread
    */
   public Worker(String prefix, Stats stats, int threads, RunnableThatThrows task) {
     this.prefix = prefix;
@@ -41,48 +39,55 @@ public class Worker {
     String parentStage = LogUtil.getStage();
     List<CompletableFuture<?>> results = new ArrayList<>();
     for (int i = 0; i < threads; i++) {
-      results.add(CompletableFuture.runAsync(() -> {
-        LogUtil.setStage(parentStage, prefix);
-        String id = Thread.currentThread().getName();
-        LOGGER.trace("Starting worker");
-        try {
-          long start = System.nanoTime();
-          task.run();
-          stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
-        } catch (Throwable e) {
-          System.err.println("Worker " + id + " died");
-          throwRuntimeException(e);
-        } finally {
-          LOGGER.trace("Finished worker");
-        }
-      }, es));
+      results.add(
+          CompletableFuture.runAsync(
+              () -> {
+                LogUtil.setStage(parentStage, prefix);
+                String id = Thread.currentThread().getName();
+                LOGGER.trace("Starting worker");
+                try {
+                  long start = System.nanoTime();
+                  task.run();
+                  stats
+                      .timers()
+                      .finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
+                } catch (Throwable e) {
+                  System.err.println("Worker " + id + " died");
+                  throwRuntimeException(e);
+                } finally {
+                  LOGGER.trace("Finished worker");
+                }
+              },
+              es));
     }
     es.shutdown();
     done = joinFutures(results);
   }
 
   /**
-   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
-   * one fails.
+   * Returns a future that completes successfully when all {@code futures} complete, or fails
+   * immediately when the first one fails.
    */
   public static CompletableFuture<?> joinFutures(CompletableFuture<?>... futures) {
     return joinFutures(List.of(futures));
   }
 
   /**
-   * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
-   * one fails.
+   * Returns a future that completes successfully when all {@code futures} complete, or fails
+   * immediately when the first one fails.
    */
   public static CompletableFuture<?> joinFutures(Collection<CompletableFuture<?>> futures) {
-    CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    CompletableFuture<Void> result =
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     // fail fast on exceptions
     for (CompletableFuture<?> f : futures) {
-      f.whenComplete((res, ex) -> {
-        if (ex != null) {
-          result.completeExceptionally(ex);
-          futures.forEach(other -> other.cancel(true));
-        }
-      });
+      f.whenComplete(
+          (res, ex) -> {
+            if (ex != null) {
+              result.completeExceptionally(ex);
+              futures.forEach(other -> other.cancel(true));
+            }
+          });
     }
     return result;
   }
@@ -109,8 +114,8 @@ public class Worker {
   }
 
   /**
-   * Blocks until all tasks are complete, invoking {@link ProgressLoggers#log()} at a fixed duration until this task
-   * completes.
+   * Blocks until all tasks are complete, invoking {@link ProgressLoggers#log()} at a fixed duration
+   * until this task completes.
    *
    * @throws RuntimeException if interrupted or if one of the threads throws.
    */
@@ -145,9 +150,7 @@ public class Worker {
 
     @Override
     public Thread newThread(Runnable r) {
-      Thread t = new Thread(group, r,
-        namePrefix + threadNumber.getAndIncrement(),
-        0);
+      Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
       if (!t.isDaemon()) {
         t.setDaemon(true);
       }

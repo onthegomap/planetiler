@@ -52,62 +52,67 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Defines the logic for generating map elements for man-made land use polygons like cemeteries, zoos, and hospitals in
- * the {@code landuse} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse">OpenMapTiles
+ * Defines the logic for generating map elements for man-made land use polygons like cemeteries,
+ * zoos, and hospitals in the {@code landuse} layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse">OpenMapTiles
  * landuse sql files</a>.
  */
-public class Landuse implements
-  OpenMapTilesSchema.Landuse,
-  BasemapProfile.NaturalEarthProcessor,
-  Tables.OsmLandusePolygon.Handler {
+public class Landuse
+    implements OpenMapTilesSchema.Landuse,
+        BasemapProfile.NaturalEarthProcessor,
+        Tables.OsmLandusePolygon.Handler {
 
-  private static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS = ZoomFunction.fromMaxZoomThresholds(Map.of(
-    13, 4,
-    7, 2,
-    6, 1
-  ));
-  private static final Set<String> Z6_CLASSES = Set.of(
-    FieldValues.CLASS_RESIDENTIAL,
-    FieldValues.CLASS_SUBURB,
-    FieldValues.CLASS_QUARTER,
-    FieldValues.CLASS_NEIGHBOURHOOD
-  );
+  private static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS =
+      ZoomFunction.fromMaxZoomThresholds(
+          Map.of(
+              13, 4,
+              7, 2,
+              6, 1));
+  private static final Set<String> Z6_CLASSES =
+      Set.of(
+          FieldValues.CLASS_RESIDENTIAL,
+          FieldValues.CLASS_SUBURB,
+          FieldValues.CLASS_QUARTER,
+          FieldValues.CLASS_NEIGHBOURHOOD);
 
-  public Landuse(Translations translations, PlanetilerConfig config, Stats stats) {
-  }
+  public Landuse(Translations translations, PlanetilerConfig config, Stats stats) {}
 
   @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     if ("ne_50m_urban_areas".equals(table)) {
       Double scalerank = Parse.parseDoubleOrNull(feature.getTag("scalerank"));
       if (scalerank != null && scalerank <= 2) {
-        features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-          .setAttr(Fields.CLASS, FieldValues.CLASS_RESIDENTIAL)
-          .setZoomRange(4, 5);
+        features
+            .polygon(LAYER_NAME)
+            .setBufferPixels(BUFFER_SIZE)
+            .setAttr(Fields.CLASS, FieldValues.CLASS_RESIDENTIAL)
+            .setZoomRange(4, 5);
       }
     }
   }
 
   @Override
   public void process(Tables.OsmLandusePolygon element, FeatureCollector features) {
-    String clazz = coalesce(
-      nullIfEmpty(element.landuse()),
-      nullIfEmpty(element.amenity()),
-      nullIfEmpty(element.leisure()),
-      nullIfEmpty(element.tourism()),
-      nullIfEmpty(element.place()),
-      nullIfEmpty(element.waterway())
-    );
+    String clazz =
+        coalesce(
+            nullIfEmpty(element.landuse()),
+            nullIfEmpty(element.amenity()),
+            nullIfEmpty(element.leisure()),
+            nullIfEmpty(element.tourism()),
+            nullIfEmpty(element.place()),
+            nullIfEmpty(element.waterway()));
     if (clazz != null) {
       if ("grave_yard".equals(clazz)) {
         clazz = FieldValues.CLASS_CEMETERY;
       }
-      features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setAttr(Fields.CLASS, clazz)
-        .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
-        .setMinZoom(Z6_CLASSES.contains(clazz) ? 6 : 9);
+      features
+          .polygon(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .setAttr(Fields.CLASS, clazz)
+          .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
+          .setMinZoom(Z6_CLASSES.contains(clazz) ? 6 : 9);
     }
   }
 }

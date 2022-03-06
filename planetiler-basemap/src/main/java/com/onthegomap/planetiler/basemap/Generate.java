@@ -38,17 +38,20 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Generates code in the {@code generated} package from the OpenMapTiles schema crawled from a tag or branch in the <a
- * href="https://github.com/openmaptiles/openmaptiles">OpenMapTiles GitHub repo</a>.
- * <p>
- * {@code OpenMapTilesSchema.java} contains the output layer definitions (i.e. attributes and allowed values) so that
- * layer implementations in {@code layers} package can reference them instead of hard-coding.
- * <p>
- * {@code Tables.java} contains the <a href="https://github.com/omniscale/imposm3">imposm3</a> table definitions from
- * mapping.yaml files in the OpenMapTiles repo.  Layers in the {@code layer} package can extend the {@code Handler}
- * nested class for a table definition to "subscribe" to OSM elements that imposm3 would put in that table.
- * <p>
- * To run use {@code ./scripts/regenerate-openmaptiles.sh}
+ * Generates code in the {@code generated} package from the OpenMapTiles schema crawled from a tag
+ * or branch in the <a href="https://github.com/openmaptiles/openmaptiles">OpenMapTiles GitHub
+ * repo</a>.
+ *
+ * <p>{@code OpenMapTilesSchema.java} contains the output layer definitions (i.e. attributes and
+ * allowed values) so that layer implementations in {@code layers} package can reference them
+ * instead of hard-coding.
+ *
+ * <p>{@code Tables.java} contains the <a href="https://github.com/omniscale/imposm3">imposm3</a>
+ * table definitions from mapping.yaml files in the OpenMapTiles repo. Layers in the {@code layer}
+ * package can extend the {@code Handler} nested class for a table definition to "subscribe" to OSM
+ * elements that imposm3 would put in that table.
+ *
+ * <p>To run use {@code ./scripts/regenerate-openmaptiles.sh}
  */
 public class Generate {
 
@@ -56,7 +59,8 @@ public class Generate {
   private static final ObjectMapper mapper = new ObjectMapper();
   private static final Yaml yaml;
   private static final String LINE_SEPARATOR = System.lineSeparator();
-  private static final String GENERATED_FILE_HEADER = """
+  private static final String GENERATED_FILE_HEADER =
+      """
     /*
     Copyright (c) 2021, MapTiler.com & OpenMapTiles contributors.
     All rights reserved.
@@ -104,7 +108,8 @@ public class Generate {
     yaml = new Yaml(options);
   }
 
-  private static <T> T loadAndParseYaml(String url, PlanetilerConfig config, Class<T> clazz) throws IOException {
+  private static <T> T loadAndParseYaml(String url, PlanetilerConfig config, Class<T> clazz)
+      throws IOException {
     LOGGER.info("reading " + url);
     try (var stream = Downloader.openStream(url, config)) {
       // Jackson yaml parsing does not handle anchors and references, so first parse the input
@@ -133,9 +138,11 @@ public class Generate {
 
     // start crawling from openmaptiles.yaml
     // then crawl schema from each layers/<layer>/<layer>.yaml file that it references
-    // then crawl table definitions from each layers/<layer>/mapping.yaml file that the layer references
+    // then crawl table definitions from each layers/<layer>/mapping.yaml file that the layer
+    // references
     String rootUrl = base + "openmaptiles.yaml";
-    OpenmaptilesConfig config = loadAndParseYaml(rootUrl, planetilerConfig, OpenmaptilesConfig.class);
+    OpenmaptilesConfig config =
+        loadAndParseYaml(rootUrl, planetilerConfig, OpenmaptilesConfig.class);
 
     List<LayerConfig> layers = new ArrayList<>();
     Set<String> imposm3MappingFiles = new LinkedHashSet<>();
@@ -145,7 +152,8 @@ public class Generate {
       layers.add(layer);
       for (Datasource datasource : layer.datasources) {
         if ("imposm3".equals(datasource.type)) {
-          String mappingPath = Path.of(layerFile).resolveSibling(datasource.mapping_file).normalize().toString();
+          String mappingPath =
+              Path.of(layerFile).resolveSibling(datasource.mapping_file).normalize().toString();
           imposm3MappingFiles.add(base + mappingPath);
         } else {
           LOGGER.warn("Unknown datasource type: " + datasource.type);
@@ -161,8 +169,10 @@ public class Generate {
 
     String packageName = "com.onthegomap.planetiler.basemap.generated";
     String[] packageParts = packageName.split("\\.");
-    Path output = Path.of("planetiler-basemap", "src", "main", "java")
-      .resolve(Path.of(packageParts[0], Arrays.copyOfRange(packageParts, 1, packageParts.length)));
+    Path output =
+        Path.of("planetiler-basemap", "src", "main", "java")
+            .resolve(
+                Path.of(packageParts[0], Arrays.copyOfRange(packageParts, 1, packageParts.length)));
 
     FileUtils.deleteDirectory(output);
     Files.createDirectories(output);
@@ -170,15 +180,21 @@ public class Generate {
     emitLayerSchemaDefinitions(config.tileset, layers, packageName, output, tag);
     emitTableDefinitions(tables, packageName, output, tag);
     LOGGER.info(
-      "Done generating code in 'generated' package, now run IntelliJ 'Reformat Code' operation with 'Optimize imports' and 'Cleanup code' options selected.");
+        "Done generating code in 'generated' package, now run IntelliJ 'Reformat Code' operation"
+            + " with 'Optimize imports' and 'Cleanup code' options selected.");
   }
 
   /** Generates {@code OpenMapTilesSchema.java} */
-  private static void emitLayerSchemaDefinitions(OpenmaptilesTileSet info, List<LayerConfig> layers, String packageName,
-    Path output, String tag)
-    throws IOException {
+  private static void emitLayerSchemaDefinitions(
+      OpenmaptilesTileSet info,
+      List<LayerConfig> layers,
+      String packageName,
+      Path output,
+      String tag)
+      throws IOException {
     StringBuilder schemaClass = new StringBuilder();
-    schemaClass.append("""
+    schemaClass.append(
+        """
       %s
       package %s;
 
@@ -211,23 +227,24 @@ public class Generate {
           );
         }
       """
-      .formatted(
-        GENERATED_FILE_HEADER,
-        packageName,
-        escapeJavadoc(tag),
-        escapeJavadoc(tag),
-        Format.quote(info.name),
-        Format.quote(info.description),
-        Format.quote(info.version),
-        Format.quote(info.attribution),
-        info.languages.stream().map(Format::quote).collect(joining(", ")),
-        layers.stream()
-          .map(
-            l -> "new com.onthegomap.planetiler.basemap.layers.%s(translations, config, stats)"
-              .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
-          .collect(joining("," + LINE_SEPARATOR))
-          .indent(6).trim()
-      ));
+            .formatted(
+                GENERATED_FILE_HEADER,
+                packageName,
+                escapeJavadoc(tag),
+                escapeJavadoc(tag),
+                Format.quote(info.name),
+                Format.quote(info.description),
+                Format.quote(info.version),
+                Format.quote(info.attribution),
+                info.languages.stream().map(Format::quote).collect(joining(", ")),
+                layers.stream()
+                    .map(
+                        l ->
+                            "new com.onthegomap.planetiler.basemap.layers.%s(translations, config, stats)"
+                                .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
+                    .collect(joining("," + LINE_SEPARATOR))
+                    .indent(6)
+                    .trim()));
     for (var layer : layers) {
       String layerCode = generateCodeForLayer(tag, layer);
       schemaClass.append(layerCode);
@@ -245,17 +262,25 @@ public class Generate {
     StringBuilder fieldValues = new StringBuilder();
     StringBuilder fieldMappings = new StringBuilder();
 
-    layer.layer.fields.forEach((name, value) -> {
-      JsonNode valuesNode = value.get("values");
-      List<String> valuesForComment = valuesNode == null ? List.of() : valuesNode.isArray() ?
-        iterToList(valuesNode.elements()).stream().map(Objects::toString).toList() :
-        iterToList(valuesNode.fieldNames());
-      String javadocDescription = markdownToJavadoc(getFieldDescription(value));
-      fields.append("""
+    layer.layer.fields.forEach(
+        (name, value) -> {
+          JsonNode valuesNode = value.get("values");
+          List<String> valuesForComment =
+              valuesNode == null
+                  ? List.of()
+                  : valuesNode.isArray()
+                      ? iterToList(valuesNode.elements()).stream().map(Objects::toString).toList()
+                      : iterToList(valuesNode.fieldNames());
+          String javadocDescription = markdownToJavadoc(getFieldDescription(value));
+          fields.append(
+              """
         %s
         public static final String %s = %s;
-        """.formatted(
-        valuesForComment.isEmpty() ? "/** %s */".formatted(javadocDescription) : """
+        """
+                  .formatted(
+                      valuesForComment.isEmpty()
+                          ? "/** %s */".formatted(javadocDescription)
+                          : """
 
           /**
            * %s
@@ -265,35 +290,57 @@ public class Generate {
            * %s
            * </ul>
            */
-          """.stripTrailing().formatted(javadocDescription,
-          valuesForComment.stream().map(v -> "<li>" + v).collect(joining(LINE_SEPARATOR + " * "))),
-        name.toUpperCase(Locale.ROOT),
-        Format.quote(name)
-      ).indent(4));
+          """
+                              .stripTrailing()
+                              .formatted(
+                                  javadocDescription,
+                                  valuesForComment.stream()
+                                      .map(v -> "<li>" + v)
+                                      .collect(joining(LINE_SEPARATOR + " * "))),
+                      name.toUpperCase(Locale.ROOT),
+                      Format.quote(name))
+                  .indent(4));
 
-      List<String> values = valuesNode == null ? List.of() : valuesNode.isArray() ?
-        iterToList(valuesNode.elements()).stream().filter(JsonNode::isTextual).map(JsonNode::textValue)
-          .map(t -> t.replaceAll(" .*", "")).toList() :
-        iterToList(valuesNode.fieldNames());
-      if (values.size() > 0) {
-        fieldValues.append(values.stream()
-          .map(v -> "public static final String %s = %s;"
-            .formatted(name.toUpperCase(Locale.ROOT) + "_" + v.toUpperCase(Locale.ROOT).replace('-', '_'),
-              Format.quote(v)))
-          .collect(joining(LINE_SEPARATOR)).indent(2).strip()
-          .indent(4));
-        fieldValues.append("public static final Set<String> %s = Set.of(%s);".formatted(
-          name.toUpperCase(Locale.ROOT) + "_VALUES",
-          values.stream().map(Format::quote).collect(joining(", "))
-        ).indent(4));
-      }
+          List<String> values =
+              valuesNode == null
+                  ? List.of()
+                  : valuesNode.isArray()
+                      ? iterToList(valuesNode.elements()).stream()
+                          .filter(JsonNode::isTextual)
+                          .map(JsonNode::textValue)
+                          .map(t -> t.replaceAll(" .*", ""))
+                          .toList()
+                      : iterToList(valuesNode.fieldNames());
+          if (values.size() > 0) {
+            fieldValues.append(
+                values.stream()
+                    .map(
+                        v ->
+                            "public static final String %s = %s;"
+                                .formatted(
+                                    name.toUpperCase(Locale.ROOT)
+                                        + "_"
+                                        + v.toUpperCase(Locale.ROOT).replace('-', '_'),
+                                    Format.quote(v)))
+                    .collect(joining(LINE_SEPARATOR))
+                    .indent(2)
+                    .strip()
+                    .indent(4));
+            fieldValues.append(
+                "public static final Set<String> %s = Set.of(%s);"
+                    .formatted(
+                        name.toUpperCase(Locale.ROOT) + "_VALUES",
+                        values.stream().map(Format::quote).collect(joining(", ")))
+                    .indent(4));
+          }
 
-      if (valuesNode != null && valuesNode.isObject()) {
-        MultiExpression<String> mapping = generateFieldMapping(valuesNode);
-        fieldMappings.append("    public static final MultiExpression<String> %s = %s;%n"
-          .formatted(lowerUnderscoreToUpperCamel(name), generateJavaCode(mapping)));
-      }
-    });
+          if (valuesNode != null && valuesNode.isObject()) {
+            MultiExpression<String> mapping = generateFieldMapping(valuesNode);
+            fieldMappings.append(
+                "    public static final MultiExpression<String> %s = %s;%n"
+                    .formatted(lowerUnderscoreToUpperCamel(name), generateJavaCode(mapping)));
+          }
+        });
 
     return """
       /**
@@ -321,30 +368,32 @@ public class Generate {
           %s
         }
       }
-      """.formatted(
-      markdownToJavadoc(layer.layer.description),
-      escapeJavadoc(tag),
-      escapeJavadoc(layerName),
-      escapeJavadoc(layerName),
-      escapeJavadoc(layerName),
-      className,
-      layer.layer.buffer_size,
-      Format.quote(layerName),
-      escapeJavadoc(layerName),
-      fields.toString().strip(),
-      escapeJavadoc(layerName),
-      fieldValues.toString().strip(),
-      escapeJavadoc(layerName),
-      fieldMappings.toString().strip()
-    ).indent(2);
+      """
+        .formatted(
+            markdownToJavadoc(layer.layer.description),
+            escapeJavadoc(tag),
+            escapeJavadoc(layerName),
+            escapeJavadoc(layerName),
+            escapeJavadoc(layerName),
+            className,
+            layer.layer.buffer_size,
+            Format.quote(layerName),
+            escapeJavadoc(layerName),
+            fields.toString().strip(),
+            escapeJavadoc(layerName),
+            fieldValues.toString().strip(),
+            escapeJavadoc(layerName),
+            fieldMappings.toString().strip())
+        .indent(2);
   }
 
   /** Generates {@code Tables.java} */
-  private static void emitTableDefinitions(Map<String, Imposm3Table> tables, String packageName, Path output,
-    String tag)
-    throws IOException {
+  private static void emitTableDefinitions(
+      Map<String, Imposm3Table> tables, String packageName, Path output, String tag)
+      throws IOException {
     StringBuilder tablesClass = new StringBuilder();
-    tablesClass.append("""
+    tablesClass.append(
+        """
       %s
       package %s;
 
@@ -405,7 +454,8 @@ public class Generate {
             Class<?> handlerClass,
             RowHandler<T> handler
           ) {}
-      """.formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag)));
+      """
+            .formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag)));
 
     List<String> classNames = new ArrayList<>();
     Map<String, String> fieldNameToType = new TreeMap<>();
@@ -419,22 +469,23 @@ public class Generate {
           fieldNameToType.put(field.name, field.clazz);
         } else if (!existing.equals(field.clazz)) {
           throw new IllegalArgumentException(
-            "Field " + field.name + " has both " + existing + " and " + field.clazz + " types");
+              "Field " + field.name + " has both " + existing + " and " + field.clazz + " types");
         }
       }
       Expression mappingExpression = parseImposm3MappingExpression(table);
-      String mapping = """
+      String mapping =
+          """
         /** Imposm3 "mapping" to filter OSM elements that should appear in this "table". */
         public static final Expression MAPPING = %s;
-        """.formatted(
-        mappingExpression
-      );
+        """
+              .formatted(mappingExpression);
       String tableName = "osm_" + key;
       String className = lowerUnderscoreToUpperCamel(tableName);
       if (!"relation_member".equals(table.type)) {
         classNames.add(className);
 
-        tablesClass.append("""
+        tablesClass.append(
+            """
           /** An OSM element that would appear in the {@code %s} table generated by imposm3. */
           public record %s(%s) implements Row, %s {
             public %s(SourceFeature source, String mappingKey) {
@@ -449,58 +500,79 @@ public class Generate {
               void process(%s element, FeatureCollector features);
             }
           }
-          """.formatted(
-          tableName,
-          escapeJavadoc(className),
-          fields.stream().map(c -> "@Override " + c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
-            .collect(joining(", ")),
-          fields.stream().map(c -> lowerUnderscoreToUpperCamel("with_" + c.name))
-            .collect(joining(", ")),
-          className,
-          fields.stream().map(c -> c.extractCode).collect(joining(", ")),
-          mapping,
-          escapeJavadoc(className),
-          className
-        ).indent(2));
+          """
+                .formatted(
+                    tableName,
+                    escapeJavadoc(className),
+                    fields.stream()
+                        .map(
+                            c -> "@Override " + c.clazz + " " + lowerUnderscoreToLowerCamel(c.name))
+                        .collect(joining(", ")),
+                    fields.stream()
+                        .map(c -> lowerUnderscoreToUpperCamel("with_" + c.name))
+                        .collect(joining(", ")),
+                    className,
+                    fields.stream().map(c -> c.extractCode).collect(joining(", ")),
+                    mapping,
+                    escapeJavadoc(className),
+                    className)
+                .indent(2));
       }
     }
 
-    tablesClass.append(fieldNameToType.entrySet().stream().map(e -> {
-      String attrName = lowerUnderscoreToLowerCamel(e.getKey());
-      String type = e.getValue();
-      String interfaceName = lowerUnderscoreToUpperCamel("with_" + e.getKey());
-      return """
+    tablesClass.append(
+        fieldNameToType.entrySet().stream()
+            .map(
+                e -> {
+                  String attrName = lowerUnderscoreToLowerCamel(e.getKey());
+                  String type = e.getValue();
+                  String interfaceName = lowerUnderscoreToUpperCamel("with_" + e.getKey());
+                  return """
         /** Rows with a %s %s attribute. */
         public interface %s {
           %s %s();
         }
-        """.formatted(
-        escapeJavadoc(type),
-        escapeJavadoc(attrName),
-        interfaceName,
-        type,
-        attrName);
-    }).collect(joining(LINE_SEPARATOR)).indent(2));
+        """
+                      .formatted(
+                          escapeJavadoc(type),
+                          escapeJavadoc(attrName),
+                          interfaceName,
+                          type,
+                          attrName);
+                })
+            .collect(joining(LINE_SEPARATOR))
+            .indent(2));
 
-    tablesClass.append("""
+    tablesClass.append(
+        """
       /** Index to efficiently choose which imposm3 "tables" an element should appear in based on its attributes. */
       public static final MultiExpression<RowClassAndConstructor> MAPPINGS = MultiExpression.of(List.of(
         %s
       ));
-      """.formatted(
-      classNames.stream().map(
-          className -> "MultiExpression.entry(new RowClassAndConstructor(%s.class, %s::new), %s.MAPPING)".formatted(
-            className, className, className))
-        .collect(joining("," + LINE_SEPARATOR)).indent(2).strip()
-    ).indent(2));
-
-    String handlerCondition = classNames.stream().map(className ->
       """
+            .formatted(
+                classNames.stream()
+                    .map(
+                        className ->
+                            "MultiExpression.entry(new RowClassAndConstructor(%s.class, %s::new), %s.MAPPING)"
+                                .formatted(className, className, className))
+                    .collect(joining("," + LINE_SEPARATOR))
+                    .indent(2)
+                    .strip())
+            .indent(2));
+
+    String handlerCondition =
+        classNames.stream()
+            .map(
+                className ->
+                    """
         if (handler instanceof %s.Handler typedHandler) {
           result.computeIfAbsent(%s.class, cls -> new ArrayList<>()).add(new RowHandlerAndClass<>(typedHandler.getClass(), typedHandler::process));
-        }""".formatted(className, className)
-    ).collect(joining(LINE_SEPARATOR));
-    tablesClass.append("""
+        }"""
+                        .formatted(className, className))
+            .collect(joining(LINE_SEPARATOR));
+    tablesClass.append(
+        """
         /**
          * Returns a map from imposm3 "table row" class to the layers that have a handler for it from a list of layer
          * implementations.
@@ -513,39 +585,50 @@ public class Generate {
           return result;
         }
       }
-      """.formatted(handlerCondition.indent(6).trim()));
+      """
+            .formatted(handlerCondition.indent(6).trim()));
     Files.writeString(output.resolve("Tables.java"), tablesClass);
   }
 
   /**
-   * Returns an {@link Expression} that implements the same logic as the <a href="https://imposm.org/docs/imposm3/latest/mapping.html">Imposm3
-   * Data Mapping</a> definition for a table.
+   * Returns an {@link Expression} that implements the same logic as the <a
+   * href="https://imposm.org/docs/imposm3/latest/mapping.html">Imposm3 Data Mapping</a> definition
+   * for a table.
    */
   static Expression parseImposm3MappingExpression(Imposm3Table table) {
     if (table.type_mappings != null) {
-      return or(
-        table.type_mappings.entrySet().stream().map(entry ->
-          parseImposm3MappingExpression(entry.getKey(), entry.getValue(), table.filters)
-        ).toList()
-      ).simplify();
+      return or(table.type_mappings.entrySet().stream()
+              .map(
+                  entry ->
+                      parseImposm3MappingExpression(
+                          entry.getKey(), entry.getValue(), table.filters))
+              .toList())
+          .simplify();
     } else {
       return parseImposm3MappingExpression(table.type, table.mapping, table.filters);
     }
   }
 
   /**
-   * Returns an {@link Expression} that implements the same logic as the <a href="https://imposm.org/docs/imposm3/latest/mapping.html#filters">Imposm3
-   * Data Mapping filters</a> for a table.
+   * Returns an {@link Expression} that implements the same logic as the <a
+   * href="https://imposm.org/docs/imposm3/latest/mapping.html#filters">Imposm3 Data Mapping
+   * filters</a> for a table.
    */
-  static Expression parseImposm3MappingExpression(String type, JsonNode mapping, Imposm3Filters filters) {
+  static Expression parseImposm3MappingExpression(
+      String type, JsonNode mapping, Imposm3Filters filters) {
     return and(
-      or(parseFieldMappingExpression(mapping).toList()),
-      and(
-        filters == null || filters.require == null ? List.of() : parseFieldMappingExpression(filters.require).toList()),
-      not(or(
-        filters == null || filters.reject == null ? List.of() : parseFieldMappingExpression(filters.reject).toList())),
-      matchType(type.replaceAll("s$", ""))
-    ).simplify();
+            or(parseFieldMappingExpression(mapping).toList()),
+            and(
+                filters == null || filters.require == null
+                    ? List.of()
+                    : parseFieldMappingExpression(filters.require).toList()),
+            not(
+                or(
+                    filters == null || filters.reject == null
+                        ? List.of()
+                        : parseFieldMappingExpression(filters.reject).toList())),
+            matchType(type.replaceAll("s$", "")))
+        .simplify();
   }
 
   private static List<OsmTableField> parseTableFields(Imposm3Table tableDefinition) {
@@ -563,22 +646,34 @@ public class Generate {
         case "member_id", "member_role", "member_type", "member_index" -> {
           // do nothing
         }
-        case "mapping_key" -> result
-          .add(new OsmTableField("String", col.name, "mappingKey"));
-        case "mapping_value" -> result
-          .add(new OsmTableField("String", col.name, "source.getString(mappingKey)"));
-        case "string" -> result
-          .add(new OsmTableField("String", col.name,
-            "source.getString(\"%s\")".formatted(Objects.requireNonNull(col.key, col.toString()))));
-        case "bool" -> result
-          .add(new OsmTableField("boolean", col.name,
-            "source.getBoolean(\"%s\")".formatted(Objects.requireNonNull(col.key, col.toString()))));
-        case "integer" -> result
-          .add(new OsmTableField("long", col.name,
-            "source.getLong(\"%s\")".formatted(Objects.requireNonNull(col.key, col.toString()))));
+        case "mapping_key" -> result.add(new OsmTableField("String", col.name, "mappingKey"));
+        case "mapping_value" -> result.add(
+            new OsmTableField("String", col.name, "source.getString(mappingKey)"));
+        case "string" -> result.add(
+            new OsmTableField(
+                "String",
+                col.name,
+                "source.getString(\"%s\")"
+                    .formatted(Objects.requireNonNull(col.key, col.toString()))));
+        case "bool" -> result.add(
+            new OsmTableField(
+                "boolean",
+                col.name,
+                "source.getBoolean(\"%s\")"
+                    .formatted(Objects.requireNonNull(col.key, col.toString()))));
+        case "integer" -> result.add(
+            new OsmTableField(
+                "long",
+                col.name,
+                "source.getLong(\"%s\")"
+                    .formatted(Objects.requireNonNull(col.key, col.toString()))));
         case "wayzorder" -> result.add(new OsmTableField("int", col.name, "source.getWayZorder()"));
-        case "direction" -> result.add(new OsmTableField("int", col.name,
-          "source.getDirection(\"%s\")".formatted(Objects.requireNonNull(col.key, col.toString()))));
+        case "direction" -> result.add(
+            new OsmTableField(
+                "int",
+                col.name,
+                "source.getDirection(\"%s\")"
+                    .formatted(Objects.requireNonNull(col.key, col.toString()))));
         default -> throw new IllegalArgumentException("Unhandled column: " + col.type);
       }
     }
@@ -587,19 +682,22 @@ public class Generate {
   }
 
   /**
-   * Returns a {@link MultiExpression} to efficiently determine the value for an output vector tile feature (i.e.
-   * "class") based on the "field mapping" defined in the layer schema definition.
+   * Returns a {@link MultiExpression} to efficiently determine the value for an output vector tile
+   * feature (i.e. "class") based on the "field mapping" defined in the layer schema definition.
    */
   static MultiExpression<String> generateFieldMapping(JsonNode valuesNode) {
     MultiExpression<String> mapping = MultiExpression.of(new ArrayList<>());
-    valuesNode.fields().forEachRemaining(entry -> {
-      String field = entry.getKey();
-      JsonNode node = entry.getValue();
-      Expression expression = or(parseFieldMappingExpression(node).toList()).simplify();
-      if (!expression.equals(or()) && !expression.equals(and())) {
-        mapping.expressions().add(MultiExpression.entry(field, expression));
-      }
-    });
+    valuesNode
+        .fields()
+        .forEachRemaining(
+            entry -> {
+              String field = entry.getKey();
+              JsonNode node = entry.getValue();
+              Expression expression = or(parseFieldMappingExpression(node).toList()).simplify();
+              if (!expression.equals(or()) && !expression.equals(and())) {
+                mapping.expressions().add(MultiExpression.entry(field, expression));
+              }
+            });
     return mapping;
   }
 
@@ -617,11 +715,19 @@ public class Generate {
         }
         return Stream.of(or(parseFieldMappingExpression(node.get("__OR__")).toList()));
       } else {
-        return iterToList(node.fields()).stream().map(entry -> {
-          String field = entry.getKey();
-          List<String> value = toFlatList(entry.getValue()).map(JsonNode::textValue).filter(Objects::nonNull).toList();
-          return value.isEmpty() || value.contains("__any__") ? matchField(field) : matchAny(field, value);
-        });
+        return iterToList(node.fields()).stream()
+            .map(
+                entry -> {
+                  String field = entry.getKey();
+                  List<String> value =
+                      toFlatList(entry.getValue())
+                          .map(JsonNode::textValue)
+                          .filter(Objects::nonNull)
+                          .toList();
+                  return value.isEmpty() || value.contains("__any__")
+                      ? matchField(field)
+                      : matchAny(field, value);
+                });
       }
     } else if (node.isArray()) {
       return iterToList(node.elements()).stream().flatMap(Generate::parseFieldMappingExpression);
@@ -634,20 +740,29 @@ public class Generate {
 
   /**
    * Returns a flattened list of all the elements in nested arrays from {@code node}.
-   * <p>
-   * For example: {@code [[[a, b], c], [d]} becomes {@code [a, b, c, d]}
-   * <p>
-   * And {@code a} becomes {@code [a]}
+   *
+   * <p>For example: {@code [[[a, b], c], [d]} becomes {@code [a, b, c, d]}
+   *
+   * <p>And {@code a} becomes {@code [a]}
    */
   private static Stream<JsonNode> toFlatList(JsonNode node) {
-    return node.isArray() ? iterToList(node.elements()).stream().flatMap(Generate::toFlatList) : Stream.of(node);
+    return node.isArray()
+        ? iterToList(node.elements()).stream().flatMap(Generate::toFlatList)
+        : Stream.of(node);
   }
 
-  /** Returns java code that will recreate an {@link MultiExpression} identical to {@code mapping}. */
+  /**
+   * Returns java code that will recreate an {@link MultiExpression} identical to {@code mapping}.
+   */
   private static String generateJavaCode(MultiExpression<String> mapping) {
-    return "MultiExpression.of(List.of(" + mapping.expressions().stream()
-      .map(s -> "MultiExpression.entry(%s, %s)".formatted(Format.quote(s.result()), s.expression()))
-      .collect(joining(", ")) + "))";
+    return "MultiExpression.of(List.of("
+        + mapping.expressions().stream()
+            .map(
+                s ->
+                    "MultiExpression.entry(%s, %s)"
+                        .formatted(Format.quote(s.result()), s.expression()))
+            .collect(joining(", "))
+        + "))";
   }
 
   private static String lowerUnderscoreToLowerCamel(String name) {
@@ -664,13 +779,15 @@ public class Generate {
     return result;
   }
 
-  /** Renders {@code markdown} as HTML and returns comment text safe to insert in generated javadoc. */
+  /**
+   * Renders {@code markdown} as HTML and returns comment text safe to insert in generated javadoc.
+   */
   private static String markdownToJavadoc(String markdown) {
     return Stream.of(markdown.strip().split("[\r\n][\r\n]+"))
-      .map(p -> parser.parse(p.strip()))
-      .map(node -> escapeJavadoc(renderer.render(node)))
-      .map(p -> p.replaceAll("(^<p>|</p>$)", "").strip())
-      .collect(joining(LINE_SEPARATOR + "<p>" + LINE_SEPARATOR));
+        .map(p -> parser.parse(p.strip()))
+        .map(node -> escapeJavadoc(renderer.render(node)))
+        .map(p -> p.replaceAll("(^<p>|</p>$)", "").strip())
+        .collect(joining(LINE_SEPARATOR + "<p>" + LINE_SEPARATOR));
   }
 
   /** Returns {@code comment} text safe to insert in generated javadoc. */
@@ -690,69 +807,41 @@ public class Generate {
    * Models for deserializing yaml into:
    */
 
-  private record OpenmaptilesConfig(
-    OpenmaptilesTileSet tileset
-  ) {}
+  private record OpenmaptilesConfig(OpenmaptilesTileSet tileset) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record OpenmaptilesTileSet(
-    List<String> layers,
-    String version,
-    String attribution,
-    String name,
-    String description,
-    List<String> languages
-  ) {}
+      List<String> layers,
+      String version,
+      String attribution,
+      String name,
+      String description,
+      List<String> languages) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record LayerDetails(
-    String id,
-    String description,
-    Map<String, JsonNode> fields,
-    double buffer_size
-  ) {}
+      String id, String description, Map<String, JsonNode> fields, double buffer_size) {}
 
-  private record Datasource(
-    String type,
-    String mapping_file
-  ) {}
+  private record Datasource(String type, String mapping_file) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private record LayerConfig(
-    LayerDetails layer,
-    List<Datasource> datasources
-  ) {}
+  private record LayerConfig(LayerDetails layer, List<Datasource> datasources) {}
 
-  private record Imposm3Column(
-    String type,
-    String name,
-    String key,
-    boolean from_member
-  ) {}
+  private record Imposm3Column(String type, String name, String key, boolean from_member) {}
 
-  record Imposm3Filters(
-    JsonNode reject,
-    JsonNode require
-  ) {}
+  record Imposm3Filters(JsonNode reject, JsonNode require) {}
 
   record Imposm3Table(
-    String type,
-    @JsonProperty("_resolve_wikidata") boolean resolveWikidata,
-    List<Imposm3Column> columns,
-    Imposm3Filters filters,
-    JsonNode mapping,
-    Map<String, JsonNode> type_mappings,
-    @JsonProperty("relation_types") List<String> relationTypes
-  ) {}
+      String type,
+      @JsonProperty("_resolve_wikidata") boolean resolveWikidata,
+      List<Imposm3Column> columns,
+      Imposm3Filters filters,
+      JsonNode mapping,
+      Map<String, JsonNode> type_mappings,
+      @JsonProperty("relation_types") List<String> relationTypes) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private record Imposm3Mapping(
-    Map<String, Imposm3Table> tables
-  ) {}
+  private record Imposm3Mapping(Map<String, Imposm3Table> tables) {}
 
-  private record OsmTableField(
-    String clazz,
-    String name,
-    String extractCode
-  ) {}
+  private record OsmTableField(String clazz, String name, String extractCode) {}
 }

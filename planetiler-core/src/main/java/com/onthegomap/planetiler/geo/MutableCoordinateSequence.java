@@ -8,10 +8,10 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 
 /**
- * A 2-dimensional {@link CoordinateSequence} implementation backed by a {@link DoubleArrayList} that supports adding
- * points.
- * <p>
- * Reads are thread-safe but writes are not.
+ * A 2-dimensional {@link CoordinateSequence} implementation backed by a {@link DoubleArrayList}
+ * that supports adding points.
+ *
+ * <p>Reads are thread-safe but writes are not.
  */
 public class MutableCoordinateSequence extends PackedCoordinateSequence {
 
@@ -24,12 +24,13 @@ public class MutableCoordinateSequence extends PackedCoordinateSequence {
   /**
    * Returns a coordinate sequence that translates and scales coordinates on insertion.
    *
-   * @param relX  x origin of the translation
-   * @param relY  y origin of the translation
+   * @param relX x origin of the translation
+   * @param relY y origin of the translation
    * @param scale amount to scale by
    * @return the new empty coordinate sequence
    */
-  public static MutableCoordinateSequence newScalingSequence(double relX, double relY, double scale) {
+  public static MutableCoordinateSequence newScalingSequence(
+      double relX, double relY, double scale) {
     return new ScalingSequence(scale, relX, relY);
   }
 

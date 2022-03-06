@@ -44,65 +44,58 @@ public class GeoUtilsTest {
 
   @Test
   public void testPolygonToLineString() throws GeometryException {
-    assertEquals(newLineString(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ), GeoUtils.polygonToLineString(rectangle(
-      0, 1
-    )));
+    assertEquals(
+        newLineString(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0),
+        GeoUtils.polygonToLineString(rectangle(0, 1)));
   }
 
   @Test
   public void testMultiPolygonToLineString() throws GeometryException {
-    assertEquals(newLineString(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ), GeoUtils.polygonToLineString(newMultiPolygon(rectangle(
-      0, 1
-    ))));
+    assertEquals(
+        newLineString(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0),
+        GeoUtils.polygonToLineString(newMultiPolygon(rectangle(0, 1))));
   }
 
   @Test
   public void testLineRingToLineString() throws GeometryException {
-    assertEquals(newLineString(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ), GeoUtils.polygonToLineString(rectangle(
-      0, 1
-    ).getExteriorRing()));
+    assertEquals(
+        newLineString(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0),
+        GeoUtils.polygonToLineString(rectangle(0, 1).getExteriorRing()));
   }
 
   @Test
   public void testComplexPolygonToLineString() throws GeometryException {
-    assertEquals(newMultiLineString(
-      newLineString(
-        0, 0,
-        3, 0,
-        3, 3,
-        0, 3,
-        0, 0
-      ), newLineString(
-        1, 1,
-        2, 1,
-        2, 2,
-        1, 2,
-        1, 1
-      )
-    ), GeoUtils.polygonToLineString(newPolygon(
-      rectangleCoordList(
-        0, 3
-      ), List.of(rectangleCoordList(
-        1, 2
-      )))));
+    assertEquals(
+        newMultiLineString(
+            newLineString(
+                0, 0,
+                3, 0,
+                3, 3,
+                0, 3,
+                0, 0),
+            newLineString(
+                1, 1,
+                2, 1,
+                2, 2,
+                1, 2,
+                1, 1)),
+        GeoUtils.polygonToLineString(
+            newPolygon(rectangleCoordList(0, 3), List.of(rectangleCoordList(1, 2)))));
   }
 
   @ParameterizedTest
@@ -117,185 +110,136 @@ public class GeoUtilsTest {
 
   @Test
   public void testIsConvexTriangle() {
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      0, 1,
-      0, 0
-    ));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            0, 1,
+            0, 0));
   }
 
   @Test
   public void testIsConvexRectangle() {
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0));
   }
 
   @Test
   public void testBarelyConvexRectangle() {
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.5, 0.5,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.4, 0.4,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.7, 0.7,
-      0, 0
-    ));
+    assertConvex(true, newLinearRing(0, 0, 1, 0, 1, 1, 0.5, 0.5, 0, 0));
+    assertConvex(true, newLinearRing(0, 0, 1, 0, 1, 1, 0.4, 0.4, 0, 0));
+    assertConvex(true, newLinearRing(0, 0, 1, 0, 1, 1, 0.7, 0.7, 0, 0));
   }
 
   @Test
   public void testConcaveRectangleDoublePoints() {
-    assertConvex(true, newLinearRing(
-      0, 0,
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0,
-      0, 0
-    ));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 1,
+            1, 1,
+            0, 1,
+            0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 1,
+            0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0,
+            0, 0));
   }
 
   @Test
   public void testBarelyConcaveRectangle() {
-    assertConvex(false, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.51, 0.5,
-      0, 0
-    ));
+    assertConvex(false, newLinearRing(0, 0, 1, 0, 1, 1, 0.51, 0.5, 0, 0));
   }
 
   @Test
   public void test5PointsConcave() {
-    assertConvex(false, newLinearRing(
-      0, 0,
-      0.5, 0.1,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(false, newLinearRing(
-      0, 0,
-      1, 0,
-      0.9, 0.5,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(false, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.5, 0.9,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(false, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0.1, 0.5,
-      0, 0
-    ));
+    assertConvex(false, newLinearRing(0, 0, 0.5, 0.1, 1, 0, 1, 1, 0, 1, 0, 0));
+    assertConvex(false, newLinearRing(0, 0, 1, 0, 0.9, 0.5, 1, 1, 0, 1, 0, 0));
+    assertConvex(false, newLinearRing(0, 0, 1, 0, 1, 1, 0.5, 0.9, 0, 1, 0, 0));
+    assertConvex(false, newLinearRing(0, 0, 1, 0, 1, 1, 0, 1, 0.1, 0.5, 0, 0));
   }
 
   @Test
   public void test5PointsColinear() {
-    assertConvex(true, newLinearRing(
-      0, 0,
-      0.5, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 0.5,
-      1, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0.5, 1,
-      0, 1,
-      0, 0
-    ));
-    assertConvex(true, newLinearRing(
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
-      0, 0.5,
-      0, 0
-    ));
+    assertConvex(true, newLinearRing(0, 0, 0.5, 0, 1, 0, 1, 1, 0, 1, 0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 0.5,
+            1, 1,
+            0, 1,
+            0, 0));
+    assertConvex(true, newLinearRing(0, 0, 1, 0, 1, 1, 0.5, 1, 0, 1, 0, 0));
+    assertConvex(
+        true,
+        newLinearRing(
+            0, 0,
+            1, 0,
+            1, 1,
+            0, 1,
+            0, 0.5,
+            0, 0));
   }
 
   private static void assertConvex(boolean isConvex, LinearRing ring) {
-    for (double rotation : new double[]{0, 90, 180, 270}) {
-      LinearRing rotated = (LinearRing) AffineTransformation.rotationInstance(Math.toRadians(rotation)).transform(ring);
-      for (boolean flip : new boolean[]{false, true}) {
-        LinearRing flipped = flip ? (LinearRing) AffineTransformation.scaleInstance(-1, 1).transform(rotated) : rotated;
-        for (boolean reverse : new boolean[]{false, true}) {
+    for (double rotation : new double[] {0, 90, 180, 270}) {
+      LinearRing rotated =
+          (LinearRing)
+              AffineTransformation.rotationInstance(Math.toRadians(rotation)).transform(ring);
+      for (boolean flip : new boolean[] {false, true}) {
+        LinearRing flipped =
+            flip
+                ? (LinearRing) AffineTransformation.scaleInstance(-1, 1).transform(rotated)
+                : rotated;
+        for (boolean reverse : new boolean[] {false, true}) {
           LinearRing reversed = reverse ? flipped.reverse() : flipped;
-          assertEquals(isConvex, isConvex(reversed), "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
+          assertEquals(
+              isConvex,
+              isConvex(reversed),
+              "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
         }
       }
     }

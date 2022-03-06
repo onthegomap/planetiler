@@ -21,9 +21,7 @@ public class ExpressionTest {
 
   @Test
   public void testSimplifyAdjacentOrs() {
-    assertEquals(or(matchAB, matchCD),
-      or(or(matchAB), or(matchCD)).simplify()
-    );
+    assertEquals(or(matchAB, matchCD), or(or(matchAB), or(matchCD)).simplify());
   }
 
   @Test
@@ -43,14 +41,13 @@ public class ExpressionTest {
 
   @Test
   public void testSimplifyDeeplyNested2() {
-    assertEquals(or(matchAB, matchBC),
-      or(or(and(and(matchAB)), matchBC)).simplify());
+    assertEquals(or(matchAB, matchBC), or(or(and(and(matchAB)), matchBC)).simplify());
   }
 
   @Test
   public void testSimplifyDeeplyNested3() {
-    assertEquals(or(and(matchAB, matchCD), matchBC),
-      or(or(and(and(matchAB), matchCD), matchBC)).simplify());
+    assertEquals(
+        or(and(matchAB, matchCD), matchBC), or(or(and(and(matchAB), matchCD), matchBC)).simplify());
   }
 
   @Test
@@ -81,17 +78,16 @@ public class ExpressionTest {
   @Test
   public void testReplace() {
     assertEquals(
-      or(not(matchCD), matchCD, and(matchCD, matchBC)),
-      or(not(matchAB), matchAB, and(matchAB, matchBC))
-        .replace(matchAB, matchCD));
+        or(not(matchCD), matchCD, and(matchCD, matchBC)),
+        or(not(matchAB), matchAB, and(matchAB, matchBC)).replace(matchAB, matchCD));
   }
 
   @Test
   public void testReplacePredicate() {
     assertEquals(
-      or(not(matchCD), matchCD, and(matchCD, matchCD)),
-      or(not(matchCD), matchCD, and(matchCD, matchCD))
-        .replace(e -> Set.of(matchAB, matchBC).contains(e), matchCD));
+        or(not(matchCD), matchCD, and(matchCD, matchCD)),
+        or(not(matchCD), matchCD, and(matchCD, matchCD))
+            .replace(e -> Set.of(matchAB, matchBC).contains(e), matchCD));
   }
 
   @Test

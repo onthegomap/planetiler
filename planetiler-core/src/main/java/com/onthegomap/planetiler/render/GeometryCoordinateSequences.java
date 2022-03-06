@@ -17,33 +17,36 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
- * Utility for converting back and forth between {@code Geometry} and {@code List<List<CoordinateSequence>>}
- * representing linestrings or polygons.
- * <p>
- * The {@code List<List<CoordinateSequence>>} format is:
+ * Utility for converting back and forth between {@code Geometry} and {@code
+ * List<List<CoordinateSequence>>} representing linestrings or polygons.
+ *
+ * <p>The {@code List<List<CoordinateSequence>>} format is:
+ *
  * <ul>
- *   <li>For linestrings: {@code [[linestring], [linestring], ...]}</li> for each linestring in the collection
- *   <li>For polygons: {@code [[outer ring, inner ring, inner ring], [outer ring, inner ring, ...], ...]}</li> for each
- *   polygon in the multipolygon
+ *   <li>For linestrings: {@code [[linestring], [linestring], ...]} for each linestring in the
+ *       collection
+ *   <li>For polygons: {@code [[outer ring, inner ring, inner ring], [outer ring, inner ring, ...],
+ *       ...]} for each polygon in the multipolygon
  * </ul>
  */
 class GeometryCoordinateSequences {
 
   /**
-   * Returns the coordinate sequences extracted from every linear component in {@code geom} over a minimum size
-   * threshold.
-   * <p>
-   * For {@link LineString LineStrings} that means all linestrings over a certain length.
-   * <p>
-   * For {@link Polygon Polygons} that means all lists of [exterior, interior...] ring coordinate sequences where the
-   * ring is over a certain area.  This utility also ensures that exterior and interior rings use counter-clockwise
-   * winding.
+   * Returns the coordinate sequences extracted from every linear component in {@code geom} over a
+   * minimum size threshold.
    *
-   * @param geom    one or more linestings or polygons
-   * @param minSize minimum length of linestrings, or minimum area of exterior/interior rings to include
+   * <p>For {@link LineString LineStrings} that means all linestrings over a certain length.
+   *
+   * <p>For {@link Polygon Polygons} that means all lists of [exterior, interior...] ring coordinate
+   * sequences where the ring is over a certain area. This utility also ensures that exterior and
+   * interior rings use counter-clockwise winding.
+   *
+   * @param geom one or more linestings or polygons
+   * @param minSize minimum length of linestrings, or minimum area of exterior/interior rings to
+   *     include
    * @return the coordinate sequences of the geometry
-   * @throws IllegalArgumentException if {@code geom} contains anything other than linestrings or polygons (i.e.
-   *                                  points)
+   * @throws IllegalArgumentException if {@code geom} contains anything other than linestrings or
+   *     polygons (i.e. points)
    */
   static List<List<CoordinateSequence>> extractGroups(Geometry geom, double minSize) {
     List<List<CoordinateSequence>> result = new ArrayList<>();
@@ -52,7 +55,8 @@ class GeometryCoordinateSequences {
   }
 
   /** Accumulates linear components we find over {@code minSize} into {@code groups}. */
-  private static void extractGroups(Geometry geom, List<List<CoordinateSequence>> groups, double minSize) {
+  private static void extractGroups(
+      Geometry geom, List<List<CoordinateSequence>> groups, double minSize) {
     if (geom.isEmpty()) {
       // ignore empty geometries
     } else if (geom instanceof GeometryCollection) {
@@ -73,7 +77,8 @@ class GeometryCoordinateSequences {
   }
 
   /** Accumulates outer/inner rings over {@code minArea} into {@code groups}. */
-  private static void extractGroupsFromPolygon(List<List<CoordinateSequence>> groups, double minArea, Polygon polygon) {
+  private static void extractGroupsFromPolygon(
+      List<List<CoordinateSequence>> groups, double minArea, Polygon polygon) {
     CoordinateSequence outer = polygon.getExteriorRing().getCoordinateSequence();
     double outerArea = Area.ofRingSigned(outer);
     // ensure CCW winding
@@ -98,7 +103,10 @@ class GeometryCoordinateSequences {
     }
   }
 
-  /** Returns a {@link LineString} or {@link MultiLineString} containing all coordinate sequences in {@code geoms}. */
+  /**
+   * Returns a {@link LineString} or {@link MultiLineString} containing all coordinate sequences in
+   * {@code geoms}.
+   */
   static Geometry reassembleLineStrings(List<List<CoordinateSequence>> geoms) {
     List<LineString> lineStrings = new ArrayList<>();
     for (List<CoordinateSequence> inner : geoms) {
@@ -111,16 +119,17 @@ class GeometryCoordinateSequences {
     return GeoUtils.combineLineStrings(lineStrings);
   }
 
-
   /**
-   * Returns a {@link Polygon} or {@link MultiPolygon} from all groups of exterior/interior rings in {@code groups}.
+   * Returns a {@link Polygon} or {@link MultiPolygon} from all groups of exterior/interior rings in
+   * {@code groups}.
    *
-   * @param groups a list of polygons where the first element in each inner list is the exterior ring and subsequent
-   *               elements are inner rings.
+   * @param groups a list of polygons where the first element in each inner list is the exterior
+   *     ring and subsequent elements are inner rings.
    * @return the {@link Polygon} or {@link MultiPolygon}
    * @throws GeometryException if rings are not closed or have too few points
    */
-  static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups) throws GeometryException {
+  static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups)
+      throws GeometryException {
     int numGeoms = groups.size();
     if (numGeoms == 1) {
       return reassemblePolygon(groups.get(0));
@@ -133,8 +142,12 @@ class GeometryCoordinateSequences {
     }
   }
 
-  /** Returns a {@link Polygon} built from all outer/inner rings in {@code group}, reversing all inner rings. */
-  private static Polygon reassemblePolygon(List<CoordinateSequence> group) throws GeometryException {
+  /**
+   * Returns a {@link Polygon} built from all outer/inner rings in {@code group}, reversing all
+   * inner rings.
+   */
+  private static Polygon reassemblePolygon(List<CoordinateSequence> group)
+      throws GeometryException {
     try {
       LinearRing first = GeoUtils.JTS_FACTORY.createLinearRing(group.get(0));
       LinearRing[] rest = new LinearRing[group.size() - 1];
@@ -149,7 +162,10 @@ class GeometryCoordinateSequences {
     }
   }
 
-  /** Returns a {@link Polygon} built from all outer/inner rings in {@code group}, reversing all inner rings. */
+  /**
+   * Returns a {@link Polygon} built from all outer/inner rings in {@code group}, reversing all
+   * inner rings.
+   */
   static Geometry reassemblePoints(List<List<CoordinateSequence>> result) {
     List<Point> points = new ArrayList<>();
     for (List<CoordinateSequence> inner : result) {

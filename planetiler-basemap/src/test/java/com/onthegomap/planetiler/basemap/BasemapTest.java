@@ -31,33 +31,32 @@ import org.locationtech.jts.geom.Polygon;
 
 /**
  * End-to-end tests for basemap generation.
- * <p>
- * Generates an entire map for the smallest openstreetmap extract available (Monaco) and asserts that expected output
- * features exist
+ *
+ * <p>Generates an entire map for the smallest openstreetmap extract available (Monaco) and asserts
+ * that expected output features exist
  */
 public class BasemapTest {
 
-  @TempDir
-  static Path tmpDir;
+  @TempDir static Path tmpDir;
   private static Mbtiles mbtiles;
 
   @BeforeAll
   public static void runPlanetiler() throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
-    BasemapMain.run(Arguments.of(
-      // Override input source locations
-      "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
-      "natural_earth_path", TestUtils.pathToResource("natural_earth_vector.sqlite.zip"),
-      "water_polygons_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
-      // no centerlines in monaco - so fake it out with an empty source
-      "lake_centerlines_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
+    BasemapMain.run(
+        Arguments.of(
+            // Override input source locations
+            "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
+            "natural_earth_path", TestUtils.pathToResource("natural_earth_vector.sqlite.zip"),
+            "water_polygons_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
+            // no centerlines in monaco - so fake it out with an empty source
+            "lake_centerlines_path", TestUtils.pathToResource("water-polygons-split-3857.zip"),
 
-      // Override temp dir location
-      "tmp", tmpDir.toString(),
+            // Override temp dir location
+            "tmp", tmpDir.toString(),
 
-      // Override output location
-      "mbtiles", dbPath.toString()
-    ));
+            // Override output location
+            "mbtiles", dbPath.toString()));
     mbtiles = Mbtiles.newReadOnlyDatabase(dbPath);
   }
 
@@ -94,26 +93,36 @@ public class BasemapTest {
 
   @Test
   public void testContainsOceanPolyons() {
-    assertFeatureNear(mbtiles, "water", Map.of(
-      "class", "ocean"
-    ), 7.4484, 43.70783, 0, 14);
+    assertFeatureNear(mbtiles, "water", Map.of("class", "ocean"), 7.4484, 43.70783, 0, 14);
   }
 
   @Test
   public void testContainsCountryName() {
-    assertFeatureNear(mbtiles, "place", Map.of(
-      "class", "country",
-      "iso_a2", "MC",
-      "name", "Monaco"
-    ), 7.42769, 43.73235, 2, 14);
+    assertFeatureNear(
+        mbtiles,
+        "place",
+        Map.of(
+            "class", "country",
+            "iso_a2", "MC",
+            "name", "Monaco"),
+        7.42769,
+        43.73235,
+        2,
+        14);
   }
 
   @Test
   public void testContainsSuburb() {
-    assertFeatureNear(mbtiles, "place", Map.of(
-      "name", "Les Moneghetti",
-      "class", "suburb"
-    ), 7.41746, 43.73638, 11, 14);
+    assertFeatureNear(
+        mbtiles,
+        "place",
+        Map.of(
+            "name", "Les Moneghetti",
+            "class", "suburb"),
+        7.41746,
+        43.73638,
+        11,
+        14);
   }
 
   @Test
@@ -125,101 +134,126 @@ public class BasemapTest {
 
   @Test
   public void testContainsHousenumber() {
-    assertFeatureNear(mbtiles, "housenumber", Map.of(
-      "housenumber", "27"
-    ), 7.42117, 43.73652, 14, 14);
+    assertFeatureNear(
+        mbtiles, "housenumber", Map.of("housenumber", "27"), 7.42117, 43.73652, 14, 14);
     assertNumFeatures("housenumber", Map.of(), 14, 274, Point.class);
   }
 
   @Test
   public void testBoundary() {
-    assertFeatureNear(mbtiles, "boundary", Map.of(
-      "admin_level", 2L,
-      "maritime", 1L,
-      "disputed", 0L
-    ), 7.41884, 43.72396, 4, 14);
+    assertFeatureNear(
+        mbtiles,
+        "boundary",
+        Map.of(
+            "admin_level", 2L,
+            "maritime", 1L,
+            "disputed", 0L),
+        7.41884,
+        43.72396,
+        4,
+        14);
   }
 
   @Test
   public void testAeroway() {
-    assertNumFeatures("aeroway", Map.of(
-      "class", "heliport"
-    ), 14, 1, Polygon.class);
-    assertNumFeatures("aeroway", Map.of(
-      "class", "helipad"
-    ), 14, 11, Polygon.class);
+    assertNumFeatures("aeroway", Map.of("class", "heliport"), 14, 1, Polygon.class);
+    assertNumFeatures("aeroway", Map.of("class", "helipad"), 14, 11, Polygon.class);
   }
 
   @Test
   public void testLandcover() {
-    assertNumFeatures("landcover", Map.of(
-      "class", "grass",
-      "subclass", "park"
-    ), 14, 20, Polygon.class);
-    assertNumFeatures("landcover", Map.of(
-      "class", "grass",
-      "subclass", "garden"
-    ), 14, 33, Polygon.class);
+    assertNumFeatures(
+        "landcover",
+        Map.of(
+            "class", "grass",
+            "subclass", "park"),
+        14,
+        20,
+        Polygon.class);
+    assertNumFeatures(
+        "landcover",
+        Map.of(
+            "class", "grass",
+            "subclass", "garden"),
+        14,
+        33,
+        Polygon.class);
   }
 
   @Test
   public void testPoi() {
-    assertNumFeatures("poi", Map.of(
-      "class", "restaurant",
-      "subclass", "restaurant"
-    ), 14, 217, Point.class);
-    assertNumFeatures("poi", Map.of(
-      "class", "art_gallery",
-      "subclass", "artwork"
-    ), 14, 132, Point.class);
+    assertNumFeatures(
+        "poi",
+        Map.of(
+            "class", "restaurant",
+            "subclass", "restaurant"),
+        14,
+        217,
+        Point.class);
+    assertNumFeatures(
+        "poi",
+        Map.of(
+            "class", "art_gallery",
+            "subclass", "artwork"),
+        14,
+        132,
+        Point.class);
   }
 
   @Test
   public void testLanduse() {
-    assertNumFeatures("landuse", Map.of(
-      "class", "residential"
-    ), 14, 8, Polygon.class);
-    assertNumFeatures("landuse", Map.of(
-      "class", "hospital"
-    ), 14, 4, Polygon.class);
+    assertNumFeatures("landuse", Map.of("class", "residential"), 14, 8, Polygon.class);
+    assertNumFeatures("landuse", Map.of("class", "hospital"), 14, 4, Polygon.class);
   }
 
   @Test
   public void testTransportation() {
-    assertNumFeatures("transportation", Map.of(
-      "class", "path",
-      "subclass", "footway"
-    ), 14, 909, LineString.class);
-    assertNumFeatures("transportation", Map.of(
-      "class", "primary"
-    ), 14, 170, LineString.class);
+    assertNumFeatures(
+        "transportation",
+        Map.of(
+            "class", "path",
+            "subclass", "footway"),
+        14,
+        909,
+        LineString.class);
+    assertNumFeatures("transportation", Map.of("class", "primary"), 14, 170, LineString.class);
   }
 
   @Test
   public void testTransportationName() {
-    assertNumFeatures("transportation_name", Map.of(
-      "name", "Boulevard du Larvotto",
-      "class", "primary"
-    ), 14, 12, LineString.class);
+    assertNumFeatures(
+        "transportation_name",
+        Map.of(
+            "name", "Boulevard du Larvotto",
+            "class", "primary"),
+        14,
+        12,
+        LineString.class);
   }
 
   @Test
   public void testWaterway() {
-    assertNumFeatures("waterway", Map.of(
-      "class", "stream"
-    ), 14, 6, LineString.class);
+    assertNumFeatures("waterway", Map.of("class", "stream"), 14, 6, LineString.class);
   }
 
   @TestFactory
   public Stream<DynamicTest> testVerifyChecks() {
     return VerifyMonaco.verify(mbtiles).results().stream()
-      .map(check -> dynamicTest(check.name(), () -> {
-        check.error().ifPresent(Assertions::fail);
-      }));
+        .map(
+            check ->
+                dynamicTest(
+                    check.name(),
+                    () -> {
+                      check.error().ifPresent(Assertions::fail);
+                    }));
   }
 
-  private static void assertNumFeatures(String layer, Map<String, Object> attrs, int zoom,
-    int expected, Class<? extends Geometry> clazz) {
+  private static void assertNumFeatures(
+      String layer,
+      Map<String, Object> attrs,
+      int zoom,
+      int expected,
+      Class<? extends Geometry> clazz) {
     TestUtils.assertNumFeatures(mbtiles, layer, zoom, attrs, MONACO_BOUNDS, expected, clazz);
   }
 }

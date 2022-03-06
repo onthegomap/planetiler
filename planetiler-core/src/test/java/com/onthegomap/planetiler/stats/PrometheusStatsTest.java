@@ -23,12 +23,12 @@ public class PrometheusStatsTest {
   public Stream<DynamicTest> testInitialStat() {
     PrometheusStats stats = new PrometheusStats("job");
     String metrics = stats.getMetricsAsString();
-    return testContains(metrics,
-      "^jvm_thread_cpu_time_seconds_total\\{",
-      "^jvm_thread_user_time_seconds_total\\{",
-      "^jvm_system_load_avg ",
-      "^jvm_available_processors [0-9\\.]+$"
-    );
+    return testContains(
+        metrics,
+        "^jvm_thread_cpu_time_seconds_total\\{",
+        "^jvm_thread_user_time_seconds_total\\{",
+        "^jvm_system_load_avg ",
+        "^jvm_available_processors [0-9\\.]+$");
   }
 
   @Test
@@ -92,7 +92,8 @@ public class PrometheusStatsTest {
     stats.wroteTile(0, 10);
     stats.wroteTile(0, 10_000);
     assertContainsStat("^planetiler_mbtiles_tile_written_bytes_bucket\\{.*le=\"1000\\..* 1", stats);
-    assertContainsStat("^planetiler_mbtiles_tile_written_bytes_bucket\\{.*le=\"10000\\..* 2", stats);
+    assertContainsStat(
+        "^planetiler_mbtiles_tile_written_bytes_bucket\\{.*le=\"10000\\..* 2", stats);
   }
 
   @Test
@@ -122,10 +123,13 @@ public class PrometheusStatsTest {
   public void testCounter() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.counter("counter1", () -> 1);
-    stats.counter("counter2", "label", () -> Map.of(
-      "value1", counterAt(1),
-      "value2", counterAt(2)
-    ));
+    stats.counter(
+        "counter2",
+        "label",
+        () ->
+            Map.of(
+                "value1", counterAt(1),
+                "value2", counterAt(2)));
     var longCounter = stats.longCounter("long");
     longCounter.incBy(100);
     assertEquals(100, longCounter.get());

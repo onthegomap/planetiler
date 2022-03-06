@@ -51,8 +51,9 @@ public abstract class LongLongMapTest {
     map.put(1_000_000_000, Long.MAX_VALUE);
     assertEquals(Long.MIN_VALUE, map.get(0));
     assertEquals(Long.MIN_VALUE, map.get(3));
-    assertArrayEquals(new long[]{3, 4, Long.MAX_VALUE, Long.MIN_VALUE},
-      map.multiGet(new long[]{1, 2, 1_000_000_000, 3}));
+    assertArrayEquals(
+        new long[] {3, 4, Long.MAX_VALUE, Long.MIN_VALUE},
+        map.multiGet(new long[] {1, 2, 1_000_000_000, 3}));
   }
 
   @Test
@@ -74,12 +75,10 @@ public abstract class LongLongMapTest {
 
     @BeforeEach
     public void setup() {
-      this.map = new LongLongMap.SortedTable(
-        new AppendStore.SmallLongs(
-          i -> new AppendStoreRam.Ints()
-        ),
-        new AppendStoreRam.Longs()
-      );
+      this.map =
+          new LongLongMap.SortedTable(
+              new AppendStore.SmallLongs(i -> new AppendStoreRam.Ints()),
+              new AppendStoreRam.Longs());
     }
   }
 

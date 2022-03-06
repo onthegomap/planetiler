@@ -19,16 +19,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Alternative driver program for {@link ToiletsOverlay} that uses the low-level planetiler APIs instead of the {@link
- * Planetiler} convenience wrapper.
- * <p>
- * To run this example:
+ * Alternative driver program for {@link ToiletsOverlay} that uses the low-level planetiler APIs
+ * instead of the {@link Planetiler} convenience wrapper.
+ *
+ * <p>To run this example:
+ *
  * <ol>
- *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
- *   <li>then build the examples: {@code mvn clean package}</li>
- *   <li>then run this example: {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi}</li>
- *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}</li>
- *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
+ *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik
+ *       download site</a>
+ *   <li>then build the examples: {@code mvn clean package}
+ *   <li>then run this example: {@code java -cp target/*-fatjar.jar
+ *       com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi}
+ *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}
+ *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a>
  * </ol>
  */
 public class ToiletsOverlayLowLevelApi {
@@ -37,10 +40,9 @@ public class ToiletsOverlayLowLevelApi {
 
   public static void main(String[] args) throws Exception {
     run(
-      Path.of("data", "sources", "input.pbf"),
-      Path.of("data", "tmp"),
-      Path.of("data", "toilets.mbtiles")
-    );
+        Path.of("data", "sources", "input.pbf"),
+        Path.of("data", "tmp"),
+        Path.of("data", "toilets.mbtiles"));
   }
 
   static void run(Path input, Path tmpDir, Path output) throws IOException {
@@ -70,30 +72,32 @@ public class ToiletsOverlayLowLevelApi {
      * sort more data than fits in memory - but if you have a lot of RAM there is FeatureSort.inMemory
      * option too.
      */
-    FeatureGroup featureGroup = FeatureGroup.newDiskBackedFeatureGroup(
-      tmpDir.resolve("feature.db"),
-      profile, config, stats
-    );
+    FeatureGroup featureGroup =
+        FeatureGroup.newDiskBackedFeatureGroup(
+            tmpDir.resolve("feature.db"), profile, config, stats);
 
     try (
-      /*
-       * OSM nodes each have a latitude/longitude, and ways are a collection of node IDs so to
-       * get the shape of ways we need to store the latitude and longitude of each node and look
-       * them up when processing each way. There are several in-memory and disk-based options,
-       * but even for the disk-based ones you'll likely need enough RAM to fit the whole thing for
-       * random-access lookups to be fast.
-       *
-       * BUT, since this profile only needs nodes and not ways we can use the noop version to avoid storing
-       * any node locations.
-       */
-      var nodeLocations = LongLongMap.noop();
-      var osmReader = new OsmReader("osm", new OsmInputFile(input), nodeLocations, profile, stats)
-    ) {
-      // Normally you need to run OsmReader.pass1(config) first which stores node locations and preprocesses relations for
-      // way processing, and counts elements. But since this profile only processes nodes we can skip pass 1.
+    /*
+     * OSM nodes each have a latitude/longitude, and ways are a collection of node IDs so to
+     * get the shape of ways we need to store the latitude and longitude of each node and look
+     * them up when processing each way. There are several in-memory and disk-based options,
+     * but even for the disk-based ones you'll likely need enough RAM to fit the whole thing for
+     * random-access lookups to be fast.
+     *
+     * BUT, since this profile only needs nodes and not ways we can use the noop version to avoid storing
+     * any node locations.
+     */
+    var nodeLocations = LongLongMap.noop();
+        var osmReader =
+            new OsmReader("osm", new OsmInputFile(input), nodeLocations, profile, stats)) {
+      // Normally you need to run OsmReader.pass1(config) first which stores node locations and
+      // preprocesses relations for
+      // way processing, and counts elements. But since this profile only processes nodes we can
+      // skip pass 1.
       LOGGER.info("Skipping OsmReader.pass1(config) since we don't care about ways or relations");
 
-      // make the second pass through OSM data which emits output map features for each input source feature
+      // make the second pass through OSM data which emits output map features for each input source
+      // feature
       osmReader.pass2(featureGroup, config);
     } finally {
       // normally you'll want to release any resources/memory held by the profile

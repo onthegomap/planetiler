@@ -32,10 +32,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link Stats} implementation that pushes metrics to a <a href="https://prometheus.io/">prometheus</a> instance
- * through a <a href="https://github.com/prometheus/pushgateway">push gateway</a>.
- * <p>
- * See {@code grafana.json} for an example grafana dashboard you can use to monitor progress.
+ * A {@link Stats} implementation that pushes metrics to a <a
+ * href="https://prometheus.io/">prometheus</a> instance through a <a
+ * href="https://github.com/prometheus/pushgateway">push gateway</a>.
+ *
+ * <p>See {@code grafana.json} for an example grafana dashboard you can use to monitor progress.
  */
 class PrometheusStats implements Stats {
 
@@ -48,7 +49,8 @@ class PrometheusStats implements Stats {
   private ScheduledExecutorService executor;
   private final String job;
   private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
-  private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
+  private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor =
+      new ConcurrentSkipListMap<>();
 
   /** Constructs a new instance but does not start polling (for tests). */
   PrometheusStats(String job) {
@@ -73,20 +75,25 @@ class PrometheusStats implements Stats {
         }
       }
       this.push();
-      executor = Executors.newScheduledThreadPool(1, r -> {
-        Thread thread = new Thread(r);
-        thread.setDaemon(true);
-        thread.setName("prometheus-pusher");
-        return thread;
-      });
-      executor.scheduleAtFixedRate(this::push, 0, Math.max(interval.getSeconds(), 5), TimeUnit.SECONDS);
+      executor =
+          Executors.newScheduledThreadPool(
+              1,
+              r -> {
+                Thread thread = new Thread(r);
+                thread.setDaemon(true);
+                thread.setName("prometheus-pusher");
+                return thread;
+              });
+      executor.scheduleAtFixedRate(
+          this::push, 0, Math.max(interval.getSeconds(), 5), TimeUnit.SECONDS);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   /**
-   * Returns a new {@code PrometheusStats} that and schedules it to push to {@code destination} every {@code interval}.
+   * Returns a new {@code PrometheusStats} that and schedules it to push to {@code destination}
+   * every {@code interval}.
    */
   static PrometheusStats createAndStartPushing(String destination, String job, Duration interval) {
     return new PrometheusStats(destination, job, interval);
@@ -105,35 +112,39 @@ class PrometheusStats implements Stats {
     new Collector() {
       @Override
       public List<MetricFamilySamples> collect() {
-        return List.of(new GaugeMetricFamily(BASE + sanitizeMetricName(name), "", value.get().doubleValue()));
+        return List.of(
+            new GaugeMetricFamily(BASE + sanitizeMetricName(name), "", value.get().doubleValue()));
       }
     }.register(registry);
   }
 
-  private final io.prometheus.client.Counter processedElements = io.prometheus.client.Counter
-    .build(BASE + "renderer_elements_processed", "Number of source elements processed")
-    .labelNames("type", "layer")
-    .register(registry);
+  private final io.prometheus.client.Counter processedElements =
+      io.prometheus.client.Counter.build(
+              BASE + "renderer_elements_processed", "Number of source elements processed")
+          .labelNames("type", "layer")
+          .register(registry);
 
   @Override
   public void processedElement(String elemType, String layer) {
     processedElements.labels(elemType, layer).inc();
   }
 
-  private final io.prometheus.client.Counter dataErrors = io.prometheus.client.Counter
-    .build(BASE + "bad_input_data", "Number of data inconsistencies encountered in source data")
-    .labelNames("type")
-    .register(registry);
+  private final io.prometheus.client.Counter dataErrors =
+      io.prometheus.client.Counter.build(
+              BASE + "bad_input_data", "Number of data inconsistencies encountered in source data")
+          .labelNames("type")
+          .register(registry);
 
   @Override
   public void dataError(String errorCode) {
     dataErrors.labels(errorCode).inc();
   }
 
-  private final io.prometheus.client.Counter emittedFeatures = io.prometheus.client.Counter
-    .build(BASE + "renderer_features_emitted", "Features enqueued for writing to feature DB")
-    .labelNames("zoom", "layer")
-    .register(registry);
+  private final io.prometheus.client.Counter emittedFeatures =
+      io.prometheus.client.Counter.build(
+              BASE + "renderer_features_emitted", "Features enqueued for writing to feature DB")
+          .labelNames("zoom", "layer")
+          .register(registry);
 
   @Override
   public void emittedFeatures(int z, String layer, int numFeatures) {
@@ -150,11 +161,11 @@ class PrometheusStats implements Stats {
     }
   }
 
-  private final Histogram tilesWrittenBytes = Histogram
-    .build(BASE + "mbtiles_tile_written_bytes", "Written tile sizes by zoom level")
-    .buckets(1_000, 10_000, 100_000, 500_000)
-    .labelNames("zoom")
-    .register(registry);
+  private final Histogram tilesWrittenBytes =
+      Histogram.build(BASE + "mbtiles_tile_written_bytes", "Written tile sizes by zoom level")
+          .buckets(1_000, 10_000, 100_000, 500_000)
+          .labelNames("zoom")
+          .register(registry);
 
   @Override
   public void wroteTile(int zoom, int bytes) {
@@ -181,7 +192,9 @@ class PrometheusStats implements Stats {
     new Collector() {
       @Override
       public List<MetricFamilySamples> collect() {
-        return List.of(new CounterMetricFamily(BASE + sanitizeMetricName(name), "", supplier.get().doubleValue()));
+        return List.of(
+            new CounterMetricFamily(
+                BASE + sanitizeMetricName(name), "", supplier.get().doubleValue()));
       }
     }.register(registry);
   }
@@ -192,7 +205,8 @@ class PrometheusStats implements Stats {
       @Override
       public List<MetricFamilySamples> collect() {
         List<MetricFamilySamples> result = new ArrayList<>();
-        CounterMetricFamily family = new CounterMetricFamily(BASE + sanitizeMetricName(name), "", List.of(label));
+        CounterMetricFamily family =
+            new CounterMetricFamily(BASE + sanitizeMetricName(name), "", List.of(label));
         result.add(family);
         for (var entry : values.get().entrySet()) {
           family.addMetric(List.of(entry.getKey()), entry.getValue().get());
@@ -223,9 +237,13 @@ class PrometheusStats implements Stats {
         Timer timer = entry.getValue().timer();
         result.add(gaugeMetric(name + "_running", timer.running() ? 1 : 0));
         ProcessTime time = timer.elapsed();
-        result.add(gaugeMetric(name + "_elapsed_time_seconds", time.wall().toNanos() / NANOSECONDS_PER_SECOND));
-        result.add(gaugeMetric(name + "_cpu_time_seconds",
-          time.cpu().orElse(Duration.ZERO).toNanos() / NANOSECONDS_PER_SECOND));
+        result.add(
+            gaugeMetric(
+                name + "_elapsed_time_seconds", time.wall().toNanos() / NANOSECONDS_PER_SECOND));
+        result.add(
+            gaugeMetric(
+                name + "_cpu_time_seconds",
+                time.cpu().orElse(Duration.ZERO).toNanos() / NANOSECONDS_PER_SECOND));
       }
       return result;
     }
@@ -242,21 +260,29 @@ class PrometheusStats implements Stats {
       for (var file : filesToMonitor.entrySet()) {
         String name = sanitizeMetricName(file.getKey());
         Path path = file.getValue();
-        results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
-          FileUtils.size(path)));
+        results.add(
+            new GaugeMetricFamily(
+                BASE + "file_" + name + "_size_bytes",
+                "Size of " + name + " in bytes",
+                FileUtils.size(path)));
         if (Files.exists(path)) {
           try {
             FileStore fileStore = Files.getFileStore(path);
-            results
-              .add(
-                new GaugeMetricFamily(BASE + "file_" + name + "_total_space_bytes", "Total space available on disk",
-                  fileStore.getTotalSpace()));
             results.add(
-              new GaugeMetricFamily(BASE + "file_" + name + "_unallocated_space_bytes", "Unallocated space on disk",
-                fileStore.getUnallocatedSpace()));
-            results
-              .add(new GaugeMetricFamily(BASE + "file_" + name + "_usable_space_bytes", "Usable space on disk",
-                fileStore.getUsableSpace()));
+                new GaugeMetricFamily(
+                    BASE + "file_" + name + "_total_space_bytes",
+                    "Total space available on disk",
+                    fileStore.getTotalSpace()));
+            results.add(
+                new GaugeMetricFamily(
+                    BASE + "file_" + name + "_unallocated_space_bytes",
+                    "Unallocated space on disk",
+                    fileStore.getUnallocatedSpace()));
+            results.add(
+                new GaugeMetricFamily(
+                    BASE + "file_" + name + "_usable_space_bytes",
+                    "Usable space on disk",
+                    fileStore.getUsableSpace()));
           } catch (IOException e) {
             // let the user know once
             if (!logged) {
@@ -271,8 +297,8 @@ class PrometheusStats implements Stats {
   }
 
   /**
-   * Reports stats on all in-memory objects sizes being monitored through {@link #monitorInMemoryObject(String,
-   * MemoryEstimator.HasEstimate)}.
+   * Reports stats on all in-memory objects sizes being monitored through {@link
+   * #monitorInMemoryObject(String, MemoryEstimator.HasEstimate)}.
    */
   private class HeapObjectSizeCollector extends Collector {
 
@@ -282,9 +308,11 @@ class PrometheusStats implements Stats {
       for (var entry : heapObjectsToMonitor.entrySet()) {
         String name = sanitizeMetricName(entry.getKey());
         MemoryEstimator.HasEstimate heapObject = entry.getValue();
-        results
-          .add(new GaugeMetricFamily(BASE + "heap_object_" + name + "_size_bytes", "Bytes of memory used by " + name,
-            heapObject.estimateMemoryUsageBytes()));
+        results.add(
+            new GaugeMetricFamily(
+                BASE + "heap_object_" + name + "_size_bytes",
+                "Bytes of memory used by " + name,
+                heapObject.estimateMemoryUsageBytes()));
       }
       return results;
     }
@@ -295,11 +323,11 @@ class PrometheusStats implements Stats {
 
     @Override
     public List<MetricFamilySamples> collect() {
-      GaugeMetricFamily postGcPoolSizes = new GaugeMetricFamily(
-        "jvm_memory_pool_post_gc_bytes_total",
-        "Memory used by each pool after last GC",
-        List.of("pool")
-      );
+      GaugeMetricFamily postGcPoolSizes =
+          new GaugeMetricFamily(
+              "jvm_memory_pool_post_gc_bytes_total",
+              "Memory used by each pool after last GC",
+              List.of("pool"));
       for (var entry : ProcessInfo.getPostGcPoolSizes().entrySet()) {
         postGcPoolSizes.addMetric(List.of(entry.getKey()), entry.getValue());
       }
@@ -307,7 +335,10 @@ class PrometheusStats implements Stats {
     }
   }
 
-  /** Reports more detailed stats on CPU usage statistics by thread than prometheus collects by default. */
+  /**
+   * Reports more detailed stats on CPU usage statistics by thread than prometheus collects by
+   * default.
+   */
   private static class ThreadDetailsExports extends Collector {
 
     private final OperatingSystemMXBean osBean;
@@ -320,18 +351,27 @@ class PrometheusStats implements Stats {
 
     public List<MetricFamilySamples> collect() {
 
-      List<MetricFamilySamples> mfs = new ArrayList<>(List.of(
-        new GaugeMetricFamily("jvm_available_processors", "Result of Runtime.getRuntime().availableProcessors()",
-          Runtime.getRuntime().availableProcessors()),
-        new GaugeMetricFamily("jvm_system_load_avg", "Result of OperatingSystemMXBean.getSystemLoadAverage()",
-          osBean.getSystemLoadAverage())
-      ));
+      List<MetricFamilySamples> mfs =
+          new ArrayList<>(
+              List.of(
+                  new GaugeMetricFamily(
+                      "jvm_available_processors",
+                      "Result of Runtime.getRuntime().availableProcessors()",
+                      Runtime.getRuntime().availableProcessors()),
+                  new GaugeMetricFamily(
+                      "jvm_system_load_avg",
+                      "Result of OperatingSystemMXBean.getSystemLoadAverage()",
+                      osBean.getSystemLoadAverage())));
 
-      CounterMetricFamily threadCpuTimes = new CounterMetricFamily("jvm_thread_cpu_time_seconds",
-        "CPU time used by each thread", List.of("name", "id"));
+      CounterMetricFamily threadCpuTimes =
+          new CounterMetricFamily(
+              "jvm_thread_cpu_time_seconds", "CPU time used by each thread", List.of("name", "id"));
       mfs.add(threadCpuTimes);
-      CounterMetricFamily threadUserTimes = new CounterMetricFamily("jvm_thread_user_time_seconds",
-        "User time used by each thread", List.of("name", "id"));
+      CounterMetricFamily threadUserTimes =
+          new CounterMetricFamily(
+              "jvm_thread_user_time_seconds",
+              "User time used by each thread",
+              List.of("name", "id"));
       mfs.add(threadUserTimes);
       threads.putAll(ProcessInfo.getThreadStats());
       for (ProcessInfo.ThreadState thread : threads.values()) {

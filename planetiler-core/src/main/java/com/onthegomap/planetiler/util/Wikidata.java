@@ -58,7 +58,8 @@ public class Wikidata {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final Logger LOGGER = LoggerFactory.getLogger(Wikidata.class);
-  private static final Pattern wikidataIRIMatcher = Pattern.compile("http://www.wikidata.org/entity/Q([0-9]+)");
+  private static final Pattern wikidataIRIMatcher =
+      Pattern.compile("http://www.wikidata.org/entity/Q([0-9]+)");
   private static final Pattern qidPattern = Pattern.compile("Q([0-9]+)");
   private final Counter.Readable blocks = Counter.newMultiThreadCounter();
   private final Counter.Readable nodes = Counter.newMultiThreadCounter();
@@ -84,70 +85,76 @@ public class Wikidata {
   }
 
   /** Parses persisted name translations and returns a map from QID to language to name. */
-  private static LongObjectMap<Map<String, String>> parseResults(InputStream results) throws IOException {
+  private static LongObjectMap<Map<String, String>> parseResults(InputStream results)
+      throws IOException {
     JsonNode node = objectMapper.readTree(results);
     ArrayNode bindings = (ArrayNode) node.get("results").get("bindings");
     LongObjectMap<Map<String, String>> resultMap = Hppc.newLongObjectHashMap();
-    bindings.elements().forEachRemaining(row -> {
-      long id = extractIdFromWikidataIRI(row.get("id").get("value").asText());
-      Map<String, String> map = resultMap.get(id);
-      if (map == null) {
-        resultMap.put(id, map = new TreeMap<>());
-      }
-      JsonNode label = row.get("label");
-      map.put(
-        label.get("xml:lang").asText(),
-        label.get("value").asText()
-      );
-    });
+    bindings
+        .elements()
+        .forEachRemaining(
+            row -> {
+              long id = extractIdFromWikidataIRI(row.get("id").get("value").asText());
+              Map<String, String> map = resultMap.get(id);
+              if (map == null) {
+                resultMap.put(id, map = new TreeMap<>());
+              }
+              JsonNode label = row.get("label");
+              map.put(label.get("xml:lang").asText(), label.get("value").asText());
+            });
     return resultMap;
   }
 
   /**
-   * Loads any existing translations from {@code outfile}, then downloads translations for any wikidata element in
-   * {@code infile} that have not already been downloaded and writes the results to {@code outfile}.
+   * Loads any existing translations from {@code outfile}, then downloads translations for any
+   * wikidata element in {@code infile} that have not already been downloaded and writes the results
+   * to {@code outfile}.
    *
    * @throws UncheckedIOException if an error occurs
    */
-  public static void fetch(OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats) {
+  public static void fetch(
+      OsmInputFile infile, Path outfile, PlanetilerConfig config, Profile profile, Stats stats) {
     var timer = stats.startStage("wikidata");
     int processThreads = Math.max(1, config.threads() - 1);
     LOGGER.info("Starting with " + processThreads + " process threads");
 
     WikidataTranslations oldMappings = load(outfile);
-    try (
-      Writer writer = Files.newBufferedWriter(outfile);
-      OsmBlockSource osmSource = infile.get()
-    ) {
+    try (Writer writer = Files.newBufferedWriter(outfile);
+        OsmBlockSource osmSource = infile.get()) {
       HttpClient client = HttpClient.newBuilder().connectTimeout(config.httpTimeout()).build();
       Wikidata fetcher = new Wikidata(writer, Client.wrap(client), 5_000, profile, config);
       fetcher.loadExisting(oldMappings);
 
       String pbfParsePrefix = "pbfwikidata";
-      var pipeline = WorkerPipeline.start("wikidata", stats)
-        .fromGenerator("pbf", osmSource::forEachBlock)
-        .addBuffer("pbf_blocks", processThreads * 2)
-        .addWorker("filter", processThreads, fetcher::filter)
-        .addBuffer("fetch_queue", 1_000_000, 100)
-        .sinkTo("fetch", 1, prev -> {
-          for (Long id : prev) {
-            fetcher.fetch(id);
-          }
-          fetcher.flush();
-        });
+      var pipeline =
+          WorkerPipeline.start("wikidata", stats)
+              .fromGenerator("pbf", osmSource::forEachBlock)
+              .addBuffer("pbf_blocks", processThreads * 2)
+              .addWorker("filter", processThreads, fetcher::filter)
+              .addBuffer("fetch_queue", 1_000_000, 100)
+              .sinkTo(
+                  "fetch",
+                  1,
+                  prev -> {
+                    for (Long id : prev) {
+                      fetcher.fetch(id);
+                    }
+                    fetcher.flush();
+                  });
 
-      ProgressLoggers loggers = ProgressLoggers.create()
-        .addRateCounter("blocks", fetcher.blocks)
-        .addRateCounter("nodes", fetcher.nodes, true)
-        .addRateCounter("ways", fetcher.ways, true)
-        .addRateCounter("rels", fetcher.rels, true)
-        .addRateCounter("wiki", fetcher.wikidatas)
-        .addFileSize(outfile)
-        .newLine()
-        .addProcessStats()
-        .newLine()
-        .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
-        .addPipelineStats(pipeline);
+      ProgressLoggers loggers =
+          ProgressLoggers.create()
+              .addRateCounter("blocks", fetcher.blocks)
+              .addRateCounter("nodes", fetcher.nodes, true)
+              .addRateCounter("ways", fetcher.ways, true)
+              .addRateCounter("rels", fetcher.rels, true)
+              .addRateCounter("wiki", fetcher.wikidatas)
+              .addFileSize(outfile)
+              .newLine()
+              .addProcessStats()
+              .newLine()
+              .addThreadPoolStats("parse", pbfParsePrefix + "-pool")
+              .addPipelineStats(pipeline);
 
       pipeline.awaitAndLog(loggers, config.logInterval());
       LOGGER.info("DONE fetched:" + fetcher.wikidatas.get());
@@ -159,14 +166,20 @@ public class Wikidata {
   }
 
   /**
-   * Returns translations parsed from {@code path} that was written by a previous run of the downloader.
+   * Returns translations parsed from {@code path} that was written by a previous run of the
+   * downloader.
    */
   public static WikidataTranslations load(Path path) {
     Timer timer = Timer.start();
     try (BufferedReader fis = Files.newBufferedReader(path)) {
       WikidataTranslations result = load(fis);
       LOGGER.info(
-        "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
+          "loaded from "
+              + result.getAll().size()
+              + " mappings from "
+              + path.toAbsolutePath()
+              + " in "
+              + timer.stop());
       return result;
     } catch (IOException e) {
       LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
@@ -175,8 +188,8 @@ public class Wikidata {
   }
 
   /**
-   * Returns translations parsed from {@code reader} where each line is a JSON array where first element is the ID and
-   * second element is a map from language to translation.
+   * Returns translations parsed from {@code reader} where each line is a JSON array where first
+   * element is the ID and second element is a map from language to translation.
    */
   static WikidataTranslations load(BufferedReader reader) throws IOException {
     WikidataTranslations mappings = new WikidataTranslations();
@@ -185,7 +198,9 @@ public class Wikidata {
       JsonNode node = objectMapper.readTree(line);
       long id = Long.parseLong(node.get(0).asText());
       ObjectNode theseMappings = (ObjectNode) node.get(1);
-      theseMappings.fields().forEachRemaining(entry -> mappings.put(id, entry.getKey(), entry.getValue().asText()));
+      theseMappings
+          .fields()
+          .forEachRemaining(entry -> mappings.put(id, entry.getKey(), entry.getValue().asText()));
     }
     return mappings;
   }
@@ -248,7 +263,8 @@ public class Wikidata {
       Timer timer = Timer.start();
       LongObjectMap<Map<String, String>> results = queryWikidata(qidsToFetch);
       batches.inc();
-      LOGGER.info("Fetched batch " + batches.get() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
+      LOGGER.info(
+          "Fetched batch " + batches.get() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
       writeTranslations(results);
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
@@ -268,28 +284,35 @@ public class Wikidata {
   }
 
   /**
-   * Make an HTTP request to wikidata's <a href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">sparql
-   * endpoint</a> to fetch name translations for a set of QIDs.
+   * Make an HTTP request to wikidata's <a
+   * href="https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service">sparql endpoint</a> to fetch
+   * name translations for a set of QIDs.
    */
   private LongObjectMap<Map<String, String>> queryWikidata(List<Long> qidsToFetch)
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException {
     if (qidsToFetch.isEmpty()) {
       return Hppc.newLongObjectHashMap();
     }
     String qidList = qidsToFetch.stream().map(id -> "wd:Q" + id).collect(Collectors.joining(" "));
-    String query = """
+    String query =
+        """
       SELECT ?id ?label where {
         VALUES ?id { %s } ?id (owl:sameAs* / rdfs:label) ?label
       }
-      """.formatted(qidList).replaceAll("\\s+", " ").trim();
+      """
+            .formatted(qidList)
+            .replaceAll("\\s+", " ")
+            .trim();
 
-    HttpRequest request = HttpRequest.newBuilder(URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
-      .timeout(config.httpTimeout())
-      .header(USER_AGENT, config.httpUserAgent())
-      .header(ACCEPT, "application/sparql-results+json")
-      .header(CONTENT_TYPE, "application/sparql-query")
-      .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
-      .build();
+    HttpRequest request =
+        HttpRequest.newBuilder(
+                URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
+            .timeout(config.httpTimeout())
+            .header(USER_AGENT, config.httpUserAgent())
+            .header(ACCEPT, "application/sparql-results+json")
+            .header(CONTENT_TYPE, "application/sparql-query")
+            .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
+            .build();
 
     InputStream response = null;
     for (int i = 0; i <= config.httpRetries() && response == null; i++) {
@@ -329,10 +352,8 @@ public class Wikidata {
   /** Flushes a batch of translations to disk. */
   private void writeTranslations(LongObjectMap<Map<String, String>> results) throws IOException {
     for (LongObjectCursor<Map<String, String>> cursor : results) {
-      writer.write(objectMapper.writeValueAsString(List.of(
-        Long.toString(cursor.key),
-        cursor.value
-      )));
+      writer.write(
+          objectMapper.writeValueAsString(List.of(Long.toString(cursor.key), cursor.value)));
       writer.write(System.lineSeparator());
     }
     writer.flush();
@@ -355,11 +376,12 @@ public class Wikidata {
         }
         String encoding = response.headers().firstValue("Content-Encoding").orElse("");
         InputStream is = response.body();
-        is = switch (encoding) {
-          case "gzip" -> new GZIPInputStream(is);
-          case "deflate" -> new InflaterInputStream(is, new Inflater(true));
-          default -> is;
-        };
+        is =
+            switch (encoding) {
+              case "gzip" -> new GZIPInputStream(is);
+              case "deflate" -> new InflaterInputStream(is, new Inflater(true));
+              default -> is;
+            };
         return is;
       };
     }
@@ -371,8 +393,7 @@ public class Wikidata {
 
     private final LongObjectMap<Map<String, String>> data = Hppc.newLongObjectHashMap();
 
-    public WikidataTranslations() {
-    }
+    public WikidataTranslations() {}
 
     /** Returns a map from language code to translated name for {@code qid}. */
     public Map<String, String> get(long qid) {

@@ -10,16 +10,20 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Builds a map of toilets from OpenStreetMap nodes tagged with
- * <a href="https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dtoilets">amenity=toilets</a>.
- * <p>
- * To run this example:
+ * Builds a map of toilets from OpenStreetMap nodes tagged with <a
+ * href="https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dtoilets">amenity=toilets</a>.
+ *
+ * <p>To run this example:
+ *
  * <ol>
- *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
- *   <li>then build the examples: {@code mvn clean package}</li>
- *   <li>then run this example: {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/output.mbtiles}</li>
- *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
+ *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik
+ *       download site</a>
+ *   <li>then build the examples: {@code mvn clean package}
+ *   <li>then run this example: {@code java -cp target/*-fatjar.jar
+ *       com.onthegomap.planetiler.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf"
+ *       mbtiles="data/output.mbtiles"}
+ *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/output.mbtiles}
+ *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a>
  * </ol>
  */
 public class ToiletsOverlay implements Profile {
@@ -34,22 +38,26 @@ public class ToiletsOverlay implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.isPoint() && sourceFeature.hasTag("amenity", "toilets")) {
-      features.point("toilets")
-        .setZoomRange(0, 14)
-        // to limit toilets displayed at lower zoom levels:
-        // 1) set a sort key that defines a priority ordering of toilets. For mountains, you might use "elevation"
-        // but for toilets we just set it to the order in which we see them.
-        .setSortKey(toiletNumber.incrementAndGet())
-        // 2) at lower zoom levels, divide each 256x256 px tile into 32x32 px squares and in each square only include
-        // the toilets with the lowest sort key within that square
-        .setPointLabelGridSizeAndLimit(
-          12, // only limit at z12 and below
-          32, // break the tile up into 32x32 px squares
-          4 // any only keep the 4 nodes with lowest sort-key in each 32px square
-        )
-        // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
-        // label grid squares will be the consistent between adjacent tiles
-        .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
+      features
+          .point("toilets")
+          .setZoomRange(0, 14)
+          // to limit toilets displayed at lower zoom levels:
+          // 1) set a sort key that defines a priority ordering of toilets. For mountains, you might
+          // use "elevation"
+          // but for toilets we just set it to the order in which we see them.
+          .setSortKey(toiletNumber.incrementAndGet())
+          // 2) at lower zoom levels, divide each 256x256 px tile into 32x32 px squares and in each
+          // square only include
+          // the toilets with the lowest sort key within that square
+          .setPointLabelGridSizeAndLimit(
+              12, // only limit at z12 and below
+              32, // break the tile up into 32x32 px squares
+              4 // any only keep the 4 nodes with lowest sort-key in each 32px square
+              )
+          // and also whenever you set a label grid size limit, make sure you increase the buffer
+          // size so no
+          // label grid squares will be the consistent between adjacent tiles
+          .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
     }
   }
 
@@ -83,7 +91,8 @@ public class ToiletsOverlay implements Profile {
   public String attribution() {
     return """
       <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
-      """.trim();
+      """
+        .trim();
   }
 
   /*
@@ -98,11 +107,11 @@ public class ToiletsOverlay implements Profile {
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     // See ToiletsOverlayLowLevelApi for an example using this same profile but the lower-level API
     Planetiler.create(args)
-      .setProfile(new ToiletsOverlay())
-      // override this default with osm_path="path/to/data.osm.pbf"
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
-      // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
-      .run();
+        .setProfile(new ToiletsOverlay())
+        // override this default with osm_path="path/to/data.osm.pbf"
+        .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+        // override this default with mbtiles="path/to/output.mbtiles"
+        .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
+        .run();
   }
 }

@@ -13,13 +13,18 @@ public class WorkerTest {
   @Timeout(10)
   public void testExceptionHandled() {
     AtomicInteger counter = new AtomicInteger(0);
-    var worker = new Worker("prefix", Stats.inMemory(), 4, () -> {
-      if (counter.incrementAndGet() == 1) {
-        throw new Error();
-      } else {
-        Thread.sleep(5000);
-      }
-    });
+    var worker =
+        new Worker(
+            "prefix",
+            Stats.inMemory(),
+            4,
+            () -> {
+              if (counter.incrementAndGet() == 1) {
+                throw new Error();
+              } else {
+                Thread.sleep(5000);
+              }
+            });
     assertThrows(RuntimeException.class, worker::await);
   }
 }

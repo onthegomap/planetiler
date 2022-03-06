@@ -21,11 +21,12 @@ public class CacheByZoom<T> {
   }
 
   /**
-   * Returns a cache for {@code supplier} that can handle a min/max zoom range specified in {@code config}.
+   * Returns a cache for {@code supplier} that can handle a min/max zoom range specified in {@code
+   * config}.
    *
-   * @param config   min/max zoom range this can handle
+   * @param config min/max zoom range this can handle
    * @param supplier function that will be called with each zoom-level to get the value
-   * @param <T>      return type of the function
+   * @param <T> return type of the function
    * @return a cache for {@code supplier} by zom
    */
   public static <T> CacheByZoom<T> create(PlanetilerConfig config, IntFunction<T> supplier) {
@@ -33,7 +34,8 @@ public class CacheByZoom<T> {
   }
 
   public T get(int zoom) {
-    @SuppressWarnings("unchecked") T[] casted = (T[]) values;
+    @SuppressWarnings("unchecked")
+    T[] casted = (T[]) values;
     int off = zoom - minzoom;
     if (values[off] != null) {
       return casted[off];

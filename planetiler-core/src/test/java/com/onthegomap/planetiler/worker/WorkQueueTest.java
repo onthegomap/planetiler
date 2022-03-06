@@ -63,10 +63,15 @@ public class WorkQueueTest {
   public void testTwoWriters() {
     WorkQueue<Integer> q = newQueue(2);
     AtomicInteger ni = new AtomicInteger(0);
-    new Worker("worker", stats, 2, () -> {
-      int i = ni.getAndIncrement();
-      q.accept(i);
-    }).await();
+    new Worker(
+            "worker",
+            stats,
+            2,
+            () -> {
+              int i = ni.getAndIncrement();
+              q.accept(i);
+            })
+        .await();
     q.close();
     assertEquals(2, q.getPending());
     Set<Integer> found = new TreeSet<>();
@@ -83,12 +88,17 @@ public class WorkQueueTest {
   public void testTwoWritersManyElements() {
     WorkQueue<Integer> q = newQueue(2);
     AtomicInteger ni = new AtomicInteger(0);
-    new Worker("worker", stats, 2, () -> {
-      int i = ni.getAndIncrement();
-      q.accept(i * 3);
-      q.accept(i * 3 + 1);
-      q.accept(i * 3 + 2);
-    }).await();
+    new Worker(
+            "worker",
+            stats,
+            2,
+            () -> {
+              int i = ni.getAndIncrement();
+              q.accept(i * 3);
+              q.accept(i * 3 + 1);
+              q.accept(i * 3 + 2);
+            })
+        .await();
     q.close();
     assertEquals(6, q.getPending());
     Set<Integer> found = new TreeSet<>();

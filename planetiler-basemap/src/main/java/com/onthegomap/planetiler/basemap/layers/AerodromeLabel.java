@@ -49,14 +49,15 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Translations;
 
 /**
- * Defines the logic for generating map elements in the {@code aerodrome_label} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label">OpenMapTiles
+ * Defines the logic for generating map elements in the {@code aerodrome_label} layer from source
+ * features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label">OpenMapTiles
  * aerodrome_layer sql files</a>.
  */
-public class AerodromeLabel implements
-  OpenMapTilesSchema.AerodromeLabel,
-  Tables.OsmAerodromeLabelPoint.Handler {
+public class AerodromeLabel
+    implements OpenMapTilesSchema.AerodromeLabel, Tables.OsmAerodromeLabelPoint.Handler {
 
   private final MultiExpression.Index<String> classLookup;
   private final Translations translations;
@@ -69,14 +70,16 @@ public class AerodromeLabel implements
   @Override
   public void process(Tables.OsmAerodromeLabelPoint element, FeatureCollector features) {
     String clazz = classLookup.getOrElse(element.source(), FieldValues.CLASS_OTHER);
-    boolean important = !nullOrEmpty(element.iata()) && FieldValues.CLASS_INTERNATIONAL.equals(clazz);
-    features.centroid(LAYER_NAME)
-      .setBufferPixels(BUFFER_SIZE)
-      .setMinZoom(important ? 8 : 10)
-      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .putAttrs(Utils.elevationTags(element.ele()))
-      .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
-      .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
-      .setAttr(Fields.CLASS, clazz);
+    boolean important =
+        !nullOrEmpty(element.iata()) && FieldValues.CLASS_INTERNATIONAL.equals(clazz);
+    features
+        .centroid(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setMinZoom(important ? 8 : 10)
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .putAttrs(Utils.elevationTags(element.ele()))
+        .setAttr(Fields.IATA, nullIfEmpty(element.iata()))
+        .setAttr(Fields.ICAO, nullIfEmpty(element.icao()))
+        .setAttr(Fields.CLASS, clazz);
   }
 }

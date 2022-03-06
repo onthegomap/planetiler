@@ -1,5 +1,6 @@
 // This software is released into the Public Domain.
-// See NOTICE.md here or copying.txt from https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
+// See NOTICE.md here or copying.txt from
+// https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
 package com.onthegomap.planetiler.reader.osm;
 
 import java.util.Date;
@@ -7,11 +8,11 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
  * Manages decoding of the lower level PBF data structures.
- * <p>
- * This class is copied from Osmosis.
+ *
+ * <p>This class is copied from Osmosis.
  *
  * @author Brett Henderson
- * <p>
+ *     <p>
  */
 public class PbfFieldDecoder {
 
@@ -24,6 +25,7 @@ public class PbfFieldDecoder {
 
   /**
    * Creates a new instance.
+   *
    * <p>
    *
    * @param primitiveBlock The primitive block containing the fields to be decoded.
@@ -43,6 +45,7 @@ public class PbfFieldDecoder {
 
   /**
    * Decodes a raw latitude value into degrees.
+   *
    * <p>
    *
    * @param rawLatitude The PBF encoded value.
@@ -54,6 +57,7 @@ public class PbfFieldDecoder {
 
   /**
    * Decodes a raw longitude value into degrees.
+   *
    * <p>
    *
    * @param rawLongitude The PBF encoded value.
@@ -65,6 +69,7 @@ public class PbfFieldDecoder {
 
   /**
    * Decodes a raw timestamp value into a Date.
+   *
    * <p>
    *
    * @param rawTimestamp The PBF encoded timestamp.
@@ -76,6 +81,7 @@ public class PbfFieldDecoder {
 
   /**
    * Decodes a raw string into a String.
+   *
    * <p>
    *
    * @param rawString The PBF encoding string.

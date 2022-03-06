@@ -12,15 +12,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 public class FileUtilsTest {
 
-  @TempDir
-  Path tmpDir;
+  @TempDir Path tmpDir;
 
   @Test
   public void testCreateAndDeleteFileInNestedDirectory() throws IOException {
     Path parent = tmpDir.resolve(Path.of("a", "b", "c"));
     Path file = parent.resolve("file.txt");
     FileUtils.createDirectory(parent);
-    Files.write(file, new byte[]{1, 2, 3});
+    Files.write(file, new byte[] {1, 2, 3});
     assertEquals(3, FileUtils.size(file));
     assertEquals(3, FileUtils.size(parent));
     assertTrue(FileUtils.hasExtension(file, "txt"));

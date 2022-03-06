@@ -2,9 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import com.carrotsearch.hppc.Accountable;
 
-/**
- * Utilities to estimate the size of in-memory objects.
- */
+/** Utilities to estimate the size of in-memory objects. */
 @SuppressWarnings("SameReturnValue")
 public class MemoryEstimator {
 
@@ -37,9 +35,7 @@ public class MemoryEstimator {
     return 1;
   }
 
-  /**
-   * Estimates the size of an HPPC {@link Accountable} instance.
-   */
+  /** Estimates the size of an HPPC {@link Accountable} instance. */
   public static long estimateSize(Accountable object) {
     return object == null ? 0 : object.ramBytesAllocated();
   }

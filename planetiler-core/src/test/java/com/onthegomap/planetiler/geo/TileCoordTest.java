@@ -33,7 +33,16 @@ public class TileCoordTest {
     for (int z = 0; z <= 14; z++) {
       int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
       if (encoded < last) {
-        fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
+        fail(
+            "encoded value for z"
+                + (z - 1)
+                + " ("
+                + last
+                + ") is not less than z"
+                + z
+                + " ("
+                + encoded
+                + ")");
       }
       last = encoded;
     }

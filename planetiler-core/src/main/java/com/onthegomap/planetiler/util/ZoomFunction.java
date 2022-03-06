@@ -7,8 +7,8 @@ import java.util.function.IntFunction;
 
 /**
  * A value that changes by zoom level.
- * <p>
- * {@link #apply(int)} returns the value at the zoom level.
+ *
+ * <p>{@link #apply(int)} returns the value at the zoom level.
  */
 public interface ZoomFunction<T> extends IntFunction<T> {
 
@@ -27,8 +27,12 @@ public interface ZoomFunction<T> extends IntFunction<T> {
     return zoom -> zoom <= max ? value : null;
   }
 
-  /** Invoke a function at a zoom level and returns {@code defaultValue} if the function or result were null. */
-  static double applyAsDoubleOrElse(ZoomFunction<? extends Number> fn, int zoom, double defaultValue) {
+  /**
+   * Invoke a function at a zoom level and returns {@code defaultValue} if the function or result
+   * were null.
+   */
+  static double applyAsDoubleOrElse(
+      ZoomFunction<? extends Number> fn, int zoom, double defaultValue) {
     if (fn == null) {
       return defaultValue;
     }
@@ -36,7 +40,10 @@ public interface ZoomFunction<T> extends IntFunction<T> {
     return result == null ? defaultValue : result.doubleValue();
   }
 
-  /** Invoke a function at a zoom level and returns {@code defaultValue} if the function or result were null. */
+  /**
+   * Invoke a function at a zoom level and returns {@code defaultValue} if the function or result
+   * were null.
+   */
   static int applyAsIntOrElse(ZoomFunction<? extends Number> fn, int zoom, int defaultValue) {
     if (fn == null) {
       return defaultValue;
@@ -46,33 +53,33 @@ public interface ZoomFunction<T> extends IntFunction<T> {
   }
 
   /**
-   * Returns a zoom function that returns the value from the next higher key in {@code thresholds} or {@code null} if
-   * over the max key.
+   * Returns a zoom function that returns the value from the next higher key in {@code thresholds}
+   * or {@code null} if over the max key.
    */
   static <T> ZoomFunction<T> fromMaxZoomThresholds(Map<Integer, ? extends T> thresholds) {
     return fromMaxZoomThresholds(thresholds, null);
   }
 
   /**
-   * Returns a zoom function that returns the value from the next higher key in {@code thresholds} or {@code
-   * defaultValue}.
+   * Returns a zoom function that returns the value from the next higher key in {@code thresholds}
+   * or {@code defaultValue}.
    */
-  static <T> ZoomFunction<T> fromMaxZoomThresholds(Map<Integer, ? extends T> thresholds, T defaultValue) {
+  static <T> ZoomFunction<T> fromMaxZoomThresholds(
+      Map<Integer, ? extends T> thresholds, T defaultValue) {
     TreeMap<Integer, T> orderedMap = new TreeMap<>(thresholds);
     orderedMap.put(Integer.MAX_VALUE, defaultValue);
     return zoom -> orderedMap.ceilingEntry(zoom).getValue();
   }
 
   /**
-   * A zoom function that lets you set the value to return for a zoom level in meters  and when called, it returns how
-   * many pixels long that number of meters is at the equator.
+   * A zoom function that lets you set the value to return for a zoom level in meters and when
+   * called, it returns how many pixels long that number of meters is at the equator.
    */
   class MeterToPixelThresholds implements ZoomFunction<Number> {
 
     private final TreeMap<Integer, Number> levels = new TreeMap<>();
 
-    private MeterToPixelThresholds() {
-    }
+    private MeterToPixelThresholds() {}
 
     /** Sets the value to return at {@code zoom} in meters. */
     public MeterToPixelThresholds put(int zoom, double meters) {

@@ -91,6 +91,9 @@ public class FormatTest {
     "3601,1h1s,en",
   })
   public void testFormatDuration(double seconds, String out, Locale locale) {
-    assertEquals(out, Format.forLocale(locale).duration(Duration.ofNanos((long) (seconds * NANOSECONDS_PER_SECOND))));
+    assertEquals(
+        out,
+        Format.forLocale(locale)
+            .duration(Duration.ofNanos((long) (seconds * NANOSECONDS_PER_SECOND))));
   }
 }

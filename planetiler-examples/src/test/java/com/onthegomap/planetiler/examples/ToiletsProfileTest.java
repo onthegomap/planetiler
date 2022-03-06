@@ -22,10 +22,7 @@ public class ToiletsProfileTest {
 
   @Test
   public void testSourceFeatureProcessing() {
-    var node = SimpleFeature.create(
-      TestUtils.newPoint(1, 2),
-      Map.of("amenity", "toilets")
-    );
+    var node = SimpleFeature.create(TestUtils.newPoint(1, 2), Map.of("amenity", "toilets"));
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(node, profile);
 
     // verify output feature
@@ -52,21 +49,21 @@ public class ToiletsProfileTest {
   @Test
   public void integrationTest(@TempDir Path tmpDir) throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
-    ToiletsOverlay.run(Arguments.of(
-      // Override input source locations
-      "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
-      // Override temp dir location
-      "tmp", tmpDir.toString(),
-      // Override output location
-      "mbtiles", dbPath.toString()
-    ));
+    ToiletsOverlay.run(
+        Arguments.of(
+            // Override input source locations
+            "osm_path", TestUtils.pathToResource("monaco-latest.osm.pbf"),
+            // Override temp dir location
+            "tmp", tmpDir.toString(),
+            // Override output location
+            "mbtiles", dbPath.toString()));
     try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
       Map<String, String> metadata = mbtiles.metadata().getAll();
       assertEquals("Toilets Overlay", metadata.get("name"));
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
 
-      TestUtils.assertNumFeatures(mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS,
-        34, Point.class);
+      TestUtils.assertNumFeatures(
+          mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS, 34, Point.class);
     }
   }
 }

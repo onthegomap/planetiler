@@ -38,10 +38,11 @@ public class ZoomFunctionTest {
 
   @Test
   public void testMultipleThresholds() {
-    var fn = ZoomFunction.fromMaxZoomThresholds(Map.of(
-      3, "3",
-      5, "5"
-    ));
+    var fn =
+        ZoomFunction.fromMaxZoomThresholds(
+            Map.of(
+                3, "3",
+                5, "5"));
     assertValueInRange(fn, 0, 3, "3");
     assertValueInRange(fn, 4, 5, "5");
     assertValueInRange(fn, 6, 14, null);
@@ -49,10 +50,7 @@ public class ZoomFunctionTest {
 
   @Test
   public void testConvertMetersToPixels() {
-    var fn = ZoomFunction.meterThresholds()
-      .put(7, 20_000)
-      .put(8, 14_000)
-      .put(11, 8_000);
+    var fn = ZoomFunction.meterThresholds().put(7, 20_000).put(8, 14_000).put(11, 8_000);
     assertNull(fn.apply(6));
     assertEquals(16, fn.apply(7).doubleValue(), 1d);
     assertEquals(23, fn.apply(8).doubleValue(), 1d);

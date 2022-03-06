@@ -26,8 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility that reads {@link SourceFeature SourceFeatures} from the geometries contained in a Natural Earth sqlite
- * distribution.
+ * Utility that reads {@link SourceFeature SourceFeatures} from the geometries contained in a
+ * Natural Earth sqlite distribution.
  *
  * @see <a href="https://www.naturalearthdata.com/">Natural Earth</a>
  */
@@ -57,37 +57,48 @@ public class NaturalEarthReader extends SimpleReader {
   }
 
   /**
-   * Renders map features for all elements from a Natural Earth sqlite file, or zip file containing a sqlite file, based
-   * on the mapping logic defined in {@code profile}.
+   * Renders map features for all elements from a Natural Earth sqlite file, or zip file containing
+   * a sqlite file, based on the mapping logic defined in {@code profile}.
    *
    * @param sourceName string ID for this reader to use in logs and stats
-   * @param input      path to the sqlite or zip file
-   * @param tmpDir     directory to extract the sqlite file into (if input is a zip file)
-   * @param writer     consumer for rendered features
-   * @param config     user-defined parameters controlling number of threads and log interval
-   * @param profile    logic that defines what map features to emit for each source feature
-   * @param stats      to keep track of counters and timings
+   * @param input path to the sqlite or zip file
+   * @param tmpDir directory to extract the sqlite file into (if input is a zip file)
+   * @param writer consumer for rendered features
+   * @param config user-defined parameters controlling number of threads and log interval
+   * @param profile logic that defines what map features to emit for each source feature
+   * @param stats to keep track of counters and timings
    * @throws IllegalArgumentException if a problem occurs reading the input file
    */
-  public static void process(String sourceName, Path input, Path tmpDir, FeatureGroup writer, PlanetilerConfig config,
-    Profile profile, Stats stats) {
+  public static void process(
+      String sourceName,
+      Path input,
+      Path tmpDir,
+      FeatureGroup writer,
+      PlanetilerConfig config,
+      Profile profile,
+      Stats stats) {
     try (var reader = new NaturalEarthReader(sourceName, input, tmpDir, profile, stats)) {
       reader.process(writer, config);
     }
   }
 
-  /** Returns a JDBC connection to the sqlite file. Input can be the sqlite file itself or a zip file containing it. */
+  /**
+   * Returns a JDBC connection to the sqlite file. Input can be the sqlite file itself or a zip file
+   * containing it.
+   */
   private Connection open(Path path, Path tmpLocation) throws IOException, SQLException {
     String uri = "jdbc:sqlite:" + path.toAbsolutePath();
     if (FileUtils.hasExtension(path, "zip")) {
       Path toOpen = tmpLocation == null ? Files.createTempFile("sqlite", "natearth") : tmpLocation;
       extracted = toOpen;
       try (var zipFs = FileSystems.newFileSystem(path)) {
-        var zipEntry = FileUtils.walkFileSystem(zipFs)
-          .filter(Files::isRegularFile)
-          .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
-          .findFirst()
-          .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));
+        var zipEntry =
+            FileUtils.walkFileSystem(zipFs)
+                .filter(Files::isRegularFile)
+                .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
+                .findFirst()
+                .orElseThrow(
+                    () -> new IllegalArgumentException("No .sqlite file found inside " + path));
         LOGGER.info("unzipping " + path.toAbsolutePath() + " to " + extracted);
         Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
         extracted.toFile().deleteOnExit();
@@ -114,10 +125,9 @@ public class NaturalEarthReader extends SimpleReader {
   public long getCount() {
     long count = 0;
     for (String table : tableNames()) {
-      try (
-        var stmt = conn.createStatement();
-        var result = stmt.executeQuery("select count(*) from " + table + " where GEOMETRY is not null;")
-      ) {
+      try (var stmt = conn.createStatement();
+          var result =
+              stmt.executeQuery("select count(*) from " + table + " where GEOMETRY is not null;")) {
         count += result.getLong(1);
       } catch (SQLException e) {
         // maybe no GEOMETRY column?
@@ -156,8 +166,9 @@ public class NaturalEarthReader extends SimpleReader {
 
               // create the feature and pass to next stage
               Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
-              SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, new HashMap<>(column.length - 1),
-                sourceName, table, id);
+              SimpleFeature readerGeometry =
+                  SimpleFeature.create(
+                      latLonGeometry, new HashMap<>(column.length - 1), sourceName, table, id);
               for (int c = 0; c < column.length; c++) {
                 if (c != geometryColumn) {
                   Object value = rs.getObject(c + 1);

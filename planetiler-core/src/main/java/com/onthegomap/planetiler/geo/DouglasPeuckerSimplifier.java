@@ -19,20 +19,22 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 
 /**
- * A utility to simplify geometries using Douglas Peucker simplification algorithm without any attempt to repair
- * geometries that become invalid due to simplification.
- * <p>
- * This class is adapted from <a href="https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java">org.locationtech.jts.simplify.DouglasPeuckerSimplifier</a>
- * with modifications to avoid collapsing small polygons since the subsequent area filter will remove them more
- * accurately and performance improvement to put the results in a {@link MutableCoordinateSequence} which uses a
- * primitive double array instead of allocating lots of {@link Coordinate} objects.
+ * A utility to simplify geometries using Douglas Peucker simplification algorithm without any
+ * attempt to repair geometries that become invalid due to simplification.
+ *
+ * <p>This class is adapted from <a
+ * href="https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java">org.locationtech.jts.simplify.DouglasPeuckerSimplifier</a>
+ * with modifications to avoid collapsing small polygons since the subsequent area filter will
+ * remove them more accurately and performance improvement to put the results in a {@link
+ * MutableCoordinateSequence} which uses a primitive double array instead of allocating lots of
+ * {@link Coordinate} objects.
  */
 public class DouglasPeuckerSimplifier {
 
   /**
    * Returns a copy of {@code geom}, simplified using Douglas Peucker Algorithm.
    *
-   * @param geom              the geometry to simplify (will not be modified)
+   * @param geom the geometry to simplify (will not be modified)
    * @param distanceTolerance the threshold below which we discard points
    * @return the simplified geometry
    */
@@ -53,15 +55,13 @@ public class DouglasPeuckerSimplifier {
     }
 
     /**
-     * Returns the square of the number of units that (px, p1) is away from the line segment from (p1x, py1) to (p2x,
-     * p2y).
+     * Returns the square of the number of units that (px, p1) is away from the line segment from
+     * (p1x, py1) to (p2x, p2y).
      */
-    private static double getSqSegDist(double px, double py, double p1x, double p1y, double p2x, double p2y) {
+    private static double getSqSegDist(
+        double px, double py, double p1x, double p1y, double p2x, double p2y) {
 
-      double x = p1x,
-        y = p1y,
-        dx = p2x - x,
-        dy = p2y - y;
+      double x = p1x, y = p1y, dx = p2x - x, dy = p2y - y;
 
       if (dx != 0d || dy != 0d) {
 
@@ -83,8 +83,12 @@ public class DouglasPeuckerSimplifier {
       return dx * dx + dy * dy;
     }
 
-    private void subsimplify(CoordinateSequence in, MutableCoordinateSequence out, int first, int last,
-      int numForcedPoints) {
+    private void subsimplify(
+        CoordinateSequence in,
+        MutableCoordinateSequence out,
+        int first,
+        int last,
+        int numForcedPoints) {
       // numForcePoints lets us keep some points even if they are below simplification threshold
       boolean force = numForcedPoints > 0;
       double maxSqDist = force ? -1 : sqTolerance;
@@ -122,10 +126,12 @@ public class DouglasPeuckerSimplifier {
       if (coords.size() == 0) {
         return coords;
       }
-      // make sure we include the first and last points even if they are closer than the simplification threshold
+      // make sure we include the first and last points even if they are closer than the
+      // simplification threshold
       MutableCoordinateSequence result = new MutableCoordinateSequence();
       result.forceAddPoint(coords.getX(0), coords.getY(0));
-      // for polygons, additionally keep at least 2 intermediate points even if they are below simplification threshold
+      // for polygons, additionally keep at least 2 intermediate points even if they are below
+      // simplification threshold
       // to avoid collapse.
       subsimplify(coords, result, 0, coords.size() - 1, area ? 2 : 0);
       result.forceAddPoint(coords.getX(coords.size() - 1), coords.getY(coords.size() - 1));
@@ -148,4 +154,3 @@ public class DouglasPeuckerSimplifier {
     }
   }
 }
-

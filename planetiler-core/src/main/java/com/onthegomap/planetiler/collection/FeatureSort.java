@@ -9,10 +9,10 @@ import java.util.List;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * A utility that accepts {@link SortableFeature} instances in any order and lets you iterate through them ordered by
- * {@link SortableFeature#key()}.
- * <p>
- * Only supports single-threaded writes and reads.
+ * A utility that accepts {@link SortableFeature} instances in any order and lets you iterate
+ * through them ordered by {@link SortableFeature#key()}.
+ *
+ * <p>Only supports single-threaded writes and reads.
  */
 @NotThreadSafe
 interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstimator.HasEstimate {
@@ -24,7 +24,10 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
    * - berkeley db
    */
 
-  /** Returns a feature sorter that sorts all features in memory. Suitable for toy examples (unit tests). */
+  /**
+   * Returns a feature sorter that sorts all features in memory. Suitable for toy examples (unit
+   * tests).
+   */
   static FeatureSort newInMemory() {
     List<SortableFeature> list = new ArrayList<>();
     return new FeatureSort() {
@@ -53,7 +56,6 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
         return 0;
       }
 
-
       @Override
       public Iterator<SortableFeature> iterator() {
         return list.iterator();
@@ -75,5 +77,4 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
   }
 
   void add(SortableFeature newEntry);
-
 }

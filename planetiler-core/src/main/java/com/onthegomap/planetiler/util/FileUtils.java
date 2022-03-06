@@ -12,27 +12,25 @@ import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Convenience methods for working with files on disk.
- */
+/** Convenience methods for working with files on disk. */
 public class FileUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
-  private FileUtils() {
-  }
+  private FileUtils() {}
 
   /** Returns a stream that lists all files in {@code fileSystem}. */
   public static Stream<Path> walkFileSystem(FileSystem fileSystem) {
     return StreamSupport.stream(fileSystem.getRootDirectories().spliterator(), false)
-      .flatMap(rootDirectory -> {
-        try {
-          return Files.walk(rootDirectory);
-        } catch (IOException e) {
-          LOGGER.error("Unable to walk " + rootDirectory + " in " + fileSystem, e);
-          return Stream.empty();
-        }
-      });
+        .flatMap(
+            rootDirectory -> {
+              try {
+                return Files.walk(rootDirectory);
+              } catch (IOException e) {
+                LOGGER.error("Unable to walk " + rootDirectory + " in " + fileSystem, e);
+                return Stream.empty();
+              }
+            });
   }
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
@@ -52,10 +50,7 @@ public class FileUtils {
   /** Returns the directory usage of all files until {@code path} or 0 if missing/inaccessible. */
   public static long directorySize(Path path) {
     try {
-      return Files.walk(path)
-        .filter(Files::isRegularFile)
-        .mapToLong(FileUtils::fileSize)
-        .sum();
+      return Files.walk(path).filter(Files::isRegularFile).mapToLong(FileUtils::fileSize).sum();
     } catch (IOException e) {
       return 0;
     }
@@ -78,9 +73,7 @@ public class FileUtils {
   /** Deletes all files under a directory and fails silently if it doesn't exist. */
   public static void deleteDirectory(Path path) {
     try {
-      Files.walk(path)
-        .sorted(Comparator.reverseOrder())
-        .forEach(FileUtils::deleteFile);
+      Files.walk(path).sorted(Comparator.reverseOrder()).forEach(FileUtils::deleteFile);
     } catch (NoSuchFileException e) {
       // this is OK, file doesn't exist, so can't walk
     } catch (IOException e) {
@@ -143,9 +136,7 @@ public class FileUtils {
     }
   }
 
-  /**
-   * Attempts to delete the file located at {@code path} on normal JVM exit.
-   */
+  /** Attempts to delete the file located at {@code path} on normal JVM exit. */
   public static void deleteOnExit(Path path) {
     path.toFile().deleteOnExit();
   }

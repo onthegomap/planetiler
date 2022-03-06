@@ -20,12 +20,12 @@ import java.util.function.Predicate;
 
 /**
  * A list of {@link Expression Expressions} to evaluate on input elements.
- * <p>
- * {@link #index()} returns an optimized {@link Index} that evaluates the minimal set of expressions on the keys present
- * on the element.
- * <p>
- * {@link Index#getMatches(SourceFeature)} returns the data value associated with the expressions that match an input
- * element.
+ *
+ * <p>{@link #index()} returns an optimized {@link Index} that evaluates the minimal set of
+ * expressions on the keys present on the element.
+ *
+ * <p>{@link Index#getMatches(SourceFeature)} returns the data value associated with the expressions
+ * that match an input element.
  *
  * @param <T> type of data value associated with each expression
  */
@@ -40,11 +40,14 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
   }
 
   /**
-   * Evaluates a list of expressions on an input element, storing the matches into {@code result} and using {@code
-   * visited} to avoid evaluating an expression more than once.
+   * Evaluates a list of expressions on an input element, storing the matches into {@code result}
+   * and using {@code visited} to avoid evaluating an expression more than once.
    */
-  private static <T> void visitExpressions(SourceFeature input, List<Match<T>> result,
-    boolean[] visited, List<EntryWithId<T>> expressions) {
+  private static <T> void visitExpressions(
+      SourceFeature input,
+      List<Match<T>> result,
+      boolean[] visited,
+      List<EntryWithId<T>> expressions) {
     if (expressions != null) {
       for (EntryWithId<T> expressionValue : expressions) {
         if (!visited[expressionValue.id]) {
@@ -58,7 +61,10 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     }
   }
 
-  /** Calls {@code acceptKey} for every tag that could possibly cause {@code exp} to match an input element. */
+  /**
+   * Calls {@code acceptKey} for every tag that could possibly cause {@code exp} to match an input
+   * element.
+   */
   private static void getRelevantKeys(Expression exp, Consumer<String> acceptKey) {
     if (exp instanceof Expression.And and) {
       and.children().forEach(child -> getRelevantKeys(child, acceptKey));
@@ -74,8 +80,8 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
   }
 
   /**
-   * Calls {@code acceptKey} for every tag that, when missing, could possibly cause {@code exp} to match an input
-   * element.
+   * Calls {@code acceptKey} for every tag that, when missing, could possibly cause {@code exp} to
+   * match an input element.
    */
   private static void getRelevantMissingKeys(Expression exp, Consumer<String> acceptKey) {
     if (exp instanceof Expression.And and) {
@@ -94,31 +100,35 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     if (expressions.isEmpty()) {
       return new EmptyIndex<>();
     }
-    boolean caresAboutGeometryType = expressions.stream().anyMatch(entry ->
-      entry.expression.contains(exp -> exp instanceof Expression.MatchType));
+    boolean caresAboutGeometryType =
+        expressions.stream()
+            .anyMatch(
+                entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
     return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(this);
   }
 
-  /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
+  /**
+   * Returns a copy of this multi-expression that replaces every expression using {@code mapper}.
+   */
   public MultiExpression<T> map(Function<Expression, Expression> mapper) {
     return new MultiExpression<>(
-      expressions.stream()
-        .map(entry -> entry(entry.result, mapper.apply(entry.expression).simplify()))
-        .filter(entry -> entry.expression != Expression.FALSE)
-        .toList()
-    );
+        expressions.stream()
+            .map(entry -> entry(entry.result, mapper.apply(entry.expression).simplify()))
+            .filter(entry -> entry.expression != Expression.FALSE)
+            .toList());
   }
 
   /**
-   * Returns a copy of this multi-expression that replaces every sub-expression that matches {@code test} with {@code
-   * b}.
+   * Returns a copy of this multi-expression that replaces every sub-expression that matches {@code
+   * test} with {@code b}.
    */
   public MultiExpression<T> replace(Predicate<Expression> test, Expression b) {
     return map(e -> e.replace(test, b));
   }
 
   /**
-   * Returns a copy of this multi-expression that replaces every sub-expression equal to {@code a} with {@code b}.
+   * Returns a copy of this multi-expression that replaces every sub-expression equal to {@code a}
+   * with {@code b}.
    */
   public MultiExpression<T> replace(Expression a, Expression b) {
     return map(e -> e.replace(a, b));
@@ -129,22 +139,21 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     return map(e -> e.simplify());
   }
 
-  /** Returns a copy of this multi-expression, filtering-out the entry for each data value matching {@code accept}. */
+  /**
+   * Returns a copy of this multi-expression, filtering-out the entry for each data value matching
+   * {@code accept}.
+   */
   public MultiExpression<T> filterResults(Predicate<T> accept) {
     return new MultiExpression<>(
-      expressions.stream()
-        .filter(entry -> accept.test(entry.result))
-        .toList()
-    );
+        expressions.stream().filter(entry -> accept.test(entry.result)).toList());
   }
 
   /** Returns a copy of this multi-expression, replacing the data value with {@code fn}. */
   public <U> MultiExpression<U> mapResults(Function<T, U> fn) {
     return new MultiExpression<>(
-      expressions.stream()
-        .map(entry -> entry(fn.apply(entry.result), entry.expression))
-        .toList()
-    );
+        expressions.stream()
+            .map(entry -> entry(fn.apply(entry.result), entry.expression))
+            .toList());
   }
 
   /**
@@ -163,17 +172,15 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     }
 
     /**
-     * Returns the data value associated with the first expression that match an input element, or {@code defaultValue}
-     * if none match.
+     * Returns the data value associated with the first expression that match an input element, or
+     * {@code defaultValue} if none match.
      */
     default T getOrElse(SourceFeature input, T defaultValue) {
       List<T> matches = getMatches(input);
       return matches.isEmpty() ? defaultValue : matches.get(0);
     }
 
-    /**
-     * Returns the data value associated with expressions matching a feature with {@code tags}.
-     */
+    /** Returns the data value associated with expressions matching a feature with {@code tags}. */
     default T getOrElse(Map<String, Object> tags, T defaultValue) {
       List<T> matches = getMatches(SimpleFeature.create(EMPTY_GEOMETRY, tags));
       return matches.isEmpty() ? defaultValue : matches.get(0);
@@ -202,7 +209,9 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     }
   }
 
-  /** Index that limits the search space of expressions based on keys present on an input element. */
+  /**
+   * Index that limits the search space of expressions based on keys present on an input element.
+   */
   private static class KeyIndex<T> implements Index<T> {
 
     private final int numExpressions;
@@ -210,7 +219,8 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     // we can limit the number of expressions we need to evaluate for each input,
     // improves matching performance by ~5x
     private final Map<String, List<EntryWithId<T>>> keyToExpressionsMap;
-    // same as keyToExpressionsMap but as a list (optimized for iteration when # source feature keys > # tags we care about)
+    // same as keyToExpressionsMap but as a list (optimized for iteration when # source feature keys
+    // > # tags we care about)
     private final List<Map.Entry<String, List<EntryWithId<T>>>> keyToExpressionsList;
     // expressions that should match when certain tags are *not* present on an input element
     private final List<Map.Entry<String, List<EntryWithId<T>>>> missingKeyToExpressionList;
@@ -222,17 +232,27 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
       Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
-        EntryWithId<T> expressionValue = new EntryWithId<>(entry.result, expression, ids.incrementAndGet());
-        getRelevantKeys(expression,
-          key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
-        getRelevantMissingKeys(expression,
-          key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
+        EntryWithId<T> expressionValue =
+            new EntryWithId<>(entry.result, expression, ids.incrementAndGet());
+        getRelevantKeys(
+            expression,
+            key ->
+                keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
+        getRelevantMissingKeys(
+            expression,
+            key ->
+                missingKeyToExpressions
+                    .computeIfAbsent(key, k -> new HashSet<>())
+                    .add(expressionValue));
       }
       keyToExpressionsMap = new HashMap<>();
-      keyToExpressions.forEach((key, value) -> keyToExpressionsMap.put(key, value.stream().toList()));
+      keyToExpressions.forEach(
+          (key, value) -> keyToExpressionsMap.put(key, value.stream().toList()));
       keyToExpressionsList = keyToExpressionsMap.entrySet().stream().toList();
-      missingKeyToExpressionList = missingKeyToExpressions.entrySet().stream()
-        .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList())).toList();
+      missingKeyToExpressionList =
+          missingKeyToExpressions.entrySet().stream()
+              .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList()))
+              .toList();
       numExpressions = ids.incrementAndGet();
     }
 
@@ -262,7 +282,9 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     }
   }
 
-  /** Index that limits the search space of expressions based on geometry type of an input element. */
+  /**
+   * Index that limits the search space of expressions based on geometry type of an input element.
+   */
   private static class GeometryTypeIndex<T> implements Index<T> {
 
     private final KeyIndex<T> pointIndex;
@@ -270,7 +292,8 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     private final KeyIndex<T> polygonIndex;
 
     private GeometryTypeIndex(MultiExpression<T> expressions) {
-      // build an index per type then search in each of those indexes based on the geometry type of each input element
+      // build an index per type then search in each of those indexes based on the geometry type of
+      // each input element
       // this narrows the search space substantially, improving matching performance
       pointIndex = indexForType(expressions, Expression.POINT_TYPE);
       lineIndex = indexForType(expressions, Expression.LINESTRING_TYPE);
@@ -278,15 +301,16 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     }
 
     private KeyIndex<T> indexForType(MultiExpression<T> expressions, String type) {
-      return new KeyIndex<>(expressions
-        .replace(matchType(type), TRUE)
-        .replace(e -> e instanceof Expression.MatchType, FALSE)
-        .simplify());
+      return new KeyIndex<>(
+          expressions
+              .replace(matchType(type), TRUE)
+              .replace(e -> e instanceof Expression.MatchType, FALSE)
+              .simplify());
     }
 
     /**
-     * Returns all data values associated with expressions that match an input element, along with the tag keys that
-     * caused the match.
+     * Returns all data values associated with expressions that match an input element, along with
+     * the tag keys that caused the match.
      */
     public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
       List<Match<T>> result;
@@ -311,10 +335,14 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
   private record EntryWithId<T>(T result, Expression expression, int id) {}
 
   /**
-   * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
+   * An {@code expression} to evaluate on input elements and {@code result} value to return when the
+   * element matches.
    */
   public record Entry<T>(T result, Expression expression) {}
 
-  /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
+  /**
+   * The result when an expression matches, along with the input element tag {@code keys} that
+   * triggered the match.
+   */
   public record Match<T>(T match, List<String> keys) {}
 }

@@ -13,9 +13,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A registry of tasks that are being timed.
- */
+/** A registry of tasks that are being timed. */
 @ThreadSafe
 public class Timers {
 
@@ -43,26 +41,33 @@ public class Timers {
     Stage stage = timers.get(name);
     var elapsed = stage.timer.elapsed();
     List<String> threads = stage.threadStats.stream().map(d -> d.prefix).distinct().toList();
-    int maxLength = !pad ? 0 : (int) (threads.stream()
-      .map(n -> n.replace(name + "_", ""))
-      .mapToLong(String::length)
-      .max().orElse(0)) + 1;
+    int maxLength =
+        !pad
+            ? 0
+            : (int)
+                    (threads.stream()
+                        .map(n -> n.replace(name + "_", ""))
+                        .mapToLong(String::length)
+                        .max()
+                        .orElse(0))
+                + 1;
     for (String thread : threads) {
       StringBuilder result = new StringBuilder();
-      List<ThreadInfo> threadStates = stage.threadStats.stream()
-        .filter(t -> t.prefix.equals(thread))
-        .toList();
+      List<ThreadInfo> threadStates =
+          stage.threadStats.stream().filter(t -> t.prefix.equals(thread)).toList();
       int num = threadStates.size();
-      ProcessInfo.ThreadState sum = threadStates.stream()
-        .map(d -> d.state)
-        .reduce(ProcessInfo.ThreadState.DEFAULT, ProcessInfo.ThreadState::plus);
+      ProcessInfo.ThreadState sum =
+          threadStates.stream()
+              .map(d -> d.state)
+              .reduce(ProcessInfo.ThreadState.DEFAULT, ProcessInfo.ThreadState::plus);
       double totalNanos = elapsed.wall().multipliedBy(num).toNanos();
-      result.append(Format.padRight(thread.replace(name + "_", ""), maxLength))
-        .append(Format.padLeft(Integer.toString(num), 2))
-        .append("x(")
-        .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
-        .append(" ")
-        .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
+      result
+          .append(Format.padRight(thread.replace(name + "_", ""), maxLength))
+          .append(Format.padLeft(Integer.toString(num), 2))
+          .append("x(")
+          .append(FORMAT.percent(sum.cpuTime().toNanos() / totalNanos))
+          .append(" ")
+          .append(FORMAT.duration(sum.cpuTime().dividedBy(num)));
 
       Duration systemTime = sum.cpuTime().minus(sum.userTime()).dividedBy(num);
       if (systemTime.compareTo(Duration.ofSeconds(1)) > 0) {
@@ -76,10 +81,12 @@ public class Timers {
       if (waitTime.compareTo(Duration.ofSeconds(1)) > 0) {
         result.append(" wait:").append(FORMAT.duration(waitTime));
       }
-      Duration totalThreadElapsedTime = threadStates.stream().map(d -> d.elapsed)
-        .reduce(Duration::plus)
-        .orElse(Duration.ZERO)
-        .dividedBy(num);
+      Duration totalThreadElapsedTime =
+          threadStates.stream()
+              .map(d -> d.elapsed)
+              .reduce(Duration::plus)
+              .orElse(Duration.ZERO)
+              .dividedBy(num);
       Duration doneTime = elapsed.wall().minus(totalThreadElapsedTime);
       if (doneTime.compareTo(Duration.ofSeconds(1)) > 0) {
         result.append(" done:").append(FORMAT.duration(doneTime));
@@ -113,7 +120,10 @@ public class Timers {
     }
   }
 
-  /** Returns a snapshot of all timers currently running. Will not reflect timers that start after it's called. */
+  /**
+   * Returns a snapshot of all timers currently running. Will not reflect timers that start after
+   * it's called.
+   */
   public Map<String, Stage> all() {
     synchronized (timers) {
       return new LinkedHashMap<>(timers);

@@ -1,5 +1,6 @@
 // This software is released into the Public Domain.
-// See NOTICE.md here or copying.txt from https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
+// See NOTICE.md here or copying.txt from
+// https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
 package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
@@ -21,8 +22,8 @@ import org.openstreetmap.osmosis.osmbinary.Fileformat;
 import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
- * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an iterator over blocks
- * to give more control over the parallelism.
+ * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an
+ * iterator over blocks to give more control over the parallelism.
  *
  * @author Brett Henderson
  */
@@ -57,7 +58,8 @@ public class PbfDecoder implements Iterable<OsmElement> {
       }
       inflater.end();
     } else {
-      throw new RuntimeException("PBF blob uses unsupported compression, only raw or zlib may be used.");
+      throw new RuntimeException(
+          "PBF blob uses unsupported compression, only raw or zlib may be used.");
     }
 
     return blobData;
@@ -78,22 +80,21 @@ public class PbfDecoder implements Iterable<OsmElement> {
       byte[] data = readBlobContent(raw);
       Osmformat.HeaderBlock header = Osmformat.HeaderBlock.parseFrom(data);
       Osmformat.HeaderBBox bbox = header.getBbox();
-      Envelope bounds = new Envelope(
-        bbox.getLeft() / 1e9,
-        bbox.getRight() / 1e9,
-        bbox.getBottom() / 1e9,
-        bbox.getTop() / 1e9
-      );
+      Envelope bounds =
+          new Envelope(
+              bbox.getLeft() / 1e9,
+              bbox.getRight() / 1e9,
+              bbox.getBottom() / 1e9,
+              bbox.getTop() / 1e9);
       return new OsmHeader(
-        bounds,
-        header.getRequiredFeaturesList(),
-        header.getOptionalFeaturesList(),
-        header.getWritingprogram(),
-        header.getSource(),
-        Instant.ofEpochSecond(header.getOsmosisReplicationTimestamp()),
-        header.getOsmosisReplicationSequenceNumber(),
-        header.getOsmosisReplicationBaseUrl()
-      );
+          bounds,
+          header.getRequiredFeaturesList(),
+          header.getOptionalFeaturesList(),
+          header.getWritingprogram(),
+          header.getSource(),
+          Instant.ofEpochSecond(header.getOsmosisReplicationTimestamp()),
+          header.getOsmosisReplicationSequenceNumber(),
+          header.getOsmosisReplicationBaseUrl());
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to decode PBF header", e);
     }
@@ -101,12 +102,16 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   @Override
   public Iterator<OsmElement> iterator() {
-    return Iterators.concat(block.getPrimitivegroupList().stream().map(primitiveGroup -> Iterators.concat(
-      new DenseNodeIterator(primitiveGroup.getDense()),
-      new NodeIterator(primitiveGroup.getNodesList()),
-      new WayIterator(primitiveGroup.getWaysList()),
-      new RelationIterator(primitiveGroup.getRelationsList())
-    )).iterator());
+    return Iterators.concat(
+        block.getPrimitivegroupList().stream()
+            .map(
+                primitiveGroup ->
+                    Iterators.concat(
+                        new DenseNodeIterator(primitiveGroup.getDense()),
+                        new NodeIterator(primitiveGroup.getNodesList()),
+                        new WayIterator(primitiveGroup.getWaysList()),
+                        new RelationIterator(primitiveGroup.getRelationsList())))
+            .iterator());
   }
 
   private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
@@ -141,11 +146,10 @@ public class PbfDecoder implements Iterable<OsmElement> {
     public OsmElement.Node next() {
       var node = nodes.get(i++);
       return new OsmElement.Node(
-        node.getId(),
-        buildTags(node.getKeysCount(), node::getKeys, node::getVals),
-        fieldDecoder.decodeLatitude(node.getLat()),
-        fieldDecoder.decodeLongitude(node.getLon())
-      );
+          node.getId(),
+          buildTags(node.getKeysCount(), node::getKeys, node::getVals),
+          fieldDecoder.decodeLatitude(node.getLat()),
+          fieldDecoder.decodeLongitude(node.getLon()));
     }
   }
 
@@ -174,24 +178,22 @@ public class PbfDecoder implements Iterable<OsmElement> {
       long memberId = 0;
       for (int i = 0; i < num; i++) {
         memberId += relation.getMemids(i);
-        var memberType = switch (relation.getTypes(i)) {
-          case WAY -> OsmElement.Relation.Type.WAY;
-          case NODE -> OsmElement.Relation.Type.NODE;
-          case RELATION -> OsmElement.Relation.Type.RELATION;
-        };
-        members.add(new OsmElement.Relation.Member(
-          memberType,
-          memberId,
-          fieldDecoder.decodeString(relation.getRolesSid(i))
-        ));
+        var memberType =
+            switch (relation.getTypes(i)) {
+              case WAY -> OsmElement.Relation.Type.WAY;
+              case NODE -> OsmElement.Relation.Type.NODE;
+              case RELATION -> OsmElement.Relation.Type.RELATION;
+            };
+        members.add(
+            new OsmElement.Relation.Member(
+                memberType, memberId, fieldDecoder.decodeString(relation.getRolesSid(i))));
       }
 
       // Add the bound object to the results.
       return new OsmElement.Relation(
-        relation.getId(),
-        buildTags(relation.getKeysCount(), relation::getKeys, relation::getVals),
-        members
-      );
+          relation.getId(),
+          buildTags(relation.getKeysCount(), relation::getKeys, relation::getVals),
+          members);
     }
   }
 
@@ -228,10 +230,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
       }
 
       return new OsmElement.Way(
-        way.getId(),
-        buildTags(way.getKeysCount(), way::getKeys, way::getVals),
-        wayNodesList
-      );
+          way.getId(), buildTags(way.getKeysCount(), way::getKeys, way::getVals), wayNodesList);
     }
   }
 
@@ -252,7 +251,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
       i = 0;
       kvIndex = 0;
     }
-
 
     @Override
     public boolean hasNext() {
@@ -280,18 +278,19 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
         if (tags == null) {
           // divide by 2 as key&value, multiple by 2 because of the better approximation
-          tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
+          tags =
+              new HashMap<>(
+                  Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
         }
 
         tags.put(fieldDecoder.decodeString(keyIndex), fieldDecoder.decodeString(valueIndex));
       }
 
       return new OsmElement.Node(
-        nodeId,
-        tags == null ? Collections.emptyMap() : tags,
-        ((double) latitude) / 10000000,
-        ((double) longitude) / 10000000
-      );
+          nodeId,
+          tags == null ? Collections.emptyMap() : tags,
+          ((double) latitude) / 10000000,
+          ((double) longitude) / 10000000);
     }
   }
 }

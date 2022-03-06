@@ -9,9 +9,9 @@ import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Redistributes work among worker threads when some finish early.
- * <p>
- * When a group of worker threads are processing large blocks, some may finish early, resulting in idle time at the end
- * waiting for the "long pole in the tent" to finish:
+ *
+ * <p>When a group of worker threads are processing large blocks, some may finish early, resulting
+ * in idle time at the end waiting for the "long pole in the tent" to finish:
  *
  * <pre>{@code
  *          busy         idle | done
@@ -20,13 +20,16 @@ import javax.annotation.concurrent.ThreadSafe;
  * worker3: =================>|
  * worker4: =============>xxxx|
  * }</pre>
- * <p>
- * This utility wraps the operation to perform on each element and then works through items in 3 phases:
+ *
+ * <p>This utility wraps the operation to perform on each element and then works through items in 3
+ * phases:
  *
  * <ol>
- *   <li>If all threads are still busy, process it in the same thread</li>
- *   <li>If some threads are done, enqueue the item onto a work queue (but if it is full, just process it in the same thread)</li>
- *   <li>When the thread is done processing input elements, then process items off of the work queue until it is empty and all other workers are finished</li>
+ *   <li>If all threads are still busy, process it in the same thread
+ *   <li>If some threads are done, enqueue the item onto a work queue (but if it is full, just
+ *       process it in the same thread)
+ *   <li>When the thread is done processing input elements, then process items off of the work queue
+ *       until it is empty and all other workers are finished
  * </ol>
  *
  * @param <T> The type of element being processed

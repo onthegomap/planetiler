@@ -46,18 +46,20 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Utilities to extract common name fields (name, name_en, name_de, name:latin, name:nonlatin, name_int) that the
- * OpenMapTiles schema uses across any map element with a name.
- * <p>
- * Ported from <a href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
+ * Utilities to extract common name fields (name, name_en, name_de, name:latin, name:nonlatin,
+ * name_int) that the OpenMapTiles schema uses across any map element with a name.
+ *
+ * <p>Ported from <a
+ * href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
  */
 public class LanguageUtils {
 
-  private static final Pattern NONLATIN = Pattern
-    .compile("[^\\x{0000}-\\x{024f}\\x{1E00}-\\x{1EFF}\\x{0300}-\\x{036f}\\x{0259}]");
+  private static final Pattern NONLATIN =
+      Pattern.compile("[^\\x{0000}-\\x{024f}\\x{1E00}-\\x{1EFF}\\x{0300}-\\x{036f}\\x{0259}]");
   private static final Pattern LETTER = Pattern.compile("[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+");
   private static final Pattern EMPTY_PARENS = Pattern.compile("(\\([ -.]*\\)|\\[[ -.]*])");
-  private static final Pattern LEADING_TRAILING_JUNK = Pattern.compile("(^\\s*([./-]\\s*)*|(\\s+[./-])*\\s*$)");
+  private static final Pattern LEADING_TRAILING_JUNK =
+      Pattern.compile("(^\\s*([./-]\\s*)*|(\\s+[./-])*\\s*$)");
   private static final Pattern WHITESPACE = Pattern.compile("\\s+");
   private static final Set<String> EN_DE_NAME_KEYS = Set.of("name:en", "name:de");
 
@@ -97,16 +99,18 @@ public class LanguageUtils {
   }
 
   /**
-   * Returns a map with default name attributes (name, name_en, name_de, name:latin, name:nonlatin, name_int) that every
-   * element should have, derived from name, int_name, name:en, and name:de tags on the input element.
+   * Returns a map with default name attributes (name, name_en, name_de, name:latin, name:nonlatin,
+   * name_int) that every element should have, derived from name, int_name, name:en, and name:de
+   * tags on the input element.
    *
    * <ul>
-   *   <li>name is the original name value from the element</li>
-   *   <li>name_en is the original name:en value from the element, or name if missing</li>
-   *   <li>name_de is the original name:de value from the element, or name/ name_en if missing</li>
-   *   <li>name:latin is the first of name, int_name, or any name: attribute that contains only latin characters</li>
-   *   <li>name:nonlatin is any nonlatin part of name if present</li>
-   *   <li>name_int is the first of int_name name:en name:latin name</li>
+   *   <li>name is the original name value from the element
+   *   <li>name_en is the original name:en value from the element, or name if missing
+   *   <li>name_de is the original name:de value from the element, or name/ name_en if missing
+   *   <li>name:latin is the first of name, int_name, or any name: attribute that contains only
+   *       latin characters
+   *   <li>name:nonlatin is any nonlatin part of name if present
+   *   <li>name_int is the first of int_name name:en name:latin name
    * </ul>
    */
   public static Map<String, Object> getNamesWithoutTranslations(Map<String, Object> tags) {
@@ -114,8 +118,8 @@ public class LanguageUtils {
   }
 
   /**
-   * Returns a map with default name attributes that {@link #getNamesWithoutTranslations(Map)} adds, but also
-   * translations for every language that {@code translations} is configured to handle.
+   * Returns a map with default name attributes that {@link #getNamesWithoutTranslations(Map)} adds,
+   * but also translations for every language that {@code translations} is configured to handle.
    */
   public static Map<String, Object> getNames(Map<String, Object> tags, Translations translations) {
     Map<String, Object> result = new HashMap<>();
@@ -126,10 +130,15 @@ public class LanguageUtils {
     String nameDe = string(tags.get("name:de"));
 
     boolean isLatin = containsOnlyLatinCharacters(name);
-    String latin = isLatin ? name
-      : Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNameTranslationsBesidesEnglishAndGerman(tags))
-        .filter(LanguageUtils::containsOnlyLatinCharacters)
-        .findFirst().orElse(null);
+    String latin =
+        isLatin
+            ? name
+            : Stream.concat(
+                    Stream.of(nameEn, intName, nameDe),
+                    getAllNameTranslationsBesidesEnglishAndGerman(tags))
+                .filter(LanguageUtils::containsOnlyLatinCharacters)
+                .findFirst()
+                .orElse(null);
     if (latin == null && translations != null && translations.getShouldTransliterate()) {
       latin = transliteratedName(tags);
     }
@@ -143,12 +152,7 @@ public class LanguageUtils {
     putIfNotEmpty(result, "name_de", coalesce(nameDe, name, nameEn));
     putIfNotEmpty(result, "name:latin", latin);
     putIfNotEmpty(result, "name:nonlatin", nonLatin);
-    putIfNotEmpty(result, "name_int", coalesce(
-      intName,
-      nameEn,
-      latin,
-      name
-    ));
+    putIfNotEmpty(result, "name_int", coalesce(intName, nameEn, latin, name));
 
     if (translations != null) {
       translations.addTranslations(result, tags);
@@ -157,14 +161,15 @@ public class LanguageUtils {
     return result;
   }
 
-  private static Stream<String> getAllNameTranslationsBesidesEnglishAndGerman(Map<String, Object> tags) {
+  private static Stream<String> getAllNameTranslationsBesidesEnglishAndGerman(
+      Map<String, Object> tags) {
     return tags.entrySet().stream()
-      .filter(e -> {
-        String key = e.getKey();
-        return key.startsWith("name:") && !EN_DE_NAME_KEYS.contains(key);
-      })
-      .map(Map.Entry::getValue)
-      .map(LanguageUtils::string);
+        .filter(
+            e -> {
+              String key = e.getKey();
+              return key.startsWith("name:") && !EN_DE_NAME_KEYS.contains(key);
+            })
+        .map(Map.Entry::getValue)
+        .map(LanguageUtils::string);
   }
-
 }

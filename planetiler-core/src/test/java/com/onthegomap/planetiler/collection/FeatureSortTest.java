@@ -18,11 +18,10 @@ public class FeatureSortTest {
 
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
 
-  @TempDir
-  Path tmpDir;
+  @TempDir Path tmpDir;
 
   private static SortableFeature newEntry(int i) {
-    return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
+    return new SortableFeature(Long.MIN_VALUE + i, new byte[] {(byte) i, (byte) (1 + i)});
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip) {

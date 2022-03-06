@@ -44,6 +44,7 @@ public class PolygonIndexTest {
     assertListsContainSameElements(List.of(2), index.getContainingOrNearest(newPoint(0, 0)));
 
     assertListsContainSameElements(List.of(2, 1), index.getContaining(newPoint(0.75, 0.75)));
-    assertListsContainSameElements(List.of(2, 1), index.getContainingOrNearest(newPoint(0.75, 0.75)));
+    assertListsContainSameElements(
+        List.of(2, 1), index.getContainingOrNearest(newPoint(0.75, 0.75)));
   }
 }

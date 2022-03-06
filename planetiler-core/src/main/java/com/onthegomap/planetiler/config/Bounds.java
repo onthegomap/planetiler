@@ -9,9 +9,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Holds the bounds of the map to generate.
- * <p>
- * Call {@link #setFallbackProvider(Provider)} when input data source (i.e. {@link OsmInputFile}) is available to infer
- * bounds automatically. If no bounds are set, defaults to the entire planet.
+ *
+ * <p>Call {@link #setFallbackProvider(Provider)} when input data source (i.e. {@link OsmInputFile})
+ * is available to infer bounds automatically. If no bounds are set, defaults to the entire planet.
  */
 public class Bounds {
 

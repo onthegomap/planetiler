@@ -23,29 +23,32 @@ import javax.management.openmbean.CompositeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A collection of utilities to gather runtime information about the JVM.
- */
+/** A collection of utilities to gather runtime information about the JVM. */
 public class ProcessInfo {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ProcessInfo.class);
 
   // listen on GC events to track memory pool sizes after each GC
-  private static final AtomicReference<Map<String, Long>> postGcMemoryUsage = new AtomicReference<>(Map.of());
+  private static final AtomicReference<Map<String, Long>> postGcMemoryUsage =
+      new AtomicReference<>(Map.of());
 
   static {
-    for (GarbageCollectorMXBean garbageCollectorMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+    for (GarbageCollectorMXBean garbageCollectorMXBean :
+        ManagementFactory.getGarbageCollectorMXBeans()) {
       if (garbageCollectorMXBean instanceof NotificationEmitter emitter) {
-        emitter.addNotificationListener((notification, handback) -> {
-          if (notification.getUserData() instanceof CompositeData compositeData) {
-            var info = GarbageCollectionNotificationInfo.from(compositeData);
-            GcInfo gcInfo = info.getGcInfo();
-            postGcMemoryUsage.set(gcInfo.getMemoryUsageAfterGc().entrySet().stream()
-              .map(e -> Map.entry(e.getKey(), e.getValue().getUsed()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
-            );
-          }
-        }, null, null);
+        emitter.addNotificationListener(
+            (notification, handback) -> {
+              if (notification.getUserData() instanceof CompositeData compositeData) {
+                var info = GarbageCollectionNotificationInfo.from(compositeData);
+                GcInfo gcInfo = info.getGcInfo();
+                postGcMemoryUsage.set(
+                    gcInfo.getMemoryUsageAfterGc().entrySet().stream()
+                        .map(e -> Map.entry(e.getKey(), e.getValue().getUsed()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+              }
+            },
+            null,
+            null);
       }
     }
 
@@ -53,13 +56,15 @@ public class ProcessInfo {
     if (threadBean.isThreadContentionMonitoringSupported()) {
       ManagementFactory.getThreadMXBean().setThreadContentionMonitoringEnabled(true);
     } else {
-      LOGGER.debug("Thread contention monitoring not supported, will not have access to waiting/blocking time stats.");
+      LOGGER.debug(
+          "Thread contention monitoring not supported, will not have access to waiting/blocking"
+              + " time stats.");
     }
   }
 
   /**
-   * Returns the amount of CPU time this processed hase used according to {@link OperatingSystemMXBean}, or empty if the
-   * JVM does not support this.
+   * Returns the amount of CPU time this processed hase used according to {@link
+   * OperatingSystemMXBean}, or empty if the JVM does not support this.
    */
   public static Optional<Duration> getProcessCpuTime() {
     Long result;
@@ -69,23 +74,20 @@ public class ProcessInfo {
     } catch (NoSuchMethodException | InvocationTargetException e) {
       result = null;
     }
-    return Optional
-      .ofNullable(result)
-      .map(Duration::ofNanos);
+    return Optional.ofNullable(result).map(Duration::ofNanos);
   }
 
-  /**
-   * Returns the amount direct (off-heap) memory used by the JVM.
-   */
+  /** Returns the amount direct (off-heap) memory used by the JVM. */
   public static OptionalLong getDirectMemoryUsage() {
     return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
-      .filter(bufferPool -> "direct".equals(bufferPool.getName()))
-      .mapToLong(BufferPoolMXBean::getMemoryUsed)
-      .findFirst();
+        .filter(bufferPool -> "direct".equals(bufferPool.getName()))
+        .mapToLong(BufferPoolMXBean::getMemoryUsed)
+        .findFirst();
   }
 
   // reflection helper
-  private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
+  private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz)
+      throws InvocationTargetException {
     try {
       return resultClazz.cast(method.invoke(obj));
     } catch (IllegalAccessException e) {
@@ -123,8 +125,12 @@ public class ProcessInfo {
 
   /** Processor usage statistics for a thread. */
   public record ThreadState(
-    String name, Duration cpuTime, Duration userTime, Duration waiting, Duration blocking, long id
-  ) {
+      String name,
+      Duration cpuTime,
+      Duration userTime,
+      Duration waiting,
+      Duration blocking,
+      long id) {
 
     private static long zeroIfUnsupported(LongSupplier supplier) {
       try {
@@ -136,30 +142,34 @@ public class ProcessInfo {
 
     public ThreadState(ThreadMXBean threadMXBean, ThreadInfo thread) {
       this(
-        thread.getThreadName(),
-        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadCpuTime(thread.getThreadId()))),
-        Duration.ofNanos(zeroIfUnsupported(() -> threadMXBean.getThreadUserTime(thread.getThreadId()))),
-        Duration.ofMillis(zeroIfUnsupported(thread::getWaitedTime)),
-        Duration.ofMillis(zeroIfUnsupported(thread::getBlockedTime)),
-        thread.getThreadId());
+          thread.getThreadName(),
+          Duration.ofNanos(
+              zeroIfUnsupported(() -> threadMXBean.getThreadCpuTime(thread.getThreadId()))),
+          Duration.ofNanos(
+              zeroIfUnsupported(() -> threadMXBean.getThreadUserTime(thread.getThreadId()))),
+          Duration.ofMillis(zeroIfUnsupported(thread::getWaitedTime)),
+          Duration.ofMillis(zeroIfUnsupported(thread::getBlockedTime)),
+          thread.getThreadId());
     }
 
-    public static final ThreadState DEFAULT = new ThreadState("", Duration.ZERO, Duration.ZERO, Duration.ZERO,
-      Duration.ZERO, -1);
+    public static final ThreadState DEFAULT =
+        new ThreadState("", Duration.ZERO, Duration.ZERO, Duration.ZERO, Duration.ZERO, -1);
 
     /** Adds up the timers in two {@code ThreadState} instances */
     public ThreadState plus(ThreadState other) {
-      return new ThreadState("<multiple threads>",
-        cpuTime.plus(other.cpuTime),
-        userTime.plus(other.userTime),
-        waiting.plus(other.waiting),
-        blocking.plus(other.blocking),
-        -1
-      );
+      return new ThreadState(
+          "<multiple threads>",
+          cpuTime.plus(other.cpuTime),
+          userTime.plus(other.userTime),
+          waiting.plus(other.waiting),
+          blocking.plus(other.blocking),
+          -1);
     }
   }
 
-  /** Returns the amount of time this JVM has spent in any kind of garbage collection since startup. */
+  /**
+   * Returns the amount of time this JVM has spent in any kind of garbage collection since startup.
+   */
   public static Duration getGcTime() {
     long total = 0;
     for (final GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -168,7 +178,10 @@ public class ProcessInfo {
     return Duration.ofMillis(total);
   }
 
-  /** Returns a map from memory pool name to the size of that pool in bytes after the last garbage-collection. */
+  /**
+   * Returns a map from memory pool name to the size of that pool in bytes after the last
+   * garbage-collection.
+   */
   public static Map<String, Long> getPostGcPoolSizes() {
     return postGcMemoryUsage.get();
   }
@@ -183,7 +196,10 @@ public class ProcessInfo {
     }
   }
 
-  /** Returns a map from thread ID to stats about that thread for every thread that has run, even completed ones. */
+  /**
+   * Returns a map from thread ID to stats about that thread for every thread that has run, even
+   * completed ones.
+   */
   public static Map<Long, ThreadState> getThreadStats() {
     Map<Long, ThreadState> threadState = new TreeMap<>();
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();

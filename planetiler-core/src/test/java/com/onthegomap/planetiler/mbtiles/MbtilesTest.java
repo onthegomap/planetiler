@@ -26,7 +26,7 @@ public class MbtilesTest {
   private static final int BATCH = 999 / 4;
 
   public void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize)
-    throws IOException, SQLException {
+      throws IOException, SQLException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTables();
       if (!deferIndexCreation) {
@@ -36,12 +36,15 @@ public class MbtilesTest {
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
-          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
-            (byte) howMany,
-            (byte) (howMany >> 8),
-            (byte) (howMany >> 16),
-            (byte) (howMany >> 24)
-          });
+          var entry =
+              new Mbtiles.TileEntry(
+                  TileCoord.ofXYZ(i, i + 1, 14),
+                  new byte[] {
+                    (byte) howMany,
+                    (byte) (howMany >> 8),
+                    (byte) (howMany >> 16),
+                    (byte) (howMany >> 24)
+                  });
           writer.write(entry.tile(), entry.bytes());
           expected.add(entry);
         }
@@ -55,8 +58,9 @@ public class MbtilesTest {
       var all = TestUtils.getAllTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
-      assertEquals(expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
-        new HashSet<>(db.getAllTileCoords()));
+      assertEquals(
+          expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
+          new HashSet<>(db.getAllTileCoords()));
       for (var expectedEntry : expected) {
         var tile = expectedEntry.tile();
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
@@ -95,7 +99,8 @@ public class MbtilesTest {
       metadata.setAttribution("attribution value");
       expected.put("attribution", "attribution value");
 
-      metadata.setBoundsAndCenter(GeoUtils.toLatLonBoundsBounds(new Envelope(0.25, 0.75, 0.25, 0.75)));
+      metadata.setBoundsAndCenter(
+          GeoUtils.toLatLonBoundsBounds(new Envelope(0.25, 0.75, 0.25, 0.75)));
       expected.put("bounds", "-90,-66.51326,90,66.51326");
       expected.put("center", "0,0,1");
 
@@ -155,7 +160,8 @@ public class MbtilesTest {
 
   @Test
   public void testMetadataJsonNoLayers() throws IOException {
-    testMetadataJson(new Mbtiles.MetadataJson(), """
+    testMetadataJson(
+        new Mbtiles.MetadataJson(), """
       {
         "vector_layers": []
       }
@@ -164,22 +170,19 @@ public class MbtilesTest {
 
   @Test
   public void testFullMetadataJson() throws IOException {
-    testMetadataJson(new Mbtiles.MetadataJson(
-      new Mbtiles.MetadataJson.VectorLayer(
-        "full",
-        Map.of(
-          "NUMBER_FIELD", Mbtiles.MetadataJson.FieldType.NUMBER,
-          "STRING_FIELD", Mbtiles.MetadataJson.FieldType.STRING,
-          "boolean field", Mbtiles.MetadataJson.FieldType.BOOLEAN
-        )
-      ).withDescription("full description")
-        .withMinzoom(0)
-        .withMaxzoom(5),
-      new Mbtiles.MetadataJson.VectorLayer(
-        "partial",
-        Map.of()
-      )
-    ), """
+    testMetadataJson(
+        new Mbtiles.MetadataJson(
+            new Mbtiles.MetadataJson.VectorLayer(
+                    "full",
+                    Map.of(
+                        "NUMBER_FIELD", Mbtiles.MetadataJson.FieldType.NUMBER,
+                        "STRING_FIELD", Mbtiles.MetadataJson.FieldType.STRING,
+                        "boolean field", Mbtiles.MetadataJson.FieldType.BOOLEAN))
+                .withDescription("full description")
+                .withMinzoom(0)
+                .withMaxzoom(5),
+            new Mbtiles.MetadataJson.VectorLayer("partial", Map.of())),
+        """
       {
         "vector_layers": [
           {

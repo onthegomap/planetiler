@@ -58,39 +58,43 @@ public class DistributorTest {
     CountDownLatch d = new CountDownLatch(1);
     CountDownLatch e = new CountDownLatch(1);
     CountDownLatch f = new CountDownLatch(1);
-    Thread thread1 = new Thread(() -> {
-      try {
-        var thisDistributor = distributor.forThread(processed::add);
-        thisDistributor.accept(1);
-        thisDistributor.accept(2);
-        a.countDown();
-        c.await();
-        d.await();
-        thisDistributor.accept(5);
-        thisDistributor.accept(6); // queue full
-        e.countDown();
-        f.await();
-        thisDistributor.close();
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
-      }
-    });
+    Thread thread1 =
+        new Thread(
+            () -> {
+              try {
+                var thisDistributor = distributor.forThread(processed::add);
+                thisDistributor.accept(1);
+                thisDistributor.accept(2);
+                a.countDown();
+                c.await();
+                d.await();
+                thisDistributor.accept(5);
+                thisDistributor.accept(6); // queue full
+                e.countDown();
+                f.await();
+                thisDistributor.close();
+              } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+              }
+            });
     thread1.start();
-    Thread thread2 = new Thread(() -> {
-      try {
-        var thisDistributor = distributor.forThread(processed::add);
-        a.await();
-        thisDistributor.accept(3);
-        thisDistributor.accept(4);
-        b.countDown();
-        thisDistributor.finish();
-        d.countDown();
-        f.await();
-        thisDistributor.drain();
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
-      }
-    });
+    Thread thread2 =
+        new Thread(
+            () -> {
+              try {
+                var thisDistributor = distributor.forThread(processed::add);
+                a.await();
+                thisDistributor.accept(3);
+                thisDistributor.accept(4);
+                b.countDown();
+                thisDistributor.finish();
+                d.countDown();
+                f.await();
+                thisDistributor.drain();
+              } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+              }
+            });
     thread2.start();
 
     b.await();

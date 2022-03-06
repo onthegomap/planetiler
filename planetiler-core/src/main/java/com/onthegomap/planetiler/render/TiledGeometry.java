@@ -42,14 +42,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Splits geometries represented by lists of {@link CoordinateSequence CoordinateSequences} into the geometries that
- * appear on individual tiles that the geometry touches.
- * <p>
- * {@link GeometryCoordinateSequences} converts between JTS {@link Geometry} instances and {@link CoordinateSequence}
- * lists for this utility.
- * <p>
- * This class is adapted from the stripe clipping algorithm in https://github.com/mapbox/geojson-vt/ and modified so
- * that it eagerly produces all sliced tiles at a zoom level for each input geometry.
+ * Splits geometries represented by lists of {@link CoordinateSequence CoordinateSequences} into the
+ * geometries that appear on individual tiles that the geometry touches.
+ *
+ * <p>{@link GeometryCoordinateSequences} converts between JTS {@link Geometry} instances and {@link
+ * CoordinateSequence} lists for this utility.
+ *
+ * <p>This class is adapted from the stripe clipping algorithm in
+ * https://github.com/mapbox/geojson-vt/ and modified so that it eagerly produces all sliced tiles
+ * at a zoom level for each input geometry.
  */
 @NotThreadSafe
 class TiledGeometry {
@@ -59,8 +60,11 @@ class TiledGeometry {
 
   private final long featureId;
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
-  /** Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry */
+  /**
+   * Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry
+   */
   private Map<Integer, IntRangeSet> filledRanges = null;
+
   private final TileExtents.ForZoom extents;
   private final double buffer;
   private final double neighborBuffer;
@@ -68,7 +72,8 @@ class TiledGeometry {
   private final boolean area;
   private final int maxTilesAtThisZoom;
 
-  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, long featureId) {
+  private TiledGeometry(
+      TileExtents.ForZoom extents, double buffer, int z, boolean area, long featureId) {
     this.featureId = featureId;
     this.extents = extents;
     this.buffer = buffer;
@@ -83,15 +88,16 @@ class TiledGeometry {
    * Returns all the points that appear on tiles representing points at {@code coords}.
    *
    * @param extents range of tile coordinates within the bounds of the map to generate
-   * @param buffer  how far detail should be included beyond the edge of each tile (0=none, 1=a full tile width)
-   * @param z       zoom level
-   * @param coords  the world web mercator coordinates of each point to emit at this zoom level where (0,0) is the
-   *                northwest and (2^z,2^z) is the southeast corner of the planet
-   * @param id      feature ID
+   * @param buffer how far detail should be included beyond the edge of each tile (0=none, 1=a full
+   *     tile width)
+   * @param z zoom level
+   * @param coords the world web mercator coordinates of each point to emit at this zoom level where
+   *     (0,0) is the northwest and (2^z,2^z) is the southeast corner of the planet
+   * @param id feature ID
    * @return each tile this feature touches, and the points that appear on each
    */
-  public static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
-    Coordinate[] coords, long id) {
+  public static TiledGeometry slicePointsIntoTiles(
+      TileExtents.ForZoom extents, double buffer, int z, Coordinate[] coords, long id) {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, false, id);
     for (Coordinate coord : coords) {
       result.slicePoint(coord);
@@ -122,9 +128,10 @@ class TiledGeometry {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
           double tileY = worldY - y;
-          tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-            .get(0)
-            .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
+          tileContents
+              .computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
+              .get(0)
+              .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
         }
       }
     }
@@ -137,18 +144,24 @@ class TiledGeometry {
   /**
    * Returns all the points that appear on tiles representing points at {@code coords}.
    *
-   * @param groups  the list of linestrings or polygon rings extracted using {@link GeometryCoordinateSequences} in
-   *                world web mercator coordinates where (0,0) is the northwest and (2^z,2^z) is the southeast corner of
-   *                the planet
-   * @param buffer  how far detail should be included beyond the edge of each tile (0=none, 1=a full tile width)
-   * @param area    {@code true} if this is a polygon {@code false} if this is a linestring
-   * @param z       zoom level
+   * @param groups the list of linestrings or polygon rings extracted using {@link
+   *     GeometryCoordinateSequences} in world web mercator coordinates where (0,0) is the northwest
+   *     and (2^z,2^z) is the southeast corner of the planet
+   * @param buffer how far detail should be included beyond the edge of each tile (0=none, 1=a full
+   *     tile width)
+   * @param area {@code true} if this is a polygon {@code false} if this is a linestring
+   * @param z zoom level
    * @param extents range of tile coordinates within the bounds of the map to generate
-   * @param id      feature ID
+   * @param id feature ID
    * @return each tile this feature touches, and the points that appear on each
    */
-  public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents, long id) {
+  public static TiledGeometry sliceIntoTiles(
+      List<List<CoordinateSequence>> groups,
+      double buffer,
+      boolean area,
+      int z,
+      TileExtents.ForZoom extents,
+      long id) {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area, id);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
@@ -161,26 +174,30 @@ class TiledGeometry {
   }
 
   /**
-   * Returns an iterator over the coordinates of every tile that is completely filled within this polygon at this zoom
-   * level, ordered by x ascending, y ascending.
+   * Returns an iterator over the coordinates of every tile that is completely filled within this
+   * polygon at this zoom level, ordered by x ascending, y ascending.
    */
   public Iterable<TileCoord> getFilledTiles() {
-    return filledRanges == null ? Collections.emptyList() :
-      () -> filledRanges.entrySet().stream()
-        .<TileCoord>mapMulti((entry, next) -> {
-          int x = entry.getKey();
-          for (int y : entry.getValue()) {
-            TileCoord coord = TileCoord.ofXYZ(x, y, z);
-            if (!tileContents.containsKey(coord)) {
-              next.accept(coord);
-            }
-          }
-        }).iterator();
+    return filledRanges == null
+        ? Collections.emptyList()
+        : () ->
+            filledRanges.entrySet().stream()
+                .<TileCoord>mapMulti(
+                    (entry, next) -> {
+                      int x = entry.getKey();
+                      for (int y : entry.getValue()) {
+                        TileCoord coord = TileCoord.ofXYZ(x, y, z);
+                        if (!tileContents.containsKey(coord)) {
+                          next.accept(coord);
+                        }
+                      }
+                    })
+                .iterator();
   }
 
   /**
-   * Returns every tile that this geometry touches, and the partial geometry contained on that tile that can be
-   * reassembled using {@link GeometryCoordinateSequences}.
+   * Returns every tile that this geometry touches, and the partial geometry contained on that tile
+   * that can be reassembled using {@link GeometryCoordinateSequences}.
    */
   public Iterable<Map.Entry<TileCoord, List<List<CoordinateSequence>>>> getTileData() {
     return tileContents.entrySet();
@@ -194,14 +211,22 @@ class TiledGeometry {
     return x;
   }
 
-  /** Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a vertical line at x=x. */
-  private static void intersectX(MutableCoordinateSequence out, double ax, double ay, double bx, double by, double x) {
+  /**
+   * Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a
+   * vertical line at x=x.
+   */
+  private static void intersectX(
+      MutableCoordinateSequence out, double ax, double ay, double bx, double by, double x) {
     double t = (x - ax) / (bx - ax);
     out.addPoint(x, ay + (by - ay) * t);
   }
 
-  /** Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a horizontal line at y=y. */
-  private static void intersectY(MutableCoordinateSequence out, double ax, double ay, double bx, double by, double y) {
+  /**
+   * Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a
+   * horizontal line at y=y.
+   */
+  private static void intersectY(
+      MutableCoordinateSequence out, double ax, double ay, double bx, double by, double y) {
     double t = (y - ay) / (by - ay);
     out.addPoint(ax + (bx - ax) * t, y);
   }
@@ -209,27 +234,30 @@ class TiledGeometry {
   private static CoordinateSequence fill(double buffer) {
     double min = -256d * buffer;
     double max = 256d - min;
-    return new PackedCoordinateSequence.Double(new double[]{
-      min, min,
-      max, min,
-      max, max,
-      min, max,
-      min, min
-    }, 2, 0);
+    return new PackedCoordinateSequence.Double(
+        new double[] {
+          min, min,
+          max, min,
+          max, max,
+          min, max,
+          min, min
+        },
+        2,
+        0);
   }
 
   /**
    * Slices a geometry into tiles and stores in member fields for a single "copy" of the world.
-   * <p>
-   * Instead of handling content outside -180 to 180 degrees longitude, return {@link Direction#LEFT} or {@link
-   * Direction#RIGHT} to indicate whether this method should be called again with a different {@code xOffset} to process
-   * wrapped content.
    *
-   * @param groups  the geometry
-   * @param xOffset offset to apply to each X coordinate (-2^z handles content that wraps too far east and 2^z handles
-   *                content that wraps too far west)
-   * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
-   * content to the east.
+   * <p>Instead of handling content outside -180 to 180 degrees longitude, return {@link
+   * Direction#LEFT} or {@link Direction#RIGHT} to indicate whether this method should be called
+   * again with a different {@code xOffset} to process wrapped content.
+   *
+   * @param groups the geometry
+   * @param xOffset offset to apply to each X coordinate (-2^z handles content that wraps too far
+   *     east and 2^z handles content that wraps too far west)
+   * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT}
+   *     if there is more content to the east.
    */
   private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset) {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
@@ -294,9 +322,8 @@ class TiledGeometry {
         continue;
       }
       int minPoints = area ? 4 : 2;
-      List<CoordinateSequence> outSeqs = inSeqs.stream()
-        .filter(seq -> seq.size() >= minPoints)
-        .toList();
+      List<CoordinateSequence> outSeqs =
+          inSeqs.stream().filter(seq -> seq.size() >= minPoints).toList();
       if (!outSeqs.isEmpty()) {
         tileContents.computeIfAbsent(tileID, tile -> new ArrayList<>()).add(outSeqs);
       }
@@ -304,8 +331,8 @@ class TiledGeometry {
   }
 
   /**
-   * Returns a map from X coordinate to segments of this geometry that cross the vertical column formed by all tiles
-   * where {@code x=x}.
+   * Returns a map from X coordinate to segments of this geometry that cross the vertical column
+   * formed by all tiles where {@code x=x}.
    */
   private IntObjectMap<List<MutableCoordinateSequence>> sliceX(CoordinateSequence segment) {
     double leftLimit = -buffer;
@@ -391,20 +418,24 @@ class TiledGeometry {
         cursor.value.closeRing();
       }
     }
-    newGeoms.removeAll((x, value) -> {
-      int wrapped = wrapX(x, maxTilesAtThisZoom);
-      return !extents.testX(wrapped);
-    });
+    newGeoms.removeAll(
+        (x, value) -> {
+          int wrapped = wrapX(x, maxTilesAtThisZoom);
+          return !extents.testX(wrapped);
+        });
     return newGeoms;
   }
 
   /**
-   * Splits an entire vertical X column of edge segments into Y rows that form (X, Y) tile coordinates at this zoom
-   * level, stores the result in {@link #tileContents} and returns the Y ranges of filled tile coordinates if this is a
-   * polygon.
+   * Splits an entire vertical X column of edge segments into Y rows that form (X, Y) tile
+   * coordinates at this zoom level, stores the result in {@link #tileContents} and returns the Y
+   * ranges of filled tile coordinates if this is a polygon.
    */
-  private IntRangeSet sliceY(CoordinateSequence stripeSegment, int x, boolean outer,
-    Map<TileCoord, List<CoordinateSequence>> inProgressShapes) {
+  private IntRangeSet sliceY(
+      CoordinateSequence stripeSegment,
+      int x,
+      boolean outer,
+      Map<TileCoord, List<CoordinateSequence>> inProgressShapes) {
     if (stripeSegment.size() == 0) {
       return null;
     }
@@ -420,8 +451,10 @@ class TiledGeometry {
       return null;
     }
 
-    // keep a record of filled tiles that we skipped because an edge of the polygon that gets processed
-    // later may intersect the edge of a filled tile, and we'll need to replay all the edges we skipped
+    // keep a record of filled tiles that we skipped because an edge of the polygon that gets
+    // processed
+    // later may intersect the edge of a filled tile, and we'll need to replay all the edges we
+    // skipped
     record SkippedSegment(Direction side, int lo, int hi) {}
     List<SkippedSegment> skipped = null;
 
@@ -441,7 +474,8 @@ class TiledGeometry {
       int startEndY = Math.min(extentMaxY - 1, (int) Math.floor(maxY - neighborBuffer));
       int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + neighborBuffer));
 
-      // inside a fill if one edge of the polygon runs straight down the right side or up the left side of the column
+      // inside a fill if one edge of the polygon runs straight down the right side or up the left
+      // side of the column
       boolean onRightEdge = area && ax == bx && ax == rightEdge && by > ay;
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
 
@@ -463,11 +497,8 @@ class TiledGeometry {
               skipped = new ArrayList<>();
             }
             // save the Y range that we skipped in case a later edge intersects a filled tile
-            skipped.add(new SkippedSegment(
-              onLeftEdge ? Direction.LEFT : Direction.RIGHT,
-              y,
-              endSkip
-            ));
+            skipped.add(
+                new SkippedSegment(onLeftEdge ? Direction.LEFT : Direction.RIGHT, y, endSkip));
 
             if (rightFilled == null) {
               rightFilled = new IntRangeSet();
@@ -490,7 +521,8 @@ class TiledGeometry {
           // X is already relative to tile, but we need to adjust Y
           ySlices.put(y, slice = MutableCoordinateSequence.newScalingSequence(0, y, 256));
           TileCoord tileID = TileCoord.ofXYZ(x, y, z);
-          List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, tile -> new ArrayList<>());
+          List<CoordinateSequence> toAddTo =
+              inProgressShapes.computeIfAbsent(tileID, tile -> new ArrayList<>());
 
           // if this is tile is inside a fill from an outer tile, infer that fill here
           if (area && !outer && toAddTo.isEmpty()) {
@@ -500,7 +532,10 @@ class TiledGeometry {
 
           // if this tile was skipped because we skipped an edge, and now it needs more points,
           // backfill all the edges that we skipped for it
-          if (area && leftFilled != null && skipped != null && (leftFilled.contains(y) || rightFilled.contains(y))) {
+          if (area
+              && leftFilled != null
+              && skipped != null
+              && (leftFilled.contains(y) || rightFilled.contains(y))) {
             for (SkippedSegment skippedSegment : skipped) {
               if (skippedSegment.lo <= y && skippedSegment.hi >= y) {
                 double top = y - buffer;
@@ -571,7 +606,8 @@ class TiledGeometry {
         cursor.value.closeRing();
       }
     }
-    // a tile is filled if we skipped over the entire left and right side of it while processing a polygon
+    // a tile is filled if we skipped over the entire left and right side of it while processing a
+    // polygon
     return rightFilled != null ? rightFilled.intersect(leftFilled) : null;
   }
 
@@ -603,5 +639,8 @@ class TiledGeometry {
     }
   }
 
-  private enum Direction {RIGHT, LEFT}
+  private enum Direction {
+    RIGHT,
+    LEFT
+  }
 }

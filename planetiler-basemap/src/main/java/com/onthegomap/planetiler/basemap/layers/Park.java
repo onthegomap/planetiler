@@ -59,16 +59,17 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Defines the logic for generating map elements for designated parks polygons and their label points in the {@code
- * park} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/park">OpenMapTiles
- * park sql files</a>.
+ * Defines the logic for generating map elements for designated parks polygons and their label
+ * points in the {@code park} layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/park">OpenMapTiles park sql
+ * files</a>.
  */
-public class Park implements
-  OpenMapTilesSchema.Park,
-  Tables.OsmParkPolygon.Handler,
-  BasemapProfile.FeaturePostProcessor {
+public class Park
+    implements OpenMapTilesSchema.Park,
+        Tables.OsmParkPolygon.Handler,
+        BasemapProfile.FeaturePostProcessor {
 
   // constants for packing the minimum zoom ordering of park labels into the sort-key field
   private static final int PARK_NATIONAL_PARK_BOOST = 1 << (SORT_KEY_BITS - 1);
@@ -76,10 +77,11 @@ public class Park implements
 
   // constants for determining the minimum zoom level for a park label based on its area
   private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
-    Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
+      Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
   private static final double LOG2 = Math.log(2);
   private static final int PARK_AREA_RANGE = 1 << (SORT_KEY_BITS - 3);
-  private static final double SMALLEST_PARK_WORLD_AREA = Math.pow(4, -26); // 2^14 tiles, 2^12 pixels per tile
+  private static final double SMALLEST_PARK_WORLD_AREA =
+      Math.pow(4, -26); // 2^14 tiles, 2^12 pixels per tile
 
   private final Translations translations;
   private final Stats stats;
@@ -95,17 +97,20 @@ public class Park implements
     if (protectionTitle != null) {
       protectionTitle = protectionTitle.replace(' ', '_').toLowerCase(Locale.ROOT);
     }
-    String clazz = coalesce(
-      nullIfEmpty(protectionTitle),
-      nullIfEmpty(element.boundary()),
-      nullIfEmpty(element.leisure())
-    );
+    String clazz =
+        coalesce(
+            nullIfEmpty(protectionTitle),
+            nullIfEmpty(element.boundary()),
+            nullIfEmpty(element.leisure()));
 
     // park shape
-    var outline = features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-      .setAttrWithMinzoom(Fields.CLASS, clazz, 5)
-      .setMinPixelSize(2)
-      .setMinZoom(4);
+    var outline =
+        features
+            .polygon(LAYER_NAME)
+            .setBufferPixels(BUFFER_SIZE)
+            .setAttrWithMinzoom(Fields.CLASS, clazz, 5)
+            .setMinPixelSize(2)
+            .setMinZoom(4);
 
     // park name label point (if it has one)
     if (element.name() != null) {
@@ -117,17 +122,20 @@ public class Park implements
 
         outline.putAttrsWithMinzoom(names, 5);
 
-        features.pointOnSurface(LAYER_NAME).setBufferPixels(256)
-          .setAttr(Fields.CLASS, clazz)
-          .putAttrs(names)
-          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-          .setPointLabelGridPixelSize(14, 100)
-          .setSortKey(SortKey
-            .orderByTruesFirst("national_park".equals(clazz))
-            .thenByTruesFirst(element.source().hasTag("wikipedia") || element.source().hasTag("wikidata"))
-            .thenByLog(area, 1d, SMALLEST_PARK_WORLD_AREA, 1 << (SORT_KEY_BITS - 2) - 1)
-            .get()
-          ).setMinZoom(minzoom);
+        features
+            .pointOnSurface(LAYER_NAME)
+            .setBufferPixels(256)
+            .setAttr(Fields.CLASS, clazz)
+            .putAttrs(names)
+            .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+            .setPointLabelGridPixelSize(14, 100)
+            .setSortKey(
+                SortKey.orderByTruesFirst("national_park".equals(clazz))
+                    .thenByTruesFirst(
+                        element.source().hasTag("wikipedia") || element.source().hasTag("wikidata"))
+                    .thenByLog(area, 1d, SMALLEST_PARK_WORLD_AREA, 1 << (SORT_KEY_BITS - 2) - 1)
+                    .get())
+            .setMinZoom(minzoom);
       } catch (GeometryException e) {
         e.log(stats, "omt_park_area", "Unable to get park area for " + element.source().id());
       }
@@ -143,7 +151,8 @@ public class Park implements
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
+      throws GeometryException {
     // infer the "rank" attribute from point ordering within each label grid square
     LongIntMap counts = Hppc.newLongIntHashMap();
     for (VectorTile.Feature feature : items) {

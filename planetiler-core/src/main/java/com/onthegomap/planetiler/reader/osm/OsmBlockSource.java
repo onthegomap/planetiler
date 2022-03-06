@@ -4,8 +4,8 @@ import java.io.Closeable;
 import java.util.function.Consumer;
 
 /**
- * An osm.pbf input file that iterates through {@link Block Blocks} of raw bytes that can be decompressed/parsed in
- * worker threads using {@link Block#decodeElements()}.
+ * An osm.pbf input file that iterates through {@link Block Blocks} of raw bytes that can be
+ * decompressed/parsed in worker threads using {@link Block#decodeElements()}.
  */
 public interface OsmBlockSource extends Closeable {
 
@@ -13,12 +13,11 @@ public interface OsmBlockSource extends Closeable {
   void forEachBlock(Consumer<Block> consumer);
 
   @Override
-  default void close() {
-  }
+  default void close() {}
 
   /**
-   * An individual block of raw bytes from an osm.pbf file that can be decompressed/parsed with {@link
-   * #decodeElements()}.
+   * An individual block of raw bytes from an osm.pbf file that can be decompressed/parsed with
+   * {@link #decodeElements()}.
    */
   interface Block {
 

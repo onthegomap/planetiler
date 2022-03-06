@@ -7,19 +7,21 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 
 /**
- * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
- * <p>
- * In order to encode into a 32-bit integer, only zoom levels {@code <= 14} are supported since we need 4 bits for the
- * zoom-level, and 14 bits each for the x/y coordinates.
- * <p>
- * Tiles are ordered by z ascending, x ascending, y descending to match index ordering of {@link Mbtiles} sqlite
- * database.
+ * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map
+ * tile</a>.
+ *
+ * <p>In order to encode into a 32-bit integer, only zoom levels {@code <= 14} are supported since
+ * we need 4 bits for the zoom-level, and 14 bits each for the x/y coordinates.
+ *
+ * <p>Tiles are ordered by z ascending, x ascending, y descending to match index ordering of {@link
+ * Mbtiles} sqlite database.
  *
  * @param encoded the tile ID encoded as a 32-bit integer
- * @param x       x coordinate of the tile where 0 is the western-most tile just to the east the international date line
- *                and 2^z-1 is the eastern-most tile
- * @param y       y coordinate of the tile where 0 is the northern-most tile and 2^z-1 is the southern-most tile
- * @param z       zoom level ({@code <= 14})
+ * @param x x coordinate of the tile where 0 is the western-most tile just to the east the
+ *     international date line and 2^z-1 is the eastern-most tile
+ * @param y y coordinate of the tile where 0 is the northern-most tile and 2^z-1 is the
+ *     southern-most tile
+ * @param z zoom level ({@code <= 14})
  */
 @Immutable
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
@@ -113,9 +115,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   public Coordinate getLatLon() {
     double worldWidthAtZoom = Math.pow(2, z);
     return new CoordinateXY(
-      GeoUtils.getWorldLon(x / worldWidthAtZoom),
-      GeoUtils.getWorldLat(y / worldWidthAtZoom)
-    );
+        GeoUtils.getWorldLon(x / worldWidthAtZoom), GeoUtils.getWorldLat(y / worldWidthAtZoom));
   }
 
   /** Returns a URL that displays the openstreetmap data for this tile. */
@@ -124,7 +124,10 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return Format.osmDebugUrl(z, coord);
   }
 
-  /** Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px tiles). */
+  /**
+   * Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px
+   * tiles).
+   */
   public Coordinate lngLatToTileCoords(double lng, double lat) {
     double factor = 1 << z;
     double x = GeoUtils.getWorldX(lng) * factor;

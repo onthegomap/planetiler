@@ -45,12 +45,11 @@ public class VerifyMonacoTest {
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {
       VectorTile tile = new VectorTile();
-      tile.addLayerFeatures("layer", List.of(new VectorTile.Feature(
-        "layer",
-        1,
-        VectorTile.encodeGeometry(point(0, 0)),
-        Map.of()
-      )));
+      tile.addLayerFeatures(
+          "layer",
+          List.of(
+              new VectorTile.Feature(
+                  "layer", 1, VectorTile.encodeGeometry(point(0, 0)), Map.of())));
       writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()));
     }
     assertInvalid(mbtiles);

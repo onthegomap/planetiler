@@ -54,17 +54,18 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Defines the logic for generating map elements for natural land cover polygons like ice, sand, and forest in the
- * {@code landcover} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover">OpenMapTiles
+ * Defines the logic for generating map elements for natural land cover polygons like ice, sand, and
+ * forest in the {@code landcover} layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover">OpenMapTiles
  * landcover sql files</a>.
  */
-public class Landcover implements
-  OpenMapTilesSchema.Landcover,
-  BasemapProfile.NaturalEarthProcessor,
-  Tables.OsmLandcoverPolygon.Handler,
-  BasemapProfile.FeaturePostProcessor {
+public class Landcover
+    implements OpenMapTilesSchema.Landcover,
+        BasemapProfile.NaturalEarthProcessor,
+        Tables.OsmLandcoverPolygon.Handler,
+        BasemapProfile.FeaturePostProcessor {
 
   /*
    * Large ice areas come from natural earth and the rest come from OpenStreetMap at higher zoom
@@ -74,16 +75,15 @@ public class Landcover implements
    * had through using a temporary "_numpoints" attribute.
    */
 
-  public static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS = ZoomFunction.fromMaxZoomThresholds(Map.of(
-    13, 8,
-    10, 4,
-    9, 2
-  ));
+  public static final ZoomFunction<Number> MIN_PIXEL_SIZE_THRESHOLDS =
+      ZoomFunction.fromMaxZoomThresholds(
+          Map.of(
+              13, 8,
+              10, 4,
+              9, 2));
   private static final String TEMP_NUM_POINTS_ATTR = "_numpoints";
-  private static final Set<String> WOOD_OR_FOREST = Set.of(
-    FieldValues.SUBCLASS_WOOD,
-    FieldValues.SUBCLASS_FOREST
-  );
+  private static final Set<String> WOOD_OR_FOREST =
+      Set.of(FieldValues.SUBCLASS_WOOD, FieldValues.SUBCLASS_FOREST);
   private final MultiExpression.Index<String> classMapping;
 
   public Landcover(Translations translations, PlanetilerConfig config, Stats stats) {
@@ -91,28 +91,32 @@ public class Landcover implements
   }
 
   private String getClassFromSubclass(String subclass) {
-    return subclass == null ? null : classMapping.getOrElse(Map.of(Fields.SUBCLASS, subclass), null);
+    return subclass == null
+        ? null
+        : classMapping.getOrElse(Map.of(Fields.SUBCLASS, subclass), null);
   }
 
   @Override
-  public void processNaturalEarth(String table, SourceFeature feature,
-    FeatureCollector features) {
+  public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     record LandcoverInfo(String subclass, int minzoom, int maxzoom) {}
-    LandcoverInfo info = switch (table) {
-      case "ne_110m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 0, 1);
-      case "ne_50m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 2, 4);
-      case "ne_10m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 5, 6);
-      case "ne_50m_antarctic_ice_shelves_polys" -> new LandcoverInfo("ice_shelf", 2, 4);
-      case "ne_10m_antarctic_ice_shelves_polys" -> new LandcoverInfo("ice_shelf", 5, 6);
-      default -> null;
-    };
+    LandcoverInfo info =
+        switch (table) {
+          case "ne_110m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 0, 1);
+          case "ne_50m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 2, 4);
+          case "ne_10m_glaciated_areas" -> new LandcoverInfo(FieldValues.SUBCLASS_GLACIER, 5, 6);
+          case "ne_50m_antarctic_ice_shelves_polys" -> new LandcoverInfo("ice_shelf", 2, 4);
+          case "ne_10m_antarctic_ice_shelves_polys" -> new LandcoverInfo("ice_shelf", 5, 6);
+          default -> null;
+        };
     if (info != null) {
       String clazz = getClassFromSubclass(info.subclass);
       if (clazz != null) {
-        features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-          .setAttr(Fields.CLASS, clazz)
-          .setAttr(Fields.SUBCLASS, info.subclass)
-          .setZoomRange(info.minzoom, info.maxzoom);
+        features
+            .polygon(LAYER_NAME)
+            .setBufferPixels(BUFFER_SIZE)
+            .setAttr(Fields.CLASS, clazz)
+            .setAttr(Fields.SUBCLASS, info.subclass)
+            .setZoomRange(info.minzoom, info.maxzoom);
       }
     }
   }
@@ -122,17 +126,20 @@ public class Landcover implements
     String subclass = element.subclass();
     String clazz = getClassFromSubclass(subclass);
     if (clazz != null) {
-      features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
-        .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
-        .setAttr(Fields.CLASS, clazz)
-        .setAttr(Fields.SUBCLASS, subclass)
-        .setNumPointsAttr(TEMP_NUM_POINTS_ATTR)
-        .setMinZoom(WOOD_OR_FOREST.contains(subclass) ? 9 : 7);
+      features
+          .polygon(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .setMinPixelSizeOverrides(MIN_PIXEL_SIZE_THRESHOLDS)
+          .setAttr(Fields.CLASS, clazz)
+          .setAttr(Fields.SUBCLASS, subclass)
+          .setNumPointsAttr(TEMP_NUM_POINTS_ATTR)
+          .setMinZoom(WOOD_OR_FOREST.contains(subclass) ? 9 : 7);
     }
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
+      throws GeometryException {
     if (zoom < 7 || zoom > 13) {
       for (var item : items) {
         item.attrs().remove(TEMP_NUM_POINTS_ATTR);

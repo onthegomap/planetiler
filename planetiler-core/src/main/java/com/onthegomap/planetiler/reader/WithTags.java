@@ -53,27 +53,34 @@ public interface WithTags {
     return value == null ? null : value.toString();
   }
 
-  /** Returns the {@link Object#toString()} value for {@code key} or {@code defaultValue} if not present. */
+  /**
+   * Returns the {@link Object#toString()} value for {@code key} or {@code defaultValue} if not
+   * present.
+   */
   default String getString(String key, String defaultValue) {
     Object value = getTag(key, defaultValue);
     return value == null ? null : value.toString();
   }
 
   /**
-   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false", or "no" and {@code
-   * true} otherwise.
+   * Returns {@code false} if {@code tag}'s {@link Object#toString()} value is empty, "0", "false",
+   * or "no" and {@code true} otherwise.
    */
   default boolean getBoolean(String key) {
     return Parse.bool(getTag(key));
   }
 
-  /** Returns the value for {@code key}, parsed with {@link Long#parseLong(String)} - or 0 if missing or invalid. */
+  /**
+   * Returns the value for {@code key}, parsed with {@link Long#parseLong(String)} - or 0 if missing
+   * or invalid.
+   */
   default long getLong(String key) {
     return Parse.parseLong(getTag(key));
   }
 
   /**
-   * Returns the value for {@code key} interpreted as a direction, where -1 is reverse, 1 is forward, and 0 is other.
+   * Returns the value for {@code key} interpreted as a direction, where -1 is reverse, 1 is
+   * forward, and 0 is other.
    *
    * @see <a href="https://wiki.openstreetmap.org/wiki/Key:oneway">OSM one-way</a>
    */
@@ -82,8 +89,8 @@ public interface WithTags {
   }
 
   /**
-   * Returns a z-order for an OSM road based on the tags that are present. Bridges are above roads appear above tunnels
-   * and major roads appear above minor.
+   * Returns a z-order for an OSM road based on the tags that are present. Bridges are above roads
+   * appear above tunnels and major roads appear above minor.
    *
    * @see Imposm3Parsers#wayzorder(Map)
    */

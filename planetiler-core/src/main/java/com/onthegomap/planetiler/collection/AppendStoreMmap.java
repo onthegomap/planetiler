@@ -16,9 +16,7 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An array of primitives backed by memory-mapped file.
- */
+/** An array of primitives backed by memory-mapped file. */
 abstract class AppendStoreMmap implements AppendStore {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AppendStoreMmap.class);
@@ -42,13 +40,16 @@ abstract class AppendStoreMmap implements AppendStore {
     segmentMask = (1L << segmentBits) - 1;
     segmentBytes = segmentSizeBytes;
     if (segmentSizeBytes % 8 != 0 || (1L << segmentBits != segmentSizeBytes)) {
-      throw new IllegalArgumentException("segment size must be a multiple of 8 and power of 2: " + segmentSizeBytes);
+      throw new IllegalArgumentException(
+          "segment size must be a multiple of 8 and power of 2: " + segmentSizeBytes);
     }
     this.path = path;
     try {
-      this.outputStream = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path), 50_000));
+      this.outputStream =
+          new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(path), 50_000));
     } catch (IOException e) {
-      throw new IllegalStateException("Could not create SequentialWriteRandomReadFile output stream", e);
+      throw new IllegalStateException(
+          "Could not create SequentialWriteRandomReadFile output stream", e);
     }
   }
 
@@ -70,7 +71,8 @@ abstract class AppendStoreMmap implements AppendStore {
             }
             segments = result;
           } catch (IOException e) {
-            throw new IllegalStateException("Failed preparing SequentialWriteRandomReadFile for reads", e);
+            throw new IllegalStateException(
+                "Failed preparing SequentialWriteRandomReadFile for reads", e);
           }
         }
       }

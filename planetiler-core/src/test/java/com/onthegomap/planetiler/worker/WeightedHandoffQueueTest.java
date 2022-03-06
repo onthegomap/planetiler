@@ -63,5 +63,4 @@ public class WeightedHandoffQueueTest {
     }
     assertNull(q.get());
   }
-
 }

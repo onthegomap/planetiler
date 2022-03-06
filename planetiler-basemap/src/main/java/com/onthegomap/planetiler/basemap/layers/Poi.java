@@ -58,47 +58,48 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Defines the logic for generating map elements for things like shops, parks, and schools in the {@code poi} layer from
- * source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi">OpenMapTiles
- * poi sql files</a>.
+ * Defines the logic for generating map elements for things like shops, parks, and schools in the
+ * {@code poi} layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi">OpenMapTiles poi sql
+ * files</a>.
  */
-public class Poi implements
-  OpenMapTilesSchema.Poi,
-  Tables.OsmPoiPoint.Handler,
-  Tables.OsmPoiPolygon.Handler,
-  BasemapProfile.FeaturePostProcessor {
+public class Poi
+    implements OpenMapTilesSchema.Poi,
+        Tables.OsmPoiPoint.Handler,
+        Tables.OsmPoiPolygon.Handler,
+        BasemapProfile.FeaturePostProcessor {
 
   /*
    * process() creates the raw POI feature from OSM elements and postProcess()
    * assigns the feature rank from order in the tile at render-time.
    */
 
-  private static final Map<String, Integer> CLASS_RANKS = Map.ofEntries(
-    entry(FieldValues.CLASS_HOSPITAL, 20),
-    entry(FieldValues.CLASS_RAILWAY, 40),
-    entry(FieldValues.CLASS_BUS, 50),
-    entry(FieldValues.CLASS_ATTRACTION, 70),
-    entry(FieldValues.CLASS_HARBOR, 75),
-    entry(FieldValues.CLASS_COLLEGE, 80),
-    entry(FieldValues.CLASS_SCHOOL, 85),
-    entry(FieldValues.CLASS_STADIUM, 90),
-    entry("zoo", 95),
-    entry(FieldValues.CLASS_TOWN_HALL, 100),
-    entry(FieldValues.CLASS_CAMPSITE, 110),
-    entry(FieldValues.CLASS_CEMETERY, 115),
-    entry(FieldValues.CLASS_PARK, 120),
-    entry(FieldValues.CLASS_LIBRARY, 130),
-    entry("police", 135),
-    entry(FieldValues.CLASS_POST, 140),
-    entry(FieldValues.CLASS_GOLF, 150),
-    entry(FieldValues.CLASS_SHOP, 400),
-    entry(FieldValues.CLASS_GROCERY, 500),
-    entry(FieldValues.CLASS_FAST_FOOD, 600),
-    entry(FieldValues.CLASS_CLOTHING_STORE, 700),
-    entry(FieldValues.CLASS_BAR, 800)
-  );
+  private static final Map<String, Integer> CLASS_RANKS =
+      Map.ofEntries(
+          entry(FieldValues.CLASS_HOSPITAL, 20),
+          entry(FieldValues.CLASS_RAILWAY, 40),
+          entry(FieldValues.CLASS_BUS, 50),
+          entry(FieldValues.CLASS_ATTRACTION, 70),
+          entry(FieldValues.CLASS_HARBOR, 75),
+          entry(FieldValues.CLASS_COLLEGE, 80),
+          entry(FieldValues.CLASS_SCHOOL, 85),
+          entry(FieldValues.CLASS_STADIUM, 90),
+          entry("zoo", 95),
+          entry(FieldValues.CLASS_TOWN_HALL, 100),
+          entry(FieldValues.CLASS_CAMPSITE, 110),
+          entry(FieldValues.CLASS_CEMETERY, 115),
+          entry(FieldValues.CLASS_PARK, 120),
+          entry(FieldValues.CLASS_LIBRARY, 130),
+          entry("police", 135),
+          entry(FieldValues.CLASS_POST, 140),
+          entry(FieldValues.CLASS_GOLF, 150),
+          entry(FieldValues.CLASS_SHOP, 400),
+          entry(FieldValues.CLASS_GROCERY, 500),
+          entry(FieldValues.CLASS_FAST_FOOD, 600),
+          entry(FieldValues.CLASS_CLOTHING_STORE, 700),
+          entry(FieldValues.CLASS_BAR, 800));
   private final MultiExpression.Index<String> classMapping;
   private final Translations translations;
 
@@ -113,15 +114,15 @@ public class Poi implements
 
   private String poiClass(String subclass, String mappingKey) {
     subclass = coalesce(subclass, "");
-    return classMapping.getOrElse(Map.of(
-      "subclass", subclass,
-      "mapping_key", coalesce(mappingKey, "")
-    ), subclass);
+    return classMapping.getOrElse(
+        Map.of("subclass", subclass, "mapping_key", coalesce(mappingKey, "")), subclass);
   }
 
   private int minzoom(String subclass, String mappingKey) {
-    boolean lowZoom = ("station".equals(subclass) && "railway".equals(mappingKey)) ||
-      "halt".equals(subclass) || "ferry_terminal".equals(subclass);
+    boolean lowZoom =
+        ("station".equals(subclass) && "railway".equals(mappingKey))
+            || "halt".equals(subclass)
+            || "ferry_terminal".equals(subclass);
     return lowZoom ? 12 : 14;
   }
 
@@ -136,19 +137,12 @@ public class Poi implements
     setupPoiFeature(element, features.centroidIfConvex(LAYER_NAME));
   }
 
-  private <T extends
-    Tables.WithSubclass &
-    Tables.WithStation &
-    Tables.WithFunicular &
-    Tables.WithSport &
-    Tables.WithInformation &
-    Tables.WithReligion &
-    Tables.WithMappingKey &
-    Tables.WithName &
-    Tables.WithIndoor &
-    Tables.WithLayer &
-    Tables.WithSource>
-  void setupPoiFeature(T element, FeatureCollector.Feature output) {
+  private <
+          T extends
+              Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport
+                  & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey
+                  & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource>
+      void setupPoiFeature(T element, FeatureCollector.Feature output) {
     String rawSubclass = element.subclass();
     if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
       rawSubclass = "subway";
@@ -157,26 +151,28 @@ public class Poi implements
       rawSubclass = "halt";
     }
 
-    String subclass = switch (rawSubclass) {
-      case "information" -> nullIfEmpty(element.information());
-      case "place_of_worship" -> nullIfEmpty(element.religion());
-      case "pitch" -> nullIfEmpty(element.sport());
-      default -> rawSubclass;
-    };
+    String subclass =
+        switch (rawSubclass) {
+          case "information" -> nullIfEmpty(element.information());
+          case "place_of_worship" -> nullIfEmpty(element.religion());
+          case "pitch" -> nullIfEmpty(element.sport());
+          default -> rawSubclass;
+        };
     String poiClass = poiClass(rawSubclass, element.mappingKey());
     int poiClassRank = poiClassRank(poiClass);
     int rankOrder = poiClassRank + ((nullOrEmpty(element.name())) ? 2000 : 0);
 
-    output.setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, poiClass)
-      .setAttr(Fields.SUBCLASS, subclass)
-      .setAttr(Fields.LAYER, nullIfLong(element.layer(), 0))
-      .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
-      .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
-      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setPointLabelGridPixelSize(14, 64)
-      .setSortKey(rankOrder)
-      .setMinZoom(minzoom(element.subclass(), element.mappingKey()));
+    output
+        .setBufferPixels(BUFFER_SIZE)
+        .setAttr(Fields.CLASS, poiClass)
+        .setAttr(Fields.SUBCLASS, subclass)
+        .setAttr(Fields.LAYER, nullIfLong(element.layer(), 0))
+        .setAttr(Fields.LEVEL, Parse.parseLongOrNull(element.source().getTag("level")))
+        .setAttr(Fields.INDOOR, element.indoor() ? 1 : null)
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .setPointLabelGridPixelSize(14, 64)
+        .setSortKey(rankOrder)
+        .setMinZoom(minzoom(element.subclass(), element.mappingKey()));
   }
 
   @Override

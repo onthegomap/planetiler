@@ -58,18 +58,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Defines the logic for generating map elements for ocean and lake names in the {@code water_name} layer from source
- * features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name">OpenMapTiles
+ * Defines the logic for generating map elements for ocean and lake names in the {@code water_name}
+ * layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name">OpenMapTiles
  * water_name sql files</a>.
  */
-public class WaterName implements
-  OpenMapTilesSchema.WaterName,
-  Tables.OsmMarinePoint.Handler,
-  Tables.OsmWaterPolygon.Handler,
-  BasemapProfile.NaturalEarthProcessor,
-  BasemapProfile.LakeCenterlineProcessor {
+public class WaterName
+    implements OpenMapTilesSchema.WaterName,
+        Tables.OsmMarinePoint.Handler,
+        Tables.OsmWaterPolygon.Handler,
+        BasemapProfile.NaturalEarthProcessor,
+        BasemapProfile.LakeCenterlineProcessor {
 
   /*
    * Labels for lakes and oceans come primarily from OpenStreetMap data, but we also join
@@ -80,13 +81,14 @@ public class WaterName implements
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WaterName.class);
   private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
-    Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
+      Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
   private static final double LOG2 = Math.log(2);
   private final Translations translations;
   // need to synchronize updates from multiple threads
   private final LongObjectMap<Geometry> lakeCenterlines = Hppc.newLongObjectHashMap();
   // may be updated concurrently by multiple threads
-  private final ConcurrentSkipListMap<String, Integer> importantMarinePoints = new ConcurrentSkipListMap<>();
+  private final ConcurrentSkipListMap<String, Integer> importantMarinePoints =
+      new ConcurrentSkipListMap<>();
   private final Stats stats;
 
   public WaterName(Translations translations, PlanetilerConfig config, Stats stats) {
@@ -142,9 +144,11 @@ public class WaterName implements
       Integer nerank;
       if ((nerank = importantMarinePoints.get(name)) != null) {
         rank = nerank;
-      } else if ((nerank = importantMarinePoints.get(source.getString("name:en", "").toLowerCase())) != null) {
+      } else if ((nerank = importantMarinePoints.get(source.getString("name:en", "").toLowerCase()))
+          != null) {
         rank = nerank;
-      } else if ((nerank = importantMarinePoints.get(source.getString("name:es", "").toLowerCase())) != null) {
+      } else if ((nerank = importantMarinePoints.get(source.getString("name:es", "").toLowerCase()))
+          != null) {
         rank = nerank;
       } else {
         Map.Entry<String, Integer> next = importantMarinePoints.ceilingEntry(name);
@@ -153,12 +157,13 @@ public class WaterName implements
         }
       }
       int minZoom = "ocean".equals(place) ? 0 : rank != null ? rank : 8;
-      features.point(LAYER_NAME)
-        .setBufferPixels(BUFFER_SIZE)
-        .putAttrs(LanguageUtils.getNames(source.tags(), translations))
-        .setAttr(Fields.CLASS, place)
-        .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-        .setMinZoom(minZoom);
+      features
+          .point(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .putAttrs(LanguageUtils.getNames(source.tags(), translations))
+          .setAttr(Fields.CLASS, place)
+          .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
+          .setMinZoom(minZoom);
     }
   }
 
@@ -171,8 +176,10 @@ public class WaterName implements
         int minzoom = 9;
         if (centerlineGeometry != null) {
           // prefer lake centerline if it exists
-          feature = features.geometry(LAYER_NAME, centerlineGeometry)
-            .setMinPixelSizeBelowZoom(13, 6 * element.name().length());
+          feature =
+              features
+                  .geometry(LAYER_NAME, centerlineGeometry)
+                  .setMinPixelSizeBelowZoom(13, 6 * element.name().length());
         } else {
           // otherwise just use a label point inside the lake
           feature = features.pointOnSurface(LAYER_NAME);
@@ -182,13 +189,16 @@ public class WaterName implements
           minzoom = Math.min(14, Math.max(9, minzoom));
         }
         feature
-          .setAttr(Fields.CLASS, FieldValues.CLASS_LAKE)
-          .setBufferPixels(BUFFER_SIZE)
-          .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-          .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-          .setMinZoom(minzoom);
+            .setAttr(Fields.CLASS, FieldValues.CLASS_LAKE)
+            .setBufferPixels(BUFFER_SIZE)
+            .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+            .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
+            .setMinZoom(minzoom);
       } catch (GeometryException e) {
-        e.log(stats, "omt_water_polygon", "Unable to get geometry for water polygon " + element.source().id());
+        e.log(
+            stats,
+            "omt_water_polygon",
+            "Unable to get geometry for water polygon " + element.source().id());
       }
     }
   }

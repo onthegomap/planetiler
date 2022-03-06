@@ -27,40 +27,33 @@ public class ParseTest {
   }
 
   @ParameterizedTest
-  @CsvSource(value = {
-    "0, 0, 0",
-    "false, 0, null",
-    "123, 123, 123"
-  }, nullValues = {"null"})
+  @CsvSource(
+      value = {"0, 0, 0", "false, 0, null", "123, 123, 123"},
+      nullValues = {"null"})
   public void testLong(String in, long out, Long obj) {
     assertEquals(out, Parse.parseLong(in));
     assertEquals(obj, Parse.parseLongOrNull(in));
   }
 
   @ParameterizedTest
-  @CsvSource({
-    "1, 1",
-    "yes, 1",
-    "true, 1",
-    "-1, -1",
-    "2, 0",
-    "0, 0"
-  })
+  @CsvSource({"1, 1", "yes, 1", "true, 1", "-1, -1", "2, 0", "0, 0"})
   public void testDirection(String in, int out) {
     assertEquals(out, Parse.direction(in));
   }
 
   @ParameterizedTest
-  @CsvSource(value = {
-    "1, 1",
-    "0, 0",
-    "-1, -1",
-    "1.1, 1",
-    "-1.1, -1",
-    "-1.23 m, -1",
-    "one meter, null",
-    "null, null"
-  }, nullValues = {"null"})
+  @CsvSource(
+      value = {
+        "1, 1",
+        "0, 0",
+        "-1, -1",
+        "1.1, 1",
+        "-1.1, -1",
+        "-1.23 m, -1",
+        "one meter, null",
+        "null, null"
+      },
+      nullValues = {"null"})
   public void testIntSubstring(String in, Integer out) {
     assertEquals(out, Parse.parseIntSubstring(in));
   }
@@ -68,14 +61,17 @@ public class ParseTest {
   @TestFactory
   public Stream<DynamicTest> testWayzorder() {
     return Stream.<Map.Entry<Map<String, Object>, Integer>>of(
-      Map.entry(Map.of(), 0),
-      Map.entry(Map.of("layer", 1), 10),
-      Map.entry(Map.of("layer", -3), -30),
-      Map.entry(Map.of("highway", "motorway"), 9),
-      Map.entry(Map.of("railway", "anything"), 7),
-      Map.entry(Map.of("railway", "anything", "tunnel", "1"), -3),
-      Map.entry(Map.of("railway", "anything", "bridge", "1"), 17)
-    ).map(entry -> dynamicTest(entry.getKey().toString(),
-      () -> assertEquals(entry.getValue(), Parse.wayzorder(entry.getKey()))));
+            Map.entry(Map.of(), 0),
+            Map.entry(Map.of("layer", 1), 10),
+            Map.entry(Map.of("layer", -3), -30),
+            Map.entry(Map.of("highway", "motorway"), 9),
+            Map.entry(Map.of("railway", "anything"), 7),
+            Map.entry(Map.of("railway", "anything", "tunnel", "1"), -3),
+            Map.entry(Map.of("railway", "anything", "bridge", "1"), 17))
+        .map(
+            entry ->
+                dynamicTest(
+                    entry.getKey().toString(),
+                    () -> assertEquals(entry.getValue(), Parse.wayzorder(entry.getKey()))));
   }
 }

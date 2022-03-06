@@ -18,13 +18,13 @@ import org.locationtech.jts.geom.Polygon;
 
 /**
  * Base class for input features read from a data source.
- * <p>
- * Provides cached convenience methods with lazy initialization for geometric attributes derived from {@link
- * #latLonGeometry()} and {@link #worldGeometry()} to avoid computing them if not needed, and recomputing them if needed
- * by multiple features.
- * <p>
- * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where  (0,0) is
- * the northwest corner and (1,1) is the southeast corner of the planet.
+ *
+ * <p>Provides cached convenience methods with lazy initialization for geometric attributes derived
+ * from {@link #latLonGeometry()} and {@link #worldGeometry()} to avoid computing them if not
+ * needed, and recomputing them if needed by multiple features.
+ *
+ * <p>All geometries except for {@link #latLonGeometry()} return elements in world web mercator
+ * coordinates where (0,0) is the northwest corner and (1,1) is the southeast corner of the planet.
  */
 public abstract class SourceFeature implements WithTags {
 
@@ -45,15 +45,20 @@ public abstract class SourceFeature implements WithTags {
   /**
    * Constructs a new input feature.
    *
-   * @param tags          string key/value pairs associated with this element
-   * @param source        source name that profile can use to distinguish between  elements from different data sources
-   * @param sourceLayer   layer name within {@code source} that profile can use to distinguish between different kinds
-   *                      of elements in a given source.
+   * @param tags string key/value pairs associated with this element
+   * @param source source name that profile can use to distinguish between elements from different
+   *     data sources
+   * @param sourceLayer layer name within {@code source} that profile can use to distinguish between
+   *     different kinds of elements in a given source.
    * @param relationInfos relations that this element is contained within
-   * @param id            numeric ID of this feature within this source (i.e. an OSM element ID)
+   * @param id numeric ID of this feature within this source (i.e. an OSM element ID)
    */
-  protected SourceFeature(Map<String, Object> tags, String source, String sourceLayer,
-    List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos, long id) {
+  protected SourceFeature(
+      Map<String, Object> tags,
+      String source,
+      String sourceLayer,
+      List<OsmReader.RelationMember<OsmRelationInfo>> relationInfos,
+      long id) {
     this.tags = tags;
     this.source = source;
     this.sourceLayer = sourceLayer;
@@ -74,7 +79,6 @@ public abstract class SourceFeature implements WithTags {
     return tags.containsKey(key);
   }
 
-
   @Override
   public Object getTag(String key, Object defaultValue) {
     Object val = tags.get(key);
@@ -93,10 +97,10 @@ public abstract class SourceFeature implements WithTags {
    * Returns this feature's geometry in latitude/longitude degree coordinates.
    *
    * @return the latitude/longitude geometry
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @throws GeometryException if an unexpected but recoverable error occurs creating this geometry
+   *     that should be logged for debugging
+   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will
+   *     be logged at a lower log level
    */
   public abstract Geometry latLonGeometry() throws GeometryException;
 
@@ -104,35 +108,45 @@ public abstract class SourceFeature implements WithTags {
    * Returns this feature's geometry in world web mercator coordinates.
    *
    * @return the geometry in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @throws GeometryException if an unexpected but recoverable error occurs creating this geometry
+   *     that should be logged for debugging
+   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will
+   *     be logged at a lower log level
    */
   public abstract Geometry worldGeometry() throws GeometryException;
 
-  /** Returns and caches {@link Geometry#getCentroid()} of this geometry in world web mercator coordinates. */
+  /**
+   * Returns and caches {@link Geometry#getCentroid()} of this geometry in world web mercator
+   * coordinates.
+   */
   public final Geometry centroid() throws GeometryException {
-    return centroid != null ? centroid : (centroid =
-      canBePolygon() ? polygon().getCentroid() :
-        canBeLine() ? line().getCentroid() :
-          worldGeometry().getCentroid());
+    return centroid != null
+        ? centroid
+        : (centroid =
+            canBePolygon()
+                ? polygon().getCentroid()
+                : canBeLine() ? line().getCentroid() : worldGeometry().getCentroid());
   }
 
-  /** Returns and caches {@link Geometry#getInteriorPoint()} of this geometry in world web mercator coordinates. */
+  /**
+   * Returns and caches {@link Geometry#getInteriorPoint()} of this geometry in world web mercator
+   * coordinates.
+   */
   public final Geometry pointOnSurface() throws GeometryException {
-    return pointOnSurface != null ? pointOnSurface : (pointOnSurface =
-      canBePolygon() ? polygon().getInteriorPoint() :
-        canBeLine() ? line().getInteriorPoint() :
-          worldGeometry().getInteriorPoint());
+    return pointOnSurface != null
+        ? pointOnSurface
+        : (pointOnSurface =
+            canBePolygon()
+                ? polygon().getInteriorPoint()
+                : canBeLine() ? line().getInteriorPoint() : worldGeometry().getInteriorPoint());
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {
     if (!canBePolygon()) {
       return centroid();
-    } else if (polygon() instanceof Polygon poly &&
-      poly.getNumInteriorRing() == 0 &&
-      GeoUtils.isConvex(poly.getExteriorRing())) {
+    } else if (polygon() instanceof Polygon poly
+        && poly.getNumInteriorRing() == 0
+        && GeoUtils.isConvex(poly.getExteriorRing())) {
       return centroid();
     } else { // multipolygon, polygon with holes, or concave polygon
       return pointOnSurface();
@@ -141,22 +155,25 @@ public abstract class SourceFeature implements WithTags {
 
   /**
    * Returns and caches a point inside the geometry in world web mercator coordinates.
-   * <p>
-   * If the geometry is convex, uses the faster {@link Geometry#getCentroid()} but otherwise falls back to the slower
-   * {@link Geometry#getInteriorPoint()}.
+   *
+   * <p>If the geometry is convex, uses the faster {@link Geometry#getCentroid()} but otherwise
+   * falls back to the slower {@link Geometry#getInteriorPoint()}.
    */
   public final Geometry centroidIfConvex() throws GeometryException {
-    return centroidIfConvex != null ? centroidIfConvex : (centroidIfConvex = computeCentroidIfConvex());
+    return centroidIfConvex != null
+        ? centroidIfConvex
+        : (centroidIfConvex = computeCentroidIfConvex());
   }
 
   /**
-   * Computes this feature as a {@link LineString} or {@link MultiLineString} in world web mercator coordinates.
+   * Computes this feature as a {@link LineString} or {@link MultiLineString} in world web mercator
+   * coordinates.
    *
    * @return the linestring in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @throws GeometryException if an unexpected but recoverable error occurs creating this geometry
+   *     that should be logged for debugging
+   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will
+   *     be logged at a lower log level
    */
   protected Geometry computeLine() throws GeometryException {
     Geometry world = worldGeometry();
@@ -164,10 +181,11 @@ public abstract class SourceFeature implements WithTags {
   }
 
   /**
-   * Returns this feature as a {@link LineString} or {@link MultiLineString} in world web mercator coordinates.
+   * Returns this feature as a {@link LineString} or {@link MultiLineString} in world web mercator
+   * coordinates.
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * @throws GeometryException if an error occurs constructing the geometry, or of this feature
+   *     should not be interpreted as a line
    */
   public final Geometry line() throws GeometryException {
     if (!canBeLine()) {
@@ -180,23 +198,25 @@ public abstract class SourceFeature implements WithTags {
   }
 
   /**
-   * Computes this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
+   * Computes this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator
+   * coordinates.
    *
    * @return the polygon in web mercator coordinates
-   * @throws GeometryException         if an unexpected but recoverable error occurs creating this geometry that should
-   *                                   be logged for debugging
-   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will be logged at a lower
-   *                                   log level
+   * @throws GeometryException if an unexpected but recoverable error occurs creating this geometry
+   *     that should be logged for debugging
+   * @throws GeometryException.Verbose if an expected error occurs creating this geometry that will
+   *     be logged at a lower log level
    */
   protected Geometry computePolygon() throws GeometryException {
     return worldGeometry();
   }
 
   /**
-   * Returns this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
+   * Returns this feature as a {@link Polygon} or {@link MultiPolygon} in world web mercator
+   * coordinates.
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * @throws GeometryException if an error occurs constructing the geometry, or of this feature
+   *     should not be interpreted as a line
    */
   public final Geometry polygon() throws GeometryException {
     if (!canBePolygon()) {
@@ -214,13 +234,14 @@ public abstract class SourceFeature implements WithTags {
   }
 
   /**
-   * Returns this feature as a valid {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
-   * <p>
-   * Validating and fixing invalid polygons can be expensive, so use only if necessary.  Invalid polygons will also be
-   * fixed at render-time.
+   * Returns this feature as a valid {@link Polygon} or {@link MultiPolygon} in world web mercator
+   * coordinates.
    *
-   * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
-   *                           interpreted as a line
+   * <p>Validating and fixing invalid polygons can be expensive, so use only if necessary. Invalid
+   * polygons will also be fixed at render-time.
+   *
+   * @throws GeometryException if an error occurs constructing the geometry, or of this feature
+   *     should not be interpreted as a line
    */
   public final Geometry validatedPolygon() throws GeometryException {
     if (!canBePolygon()) {
@@ -230,21 +251,22 @@ public abstract class SourceFeature implements WithTags {
   }
 
   /**
-   * Returns and caches the result of {@link Geometry#getArea()} of this feature in world web mercator coordinates where
-   * {@code 1} means the area of the entire planet.
+   * Returns and caches the result of {@link Geometry#getArea()} of this feature in world web
+   * mercator coordinates where {@code 1} means the area of the entire planet.
    */
   public double area() throws GeometryException {
     return Double.isNaN(area) ? (area = canBePolygon() ? polygon().getArea() : 0) : area;
   }
 
   /**
-   * Returns and caches the result of {@link Geometry#getLength()} of this feature in world web mercator coordinates
-   * where {@code 1} means the circumference of the entire planet or the distance from 85 degrees north to 85 degrees
-   * south.
+   * Returns and caches the result of {@link Geometry#getLength()} of this feature in world web
+   * mercator coordinates where {@code 1} means the circumference of the entire planet or the
+   * distance from 85 degrees north to 85 degrees south.
    */
   public double length() throws GeometryException {
-    return Double.isNaN(length) ? (length =
-      (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
+    return Double.isNaN(length)
+        ? (length = (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0)
+        : length;
   }
 
   /** Returns true if this feature can be interpreted as a {@link Point} or {@link MultiPoint}. */
@@ -252,17 +274,18 @@ public abstract class SourceFeature implements WithTags {
 
   /**
    * Returns true if this feature can be interpreted as a {@link Polygon} or {@link MultiPolygon}.
-   * <p>
-   * A closed ring can either be a polygon or linestring, so return false to not allow this closed ring to be treated as
-   * a polygon.
+   *
+   * <p>A closed ring can either be a polygon or linestring, so return false to not allow this
+   * closed ring to be treated as a polygon.
    */
   public abstract boolean canBePolygon();
 
   /**
-   * Returns true if this feature can be interpreted as a {@link LineString} or {@link MultiLineString}.
-   * <p>
-   * A closed ring can either be a polygon or linestring, so return false to not allow this closed ring to be treated as
-   * a linestring.
+   * Returns true if this feature can be interpreted as a {@link LineString} or {@link
+   * MultiLineString}.
+   *
+   * <p>A closed ring can either be a polygon or linestring, so return false to not allow this
+   * closed ring to be treated as a linestring.
    */
   public abstract boolean canBeLine();
 
@@ -276,18 +299,17 @@ public abstract class SourceFeature implements WithTags {
     return sourceLayer;
   }
 
-
   /**
    * Returns a list of OSM relations that this element belongs to.
    *
    * @param relationInfoClass class of the processed relation data
-   * @param <T>               type of {@code relationInfoClass}
-   * @return A list containing the OSM relation info along with the role that this element is tagged with in that
-   * relation
+   * @param <T> type of {@code relationInfoClass}
+   * @return A list containing the OSM relation info along with the role that this element is tagged
+   *     with in that relation
    */
   // TODO this should be in a specialized OSM subclass, not the generic superclass
   public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
-    Class<T> relationInfoClass) {
+      Class<T> relationInfoClass) {
     List<OsmReader.RelationMember<T>> result = null;
     if (relationInfos != null) {
       for (OsmReader.RelationMember<?> info : relationInfos) {

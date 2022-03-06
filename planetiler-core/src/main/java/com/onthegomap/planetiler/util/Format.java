@@ -11,9 +11,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.text.StringEscapeUtils;
 import org.locationtech.jts.geom.Coordinate;
 
-/**
- * Utilities for formatting values as strings.
- */
+/** Utilities for formatting values as strings. */
 public class Format {
 
   public static final Locale DEFAULT_LOCALE = Locale.getDefault(Locale.Category.FORMAT);
@@ -43,20 +41,22 @@ public class Format {
     return forLocale(DEFAULT_LOCALE);
   }
 
-  private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
-    Map.entry(1_000L, "k"),
-    Map.entry(1_000_000L, "M"),
-    Map.entry(1_000_000_000L, "G"),
-    Map.entry(1_000_000_000_000L, "T"),
-    Map.entry(1_000_000_000_000_000L, "P")
-  ));
-  private static final NavigableMap<Long, String> NUMERIC_SUFFIXES = new TreeMap<>(Map.ofEntries(
-    Map.entry(1_000L, "k"),
-    Map.entry(1_000_000L, "M"),
-    Map.entry(1_000_000_000L, "B"),
-    Map.entry(1_000_000_000_000L, "T"),
-    Map.entry(1_000_000_000_000_000L, "Q")
-  ));
+  private static final NavigableMap<Long, String> STORAGE_SUFFIXES =
+      new TreeMap<>(
+          Map.ofEntries(
+              Map.entry(1_000L, "k"),
+              Map.entry(1_000_000L, "M"),
+              Map.entry(1_000_000_000L, "G"),
+              Map.entry(1_000_000_000_000L, "T"),
+              Map.entry(1_000_000_000_000_000L, "P")));
+  private static final NavigableMap<Long, String> NUMERIC_SUFFIXES =
+      new TreeMap<>(
+          Map.ofEntries(
+              Map.entry(1_000L, "k"),
+              Map.entry(1_000_000L, "M"),
+              Map.entry(1_000_000_000L, "B"),
+              Map.entry(1_000_000_000_000L, "T"),
+              Map.entry(1_000_000_000_000_000L, "Q")));
 
   public static String padRight(String str, int size) {
     StringBuilder strBuilder = new StringBuilder(str);
@@ -107,7 +107,8 @@ public class Format {
 
     long truncated = value / (divideBy / 10);
     boolean hasDecimal = truncated < 100 && (truncated % 10 != 0);
-    return padLeft(hasDecimal ? decimal(truncated / 10d) + suffix : (truncated / 10) + suffix, pad ? 4 : 0);
+    return padLeft(
+        hasDecimal ? decimal(truncated / 10d) + suffix : (truncated / 10) + suffix, pad ? 4 : 0);
   }
 
   /** Returns 0.0-1.0 as a "0%" - "100%" with no decimal points. */
@@ -143,7 +144,10 @@ public class Format {
     return simplified.toString().replace("PT", "").toLowerCase(Locale.ROOT);
   }
 
-  /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
+  /**
+   * Returns Java code that can re-create {@code string}: {@code null} if null, or {@code
+   * "contents"} if not empty.
+   */
   public static String quote(String string) {
     if (string == null) {
       return "null";
@@ -153,10 +157,6 @@ public class Format {
 
   /** Returns an openstreetmap.org map link for a lat/lon */
   public static String osmDebugUrl(int zoom, Coordinate coord) {
-    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(
-      zoom,
-      coord.y,
-      coord.x
-    );
+    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(zoom, coord.y, coord.x);
   }
 }

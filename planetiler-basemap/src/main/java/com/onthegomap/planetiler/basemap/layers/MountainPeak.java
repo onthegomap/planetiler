@@ -62,18 +62,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Defines the logic for generating map elements for mountain peak label points in the {@code mountain_peak} layer from
- * source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak">OpenMapTiles
+ * Defines the logic for generating map elements for mountain peak label points in the {@code
+ * mountain_peak} layer from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak">OpenMapTiles
  * mountain_peak sql files</a>.
  */
-public class MountainPeak implements
-  BasemapProfile.NaturalEarthProcessor,
-  OpenMapTilesSchema.MountainPeak,
-  Tables.OsmPeakPoint.Handler,
-  Tables.OsmMountainLinestring.Handler,
-  BasemapProfile.FeaturePostProcessor {
+public class MountainPeak
+    implements BasemapProfile.NaturalEarthProcessor,
+        OpenMapTilesSchema.MountainPeak,
+        Tables.OsmPeakPoint.Handler,
+        Tables.OsmMountainLinestring.Handler,
+        BasemapProfile.FeaturePostProcessor {
 
   /*
    * Mountain peaks come from OpenStreetMap data and are ranked by importance (based on if they
@@ -114,21 +115,22 @@ public class MountainPeak implements
   public void process(Tables.OsmPeakPoint element, FeatureCollector features) {
     Integer meters = Parse.parseIntSubstring(element.ele());
     if (meters != null && Math.abs(meters) < 10_000) {
-      var feature = features.point(LAYER_NAME)
-        .setAttr(Fields.CLASS, element.source().getTag("natural"))
-        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-        .putAttrs(elevationTags(meters))
-        .setSortKeyDescending(
-          meters +
-            (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0) +
-            (nullIfEmpty(element.name()) != null ? 10_000 : 0)
-        )
-        .setMinZoom(7)
-        // need to use a larger buffer size to allow enough points through to not cut off
-        // any label grid squares which could lead to inconsistent label ranks for a feature
-        // in adjacent tiles. postProcess() will remove anything outside the desired buffer.
-        .setBufferPixels(100)
-        .setPointLabelGridSizeAndLimit(13, 100, 5);
+      var feature =
+          features
+              .point(LAYER_NAME)
+              .setAttr(Fields.CLASS, element.source().getTag("natural"))
+              .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+              .putAttrs(elevationTags(meters))
+              .setSortKeyDescending(
+                  meters
+                      + (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0)
+                      + (nullIfEmpty(element.name()) != null ? 10_000 : 0))
+              .setMinZoom(7)
+              // need to use a larger buffer size to allow enough points through to not cut off
+              // any label grid squares which could lead to inconsistent label ranks for a feature
+              // in adjacent tiles. postProcess() will remove anything outside the desired buffer.
+              .setBufferPixels(100)
+              .setPointLabelGridSizeAndLimit(13, 100, 5);
 
       if (peakInAreaUsingFeet(element)) {
         feature.setAttr(Fields.CUSTOMARY_FT, 1);
@@ -138,20 +140,26 @@ public class MountainPeak implements
 
   @Override
   public void process(Tables.OsmMountainLinestring element, FeatureCollector features) {
-    // TODO rank is approximate to sort important/named ridges before others, should switch to labelgrid for linestrings later
-    int rank = 3 -
-      (nullIfEmpty(element.wikipedia()) != null ? 1 : 0) -
-      (nullIfEmpty(element.name()) != null ? 1 : 0);
-    features.line(LAYER_NAME)
-      .setAttr(Fields.CLASS, element.source().getTag("natural"))
-      .setAttr(Fields.RANK, rank)
-      .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
-      .setSortKey(rank)
-      .setMinZoom(13)
-      .setBufferPixels(100);
+    // TODO rank is approximate to sort important/named ridges before others, should switch to
+    // labelgrid for linestrings later
+    int rank =
+        3
+            - (nullIfEmpty(element.wikipedia()) != null ? 1 : 0)
+            - (nullIfEmpty(element.name()) != null ? 1 : 0);
+    features
+        .line(LAYER_NAME)
+        .setAttr(Fields.CLASS, element.source().getTag("natural"))
+        .setAttr(Fields.RANK, rank)
+        .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
+        .setSortKey(rank)
+        .setMinZoom(13)
+        .setBufferPixels(100);
   }
 
-  /** Returns true if {@code element} is a point in an area where feet are used insead of meters (the US). */
+  /**
+   * Returns true if {@code element} is a point in an area where feet are used insead of meters (the
+   * US).
+   */
   private boolean peakInAreaUsingFeet(Tables.OsmPeakPoint element) {
     if (unitedStates == null) {
       if (!loggedNoUS.get() && loggedNoUS.compareAndSet(false, true)) {
@@ -162,8 +170,10 @@ public class MountainPeak implements
         Geometry wayGeometry = element.source().worldGeometry();
         return unitedStates.intersects(wayGeometry);
       } catch (GeometryException e) {
-        e.log(stats, "omt_mountain_peak_us_test",
-          "Unable to test mountain_peak against US polygon: " + element.source().id());
+        e.log(
+            stats,
+            "omt_mountain_peak_us_test",
+            "Unable to test mountain_peak against US polygon: " + element.source().id());
       }
     }
     return false;
@@ -193,9 +203,13 @@ public class MountainPeak implements
   private boolean insideTileBuffer(VectorTile.Feature feature) {
     try {
       Geometry geom = feature.geometry().decode();
-      return !(geom instanceof Point point) || (insideTileBuffer(point.getX()) && insideTileBuffer(point.getY()));
+      return !(geom instanceof Point point)
+          || (insideTileBuffer(point.getX()) && insideTileBuffer(point.getY()));
     } catch (GeometryException e) {
-      e.log(stats, "mountain_peak_decode_point", "Error decoding mountain peak point: " + feature.attrs());
+      e.log(
+          stats,
+          "mountain_peak_decode_point",
+          "Error decoding mountain peak point: " + feature.attrs());
       return false;
     }
   }

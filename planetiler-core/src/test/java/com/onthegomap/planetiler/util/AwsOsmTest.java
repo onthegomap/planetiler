@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 
 public class AwsOsmTest {
 
-  private static final byte[] response = """
+  private static final byte[] response =
+      """
     <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
       <Name>osm-pds</Name>
       <Prefix/>
@@ -161,15 +162,18 @@ public class AwsOsmTest {
         <StorageClass>STANDARD</StorageClass>
       </Contents>
     </ListBucketResult>
-    """.getBytes(StandardCharsets.UTF_8);
+    """
+          .getBytes(StandardCharsets.UTF_8);
 
   @Test
   public void testFound() throws IOException {
     var index = AwsOsm.parseIndexXml(new ByteArrayInputStream(response));
-    assertEquals("https://osm-pds.s3.amazonaws.com/2021/planet-210906.osm.pbf",
-      AwsOsm.searchIndexForDownloadUrl("210906", index));
-    assertEquals("https://osm-pds.s3.amazonaws.com/2021/planet-210830.osm.pbf",
-      AwsOsm.searchIndexForDownloadUrl("210830", index));
+    assertEquals(
+        "https://osm-pds.s3.amazonaws.com/2021/planet-210906.osm.pbf",
+        AwsOsm.searchIndexForDownloadUrl("210906", index));
+    assertEquals(
+        "https://osm-pds.s3.amazonaws.com/2021/planet-210830.osm.pbf",
+        AwsOsm.searchIndexForDownloadUrl("210830", index));
   }
 
   @Test
@@ -182,7 +186,7 @@ public class AwsOsmTest {
   @Test
   public void testNotFound() throws IOException {
     var index = AwsOsm.parseIndexXml(new ByteArrayInputStream(response));
-    assertThrows(IllegalArgumentException.class,
-      () -> AwsOsm.searchIndexForDownloadUrl("1231", index));
+    assertThrows(
+        IllegalArgumentException.class, () -> AwsOsm.searchIndexForDownloadUrl("1231", index));
   }
 }

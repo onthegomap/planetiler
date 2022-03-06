@@ -13,8 +13,8 @@ import org.locationtech.jts.index.strtree.STRtree;
 
 /**
  * Index to efficiently query points within a radius from a point.
- * <p>
- * Writes and reads are thread-safe, but all writes must occur before reads.
+ *
+ * <p>Writes and reads are thread-safe, but all writes must occur before reads.
  *
  * @param <T> the type of value associated with each point
  */
@@ -25,8 +25,7 @@ public class PointIndex<T> {
 
   private final STRtree index = new STRtree();
 
-  private PointIndex() {
-  }
+  private PointIndex() {}
 
   public static <T> PointIndex<T> create() {
     return new PointIndex<>();
@@ -59,7 +58,8 @@ public class PointIndex<T> {
       if (item instanceof GeomWithData<?> value) {
         double distance = value.coord.distance(coord);
         if (distance <= threshold) {
-          @SuppressWarnings("unchecked") T t = (T) value.data;
+          @SuppressWarnings("unchecked")
+          T t = (T) value.data;
           result.add(t);
         }
       }
@@ -67,7 +67,10 @@ public class PointIndex<T> {
     return result;
   }
 
-  /** Returns the data associated with the nearest indexed point to {@code point}, up to a certain distance. */
+  /**
+   * Returns the data associated with the nearest indexed point to {@code point}, up to a certain
+   * distance.
+   */
   public T getNearest(Point point, double threshold) {
     build();
     Coordinate coord = point.getCoordinate();
@@ -80,7 +83,8 @@ public class PointIndex<T> {
       if (item instanceof GeomWithData<?> value) {
         double distance = value.coord.distance(coord);
         if (distance < nearestDistance) {
-          @SuppressWarnings("unchecked") T t = (T) value.data;
+          @SuppressWarnings("unchecked")
+          T t = (T) value.data;
           nearestDistance = distance;
           nearestValue = t;
         }
@@ -103,5 +107,4 @@ public class PointIndex<T> {
       }
     }
   }
-
 }

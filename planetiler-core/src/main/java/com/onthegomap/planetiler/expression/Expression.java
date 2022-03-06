@@ -14,9 +14,10 @@ import java.util.stream.Stream;
 
 /**
  * A framework for defining and manipulating boolean expressions that match on input element.
- * <p>
- * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
- * original expression, assuming that the generated code includes:
+ *
+ * <p>Calling {@code toString()} on any expression will generate code that can be used to recreate
+ * an identical copy of the original expression, assuming that the generated code includes:
+ *
  * <pre>{@code
  * import static com.onthegomap.planetiler.expression.Expression.*;
  * }</pre>
@@ -28,28 +29,31 @@ public interface Expression {
   String POLYGON_TYPE = "polygon";
   String RELATION_MEMBER_TYPE = "relation_member";
 
-  Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
-  Expression TRUE = new Expression() {
-    @Override
-    public String toString() {
-      return "TRUE";
-    }
+  Set<String> supportedTypes =
+      Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
+  Expression TRUE =
+      new Expression() {
+        @Override
+        public String toString() {
+          return "TRUE";
+        }
 
-    @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return true;
-    }
-  };
-  Expression FALSE = new Expression() {
-    public String toString() {
-      return "FALSE";
-    }
+        @Override
+        public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+          return true;
+        }
+      };
+  Expression FALSE =
+      new Expression() {
+        public String toString() {
+          return "FALSE";
+        }
 
-    @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return false;
-    }
-  };
+        @Override
+        public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+          return false;
+        }
+      };
 
   static And and(Expression... children) {
     return and(List.of(children));
@@ -72,37 +76,46 @@ public interface Expression {
   }
 
   /**
-   * Returns an expression that evaluates to true if the value for {@code field} tag is any of {@code values}.
-   * <p>
-   * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
+   * Returns an expression that evaluates to true if the value for {@code field} tag is any of
+   * {@code values}.
+   *
+   * <p>{@code values} can contain exact matches, "%text%" to match any value containing "text", or
+   * "" to match any value.
    */
   static MatchAny matchAny(String field, String... values) {
     return matchAny(field, List.of(values));
   }
 
   /**
-   * Returns an expression that evaluates to true if the value for {@code field} tag is any of {@code values}.
-   * <p>
-   * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
+   * Returns an expression that evaluates to true if the value for {@code field} tag is any of
+   * {@code values}.
+   *
+   * <p>{@code values} can contain exact matches, "%text%" to match any value containing "text", or
+   * "" to match any value.
    */
   static MatchAny matchAny(String field, List<String> values) {
     return new MatchAny(field, values);
   }
 
-  /** Returns an expression that evaluates to true if the element has any value for tag {@code field}. */
+  /**
+   * Returns an expression that evaluates to true if the element has any value for tag {@code
+   * field}.
+   */
   static MatchField matchField(String field) {
     return new MatchField(field);
   }
 
   /**
-   * Returns an expression that evaluates to true if the geometry of an element matches {@code type}.
-   * <p>
-   * Allowed values:
+   * Returns an expression that evaluates to true if the geometry of an element matches {@code
+   * type}.
+   *
+   * <p>Allowed values:
+   *
    * <ul>
-   *   <li>"linestring"</li>
-   *   <li>"point"</li>
-   *   <li>"polygon"</li>
-   *   <li>"relation_member"</li>
+   *   <li>"linestring"
+   *   <li>"point"
+   *   <li>"polygon"
+   *   <li>"relation_member"
    * </ul>
    */
   static MatchType matchType(String type) {
@@ -155,11 +168,15 @@ public interface Expression {
       if (or.children.contains(TRUE)) {
         return TRUE;
       }
-      return or(or.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
-        .filter(child -> child != FALSE)
-        .map(Expression::simplifyOnce).toList());
+      return or(
+          or.children.stream()
+              // hoist children
+              .flatMap(
+                  child ->
+                      child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
+              .filter(child -> child != FALSE)
+              .map(Expression::simplifyOnce)
+              .toList());
     } else if (expression instanceof And and) {
       if (and.children.isEmpty()) {
         return FALSE;
@@ -170,11 +187,15 @@ public interface Expression {
       if (and.children.contains(FALSE)) {
         return FALSE;
       }
-      return and(and.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
-        .filter(child -> child != TRUE)
-        .map(Expression::simplifyOnce).toList());
+      return and(
+          and.children.stream()
+              // hoist children
+              .flatMap(
+                  child ->
+                      child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
+              .filter(child -> child != TRUE)
+              .map(Expression::simplifyOnce)
+              .toList());
     } else {
       return expression;
     }
@@ -185,12 +206,18 @@ public interface Expression {
     return simplify(this);
   }
 
-  /** Returns a copy of this expression where every nested instance of {@code a} is replaced with {@code b}. */
+  /**
+   * Returns a copy of this expression where every nested instance of {@code a} is replaced with
+   * {@code b}.
+   */
   default Expression replace(Expression a, Expression b) {
     return replace(a::equals, b);
   }
 
-  /** Returns a copy of this expression where every nested instance matching {@code replace} is replaced with {@code b}. */
+  /**
+   * Returns a copy of this expression where every nested instance matching {@code replace} is
+   * replaced with {@code b}.
+   */
   default Expression replace(Predicate<Expression> replace, Expression b) {
     if (replace.test(this)) {
       return b;
@@ -223,8 +250,9 @@ public interface Expression {
   /**
    * Returns true if this expression matches an input element.
    *
-   * @param input     the input element
-   * @param matchKeys list that this method call will add any key to that was responsible for triggering the match
+   * @param input the input element
+   * @param matchKeys list that this method call will add any key to that was responsible for
+   *     triggering the match
    * @return true if this expression matches the input element
    */
   boolean evaluate(SourceFeature input, List<String> matchKeys);
@@ -286,7 +314,6 @@ public interface Expression {
     public int hashCode() {
       return Objects.hash(children);
     }
-
   }
 
   record Not(Expression child) implements Expression {
@@ -303,32 +330,41 @@ public interface Expression {
   }
 
   /**
-   * Evaluates to true if the value for {@code field} tag is any of {@code exactMatches} or contains any of {@code
-   * wildcards}.
+   * Evaluates to true if the value for {@code field} tag is any of {@code exactMatches} or contains
+   * any of {@code wildcards}.
    *
-   * @param values           all raw string values that were initially provided
-   * @param exactMatches     the input {@code values} that should be treated as exact matches
-   * @param wildcards        the input {@code values} that should be treated as wildcards
+   * @param values all raw string values that were initially provided
+   * @param exactMatches the input {@code values} that should be treated as exact matches
+   * @param wildcards the input {@code values} that should be treated as wildcards
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
-    String field, List<String> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing
-  ) implements Expression {
+      String field,
+      List<String> values,
+      Set<String> exactMatches,
+      List<String> wildcards,
+      boolean matchWhenMissing)
+      implements Expression {
 
     private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
 
     MatchAny(String field, List<String> values) {
-      this(field, values,
-        values.stream().filter(v -> !v.contains("%")).collect(Collectors.toSet()),
-        values.stream().filter(v -> v.contains("%")).map(val -> {
-          var matcher = containsPattern.matcher(val);
-          if (!matcher.matches()) {
-            throw new IllegalArgumentException("wildcards must start/end with %: " + val);
-          }
-          return matcher.group(1);
-        }).toList(),
-        values.contains("")
-      );
+      this(
+          field,
+          values,
+          values.stream().filter(v -> !v.contains("%")).collect(Collectors.toSet()),
+          values.stream()
+              .filter(v -> v.contains("%"))
+              .map(
+                  val -> {
+                    var matcher = containsPattern.matcher(val);
+                    if (!matcher.matches()) {
+                      throw new IllegalArgumentException("wildcards must start/end with %: " + val);
+                    }
+                    return matcher.group(1);
+                  })
+              .toList(),
+          values.contains(""));
     }
 
     @Override
@@ -354,8 +390,11 @@ public interface Expression {
 
     @Override
     public String toString() {
-      return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Format::quote)
-        .collect(Collectors.joining(", ")) + ")";
+      return "matchAny("
+          + Format.quote(field)
+          + ", "
+          + values.stream().map(Format::quote).collect(Collectors.joining(", "))
+          + ")";
     }
   }
 
@@ -377,9 +416,7 @@ public interface Expression {
     }
   }
 
-  /**
-   * Evaluates to true if an input element has geometry type matching {@code type}.
-   */
+  /** Evaluates to true if an input element has geometry type matching {@code type}. */
   record MatchType(String type) implements Expression {
 
     @Override

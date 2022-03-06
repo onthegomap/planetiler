@@ -36,12 +36,12 @@ public class MultiExpressionTest {
 
   @Test
   public void testSingleElement() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchAny("key", "value"))
-    )).index();
+    var index = MultiExpression.of(List.of(entry("a", matchAny("key", "value")))).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value", "otherkey", "othervalue")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key", "value", "otherkey", "othervalue")));
+    assertSameElements(
+        List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
@@ -49,27 +49,26 @@ public class MultiExpressionTest {
 
   @Test
   public void testBlankStringTreatedAsNotMatch() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchAny("key", "value", ""))
-    )).index();
+    var index = MultiExpression.of(List.of(entry("a", matchAny("key", "value", "")))).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags()));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("otherkey", "othervalue")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
   }
 
   @Test
   public void testSingleMatchField() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchField("key"))
-    )).index();
+    var index = MultiExpression.of(List.of(entry("a", matchField("key")))).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
+    assertSameElements(
+        List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
@@ -77,15 +76,16 @@ public class MultiExpressionTest {
 
   @Test
   public void testWildcard() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchAny("key", "%value%"))
-    )).index();
+    var index = MultiExpression.of(List.of(entry("a", matchAny("key", "%value%")))).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value1")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(
+        List.of("a"),
+        index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(
+        List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
@@ -93,14 +93,17 @@ public class MultiExpressionTest {
 
   @Test
   public void testMultipleWildcardsMixedWithExacts() {
-    var index = MultiExpression.of(List.of(
-      entry("a", matchAny("key", "%value%", "other"))
-    )).index();
+    var index =
+        MultiExpression.of(List.of(entry("a", matchAny("key", "%value%", "other")))).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "other")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "other", "otherkey", "othervalue")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(
+        List.of("a"),
+        index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key", "other", "otherkey", "othervalue")));
+    assertSameElements(
+        List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
@@ -108,14 +111,15 @@ public class MultiExpressionTest {
 
   @Test
   public void testAnd() {
-    var index = MultiExpression.of(List.of(
-      entry("a", and(
-        matchAny("key1", "val1"),
-        matchAny("key2", "val2")
-      ))
-    )).index();
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
+    var index =
+        MultiExpression.of(
+                List.of(entry("a", and(matchAny("key1", "val1"), matchAny("key2", "val2")))))
+            .index();
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
+    assertSameElements(
+        List.of("a"),
+        index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1")));
@@ -125,16 +129,19 @@ public class MultiExpressionTest {
 
   @Test
   public void testOr() {
-    var index = MultiExpression.of(List.of(
-      entry("a", or(
-        matchAny("key1", "val1"),
-        matchAny("key2", "val2")
-      ))
-    )).index();
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
+    var index =
+        MultiExpression.of(
+                List.of(entry("a", or(matchAny("key1", "val1"), matchAny("key2", "val2")))))
+            .index();
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
+    assertSameElements(
+        List.of("a"),
+        index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "val2")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "no", "key2", "no")));
@@ -143,83 +150,73 @@ public class MultiExpressionTest {
 
   @Test
   public void testNot() {
-    var index = MultiExpression.of(List.of(
-      entry("a", and(
-        matchAny("key1", "val1"),
-        not(
-          matchAny("key2", "val2")
-        )
-      ))
-    )).index();
+    var index =
+        MultiExpression.of(
+                List.of(entry("a", and(matchAny("key1", "val1"), not(matchAny("key2", "val2"))))))
+            .index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val3")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key3", "val2")));
+    assertSameElements(
+        List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val3")));
+    assertSameElements(
+        List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key3", "val2")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
   }
 
   @Test
   public void testMatchesMultiple() {
-    var index = MultiExpression.of(List.of(
-      entry("a", or(
-        matchAny("key1", "val1"),
-        matchAny("key2", "val2")
-      )),
-      entry("b", or(
-        matchAny("key2", "val2"),
-        matchAny("key3", "val3")
-      ))
-    )).index();
+    var index =
+        MultiExpression.of(
+                List.of(
+                    entry("a", or(matchAny("key1", "val1"), matchAny("key2", "val2"))),
+                    entry("b", or(matchAny("key2", "val2"), matchAny("key3", "val3")))))
+            .index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1")));
     assertSameElements(List.of("a", "b"), index.getMatches(featureWithTags("key2", "val2")));
     assertSameElements(List.of("b"), index.getMatches(featureWithTags("key3", "val3")));
-    assertSameElements(List.of("a", "b"), index.getMatches(featureWithTags("key2", "val2", "key3", "val3")));
-    assertSameElements(List.of("a", "b"), index.getMatches(featureWithTags("key1", "val1", "key3", "val3")));
+    assertSameElements(
+        List.of("a", "b"), index.getMatches(featureWithTags("key2", "val2", "key3", "val3")));
+    assertSameElements(
+        List.of("a", "b"), index.getMatches(featureWithTags("key1", "val1", "key3", "val3")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
   }
 
   @Test
   public void testTracksMatchingKey() {
-    var index = MultiExpression.of(List.of(
-      entry("a", or(
-        matchAny("key1", "val1"),
-        matchAny("key2", "val2")
-      )),
-      entry("b", or(
-        matchAny("key2", "val2"),
-        matchAny("key3", "val3")
-      ))
-    )).index();
-    assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key1")
-    )), index.getMatchesWithTriggers(featureWithTags("key1", "val1")));
-    assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key2")
-    ), new MultiExpression.Match<>(
-      "b", List.of("key2")
-    )), index.getMatchesWithTriggers(featureWithTags("key2", "val2")));
-    assertSameElements(List.of(new MultiExpression.Match<>(
-      "b", List.of("key3")
-    )), index.getMatchesWithTriggers(featureWithTags("key3", "val3")));
+    var index =
+        MultiExpression.of(
+                List.of(
+                    entry("a", or(matchAny("key1", "val1"), matchAny("key2", "val2"))),
+                    entry("b", or(matchAny("key2", "val2"), matchAny("key3", "val3")))))
+            .index();
+    assertSameElements(
+        List.of(new MultiExpression.Match<>("a", List.of("key1"))),
+        index.getMatchesWithTriggers(featureWithTags("key1", "val1")));
+    assertSameElements(
+        List.of(
+            new MultiExpression.Match<>("a", List.of("key2")),
+            new MultiExpression.Match<>("b", List.of("key2"))),
+        index.getMatchesWithTriggers(featureWithTags("key2", "val2")));
+    assertSameElements(
+        List.of(new MultiExpression.Match<>("b", List.of("key3"))),
+        index.getMatchesWithTriggers(featureWithTags("key3", "val3")));
   }
 
   @Test
   public void testTracksMatchingKeyFromCorrectPath() {
-    var index = MultiExpression.of(List.of(
-      entry("a", or(
-        and(
-          matchAny("key3", "val3"),
-          matchAny("key2", "val2")
-        ),
-        and(
-          matchAny("key1", "val1"),
-          matchAny("key3", "val3")
-        )
-      ))
-    )).index();
-    assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key1", "key3")
-    )), index.getMatchesWithTriggers(featureWithTags("key1", "val1", "key3", "val3")));
+    var index =
+        MultiExpression.of(
+                List.of(
+                    entry(
+                        "a",
+                        or(
+                            and(matchAny("key3", "val3"), matchAny("key2", "val2")),
+                            and(matchAny("key1", "val1"), matchAny("key3", "val3"))))))
+            .index();
+    assertSameElements(
+        List.of(new MultiExpression.Match<>("a", List.of("key1", "key3"))),
+        index.getMatchesWithTriggers(featureWithTags("key1", "val1", "key3", "val3")));
   }
 
   @Test
@@ -231,11 +228,13 @@ public class MultiExpressionTest {
     SourceFeature point = SimpleFeature.create(newPoint(0, 0), map);
     SourceFeature linestring = SimpleFeature.create(newLineString(0, 0, 1, 1), map);
     SourceFeature polygon = SimpleFeature.create(rectangle(0, 1), map);
-    var index = MultiExpression.of(List.of(
-      entry("polygon", polygonExpression),
-      entry("linestring", linestringExpression),
-      entry("point", pointExpression)
-    )).index();
+    var index =
+        MultiExpression.of(
+                List.of(
+                    entry("polygon", polygonExpression),
+                    entry("linestring", linestringExpression),
+                    entry("point", pointExpression)))
+            .index();
     assertTrue(pointExpression.evaluate(point, new ArrayList<>()));
     assertTrue(linestringExpression.evaluate(linestring, new ArrayList<>()));
     assertTrue(polygonExpression.evaluate(polygon, new ArrayList<>()));
@@ -246,8 +245,7 @@ public class MultiExpressionTest {
 
   private static <T> void assertSameElements(List<T> a, List<T> b) {
     assertEquals(
-      a.stream().sorted(Comparator.comparing(Object::toString)).toList(),
-      b.stream().sorted(Comparator.comparing(Object::toString)).toList()
-    );
+        a.stream().sorted(Comparator.comparing(Object::toString)).toList(),
+        b.stream().sorted(Comparator.comparing(Object::toString)).toList());
   }
 }

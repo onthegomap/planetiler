@@ -16,15 +16,18 @@ import java.util.function.Consumer;
 
 /**
  * A high-performance blocking queue to hand off work from producing threads to consuming threads.
- * <p>
- * Wraps a standard {@link BlockingDeque}, with a few customizations:
+ *
+ * <p>Wraps a standard {@link BlockingDeque}, with a few customizations:
+ *
  * <ul>
- *   <li>items are buffered into configurable-sized batches before putting on the actual queue to reduce contention</li>
- *   <li>writers can mark the queue "finished" with {@link #close()} and readers will get {@code null} when there are
- *   no more items to read</li>
+ *   <li>items are buffered into configurable-sized batches before putting on the actual queue to
+ *       reduce contention
+ *   <li>writers can mark the queue "finished" with {@link #close()} and readers will get {@code
+ *       null} when there are no more items to read
  * </ul>
- * <p>
- * Once a thread starts reading from this queue, it needs to finish otherwise all items might not be read.
+ *
+ * <p>Once a thread starts reading from this queue, it needs to finish otherwise all items might not
+ * be read.
  *
  * @param <T> the type of elements held in this queue
  */
@@ -33,9 +36,11 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int batchSize;
   private final List<WriterForThread> writers = new CopyOnWriteArrayList<>();
-  private final ThreadLocal<WriterForThread> writerProvider = ThreadLocal.withInitial(WriterForThread::new);
+  private final ThreadLocal<WriterForThread> writerProvider =
+      ThreadLocal.withInitial(WriterForThread::new);
   private final List<ReaderForThread> readers = new CopyOnWriteArrayList<>();
-  private final ThreadLocal<ReaderForThread> readerProvider = ThreadLocal.withInitial(ReaderForThread::new);
+  private final ThreadLocal<ReaderForThread> readerProvider =
+      ThreadLocal.withInitial(ReaderForThread::new);
   private final int pendingBatchesCapacity;
   private final Counter.MultiThreadCounter enqueueCountStatAll;
   private final Counter.MultiThreadCounter enqueueBlockTimeNanosAll;
@@ -45,10 +50,10 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
   private volatile boolean hasIncomingData = true;
 
   /**
-   * @param name     ID to prepend to stats generated about this queue
+   * @param name ID to prepend to stats generated about this queue
    * @param capacity maximum number of pending items that can be held in the queue
    * @param maxBatch batch size to buffer elements into before handing off to the blocking queue
-   * @param stats    stats to monitor this with
+   * @param stats stats to monitor this with
    */
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
     this.pendingBatchesCapacity = capacity / maxBatch;
@@ -103,9 +108,9 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
 
   /**
    * Returns the number of enqueued items that have not been dequeued yet.
-   * <p>
-   * NOTE: this may be larger than the initial capacity because each writer thread can buffer items into a batch and
-   * each reader thread might be reading items from a batch.
+   *
+   * <p>NOTE: this may be larger than the initial capacity because each writer thread can buffer
+   * items into a batch and each reader thread might be reading items from a batch.
    */
   public int getPending() {
     return (int) pendingCountAll.get();
@@ -113,17 +118,21 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
 
   /**
    * Returns the total number of items that can be pending.
-   * <p>
-   * This will be larger than the initial capacity because each writer thread can buffer items into a batch and each
-   * reader thread can read items from a batch.
+   *
+   * <p>This will be larger than the initial capacity because each writer thread can buffer items
+   * into a batch and each reader thread can read items from a batch.
    */
   public int getCapacity() {
-    // actual queue can hold more than the specified capacity because each writer and reader may have a batch they are
+    // actual queue can hold more than the specified capacity because each writer and reader may
+    // have a batch they are
     // working on that is outside the queue
     return (pendingBatchesCapacity + writers.size() + readers.size()) * batchSize;
   }
 
-  /** Caches thread-local values so that a single thread can accept new items without having to do thread-local lookups. */
+  /**
+   * Caches thread-local values so that a single thread can accept new items without having to do
+   * thread-local lookups.
+   */
   private class WriterForThread implements Consumer<T> {
 
     final AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
@@ -138,7 +147,8 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
 
     @Override
     public void accept(T item) {
-      // past 4-8 concurrent writers, start getting lock contention adding to the blocking queue so add to the
+      // past 4-8 concurrent writers, start getting lock contention adding to the blocking queue so
+      // add to the
       // queue in less frequent, larger batches
       if (writeBatch == null) {
         writeBatch = new ArrayDeque<>(batchSize);
@@ -173,7 +183,10 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     }
   }
 
-  /** Caches thread-local values so that a single thread can read new items without having to do thread-local lookups. */
+  /**
+   * Caches thread-local values so that a single thread can read new items without having to do
+   * thread-local lookups.
+   */
   private class ReaderForThread implements IterableOnce<T> {
 
     Queue<T> readBatch = null;
@@ -204,7 +217,7 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
               }
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              break;// signal EOF
+              break; // signal EOF
             }
           }
         } while (itemBatch == null);
@@ -221,4 +234,3 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     }
   }
 }
-

@@ -35,13 +35,16 @@ import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.prep.PreparedPolygon;
 
 /**
- * A utility to reconstruct <a href="https://wiki.openstreetmap.org/wiki/Relation:multipolygon">multipolygons</a> from
+ * A utility to reconstruct <a
+ * href="https://wiki.openstreetmap.org/wiki/Relation:multipolygon">multipolygons</a> from
  * individual ways that represent the edges of inner and outer rings.
- * <p>
- * Multipolygon way members have an "inner" and "outer" role, but they can be incorrectly specified, so instead
- * determine the nesting order and alternate outer/inner/outer/inner... from the outermost ring inwards.
- * <p>
- * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go and
+ *
+ * <p>Multipolygon way members have an "inner" and "outer" role, but they can be incorrectly
+ * specified, so instead determine the nesting order and alternate outer/inner/outer/inner... from
+ * the outermost ring inwards.
+ *
+ * <p>This class is ported to Java from
+ * https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go and
  * https://github.com/omniscale/imposm3/blob/master/geom/ring.go
  */
 public class OsmMultipolygon {
@@ -54,7 +57,8 @@ public class OsmMultipolygon {
    */
 
   private static final double MIN_CLOSE_RING_GAP = 0.1 / GeoUtils.WORLD_CIRCUMFERENCE_METERS;
-  private static final Comparator<Ring> BY_AREA_DESCENDING = Comparator.comparingDouble(ring -> -ring.area);
+  private static final Comparator<Ring> BY_AREA_DESCENDING =
+      Comparator.comparingDouble(ring -> -ring.area);
 
   /** A closed linestring that tracks parent and child rings relationships. */
   private static class Ring {
@@ -71,9 +75,8 @@ public class OsmMultipolygon {
 
     public Polygon toPolygon() {
       return GeoUtils.JTS_FACTORY.createPolygon(
-        geom.getExteriorRing(),
-        holes.stream().map(ring -> ring.geom.getExteriorRing()).toArray(LinearRing[]::new)
-      );
+          geom.getExteriorRing(),
+          holes.stream().map(ring -> ring.geom.getExteriorRing()).toArray(LinearRing[]::new));
     }
 
     /** Returns true if this is an outermost ring and alternate false/true as you work inwards. */
@@ -114,76 +117,75 @@ public class OsmMultipolygon {
   }
 
   /**
-   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node ID location
-   * provider.
-   * <p>
-   * Attempts to close rings where endpoints are within {@link #MIN_CLOSE_RING_GAP} units apart.
+   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node
+   * ID location provider.
    *
-   * @param rings     edge segment node ID sequences
+   * <p>Attempts to close rings where endpoints are within {@link #MIN_CLOSE_RING_GAP} units apart.
+   *
+   * @param rings edge segment node ID sequences
    * @param nodeCache node location provider
-   * @param osmId     ID of this multipolygon
+   * @param osmId ID of this multipolygon
    * @return The new multipolygon
    * @throws GeometryException if building the polygon fails
    */
   public static Geometry build(
-    List<LongArrayList> rings,
-    OsmReader.NodeLocationProvider nodeCache,
-    long osmId
-  ) throws GeometryException {
+      List<LongArrayList> rings, OsmReader.NodeLocationProvider nodeCache, long osmId)
+      throws GeometryException {
     return build(rings, nodeCache, osmId, MIN_CLOSE_RING_GAP);
   }
 
   /**
-   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node ID location
-   * provider.
-   * <p>
-   * Attempts to close rings where endpoints are within {@code minGap} units apart.
+   * Builds a multipolygon from linestrings containing the IDs of nodes in edge segments and a node
+   * ID location provider.
    *
-   * @param rings     edge segment node ID sequences
+   * <p>Attempts to close rings where endpoints are within {@code minGap} units apart.
+   *
+   * @param rings edge segment node ID sequences
    * @param nodeCache node location provider
-   * @param osmId     ID of this multipolygon
-   * @param minGap    the minimum units apart to close a linestring
+   * @param osmId ID of this multipolygon
+   * @param minGap the minimum units apart to close a linestring
    * @return The new multipolygon
    * @throws GeometryException if building the polygon fails
    */
   public static Geometry build(
-    List<LongArrayList> rings,
-    OsmReader.NodeLocationProvider nodeCache,
-    long osmId,
-    double minGap
-  ) throws GeometryException {
+      List<LongArrayList> rings,
+      OsmReader.NodeLocationProvider nodeCache,
+      long osmId,
+      double minGap)
+      throws GeometryException {
     return doBuild(rings, nodeCache, osmId, minGap, false);
   }
 
   private static Geometry doBuild(
-    List<LongArrayList> rings,
-    OsmReader.NodeLocationProvider nodeCache,
-    long osmId,
-    double minGap,
-    boolean fix
-  ) throws GeometryException {
+      List<LongArrayList> rings,
+      OsmReader.NodeLocationProvider nodeCache,
+      long osmId,
+      double minGap,
+      boolean fix)
+      throws GeometryException {
     try {
       if (rings.size() == 0) {
-        throw new GeometryException.Verbose("osm_invalid_multipolygon_empty",
-          "error building multipolygon " + osmId + ": no rings to process");
+        throw new GeometryException.Verbose(
+            "osm_invalid_multipolygon_empty",
+            "error building multipolygon " + osmId + ": no rings to process");
       }
       List<LongArrayList> idSegments = connectPolygonSegments(rings);
       List<Ring> polygons = getClosedRings(nodeCache, minGap, fix, idSegments);
       if (polygons.isEmpty()) {
-        throw new GeometryException.Verbose("osm_invalid_multipolygon_empty_after_fix",
-          "error building multipolygon " + osmId + ": no rings to process after fixing");
+        throw new GeometryException.Verbose(
+            "osm_invalid_multipolygon_empty_after_fix",
+            "error building multipolygon " + osmId + ": no rings to process after fixing");
       }
       polygons.sort(BY_AREA_DESCENDING);
       Set<Ring> shells = groupParentChildShells(polygons);
       if (shells.size() == 0) {
-        throw new GeometryException.Verbose("osm_invalid_multipolygon_not_closed",
-          "error building multipolygon " + osmId + ": multipolygon not closed");
+        throw new GeometryException.Verbose(
+            "osm_invalid_multipolygon_not_closed",
+            "error building multipolygon " + osmId + ": multipolygon not closed");
       } else if (shells.size() == 1) {
         return shells.iterator().next().toPolygon();
       } else {
-        Polygon[] finished = shells.stream()
-          .map(Ring::toPolygon)
-          .toArray(Polygon[]::new);
+        Polygon[] finished = shells.stream().map(Ring::toPolygon).toArray(Polygon[]::new);
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
       }
     } catch (Exception e) {
@@ -193,13 +195,18 @@ public class OsmMultipolygon {
         // retry but fix every polygon first
         return doBuild(rings, nodeCache, osmId, minGap, true);
       } else {
-        throw new GeometryException("osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
+        throw new GeometryException(
+            "osm_invalid_multipolygon", "error building multipolygon " + osmId + ": " + e);
       }
     }
   }
 
-  private static List<Ring> getClosedRings(OsmReader.NodeLocationProvider nodeCache, double minGap, boolean fix,
-    List<LongArrayList> idSegments) throws GeometryException {
+  private static List<Ring> getClosedRings(
+      OsmReader.NodeLocationProvider nodeCache,
+      double minGap,
+      boolean fix,
+      List<LongArrayList> idSegments)
+      throws GeometryException {
     List<Ring> polygons = new ArrayList<>(idSegments.size());
     for (LongArrayList segment : idSegments) {
       int size = segment.size();
@@ -266,8 +273,8 @@ public class OsmMultipolygon {
     return shells;
   }
 
-  private static boolean tryClose(LongArrayList segment, OsmReader.NodeLocationProvider nodeCache,
-    double minGap) {
+  private static boolean tryClose(
+      LongArrayList segment, OsmReader.NodeLocationProvider nodeCache, double minGap) {
     int size = segment.size();
     long firstId = segment.get(0);
     Coordinate firstCoord = nodeCache.getCoordinate(firstId);

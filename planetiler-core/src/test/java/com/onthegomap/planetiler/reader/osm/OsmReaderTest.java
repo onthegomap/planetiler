@@ -23,12 +23,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class OsmReaderTest {
 
-  public final OsmBlockSource osmSource = next -> {
-  };
+  public final OsmBlockSource osmSource = next -> {};
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
-
 
   @Test
   public void testPoint() throws GeometryException {
@@ -41,12 +39,11 @@ public class OsmReaderTest {
     assertFalse(feature.canBePolygon());
     assertFalse(feature.canBeLine());
     assertSameNormalizedFeature(
-      newPoint(0.5, 0.5),
-      feature.worldGeometry(),
-      feature.centroid(),
-      feature.pointOnSurface(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
+        newPoint(0.5, 0.5),
+        feature.worldGeometry(),
+        feature.centroid(),
+        feature.pointOnSurface(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
     assertEquals(0, feature.area());
     assertEquals(0, feature.length());
     assertThrows(GeometryException.class, feature::line);
@@ -72,19 +69,14 @@ public class OsmReaderTest {
     assertFalse(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      newLineString(
-        0.5, 0.5,
-        0.75, 0.75
-      ),
-      feature.worldGeometry(),
-      feature.line(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
+        newLineString(
+            0.5, 0.5,
+            0.75, 0.75),
+        feature.worldGeometry(),
+        feature.line(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
     assertThrows(GeometryException.class, feature::polygon);
-    assertEquals(
-      newPoint(0.625, 0.625),
-      feature.centroid()
-    );
+    assertEquals(newPoint(0.625, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0, feature.area());
@@ -112,19 +104,12 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      rectangle(0.5, 0.75),
-      feature.worldGeometry(),
-      feature.polygon(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
-    assertSameNormalizedFeature(
-      rectangle(0.5, 0.75).getExteriorRing(),
-      feature.line()
-    );
-    assertEquals(
-      newPoint(0.625, 0.625),
-      feature.centroid()
-    );
+        rectangle(0.5, 0.75),
+        feature.worldGeometry(),
+        feature.polygon(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
+    assertSameNormalizedFeature(rectangle(0.5, 0.75).getExteriorRing(), feature.line());
+    assertEquals(newPoint(0.625, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0.25 * 0.25, feature.area());
@@ -151,16 +136,12 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      rectangle(0.5, 0.75),
-      feature.worldGeometry(),
-      feature.polygon(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
+        rectangle(0.5, 0.75),
+        feature.worldGeometry(),
+        feature.polygon(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
     assertThrows(GeometryException.class, feature::line);
-    assertEquals(
-      newPoint(0.625, 0.625),
-      feature.centroid()
-    );
+    assertEquals(newPoint(0.625, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0.25 * 0.25, feature.area());
@@ -187,16 +168,12 @@ public class OsmReaderTest {
     assertFalse(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      rectangle(0.5, 0.75).getExteriorRing(),
-      feature.worldGeometry(),
-      feature.line(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
+        rectangle(0.5, 0.75).getExteriorRing(),
+        feature.worldGeometry(),
+        feature.line(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
     assertThrows(GeometryException.class, feature::polygon);
-    assertEquals(
-      newPoint(0.625, 0.625),
-      feature.centroid()
-    );
+    assertEquals(newPoint(0.625, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0, feature.area());
@@ -243,15 +220,11 @@ public class OsmReaderTest {
     assertFalse(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      newLineString(0.5, 0.5, 0.5, 0.75, 0.5, 0.5),
-      feature.worldGeometry(),
-      feature.line(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
-    assertSameNormalizedFeature(
-      newPoint(0.5, 0.625),
-      feature.centroid()
-    );
+        newLineString(0.5, 0.5, 0.5, 0.75, 0.5, 0.5),
+        feature.worldGeometry(),
+        feature.line(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
+    assertSameNormalizedFeature(newPoint(0.5, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0, feature.area());
@@ -266,12 +239,8 @@ public class OsmReaderTest {
   public void testInvalidPolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
 
-    reader.processPass1Block(List.of(
-      node(1, 0.5, 0.5),
-      node(2, 0.75, 0.5),
-      node(3, 0.5, 0.75),
-      node(4, 0.75, 0.75)
-    ));
+    reader.processPass1Block(
+        List.of(node(1, 0.5, 0.5), node(2, 0.75, 0.5), node(3, 0.5, 0.75), node(4, 0.75, 0.75)));
     var way = new OsmElement.Way(6);
     way.setTag("area", "yes");
     way.nodes().add(1, 2, 3, 4, 1);
@@ -283,21 +252,16 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      newPolygon(
-        0.5, 0.5,
-        0.75, 0.5,
-        0.5, 0.75,
-        0.75, 0.75,
-        0.5, 0.5
-      ),
-      feature.worldGeometry(),
-      GeoUtils.latLonToWorldCoords(feature.latLonGeometry())
-    );
+        newPolygon(
+            0.5, 0.5,
+            0.75, 0.5,
+            0.5, 0.75,
+            0.75, 0.75,
+            0.5, 0.5),
+        feature.worldGeometry(),
+        GeoUtils.latLonToWorldCoords(feature.latLonGeometry()));
     assertThrows(GeometryException.class, feature::line);
-    assertSameNormalizedFeature(
-      newPoint(0.625, 0.625),
-      feature.centroid()
-    );
+    assertSameNormalizedFeature(newPoint(0.625, 0.625), feature.centroid());
     assertPointOnSurface(feature);
 
     assertEquals(0, feature.area());
@@ -321,9 +285,9 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     GeometryException exception = assertThrows(GeometryException.class, feature::line);
-    assertTrue(exception.getMessage().contains("321") && exception.getMessage().contains("123"),
-      "Exception message did not contain way and missing node ID: " + exception.getMessage()
-    );
+    assertTrue(
+        exception.getMessage().contains("321") && exception.getMessage().contains("123"),
+        "Exception message did not contain way and missing node ID: " + exception.getMessage());
     assertThrows(GeometryException.class, feature::worldGeometry);
     assertThrows(GeometryException.class, feature::centroid);
     assertThrows(GeometryException.class, feature::polygon);
@@ -332,11 +296,11 @@ public class OsmReaderTest {
     assertThrows(GeometryException.class, feature::length);
   }
 
-  private final Function<OsmElement, Stream<OsmElement.Node>> nodes = elem ->
-    elem instanceof OsmElement.Node node ? Stream.of(node) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Node>> nodes =
+      elem -> elem instanceof OsmElement.Node node ? Stream.of(node) : Stream.empty();
 
-  private final Function<OsmElement, Stream<OsmElement.Way>> ways = elem ->
-    elem instanceof OsmElement.Way way ? Stream.of(way) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Way>> ways =
+      elem -> elem instanceof OsmElement.Way way ? Stream.of(way) : Stream.empty();
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
@@ -349,25 +313,26 @@ public class OsmReaderTest {
 
     var relation = new OsmElement.Relation(11);
     relation.setTag("type", relationType);
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
 
-    List<OsmElement> elements = List.of(
-      node(1, 0.1, 0.1),
-      node(2, 0.9, 0.1),
-      node(3, 0.9, 0.9),
-      node(4, 0.1, 0.9),
-
-      node(5, 0.2, 0.2),
-      node(6, 0.8, 0.2),
-      node(7, 0.8, 0.8),
-      node(8, 0.2, 0.8),
-
-      outerway,
-      innerway,
-
-      relation
-    );
+    List<OsmElement> elements =
+        List.of(
+            node(1, 0.1, 0.1),
+            node(2, 0.9, 0.1),
+            node(3, 0.9, 0.9),
+            node(4, 0.1, 0.9),
+            node(5, 0.2, 0.2),
+            node(6, 0.8, 0.2),
+            node(7, 0.8, 0.8),
+            node(8, 0.2, 0.8),
+            outerway,
+            innerway,
+            relation);
 
     reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
@@ -381,20 +346,13 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      newPolygon(
-        rectangleCoordList(0.1, 0.9),
-        List.of(rectangleCoordList(0.2, 0.8))
-      ),
-      round(feature.worldGeometry()),
-      round(feature.polygon()),
-      round(feature.validatedPolygon()),
-      round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry()))
-    );
+        newPolygon(rectangleCoordList(0.1, 0.9), List.of(rectangleCoordList(0.2, 0.8))),
+        round(feature.worldGeometry()),
+        round(feature.polygon()),
+        round(feature.validatedPolygon()),
+        round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry())));
     assertThrows(GeometryException.class, feature::line);
-    assertSameNormalizedFeature(
-      newPoint(0.5, 0.5),
-      round(feature.centroid())
-    );
+    assertSameNormalizedFeature(newPoint(0.5, 0.5), round(feature.centroid()));
     assertPointOnSurface(feature);
 
     assertEquals(0.28, feature.area(), 1e-5);
@@ -413,33 +371,35 @@ public class OsmReaderTest {
 
     var relation = new OsmElement.Relation(16);
     relation.setTag("type", "multipolygon");
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
     // nested hole marked as inner, but should actually be outer
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
 
-    List<OsmElement> elements = List.of(
-      node(1, 0.1, 0.1),
-      node(2, 0.9, 0.1),
-      node(3, 0.9, 0.9),
-      node(4, 0.1, 0.9),
-
-      node(5, 0.2, 0.2),
-      node(6, 0.8, 0.2),
-      node(7, 0.8, 0.8),
-      node(8, 0.2, 0.8),
-
-      node(9, 0.3, 0.3),
-      node(10, 0.7, 0.3),
-      node(11, 0.7, 0.7),
-      node(12, 0.3, 0.7),
-
-      outerway,
-      innerway,
-      innerinnerway,
-
-      relation
-    );
+    List<OsmElement> elements =
+        List.of(
+            node(1, 0.1, 0.1),
+            node(2, 0.9, 0.1),
+            node(3, 0.9, 0.9),
+            node(4, 0.1, 0.9),
+            node(5, 0.2, 0.2),
+            node(6, 0.8, 0.2),
+            node(7, 0.8, 0.8),
+            node(8, 0.2, 0.8),
+            node(9, 0.3, 0.3),
+            node(10, 0.7, 0.3),
+            node(11, 0.7, 0.7),
+            node(12, 0.3, 0.7),
+            outerway,
+            innerway,
+            innerinnerway,
+            relation);
 
     reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
@@ -453,18 +413,13 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertSameNormalizedFeature(
-      newMultiPolygon(
-        newPolygon(
-          rectangleCoordList(0.1, 0.9),
-          List.of(rectangleCoordList(0.2, 0.8))
-        ),
-        rectangle(0.3, 0.7)
-      ),
-      round(feature.worldGeometry()),
-      round(feature.polygon()),
-      round(feature.validatedPolygon()),
-      round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry()))
-    );
+        newMultiPolygon(
+            newPolygon(rectangleCoordList(0.1, 0.9), List.of(rectangleCoordList(0.2, 0.8))),
+            rectangle(0.3, 0.7)),
+        round(feature.worldGeometry()),
+        round(feature.polygon()),
+        round(feature.validatedPolygon()),
+        round(GeoUtils.latLonToWorldCoords(feature.latLonGeometry())));
   }
 
   @Test
@@ -479,33 +434,35 @@ public class OsmReaderTest {
 
     var relation = new OsmElement.Relation(16);
     relation.setTag("type", "multipolygon");
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerway.id(), "inner"));
     // nested hole marked as inner, but should actually be outer
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, innerinnerway.id(), "inner"));
 
-    List<OsmElement> elements = List.of(
-      node(1, 0.1, 0.1),
-      node(2, 0.9, 0.1),
-      node(3, 0.9, 0.9),
-      node(4, 0.1, 0.9),
-
-      node(5, 0.2, 0.3),
-      node(6, 0.8, 0.3),
-      node(7, 0.8, 0.8),
-      node(8, 0.2, 0.8),
-
-      node(9, 0.2, 0.2),
-      node(10, 0.8, 0.2),
-      node(11, 0.8, 0.7),
-      node(12, 0.2, 0.7),
-
-      outerway,
-      innerway,
-      innerinnerway,
-
-      relation
-    );
+    List<OsmElement> elements =
+        List.of(
+            node(1, 0.1, 0.1),
+            node(2, 0.9, 0.1),
+            node(3, 0.9, 0.9),
+            node(4, 0.1, 0.9),
+            node(5, 0.2, 0.3),
+            node(6, 0.8, 0.3),
+            node(7, 0.8, 0.8),
+            node(8, 0.2, 0.8),
+            node(9, 0.2, 0.2),
+            node(10, 0.8, 0.2),
+            node(11, 0.8, 0.7),
+            node(12, 0.2, 0.7),
+            outerway,
+            innerway,
+            innerinnerway,
+            relation);
 
     reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
@@ -519,22 +476,14 @@ public class OsmReaderTest {
     assertTrue(feature.canBePolygon());
 
     assertTopologicallyEquivalentFeature(
-      newPolygon(
-        rectangleCoordList(0.1, 0.9),
-        List.of(rectangleCoordList(0.2, 0.8))
-      ),
-      round(feature.validatedPolygon())
-    );
+        newPolygon(rectangleCoordList(0.1, 0.9), List.of(rectangleCoordList(0.2, 0.8))),
+        round(feature.validatedPolygon()));
     assertSameNormalizedFeature(
-      newPolygon(
-        rectangleCoordList(0.1, 0.9),
-        List.of(
-          rectangleCoordList(0.2, 0.3, 0.8, 0.8),
-          rectangleCoordList(0.2, 0.2, 0.8, 0.7)
-        )
-      ),
-      round(feature.polygon())
-    );
+        newPolygon(
+            rectangleCoordList(0.1, 0.9),
+            List.of(
+                rectangleCoordList(0.2, 0.3, 0.8, 0.8), rectangleCoordList(0.2, 0.2, 0.8, 0.7))),
+        round(feature.polygon()));
   }
 
   @Test
@@ -545,18 +494,18 @@ public class OsmReaderTest {
 
     var relation = new OsmElement.Relation(6);
     relation.setTag("type", "multipolygon");
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
+    relation
+        .members()
+        .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, outerway.id(), "outer"));
 
-    List<OsmElement> elements = List.of(
-      node(1, 0.1, 0.1),
-//      node(2, 0.9, 0.1), MISSING!
-      node(3, 0.9, 0.9),
-      node(4, 0.1, 0.9),
-
-      outerway,
-
-      relation
-    );
+    List<OsmElement> elements =
+        List.of(
+            node(1, 0.1, 0.1),
+            //      node(2, 0.9, 0.1), MISSING!
+            node(3, 0.9, 0.9),
+            node(4, 0.1, 0.9),
+            outerway,
+            relation);
 
     reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
@@ -578,16 +527,16 @@ public class OsmReaderTest {
     relation.setTag("type", "multipolygon");
     relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 5, "outer"));
 
-    List<OsmElement> elements = List.of(
-      node(1, 0.1, 0.1),
-      node(2, 0.9, 0.1),
-      node(3, 0.9, 0.9),
-      node(4, 0.1, 0.9),
+    List<OsmElement> elements =
+        List.of(
+            node(1, 0.1, 0.1),
+            node(2, 0.9, 0.1),
+            node(3, 0.9, 0.9),
+            node(4, 0.1, 0.9),
 
-//      outerway, // missing!
+            //      outerway, // missing!
 
-      relation
-    );
+            relation);
 
     reader.processPass1Block(elements);
     elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
@@ -605,12 +554,18 @@ public class OsmReaderTest {
   public void testWayInRelation() {
     record OtherRelInfo(long id) implements OsmRelationInfo {}
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
-      @Override
-      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return List.of(new TestRelInfo(1, "name"));
-      }
-    }, stats);
+    OsmReader reader =
+        new OsmReader(
+            "osm",
+            () -> osmSource,
+            nodeMap,
+            new Profile.NullProfile() {
+              @Override
+              public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+                return List.of(new TestRelInfo(1, "name"));
+              }
+            },
+            stats);
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = new OsmElement.Node(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);
@@ -625,19 +580,26 @@ public class OsmReaderTest {
     SourceFeature feature = reader.processWayPass2(way, nodeCache);
 
     assertEquals(List.of(), feature.relationInfo(OtherRelInfo.class));
-    assertEquals(List.of(new OsmReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
-      feature.relationInfo(TestRelInfo.class));
+    assertEquals(
+        List.of(new OsmReader.RelationMember<>("rolename", new TestRelInfo(1, "name"))),
+        feature.relationInfo(TestRelInfo.class));
   }
 
   @Test
   public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
-      @Override
-      public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
-        return List.of(new TestRelInfo(1, "name"));
-      }
-    }, stats);
+    OsmReader reader =
+        new OsmReader(
+            "osm",
+            () -> osmSource,
+            nodeMap,
+            new Profile.NullProfile() {
+              @Override
+              public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+                return List.of(new TestRelInfo(1, "name"));
+              }
+            },
+            stats);
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = new OsmElement.Node(1, 0, 0);
     var node2 = node(2, 0.75, 0.75);

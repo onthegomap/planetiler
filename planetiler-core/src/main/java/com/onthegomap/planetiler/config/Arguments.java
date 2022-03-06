@@ -21,8 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Lightweight abstraction over ways to provide key/value pair arguments to a program like jvm properties, environmental
- * variables, or a config file.
+ * Lightweight abstraction over ways to provide key/value pair arguments to a program like jvm
+ * properties, environmental variables, or a config file.
  */
 public class Arguments {
 
@@ -36,8 +36,8 @@ public class Arguments {
 
   /**
    * Returns arguments from JVM system properties prefixed with {@code planetiler.}
-   * <p>
-   * For example to set {@code key=value}: {@code java -Dplanetiler.key=value -jar ...}
+   *
+   * <p>For example to set {@code key=value}: {@code java -Dplanetiler.key=value -jar ...}
    */
   public static Arguments fromJvmProperties() {
     return new Arguments(key -> System.getProperty("planetiler." + key));
@@ -45,8 +45,8 @@ public class Arguments {
 
   /**
    * Returns arguments parsed from environmental variables prefixed with {@code PLANETILER_}
-   * <p>
-   * For example to set {@code key=value}: {@code PLANETILER_KEY=value java -jar ...}
+   *
+   * <p>For example to set {@code key=value}: {@code PLANETILER_KEY=value java -jar ...}
    */
   public static Arguments fromEnvironment() {
     return new Arguments(key -> System.getenv("PLANETILER_" + key.toUpperCase(Locale.ROOT)));
@@ -54,10 +54,10 @@ public class Arguments {
 
   /**
    * Returns arguments parsed from command-line arguments.
-   * <p>
-   * For example to set {@code key=value}: {@code java -jar ... key=value}
-   * <p>
-   * Or to set {@code key=true}: {@code java -jar ... --key}
+   *
+   * <p>For example to set {@code key=value}: {@code java -jar ... key=value}
+   *
+   * <p>Or to set {@code key=true}: {@code java -jar ... --key}
    *
    * @param args arguments provided to main method
    * @return arguments parsed from command-line arguments
@@ -93,23 +93,23 @@ public class Arguments {
   }
 
   /**
-   * Returns arguments parsed from command-line arguments, JVM properties, environmental variables, or a config file.
-   * <p>
-   * Priority order:
+   * Returns arguments parsed from command-line arguments, JVM properties, environmental variables,
+   * or a config file.
+   *
+   * <p>Priority order:
+   *
    * <ol>
-   *   <li>command-line arguments: {@code java ... key=value}</li>
-   *   <li>jvm properties: {@code java -Dplanetiler.key=value ...}</li>
-   *   <li>environmental variables: {@code PLANETILER_KEY=value java ...}</li>
-   *   <li>in a config file from "config" argument from any of the above</li>
+   *   <li>command-line arguments: {@code java ... key=value}
+   *   <li>jvm properties: {@code java -Dplanetiler.key=value ...}
+   *   <li>environmental variables: {@code PLANETILER_KEY=value java ...}
+   *   <li>in a config file from "config" argument from any of the above
    * </ol>
    *
    * @param args command-line args provide to main entrypoint method
    * @return arguments parsed from those sources
    */
   public static Arguments fromArgsOrConfigFile(String... args) {
-    Arguments fromArgsOrEnv = fromArgs(args)
-      .orElse(fromJvmProperties())
-      .orElse(fromEnvironment());
+    Arguments fromArgsOrEnv = fromArgs(args).orElse(fromJvmProperties()).orElse(fromEnvironment());
     Path configFile = fromArgsOrEnv.file("config", "path to config file", null);
     if (configFile != null) {
       return fromArgsOrEnv.orElse(fromConfigFile(configFile));
@@ -146,13 +146,15 @@ public class Arguments {
    * Chain two argument providers so that {@code other} is used as a fallback to {@code this}.
    *
    * @param other another arguments provider
-   * @return arguments instance that checks {@code this} first and if a match is not found then {@code other}
+   * @return arguments instance that checks {@code this} first and if a match is not found then
+   *     {@code other}
    */
   public Arguments orElse(Arguments other) {
-    return new Arguments(key -> {
-      String ourResult = get(key);
-      return ourResult != null ? ourResult : other.get(key);
-    });
+    return new Arguments(
+        key -> {
+          String ourResult = get(key);
+          return ourResult != null ? ourResult : other.get(key);
+        });
   }
 
   private String getArg(String key) {
@@ -167,10 +169,10 @@ public class Arguments {
 
   /**
    * Returns an {@link Envelope} parsed from {@code key} argument, or null if missing.
-   * <p>
-   * Format: {@code westLng,southLat,eastLng,northLat}
    *
-   * @param key         argument name
+   * <p>Format: {@code westLng,southLat,eastLng,northLat}
+   *
+   * @param key argument name
    * @param description argument description
    * @return An envelope parsed from {@code key} or null if missing
    */
@@ -180,7 +182,8 @@ public class Arguments {
     if ("world".equalsIgnoreCase(input) || "planet".equalsIgnoreCase(input)) {
       result = GeoUtils.WORLD_LAT_LON_BOUNDS;
     } else if (input != null) {
-      double[] bounds = Stream.of(input.split("[\\s,]+")).mapToDouble(Double::parseDouble).toArray();
+      double[] bounds =
+          Stream.of(input.split("[\\s,]+")).mapToDouble(Double::parseDouble).toArray();
       if (bounds.length != 4) {
         throw new IllegalArgumentException("bounds must have 4 coordinates, got: " + input);
       }
@@ -209,7 +212,8 @@ public class Arguments {
   }
 
   /**
-   * Returns a {@link Path} parsed from {@code key} argument which must exist for the program to function.
+   * Returns a {@link Path} parsed from {@code key} argument which must exist for the program to
+   * function.
    *
    * @throws IllegalArgumentException if the file does not exist
    */
@@ -221,25 +225,30 @@ public class Arguments {
     return path;
   }
 
-  /** Returns a boolean parsed from {@code key} argument where {@code "true"} is true and anything else is false. */
+  /**
+   * Returns a boolean parsed from {@code key} argument where {@code "true"} is true and anything
+   * else is false.
+   */
   public boolean getBoolean(String key, String description, boolean defaultValue) {
     boolean value = "true".equalsIgnoreCase(getArg(key, Boolean.toString(defaultValue)));
     logArgValue(key, description, value);
     return value;
   }
 
-  /** Returns a {@link List} parsed from {@code key} argument where values are separated by commas. */
+  /**
+   * Returns a {@link List} parsed from {@code key} argument where values are separated by commas.
+   */
   public List<String> getList(String key, String description, List<String> defaultValue) {
     String value = getArg(key, String.join(",", defaultValue));
-    List<String> results = Stream.of(value.split("\\s*,[,\\s]*"))
-      .filter(c -> !c.isBlank()).toList();
+    List<String> results =
+        Stream.of(value.split("\\s*,[,\\s]*")).filter(c -> !c.isBlank()).toList();
     logArgValue(key, description, value);
     return results;
   }
 
   /**
-   * Returns the number of threads from {@link Runtime#availableProcessors()} but allow the user to override it by
-   * setting the {@code threads} argument.
+   * Returns the number of threads from {@link Runtime#availableProcessors()} but allow the user to
+   * override it by setting the {@code threads} argument.
    *
    * @throws NumberFormatException if {@code threads} can't be parsed as an integer
    */
@@ -252,18 +261,19 @@ public class Arguments {
 
   /**
    * Returns a {@link Stats} implementation based on the arguments provided.
-   * <p>
-   * If {@code pushgateway} is set then it uses a stats implementation that pushes to prometheus through a <a
-   * href="https://github.com/prometheus/pushgateway">push gateway</a> every {@code pushgateway.interval} seconds.
-   * Otherwise, uses an in-memory stats implementation.
+   *
+   * <p>If {@code pushgateway} is set then it uses a stats implementation that pushes to prometheus
+   * through a <a href="https://github.com/prometheus/pushgateway">push gateway</a> every {@code
+   * pushgateway.interval} seconds. Otherwise, uses an in-memory stats implementation.
    */
   public Stats getStats() {
     String prometheus = getArg("pushgateway");
     if (prometheus != null && !prometheus.isBlank()) {
       LOGGER.info("Using prometheus push gateway stats");
       String job = getString("pushgateway.job", "prometheus pushgateway job ID", "planetiler");
-      Duration interval = getDuration("pushgateway.interval", "how often to send stats to prometheus push gateway",
-        "15s");
+      Duration interval =
+          getDuration(
+              "pushgateway.interval", "how often to send stats to prometheus push gateway", "15s");
       return Stats.prometheusPushGateway(prometheus, job, interval);
     } else {
       LOGGER.info("Using in-memory stats");

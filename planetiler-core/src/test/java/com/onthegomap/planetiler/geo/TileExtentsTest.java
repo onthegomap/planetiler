@@ -23,8 +23,7 @@ public class TileExtentsTest {
 
   @Test
   public void topLeft() {
-    TileExtents extents = TileExtents
-      .computeFromWorldBounds(14, new Envelope(0, eps, 0, eps));
+    TileExtents extents = TileExtents.computeFromWorldBounds(14, new Envelope(0, eps, 0, eps));
     for (int z = 0; z <= 14; z++) {
       assertEquals(0, extents.getForZoom(z).minX(), "z" + z + " minX");
       assertEquals(1, extents.getForZoom(z).maxX(), "z" + z + " maxX");
@@ -35,8 +34,7 @@ public class TileExtentsTest {
 
   @Test
   public void topRight() {
-    TileExtents extents = TileExtents
-      .computeFromWorldBounds(14, new Envelope(1 - eps, 1, 0, eps));
+    TileExtents extents = TileExtents.computeFromWorldBounds(14, new Envelope(1 - eps, 1, 0, eps));
     for (int z = 0; z <= 14; z++) {
       assertEquals((1 << z) - 1, extents.getForZoom(z).minX(), "z" + z + " minX");
       assertEquals((1 << z), extents.getForZoom(z).maxX(), "z" + z + " maxX");
@@ -47,8 +45,7 @@ public class TileExtentsTest {
 
   @Test
   public void testBottomLeft() {
-    TileExtents extents = TileExtents
-      .computeFromWorldBounds(14, new Envelope(0, eps, 1 - eps, 1));
+    TileExtents extents = TileExtents.computeFromWorldBounds(14, new Envelope(0, eps, 1 - eps, 1));
     for (int z = 0; z <= 14; z++) {
       assertEquals(0, extents.getForZoom(z).minX(), "z" + z + " minX");
       assertEquals(1, extents.getForZoom(z).maxX(), "z" + z + " maxX");

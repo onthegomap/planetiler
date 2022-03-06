@@ -12,14 +12,16 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Tracks the type and zoom range of vector tile attributes that have been emitted by layer to populate the {@code json}
- * attribute in the mbtiles output metadata.
- * <p>
- * To minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
- * thread-local handler that can update stats without contention.
+ * Tracks the type and zoom range of vector tile attributes that have been emitted by layer to
+ * populate the {@code json} attribute in the mbtiles output metadata.
+ *
+ * <p>To minimize overhead of stat collection, each updating thread should call {@link
+ * #handlerForThread()} first to get a thread-local handler that can update stats without
+ * contention.
  *
  * @see Mbtiles.MetadataJson
- * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles spec</a>
+ * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles
+ *     spec</a>
  */
 @ThreadSafe
 public class LayerStats implements Consumer<RenderedFeature> {
@@ -30,34 +32,47 @@ public class LayerStats implements Consumer<RenderedFeature> {
    */
 
   private final List<ThreadLocalHandler> threadLocals = new CopyOnWriteArrayList<>();
-  private final ThreadLocal<ThreadLocalHandler> layerStats = ThreadLocal
-    .withInitial(ThreadLocalHandler::new);
+  private final ThreadLocal<ThreadLocalHandler> layerStats =
+      ThreadLocal.withInitial(ThreadLocalHandler::new);
 
-  /** Returns stats on all features that have been emitted for the {@code json} mbtiles metadata value. */
+  /**
+   * Returns stats on all features that have been emitted for the {@code json} mbtiles metadata
+   * value.
+   */
   public Mbtiles.MetadataJson getTileStats() {
     Map<String, StatsForLayer> layers = new TreeMap<>();
     for (var threadLocal : threadLocals) {
       for (StatsForLayer stats : threadLocal.layers.values()) {
-        layers.merge(stats.layer, stats, (prev, next) -> {
-          prev.expandZoomRangeToInclude(next.maxzoom);
-          prev.expandZoomRangeToInclude(next.minzoom);
-          for (var entry : next.fields.entrySet()) {
-            // keep track of field type as a number/boolean/string but widen to string if multiple different
-            // types are encountered
-            prev.fields.merge(entry.getKey(), entry.getValue(), Mbtiles.MetadataJson.FieldType::merge);
-          }
-          return prev;
-        });
+        layers.merge(
+            stats.layer,
+            stats,
+            (prev, next) -> {
+              prev.expandZoomRangeToInclude(next.maxzoom);
+              prev.expandZoomRangeToInclude(next.minzoom);
+              for (var entry : next.fields.entrySet()) {
+                // keep track of field type as a number/boolean/string but widen to string if
+                // multiple different
+                // types are encountered
+                prev.fields.merge(
+                    entry.getKey(), entry.getValue(), Mbtiles.MetadataJson.FieldType::merge);
+              }
+              return prev;
+            });
       }
     }
     return new Mbtiles.MetadataJson(
-      layers.values().stream()
-        .map(stats -> new Mbtiles.MetadataJson.VectorLayer(stats.layer, stats.fields, stats.minzoom, stats.maxzoom))
-        .toList()
-    );
+        layers.values().stream()
+            .map(
+                stats ->
+                    new Mbtiles.MetadataJson.VectorLayer(
+                        stats.layer, stats.fields, stats.minzoom, stats.maxzoom))
+            .toList());
   }
 
-  /** Accepts features from a single thread that will be combined across all threads in {@link #getTileStats()}. */
+  /**
+   * Accepts features from a single thread that will be combined across all threads in {@link
+   * #getTileStats()}.
+   */
   @NotThreadSafe
   private class ThreadLocalHandler implements Consumer<RenderedFeature> {
 
@@ -94,8 +109,8 @@ public class LayerStats implements Consumer<RenderedFeature> {
 
   /**
    * Returns a handler optimized for accepting features from a single thread.
-   * <p>
-   * Use this instead of {@link #accept(RenderedFeature)}
+   *
+   * <p>Use this instead of {@link #accept(RenderedFeature)}
    */
   public Consumer<RenderedFeature> handlerForThread() {
     return layerStats.get();

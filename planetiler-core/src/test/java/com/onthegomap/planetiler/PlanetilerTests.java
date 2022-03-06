@@ -51,9 +51,7 @@ import org.locationtech.jts.io.WKBReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * In-memory tests with fake data and profiles to ensure all features work end-to-end.
- */
+/** In-memory tests with fake data and profiles to ensure all features work end-to-end. */
 public class PlanetilerTests {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlanetilerTests.class);
@@ -75,8 +73,11 @@ public class PlanetilerTests {
     return elem;
   }
 
-  private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
-    List<? extends SourceFeature> features) {
+  private void processReaderFeatures(
+      FeatureGroup featureGroup,
+      Profile profile,
+      PlanetilerConfig config,
+      List<? extends SourceFeature> features) {
     new SimpleReader(profile, stats, "test") {
 
       @Override
@@ -90,20 +91,32 @@ public class PlanetilerTests {
       }
 
       @Override
-      public void close() {
-      }
+      public void close() {}
     }.process(featureGroup, config);
   }
 
-  private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
-    List<? extends OsmElement> osmElements) throws IOException {
-    OsmBlockSource elems = next -> {
-      // process the same order they come in from an OSM file
-      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
-      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
-      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
-      next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
-    };
+  private void processOsmFeatures(
+      FeatureGroup featureGroup,
+      Profile profile,
+      PlanetilerConfig config,
+      List<? extends OsmElement> osmElements)
+      throws IOException {
+    OsmBlockSource elems =
+        next -> {
+          // process the same order they come in from an OSM file
+          next.accept(
+              OsmBlockSource.Block.of(
+                  osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
+          next.accept(
+              OsmBlockSource.Block.of(
+                  osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
+          next.accept(
+              OsmBlockSource.Block.of(
+                  osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
+          next.accept(
+              OsmBlockSource.Block.of(
+                  osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
+        };
     var nodeMap = LongLongMap.newInMemorySortedTable();
     try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
       reader.pass1(config);
@@ -111,18 +124,20 @@ public class PlanetilerTests {
     }
   }
 
-  private PlanetilerResults run(
-    Map<String, String> args,
-    Runner runner,
-    Profile profile
-  ) throws Exception {
+  private PlanetilerResults run(Map<String, String> args, Runner runner, Profile profile)
+      throws Exception {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.of(args));
     FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, new MbtilesMetadata(profile, config.arguments()), config,
-        stats);
+      MbtilesWriter.writeOutput(
+          featureGroup,
+          db,
+          () -> 0L,
+          new MbtilesMetadata(profile, config.arguments()),
+          config,
+          stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
       return new PlanetilerResults(tileMap, db.metadata().getAll());
@@ -130,77 +145,72 @@ public class PlanetilerTests {
   }
 
   private PlanetilerResults runWithReaderFeatures(
-    Map<String, String> args,
-    List<SimpleFeature> features,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws Exception {
+      Map<String, String> args,
+      List<SimpleFeature> features,
+      BiConsumer<SourceFeature, FeatureCollector> profileFunction)
+      throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
-      TestProfile.processSourceFeatures(profileFunction)
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processReaderFeatures(featureGroup, profile, config, features),
+        TestProfile.processSourceFeatures(profileFunction));
   }
 
   private PlanetilerResults runWithReaderFeatures(
-    Map<String, String> args,
-    List<SimpleFeature> features,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction,
-    LayerPostprocessFunction postProcess
-  ) throws Exception {
+      Map<String, String> args,
+      List<SimpleFeature> features,
+      BiConsumer<SourceFeature, FeatureCollector> profileFunction,
+      LayerPostprocessFunction postProcess)
+      throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
-      new TestProfile(profileFunction, a -> null, postProcess)
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processReaderFeatures(featureGroup, profile, config, features),
+        new TestProfile(profileFunction, a -> null, postProcess));
   }
 
   private PlanetilerResults runWithReaderFeaturesProfile(
-    Map<String, String> args,
-    List<SimpleFeature> features,
-    Profile profileToUse
-  ) throws Exception {
+      Map<String, String> args, List<SimpleFeature> features, Profile profileToUse)
+      throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processReaderFeatures(featureGroup, profile, config, features),
-      profileToUse
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processReaderFeatures(featureGroup, profile, config, features),
+        profileToUse);
   }
 
   private PlanetilerResults runWithOsmElements(
-    Map<String, String> args,
-    List<OsmElement> features,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws Exception {
+      Map<String, String> args,
+      List<OsmElement> features,
+      BiConsumer<SourceFeature, FeatureCollector> profileFunction)
+      throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      TestProfile.processSourceFeatures(profileFunction)
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processOsmFeatures(featureGroup, profile, config, features),
+        TestProfile.processSourceFeatures(profileFunction));
   }
 
   private PlanetilerResults runWithOsmElements(
-    Map<String, String> args,
-    List<OsmElement> features,
-    Profile profileToUse
-  ) throws Exception {
+      Map<String, String> args, List<OsmElement> features, Profile profileToUse) throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      profileToUse
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processOsmFeatures(featureGroup, profile, config, features),
+        profileToUse);
   }
 
   private PlanetilerResults runWithOsmElements(
-    Map<String, String> args,
-    List<OsmElement> features,
-    Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws Exception {
+      Map<String, String> args,
+      List<OsmElement> features,
+      Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
+      BiConsumer<SourceFeature, FeatureCollector> profileFunction)
+      throws Exception {
     return run(
-      args,
-      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      new TestProfile(profileFunction, preprocessOsmRelation, (a, b, c) -> c)
-    );
+        args,
+        (featureGroup, profile, config) ->
+            processOsmFeatures(featureGroup, profile, config, features),
+        new TestProfile(profileFunction, preprocessOsmRelation, (a, b, c) -> c));
   }
 
   private SimpleFeature newReaderFeature(Geometry geometry, Map<String, Object> attrs) {
@@ -209,58 +219,53 @@ public class PlanetilerTests {
 
   @Test
   public void testMetadataButNoPoints() throws Exception {
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(),
-      (sourceFeature, features) -> {
-      }
-    );
+    var results =
+        runWithReaderFeatures(Map.of("threads", "1"), List.of(), (sourceFeature, features) -> {});
     assertEquals(Map.of(), results.tiles);
-    assertSubmap(Map.of(
-      "name", TEST_PROFILE_NAME,
-      "description", TEST_PROFILE_DESCRIPTION,
-      "attribution", TEST_PROFILE_ATTRIBUTION,
-      "version", TEST_PROFILE_VERSION,
-      "type", "baselayer",
-      "format", "pbf",
-      "minzoom", "0",
-      "maxzoom", "14",
-      "center", "0,0,0",
-      "bounds", "-180,-85.05113,180,85.05113"
-    ), results.metadata);
+    assertSubmap(
+        Map.of(
+            "name", TEST_PROFILE_NAME,
+            "description", TEST_PROFILE_DESCRIPTION,
+            "attribution", TEST_PROFILE_ATTRIBUTION,
+            "version", TEST_PROFILE_VERSION,
+            "type", "baselayer",
+            "format", "pbf",
+            "minzoom", "0",
+            "maxzoom", "14",
+            "center", "0,0,0",
+            "bounds", "-180,-85.05113,180,85.05113"),
+        results.metadata);
     assertSameJson(
-      """
+        """
         {
           "vector_layers": [
           ]
         }
         """,
-      results.metadata.get("json")
-    );
+        results.metadata.get("json"));
   }
 
   @Test
   public void testOverrideMetadata() throws Exception {
-    var results = runWithReaderFeatures(
-      Map.of(
-        "mbtiles_name", "mbtiles_name",
-        "mbtiles_description", "mbtiles_description",
-        "mbtiles_attribution", "mbtiles_attribution",
-        "mbtiles_version", "mbtiles_version",
-        "mbtiles_type", "mbtiles_type"
-      ),
-      List.of(),
-      (sourceFeature, features) -> {
-      }
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of(
+                "mbtiles_name", "mbtiles_name",
+                "mbtiles_description", "mbtiles_description",
+                "mbtiles_attribution", "mbtiles_attribution",
+                "mbtiles_version", "mbtiles_version",
+                "mbtiles_type", "mbtiles_type"),
+            List.of(),
+            (sourceFeature, features) -> {});
     assertEquals(Map.of(), results.tiles);
-    assertSubmap(Map.of(
-      "name", "mbtiles_name",
-      "description", "mbtiles_description",
-      "attribution", "mbtiles_attribution",
-      "version", "mbtiles_version",
-      "type", "mbtiles_type"
-    ), results.metadata);
+    assertSubmap(
+        Map.of(
+            "name", "mbtiles_name",
+            "description", "mbtiles_description",
+            "attribution", "mbtiles_attribution",
+            "version", "mbtiles_version",
+            "type", "mbtiles_type"),
+        results.metadata);
   }
 
   @Test
@@ -270,43 +275,43 @@ public class PlanetilerTests {
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPoint(lng, lat), Map.of(
-          "attr", "value"
-        ))
-      ),
-      (in, features) -> features.point("layer")
-        .setZoomRange(13, 14)
-        .setAttr("name", "name value")
-        .inheritAttrFromSource("attr")
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(newReaderFeature(newPoint(lng, lat), Map.of("attr", "value"))),
+            (in, features) ->
+                features
+                    .point("layer")
+                    .setZoomRange(13, 14)
+                    .setAttr("name", "name value")
+                    .inheritAttrFromSource("attr"));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(128, 128), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newPoint(64, 64), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(
+                        newPoint(128, 128),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value"))),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    feature(
+                        newPoint(64, 64),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value")))),
+        results.tiles);
     assertSameJson(
-      """
+        """
         {
           "vector_layers": [
             {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 14}
           ]
         }
         """,
-      results.metadata.get("json")
-    );
+        results.metadata.get("json"));
   }
 
   @Test
@@ -320,42 +325,37 @@ public class PlanetilerTests {
     double lat2 = GeoUtils.getWorldLat(y2);
     double lng2 = GeoUtils.getWorldLon(x2);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newMultiPoint(
-          newPoint(lng1, lat1),
-          newPoint(lng2, lat2)
-        ), Map.of(
-          "attr", "value"
-        ))
-      ),
-      (in, features) -> features.point("layer")
-        .setZoomRange(13, 14)
-        .setAttr("name", "name value")
-        .inheritAttrFromSource("attr")
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(
+                    newMultiPoint(newPoint(lng1, lat1), newPoint(lng2, lat2)),
+                    Map.of("attr", "value"))),
+            (in, features) ->
+                features
+                    .point("layer")
+                    .setZoomRange(13, 14)
+                    .setAttr("name", "name value")
+                    .inheritAttrFromSource("attr"));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newMultiPoint(
-          newPoint(128, 128),
-          newPoint(130, 130)
-        ), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newMultiPoint(
-          newPoint(64, 64),
-          newPoint(65, 65)
-        ), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(
+                        newMultiPoint(newPoint(128, 128), newPoint(130, 130)),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value"))),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    feature(
+                        newMultiPoint(newPoint(64, 64), newPoint(65, 65)),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value")))),
+        results.tiles);
   }
 
   @Test
@@ -368,33 +368,35 @@ public class PlanetilerTests {
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
     double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
-        newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
-        newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
-      ),
-      (in, features) -> features.point("layer")
-        .setZoomRange(13, 14)
-        .inheritAttrFromSource("rank")
-        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
-        .setPointLabelGridSizeAndLimit(13, 128, 2)
-        .setBufferPixels(128)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
+                newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
+                newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))),
+            (in, features) ->
+                features
+                    .point("layer")
+                    .setZoomRange(13, 14)
+                    .inheritAttrFromSource("rank")
+                    .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+                    .setPointLabelGridSizeAndLimit(13, 128, 2)
+                    .setBufferPixels(128));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(64, 128), Map.of("rank", "1")),
-        feature(newPoint(74, 128), Map.of("rank", "2")),
-        feature(newPoint(84, 128), Map.of("rank", "3"))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // omit rank=3 due to label grid size
-        feature(newPoint(32, 64), Map.of("rank", "1")),
-        feature(newPoint(37, 64), Map.of("rank", "2"))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(newPoint(64, 128), Map.of("rank", "1")),
+                    feature(newPoint(74, 128), Map.of("rank", "2")),
+                    feature(newPoint(84, 128), Map.of("rank", "3"))),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    // omit rank=3 due to label grid size
+                    feature(newPoint(32, 64), Map.of("rank", "1")),
+                    feature(newPoint(37, 64), Map.of("rank", "2")))),
+        results.tiles);
   }
 
   @Test
@@ -408,29 +410,22 @@ public class PlanetilerTests {
     double lat2 = GeoUtils.getWorldLat(y2);
     double lng2 = GeoUtils.getWorldLon(x2);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newLineString(lng1, lat1, lng2, lat2), Map.of(
-          "attr", "value"
-        ))
-      ),
-      (in, features) -> features.line("layer")
-        .setZoomRange(13, 14)
-        .setBufferPixels(4)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(newLineString(lng1, lat1, lng2, lat2), Map.of("attr", "value"))),
+            (in, features) -> features.line("layer").setZoomRange(13, 14).setBufferPixels(4));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newLineString(128, 128, 260, 260), Map.of())
-      ),
-      TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14), List.of(
-        feature(newLineString(-4, -4, 128, 128), Map.of())
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newLineString(64, 64, 192, 192), Map.of())
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(feature(newLineString(128, 128, 260, 260), Map.of())),
+            TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14),
+                List.of(feature(newLineString(-4, -4, 128, 128), Map.of())),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(feature(newLineString(64, 64, 192, 192), Map.of()))),
+        results.tiles);
   }
 
   @Test
@@ -448,26 +443,24 @@ public class PlanetilerTests {
     double lat3 = GeoUtils.getWorldLat(y3);
     double lng3 = GeoUtils.getWorldLon(x3);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newLineString(lng1, lat1, lng2, lat2, lng3, lat3), Map.of(
-          "attr", "value"
-        ))
-      ),
-      (in, features) -> features.line("layer")
-        .setZoomRange(13, 14)
-        .setBufferPixels(4)
-        .setNumPointsAttr("_numpoints")
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(
+                    newLineString(lng1, lat1, lng2, lat2, lng3, lat3), Map.of("attr", "value"))),
+            (in, features) ->
+                features
+                    .line("layer")
+                    .setZoomRange(13, 14)
+                    .setBufferPixels(4)
+                    .setNumPointsAttr("_numpoints"));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2 + 2, Z14_TILES / 2 + 2, 14), List.of(
-        feature(newLineString(-4, -4, 128, 128), Map.of(
-          "_numpoints", 3L
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2 + 2, Z14_TILES / 2 + 2, 14),
+            List.of(feature(newLineString(-4, -4, 128, 128), Map.of("_numpoints", 3L)))),
+        results.tiles);
   }
 
   @Test
@@ -481,49 +474,47 @@ public class PlanetilerTests {
     double lat2 = GeoUtils.getWorldLat(y2);
     double lng2 = GeoUtils.getWorldLon(x2);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newMultiLineString(
-          newLineString(lng1, lat1, lng2, lat2),
-          newLineString(lng2, lat2, lng1, lat1)
-        ), Map.of(
-          "attr", "value"
-        ))
-      ),
-      (in, features) -> features.line("layer")
-        .setZoomRange(13, 14)
-        .setBufferPixels(4)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(
+                    newMultiLineString(
+                        newLineString(lng1, lat1, lng2, lat2),
+                        newLineString(lng2, lat2, lng1, lat1)),
+                    Map.of("attr", "value"))),
+            (in, features) -> features.line("layer").setZoomRange(13, 14).setBufferPixels(4));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newMultiLineString(
-          newLineString(128, 128, 260, 260),
-          newLineString(260, 260, 128, 128)
-        ), Map.of())
-      ),
-      TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14), List.of(
-        feature(newMultiLineString(
-          newLineString(-4, -4, 128, 128),
-          newLineString(128, 128, -4, -4)
-        ), Map.of())
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newMultiLineString(
-          newLineString(64, 64, 192, 192),
-          newLineString(192, 192, 64, 64)
-        ), Map.of())
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(
+                        newMultiLineString(
+                            newLineString(128, 128, 260, 260), newLineString(260, 260, 128, 128)),
+                        Map.of())),
+            TileCoord.ofXYZ(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14),
+                List.of(
+                    feature(
+                        newMultiLineString(
+                            newLineString(-4, -4, 128, 128), newLineString(128, 128, -4, -4)),
+                        Map.of())),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    feature(
+                        newMultiLineString(
+                            newLineString(64, 64, 192, 192), newLineString(192, 192, 64, 64)),
+                        Map.of()))),
+        results.tiles);
   }
 
   public List<Coordinate> z14CoordinateList(double... coords) {
     List<Coordinate> points = newCoordinateList(coords);
-    points.forEach(c -> {
-      c.x = GeoUtils.getWorldLon(0.5 + c.x * Z14_WIDTH);
-      c.y = GeoUtils.getWorldLat(0.5 + c.y * Z14_WIDTH);
-    });
+    points.forEach(
+        c -> {
+          c.x = GeoUtils.getWorldLon(0.5 + c.x * Z14_WIDTH);
+          c.y = GeoUtils.getWorldLat(0.5 + c.y * Z14_WIDTH);
+        });
     return points;
   }
 
@@ -533,166 +524,173 @@ public class PlanetilerTests {
 
   @Test
   public void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
-    List<Coordinate> outerPoints = z14CoordinateList(
-      0.5, 0.5,
-      3.5, 0.5,
-      3.5, 2.5,
-      0.5, 2.5,
-      0.5, 0.5
-    );
-    List<Coordinate> innerPoints = z14CoordinateList(
-      1.25, 1.25,
-      1.75, 1.25,
-      1.75, 1.75,
-      1.25, 1.75,
-      1.25, 1.25
-    );
+    List<Coordinate> outerPoints =
+        z14CoordinateList(
+            0.5, 0.5,
+            3.5, 0.5,
+            3.5, 2.5,
+            0.5, 2.5,
+            0.5, 0.5);
+    List<Coordinate> innerPoints =
+        z14CoordinateList(
+            1.25, 1.25,
+            1.75, 1.25,
+            1.75, 1.75,
+            1.25, 1.75,
+            1.25, 1.25);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPolygon(
-          outerPoints,
-          List.of(innerPoints)
-        ), Map.of())
-      ),
-      (in, features) -> features.polygon("layer")
-        .setZoomRange(12, 14)
-        .setBufferPixels(4)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(newReaderFeature(newPolygon(outerPoints, List.of(innerPoints)), Map.of())),
+            (in, features) -> features.polygon("layer").setZoomRange(12, 14).setBufferPixels(4));
 
-    assertEquals(Map.ofEntries(
-      // Z12
-      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
-        feature(newPolygon(
-          rectangleCoordList(32, 32, 256 - 32, 128 + 32),
-          List.of(
-            rectangleCoordList(64 + 16, 128 - 16) // hole
-          )
-        ), Map.of())
-      )),
+    assertEquals(
+        Map.ofEntries(
+            // Z12
+            newTileEntry(
+                Z12_TILES / 2,
+                Z12_TILES / 2,
+                12,
+                List.of(
+                    feature(
+                        newPolygon(
+                            rectangleCoordList(32, 32, 256 - 32, 128 + 32),
+                            List.of(
+                                rectangleCoordList(64 + 16, 128 - 16) // hole
+                                )),
+                        Map.of()))),
 
-      // Z13
-      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
-        feature(newPolygon(
-          rectangleCoordList(64, 256 + 4),
-          List.of(rectangleCoordList(128 + 32, 256 - 32)) // hole
-        ), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2, 13, List.of(
-        feature(rectangle(-4, 64, 256 - 64, 256 + 4), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2, Z13_TILES / 2 + 1, 13, List.of(
-        feature(rectangle(64, -4, 256 + 4, 64), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2 + 1, Z13_TILES / 2 + 1, 13, List.of(
-        feature(rectangle(-4, -4, 256 - 64, 64), Map.of())
-      )),
+            // Z13
+            newTileEntry(
+                Z13_TILES / 2,
+                Z13_TILES / 2,
+                13,
+                List.of(
+                    feature(
+                        newPolygon(
+                            rectangleCoordList(64, 256 + 4),
+                            List.of(rectangleCoordList(128 + 32, 256 - 32)) // hole
+                            ),
+                        Map.of()))),
+            newTileEntry(
+                Z13_TILES / 2 + 1,
+                Z13_TILES / 2,
+                13,
+                List.of(feature(rectangle(-4, 64, 256 - 64, 256 + 4), Map.of()))),
+            newTileEntry(
+                Z13_TILES / 2,
+                Z13_TILES / 2 + 1,
+                13,
+                List.of(feature(rectangle(64, -4, 256 + 4, 64), Map.of()))),
+            newTileEntry(
+                Z13_TILES / 2 + 1,
+                Z13_TILES / 2 + 1,
+                13,
+                List.of(feature(rectangle(-4, -4, 256 - 64, 64), Map.of()))),
 
-      // Z14 - row 1
-      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
-        feature(tileBottomRight(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2, 14, List.of(
-        feature(tileBottom(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2, 14, List.of(
-        feature(tileBottom(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2, 14, List.of(
-        feature(tileBottomLeft(4), Map.of())
-      )),
-      // Z14 - row 2
-      newTileEntry(Z14_TILES / 2, Z14_TILES / 2 + 1, 14, List.of(
-        feature(tileRight(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 1, 14, List.of(
-        feature(newPolygon(
-          tileFill(4),
-          List.of(newCoordinateList(
-            64, 64,
-            192, 64,
-            192, 192,
-            64, 192,
-            64, 64
-          ))
-        ), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2 + 1, 14, List.of(
-        feature(newPolygon(tileFill(5), List.of()), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 1, 14, List.of(
-        feature(tileLeft(4), Map.of())
-      )),
-      // Z14 - row 3
-      newTileEntry(Z14_TILES / 2, Z14_TILES / 2 + 2, 14, List.of(
-        feature(tileTopRight(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 1, Z14_TILES / 2 + 2, 14, List.of(
-        feature(tileTop(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 2, Z14_TILES / 2 + 2, 14, List.of(
-        feature(tileTop(4), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2 + 3, Z14_TILES / 2 + 2, 14, List.of(
-        feature(tileTopLeft(4), Map.of())
-      ))
-    ), results.tiles);
+            // Z14 - row 1
+            newTileEntry(
+                Z14_TILES / 2, Z14_TILES / 2, 14, List.of(feature(tileBottomRight(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 1, Z14_TILES / 2, 14, List.of(feature(tileBottom(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 2, Z14_TILES / 2, 14, List.of(feature(tileBottom(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 3,
+                Z14_TILES / 2,
+                14,
+                List.of(feature(tileBottomLeft(4), Map.of()))),
+            // Z14 - row 2
+            newTileEntry(
+                Z14_TILES / 2, Z14_TILES / 2 + 1, 14, List.of(feature(tileRight(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 1,
+                Z14_TILES / 2 + 1,
+                14,
+                List.of(
+                    feature(
+                        newPolygon(
+                            tileFill(4),
+                            List.of(
+                                newCoordinateList(
+                                    64, 64,
+                                    192, 64,
+                                    192, 192,
+                                    64, 192,
+                                    64, 64))),
+                        Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 2,
+                Z14_TILES / 2 + 1,
+                14,
+                List.of(feature(newPolygon(tileFill(5), List.of()), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 3, Z14_TILES / 2 + 1, 14, List.of(feature(tileLeft(4), Map.of()))),
+            // Z14 - row 3
+            newTileEntry(
+                Z14_TILES / 2, Z14_TILES / 2 + 2, 14, List.of(feature(tileTopRight(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 1, Z14_TILES / 2 + 2, 14, List.of(feature(tileTop(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 2, Z14_TILES / 2 + 2, 14, List.of(feature(tileTop(4), Map.of()))),
+            newTileEntry(
+                Z14_TILES / 2 + 3,
+                Z14_TILES / 2 + 2,
+                14,
+                List.of(feature(tileTopLeft(4), Map.of())))),
+        results.tiles);
   }
 
   @Test
   public void testFullWorldPolygon() throws Exception {
-    List<Coordinate> outerPoints = worldCoordinateList(
-      Z14_WIDTH / 2, Z14_WIDTH / 2,
-      1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
-      1 - Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
-      Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
-      Z14_WIDTH / 2, Z14_WIDTH / 2
-    );
+    List<Coordinate> outerPoints =
+        worldCoordinateList(
+            Z14_WIDTH / 2,
+            Z14_WIDTH / 2,
+            1 - Z14_WIDTH / 2,
+            Z14_WIDTH / 2,
+            1 - Z14_WIDTH / 2,
+            1 - Z14_WIDTH / 2,
+            Z14_WIDTH / 2,
+            1 - Z14_WIDTH / 2,
+            Z14_WIDTH / 2,
+            Z14_WIDTH / 2);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPolygon(
-          outerPoints,
-          List.of()
-        ), Map.of())
-      ),
-      (in, features) -> features.polygon("layer")
-        .setZoomRange(0, 6)
-        .setBufferPixels(4)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(newReaderFeature(newPolygon(outerPoints, List.of()), Map.of())),
+            (in, features) -> features.polygon("layer").setZoomRange(0, 6).setBufferPixels(4));
 
     assertEquals(5461, results.tiles.size());
     // spot-check one filled tile
-    assertEquals(List.of(rectangle(-5, 256 + 5).norm()), results.tiles.get(TileCoord.ofXYZ(
-      Z4_TILES / 2, Z4_TILES / 2, 4
-    )).stream().map(d -> d.geometry().geom().norm()).toList());
+    assertEquals(
+        List.of(rectangle(-5, 256 + 5).norm()),
+        results.tiles.get(TileCoord.ofXYZ(Z4_TILES / 2, Z4_TILES / 2, 4)).stream()
+            .map(d -> d.geometry().geom().norm())
+            .toList());
   }
 
   @ParameterizedTest
-  @CsvSource({
-    "chesapeake.wkb, 4076",
-    "mdshore.wkb,    19904",
-    "njshore.wkb,    10571"
-  })
+  @CsvSource({"chesapeake.wkb, 4076", "mdshore.wkb,    19904", "njshore.wkb,    10571"})
   public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
-    throws Exception {
+      throws Exception {
     LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
-    MultiPolygon geometry = (MultiPolygon) new WKBReader()
-      .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
+    MultiPolygon geometry =
+        (MultiPolygon)
+            new WKBReader()
+                .read(
+                    new InputStreamInStream(
+                        Files.newInputStream(TestUtils.pathToResource(fileName))));
     assertNotNull(geometry);
 
     // automatically checks for self-intersections
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(geometry, Map.of())
-      ),
-      (in, features) -> features.polygon("layer")
-        .setZoomRange(0, 14)
-        .setBufferPixels(4)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(newReaderFeature(geometry, Map.of())),
+            (in, features) -> features.polygon("layer").setZoomRange(0, 14).setBufferPixels(4));
 
     assertEquals(expected, results.tiles.size());
   }
@@ -704,377 +702,433 @@ public class PlanetilerTests {
     List<Coordinate> outerPoints2 = worldRectangle(30d / 256, 220d / 256);
     List<Coordinate> innerPoints2 = worldRectangle(40d / 256, 210d / 256);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newMultiPolygon(
-          newPolygon(outerPoints2, List.of(innerPoints2)),
-          newPolygon(outerPoints1, List.of(innerPoints1))
-        ), Map.of())
-      ),
-      (in, features) -> features.polygon("layer")
-        .setZoomRange(0, 0)
-        .setBufferPixels(0)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(
+                    newMultiPolygon(
+                        newPolygon(outerPoints2, List.of(innerPoints2)),
+                        newPolygon(outerPoints1, List.of(innerPoints1))),
+                    Map.of())),
+            (in, features) -> features.polygon("layer").setZoomRange(0, 0).setBufferPixels(0));
 
     var tileContents = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
     assertEquals(1, tileContents.size());
     Geometry geom = tileContents.get(0).geometry().geom();
     assertTrue(geom instanceof MultiPolygon, geom.toString());
     MultiPolygon multiPolygon = (MultiPolygon) geom;
-    assertSameNormalizedFeature(newPolygon(
-      rectangleCoordList(10, 240),
-      List.of(rectangleCoordList(20, 230))
-    ), multiPolygon.getGeometryN(0));
-    assertSameNormalizedFeature(newPolygon(
-      rectangleCoordList(30, 220),
-      List.of(rectangleCoordList(40, 210))
-    ), multiPolygon.getGeometryN(1));
+    assertSameNormalizedFeature(
+        newPolygon(rectangleCoordList(10, 240), List.of(rectangleCoordList(20, 230))),
+        multiPolygon.getGeometryN(0));
+    assertSameNormalizedFeature(
+        newPolygon(rectangleCoordList(30, 220), List.of(rectangleCoordList(40, 210))),
+        multiPolygon.getGeometryN(1));
     assertEquals(2, multiPolygon.getNumGeometries());
   }
 
   @Test
   public void testOsmPoint() throws Exception {
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
-      ),
-      (in, features) -> {
-        if (in.isPoint()) {
-          features.point("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value")
-            .inheritAttrFromSource("attr");
-        }
-      }
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))),
+            (in, features) -> {
+              if (in.isPoint()) {
+                features
+                    .point("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("name", "name value")
+                    .inheritAttrFromSource("attr");
+              }
+            });
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newPoint(128, 128), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(0, 0, 0),
+            List.of(
+                feature(
+                    newPoint(128, 128),
+                    Map.of(
+                        "attr", "value",
+                        "name", "name value")))),
+        results.tiles);
   }
 
   @Test
   public void testOsmPointSkipPass1() throws Exception {
-    var results = run(
-      Map.of("threads", "1"),
-      (featureGroup, profile, config) -> {
-        List<? extends OsmElement> osmElements = List.<OsmElement>of(
-          with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
-        );
-        OsmBlockSource elems = next -> {
-          // process the same order they come in from an OSM file
-          next.accept(
-            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Other).toList()));
-          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Node).toList()));
-          next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Way).toList()));
-          next.accept(
-            OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
-        };
-        var nodeMap = LongLongMap.newInMemorySortedTable();
-        try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
-          // skip pass 1
-          reader.pass2(featureGroup, config);
-        }
-      },
-      TestProfile.processSourceFeatures((in, features) -> {
-        if (in.isPoint()) {
-          features.point("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value")
-            .inheritAttrFromSource("attr");
-        }
-      })
-    );
+    var results =
+        run(
+            Map.of("threads", "1"),
+            (featureGroup, profile, config) -> {
+              List<? extends OsmElement> osmElements =
+                  List.<OsmElement>of(
+                      with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value")));
+              OsmBlockSource elems =
+                  next -> {
+                    // process the same order they come in from an OSM file
+                    next.accept(
+                        OsmBlockSource.Block.of(
+                            osmElements.stream()
+                                .filter(e -> e instanceof OsmElement.Other)
+                                .toList()));
+                    next.accept(
+                        OsmBlockSource.Block.of(
+                            osmElements.stream()
+                                .filter(e -> e instanceof OsmElement.Node)
+                                .toList()));
+                    next.accept(
+                        OsmBlockSource.Block.of(
+                            osmElements.stream()
+                                .filter(e -> e instanceof OsmElement.Way)
+                                .toList()));
+                    next.accept(
+                        OsmBlockSource.Block.of(
+                            osmElements.stream()
+                                .filter(e -> e instanceof OsmElement.Relation)
+                                .toList()));
+                  };
+              var nodeMap = LongLongMap.newInMemorySortedTable();
+              try (var reader =
+                  new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
+                // skip pass 1
+                reader.pass2(featureGroup, config);
+              }
+            },
+            TestProfile.processSourceFeatures(
+                (in, features) -> {
+                  if (in.isPoint()) {
+                    features
+                        .point("layer")
+                        .setZoomRange(0, 0)
+                        .setAttr("name", "name value")
+                        .inheritAttrFromSource("attr");
+                  }
+                }));
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newPoint(128, 128), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(0, 0, 0),
+            List.of(
+                feature(
+                    newPoint(128, 128),
+                    Map.of(
+                        "attr", "value",
+                        "name", "name value")))),
+        results.tiles);
   }
 
   @Test
   public void testExceptionWhileProcessingOsm() {
-    assertThrows(RuntimeException.class, () -> runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
-      ),
-      (in, features) -> {
-        throw new Error();
-      }
-    ));
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            runWithOsmElements(
+                Map.of("threads", "1"),
+                List.of(with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))),
+                (in, features) -> {
+                  throw new Error();
+                }));
   }
 
   @Test
   public void testOsmLine() throws Exception {
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        new OsmElement.Node(1, 0, 0),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        with(new OsmElement.Way(3), way -> {
-          way.setTag("attr", "value");
-          way.nodes().add(1, 2);
-        })
-      ),
-      (in, features) -> {
-        if (in.canBeLine()) {
-          features.line("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value")
-            .inheritAttrFromSource("attr");
-        }
-      }
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(
+                new OsmElement.Node(1, 0, 0),
+                new OsmElement.Node(2, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+                with(
+                    new OsmElement.Way(3),
+                    way -> {
+                      way.setTag("attr", "value");
+                      way.nodes().add(1, 2);
+                    })),
+            (in, features) -> {
+              if (in.canBeLine()) {
+                features
+                    .line("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("name", "name value")
+                    .inheritAttrFromSource("attr");
+              }
+            });
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newLineString(128, 128, 192, 192), Map.of(
-          "attr", "value",
-          "name", "name value"
-        ))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(0, 0, 0),
+            List.of(
+                feature(
+                    newLineString(128, 128, 192, 192),
+                    Map.of(
+                        "attr", "value",
+                        "name", "name value")))),
+        results.tiles);
   }
 
   @Test
   public void testOsmLineOrPolygon() throws Exception {
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        new OsmElement.Node(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
-        new OsmElement.Node(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
-        with(new OsmElement.Way(6), way -> {
-          way.setTag("attr", "value");
-          way.nodes().add(1, 2, 3, 4, 1);
-        })
-      ),
-      (in, features) -> {
-        if (in.canBeLine()) {
-          features.line("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value1")
-            .inheritAttrFromSource("attr");
-        }
-        if (in.canBePolygon()) {
-          features.polygon("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value2")
-            .inheritAttrFromSource("attr");
-        }
-      }
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(
+                new OsmElement.Node(1, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+                new OsmElement.Node(2, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+                new OsmElement.Node(3, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+                new OsmElement.Node(4, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+                with(
+                    new OsmElement.Way(6),
+                    way -> {
+                      way.setTag("attr", "value");
+                      way.nodes().add(1, 2, 3, 4, 1);
+                    })),
+            (in, features) -> {
+              if (in.canBeLine()) {
+                features
+                    .line("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("name", "name value1")
+                    .inheritAttrFromSource("attr");
+              }
+              if (in.canBePolygon()) {
+                features
+                    .polygon("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("name", "name value2")
+                    .inheritAttrFromSource("attr");
+              }
+            });
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newLineString(
-          64, 64,
-          192, 64,
-          192, 192,
-          64, 192,
-          64, 64
-        ), Map.of(
-          "attr", "value",
-          "name", "name value1"
-        )),
-        feature(rectangle(64, 192), Map.of(
-          "attr", "value",
-          "name", "name value2"
-        ))
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(0, 0, 0),
+                List.of(
+                    feature(
+                        newLineString(
+                            64, 64,
+                            192, 64,
+                            192, 192,
+                            64, 192,
+                            64, 64),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value1")),
+                    feature(
+                        rectangle(64, 192),
+                        Map.of(
+                            "attr", "value",
+                            "name", "name value2"))))),
+        sortListValues(results.tiles));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
   public void testOsmMultipolygon(String relationType) throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        new OsmElement.Node(1, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.125)),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.875)),
-        new OsmElement.Node(3, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.875)),
-        new OsmElement.Node(4, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.125)),
-
-        new OsmElement.Node(5, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
-        new OsmElement.Node(6, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
-        new OsmElement.Node(7, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
-        new OsmElement.Node(8, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
-
-        new OsmElement.Node(9, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.375)),
-        new OsmElement.Node(10, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.625)),
-        new OsmElement.Node(11, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.625)),
-        new OsmElement.Node(12, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.375)),
-        new OsmElement.Node(13, GeoUtils.getWorldLat(0.375 + 1e-12), GeoUtils.getWorldLon(0.375)),
-
-        with(new OsmElement.Way(14), way -> way.nodes().add(1, 2, 3, 4, 1)),
-        with(new OsmElement.Way(15), way -> way.nodes().add(5, 6, 7, 8, 5)),
-        with(new OsmElement.Way(16), way -> way.nodes().add(9, 10, 11, 12, 13)),
-
-        with(new OsmElement.Relation(17), rel -> {
-          rel.setTag("type", relationType);
-          rel.setTag("attr", "value");
-          rel.setTag("should_emit", "yes");
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 14, "outer"));
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 15, null)); // missing
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 16, "inner")); // incorrect
-        }),
-        with(new OsmElement.Relation(18), rel -> {
-          rel.setTag("type", "relation");
-          rel.setTag("name", "rel name");
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 17, "outer"));
-        })
-      ),
-      in -> in.hasTag("type", "relation") ?
-        List.of(new TestRelationInfo(in.id(), in.getString("name"))) :
-        null,
-      (in, features) -> {
-        if (in.hasTag("should_emit")) {
-          features.polygon("layer")
-            .setZoomRange(0, 0)
-            .setAttr("name", "name value")
-            .inheritAttrFromSource("attr")
-            .setAttr("relname",
-              in.relationInfo(TestRelationInfo.class).stream().map(c -> c.relation().name).findFirst().orElse(null));
-        }
-      }
-    );
-
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newMultiPolygon(
-          newPolygon(
-            rectangleCoordList(0.125 * 256, 0.875 * 256),
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
             List.of(
-              rectangleCoordList(0.25 * 256, 0.75 * 256)
-            )
-          ),
-          rectangle(0.375 * 256, 0.625 * 256)
-        ), Map.of(
-          "attr", "value",
-          "name", "name value",
-          "relname", "rel name"
-        ))
-      )
-    ), results.tiles);
+                new OsmElement.Node(1, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.125)),
+                new OsmElement.Node(2, GeoUtils.getWorldLat(0.125), GeoUtils.getWorldLon(0.875)),
+                new OsmElement.Node(3, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.875)),
+                new OsmElement.Node(4, GeoUtils.getWorldLat(0.875), GeoUtils.getWorldLon(0.125)),
+                new OsmElement.Node(5, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.25)),
+                new OsmElement.Node(6, GeoUtils.getWorldLat(0.25), GeoUtils.getWorldLon(0.75)),
+                new OsmElement.Node(7, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.75)),
+                new OsmElement.Node(8, GeoUtils.getWorldLat(0.75), GeoUtils.getWorldLon(0.25)),
+                new OsmElement.Node(9, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.375)),
+                new OsmElement.Node(10, GeoUtils.getWorldLat(0.375), GeoUtils.getWorldLon(0.625)),
+                new OsmElement.Node(11, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.625)),
+                new OsmElement.Node(12, GeoUtils.getWorldLat(0.625), GeoUtils.getWorldLon(0.375)),
+                new OsmElement.Node(
+                    13, GeoUtils.getWorldLat(0.375 + 1e-12), GeoUtils.getWorldLon(0.375)),
+                with(new OsmElement.Way(14), way -> way.nodes().add(1, 2, 3, 4, 1)),
+                with(new OsmElement.Way(15), way -> way.nodes().add(5, 6, 7, 8, 5)),
+                with(new OsmElement.Way(16), way -> way.nodes().add(9, 10, 11, 12, 13)),
+                with(
+                    new OsmElement.Relation(17),
+                    rel -> {
+                      rel.setTag("type", relationType);
+                      rel.setTag("attr", "value");
+                      rel.setTag("should_emit", "yes");
+                      rel.members()
+                          .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 14, "outer"));
+                      rel.members()
+                          .add(
+                              new OsmElement.Relation.Member(
+                                  OsmElement.Type.WAY, 15, null)); // missing
+                      rel.members()
+                          .add(
+                              new OsmElement.Relation.Member(
+                                  OsmElement.Type.WAY, 16, "inner")); // incorrect
+                    }),
+                with(
+                    new OsmElement.Relation(18),
+                    rel -> {
+                      rel.setTag("type", "relation");
+                      rel.setTag("name", "rel name");
+                      rel.members()
+                          .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 17, "outer"));
+                    })),
+            in ->
+                in.hasTag("type", "relation")
+                    ? List.of(new TestRelationInfo(in.id(), in.getString("name")))
+                    : null,
+            (in, features) -> {
+              if (in.hasTag("should_emit")) {
+                features
+                    .polygon("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("name", "name value")
+                    .inheritAttrFromSource("attr")
+                    .setAttr(
+                        "relname",
+                        in.relationInfo(TestRelationInfo.class).stream()
+                            .map(c -> c.relation().name)
+                            .findFirst()
+                            .orElse(null));
+              }
+            });
+
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(0, 0, 0),
+            List.of(
+                feature(
+                    newMultiPolygon(
+                        newPolygon(
+                            rectangleCoordList(0.125 * 256, 0.875 * 256),
+                            List.of(rectangleCoordList(0.25 * 256, 0.75 * 256))),
+                        rectangle(0.375 * 256, 0.625 * 256)),
+                    Map.of(
+                        "attr", "value",
+                        "name", "name value",
+                        "relname", "rel name")))),
+        results.tiles);
   }
 
   @Test
   public void testOsmLineInRelation() throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        new OsmElement.Node(1, 0, 0),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
-        new OsmElement.Node(3, GeoUtils.getWorldLat(0.25), 0),
-        new OsmElement.Node(4, GeoUtils.getWorldLat(0.125), 0),
-        with(new OsmElement.Way(5), way -> {
-          way.setTag("attr", "value1");
-          way.nodes().add(1, 2);
-        }),
-        with(new OsmElement.Way(6), way -> {
-          way.setTag("attr", "value2");
-          way.nodes().add(3, 4);
-        }),
-        with(new OsmElement.Relation(6), rel -> {
-          rel.setTag("name", "relation name");
-          rel.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 6, "role"));
-        })
-      ),
-      (relation) -> {
-        if (relation.hasTag("name", "relation name")) {
-          return List.of(new TestRelationInfo(relation.id(), relation.getString("name")));
-        }
-        return null;
-      }, (in, features) -> {
-        var relationInfos = in.relationInfo(TestRelationInfo.class);
-        var firstRelation = relationInfos.stream().findFirst();
-        if (in.canBeLine()) {
-          features.line("layer")
-            .setZoomRange(0, 0)
-            .setAttr("relname", firstRelation.map(d -> d.relation().name).orElse(null))
-            .inheritAttrFromSource("attr")
-            .setAttr("relrole", firstRelation.map(OsmReader.RelationMember::role).orElse(null));
-        }
-      }
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(
+                new OsmElement.Node(1, 0, 0),
+                new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
+                new OsmElement.Node(3, GeoUtils.getWorldLat(0.25), 0),
+                new OsmElement.Node(4, GeoUtils.getWorldLat(0.125), 0),
+                with(
+                    new OsmElement.Way(5),
+                    way -> {
+                      way.setTag("attr", "value1");
+                      way.nodes().add(1, 2);
+                    }),
+                with(
+                    new OsmElement.Way(6),
+                    way -> {
+                      way.setTag("attr", "value2");
+                      way.nodes().add(3, 4);
+                    }),
+                with(
+                    new OsmElement.Relation(6),
+                    rel -> {
+                      rel.setTag("name", "relation name");
+                      rel.members()
+                          .add(new OsmElement.Relation.Member(OsmElement.Type.WAY, 6, "role"));
+                    })),
+            (relation) -> {
+              if (relation.hasTag("name", "relation name")) {
+                return List.of(new TestRelationInfo(relation.id(), relation.getString("name")));
+              }
+              return null;
+            },
+            (in, features) -> {
+              var relationInfos = in.relationInfo(TestRelationInfo.class);
+              var firstRelation = relationInfos.stream().findFirst();
+              if (in.canBeLine()) {
+                features
+                    .line("layer")
+                    .setZoomRange(0, 0)
+                    .setAttr("relname", firstRelation.map(d -> d.relation().name).orElse(null))
+                    .inheritAttrFromSource("attr")
+                    .setAttr(
+                        "relrole", firstRelation.map(OsmReader.RelationMember::role).orElse(null));
+              }
+            });
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newLineString(128, 128, 128, 0.375 * 256), Map.of(
-          "attr", "value1"
-        )),
-        feature(newLineString(128, 0.25 * 256, 128, 0.125 * 256), Map.of(
-          "attr", "value2",
-          "relname", "relation name",
-          "relrole", "role"
-        ))
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(0, 0, 0),
+                List.of(
+                    feature(newLineString(128, 128, 128, 0.375 * 256), Map.of("attr", "value1")),
+                    feature(
+                        newLineString(128, 0.25 * 256, 128, 0.125 * 256),
+                        Map.of(
+                            "attr", "value2",
+                            "relname", "relation name",
+                            "relrole", "role"))))),
+        sortListValues(results.tiles));
   }
 
   @Test
   public void testPreprocessOsmNodesAndWays() throws Exception {
     Set<Long> nodes1 = new HashSet<>();
     Set<Long> nodes2 = new HashSet<>();
-    var profile = new Profile.NullProfile() {
-      @Override
-      public void preprocessOsmNode(OsmElement.Node node) {
-        if (node.hasTag("a", "b")) {
-          nodes1.add(node.id());
-        }
-      }
+    var profile =
+        new Profile.NullProfile() {
+          @Override
+          public void preprocessOsmNode(OsmElement.Node node) {
+            if (node.hasTag("a", "b")) {
+              nodes1.add(node.id());
+            }
+          }
 
-      @Override
-      public void preprocessOsmWay(OsmElement.Way way) {
-        if (nodes1.contains(way.nodes().get(0))) {
-          nodes2.add(way.nodes().get(0));
-        }
-      }
+          @Override
+          public void preprocessOsmWay(OsmElement.Way way) {
+            if (nodes1.contains(way.nodes().get(0))) {
+              nodes2.add(way.nodes().get(0));
+            }
+          }
 
-      @Override
-      public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-        if (sourceFeature.isPoint() && nodes2.contains(sourceFeature.id())) {
-          features.point("start_nodes")
-            .setMaxZoom(0);
-        }
-      }
-    };
-    var results = run(
-      Map.of("threads", "1"),
-      (featureGroup, p, config) -> processOsmFeatures(featureGroup, p, config, List.of(
-        with(new OsmElement.Node(1, 0, 0), node -> node.setTag("a", "b")),
-        new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
-        with(new OsmElement.Way(3), way -> {
-          way.nodes().add(1, 2);
-        }),
-        with(new OsmElement.Way(4), way -> {
-          way.nodes().add(1, 2);
-        })
-      )),
-      profile
-    );
+          @Override
+          public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+            if (sourceFeature.isPoint() && nodes2.contains(sourceFeature.id())) {
+              features.point("start_nodes").setMaxZoom(0);
+            }
+          }
+        };
+    var results =
+        run(
+            Map.of("threads", "1"),
+            (featureGroup, p, config) ->
+                processOsmFeatures(
+                    featureGroup,
+                    p,
+                    config,
+                    List.of(
+                        with(new OsmElement.Node(1, 0, 0), node -> node.setTag("a", "b")),
+                        new OsmElement.Node(2, GeoUtils.getWorldLat(0.375), 0),
+                        with(
+                            new OsmElement.Way(3),
+                            way -> {
+                              way.nodes().add(1, 2);
+                            }),
+                        with(
+                            new OsmElement.Way(4),
+                            way -> {
+                              way.nodes().add(1, 2);
+                            }))),
+            profile);
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(0, 0, 0), List.of(
-        feature(newPoint(128, 128), Map.of())
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(TileCoord.ofXYZ(0, 0, 0), List.of(feature(newPoint(128, 128), Map.of())))),
+        sortListValues(results.tiles));
   }
 
   @Test
@@ -1087,48 +1141,50 @@ public class PlanetilerTests {
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
     double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
-        newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
-        newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))
-      ),
-      (in, features) -> features.point("layer")
-        .setZoomRange(13, 14)
-        .inheritAttrFromSource("rank")
-        .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
-        .setPointLabelGridPixelSize(13, 8)
-        .setBufferPixels(8),
-      (layer, zoom, items) -> {
-        if ("layer".equals(layer) && zoom == 13) {
-          List<VectorTile.Feature> result = new ArrayList<>(items.size());
-          Map<Long, Integer> rankInGroup = new HashMap<>();
-          for (var item : items) {
-            result.add(item.copyWithExtraAttrs(Map.of(
-              "grouprank", rankInGroup.merge(item.group(), 1, Integer::sum)
-            )));
-          }
-          return result;
-        } else {
-          return items;
-        }
-      }
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(newPoint(lng1, lat), Map.of("rank", "1")),
+                newReaderFeature(newPoint(lng2, lat), Map.of("rank", "2")),
+                newReaderFeature(newPoint(lng3, lat), Map.of("rank", "3"))),
+            (in, features) ->
+                features
+                    .point("layer")
+                    .setZoomRange(13, 14)
+                    .inheritAttrFromSource("rank")
+                    .setSortKey(Integer.parseInt(in.getTag("rank").toString()))
+                    .setPointLabelGridPixelSize(13, 8)
+                    .setBufferPixels(8),
+            (layer, zoom, items) -> {
+              if ("layer".equals(layer) && zoom == 13) {
+                List<VectorTile.Feature> result = new ArrayList<>(items.size());
+                Map<Long, Integer> rankInGroup = new HashMap<>();
+                for (var item : items) {
+                  result.add(
+                      item.copyWithExtraAttrs(
+                          Map.of("grouprank", rankInGroup.merge(item.group(), 1, Integer::sum))));
+                }
+                return result;
+              } else {
+                return items;
+              }
+            });
 
-    assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(64, 128), Map.of("rank", "1")),
-        feature(newPoint(74, 128), Map.of("rank", "2")),
-        feature(newPoint(84, 128), Map.of("rank", "3"))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newPoint(32, 64), Map.of("rank", "1", "grouprank", 1L)),
-        feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 2L)),
-        // separate group
-        feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L))
-      )
-    ), results.tiles);
+    assertSubmap(
+        Map.of(
+            TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(newPoint(64, 128), Map.of("rank", "1")),
+                    feature(newPoint(74, 128), Map.of("rank", "2")),
+                    feature(newPoint(84, 128), Map.of("rank", "3"))),
+            TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    feature(newPoint(32, 64), Map.of("rank", "1", "grouprank", 1L)),
+                    feature(newPoint(37, 64), Map.of("rank", "2", "grouprank", 2L)),
+                    // separate group
+                    feature(newPoint(42, 64), Map.of("rank", "3", "grouprank", 1L)))),
+        results.tiles);
   }
 
   @Test
@@ -1142,43 +1198,52 @@ public class PlanetilerTests {
     double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
     double lng4 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 30d / 256);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        // merge at z13 (same "group"):
-        newReaderFeature(newLineString(
-          lng1, lat,
-          lng2, lat
-        ), Map.of("group", "1", "other", "1")),
-        newReaderFeature(newLineString(
-          lng2, lat,
-          lng3, lat
-        ), Map.of("group", "1", "other", "2")),
-        // don't merge at z13:
-        newReaderFeature(newLineString(
-          lng3, lat,
-          lng4, lat
-        ), Map.of("group", "2", "other", "3"))
-      ),
-      (in, features) -> features.line("layer")
-        .setZoomRange(13, 14)
-        .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
-        .inheritAttrFromSource("group"),
-      (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                // merge at z13 (same "group"):
+                newReaderFeature(
+                    newLineString(
+                        lng1, lat,
+                        lng2, lat),
+                    Map.of("group", "1", "other", "1")),
+                newReaderFeature(
+                    newLineString(
+                        lng2, lat,
+                        lng3, lat),
+                    Map.of("group", "1", "other", "2")),
+                // don't merge at z13:
+                newReaderFeature(
+                    newLineString(
+                        lng3, lat,
+                        lng4, lat),
+                    Map.of("group", "2", "other", "3"))),
+            (in, features) ->
+                features
+                    .line("layer")
+                    .setZoomRange(13, 14)
+                    .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
+                    .inheritAttrFromSource("group"),
+            (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0));
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newLineString(64, 128, 74, 128), Map.of("group", "1", "z14attr", "1")),
-        feature(newLineString(74, 128, 84, 128), Map.of("group", "1", "z14attr", "2")),
-        feature(newLineString(84, 128, 94, 128), Map.of("group", "2", "z14attr", "3"))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // merge 32->37 and 37->42 since they have same attrs
-        feature(newLineString(32, 64, 42, 64), Map.of("group", "1")),
-        feature(newLineString(42, 64, 47, 64), Map.of("group", "2"))
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                    List.of(
+                        feature(
+                            newLineString(64, 128, 74, 128), Map.of("group", "1", "z14attr", "1")),
+                        feature(
+                            newLineString(74, 128, 84, 128), Map.of("group", "1", "z14attr", "2")),
+                        feature(
+                            newLineString(84, 128, 94, 128), Map.of("group", "2", "z14attr", "3"))),
+                TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                    List.of(
+                        // merge 32->37 and 37->42 since they have same attrs
+                        feature(newLineString(32, 64, 42, 64), Map.of("group", "1")),
+                        feature(newLineString(42, 64, 47, 64), Map.of("group", "2"))))),
+        sortListValues(results.tiles));
   }
 
   @Test
@@ -1194,91 +1259,91 @@ public class PlanetilerTests {
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
     double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
 
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        // group two parallel lines that almost touch at the midpoint
-        // need to retain extra precision while merging to ensure it
-        // doesn't confuse the line merger
-        newReaderFeature(newLineString(
-          lng1, lat,
-          lng2, lat2a
-        ), Map.of()),
-        newReaderFeature(newLineString(
-          lng2, lat2a,
-          lng3, lat
-        ), Map.of()),
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                // group two parallel lines that almost touch at the midpoint
+                // need to retain extra precision while merging to ensure it
+                // doesn't confuse the line merger
+                newReaderFeature(
+                    newLineString(
+                        lng1, lat,
+                        lng2, lat2a),
+                    Map.of()),
+                newReaderFeature(
+                    newLineString(
+                        lng2, lat2a,
+                        lng3, lat),
+                    Map.of()),
+                newReaderFeature(
+                    newLineString(
+                        lng1, lat3,
+                        lng2, lat2b),
+                    Map.of()),
+                newReaderFeature(
+                    newLineString(
+                        lng2, lat2b,
+                        lng3, lat3),
+                    Map.of())),
+            (in, features) -> features.line("layer").setZoomRange(13, 13),
+            (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0));
 
-        newReaderFeature(newLineString(
-          lng1, lat3,
-          lng2, lat2b
-        ), Map.of()),
-        newReaderFeature(newLineString(
-          lng2, lat2b,
-          lng3, lat3
-        ), Map.of())
-      ),
-      (in, features) -> features.line("layer").setZoomRange(13, 13),
-      (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
-    );
-
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        feature(newMultiLineString(
-          newLineString(32, 64.3125, 37, 64.0625, 42, 64.3125),
-          newLineString(32, 64, 37, 64.0625, 42, 64)
-        ), Map.of())
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                List.of(
+                    feature(
+                        newMultiLineString(
+                            newLineString(32, 64.3125, 37, 64.0625, 42, 64.3125),
+                            newLineString(32, 64, 37, 64.0625, 42, 64)),
+                        Map.of())))),
+        sortListValues(results.tiles));
   }
 
   @Test
   public void testMergePolygons() throws Exception {
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        // merge same group:
-        newReaderFeature(newPolygon(z14CoordinatePixelList(
-          10, 10,
-          20, 10,
-          20, 20,
-          10, 20,
-          10, 10
-        )), Map.of("group", "1")),
-        newReaderFeature(newPolygon(z14CoordinatePixelList(
-          20.5, 10,
-          30, 10,
-          30, 20,
-          20.5, 20,
-          20.5, 10
-        )), Map.of("group", "1")),
-        // don't merge - different group:
-        newReaderFeature(newPolygon(z14CoordinatePixelList(
-          10, 20.5,
-          20, 20.5,
-          20, 30,
-          10, 30,
-          10, 20.5
-        )), Map.of("group", "2"))
-      ),
-      (in, features) -> features.polygon("layer")
-        .setZoomRange(14, 14)
-        .inheritAttrFromSource("group"),
-      (layer, zoom, items) -> FeatureMerge.mergeNearbyPolygons(
-        items,
-        0,
-        0,
-        1,
-        1
-      )
-    );
+    var results =
+        runWithReaderFeatures(
+            Map.of("threads", "1"),
+            List.of(
+                // merge same group:
+                newReaderFeature(
+                    newPolygon(
+                        z14CoordinatePixelList(
+                            10, 10,
+                            20, 10,
+                            20, 20,
+                            10, 20,
+                            10, 10)),
+                    Map.of("group", "1")),
+                newReaderFeature(
+                    newPolygon(
+                        z14CoordinatePixelList(20.5, 10, 30, 10, 30, 20, 20.5, 20, 20.5, 10)),
+                    Map.of("group", "1")),
+                // don't merge - different group:
+                newReaderFeature(
+                    newPolygon(
+                        z14CoordinatePixelList(
+                            10, 20.5,
+                            20, 20.5,
+                            20, 30,
+                            10, 30,
+                            10, 20.5)),
+                    Map.of("group", "2"))),
+            (in, features) ->
+                features.polygon("layer").setZoomRange(14, 14).inheritAttrFromSource("group"),
+            (layer, zoom, items) -> FeatureMerge.mergeNearbyPolygons(items, 0, 0, 1, 1));
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(rectangle(10, 10, 30, 20), Map.of("group", "1")),
-        feature(rectangle(10, 20.5, 20, 30), Map.of("group", "2"))
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                List.of(
+                    feature(rectangle(10, 10, 30, 20), Map.of("group", "1")),
+                    feature(rectangle(10, 20.5, 20, 30), Map.of("group", "2"))))),
+        sortListValues(results.tiles));
   }
 
   @Test
@@ -1290,49 +1355,50 @@ public class PlanetilerTests {
     double lng1 = GeoUtils.getWorldLon(x1);
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
 
-    var results = runWithReaderFeaturesProfile(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newPoint(lng1, lat), Map.of("a", 1, "b", 2)),
-        newReaderFeature(newPoint(lng2, lat), Map.of("a", 3, "b", 4))
-      ),
-      new Profile.NullProfile() {
-        private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
+    var results =
+        runWithReaderFeaturesProfile(
+            Map.of("threads", "1"),
+            List.of(
+                newReaderFeature(newPoint(lng1, lat), Map.of("a", 1, "b", 2)),
+                newReaderFeature(newPoint(lng2, lat), Map.of("a", 3, "b", 4))),
+            new Profile.NullProfile() {
+              private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
 
-        @Override
-        public void processFeature(SourceFeature in, FeatureCollector features) {
-          featureList.add(in);
-        }
-
-        @Override
-        public void finish(String name, FeatureCollector.Factory featureCollectors,
-          Consumer<FeatureCollector.Feature> next) {
-          if ("test".equals(name)) {
-            for (SourceFeature in : featureList) {
-              var features = featureCollectors.get(in);
-              features.point("layer")
-                .setZoomRange(13, 14)
-                .inheritAttrFromSource("a");
-              for (var feature : features) {
-                next.accept(feature);
+              @Override
+              public void processFeature(SourceFeature in, FeatureCollector features) {
+                featureList.add(in);
               }
-            }
-          }
-        }
-      }
-    );
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(64, 128), Map.of("a", 1L)),
-        feature(newPoint(74, 128), Map.of("a", 3L))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // merge 32->37 and 37->42 since they have same attrs
-        feature(newPoint(32, 64), Map.of("a", 1L)),
-        feature(newPoint(37, 64), Map.of("a", 3L))
-      )
-    )), sortListValues(results.tiles));
+              @Override
+              public void finish(
+                  String name,
+                  FeatureCollector.Factory featureCollectors,
+                  Consumer<FeatureCollector.Feature> next) {
+                if ("test".equals(name)) {
+                  for (SourceFeature in : featureList) {
+                    var features = featureCollectors.get(in);
+                    features.point("layer").setZoomRange(13, 14).inheritAttrFromSource("a");
+                    for (var feature : features) {
+                      next.accept(feature);
+                    }
+                  }
+                }
+              }
+            });
+
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                    List.of(
+                        feature(newPoint(64, 128), Map.of("a", 1L)),
+                        feature(newPoint(74, 128), Map.of("a", 3L))),
+                TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                    List.of(
+                        // merge 32->37 and 37->42 since they have same attrs
+                        feature(newPoint(32, 64), Map.of("a", 1L)),
+                        feature(newPoint(37, 64), Map.of("a", 3L))))),
+        sortListValues(results.tiles));
   }
 
   @Test
@@ -1344,49 +1410,50 @@ public class PlanetilerTests {
     double lng1 = GeoUtils.getWorldLon(x1);
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
 
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
-        with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))
-      ),
-      new Profile.NullProfile() {
-        private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(
+                with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
+                with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))),
+            new Profile.NullProfile() {
+              private final List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
 
-        @Override
-        public void processFeature(SourceFeature in, FeatureCollector features) {
-          featureList.add(in);
-        }
-
-        @Override
-        public void finish(String name, FeatureCollector.Factory featureCollectors,
-          Consumer<FeatureCollector.Feature> next) {
-          if ("osm".equals(name)) {
-            for (SourceFeature in : featureList) {
-              var features = featureCollectors.get(in);
-              features.point("layer")
-                .setZoomRange(13, 14)
-                .inheritAttrFromSource("a");
-              for (var feature : features) {
-                next.accept(feature);
+              @Override
+              public void processFeature(SourceFeature in, FeatureCollector features) {
+                featureList.add(in);
               }
-            }
-          }
-        }
-      }
-    );
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(64, 128), Map.of("a", 1L)),
-        feature(newPoint(74, 128), Map.of("a", 3L))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // merge 32->37 and 37->42 since they have same attrs
-        feature(newPoint(32, 64), Map.of("a", 1L)),
-        feature(newPoint(37, 64), Map.of("a", 3L))
-      )
-    )), sortListValues(results.tiles));
+              @Override
+              public void finish(
+                  String name,
+                  FeatureCollector.Factory featureCollectors,
+                  Consumer<FeatureCollector.Feature> next) {
+                if ("osm".equals(name)) {
+                  for (SourceFeature in : featureList) {
+                    var features = featureCollectors.get(in);
+                    features.point("layer").setZoomRange(13, 14).inheritAttrFromSource("a");
+                    for (var feature : features) {
+                      next.accept(feature);
+                    }
+                  }
+                }
+              }
+            });
+
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                    List.of(
+                        feature(newPoint(64, 128), Map.of("a", 1L)),
+                        feature(newPoint(74, 128), Map.of("a", 3L))),
+                TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                    List.of(
+                        // merge 32->37 and 37->42 since they have same attrs
+                        feature(newPoint(32, 64), Map.of("a", 1L)),
+                        feature(newPoint(37, 64), Map.of("a", 3L))))),
+        sortListValues(results.tiles));
   }
 
   @Test
@@ -1397,62 +1464,66 @@ public class PlanetilerTests {
     double x1 = 0.5 + Z14_WIDTH / 4;
     double lng1 = GeoUtils.getWorldLon(x1);
     double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
-    ForwardingProfile profile = new ForwardingProfile() {
-      @Override
-      public String name() {
-        return "test";
-      }
-    };
+    ForwardingProfile profile =
+        new ForwardingProfile() {
+          @Override
+          public String name() {
+            return "test";
+          }
+        };
 
     List<SourceFeature> featureList = new CopyOnWriteArrayList<>();
     profile.registerSourceHandler("osm", (in, features) -> featureList.add(in));
-    profile.registerHandler((ForwardingProfile.FinishHandler) (name, featureCollectors, next) -> {
-      if ("osm".equals(name)) {
-        for (SourceFeature in : featureList) {
-          var features = featureCollectors.get(in);
-          features.point("layer")
-            .setZoomRange(13, 14)
-            .inheritAttrFromSource("a");
-          for (var feature : features) {
-            next.accept(feature);
-          }
-        }
-      }
-    });
+    profile.registerHandler(
+        (ForwardingProfile.FinishHandler)
+            (name, featureCollectors, next) -> {
+              if ("osm".equals(name)) {
+                for (SourceFeature in : featureList) {
+                  var features = featureCollectors.get(in);
+                  features.point("layer").setZoomRange(13, 14).inheritAttrFromSource("a");
+                  for (var feature : features) {
+                    next.accept(feature);
+                  }
+                }
+              }
+            });
 
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
-        with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))
-      ),
-      profile
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(
+                with(new OsmElement.Node(1, lat, lng1), t -> t.setTag("a", 1)),
+                with(new OsmElement.Node(2, lat, lng2), t -> t.setTag("a", 3))),
+            profile);
 
-    assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
-        feature(newPoint(64, 128), Map.of("a", 1L)),
-        feature(newPoint(74, 128), Map.of("a", 3L))
-      ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
-        // merge 32->37 and 37->42 since they have same attrs
-        feature(newPoint(32, 64), Map.of("a", 1L)),
-        feature(newPoint(37, 64), Map.of("a", 3L))
-      )
-    )), sortListValues(results.tiles));
+    assertSubmap(
+        sortListValues(
+            Map.of(
+                TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14),
+                    List.of(
+                        feature(newPoint(64, 128), Map.of("a", 1L)),
+                        feature(newPoint(74, 128), Map.of("a", 3L))),
+                TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13),
+                    List.of(
+                        // merge 32->37 and 37->42 since they have same attrs
+                        feature(newPoint(32, 64), Map.of("a", 1L)),
+                        feature(newPoint(37, 64), Map.of("a", 3L))))),
+        sortListValues(results.tiles));
   }
 
-  private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(Map<K, V> input) {
+  private <K extends Comparable<? super K>, V extends List<?>> Map<K, ?> sortListValues(
+      Map<K, V> input) {
     Map<K, List<?>> result = new TreeMap<>();
     for (var entry : input.entrySet()) {
-      List<?> sorted = entry.getValue().stream().sorted(Comparator.comparing(Object::toString)).toList();
+      List<?> sorted =
+          entry.getValue().stream().sorted(Comparator.comparing(Object::toString)).toList();
       result.put(entry.getKey(), sorted);
     }
     return result;
   }
 
-  private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(int x, int y, int z,
-    List<TestUtils.ComparableFeature> features) {
+  private Map.Entry<TileCoord, List<TestUtils.ComparableFeature>> newTileEntry(
+      int x, int y, int z, List<TestUtils.ComparableFeature> features) {
     return Map.entry(TileCoord.ofXYZ(x, y, z), features);
   }
 
@@ -1464,40 +1535,43 @@ public class PlanetilerTests {
   private interface LayerPostprocessFunction {
 
     List<VectorTile.Feature> process(String layer, int zoom, List<VectorTile.Feature> items)
-      throws GeometryException;
+        throws GeometryException;
   }
 
   private record PlanetilerResults(
-    Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata
-  ) {}
+      Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata) {}
 
   private record TestProfile(
-    @Override String name,
-    @Override String description,
-    @Override String attribution,
-    @Override String version,
-    BiConsumer<SourceFeature, FeatureCollector> processFeature,
-    Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
-    LayerPostprocessFunction postprocessLayerFeatures
-  ) implements Profile {
-
-    TestProfile(
+      @Override String name,
+      @Override String description,
+      @Override String attribution,
+      @Override String version,
       BiConsumer<SourceFeature, FeatureCollector> processFeature,
       Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
-      LayerPostprocessFunction postprocessLayerFeatures
-    ) {
-      this(TEST_PROFILE_NAME, TEST_PROFILE_DESCRIPTION, TEST_PROFILE_ATTRIBUTION, TEST_PROFILE_VERSION, processFeature,
-        preprocessOsmRelation,
-        postprocessLayerFeatures);
+      LayerPostprocessFunction postprocessLayerFeatures)
+      implements Profile {
+
+    TestProfile(
+        BiConsumer<SourceFeature, FeatureCollector> processFeature,
+        Function<OsmElement.Relation, List<OsmRelationInfo>> preprocessOsmRelation,
+        LayerPostprocessFunction postprocessLayerFeatures) {
+      this(
+          TEST_PROFILE_NAME,
+          TEST_PROFILE_DESCRIPTION,
+          TEST_PROFILE_ATTRIBUTION,
+          TEST_PROFILE_VERSION,
+          processFeature,
+          preprocessOsmRelation,
+          postprocessLayerFeatures);
     }
 
-    static TestProfile processSourceFeatures(BiConsumer<SourceFeature, FeatureCollector> processFeature) {
+    static TestProfile processSourceFeatures(
+        BiConsumer<SourceFeature, FeatureCollector> processFeature) {
       return new TestProfile(processFeature, (a) -> null, (a, b, c) -> c);
     }
 
     @Override
-    public List<OsmRelationInfo> preprocessOsmRelation(
-      OsmElement.Relation relation) {
+    public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
       return preprocessOsmRelation.apply(relation);
     }
 
@@ -1507,12 +1581,11 @@ public class PlanetilerTests {
     }
 
     @Override
-    public void release() {
-    }
+    public void release() {}
 
     @Override
-    public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
-      List<VectorTile.Feature> items) throws GeometryException {
+    public List<VectorTile.Feature> postProcessLayerFeatures(
+        String layer, int zoom, List<VectorTile.Feature> items) throws GeometryException {
       return postprocessLayerFeatures.process(layer, zoom, items);
     }
   }
@@ -1546,26 +1619,31 @@ public class PlanetilerTests {
         readerRelation.setTag(tag.k(), tag.v());
       }
       for (var member : orEmpty(relation.members())) {
-        readerRelation.members().add(new OsmElement.Relation.Member(switch (member.type()) {
-          case "way" -> OsmElement.Type.WAY;
-          case "relation" -> OsmElement.Type.RELATION;
-          case "node" -> OsmElement.Type.NODE;
-          default -> throw new IllegalStateException("Unexpected value: " + member.type());
-        }, member.ref(), member.role()));
+        readerRelation
+            .members()
+            .add(
+                new OsmElement.Relation.Member(
+                    switch (member.type()) {
+                      case "way" -> OsmElement.Type.WAY;
+                      case "relation" -> OsmElement.Type.RELATION;
+                      case "node" -> OsmElement.Type.NODE;
+                      default -> throw new IllegalStateException(
+                          "Unexpected value: " + member.type());
+                    },
+                    member.ref(),
+                    member.role()));
       }
     }
 
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      elements,
-      (in, features) -> {
-        if (in.hasTag("landuse", "forest")) {
-          features.polygon("layer")
-            .setZoomRange(12, 14)
-            .setBufferPixels(4);
-        }
-      }
-    );
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            elements,
+            (in, features) -> {
+              if (in.hasTag("landuse", "forest")) {
+                features.polygon("layer").setZoomRange(12, 14).setBufferPixels(4);
+              }
+            });
 
     assertEquals(11, results.tiles.size());
   }
@@ -1576,23 +1654,21 @@ public class PlanetilerTests {
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
-    Planetiler.create(Arguments.fromArgs(
-        "--tmpdir", tempDir.toString(),
-        "--free-osm-after-read"
-      ))
-      .setProfile(new Profile.NullProfile() {
-        @Override
-        public void processFeature(SourceFeature source, FeatureCollector features) {
-          if (source.canBePolygon() && source.hasTag("building", "yes")) {
-            features.polygon("building").setZoomRange(0, 14).setMinPixelSize(1);
-          }
-        }
-      })
-      .addOsmSource("osm", tempOsm)
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
-      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
-      .setOutput("mbtiles", mbtiles)
-      .run();
+    Planetiler.create(Arguments.fromArgs("--tmpdir", tempDir.toString(), "--free-osm-after-read"))
+        .setProfile(
+            new Profile.NullProfile() {
+              @Override
+              public void processFeature(SourceFeature source, FeatureCollector features) {
+                if (source.canBePolygon() && source.hasTag("building", "yes")) {
+                  features.polygon("building").setZoomRange(0, 14).setMinPixelSize(1);
+                }
+              }
+            })
+        .addOsmSource("osm", tempOsm)
+        .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+        .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+        .setOutput("mbtiles", mbtiles)
+        .run();
 
     // make sure it got deleted after write
     assertFalse(Files.exists(tempOsm));
@@ -1614,79 +1690,101 @@ public class PlanetilerTests {
 
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
-      .setProfile(profile)
-      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
-      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
-      .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
-      .run();
+        .setProfile(profile)
+        .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+        .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+        .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+        .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
+        .run();
   }
 
   @Test
   public void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
-    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateIntermediateDiskBytes(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
-    );
-    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateOutputBytes(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
-    );
-    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateRamRequired(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
-    );
+    assertThrows(
+        Exception.class,
+        () ->
+            runWithProfile(
+                tempDir,
+                new Profile.NullProfile() {
+                  @Override
+                  public long estimateIntermediateDiskBytes(long osmSize) {
+                    return Long.MAX_VALUE / 10L;
+                  }
+                },
+                false));
+    assertThrows(
+        Exception.class,
+        () ->
+            runWithProfile(
+                tempDir,
+                new Profile.NullProfile() {
+                  @Override
+                  public long estimateOutputBytes(long osmSize) {
+                    return Long.MAX_VALUE / 10L;
+                  }
+                },
+                false));
+    assertThrows(
+        Exception.class,
+        () ->
+            runWithProfile(
+                tempDir,
+                new Profile.NullProfile() {
+                  @Override
+                  public long estimateRamRequired(long osmSize) {
+                    return Long.MAX_VALUE / 10L;
+                  }
+                },
+                false));
   }
 
   @Test
   public void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
-    runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateIntermediateDiskBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, true);
-    runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateOutputBytes(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, true);
-    runWithProfile(tempDir, new Profile.NullProfile() {
-      @Override
-      public long estimateRamRequired(long osmSize) {
-        return Long.MAX_VALUE / 10L;
-      }
-    }, true);
+    runWithProfile(
+        tempDir,
+        new Profile.NullProfile() {
+          @Override
+          public long estimateIntermediateDiskBytes(long osmSize) {
+            return Long.MAX_VALUE / 10L;
+          }
+        },
+        true);
+    runWithProfile(
+        tempDir,
+        new Profile.NullProfile() {
+          @Override
+          public long estimateOutputBytes(long osmSize) {
+            return Long.MAX_VALUE / 10L;
+          }
+        },
+        true);
+    runWithProfile(
+        tempDir,
+        new Profile.NullProfile() {
+          @Override
+          public long estimateRamRequired(long osmSize) {
+            return Long.MAX_VALUE / 10L;
+          }
+        },
+        true);
   }
 
   @Test
   public void testHandleProfileException() throws Exception {
-    var results = runWithOsmElements(
-      Map.of("threads", "1"),
-      List.of(
-        with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
-      ),
-      (in, features) -> {
-        throw new IllegalStateException("intentional exception!") {
+    var results =
+        runWithOsmElements(
+            Map.of("threads", "1"),
+            List.of(with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))),
+            (in, features) -> {
+              throw new IllegalStateException("intentional exception!") {
 
-          // suppress stack trace in logs
-          @Override
-          public synchronized Throwable fillInStackTrace() {
-            return this;
-          }
-        };
-      }
-    );
+                // suppress stack trace in logs
+                @Override
+                public synchronized Throwable fillInStackTrace() {
+                  return this;
+                }
+              };
+            });
 
     assertSubmap(Map.of(), results.tiles);
   }

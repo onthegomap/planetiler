@@ -19,12 +19,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Parse utilities ported to Java from <a href="https://github.com/omniscale/imposm3/blob/master/mapping/columns.go">omniscale/imposm3:mapping/columns.go</a>
+ * Parse utilities ported to Java from <a
+ * href="https://github.com/omniscale/imposm3/blob/master/mapping/columns.go">omniscale/imposm3:mapping/columns.go</a>
  */
 public class Imposm3Parsers {
 
-  private Imposm3Parsers() {
-  }
+  private Imposm3Parsers() {}
 
   private static String string(Object object) {
     return object == null ? null : object.toString();
@@ -50,24 +50,24 @@ public class Imposm3Parsers {
   }
 
   /**
-   * Returns a z-order for an OSM road based on the tags that are present. Bridges are above roads appear above tunnels
-   * and major roads appear above minor.
+   * Returns a z-order for an OSM road based on the tags that are present. Bridges are above roads
+   * appear above tunnels and major roads appear above minor.
    */
   public static int wayzorder(Map<String, Object> tags) {
-    long z = Parse.parseLong(tags.get("layer")) * 10 +
-      defaultRank.getOrDefault(
-        string(tags.get("highway")),
-        tags.containsKey("railway") ? 7 : 0
-      ) +
-      (boolInt(tags.get("tunnel")) * -10L) +
-      (boolInt(tags.get("bridge")) * 10L);
+    long z =
+        Parse.parseLong(tags.get("layer")) * 10
+            + defaultRank.getOrDefault(
+                string(tags.get("highway")), tags.containsKey("railway") ? 7 : 0)
+            + (boolInt(tags.get("tunnel")) * -10L)
+            + (boolInt(tags.get("bridge")) * 10L);
     return Math.abs(z) < 10_000 ? (int) z : 0;
   }
 
   private static final Set<String> forwardDirections = Set.of("1", "yes", "true");
 
   /**
-   * Returns the direction value for an input string -1 is reverse, 1 is forward ("1" "yes" or "true"), and 0 is other.
+   * Returns the direction value for an input string -1 is reverse, 1 is forward ("1" "yes" or
+   * "true"), and 0 is other.
    *
    * @see <a href="https://wiki.openstreetmap.org/wiki/Key:oneway">OSM one-way</a>
    */
@@ -85,7 +85,10 @@ public class Imposm3Parsers {
 
   private static final Set<String> booleanFalseValues = Set.of("", "0", "false", "no");
 
-  /** Returns {@code false} if {@code tag} is empty, "0", "false", or "no" and {@code true} otherwise. */
+  /**
+   * Returns {@code false} if {@code tag} is empty, "0", "false", or "no" and {@code true}
+   * otherwise.
+   */
   public static boolean bool(Object tag) {
     return !(tag == null || booleanFalseValues.contains(tag.toString()));
   }
@@ -94,5 +97,4 @@ public class Imposm3Parsers {
   public static int boolInt(Object tag) {
     return bool(tag) ? 1 : 0;
   }
-
 }

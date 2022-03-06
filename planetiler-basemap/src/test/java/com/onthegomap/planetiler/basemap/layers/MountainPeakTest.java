@@ -25,276 +25,281 @@ public class MountainPeakTest extends AbstractLayerTest {
 
   @Test
   public void testHappyPath() {
-    var peak = process(pointFeature(Map.of(
-      "natural", "peak",
-      "name", "test",
-      "ele", "100",
-      "wikidata", "Q123"
-    )));
-    assertFeatures(14, List.of(Map.of(
-      "class", "peak",
-      "ele", 100,
-      "ele_ft", 328,
-      "customary_ft", "<null>",
-
-      "_layer", "mountain_peak",
-      "_type", "point",
-      "_minzoom", 7,
-      "_maxzoom", 14,
-      "_buffer", 100d
-    )), peak);
-    assertFeatures(14, List.of(Map.of(
-      "name:latin", "test",
-      "name", "test",
-      "name:es", "es wd name"
-    )), peak);
+    var peak =
+        process(
+            pointFeature(
+                Map.of(
+                    "natural", "peak",
+                    "name", "test",
+                    "ele", "100",
+                    "wikidata", "Q123")));
+    assertFeatures(
+        14,
+        List.of(
+            Map.of(
+                "class",
+                "peak",
+                "ele",
+                100,
+                "ele_ft",
+                328,
+                "customary_ft",
+                "<null>",
+                "_layer",
+                "mountain_peak",
+                "_type",
+                "point",
+                "_minzoom",
+                7,
+                "_maxzoom",
+                14,
+                "_buffer",
+                100d)),
+        peak);
+    assertFeatures(
+        14,
+        List.of(
+            Map.of(
+                "name:latin", "test",
+                "name", "test",
+                "name:es", "es wd name")),
+        peak);
   }
 
   @Test
   public void testLabelGrid() {
-    var peak = process(pointFeature(Map.of(
-      "natural", "peak",
-      "ele", "100"
-    )));
-    assertFeatures(14, List.of(Map.of(
-      "_labelgrid_limit", 0
-    )), peak);
-    assertFeatures(13, List.of(Map.of(
-      "_labelgrid_limit", 5,
-      "_labelgrid_size", 100d
-    )), peak);
+    var peak =
+        process(
+            pointFeature(
+                Map.of(
+                    "natural", "peak",
+                    "ele", "100")));
+    assertFeatures(14, List.of(Map.of("_labelgrid_limit", 0)), peak);
+    assertFeatures(13, List.of(Map.of("_labelgrid_limit", 5, "_labelgrid_size", 100d)), peak);
   }
 
   @Test
   public void testVolcano() {
-    assertFeatures(14, List.of(Map.of(
-      "class", "volcano"
-    )), process(pointFeature(Map.of(
-      "natural", "volcano",
-      "ele", "100"
-    ))));
+    assertFeatures(
+        14,
+        List.of(Map.of("class", "volcano")),
+        process(
+            pointFeature(
+                Map.of(
+                    "natural", "volcano",
+                    "ele", "100"))));
   }
 
   @Test
   public void testSaddle() {
-    assertFeatures(14, List.of(Map.of(
-      "class", "saddle"
-    )), process(pointFeature(Map.of(
-      "natural", "saddle",
-      "ele", "100"
-    ))));
+    assertFeatures(
+        14,
+        List.of(Map.of("class", "saddle")),
+        process(
+            pointFeature(
+                Map.of(
+                    "natural", "saddle",
+                    "ele", "100"))));
   }
-
 
   @Test
   public void testNoElevation() {
-    assertFeatures(14, List.of(), process(pointFeature(Map.of(
-      "natural", "volcano"
-    ))));
+    assertFeatures(14, List.of(), process(pointFeature(Map.of("natural", "volcano"))));
   }
 
   @Test
   public void testBogusElevation() {
-    assertFeatures(14, List.of(), process(pointFeature(Map.of(
-      "natural", "volcano",
-      "ele", "11000"
-    ))));
+    assertFeatures(
+        14,
+        List.of(),
+        process(
+            pointFeature(
+                Map.of(
+                    "natural", "volcano",
+                    "ele", "11000"))));
   }
 
   @Test
   public void testIgnorePeakLines() {
-    assertFeatures(14, List.of(), process(lineFeature(Map.of(
-      "natural", "peak",
-      "name", "name",
-      "ele", "100"
-    ))));
+    assertFeatures(
+        14,
+        List.of(),
+        process(
+            lineFeature(
+                Map.of(
+                    "natural", "peak",
+                    "name", "name",
+                    "ele", "100"))));
   }
 
   @Test
   public void testMountainLinestring() {
-    assertFeatures(14, List.of(Map.of(
-      "class", "ridge",
-      "name", "Ridge",
-
-      "_layer", "mountain_peak",
-      "_type", "line",
-      "_minzoom", 13,
-      "_maxzoom", 14,
-      "_buffer", 100d
-    )), process(lineFeature(Map.of(
-      "natural", "ridge",
-      "name", "Ridge"
-    ))));
+    assertFeatures(
+        14,
+        List.of(
+            Map.of(
+                "class", "ridge",
+                "name", "Ridge",
+                "_layer", "mountain_peak",
+                "_type", "line",
+                "_minzoom", 13,
+                "_maxzoom", 14,
+                "_buffer", 100d)),
+        process(
+            lineFeature(
+                Map.of(
+                    "natural", "ridge",
+                    "name", "Ridge"))));
   }
 
   @Test
   public void testCustomaryFt() {
-    process(SimpleFeature.create(
-      rectangle(0, 0.1),
-      Map.of("iso_a2", "US"),
-      NATURAL_EARTH_SOURCE,
-      "ne_10m_admin_0_countries",
-      0
-    ));
+    process(
+        SimpleFeature.create(
+            rectangle(0, 0.1),
+            Map.of("iso_a2", "US"),
+            NATURAL_EARTH_SOURCE,
+            "ne_10m_admin_0_countries",
+            0));
 
     // inside US - customary_ft=1
-    assertFeatures(14, List.of(Map.of(
-      "class", "volcano",
-      "customary_ft", 1,
-      "ele", 100,
-      "ele_ft", 328
-    )), process(SimpleFeature.create(
-      newPoint(0, 0),
-      new HashMap<>(Map.<String, Object>of(
-        "natural", "volcano",
-        "ele", "100"
-      )),
-      OSM_SOURCE,
-      null,
-      0
-    )));
+    assertFeatures(
+        14,
+        List.of(
+            Map.of(
+                "class", "volcano",
+                "customary_ft", 1,
+                "ele", 100,
+                "ele_ft", 328)),
+        process(
+            SimpleFeature.create(
+                newPoint(0, 0),
+                new HashMap<>(
+                    Map.<String, Object>of(
+                        "natural", "volcano",
+                        "ele", "100")),
+                OSM_SOURCE,
+                null,
+                0)));
 
     // outside US - customary_ft omitted
-    assertFeatures(14, List.of(Map.of(
-      "class", "volcano",
-      "customary_ft", "<null>",
-      "ele", 100,
-      "ele_ft", 328
-    )), process(SimpleFeature.create(
-      newPoint(1, 1),
-      new HashMap<>(Map.<String, Object>of(
-        "natural", "volcano",
-        "ele", "100"
-      )),
-      OSM_SOURCE,
-      null,
-      0
-    )));
+    assertFeatures(
+        14,
+        List.of(Map.of("class", "volcano", "customary_ft", "<null>", "ele", 100, "ele_ft", 328)),
+        process(
+            SimpleFeature.create(
+                newPoint(1, 1),
+                new HashMap<>(
+                    Map.<String, Object>of(
+                        "natural", "volcano",
+                        "ele", "100")),
+                OSM_SOURCE,
+                null,
+                0)));
   }
 
   private int getSortKey(Map<String, Object> tags) {
-    return process(pointFeature(Map.of(
-      "natural", "peak",
-      "ele", "100"
-    ))).iterator().next().getSortKey();
+    return process(
+            pointFeature(
+                Map.of(
+                    "natural", "peak",
+                    "ele", "100")))
+        .iterator()
+        .next()
+        .getSortKey();
   }
 
   @Test
   public void testSortKey() {
     assertAscending(
-      getSortKey(Map.of(
-        "natural", "peak",
-        "name", "name",
-        "wikipedia", "wikilink",
-        "ele", "100"
-      )),
-      getSortKey(Map.of(
-        "natural", "peak",
-        "name", "name",
-        "ele", "100"
-      )),
-      getSortKey(Map.of(
-        "natural", "peak",
-        "ele", "100"
-      ))
-    );
+        getSortKey(
+            Map.of(
+                "natural", "peak",
+                "name", "name",
+                "wikipedia", "wikilink",
+                "ele", "100")),
+        getSortKey(
+            Map.of(
+                "natural", "peak",
+                "name", "name",
+                "ele", "100")),
+        getSortKey(
+            Map.of(
+                "natural", "peak",
+                "ele", "100")));
   }
 
   @Test
   public void testMountainPeakPostProcessing() throws GeometryException {
-    assertEquals(List.of(), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, List.of()));
+    assertEquals(
+        List.of(), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, List.of()));
 
-    assertEquals(List.of(pointFeature(
-      MountainPeak.LAYER_NAME,
-      Map.of("rank", 1),
-      1
-    )), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, List.of(pointFeature(
-      MountainPeak.LAYER_NAME,
-      Map.of(),
-      1
-    ))));
+    assertEquals(
+        List.of(pointFeature(MountainPeak.LAYER_NAME, Map.of("rank", 1), 1)),
+        profile.postProcessLayerFeatures(
+            MountainPeak.LAYER_NAME,
+            13,
+            List.of(pointFeature(MountainPeak.LAYER_NAME, Map.of(), 1))));
 
-    assertEquals(List.of(
-      pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("rank", 1, "name", "a"),
-        1
-      ), pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("rank", 2, "name", "b"),
-        1
-      ), pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("rank", 1, "name", "c"),
-        2
-      )
-    ), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, List.of(
-      pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("name", "a"),
-        1
-      ),
-      pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("name", "b"),
-        1
-      ),
-      pointFeature(
-        MountainPeak.LAYER_NAME,
-        Map.of("name", "c"),
-        2
-      )
-    )));
+    assertEquals(
+        List.of(
+            pointFeature(MountainPeak.LAYER_NAME, Map.of("rank", 1, "name", "a"), 1),
+            pointFeature(MountainPeak.LAYER_NAME, Map.of("rank", 2, "name", "b"), 1),
+            pointFeature(MountainPeak.LAYER_NAME, Map.of("rank", 1, "name", "c"), 2)),
+        profile.postProcessLayerFeatures(
+            MountainPeak.LAYER_NAME,
+            13,
+            List.of(
+                pointFeature(MountainPeak.LAYER_NAME, Map.of("name", "a"), 1),
+                pointFeature(MountainPeak.LAYER_NAME, Map.of("name", "b"), 1),
+                pointFeature(MountainPeak.LAYER_NAME, Map.of("name", "c"), 2))));
   }
 
   @Test
   public void testMountainPeakPostProcessingLimitsFeaturesOutsideZoom() throws GeometryException {
-    assertEquals(Lists.newArrayList(
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        1,
-        VectorTile.encodeGeometry(newPoint(-64, -64)),
-        Map.of("rank", 1),
-        1
-      ),
-      null,
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        3,
-        VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
-        Map.of("rank", 1),
-        2
-      ),
-      null
-    ), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, Lists.newArrayList(
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        1,
-        VectorTile.encodeGeometry(newPoint(-64, -64)),
-        new HashMap<>(),
-        1
-      ),
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        2,
-        VectorTile.encodeGeometry(newPoint(-65, -65)),
-        new HashMap<>(),
-        1
-      ),
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        3,
-        VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
-        new HashMap<>(),
-        2
-      ),
-      new VectorTile.Feature(
-        MountainPeak.LAYER_NAME,
-        4,
-        VectorTile.encodeGeometry(newPoint(256 + 65, 256 + 65)),
-        new HashMap<>(),
-        2
-      )
-    )));
+    assertEquals(
+        Lists.newArrayList(
+            new VectorTile.Feature(
+                MountainPeak.LAYER_NAME,
+                1,
+                VectorTile.encodeGeometry(newPoint(-64, -64)),
+                Map.of("rank", 1),
+                1),
+            null,
+            new VectorTile.Feature(
+                MountainPeak.LAYER_NAME,
+                3,
+                VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
+                Map.of("rank", 1),
+                2),
+            null),
+        profile.postProcessLayerFeatures(
+            MountainPeak.LAYER_NAME,
+            13,
+            Lists.newArrayList(
+                new VectorTile.Feature(
+                    MountainPeak.LAYER_NAME,
+                    1,
+                    VectorTile.encodeGeometry(newPoint(-64, -64)),
+                    new HashMap<>(),
+                    1),
+                new VectorTile.Feature(
+                    MountainPeak.LAYER_NAME,
+                    2,
+                    VectorTile.encodeGeometry(newPoint(-65, -65)),
+                    new HashMap<>(),
+                    1),
+                new VectorTile.Feature(
+                    MountainPeak.LAYER_NAME,
+                    3,
+                    VectorTile.encodeGeometry(newPoint(256 + 64, 256 + 64)),
+                    new HashMap<>(),
+                    2),
+                new VectorTile.Feature(
+                    MountainPeak.LAYER_NAME,
+                    4,
+                    VectorTile.encodeGeometry(newPoint(256 + 65, 256 + 65)),
+                    new HashMap<>(),
+                    2))));
   }
 }

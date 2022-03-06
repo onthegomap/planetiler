@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 
 public class GeofabrikTest {
 
-  private static final byte[] response = """
+  private static final byte[] response =
+      """
     { "type": "FeatureCollection",
         "features": [
             {
@@ -33,7 +34,8 @@ public class GeofabrikTest {
             }
         ]
     }
-    """.getBytes(StandardCharsets.UTF_8);
+    """
+          .getBytes(StandardCharsets.UTF_8);
 
   @Test
   public void testFound() throws IOException {
@@ -45,7 +47,7 @@ public class GeofabrikTest {
   @Test
   public void testNotFound() throws IOException {
     var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
-    assertThrows(IllegalArgumentException.class,
-      () -> Geofabrik.searchIndexForDownloadUrl("monaco", index));
+    assertThrows(
+        IllegalArgumentException.class, () -> Geofabrik.searchIndexForDownloadUrl("monaco", index));
   }
 }

@@ -11,10 +11,7 @@ public record SortableFeature(long key, byte[] value) implements Comparable<Sort
 
   @Override
   public String toString() {
-    return "SortableFeature{" +
-      "key=" + key +
-      ", value=" + Arrays.toString(value) +
-      '}';
+    return "SortableFeature{" + "key=" + key + ", value=" + Arrays.toString(value) + '}';
   }
 
   @Override

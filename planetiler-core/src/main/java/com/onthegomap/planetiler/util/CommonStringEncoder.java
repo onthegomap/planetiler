@@ -6,7 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * A utility for compressing up to 250 commonly-used strings (i.e. layer name, tag attributes) into a single byte.
+ * A utility for compressing up to 250 commonly-used strings (i.e. layer name, tag attributes) into
+ * a single byte.
  */
 @ThreadSafe
 public class CommonStringEncoder {
@@ -36,18 +37,23 @@ public class CommonStringEncoder {
    * @throws IllegalArgumentException if called for too many values
    */
   public byte encode(String string) {
-    // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
+    // optimization to avoid more expensive computeIfAbsent call for the majority case when
+    // concurrent hash map already
     // contains the value.
     Byte result = stringToId.get(string);
     if (result == null) {
-      result = stringToId.computeIfAbsent(string, s -> {
-        int id = layerId.getAndIncrement();
-        if (id > 250) {
-          throw new IllegalArgumentException("Too many string keys when inserting " + string);
-        }
-        idToString[id] = string;
-        return (byte) id;
-      });
+      result =
+          stringToId.computeIfAbsent(
+              string,
+              s -> {
+                int id = layerId.getAndIncrement();
+                if (id > 250) {
+                  throw new IllegalArgumentException(
+                      "Too many string keys when inserting " + string);
+                }
+                idToString[id] = string;
+                return (byte) id;
+              });
     }
     return result;
   }

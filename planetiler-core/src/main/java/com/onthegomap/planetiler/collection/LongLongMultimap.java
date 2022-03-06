@@ -10,20 +10,16 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An in-memory map that stores a multiple {@code long} values for each {@code long} key.
- */
+/** An in-memory map that stores a multiple {@code long} values for each {@code long} key. */
 // TODO: The two implementations should probably not implement the same interface
 public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
 
-  /**
-   * Writes the value for a key. Not thread safe!
-   */
+  /** Writes the value for a key. Not thread safe! */
   void put(long key, long value);
 
   /**
-   * Returns the values for a key. Safe to be called by multiple threads after all values have been written. After the
-   * first read, all writes will fail.
+   * Returns the values for a key. Safe to be called by multiple threads after all values have been
+   * written. After the first read, all writes will fail.
    */
   LongArrayList get(long key);
 
@@ -33,7 +29,10 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     }
   }
 
-  /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
+  /**
+   * Returns a new multimap where each write sets the list of values for a key, and that order is
+   * preserved on read.
+   */
   static LongLongMultimap newDensedOrderedMultimap() {
     return new DenseOrderedHppcMultimap();
   }
@@ -44,12 +43,14 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
   }
 
   /**
-   * A map from {@code long} to {@code long} stored as a list of keys and values that uses binary search to find the
-   * values for a key. Inserts do not need to be ordered, the first read will sort the array.
+   * A map from {@code long} to {@code long} stored as a list of keys and values that uses binary
+   * search to find the values for a key. Inserts do not need to be ordered, the first read will
+   * sort the array.
    */
   class SparseUnorderedBinarySearchMultimap implements LongLongMultimap {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SparseUnorderedBinarySearchMultimap.class);
+    private static final Logger LOGGER =
+        LoggerFactory.getLogger(SparseUnorderedBinarySearchMultimap.class);
 
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
     private final LongArrayList keys = new LongArrayList();
@@ -146,8 +147,8 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
   }
 
   /**
-   * A map from {@code long} to {@code long} where each putAll replaces previous values and results are returned in the
-   * same order they were inserted.
+   * A map from {@code long} to {@code long} where each putAll replaces previous values and results
+   * are returned in the same order they were inserted.
    */
   class DenseOrderedHppcMultimap implements LongLongMultimap {
 

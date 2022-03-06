@@ -35,16 +35,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility that accepts rendered map features in any order and groups them by tile for a reader to iterate through.
- * <p>
- * Only support single-threaded writes and reads.
- * <p>
- * Limitation: layer name and attribute key strings get compressed into a single byte, so only 250 unique values are
- * supported (see {@link CommonStringEncoder})
+ * A utility that accepts rendered map features in any order and groups them by tile for a reader to
+ * iterate through.
+ *
+ * <p>Only support single-threaded writes and reads.
+ *
+ * <p>Limitation: layer name and attribute key strings get compressed into a single byte, so only
+ * 250 unique values are supported (see {@link CommonStringEncoder})
  */
 @NotThreadSafe
-public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<FeatureGroup.TileFeatures>,
-  DiskBacked {
+public final class FeatureGroup
+    implements Consumer<SortableFeature>, Iterable<FeatureGroup.TileFeatures>, DiskBacked {
 
   public static final int SORT_KEY_BITS = 23;
   public static final int SORT_KEY_MAX = (1 << (SORT_KEY_BITS - 1)) - 1;
@@ -57,7 +58,8 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   private final Stats stats;
   private final LayerStats layerStats = new LayerStats();
 
-  FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEncoder commonStrings, Stats stats) {
+  FeatureGroup(
+      FeatureSort sorter, Profile profile, CommonStringEncoder commonStrings, Stats stats) {
     this.sorter = sorter;
     this.profile = profile;
     this.commonStrings = commonStrings;
@@ -68,32 +70,32 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     this(sorter, profile, new CommonStringEncoder(), stats);
   }
 
-  /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
+  /**
+   * Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases
+   * like unit tests.
+   */
   public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
     return new FeatureGroup(FeatureSort.newInMemory(), profile, stats);
   }
 
   /**
-   * Returns a feature grouper that writes all elements to disk in chunks, sorts each chunk, then reads back in order
-   * from those chunks. Suitable for making maps up to planet-scale.
+   * Returns a feature grouper that writes all elements to disk in chunks, sorts each chunk, then
+   * reads back in order from those chunks. Suitable for making maps up to planet-scale.
    */
-  public static FeatureGroup newDiskBackedFeatureGroup(Path tempDir, Profile profile, PlanetilerConfig config,
-    Stats stats) {
-    return new FeatureGroup(
-      new ExternalMergeSort(tempDir, config, stats),
-      profile, stats
-    );
+  public static FeatureGroup newDiskBackedFeatureGroup(
+      Path tempDir, Profile profile, PlanetilerConfig config, Stats stats) {
+    return new FeatureGroup(new ExternalMergeSort(tempDir, config, stats), profile, stats);
   }
 
   /**
-   * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to indicate whether the
-   * value contains grouping information.
+   * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to
+   * indicate whether the value contains grouping information.
    */
   static long encodeKey(int tile, byte layer, int sortKey, boolean hasGroup) {
     return ((long) tile << 32L)
-      | ((long) (layer & 0xff) << 24L)
-      | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L)
-      | (hasGroup ? 1 : 0);
+        | ((long) (layer & 0xff) << 24L)
+        | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L)
+        | (hasGroup ? 1 : 0);
   }
 
   static boolean extractHasGroupFromKey(long key) {
@@ -123,8 +125,8 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   }
 
   /**
-   * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
-   * features on elements in that layer, and their types.
+   * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()}
+   * including min/max zoom, features on elements in that layer, and their types.
    */
   public LayerStats layerStats() {
     return layerStats;
@@ -136,15 +138,20 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
 
   /** Returns a function for a single thread to use to serialize rendered features. */
   public Function<RenderedFeature, SortableFeature> newRenderedFeatureEncoder() {
-    // This method gets called billions of times when generating the planet, so these optimizations make a big difference:
-    // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
+    // This method gets called billions of times when generating the planet, so these optimizations
+    // make a big difference:
+    // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every
+    // feature.
     var packer = MessagePack.newDefaultBufferPacker();
-    // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
+    // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this
+    // thread once
     var threadLocalLayerStats = layerStats.handlerForThread();
 
     return new Function<>() {
-      // 3) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
-      // FeatureRenderer ensures that a separate VectorTileEncoder.Feature is used for each zoom level
+      // 3) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the
+      // encoded values
+      // FeatureRenderer ensures that a separate VectorTileEncoder.Feature is used for each zoom
+      // level
       private VectorTile.Feature lastFeature = null;
       private byte[] lastEncodedValue = null;
 
@@ -172,15 +179,13 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonStrings.encode(vectorTileFeature.layer());
     return encodeKey(
-      feature.tile().encoded(),
-      encodedLayer,
-      feature.sortKey(),
-      feature.group().isPresent()
-    );
+        feature.tile().encoded(), encodedLayer, feature.sortKey(), feature.group().isPresent());
   }
 
-  private byte[] encodeValue(VectorTile.Feature vectorTileFeature, RenderedFeature.Group group,
-    MessageBufferPacker packer) {
+  private byte[] encodeValue(
+      VectorTile.Feature vectorTileFeature,
+      RenderedFeature.Group group,
+      MessageBufferPacker packer) {
     packer.clear();
     try {
       // hasGroup bit in key will tell consumers whether they need to decode group info from value
@@ -213,8 +218,10 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
           }
         }
       }
-      // Use the same binary format for encoding geometries in output vector tiles. Benchmarking showed
-      // it was faster and smaller for encoding/decoding intermediate geometries than alternatives like WKB.
+      // Use the same binary format for encoding geometries in output vector tiles. Benchmarking
+      // showed
+      // it was faster and smaller for encoding/decoding intermediate geometries than alternatives
+      // like WKB.
       int[] commands = vectorTileFeature.geometry().commands();
       packer.packArrayHeader(commands.length);
       for (int command : commands) {
@@ -262,12 +269,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       }
       String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
       return new VectorTile.Feature(
-        layer,
-        id,
-        new VectorTile.VectorGeometry(commands, geomType, scale),
-        attrs,
-        group
-      );
+          layer, id, new VectorTile.VectorGeometry(commands, geomType, scale), attrs, group);
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
@@ -369,12 +371,18 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       this.tileCoord = TileCoord.decode(tileCoord);
     }
 
-    /** Returns the number of features read including features discarded from being over the limit in a group. */
+    /**
+     * Returns the number of features read including features discarded from being over the limit in
+     * a group.
+     */
     public long getNumFeaturesProcessed() {
       return numFeaturesProcessed.get();
     }
 
-    /** Returns the number of features to output, excluding features discarded from being over the limit in a group. */
+    /**
+     * Returns the number of features to output, excluding features discarded from being over the
+     * limit in a group.
+     */
     public long getNumFeaturesToEmit() {
       return entries.size();
     }
@@ -384,10 +392,10 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     }
 
     /**
-     * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
-     * even if the tiles have separate coordinates.
-     * <p>
-     * Used as an optimization to avoid re-encoding the same ocean tiles over and over again.
+     * Returns true if {@code other} contains features with identical layer, geometry, and
+     * attributes, as this tile - even if the tiles have separate coordinates.
+     *
+     * <p>Used as an optimization to avoid re-encoding the same ocean tiles over and over again.
      */
     public boolean hasSameContents(TileFeatures other) {
       if (other == null || other.entries.size() != entries.size()) {
@@ -439,11 +447,11 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       }
     }
 
-    private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
-      List<VectorTile.Feature> features) {
+    private void postProcessAndAddLayerFeatures(
+        VectorTile encoder, String layer, List<VectorTile.Feature> features) {
       try {
-        List<VectorTile.Feature> postProcessed = profile
-          .postProcessLayerFeatures(layer, tileCoord.z(), features);
+        List<VectorTile.Feature> postProcessed =
+            profile.postProcessLayerFeatures(layer, tileCoord.z(), features);
         features = postProcessed == null ? features : postProcessed;
         // lines are stored using a higher precision so that rounding does not
         // introduce artificial intersections between endpoints to confuse line merging,
@@ -453,8 +461,10 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         // failures in tile post-processing happen very late so err on the side of caution and
         // log failures, only throwing when it's a fatal error
         if (e instanceof GeometryException geoe) {
-          geoe.log(stats, "postprocess_layer",
-            "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
+          geoe.log(
+              stats,
+              "postprocess_layer",
+              "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
         } else if (e instanceof Exception) {
           LOGGER.error("Caught error postprocessing features " + layer + " " + tileCoord, e);
         } else {
@@ -492,10 +502,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
 
     @Override
     public String toString() {
-      return "TileFeatures{" +
-        "tile=" + tileCoord +
-        ", num entries=" + entries.size() +
-        '}';
+      return "TileFeatures{" + "tile=" + tileCoord + ", num entries=" + entries.size() + '}';
     }
   }
 }

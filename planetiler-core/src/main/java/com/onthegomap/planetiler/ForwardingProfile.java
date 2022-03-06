@@ -11,17 +11,22 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * A framework for building complex {@link Profile Profiles} that need to be broken apart into multiple handlers (i.e.
- * one per layer).
- * <p>
- * Individual handlers added with {@link #registerHandler(Handler)} can listen on events by implementing these
- * handlers:
+ * A framework for building complex {@link Profile Profiles} that need to be broken apart into
+ * multiple handlers (i.e. one per layer).
+ *
+ * <p>Individual handlers added with {@link #registerHandler(Handler)} can listen on events by
+ * implementing these handlers:
+ *
  * <ul>
- *   <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
- *   <li>{@link FeatureProcessor} to handle features from a particular source (added through {@link #registerSourceHandler(String, FeatureProcessor)})</li>
- *   <li>{@link FinishHandler} to be notified whenever we finish processing each source</li>
- *   <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the output tile</li>
+ *   <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM
+ *       file
+ *   <li>{@link FeatureProcessor} to handle features from a particular source (added through {@link
+ *       #registerSourceHandler(String, FeatureProcessor)})
+ *   <li>{@link FinishHandler} to be notified whenever we finish processing each source
+ *   <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the
+ *       output tile
  * </ul>
+ *
  * See {@code OpenMapTilesProfile} for a full implementation using this framework.
  */
 public abstract class ForwardingProfile implements Profile {
@@ -43,17 +48,16 @@ public abstract class ForwardingProfile implements Profile {
   /**
    * Call {@code processor} for every element in {@code source}.
    *
-   * @param source    string ID of the source
+   * @param source string ID of the source
    * @param processor handler that will process elements in that source
    */
   public void registerSourceHandler(String source, FeatureProcessor processor) {
-    sourceElementProcessors.computeIfAbsent(source, name -> new ArrayList<>())
-      .add(processor);
+    sourceElementProcessors.computeIfAbsent(source, name -> new ArrayList<>()).add(processor);
   }
 
   /**
-   * Call {@code handler} for different events based on which interfaces {@code handler} implements: {@link
-   * OsmRelationPreprocessor}, {@link FinishHandler}, or {@link FeaturePostProcessor}.
+   * Call {@code handler} for different events based on which interfaces {@code handler} implements:
+   * {@link OsmRelationPreprocessor}, {@link FinishHandler}, or {@link FeaturePostProcessor}.
    */
   public void registerHandler(Handler handler) {
     this.handlers.add(handler);
@@ -70,8 +74,9 @@ public abstract class ForwardingProfile implements Profile {
       finishHandlers.add(finishHandler);
     }
     if (handler instanceof FeaturePostProcessor postProcessor) {
-      postProcessors.computeIfAbsent(postProcessor.name(), name -> new ArrayList<>())
-        .add(postProcessor);
+      postProcessors
+          .computeIfAbsent(postProcessor.name(), name -> new ArrayList<>())
+          .add(postProcessor);
     }
   }
 
@@ -94,8 +99,7 @@ public abstract class ForwardingProfile implements Profile {
     // delegate OSM relation pre-processing to each layer, if it implements FeaturePostProcessor
     List<OsmRelationInfo> result = null;
     for (OsmRelationPreprocessor osmRelationPreprocessor : osmRelationPreprocessors) {
-      List<OsmRelationInfo> thisResult = osmRelationPreprocessor
-        .preprocessOsmRelation(relation);
+      List<OsmRelationInfo> thisResult = osmRelationPreprocessor.preprocessOsmRelation(relation);
       if (thisResult != null) {
         if (result == null) {
           result = new ArrayList<>(thisResult);
@@ -126,8 +130,8 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   @Override
-  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items)
-    throws GeometryException {
+  public List<VectorTile.Feature> postProcessLayerFeatures(
+      String layer, int zoom, List<VectorTile.Feature> items) throws GeometryException {
     // delegate feature post-processing to each layer, if it implements FeaturePostProcessor
     List<FeaturePostProcessor> handlers = postProcessors.get(layer);
     List<VectorTile.Feature> result = items;
@@ -143,8 +147,10 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   @Override
-  public void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-    Consumer<FeatureCollector.Feature> next) {
+  public void finish(
+      String sourceName,
+      FeatureCollector.Factory featureCollectors,
+      Consumer<FeatureCollector.Feature> next) {
     // delegate finish handling to every layer that implements FinishHandler
     for (var handler : finishHandlers) {
       handler.finish(sourceName, featureCollectors, next);
@@ -161,8 +167,7 @@ public abstract class ForwardingProfile implements Profile {
   public interface Handler {
 
     /** Free any resources associated with this profile (i.e. shared data structures) */
-    default void release() {
-    }
+    default void release() {}
   }
 
   public interface HandlerForLayer extends Handler {
@@ -179,56 +184,73 @@ public abstract class ForwardingProfile implements Profile {
      *
      * @see Profile#finish(String, FeatureCollector.Factory, Consumer)
      */
-    void finish(String sourceName, FeatureCollector.Factory featureCollectors,
-      Consumer<FeatureCollector.Feature> emit);
+    void finish(
+        String sourceName,
+        FeatureCollector.Factory featureCollectors,
+        Consumer<FeatureCollector.Feature> emit);
   }
 
-  /** Handlers should implement this interface to pre-process OSM nodes during pass 1 through the data. */
+  /**
+   * Handlers should implement this interface to pre-process OSM nodes during pass 1 through the
+   * data.
+   */
   public interface OsmNodePreprocessor extends Handler {
 
     /**
-     * Extracts information from an OSM node during pass 1 of the input OSM data that the profile may need during
-     * pass2.
+     * Extracts information from an OSM node during pass 1 of the input OSM data that the profile
+     * may need during pass2.
      *
      * @see Profile#preprocessOsmNode(OsmElement.Node)
      */
     void preprocessOsmNode(OsmElement.Node node);
   }
 
-
-  /** Handlers should implement this interface to pre-process OSM ways during pass 1 through the data. */
+  /**
+   * Handlers should implement this interface to pre-process OSM ways during pass 1 through the
+   * data.
+   */
   public interface OsmWayPreprocessor extends Handler {
 
     /**
-     * Extracts information from an OSM way during pass 1 of the input OSM data that the profile may need during pass2.
+     * Extracts information from an OSM way during pass 1 of the input OSM data that the profile may
+     * need during pass2.
      *
      * @see Profile#preprocessOsmWay(OsmElement.Way)
      */
     void preprocessOsmWay(OsmElement.Way way);
   }
 
-  /** Handlers should implement this interface to pre-process OSM relations during pass 1 through the data. */
+  /**
+   * Handlers should implement this interface to pre-process OSM relations during pass 1 through the
+   * data.
+   */
   public interface OsmRelationPreprocessor extends Handler {
 
     /**
-     * Returns information extracted from an OSM relation during pass 1 of the input OSM data to make available when
-     * processing elements in that relation during pass 2.
+     * Returns information extracted from an OSM relation during pass 1 of the input OSM data to
+     * make available when processing elements in that relation during pass 2.
      *
      * @see Profile#preprocessOsmRelation(OsmElement.Relation)
      */
     List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation);
   }
 
-  /** Handlers should implement this interface to post-process vector tile features before emitting an output tile. */
+  /**
+   * Handlers should implement this interface to post-process vector tile features before emitting
+   * an output tile.
+   */
   public interface FeaturePostProcessor extends HandlerForLayer {
 
     /**
-     * Apply any post-processing to features in this output layer of a tile before writing it to the output file.
+     * Apply any post-processing to features in this output layer of a tile before writing it to the
+     * output file.
      *
-     * @throws GeometryException if the input elements cannot be deserialized, or output elements cannot be serialized
+     * @throws GeometryException if the input elements cannot be deserialized, or output elements
+     *     cannot be serialized
      * @see Profile#postProcessLayerFeatures(String, int, List)
      */
-    List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException;
+    List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items)
+        throws GeometryException;
   }
 
   /** Handlers should implement this interface to process input features from a given source ID. */

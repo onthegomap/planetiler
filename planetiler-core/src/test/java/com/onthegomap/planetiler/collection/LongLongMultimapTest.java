@@ -77,18 +77,19 @@ public abstract class LongLongMultimapTest {
       map.putAll(i, LongArrayList.from(toInsert));
     }
     for (int i = 0; i < 100; i++) {
-      assertResultLists(LongArrayList.from(
-        i * 10 + 1,
-        i * 10 + 2,
-        i * 10 + 3,
-        i * 10 + 4,
-        i * 10 + 5,
-        i * 10 + 6,
-        i * 10 + 7,
-        i * 10 + 8,
-        i * 10 + 9,
-        i * 10 + 10
-      ), map.get(i));
+      assertResultLists(
+          LongArrayList.from(
+              i * 10 + 1,
+              i * 10 + 2,
+              i * 10 + 3,
+              i * 10 + 4,
+              i * 10 + 5,
+              i * 10 + 6,
+              i * 10 + 7,
+              i * 10 + 8,
+              i * 10 + 9,
+              i * 10 + 10),
+          map.get(i));
     }
   }
 
@@ -107,32 +108,34 @@ public abstract class LongLongMultimapTest {
   @Test
   public void manyInsertsUnordered() {
     for (long i = 99; i >= 0; i--) {
-      map.putAll(i, LongArrayList.from(
-        i * 10 + 10,
-        i * 10 + 9,
-        i * 10 + 8,
-        i * 10 + 7,
-        i * 10 + 6,
-        i * 10 + 5,
-        i * 10 + 4,
-        i * 10 + 3,
-        i * 10 + 2,
-        i * 10 + 1
-      ));
+      map.putAll(
+          i,
+          LongArrayList.from(
+              i * 10 + 10,
+              i * 10 + 9,
+              i * 10 + 8,
+              i * 10 + 7,
+              i * 10 + 6,
+              i * 10 + 5,
+              i * 10 + 4,
+              i * 10 + 3,
+              i * 10 + 2,
+              i * 10 + 1));
     }
     for (int i = 0; i < 100; i++) {
-      assertResultLists(LongArrayList.from(
-        i * 10 + 10,
-        i * 10 + 9,
-        i * 10 + 8,
-        i * 10 + 7,
-        i * 10 + 6,
-        i * 10 + 5,
-        i * 10 + 4,
-        i * 10 + 3,
-        i * 10 + 2,
-        i * 10 + 1
-      ), map.get(i));
+      assertResultLists(
+          LongArrayList.from(
+              i * 10 + 10,
+              i * 10 + 9,
+              i * 10 + 8,
+              i * 10 + 7,
+              i * 10 + 6,
+              i * 10 + 5,
+              i * 10 + 4,
+              i * 10 + 3,
+              i * 10 + 2,
+              i * 10 + 1),
+          map.get(i));
     }
   }
 

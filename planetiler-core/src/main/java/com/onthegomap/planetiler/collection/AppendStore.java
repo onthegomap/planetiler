@@ -8,10 +8,11 @@ import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
 /**
- * A large array of primitives. A single thread appends all elements then allows random access from multiple threads.
- * <p>
- * {@link AppendStoreRam} stores all data in arrays in RAM and {@link AppendStoreMmap} stores all data in a
- * memory-mapped file.
+ * A large array of primitives. A single thread appends all elements then allows random access from
+ * multiple threads.
+ *
+ * <p>{@link AppendStoreRam} stores all data in arrays in RAM and {@link AppendStoreMmap} stores all
+ * data in a memory-mapped file.
  */
 interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked {
 
@@ -51,8 +52,8 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
   }
 
   /**
-   * An array longs that uses 4 bytes to represent each long by using a list of {@link Ints} arrays. Only suitable for
-   * values less than ~20 billion (i.e. OSM node IDs)
+   * An array longs that uses 4 bytes to represent each long by using a list of {@link Ints} arrays.
+   * Only suitable for values less than ~20 billion (i.e. OSM node IDs)
    */
   final class SmallLongs implements Longs {
 
@@ -111,5 +112,4 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
       return Stream.of(ints).mapToLong(AppendStore::diskUsageBytes).sum();
     }
   }
-
 }

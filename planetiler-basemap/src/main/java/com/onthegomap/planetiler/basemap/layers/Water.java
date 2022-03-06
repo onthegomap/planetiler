@@ -47,16 +47,18 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Translations;
 
 /**
- * Defines the logic for generating map elements for oceans and lakes in the {@code water} layer from source features.
- * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water">OpenMapTiles
- * water sql files</a>.
+ * Defines the logic for generating map elements for oceans and lakes in the {@code water} layer
+ * from source features.
+ *
+ * <p>This class is ported to Java from <a
+ * href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water">OpenMapTiles water
+ * sql files</a>.
  */
-public class Water implements
-  OpenMapTilesSchema.Water,
-  Tables.OsmWaterPolygon.Handler,
-  BasemapProfile.NaturalEarthProcessor,
-  BasemapProfile.OsmWaterPolygonProcessor {
+public class Water
+    implements OpenMapTilesSchema.Water,
+        Tables.OsmWaterPolygon.Handler,
+        BasemapProfile.NaturalEarthProcessor,
+        BasemapProfile.OsmWaterPolygonProcessor {
 
   /*
    * At low zoom levels, use natural earth for oceans and major lakes, and at high zoom levels
@@ -74,44 +76,51 @@ public class Water implements
   @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {
     record WaterInfo(int minZoom, int maxZoom, String clazz) {}
-    WaterInfo info = switch (table) {
-      case "ne_110m_ocean" -> new WaterInfo(0, 1, FieldValues.CLASS_OCEAN);
-      case "ne_50m_ocean" -> new WaterInfo(2, 4, FieldValues.CLASS_OCEAN);
-      case "ne_10m_ocean" -> new WaterInfo(5, 5, FieldValues.CLASS_OCEAN);
+    WaterInfo info =
+        switch (table) {
+          case "ne_110m_ocean" -> new WaterInfo(0, 1, FieldValues.CLASS_OCEAN);
+          case "ne_50m_ocean" -> new WaterInfo(2, 4, FieldValues.CLASS_OCEAN);
+          case "ne_10m_ocean" -> new WaterInfo(5, 5, FieldValues.CLASS_OCEAN);
 
-      case "ne_110m_lakes" -> new WaterInfo(0, 1, FieldValues.CLASS_LAKE);
-      case "ne_50m_lakes" -> new WaterInfo(2, 3, FieldValues.CLASS_LAKE);
-      case "ne_10m_lakes" -> new WaterInfo(4, 5, FieldValues.CLASS_LAKE);
-      default -> null;
-    };
+          case "ne_110m_lakes" -> new WaterInfo(0, 1, FieldValues.CLASS_LAKE);
+          case "ne_50m_lakes" -> new WaterInfo(2, 3, FieldValues.CLASS_LAKE);
+          case "ne_10m_lakes" -> new WaterInfo(4, 5, FieldValues.CLASS_LAKE);
+          default -> null;
+        };
     if (info != null) {
-      features.polygon(LAYER_NAME)
-        .setBufferPixels(BUFFER_SIZE)
-        .setZoomRange(info.minZoom, info.maxZoom)
-        .setAttr(Fields.CLASS, info.clazz);
+      features
+          .polygon(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .setZoomRange(info.minZoom, info.maxZoom)
+          .setAttr(Fields.CLASS, info.clazz);
     }
   }
 
   @Override
   public void processOsmWater(SourceFeature feature, FeatureCollector features) {
-    features.polygon(LAYER_NAME)
-      .setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.CLASS, FieldValues.CLASS_OCEAN)
-      .setMinZoom(6);
+    features
+        .polygon(LAYER_NAME)
+        .setBufferPixels(BUFFER_SIZE)
+        .setAttr(Fields.CLASS, FieldValues.CLASS_OCEAN)
+        .setMinZoom(6);
   }
 
   @Override
   public void process(Tables.OsmWaterPolygon element, FeatureCollector features) {
     if (!"bay".equals(element.natural())) {
-      String clazz = "riverbank".equals(element.waterway()) ? FieldValues.CLASS_RIVER :
-        classMapping.getOrElse(element.source(), FieldValues.CLASS_LAKE);
-      features.polygon(LAYER_NAME)
-        .setBufferPixels(BUFFER_SIZE)
-        .setMinPixelSizeBelowZoom(11, 2)
-        .setMinZoom(6)
-        .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
-        .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
-        .setAttr(Fields.CLASS, clazz);
+      String clazz =
+          "riverbank".equals(element.waterway())
+              ? FieldValues.CLASS_RIVER
+              : classMapping.getOrElse(element.source(), FieldValues.CLASS_LAKE);
+      features
+          .polygon(LAYER_NAME)
+          .setBufferPixels(BUFFER_SIZE)
+          .setMinPixelSizeBelowZoom(11, 2)
+          .setMinZoom(6)
+          .setAttr(Fields.INTERMITTENT, element.isIntermittent() ? 1 : 0)
+          .setAttrWithMinzoom(
+              Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
+          .setAttr(Fields.CLASS, clazz);
     }
   }
 }

@@ -3,13 +3,10 @@ package com.onthegomap.planetiler.util;
 import java.util.regex.Pattern;
 import org.slf4j.MDC;
 
-/**
- * Wrapper for SLF4j {@link MDC} log utility to prepend {@code [stage]} to log output.
- */
+/** Wrapper for SLF4j {@link MDC} log utility to prepend {@code [stage]} to log output. */
 public class LogUtil {
 
-  private LogUtil() {
-  }
+  private LogUtil() {}
 
   private static final String STAGE_KEY = "stage";
 

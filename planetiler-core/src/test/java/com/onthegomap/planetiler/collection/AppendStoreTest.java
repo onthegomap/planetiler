@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class AppendStoreTest {
 
-  static abstract class IntsTest {
+  abstract static class IntsTest {
 
     protected AppendStore.Ints store;
 
@@ -40,7 +40,7 @@ public class AppendStoreTest {
     }
   }
 
-  static abstract class LongsTest {
+  abstract static class LongsTest {
 
     protected AppendStore.Longs store;
 
@@ -60,12 +60,20 @@ public class AppendStoreTest {
     private static final long maxInt = Integer.MAX_VALUE;
 
     @ParameterizedTest
-    @ValueSource(longs = {maxInt - 1, maxInt, maxInt + 1, 2 * maxInt - 1, 2 * maxInt, 5 * maxInt - 1, 5 * maxInt + 1})
+    @ValueSource(
+        longs = {
+          maxInt - 1,
+          maxInt,
+          maxInt + 1,
+          2 * maxInt - 1,
+          2 * maxInt,
+          5 * maxInt - 1,
+          5 * maxInt + 1
+        })
     public void readBig(long value) {
       store.appendLong(value);
       assertEquals(value, store.getLong(0));
     }
-
   }
 
   static class RamInt extends IntsTest {
@@ -104,7 +112,9 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup(@TempDir Path path) {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2));
+      this.store =
+          new AppendStore.SmallLongs(
+              (i) -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2));
     }
   }
 

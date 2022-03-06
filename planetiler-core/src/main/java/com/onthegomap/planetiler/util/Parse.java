@@ -3,21 +3,21 @@ package com.onthegomap.planetiler.util;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-/**
- * Utilities to parse values from strings.
- */
+/** Utilities to parse values from strings. */
 public class Parse {
 
-  private Parse() {
-  }
+  private Parse() {}
 
   private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
-  private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");
+  private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN =
+      Pattern.compile("^(-?[\\d.]+)(\\D|$)");
 
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
     try {
-      return tag == null ? null : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
+      return tag == null
+          ? null
+          : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
       return null;
     }
@@ -26,7 +26,9 @@ public class Parse {
   /** Returns {@code tag} as a long or 0 if invalid. */
   public static long parseLong(Object tag) {
     try {
-      return tag == null ? 0 : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
+      return tag == null
+          ? 0
+          : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
       return 0;
     }
@@ -89,8 +91,8 @@ public class Parse {
   }
 
   /**
-   * Returns {@code tag} for an OSM road based on the tags that are present. Bridges are above roads appear above
-   * tunnels and major roads appear above minor.
+   * Returns {@code tag} for an OSM road based on the tags that are present. Bridges are above roads
+   * appear above tunnels and major roads appear above minor.
    */
   public static int wayzorder(Map<String, Object> tags) {
     return Imposm3Parsers.wayzorder(tags);

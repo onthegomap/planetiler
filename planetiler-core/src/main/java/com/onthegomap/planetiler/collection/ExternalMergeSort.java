@@ -33,14 +33,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility that writes {@link SortableFeature SortableFeatures} to disk and uses merge sort to efficiently sort much
- * more data than fits in RAM.
- * <p>
- * Writes append features to a "chunk" file that can be sorted with 1GB or RAM until it is full, then starts writing to
- * a new chunk. The sort process sorts the chunks, limiting the number of parallel threads by CPU cores and available
- * RAM. Reads do a k-way merge of the sorted chunks using a priority queue of minimum values from each.
- * <p>
- * Only supports single-threaded writes and reads.
+ * A utility that writes {@link SortableFeature SortableFeatures} to disk and uses merge sort to
+ * efficiently sort much more data than fits in RAM.
+ *
+ * <p>Writes append features to a "chunk" file that can be sorted with 1GB or RAM until it is full,
+ * then starts writing to a new chunk. The sort process sorts the chunks, limiting the number of
+ * parallel threads by CPU cores and available RAM. Reads do a k-way merge of the sorted chunks
+ * using a priority queue of minimum values from each.
+ *
+ * <p>Only supports single-threaded writes and reads.
  */
 @NotThreadSafe
 class ExternalMergeSort implements FeatureSort {
@@ -62,19 +63,21 @@ class ExternalMergeSort implements FeatureSort {
 
   ExternalMergeSort(Path tempDir, PlanetilerConfig config, Stats stats) {
     this(
-      tempDir,
-      config.threads(),
-      (int) Math.min(
-        MAX_CHUNK_SIZE,
-        (ProcessInfo.getMaxMemoryBytes() / 2) / config.threads()
-      ),
-      config.gzipTempStorage(),
-      config,
-      stats
-    );
+        tempDir,
+        config.threads(),
+        (int) Math.min(MAX_CHUNK_SIZE, (ProcessInfo.getMaxMemoryBytes() / 2) / config.threads()),
+        config.gzipTempStorage(),
+        config,
+        stats);
   }
 
-  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, PlanetilerConfig config, Stats stats) {
+  ExternalMergeSort(
+      Path dir,
+      int workers,
+      int chunkSizeLimit,
+      boolean gzip,
+      PlanetilerConfig config,
+      Stats stats) {
     this.config = config;
     this.dir = dir;
     this.stats = stats;
@@ -83,12 +86,16 @@ class ExternalMergeSort implements FeatureSort {
     long memory = ProcessInfo.getMaxMemoryBytes();
     if (chunkSizeLimit > memory / 2) {
       throw new IllegalStateException(
-        "Not enough memory to use chunk size " + chunkSizeLimit + " only have " + memory);
+          "Not enough memory to use chunk size " + chunkSizeLimit + " only have " + memory);
     }
     this.workers = workers;
     this.readerLimit = Math.max(1, config.sortMaxReaders());
     this.writerLimit = Math.max(1, config.sortMaxWriters());
-    LOGGER.info("Using merge sort feature map, chunk size=" + (chunkSizeLimit / 1_000_000) + "mb workers=" + workers);
+    LOGGER.info(
+        "Using merge sort feature map, chunk size="
+            + (chunkSizeLimit / 1_000_000)
+            + "mb workers="
+            + workers);
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
@@ -165,41 +172,51 @@ class ExternalMergeSort implements FeatureSort {
     AtomicLong sorting = new AtomicLong(0);
     AtomicLong doneCounter = new AtomicLong(0);
 
-    var pipeline = WorkerPipeline.start("sort", stats)
-      .readFromTiny("item_queue", chunks)
-      .sinkToConsumer("worker", workers, chunk -> {
-        try {
-          readSemaphore.acquire();
-          var toSort = time(reading, chunk::readAll);
-          readSemaphore.release();
+    var pipeline =
+        WorkerPipeline.start("sort", stats)
+            .readFromTiny("item_queue", chunks)
+            .sinkToConsumer(
+                "worker",
+                workers,
+                chunk -> {
+                  try {
+                    readSemaphore.acquire();
+                    var toSort = time(reading, chunk::readAll);
+                    readSemaphore.release();
 
-          time(sorting, toSort::sort);
+                    time(sorting, toSort::sort);
 
-          writeSemaphore.acquire();
-          time(writing, toSort::flush);
-          writeSemaphore.release();
+                    writeSemaphore.acquire();
+                    time(writing, toSort::flush);
+                    writeSemaphore.release();
 
-          doneCounter.incrementAndGet();
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-      });
+                    doneCounter.incrementAndGet();
+                  } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+                });
 
-    ProgressLoggers loggers = ProgressLoggers.create()
-      .addPercentCounter("chunks", chunks.size(), doneCounter)
-      .addFileSize(this)
-      .newLine()
-      .addProcessStats()
-      .newLine()
-      .addPipelineStats(pipeline);
+    ProgressLoggers loggers =
+        ProgressLoggers.create()
+            .addPercentCounter("chunks", chunks.size(), doneCounter)
+            .addFileSize(this)
+            .newLine()
+            .addProcessStats()
+            .newLine()
+            .addPipelineStats(pipeline);
 
     pipeline.awaitAndLog(loggers, config.logInterval());
 
     sorted = true;
     timer.stop();
-    LOGGER.info("read:" + Duration.ofNanos(reading.get()).toSeconds() +
-      "s write:" + Duration.ofNanos(writing.get()).toSeconds() +
-      "s sort:" + Duration.ofNanos(sorting.get()).toSeconds() + "s");
+    LOGGER.info(
+        "read:"
+            + Duration.ofNanos(reading.get()).toSeconds()
+            + "s write:"
+            + Duration.ofNanos(writing.get()).toSeconds()
+            + "s sort:"
+            + Duration.ofNanos(sorting.get()).toSeconds()
+            + "s");
   }
 
   @Override
@@ -256,9 +273,7 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  /**
-   * An output segment that can be sorted in ~1GB RAM.
-   */
+  /** An output segment that can be sorted in ~1GB RAM. */
   private class Chunk implements Closeable {
 
     private final Path path;
@@ -279,16 +294,21 @@ class ExternalMergeSort implements FeatureSort {
     public void add(SortableFeature entry) throws IOException {
       write(outputStream, entry);
       bytesInMemory +=
-        // pointer to feature
-        8 +
-          // Feature class overhead
-          16 +
-          // long sort member of feature
-          8 +
-          // byte array pointer
-          8 +
-          // byte array size
-          24 + entry.value().length;
+          // pointer to feature
+          8
+              +
+              // Feature class overhead
+              16
+              +
+              // long sort member of feature
+              8
+              +
+              // byte array pointer
+              8
+              +
+              // byte array size
+              24
+              + entry.value().length;
       itemCount++;
     }
 
@@ -301,7 +321,8 @@ class ExternalMergeSort implements FeatureSort {
           i++;
         }
         if (i != itemCount) {
-          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
+          throw new IllegalStateException(
+              "Expected " + itemCount + " features in " + path + " got " + i);
         }
         return new SortableChunk(featuresToSort);
       }
@@ -320,9 +341,7 @@ class ExternalMergeSort implements FeatureSort {
       outputStream.close();
     }
 
-    /**
-     * A container for all features in a chunk read into memory for sorting.
-     */
+    /** A container for all features in a chunk read into memory for sorting. */
     private class SortableChunk {
 
       private SortableFeature[] featuresToSort;
@@ -351,10 +370,11 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   /**
-   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
-   * merge using a {@link PriorityQueue}.
+   * Iterator through all features of a sorted chunk that peeks at the next item before returning it
+   * to support k-way merge using a {@link PriorityQueue}.
    */
-  private class ChunkIterator implements Closeable, Comparable<ChunkIterator>, Iterator<SortableFeature> {
+  private class ChunkIterator
+      implements Closeable, Comparable<ChunkIterator>, Iterator<SortableFeature> {
 
     private final int count;
     private final DataInputStream input;

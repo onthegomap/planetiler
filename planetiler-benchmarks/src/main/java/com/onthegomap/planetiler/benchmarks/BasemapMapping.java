@@ -17,55 +17,57 @@ import java.util.Random;
 import org.locationtech.jts.geom.Geometry;
 
 /**
- * Performance tests for {@link MultiExpression}.  Times how long a sample of elements from an OSM input file take to
- * match.
+ * Performance tests for {@link MultiExpression}. Times how long a sample of elements from an OSM
+ * input file take to match.
  */
 public class BasemapMapping {
 
   public static void main(String[] args) throws Exception {
-    var profile = new BasemapProfile(Translations.nullProvider(List.of()), PlanetilerConfig.defaults(),
-      Stats.inMemory());
+    var profile =
+        new BasemapProfile(
+            Translations.nullProvider(List.of()), PlanetilerConfig.defaults(), Stats.inMemory());
     var random = new Random(0);
     List<SourceFeature> inputs = new ArrayList<>();
-    var logger = ProgressLoggers.create()
-      .addRateCounter("inputs", inputs::size)
-      .addProcessStats();
+    var logger = ProgressLoggers.create().addRateCounter("inputs", inputs::size).addProcessStats();
     try (var reader = OsmInputFile.readFrom(Path.of("data", "sources", "massachusetts.osm.pbf"))) {
-      reader.forEachBlock(block -> {
-        for (var element : block.decodeElements()) {
-          if (random.nextDouble() < 0.2) {
-            if (inputs.size() % 1_000_000 == 0) {
-              logger.log();
+      reader.forEachBlock(
+          block -> {
+            for (var element : block.decodeElements()) {
+              if (random.nextDouble() < 0.2) {
+                if (inputs.size() % 1_000_000 == 0) {
+                  logger.log();
+                }
+                inputs.add(
+                    new SourceFeature(element.tags(), "", "", null, element.id()) {
+                      @Override
+                      public Geometry latLonGeometry() {
+                        return null;
+                      }
+
+                      @Override
+                      public Geometry worldGeometry() {
+                        return null;
+                      }
+
+                      @Override
+                      public boolean isPoint() {
+                        return element instanceof OsmElement.Node;
+                      }
+
+                      @Override
+                      public boolean canBePolygon() {
+                        return element instanceof OsmElement.Way
+                            || element instanceof OsmElement.Relation;
+                      }
+
+                      @Override
+                      public boolean canBeLine() {
+                        return element instanceof OsmElement.Way;
+                      }
+                    });
+              }
             }
-            inputs.add(new SourceFeature(element.tags(), "", "", null, element.id()) {
-              @Override
-              public Geometry latLonGeometry() {
-                return null;
-              }
-
-              @Override
-              public Geometry worldGeometry() {
-                return null;
-              }
-
-              @Override
-              public boolean isPoint() {
-                return element instanceof OsmElement.Node;
-              }
-
-              @Override
-              public boolean canBePolygon() {
-                return element instanceof OsmElement.Way || element instanceof OsmElement.Relation;
-              }
-
-              @Override
-              public boolean canBeLine() {
-                return element instanceof OsmElement.Way;
-              }
-            });
-          }
-        }
-      });
+          });
     }
 
     logger.log();
@@ -87,8 +89,13 @@ public class BasemapMapping {
       } else {
         logger.log();
         System.err.println(
-          "took:" + Duration.ofNanos(System.nanoTime() - start).toMillis() + "ms found:" + i + " avg:" + (Duration
-            .ofNanos(System.nanoTime() - startStart).toMillis() / count) + "ms");
+            "took:"
+                + Duration.ofNanos(System.nanoTime() - start).toMillis()
+                + "ms found:"
+                + i
+                + " avg:"
+                + (Duration.ofNanos(System.nanoTime() - startStart).toMillis() / count)
+                + "ms");
       }
     }
   }

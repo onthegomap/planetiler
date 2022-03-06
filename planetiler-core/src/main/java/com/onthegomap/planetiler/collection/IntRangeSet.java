@@ -8,8 +8,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A set of ints backed by a {@link TreeRangeSet} to efficiently represent large continuous ranges.
- * <p>
- * This makes iterating through tile coordinates inside ocean polygons significantly faster.
+ *
+ * <p>This makes iterating through tile coordinates inside ocean polygons significantly faster.
  */
 @SuppressWarnings("UnstableApiUsage")
 @NotThreadSafe

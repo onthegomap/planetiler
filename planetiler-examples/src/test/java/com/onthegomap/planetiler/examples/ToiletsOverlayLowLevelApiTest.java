@@ -19,20 +19,19 @@ public class ToiletsOverlayLowLevelApiTest {
   public void integrationTest(@TempDir Path tmpDir) throws IOException {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ToiletsOverlayLowLevelApi.run(
-      // Override input source locations
-      TestUtils.pathToResource("monaco-latest.osm.pbf"),
-      // Override temp dir location
-      tmpDir,
-      // Override output location
-      dbPath
-    );
+        // Override input source locations
+        TestUtils.pathToResource("monaco-latest.osm.pbf"),
+        // Override temp dir location
+        tmpDir,
+        // Override output location
+        dbPath);
     try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
       Map<String, String> metadata = mbtiles.metadata().getAll();
       assertEquals("Toilets Overlay", metadata.get("name"));
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
 
-      TestUtils.assertNumFeatures(mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS,
-        34, Point.class);
+      TestUtils.assertNumFeatures(
+          mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS, 34, Point.class);
     }
   }
 }

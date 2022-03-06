@@ -7,10 +7,10 @@ import java.util.function.LongSupplier;
 
 /**
  * A {@code long} value that can go up and down.
- * <p>
- * Incrementing an {@link AtomicLong} is fast from a single thread, but can be a bottleneck when multiple threads try to
- * increment it at the same time, so this utility provides a {@link MultiThreadCounter} that gives out counters to each
- * thread and adds up the total on read.
+ *
+ * <p>Incrementing an {@link AtomicLong} is fast from a single thread, but can be a bottleneck when
+ * multiple threads try to increment it at the same time, so this utility provides a {@link
+ * MultiThreadCounter} that gives out counters to each thread and adds up the total on read.
  */
 public interface Counter {
 
@@ -32,27 +32,28 @@ public interface Counter {
   }
 
   /**
-   * Returns a counter that is optimized for updates from a single thread, but still thread safe for reads and writes
-   * from multiple threads.
+   * Returns a counter that is optimized for updates from a single thread, but still thread safe for
+   * reads and writes from multiple threads.
    */
   static Readable newSingleThreadCounter() {
     return new SingleThreadCounter();
   }
 
   /**
-   * Returns a counter optimized for updates from multiple threads, and infrequent reads from a different thread.
+   * Returns a counter optimized for updates from multiple threads, and infrequent reads from a
+   * different thread.
    */
   static MultiThreadCounter newMultiThreadCounter() {
     return new MultiThreadCounter();
   }
 
   /**
-   * Counter optimized for updates from a single thread, but still safe for reads and writes from multiple threads.
+   * Counter optimized for updates from a single thread, but still safe for reads and writes from
+   * multiple threads.
    */
   class SingleThreadCounter implements Readable {
 
-    private SingleThreadCounter() {
-    }
+    private SingleThreadCounter() {}
 
     private final AtomicLong counter = new AtomicLong(0);
 
@@ -69,23 +70,25 @@ public interface Counter {
 
   /**
    * Counter optimized for updates from a multiple threads and infrequent reads from other threads.
-   * <p>
-   * Threads should get a counter to update using {@link #counterForThread()} once and update the that instead of
-   * calling {@link #inc()} or {@link #incBy(long)} to avoid the cost of a thread-local lookup.
+   *
+   * <p>Threads should get a counter to update using {@link #counterForThread()} once and update the
+   * that instead of calling {@link #inc()} or {@link #incBy(long)} to avoid the cost of a
+   * thread-local lookup.
    */
   class MultiThreadCounter implements Readable {
 
-    private MultiThreadCounter() {
-    }
+    private MultiThreadCounter() {}
 
     // keep track of all counters that have been handed out to threads so far
     // and on read, add up the counts from each
     private final List<SingleThreadCounter> all = new CopyOnWriteArrayList<>();
-    private final ThreadLocal<SingleThreadCounter> thread = ThreadLocal.withInitial(() -> {
-      SingleThreadCounter counter = new SingleThreadCounter();
-      all.add(counter);
-      return counter;
-    });
+    private final ThreadLocal<SingleThreadCounter> thread =
+        ThreadLocal.withInitial(
+            () -> {
+              SingleThreadCounter counter = new SingleThreadCounter();
+              all.add(counter);
+              return counter;
+            });
 
     /** Don't use this, get a counter from {@link #counterForThread()} once and use that. */
     @Override
@@ -93,7 +96,10 @@ public interface Counter {
       thread.get().incBy(value);
     }
 
-    /** Returns the counter for this thread, so it can be cached to avoid subsequent thread local lookups. */
+    /**
+     * Returns the counter for this thread, so it can be cached to avoid subsequent thread local
+     * lookups.
+     */
     public Counter counterForThread() {
       return thread.get();
     }

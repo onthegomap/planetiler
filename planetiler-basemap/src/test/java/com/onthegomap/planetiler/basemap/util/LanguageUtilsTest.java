@@ -16,39 +16,47 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 public class LanguageUtilsTest {
 
-  private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
-  private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
-    .addTranslationProvider(wikidataTranslations);
+  private final Wikidata.WikidataTranslations wikidataTranslations =
+      new Wikidata.WikidataTranslations();
+  private final Translations translations =
+      Translations.defaultProvider(List.of("en", "es", "de"))
+          .addTranslationProvider(wikidataTranslations);
 
   @Test
   public void testSimpleExample() {
-    assertSubmap(Map.of(
-      "name", "name",
-      "name_en", "english name",
-      "name_de", "german name"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "name:en", "english name",
-      "name:de", "german name"
-    ), translations));
+    assertSubmap(
+        Map.of(
+            "name", "name",
+            "name_en", "english name",
+            "name_de", "german name"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "name:en", "english name",
+                "name:de", "german name"),
+            translations));
 
-    assertSubmap(Map.of(
-      "name", "name",
-      "name_en", "name",
-      "name_de", "german name"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "name:de", "german name"
-    ), translations));
+    assertSubmap(
+        Map.of(
+            "name", "name",
+            "name_en", "name",
+            "name_de", "german name"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "name:de", "german name"),
+            translations));
 
-    assertSubmap(Map.of(
-      "name", "name",
-      "name_en", "english name",
-      "name_de", "name"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "name:en", "english name"
-    ), translations));
+    assertSubmap(
+        Map.of(
+            "name", "name",
+            "name_en", "english name",
+            "name_de", "name"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "name:en", "english name"),
+            translations));
   }
 
   @ParameterizedTest
@@ -71,27 +79,26 @@ public class LanguageUtilsTest {
     if (!isLatin) {
       assertFalse(containsOnlyLatinCharacters(in));
     } else {
-      assertEquals(in, LanguageUtils.getNames(Map.of(
-        "name", in
-      ), translations).get("name:latin"));
+      assertEquals(in, LanguageUtils.getNames(Map.of("name", in), translations).get("name:latin"));
     }
   }
 
   @ParameterizedTest
-  @CsvSource(value = {
-    "abcaāíìś+, null",
-    "abca日āíìś+, 日+",
-    "(abc), null",
-    "日本 (Japan), 日本",
-    "日本 [Japan - Nippon], 日本",
-    "  Japan - Nippon (Japan) - Japan - 日本 - Japan - Nippon (Japan), 日本",
-    "Japan - 日本~+  , 日本~+",
-    "Japan / 日本 / Japan  , 日本",
-  }, nullValues = "null")
+  @CsvSource(
+      value = {
+        "abcaāíìś+, null",
+        "abca日āíìś+, 日+",
+        "(abc), null",
+        "日本 (Japan), 日本",
+        "日本 [Japan - Nippon], 日本",
+        "  Japan - Nippon (Japan) - Japan - 日本 - Japan - Nippon (Japan), 日本",
+        "Japan - 日本~+  , 日本~+",
+        "Japan / 日本 / Japan  , 日本",
+      },
+      nullValues = "null")
   public void testRemoveNonLatin(String in, String out) {
-    assertEquals(out, LanguageUtils.getNames(Map.of(
-      "name", in
-    ), translations).get("name:nonlatin"));
+    assertEquals(
+        out, LanguageUtils.getNames(Map.of("name", in), translations).get("name:nonlatin"));
   }
 
   @ParameterizedTest
@@ -110,9 +117,9 @@ public class LanguageUtilsTest {
     "name:jp_rm, a, true",
   })
   public void testLatinFallbacks(String key, String value, boolean use) {
-    assertEquals(use ? value : null, LanguageUtils.getNames(Map.of(
-      key, value
-    ), translations).get("name:latin"));
+    assertEquals(
+        use ? value : null,
+        LanguageUtils.getNames(Map.of(key, value), translations).get("name:latin"));
   }
 
   @ParameterizedTest
@@ -122,59 +129,60 @@ public class LanguageUtilsTest {
     "биологическом, biologičeskom",
   })
   public void testTransliterate(String in, String out) {
-    assertEquals(out, LanguageUtils.getNames(Map.of(
-      "name", in
-    ), translations).get("name:latin"));
+    assertEquals(out, LanguageUtils.getNames(Map.of("name", in), translations).get("name:latin"));
     translations.setShouldTransliterate(false);
-    assertNull(LanguageUtils.getNames(Map.of(
-      "name", in
-    ), translations).get("name:latin"));
+    assertNull(LanguageUtils.getNames(Map.of("name", in), translations).get("name:latin"));
   }
 
   @Test
   public void testUseWikidata() {
     wikidataTranslations.put(123, "es", "es name");
-    assertSubmap(Map.of(
-      "name:es", "es name"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "wikidata", "Q123"
-    ), translations));
+    assertSubmap(
+        Map.of("name:es", "es name"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "wikidata", "Q123"),
+            translations));
   }
 
   @Test
   public void testUseOsm() {
-    assertSubmap(Map.of(
-      "name:es", "es name osm"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "wikidata", "Q123",
-      "name:es", "es name osm"
-    ), translations));
+    assertSubmap(
+        Map.of("name:es", "es name osm"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "wikidata", "Q123",
+                "name:es", "es name osm"),
+            translations));
   }
 
   @Test
   public void testPreferWikidata() {
     wikidataTranslations.put(123, "es", "wd es name");
-    assertSubmap(Map.of(
-      "name:es", "wd es name",
-      "name:de", "de name osm"
-    ), LanguageUtils.getNames(Map.of(
-      "name", "name",
-      "wikidata", "Q123",
-      "name:es", "es name osm",
-      "name:de", "de name osm"
-    ), translations));
+    assertSubmap(
+        Map.of(
+            "name:es", "wd es name",
+            "name:de", "de name osm"),
+        LanguageUtils.getNames(
+            Map.of(
+                "name", "name",
+                "wikidata", "Q123",
+                "name:es", "es name osm",
+                "name:de", "de name osm"),
+            translations));
   }
 
   @Test
   public void testDontUseTranslationsWhenNotSpecified() {
-    var result = LanguageUtils.getNamesWithoutTranslations(Map.of(
-      "name", "name",
-      "wikidata", "Q123",
-      "name:es", "es name osm",
-      "name:de", "de name osm"
-    ));
+    var result =
+        LanguageUtils.getNamesWithoutTranslations(
+            Map.of(
+                "name", "name",
+                "wikidata", "Q123",
+                "name:es", "es name osm",
+                "name:de", "de name osm"));
     assertNull(result.get("name:es"));
     assertNull(result.get("name:de"));
     assertEquals("name", result.get("name"));
@@ -183,11 +191,12 @@ public class LanguageUtilsTest {
   @Test
   public void testIgnoreLanguages() {
     wikidataTranslations.put(123, "ja", "ja name wd");
-    var result = LanguageUtils.getNamesWithoutTranslations(Map.of(
-      "name", "name",
-      "wikidata", "Q123",
-      "name:ja", "ja name osm"
-    ));
+    var result =
+        LanguageUtils.getNamesWithoutTranslations(
+            Map.of(
+                "name", "name",
+                "wikidata", "Q123",
+                "name:ja", "ja name osm"));
     assertNull(result.get("name:ja"));
   }
 }

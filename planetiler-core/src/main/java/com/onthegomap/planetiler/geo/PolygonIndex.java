@@ -11,8 +11,8 @@ import org.locationtech.jts.index.strtree.STRtree;
 
 /**
  * Index to efficiently query which polygons contain a point.
- * <p>
- * Writes and reads are thread-safe, but all writes must occur before reads.
+ *
+ * <p>Writes and reads are thread-safe, but all writes must occur before reads.
  *
  * @param <T> the type of value associated with each polygon
  */
@@ -23,8 +23,7 @@ public class PolygonIndex<T> {
 
   private final STRtree index = new STRtree();
 
-  private PolygonIndex() {
-  }
+  private PolygonIndex() {}
 
   public static <T> PolygonIndex<T> create() {
     return new PolygonIndex<>();
@@ -62,7 +61,8 @@ public class PolygonIndex<T> {
     List<T> result = new ArrayList<>(items.size());
     for (Object item : items) {
       if (item instanceof GeomWithData<?> value && value.poly.contains(point)) {
-        @SuppressWarnings("unchecked") T t = (T) value.data;
+        @SuppressWarnings("unchecked")
+        T t = (T) value.data;
         result.add(t);
       }
     }
@@ -70,8 +70,8 @@ public class PolygonIndex<T> {
   }
 
   /**
-   * Returns the data associated with either the polygons that contain {@code point} or if none are found than the
-   * nearest polygon to {@code point} with an envelope that contains point.
+   * Returns the data associated with either the polygons that contain {@code point} or if none are
+   * found than the nearest polygon to {@code point} with an envelope that contains point.
    */
   public List<T> getContainingOrNearest(Point point) {
     build();
@@ -79,7 +79,8 @@ public class PolygonIndex<T> {
     // optimization: if there's only one then skip checking contains/distance
     if (items.size() == 1) {
       if (items.get(0) instanceof GeomWithData<?> value) {
-        @SuppressWarnings("unchecked") T t = (T) value.data;
+        @SuppressWarnings("unchecked")
+        T t = (T) value.data;
         return List.of(t);
       }
     }
@@ -93,7 +94,8 @@ public class PolygonIndex<T> {
         if (item instanceof GeomWithData<?> value) {
           double distance = value.poly.distance(point);
           if (distance < nearest) {
-            @SuppressWarnings("unchecked") T t = (T) value.data;
+            @SuppressWarnings("unchecked")
+            T t = (T) value.data;
             nearestValue = t;
             nearest = distance;
           }
@@ -106,7 +108,10 @@ public class PolygonIndex<T> {
     return result;
   }
 
-  /** Returns the data associated with a polygon that contains {@code point} or nearest polygon if none are found. */
+  /**
+   * Returns the data associated with a polygon that contains {@code point} or nearest polygon if
+   * none are found.
+   */
   public T get(Point point) {
     List<T> nearests = getContainingOrNearest(point);
     return nearests.isEmpty() ? null : nearests.get(0);
