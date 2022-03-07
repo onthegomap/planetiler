@@ -50,7 +50,7 @@ will make things a lot easier though.
 - Install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
 - `File -> Open` and navigate to Planetiler
   - If VSCode asks (and you trust the code) then click `Yes I trust the authors`
--
+- To verify everything works correctly, go to the `Testing` tab and click `Run Tests` button.
 
 Learn more about using VSCode with Java [here](https://code.visualstudio.com/docs/languages/java).
 
