@@ -424,4 +424,3 @@ public class Place implements
    */
   private record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
 }
-

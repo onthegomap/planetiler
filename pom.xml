@@ -143,6 +143,7 @@
         <version>2.21.0</version>
         <configuration>
           <java>
+            <importOrder/>
             <eclipse>
               <version>4.21.0</version>
               <!--suppress UnresolvedMavenProperty -->

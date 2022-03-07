@@ -225,4 +225,3 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     }
   }
 }
-
