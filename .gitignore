@@ -5,11 +5,17 @@ target/
 !.mvn/wrapper/*.jar
 *.log
 
+# idea
 */.idea
 .idea/*
 *.iml
 !.idea/codeStyles
 !.idea/vcs.xml
+
+# eclipse
+.classpath
+.project
+.settings
 
 TODO
 
