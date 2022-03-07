@@ -80,8 +80,9 @@ import org.slf4j.LoggerFactory;
  * Defines the logic for generating map elements for roads, shipways, railroads, and paths in the {@code transportation}
  * layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation">OpenMapTiles
- * transportation sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation">OpenMapTiles transportation
+ * sql files</a>.
  */
 public class Transportation implements
   OpenMapTilesSchema.Transportation,
@@ -214,7 +215,7 @@ public class Transportation implements
   private static String railwayClass(String value) {
     return value == null ? null :
       RAILWAY_RAIL_VALUES.contains(value) ? "rail" :
-        RAILWAY_TRANSIT_VALUES.contains(value) ? "transit" : null;
+      RAILWAY_TRANSIT_VALUES.contains(value) ? "transit" : null;
   }
 
   static String highwayClass(String highway, String publicTransport, String construction, String manMade) {
@@ -320,8 +321,8 @@ public class Transportation implements
             Geometry wayGeometry = element.source().worldGeometry();
             if (greatBritain.intersects(wayGeometry)) {
               Transportation.RouteNetwork networkType =
-                "motorway".equals(element.highway()) ? Transportation.RouteNetwork.GB_MOTORWAY
-                  : Transportation.RouteNetwork.GB_TRUNK;
+                "motorway".equals(element.highway()) ? Transportation.RouteNetwork.GB_MOTORWAY :
+                  Transportation.RouteNetwork.GB_TRUNK;
               String network = "motorway".equals(element.highway()) ? "omt-gb-motorway" : "omt-gb-trunk";
               result.add(new RouteRelation(refMatcher.group(), network, networkType, (byte) -1,
                 0));
@@ -434,7 +435,7 @@ public class Transportation implements
   private boolean isPierPolygon(Tables.OsmHighwayLinestring element) {
     if ("pier".equals(element.manMade())) {
       try {
-        if (element.source().worldGeometry() instanceof LineString lineString && lineString.isClosed()) {
+        if (element.source().worldGeometry()instanceof LineString lineString && lineString.isClosed()) {
           // ignore this because it's a polygon
           return true;
         }

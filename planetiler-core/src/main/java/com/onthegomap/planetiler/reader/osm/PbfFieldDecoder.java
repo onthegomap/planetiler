@@ -11,7 +11,7 @@ import org.openstreetmap.osmosis.osmbinary.Osmformat;
  * This class is copied from Osmosis.
  *
  * @author Brett Henderson
- * <p>
+ *         <p>
  */
 public class PbfFieldDecoder {
 

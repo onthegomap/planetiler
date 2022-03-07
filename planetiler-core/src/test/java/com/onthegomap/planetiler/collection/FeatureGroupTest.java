@@ -279,9 +279,8 @@ public class FeatureGroupTest {
     int tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
     assertTrue(
-      FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA)
-        <
-        FeatureGroup.encodeKey(tileB, layerB, sortKeyB, hasGroupB)
+      FeatureGroup.encodeKey(tileA, layerA, sortKeyA, hasGroupA) < FeatureGroup.encodeKey(tileB, layerB, sortKeyB,
+        hasGroupB)
     );
   }
 

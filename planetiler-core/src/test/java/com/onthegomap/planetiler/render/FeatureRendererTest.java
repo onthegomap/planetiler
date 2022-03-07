@@ -337,7 +337,7 @@ public class FeatureRendererTest {
       TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         newLineString(64, 64, 256 - 8, 256 - 8)
       )
-      // only a single point in neighboring tile, exclude
+    // only a single point in neighboring tile, exclude
     ), renderGeometry(feature));
   }
 
@@ -1187,9 +1187,9 @@ public class FeatureRendererTest {
     var innerTile = rendered.get(TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14));
     assertEquals(1, innerTile.size());
     assertEquals(new TestUtils.NormGeometry(newPolygon(
-        rectangleCoordList(-1, 256 + 1),
-        List.of(rectangleCoordList(10, 246))
-      )),
+      rectangleCoordList(-1, 256 + 1),
+      List.of(rectangleCoordList(10, 246))
+    )),
       new TestUtils.NormGeometry(innerTile.iterator().next()));
   }
 

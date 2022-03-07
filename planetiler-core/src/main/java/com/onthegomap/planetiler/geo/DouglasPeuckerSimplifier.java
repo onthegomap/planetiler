@@ -22,7 +22,8 @@ import org.locationtech.jts.geom.util.GeometryTransformer;
  * A utility to simplify geometries using Douglas Peucker simplification algorithm without any attempt to repair
  * geometries that become invalid due to simplification.
  * <p>
- * This class is adapted from <a href="https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java">org.locationtech.jts.simplify.DouglasPeuckerSimplifier</a>
+ * This class is adapted from <a href=
+ * "https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.java">org.locationtech.jts.simplify.DouglasPeuckerSimplifier</a>
  * with modifications to avoid collapsing small polygons since the subsequent area filter will remove them more
  * accurately and performance improvement to put the results in a {@link MutableCoordinateSequence} which uses a
  * primitive double array instead of allocating lots of {@link Coordinate} objects.

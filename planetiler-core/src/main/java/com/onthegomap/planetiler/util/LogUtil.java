@@ -8,8 +8,7 @@ import org.slf4j.MDC;
  */
 public class LogUtil {
 
-  private LogUtil() {
-  }
+  private LogUtil() {}
 
   private static final String STAGE_KEY = "stage";
 

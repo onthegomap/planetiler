@@ -99,8 +99,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   static LongLongMap noop() {
     return new LongLongMap() {
       @Override
-      public void put(long key, long value) {
-      }
+      public void put(long key, long value) {}
 
       @Override
       public long get(long key) {
@@ -113,8 +112,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       }
 
       @Override
-      public void close() {
-      }
+      public void close() {}
     };
   }
 

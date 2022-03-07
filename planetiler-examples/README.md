@@ -177,3 +177,4 @@ Check out:
   - set MBTiles metadata attributes
   - get notified when a source finishes processing
   - and post-process vector-tile features (i.e. merge touching linestrings or polygons)
+

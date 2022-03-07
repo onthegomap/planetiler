@@ -86,8 +86,9 @@ import org.slf4j.LoggerFactory;
  * Defines the logic for generating map elements for country, state, and town boundaries in the {@code boundary} layer
  * from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/boundary">OpenMapTiles
- * boundary sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/boundary">OpenMapTiles boundary sql
+ * files</a>.
  */
 public class Boundary implements
   OpenMapTilesSchema.Boundary,
@@ -164,13 +165,13 @@ public class Boundary implements
     BoundaryInfo info = switch (table) {
       case "ne_110m_admin_0_boundary_lines_land" -> new BoundaryInfo(2, 0, 0);
       case "ne_50m_admin_0_boundary_lines_land" -> new BoundaryInfo(2, 1, 3);
-      case "ne_10m_admin_0_boundary_lines_land" -> feature.hasTag("featurecla", "Lease Limit") ? null
-        : new BoundaryInfo(2, 4, 4);
+      case "ne_10m_admin_0_boundary_lines_land" -> feature.hasTag("featurecla", "Lease Limit") ? null :
+        new BoundaryInfo(2, 4, 4);
       case "ne_10m_admin_1_states_provinces_lines" -> {
         Double minZoom = Parse.parseDoubleOrNull(feature.getTag("min_zoom"));
         yield minZoom != null && minZoom <= 7 ? new BoundaryInfo(4, 1, 4) :
           minZoom != null && minZoom <= 7.7 ? new BoundaryInfo(4, 4, 4) :
-            null;
+          null;
       }
       default -> null;
     };
@@ -250,8 +251,8 @@ public class Boundary implements
         int minzoom =
           (maritime && minAdminLevel == 2) ? 4 :
             minAdminLevel <= 4 ? 5 :
-              minAdminLevel <= 6 ? 9 :
-                minAdminLevel <= 8 ? 11 : 12;
+            minAdminLevel <= 6 ? 9 :
+            minAdminLevel <= 8 ? 11 : 12;
         if (addCountryNames && !regionIds.isEmpty()) {
           // save for later
           try {
@@ -398,8 +399,7 @@ public class Boundary implements
       try {
         Geometry combined = polygonizer.getGeometry().union();
         if (combined.isEmpty()) {
-          LOGGER.warn("Unable to form closed polygon for OSM relation " + regionId
-            + " (likely missing edges)");
+          LOGGER.warn("Unable to form closed polygon for OSM relation " + regionId + " (likely missing edges)");
         } else {
           countryBoundaries.put(regionId, PreparedGeometryFactory.prepare(combined));
         }
@@ -429,8 +429,7 @@ public class Boundary implements
   }
 
   /**
-   * Minimal set of information extracted from a boundary relation to be used when processing each way in that
-   * relation.
+   * Minimal set of information extracted from a boundary relation to be used when processing each way in that relation.
    */
   private record BoundaryRelation(
     long id,
@@ -443,17 +442,15 @@ public class Boundary implements
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return CLASS_HEADER_BYTES
-        + MemoryEstimator.estimateSizeLong(id)
-        + MemoryEstimator.estimateSizeInt(adminLevel)
-        + estimateSize(disputed)
-        + POINTER_BYTES + estimateSize(name)
-        + POINTER_BYTES + estimateSize(claimedBy)
-        + POINTER_BYTES + estimateSize(iso3166alpha3);
+      return CLASS_HEADER_BYTES + MemoryEstimator.estimateSizeLong(id) + MemoryEstimator.estimateSizeInt(adminLevel) +
+        estimateSize(disputed) + POINTER_BYTES + estimateSize(name) + POINTER_BYTES + estimateSize(claimedBy) +
+        POINTER_BYTES + estimateSize(iso3166alpha3);
     }
   }
 
-  /** Information to hold onto from processing a way in a boundary relation to determine the left/right region ID later. */
+  /**
+   * Information to hold onto from processing a way in a boundary relation to determine the left/right region ID later.
+   */
   private record CountryBoundaryComponent(
     int adminLevel,
     boolean disputed,

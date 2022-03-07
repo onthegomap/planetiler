@@ -55,8 +55,8 @@ import java.util.Set;
  * Defines the logic for generating map elements for man-made land use polygons like cemeteries, zoos, and hospitals in
  * the {@code landuse} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse">OpenMapTiles
- * landuse sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landuse">OpenMapTiles landuse sql files</a>.
  */
 public class Landuse implements
   OpenMapTilesSchema.Landuse,
@@ -75,8 +75,7 @@ public class Landuse implements
     FieldValues.CLASS_NEIGHBOURHOOD
   );
 
-  public Landuse(Translations translations, PlanetilerConfig config, Stats stats) {
-  }
+  public Landuse(Translations translations, PlanetilerConfig config, Stats stats) {}
 
   @Override
   public void processNaturalEarth(String table, SourceFeature feature, FeatureCollector features) {

@@ -48,7 +48,8 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import vector_tile.VectorTileProto;
 
 /**
- * This class is copied from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
+ * This class is copied from
+ * https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
  * and modified based on the changes in VectorTileEncoder, and adapted to junit 5.
  */
 public class VectorTileTest {
@@ -366,59 +367,58 @@ public class VectorTileTest {
     var scaleUp = AffineTransformation.scaleInstance(256d / 4096, 256d / 4096);
     var scaleDown = scaleUp.getInverse();
     return Stream.of(
-        newPoint(0, 0),
-        newPoint(0.25, -0.25),
+      newPoint(0, 0),
+      newPoint(0.25, -0.25),
+      newPoint(1.25, 1.25),
+      newPoint(1.5, 1.5),
+      newMultiPoint(
         newPoint(1.25, 1.25),
-        newPoint(1.5, 1.5),
-        newMultiPoint(
-          newPoint(1.25, 1.25),
-          newPoint(1.5, 1.5)
-        ),
-        newLineString(0, 0, 1.2, 1.2),
+        newPoint(1.5, 1.5)
+      ),
+      newLineString(0, 0, 1.2, 1.2),
+      newLineString(0, 0, 0.1, 0.1),
+      newLineString(0, 0, 1, 1, 1.2, 1.2, 2, 2),
+      newLineString(8000, 8000, 8000, 8001, 8001, 8001),
+      newLineString(-4000, -4000, -4000, -4001, -4001, -4001),
+      newMultiLineString(
+        newLineString(0, 0, 1, 1),
+        newLineString(1.1, 1.1, 2, 2)
+      ),
+      newMultiLineString(
         newLineString(0, 0, 0.1, 0.1),
-        newLineString(0, 0, 1, 1, 1.2, 1.2, 2, 2),
-        newLineString(8000, 8000, 8000, 8001, 8001, 8001),
-        newLineString(-4000, -4000, -4000, -4001, -4001, -4001),
-        newMultiLineString(
-          newLineString(0, 0, 1, 1),
-          newLineString(1.1, 1.1, 2, 2)
-        ),
-        newMultiLineString(
-          newLineString(0, 0, 0.1, 0.1),
-          newLineString(1.1, 1.1, 2, 2)
-        ),
-        newMultiLineString(
-          newLineString(-10, -10, -9, -9),
-          newLineString(0, 0, 0.1, 0.1),
-          newLineString(1.1, 1.1, 2, 2)
-        ),
+        newLineString(1.1, 1.1, 2, 2)
+      ),
+      newMultiLineString(
+        newLineString(-10, -10, -9, -9),
+        newLineString(0, 0, 0.1, 0.1),
+        newLineString(1.1, 1.1, 2, 2)
+      ),
+      newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
+      newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0.1, 0, 0),
+      newPolygon(0, 0, 1, 0, 1, 0.1, 1, 1, 0, 1, 0, 0),
+      newMultiPolygon(
         newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
-        newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0.1, 0, 0),
-        newPolygon(0, 0, 1, 0, 1, 0.1, 1, 1, 0, 1, 0, 0),
-        newMultiPolygon(
-          newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0),
-          newPolygon(0, 0, -1, 0, -1, -1, 0, -1, 0, 0)
-        ),
-        newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0.1, 0, 0)
-      ).map(scaleUp::transform)
-      .flatMap(geometry -> scales.stream().flatMap(scale ->
-        Stream.of(
-          dynamicTest(scaleDown.transform(geometry) + " scale: " + scale, () -> {
-            PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
-            assertSameGeometry(
-              GeometryPrecisionReducer.reduce(geometry, pm),
-              VectorTile.encodeGeometry(geometry, scale).decode()
-            );
-          }),
-          dynamicTest(scaleDown.transform(geometry) + " unscale: " + scale, () -> {
-            PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
-            PrecisionModel pm0 = new PrecisionModel(4096d / 256);
-            assertSameGeometry(
-              GeometryPrecisionReducer.reduce(GeometryPrecisionReducer.reduce(geometry, pm), pm0),
-              VectorTile.encodeGeometry(geometry, scale).unscale().decode()
-            );
-          })
-        )
+        newPolygon(0, 0, -1, 0, -1, -1, 0, -1, 0, 0)
+      ),
+      newPolygon(0, 0, 1, 0, 1, 1, 0, 1, 0, 0.1, 0, 0)
+    ).map(scaleUp::transform)
+      .flatMap(geometry -> scales.stream().flatMap(scale -> Stream.of(
+        dynamicTest(scaleDown.transform(geometry) + " scale: " + scale, () -> {
+          PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
+          assertSameGeometry(
+            GeometryPrecisionReducer.reduce(geometry, pm),
+            VectorTile.encodeGeometry(geometry, scale).decode()
+          );
+        }),
+        dynamicTest(scaleDown.transform(geometry) + " unscale: " + scale, () -> {
+          PrecisionModel pm = new PrecisionModel((4096 << scale) / 256d);
+          PrecisionModel pm0 = new PrecisionModel(4096d / 256);
+          assertSameGeometry(
+            GeometryPrecisionReducer.reduce(GeometryPrecisionReducer.reduce(geometry, pm), pm0),
+            VectorTile.encodeGeometry(geometry, scale).unscale().decode()
+          );
+        })
+      )
       ));
   }
 

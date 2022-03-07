@@ -76,8 +76,8 @@ import org.locationtech.jts.geom.Point;
  * Defines the logic for generating label points for populated places like continents, countries, cities, and towns in
  * the {@code place} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/place">OpenMapTiles
- * place sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/place">OpenMapTiles place sql files</a>.
  */
 public class Place implements
   OpenMapTilesSchema.Place,
@@ -142,11 +142,11 @@ public class Place implements
       // ORDER BY "rank" ASC NULLS LAST,
       .orderByInt(rank == null ? 15 : rank, 0, 15) // 4 bits
       // place ASC NULLS LAST,
-      .thenByInt(place == null ? 15 : place.ordinal(), 0, 15)  // 4 bits
+      .thenByInt(place == null ? 15 : place.ordinal(), 0, 15) // 4 bits
       // population DESC NULLS LAST,
       .thenByLog(population, MAX_CITY_POPULATION, 1, 1 << (SORT_KEY_BITS - 13) - 1)
       // length(name) ASC
-      .thenByInt(name == null ? 0 : name.length(), 0, 31)  // 5 bits
+      .thenByInt(name == null ? 0 : name.length(), 0, 31) // 5 bits
       .get();
   }
 
@@ -340,9 +340,9 @@ public class Place implements
 
     int minzoom = rank != null && rank == 1 ? 2 :
       rank != null && rank <= 8 ? Math.max(3, rank - 1) :
-        placeType.ordinal() <= PlaceType.TOWN.ordinal() ? 7 :
-          placeType.ordinal() <= PlaceType.VILLAGE.ordinal() ? 8 :
-            placeType.ordinal() <= PlaceType.SUBURB.ordinal() ? 11 : 14;
+      placeType.ordinal() <= PlaceType.TOWN.ordinal() ? 7 :
+      placeType.ordinal() <= PlaceType.VILLAGE.ordinal() ? 8 :
+      placeType.ordinal() <= PlaceType.SUBURB.ordinal() ? 11 : 14;
 
     var feature = features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
       .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
@@ -420,8 +420,7 @@ public class Place implements
   }
 
   /**
-   * Information extracted from a natural earth place label that will be inspected when joining with OpenStreetMap
-   * data.
+   * Information extracted from a natural earth place label that will be inspected when joining with OpenStreetMap data.
    */
   private record NaturalEarthPoint(String name, String wikidata, int scaleRank, Set<String> names) {}
 }

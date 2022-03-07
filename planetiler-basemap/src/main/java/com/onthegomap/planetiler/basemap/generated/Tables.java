@@ -54,7 +54,7 @@ import java.util.Map;
  * schema</a>.
  * <p>
  * These filter and parse the raw OSM key/value attribute pairs on tags into records with fields that match the columns
- * in the tables that imposm3 would generate.  Layer implementations can "subscribe" to elements from each "table" but
+ * in the tables that imposm3 would generate. Layer implementations can "subscribe" to elements from each "table" but
  * implementing the table's {@code Handler} interface and use the element's typed API to access attributes.
  */
 @SuppressWarnings("unused")
@@ -89,7 +89,7 @@ public class Tables {
   }
 
   /** The {@code handlerClass} of a layer handler and it's {@code process} method coerced to a {@link RowHandler}. */
-  public record RowHandlerAndClass<T extends Row>(
+  public record RowHandlerAndClass<T extends Row> (
     Class<?> handlerClass,
     RowHandler<T> handler
   ) {}
@@ -113,11 +113,12 @@ public class Tables {
     public static final Expression MAPPING = and(
       or(matchAny("landuse", "reservoir", "basin", "salt_pond"), matchAny("leisure", "swimming_pool"),
         matchAny("natural", "water", "bay", "spring"), matchAny("waterway", "riverbank", "dock"),
-        matchAny("water", "river")), not(matchAny("covered", "yes")), matchType("polygon"));
+        matchAny("water", "river")),
+      not(matchAny("covered", "yes")), matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmWaterPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmWaterPolygon}.
      */
     public interface Handler {
 
@@ -144,8 +145,8 @@ public class Tables {
       matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmWaterwayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmWaterwayLinestring}.
      */
     public interface Handler {
 
@@ -167,13 +168,15 @@ public class Tables {
       matchAny("landuse", "allotments", "farm", "farmland", "orchard", "plant_nursery", "vineyard", "grass",
         "grassland", "meadow", "forest", "village_green", "recreation_ground"),
       matchAny("natural", "wood", "wetland", "fell", "grassland", "heath", "scrub", "tundra", "glacier", "bare_rock",
-        "scree", "beach", "sand", "dune"), matchAny("leisure", "park", "garden", "golf_course"),
+        "scree", "beach", "sand", "dune"),
+      matchAny("leisure", "park", "garden", "golf_course"),
       matchAny("wetland", "bog", "swamp", "wet_meadow", "marsh", "reedbed", "saltern", "tidalflat", "saltmarsh",
-        "mangrove")), matchType("polygon"));
+        "mangrove")),
+      matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmLandcoverPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmLandcoverPolygon}.
      */
     public interface Handler {
 
@@ -197,13 +200,14 @@ public class Tables {
       matchAny("landuse", "railway", "cemetery", "military", "residential", "commercial", "industrial", "garages",
         "retail"),
       matchAny("amenity", "bus_station", "school", "university", "kindergarten", "college", "library", "hospital",
-        "grave_yard"), matchAny("leisure", "stadium", "pitch", "playground", "track"),
+        "grave_yard"),
+      matchAny("leisure", "stadium", "pitch", "playground", "track"),
       matchAny("tourism", "theme_park", "zoo"), matchAny("place", "suburb", "quarter", "neighbourhood"),
       matchAny("waterway", "dam")), matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmLandusePolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmLandusePolygon}.
      */
     public interface Handler {
 
@@ -226,8 +230,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("natural", "peak", "volcano", "saddle"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmPeakPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmPeakPoint}.
      */
     public interface Handler {
 
@@ -251,8 +255,8 @@ public class Tables {
       matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmMountainLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmMountainLinestring}.
      */
     public interface Handler {
 
@@ -280,8 +284,8 @@ public class Tables {
       matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmParkPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmParkPolygon}.
      */
     public interface Handler {
 
@@ -305,8 +309,8 @@ public class Tables {
       matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmAerowayPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmAerowayPolygon}.
      */
     public interface Handler {
 
@@ -327,8 +331,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("aeroway", "runway", "taxiway"), matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmAerowayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmAerowayLinestring}.
      */
     public interface Handler {
 
@@ -349,8 +353,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("aeroway", "gate"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmAerowayPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmAerowayPoint}.
      */
     public interface Handler {
 
@@ -390,12 +394,13 @@ public class Tables {
       matchAny("highway", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
         "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "road",
         "pedestrian", "path", "footway", "cycleway", "steps", "bridleway", "corridor", "service", "track", "raceway",
-        "busway", "construction"), matchAny("public_transport", "platform"), matchAny("man_made", "pier"),
+        "busway", "construction"),
+      matchAny("public_transport", "platform"), matchAny("man_made", "pier"),
       matchAny("service", "driveway", "parking_aisle")), matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmHighwayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmHighwayLinestring}.
      */
     public interface Handler {
 
@@ -429,8 +434,8 @@ public class Tables {
       matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmRailwayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmRailwayLinestring}.
      */
     public interface Handler {
 
@@ -460,8 +465,8 @@ public class Tables {
       matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmAerialwayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmAerialwayLinestring}.
      */
     public interface Handler {
 
@@ -490,8 +495,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("route", "ferry"), matchType("linestring"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmShipwayLinestring}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmShipwayLinestring}.
      */
     public interface Handler {
 
@@ -516,11 +521,12 @@ public class Tables {
     /** Imposm3 "mapping" to filter OSM elements that should appear in this "table". */
     public static final Expression MAPPING = and(
       or(matchAny("highway", "path", "cycleway", "bridleway", "footway", "corridor", "pedestrian", "steps"),
-        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")), matchType("polygon"));
+        matchAny("public_transport", "platform"), matchAny("man_made", "bridge", "pier")),
+      matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmHighwayPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmHighwayPolygon}.
      */
     public interface Handler {
 
@@ -545,8 +551,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("highway", "motorway_junction"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmHighwayPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmHighwayPoint}.
      */
     public interface Handler {
 
@@ -573,13 +579,14 @@ public class Tables {
     /** Imposm3 "mapping" to filter OSM elements that should appear in this "table". */
     public static final Expression MAPPING = and(
       or(matchField("building:part"), matchField("building"), matchAny("aeroway", "terminal", "hangar"),
-        matchAny("location", "underground")), not(matchAny("building", "no", "none", "No")),
+        matchAny("location", "underground")),
+      not(matchAny("building", "no", "none", "No")),
       not(matchAny("building:part", "no", "none", "No")), not(matchAny("man_made", "bridge")),
       not(matchAny("location", "underground")), matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmBuildingPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmBuildingPolygon}.
      */
     public interface Handler {
 
@@ -603,8 +610,8 @@ public class Tables {
       matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmMarinePoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmMarinePoint}.
      */
     public interface Handler {
 
@@ -626,8 +633,8 @@ public class Tables {
       matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmContinentPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmContinentPoint}.
      */
     public interface Handler {
 
@@ -653,8 +660,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("place", "country"), matchField("name"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmCountryPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmCountryPoint}.
      */
     public interface Handler {
 
@@ -677,8 +684,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmIslandPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmIslandPolygon}.
      */
     public interface Handler {
 
@@ -701,8 +708,8 @@ public class Tables {
     public static final Expression MAPPING = and(matchAny("place", "island"), matchField("name"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmIslandPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmIslandPoint}.
      */
     public interface Handler {
 
@@ -729,8 +736,8 @@ public class Tables {
       matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmStatePoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmStatePoint}.
      */
     public interface Handler {
 
@@ -756,8 +763,8 @@ public class Tables {
       matchField("name"), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmCityPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmCityPoint}.
      */
     public interface Handler {
 
@@ -778,8 +785,8 @@ public class Tables {
       and(matchField("addr:housenumber"), matchType("polygon")));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmHousenumberPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmHousenumberPoint}.
      */
     public interface Handler {
 
@@ -814,12 +821,14 @@ public class Tables {
         "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone",
         "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"),
       matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile",
-        "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
+        "toll_booth"),
+      matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
       matchAny("historic", "monument", "castle", "ruins"),
       matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"),
       matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina",
         "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool",
-        "water_park"), matchAny("office", "diplomatic"),
+        "water_park"),
+      matchAny("office", "diplomatic"),
       matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"),
       matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages",
         "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity",
@@ -843,11 +852,12 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("point"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"),
+      matchAny("waterway", "dock")), matchType("point"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmPoiPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmPoiPoint}.
      */
     public interface Handler {
 
@@ -882,12 +892,14 @@ public class Tables {
         "public_building", "recycling", "restaurant", "school", "shelter", "swimming_pool", "taxi", "telephone",
         "theatre", "toilets", "townhall", "university", "veterinary", "waste_basket"),
       matchAny("barrier", "bollard", "border_control", "cycle_barrier", "gate", "lift_gate", "sally_port", "stile",
-        "toll_booth"), matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
+        "toll_booth"),
+      matchAny("building", "dormitory"), matchAny("highway", "bus_stop"),
       matchAny("historic", "monument", "castle", "ruins"),
       matchAny("landuse", "basin", "brownfield", "cemetery", "reservoir", "winter_sports"),
       matchAny("leisure", "dog_park", "escape_game", "garden", "golf_course", "ice_rink", "hackerspace", "marina",
         "miniature_golf", "park", "pitch", "playground", "sports_centre", "stadium", "swimming_area", "swimming_pool",
-        "water_park"), matchAny("office", "diplomatic"),
+        "water_park"),
+      matchAny("office", "diplomatic"),
       matchAny("railway", "halt", "station", "subway_entrance", "train_station_entrance", "tram_stop"),
       matchAny("shop", "accessories", "alcohol", "antiques", "art", "bag", "bakery", "beauty", "bed", "beverages",
         "bicycle", "books", "boutique", "butcher", "camera", "car", "car_repair", "car_parts", "carpet", "charity",
@@ -911,11 +923,12 @@ public class Tables {
         "toboggan", "volleyball", "water_ski", "yoga"),
       matchAny("tourism", "alpine_hut", "aquarium", "artwork", "attraction", "bed_and_breakfast", "camp_site",
         "caravan_site", "chalet", "gallery", "guest_house", "hostel", "hotel", "information", "motel", "museum",
-        "picnic_site", "theme_park", "viewpoint", "zoo"), matchAny("waterway", "dock")), matchType("polygon"));
+        "picnic_site", "theme_park", "viewpoint", "zoo"),
+      matchAny("waterway", "dock")), matchType("polygon"));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmPoiPolygon}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmPoiPolygon}.
      */
     public interface Handler {
 
@@ -942,8 +955,8 @@ public class Tables {
       and(matchAny("aeroway", "aerodrome"), matchType("polygon")));
 
     /**
-     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as {@link
-     * OsmAerodromeLabelPoint}.
+     * Interface for layer implementations to extend to subscribe to OSM elements filtered and parsed as
+     * {@link OsmAerodromeLabelPoint}.
      */
     public interface Handler {
 

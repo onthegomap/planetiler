@@ -97,10 +97,10 @@ public class Arguments {
    * <p>
    * Priority order:
    * <ol>
-   *   <li>command-line arguments: {@code java ... key=value}</li>
-   *   <li>jvm properties: {@code java -Dplanetiler.key=value ...}</li>
-   *   <li>environmental variables: {@code PLANETILER_KEY=value java ...}</li>
-   *   <li>in a config file from "config" argument from any of the above</li>
+   * <li>command-line arguments: {@code java ... key=value}</li>
+   * <li>jvm properties: {@code java -Dplanetiler.key=value ...}</li>
+   * <li>environmental variables: {@code PLANETILER_KEY=value java ...}</li>
+   * <li>in a config file from "config" argument from any of the above</li>
    * </ol>
    *
    * @param args command-line args provide to main entrypoint method
@@ -253,8 +253,8 @@ public class Arguments {
   /**
    * Returns a {@link Stats} implementation based on the arguments provided.
    * <p>
-   * If {@code pushgateway} is set then it uses a stats implementation that pushes to prometheus through a <a
-   * href="https://github.com/prometheus/pushgateway">push gateway</a> every {@code pushgateway.interval} seconds.
+   * If {@code pushgateway} is set then it uses a stats implementation that pushes to prometheus through a
+   * <a href="https://github.com/prometheus/pushgateway">push gateway</a> every {@code pushgateway.interval} seconds.
    * Otherwise, uses an in-memory stats implementation.
    */
   public Stats getStats() {

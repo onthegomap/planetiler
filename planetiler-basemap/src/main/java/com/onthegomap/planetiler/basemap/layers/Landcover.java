@@ -57,8 +57,9 @@ import java.util.Set;
  * Defines the logic for generating map elements for natural land cover polygons like ice, sand, and forest in the
  * {@code landcover} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover">OpenMapTiles
- * landcover sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/landcover">OpenMapTiles landcover sql
+ * files</a>.
  */
 public class Landcover implements
   OpenMapTilesSchema.Landcover,

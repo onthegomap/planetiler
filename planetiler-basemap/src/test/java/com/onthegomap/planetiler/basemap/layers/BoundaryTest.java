@@ -414,60 +414,60 @@ public class BoundaryTest extends AbstractLayerTest {
 
     // shared edge
     assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
-        newLineString(0, 0, 0, 10),
-        Map.of(),
-        OSM_SOURCE,
-        null,
-        3,
-        Stream.concat(
-          profile.preprocessOsmRelation(country1).stream(),
-          profile.preprocessOsmRelation(country2).stream()
-        ).map(r -> new OsmReader.RelationMember<>("", r)).toList()
-      )
+      newLineString(0, 0, 0, 10),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      3,
+      Stream.concat(
+        profile.preprocessOsmRelation(country1).stream(),
+        profile.preprocessOsmRelation(country2).stream()
+      ).map(r -> new OsmReader.RelationMember<>("", r)).toList()
+    )
     ));
 
     // other 2 edges of country 1
     assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
-        newLineString(0, 0, 5, 10),
-        Map.of(),
-        OSM_SOURCE,
-        null,
-        4,
-        profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
-          .toList()
-      )
+      newLineString(0, 0, 5, 10),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      4,
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
+        .toList()
+    )
     ));
     assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
-        newLineString(0, 10, 5, 10),
-        Map.of(),
-        OSM_SOURCE,
-        null,
-        4,
-        profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
-          .toList()
-      )
+      newLineString(0, 10, 5, 10),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      4,
+      profile.preprocessOsmRelation(country1).stream().map(r -> new OsmReader.RelationMember<>("", r))
+        .toList()
+    )
     ));
 
     // other 2 edges of country 2
     assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
-        newLineString(0, 0, -5, 10),
-        Map.of(),
-        OSM_SOURCE,
-        null,
-        4,
-        profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
-          .toList()
-      )
+      newLineString(0, 0, -5, 10),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      4,
+      profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
+        .toList()
+    )
     ));
     assertFeatures(14, List.of(), process(SimpleFeature.createFakeOsmFeature(
-        newLineString(0, 10, -5, 10),
-        Map.of(),
-        OSM_SOURCE,
-        null,
-        4,
-        profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
-          .toList()
-      )
+      newLineString(0, 10, -5, 10),
+      Map.of(),
+      OSM_SOURCE,
+      null,
+      4,
+      profile.preprocessOsmRelation(country2).stream().map(r -> new OsmReader.RelationMember<>("", r))
+        .toList()
+    )
     ));
 
     List<FeatureCollector.Feature> features = new ArrayList<>();

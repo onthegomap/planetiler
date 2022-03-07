@@ -45,8 +45,8 @@ import com.onthegomap.planetiler.util.Translations;
 /**
  * Defines the logic for generating map elements in the {@code aeroway} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aeroway">OpenMapTiles
- * aeroway sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aeroway">OpenMapTiles aeroway sql files</a>.
  */
 public class Aeroway implements
   OpenMapTilesSchema.Aeroway,
@@ -54,8 +54,7 @@ public class Aeroway implements
   Tables.OsmAerowayPolygon.Handler,
   Tables.OsmAerowayPoint.Handler {
 
-  public Aeroway(Translations translations, PlanetilerConfig config, Stats stats) {
-  }
+  public Aeroway(Translations translations, PlanetilerConfig config, Stats stats) {}
 
   @Override
   public void process(Tables.OsmAerowayPolygon element, FeatureCollector features) {

@@ -99,10 +99,10 @@ public class Verify {
   /**
    * Returns a verification result of a basic set of checks on an mbtiles file:
    * <ul>
-   *   <li>has a metadata and tiles table</li>
-   *   <li>has a name metadata attribute</li>
-   *   <li>has at least one tile</li>
-   *   <li>all vector tile geometries are valid</li>
+   * <li>has a metadata and tiles table</li>
+   * <li>has a name metadata attribute</li>
+   * <li>has at least one tile</li>
+   * <li>all vector tile geometries are valid</li>
    * </ul>
    */
   public static Verify verify(Mbtiles mbtiles) {

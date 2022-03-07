@@ -60,8 +60,9 @@ import java.util.Map;
 /**
  * Defines the logic for generating map elements for buildings in the {@code building} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/building">OpenMapTiles
- * building sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/building">OpenMapTiles building sql
+ * files</a>.
  */
 public class Building implements
   OpenMapTilesSchema.Building,
@@ -154,10 +155,8 @@ public class Building implements
       parseDoubleOrNull(element.buildingminLevel())
     );
 
-    int renderHeight = (int) Math.ceil(height != null ? height
-      : levels != null ? (levels * 3.66) : 5);
-    int renderMinHeight = (int) Math.floor(minHeight != null ? minHeight
-      : minLevels != null ? (minLevels * 3.66) : 0);
+    int renderHeight = (int) Math.ceil(height != null ? height : levels != null ? (levels * 3.66) : 5);
+    int renderMinHeight = (int) Math.floor(minHeight != null ? minHeight : minLevels != null ? (minLevels * 3.66) : 0);
 
     if (renderHeight < 3660 && renderMinHeight < 3660) {
       var feature = features.polygon(LAYER_NAME).setBufferPixels(BUFFER_SIZE)

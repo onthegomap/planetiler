@@ -19,16 +19,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Alternative driver program for {@link ToiletsOverlay} that uses the low-level planetiler APIs instead of the {@link
- * Planetiler} convenience wrapper.
+ * Alternative driver program for {@link ToiletsOverlay} that uses the low-level planetiler APIs instead of the
+ * {@link Planetiler} convenience wrapper.
  * <p>
  * To run this example:
  * <ol>
- *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
- *   <li>then build the examples: {@code mvn clean package}</li>
- *   <li>then run this example: {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi}</li>
- *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}</li>
- *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
+ * <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a></li>
+ * <li>then build the examples: {@code mvn clean package}</li>
+ * <li>then run this example:
+ * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}</li>
+ * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
 public class ToiletsOverlayLowLevelApi {
