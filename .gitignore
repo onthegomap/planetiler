@@ -11,6 +11,7 @@ target/
 *.iml
 !.idea/codeStyles
 !.idea/vcs.xml
+!.idea/eclipseCodeFormatter.xml
 
 # eclipse
 .classpath
