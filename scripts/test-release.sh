@@ -8,7 +8,7 @@ if [ "${SKIP_EXAMPLE_PROJECT:-false}" == "true" ]; then
   echo "skipping example project"
 else
   echo "::group::Test building example project"
-  (cd planetiler-examples && mvn -B -ntp -Dplanetiler.version="${version}" test --file standalone.pom.xml)
+  (cd planetiler-examples && mvn -B -ntp -Dplanetiler.version="${version}" verify --file standalone.pom.xml)
   echo "::endgroup::"
 fi
 
