@@ -17,6 +17,7 @@ target/
 .classpath
 .project
 .settings
+bin/
 
 TODO
 

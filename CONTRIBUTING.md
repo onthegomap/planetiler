@@ -27,8 +27,8 @@ GitHub Workflows will run regression tests on any pull request.
 
 ## IDE Setup
 
-You can use any text editor as long as you run `./mvnw spotless:apply` to format the code before pushing. A good IDE
-will make things a lot easier though.
+You can use any text editor as long as you format the code and test before pushing. A good IDE will make things a lot
+easier though.
 
 ### IntelliJ IDEA (recommended)
 
@@ -36,26 +36,42 @@ will make things a lot easier though.
 - In IntelliJ, click `Open`, navigate to the the `pom.xml` file in the local copy of this repo, and `Open`
   then `Open as Project`
   - If IntelliJ asks (and you trust the code) then click `Trust Project`
-  - If any java source files show "Cannot resolve symbol..." errors for Planetiler classes, you might need to
-    select: `File -> Invalidate Caches... -> Just Restart`.
-  - If you see a "Project JDK is not defined" error, then choose `Setup SDK` and point IntelliJ at the Java 16 or later
-    installed on your system
-- Recommended: Under `Preferences -> Tools -> Actions on Save` (or `File -> Settings -> Tools -> Actions on Save` on
-  Linux) select `Reformat code` and `Optimize imports` to automatically format code on save.
+- Under `Preferences -> Tools -> Actions on Save` (or `File -> Settings -> Tools -> Actions on Save` on Linux)
+  select `Reformat code` and `Optimize imports` to automatically format code on save.
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run 'All Tests'`
+
+Troubleshooting:
+
+- If any java source files show "Cannot resolve symbol..." errors for Planetiler classes, you might need to
+  select: `File -> Invalidate Caches... -> Just Restart`.
+- If you see a "Project JDK is not defined" error, then choose `Setup SDK` and point IntelliJ at the Java 16 or later
+  installed on your system
 
 ### Visual Studio Code
 
 - Install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
-- `File -> Open` and navigate to Planetiler
+- In VSCode, click `File -> Open` and navigate to Planetiler directory
   - If VSCode asks (and you trust the code) then click `Yes I trust the authors`
-- To verify everything works correctly, go to the `Testing` tab and click `Run Tests` button.
+- To verify everything works correctly, go to the `Testing` tab and click `Run Tests`
 
 Learn more about using VSCode with Java [here](https://code.visualstudio.com/docs/languages/java).
 
 ### Eclipse
 
-- TODO
+- In [Eclipse for Java Developers](https://www.eclipse.org/downloads/packages/), click `File -> Import ...`
+  then `Maven -> Existing Maven Projects`, navigate to Planetiler directory, and click `Finish`
+- Under `Eclipse -> Preferences...`:
+  - Under `Java -> Code Style -> Formatter` and choose `Import...`
+    choose [`eclipse-formatter.xml`](eclipse-formatter.xml) from the root of this project. Then choose `Planetiler` as
+    the Active profile.
+  - Under `Java -> Editor -> Save Actions` check `Perform selected actions on save`, `Format source code`
+    , `Format all lines` and `Organize imports`
+  - Under `Java -> Code Style -> Organize Imports` change the `number of static imports needed for .*` to 5, then remove
+    the groups and add 2 new groups:
+    - `New Static...` and `*`
+    - `New...` and `*`
+- To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
+  click `Run As -> JUnit Test`
 
-TODO: Set up checkstyle to enforce standards
+TODO: Set up checkstyle
