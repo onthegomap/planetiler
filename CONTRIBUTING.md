@@ -17,6 +17,10 @@ To set up your local development environment:
   - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`)
   - [Linux installer](https://github.com/adoptium/website-v2/blob/main/src/asciidoc-pages/installation/linux.adoc)
     (or `apt-get install openjdk-17-jdk`)
+- Generate OpenMapTiles and Protobuf java code:
+  - run `scripts/generate-openmaptiles.sh`
+  - run `sudo apt install -y protobuf-compiler`
+  - run `scripts/generate-protobuf.sh`
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
   you run it):
   - on max/linux: `./mvnw clean test`
