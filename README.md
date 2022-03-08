@@ -179,31 +179,6 @@ download regularly-updated tilesets.
   finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
-## Roadmap
-
-- [x] Enough `planetiler-core` functionality to support basemap profile based on OpenMapTiles
-- [ ] Basemap profile based on OpenMapTiles v3.13
-  - [x] Port all layers
-  - [x] Download name translations from wikidata
-  - [x] Merge buildings at z13
-  - [x] `adm0_l`/`adm0_r` boundary labels
-  - [ ] Abbreviate road names to improve visibility
-  - [ ] Poi layer `agg_stop` tag
-- [ ] Get `planetiler-core` into Maven Central
-- [ ] Remove geotools dependency for reading shapefiles (not in Maven Central)
-- [ ] Remove graphhopper dependency for reading OSM files, and
-  use [LocationsOnWays](https://blog.jochentopf.com/2016-04-20-node-locations-on-ways.html) to skip node location
-  storage when present and reduce memory requirement by 70%.
-- [ ] "Sparse mode" to only store node and relation data for elements used by a profile
-- [ ] Support zoom levels higher than 14
-- [ ] Handle nodes and relations in relations (only ways handled now)
-- [ ] Lake centerline support in `planetiler-core`
-- [ ] Improve line merging to combine nearby parallel roads
-- [ ] Basemap schema improvements for [onthegomap.com](https://onthegomap.com)
-- [ ] Accept other kinds of data sources
-- [ ] Extract reusable utilities for complex schemas from `planetiler-basemap` to `planetiler-core`
-- [ ] Other schemas
-
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
