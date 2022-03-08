@@ -31,7 +31,7 @@ Style [© OpenMapTiles](https://www.openmaptiles.org/)
 
 To generate a map of an area using the [basemap profile](planetiler-basemap), you will need:
 
-- [Java 16+](https://adoptium.net/installation.html) or [Docker](https://docs.docker.com/get-docker/)
+- Java 16+ (see [CONTIRBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
 - at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
 - at least 1.5x as much free RAM as the input `.osm.pbf` file size
 
@@ -118,12 +118,13 @@ See the [planetiler-examples](planetiler-examples) project.
 
 Some example runtimes (excluding downloading resources):
 
-| Input                                                                                                                                     | Profile                              | Machine                     | Time                      | mbtiles size | Logs                                                                                                                           |
-|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------|-----------------------------|---------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap                              | DO 16cpu 128GB              | 3h9m cpu:42h1m avg:13.3   | 99GB         | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps)         |
-| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap                              | DO 16cpu 128GB              | 3h13m cpu:43h40m avg:13.5 | 101GB        | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt)                                                                         |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge) | Linode 50cpu 128GB          | 1h9m cpu:24h36m avg:21.2  | 97GB         | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
-| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge) | c5ad.16xlarge (64cpu/128GB) | 59m cpu:27h6m avg:27.4    | 97GB         | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt)                                                                         |
+| Input                                                                                                                                     | Profile                                     | Machine                                                  | Time                      | mbtiles size | Logs                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------|----------------------------------------------------------|---------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap                                     | DO 16cpu 128GB                                           | 3h9m cpu:42h1m avg:13.3   | 99GB         | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps)         |
+| [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap                                     | DO 16cpu 128GB                                           | 3h13m cpu:43h40m avg:13.5 | 101GB        | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt)                                                                         |
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge)        | Linode 50cpu 128GB                                       | 1h9m cpu:24h36m avg:21.2  | 97GB         | [logs](planet-logs/v0.1.0-planet-linode-50cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-linode-50cpu-128gb.nps) |
+| s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap (without z13 building merge)        | c5ad.16xlarge (64cpu/128GB)                              | 59m cpu:27h6m avg:27.4    | 97GB         | [logs](planet-logs/v0.1.0-planet-c5ad-64cpu-128gb.txt)                                                                         |
+| s3://osm-pds/2021/planet-220214.osm.pbf (67GB)                                                                                            | Basemap v0.3.0 (without z13 building merge) | r6g.16xlarge (64cpu/512GB) with ramdisk and write to EFS | 1h1m cpu:24h33m avg:24.3  | 104GB        | [logs](planet-logs/v0.3.0-planet-r6g-64cpu-512gb-ramdisk.txt)                                                                  |
 
 ## Alternatives
 
@@ -177,31 +178,6 @@ download regularly-updated tilesets.
   or store features and defer processing until an input source is
   finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
-
-## Roadmap
-
-- [x] Enough `planetiler-core` functionality to support basemap profile based on OpenMapTiles
-- [ ] Basemap profile based on OpenMapTiles v3.13
-  - [x] Port all layers
-  - [x] Download name translations from wikidata
-  - [x] Merge buildings at z13
-  - [x] `adm0_l`/`adm0_r` boundary labels
-  - [ ] Abbreviate road names to improve visibility
-  - [ ] Poi layer `agg_stop` tag
-- [ ] Get `planetiler-core` into Maven Central
-- [ ] Remove geotools dependency for reading shapefiles (not in Maven Central)
-- [ ] Remove graphhopper dependency for reading OSM files, and
-  use [LocationsOnWays](https://blog.jochentopf.com/2016-04-20-node-locations-on-ways.html) to skip node location
-  storage when present and reduce memory requirement by 70%.
-- [ ] "Sparse mode" to only store node and relation data for elements used by a profile
-- [ ] Support zoom levels higher than 14
-- [ ] Handle nodes and relations in relations (only ways handled now)
-- [ ] Lake centerline support in `planetiler-core`
-- [ ] Improve line merging to combine nearby parallel roads
-- [ ] Basemap schema improvements for [onthegomap.com](https://onthegomap.com)
-- [ ] Accept other kinds of data sources
-- [ ] Extract reusable utilities for complex schemas from `planetiler-basemap` to `planetiler-core`
-- [ ] Other schemas
 
 ## Contributing
 

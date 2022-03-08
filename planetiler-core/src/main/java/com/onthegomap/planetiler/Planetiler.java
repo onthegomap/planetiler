@@ -483,8 +483,6 @@ public class Planetiler {
     }
     ensureInputFilesExist();
     Files.createDirectories(tmpDir);
-    checkDiskSpace();
-    checkMemory();
     if (fetchWikidata) {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
@@ -494,6 +492,10 @@ public class Planetiler {
     if (onlyDownloadSources || onlyFetchWikidata) {
       return; // exit only if just fetching wikidata or downloading sources
     }
+
+    checkDiskSpace();
+    checkMemory();
+
     if (osmInputFile != null) {
       config.bounds().setFallbackProvider(osmInputFile);
     }
