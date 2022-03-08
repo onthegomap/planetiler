@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * common use-cases.
  * <p>
  * For example:
- * 
+ *
  * <pre>
  * <code>
  * public static void main(String[] args) {

@@ -78,8 +78,7 @@
     <module>planetiler-core</module>
     <module>planetiler-basemap</module>
     <module>planetiler-benchmarks</module>
-    <!-- planetiler-examples/pom.xml can also be run as a standalone maven project -->
-    <module>planetiler-examples/child.pom.xml</module>
+    <module>planetiler-examples</module>
     <module>planetiler-dist</module>
   </modules>
 
@@ -144,6 +143,7 @@
         <configuration>
           <java>
             <importOrder/>
+            <removeUnusedImports/>
             <eclipse>
               <version>4.21.0</version>
               <!--suppress UnresolvedMavenProperty -->
@@ -154,9 +154,20 @@
             <includes>
               <include>**/*.md</include>
             </includes>
+            <excludes>
+              <exclude>**/target/**</exclude>
+            </excludes>
             <flexmark/>
           </markdown>
         </configuration>
+        <!-- bind to "mvn verify" -->
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <!-- require building with jdk 16 -->
       <plugin>

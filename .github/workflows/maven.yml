@@ -69,7 +69,7 @@ jobs:
           java-version: 17
           distribution: 'temurin'
       - name: Build and test
-        run: mvn --batch-mode -no-transfer-progress package --file pom.xml
+        run: mvn --batch-mode -no-transfer-progress package --file standalone.pom.xml
         working-directory: planetiler-examples
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar

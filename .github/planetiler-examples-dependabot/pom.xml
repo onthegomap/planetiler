@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This is just a workaround for https://github.com/dependabot/dependabot-core/issues/4425 so that
+dependabot can update planetiler-examples/standalone.pom.xml without referring directly to a pom.xml with a
+non-standard name.
+-->
+<project
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+>
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.onthegomap.planetiler</groupId>
+  <artifactId>planetiler-examples-parent-for-dependabot</artifactId>
+  <version>HEAD</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>../../planetiler-examples/pom.xml</module>
+  </modules>
+</project>

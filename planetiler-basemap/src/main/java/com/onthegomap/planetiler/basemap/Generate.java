@@ -169,8 +169,7 @@ public class Generate {
 
     emitLayerSchemaDefinitions(config.tileset, layers, packageName, output, tag);
     emitTableDefinitions(tables, packageName, output, tag);
-    LOGGER.info(
-      "Done generating code in 'generated' package, now run IntelliJ 'Reformat Code' operation with 'Optimize imports' and 'Cleanup code' options selected.");
+    LOGGER.info("Done!");
   }
 
   /** Generates {@code OpenMapTilesSchema.java} */
