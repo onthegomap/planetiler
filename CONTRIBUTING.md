@@ -33,6 +33,8 @@ easier though.
 ### IntelliJ IDEA (recommended)
 
 - [Install IntelliJ IDEA](https://www.jetbrains.com/help/idea/installation-guide.html)
+- Install
+  the [Adapter for Eclipse Code Formatter plugin](https://plugins.jetbrains.com/plugin/6546-adapter-for-eclipse-code-formatter)
 - In IntelliJ, click `Open`, navigate to the the `pom.xml` file in the local copy of this repo, and `Open`
   then `Open as Project`
   - If IntelliJ asks (and you trust the code) then click `Trust Project`
