@@ -217,6 +217,8 @@ Planetiler is made possible by these awesome open source projects:
   and [tag parsing utilities](planetiler-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
 - [HPPC](http://labs.carrotsearch.com/) for high-performance primitive Java collections
 - [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
+- [JNR-FFI](https://github.com/jnr/jnr-ffi) for utilities to access low-level system utilities to improve memory-mapped
+  file performance.
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

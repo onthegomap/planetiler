@@ -80,7 +80,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup(@TempDir Path path) {
-      this.store = new AppendStoreMmap.Ints(path.resolve("ints"), 4 << 2);
+      this.store = new AppendStoreMmap.Ints(path.resolve("ints"), 4 << 2, true);
     }
   }
 
@@ -96,7 +96,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup(@TempDir Path path) {
-      this.store = new AppendStoreMmap.Longs(path.resolve("longs"), 4 << 2);
+      this.store = new AppendStoreMmap.Longs(path.resolve("longs"), 4 << 2, true);
     }
   }
 
@@ -104,7 +104,8 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup(@TempDir Path path) {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2));
+      this.store = new AppendStore.SmallLongs(
+        (i) -> new AppendStoreMmap.Ints(path.resolve("smalllongs" + i), 4 << 2, true));
     }
   }
 

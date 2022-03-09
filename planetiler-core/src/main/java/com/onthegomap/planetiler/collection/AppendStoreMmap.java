@@ -1,12 +1,10 @@
 package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.MmapUtil;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -29,15 +27,21 @@ abstract class AppendStoreMmap implements AppendStore {
   final long segmentMask;
   final long segmentBytes;
   private final Path path;
+  private final boolean madvise;
   long outIdx = 0;
   private volatile MappedByteBuffer[] segments;
   private volatile FileChannel channel;
 
-  AppendStoreMmap(Path path) {
-    this(path, 1 << 20); // 1MB
+  static {
+    MmapUtil.init();
   }
 
-  AppendStoreMmap(Path path, long segmentSizeBytes) {
+  AppendStoreMmap(Path path, boolean madvise) {
+    this(path, 1 << 30, madvise); // 1GB
+  }
+
+  AppendStoreMmap(Path path, long segmentSizeBytes, boolean madvise) {
+    this.madvise = madvise;
     segmentBits = (int) (Math.log(segmentSizeBytes) / Math.log(2));
     segmentMask = (1L << segmentBits) - 1;
     segmentBytes = segmentSizeBytes;
@@ -58,6 +62,7 @@ abstract class AppendStoreMmap implements AppendStore {
       synchronized (this) {
         if ((result = segments) == null) {
           try {
+            boolean madviseFailed = false;
             // prepare the memory mapped file: stop writing, start reading
             outputStream.close();
             channel = FileChannel.open(path, StandardOpenOption.READ);
@@ -66,7 +71,19 @@ abstract class AppendStoreMmap implements AppendStore {
             int i = 0;
             for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
               long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
-              result[i++] = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
+              MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
+              if (madvise) {
+                try {
+                  MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
+                } catch (IOException e) {
+                  if (!madviseFailed) { // log once
+                    LOGGER.info(
+                      "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
+                    madviseFailed = true;
+                  }
+                }
+              }
+              result[i++] = thisBuffer;
             }
             segments = result;
           } catch (IOException e) {
@@ -87,27 +104,8 @@ abstract class AppendStoreMmap implements AppendStore {
       }
       if (segments != null) {
         try {
-          // attempt to force-unmap the file, so we can delete it later
-          // https://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
-          Class<?> unsafeClass;
-          try {
-            unsafeClass = Class.forName("sun.misc.Unsafe");
-          } catch (Exception ex) {
-            unsafeClass = Class.forName("jdk.internal.misc.Unsafe");
-          }
-          Method clean = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-          clean.setAccessible(true);
-          Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-          theUnsafeField.setAccessible(true);
-          Object theUnsafe = theUnsafeField.get(null);
-          for (int i = 0; i < segments.length; i++) {
-            var buffer = segments[i];
-            if (buffer != null) {
-              clean.invoke(theUnsafe, buffer);
-              segments[i] = null;
-            }
-          }
-        } catch (Exception e) {
+          MmapUtil.unmap(segments);
+        } catch (IOException e) {
           LOGGER.info("Unable to unmap " + path + " " + e);
         }
         Arrays.fill(segments, null);
@@ -122,12 +120,12 @@ abstract class AppendStoreMmap implements AppendStore {
 
   static class Ints extends AppendStoreMmap implements AppendStore.Ints {
 
-    Ints(Path path) {
-      super(path);
+    Ints(Path path, boolean madvise) {
+      super(path, madvise);
     }
 
-    Ints(Path path, long segmentSizeBytes) {
-      super(path, segmentSizeBytes);
+    Ints(Path path, long segmentSizeBytes, boolean madvise) {
+      super(path, segmentSizeBytes, madvise);
     }
 
     @Override
@@ -158,12 +156,12 @@ abstract class AppendStoreMmap implements AppendStore {
 
   static class Longs extends AppendStoreMmap implements AppendStore.Longs {
 
-    Longs(Path path) {
-      super(path);
+    Longs(Path path, boolean madvise) {
+      super(path, madvise);
     }
 
-    Longs(Path path, long segmentSizeBytes) {
-      super(path, segmentSizeBytes);
+    Longs(Path path, long segmentSizeBytes, boolean madvise) {
+      super(path, segmentSizeBytes, madvise);
     }
 
     @Override
