@@ -11,7 +11,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Utilities for working with memory-mapped files.
  * <p>
- * {@link #madvise(ByteBuffer, Madvice)} ported from <a href="https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
+ * {@link #madvise(ByteBuffer, Madvice)} ported from <a href=
+ * "https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
  */
 public class MmapUtil {
 
@@ -79,6 +80,7 @@ public class MmapUtil {
     SEQUENTIAL(2),
     WILLNEED(3),
     DONTNEED(4);
+
     final int value;
 
     Madvice(int value) {

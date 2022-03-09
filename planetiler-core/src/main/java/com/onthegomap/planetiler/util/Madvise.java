@@ -30,10 +30,11 @@ import jnr.ffi.LibraryLoader;
 import jnr.ffi.types.size_t;
 
 /**
- * Wrapper for native madvise function to be used via the public API {@link MmapUtil#madvise(ByteBuffer,
- * MmapUtil.Madvice)}.
+ * Wrapper for native madvise function to be used via the public API
+ * {@link MmapUtil#madvise(ByteBuffer, MmapUtil.Madvice)}.
  * <p>
- * Ported from <a href="https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
+ * Ported from <a href=
+ * "https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
  *
  * @see <a href="https://man7.org/linux/man-pages/man2/madvise.2.html">madvise(2) — Linux manual page</a>
  */
