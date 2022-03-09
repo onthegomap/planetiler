@@ -25,7 +25,7 @@ public class LongLongMapBench {
     Format format = Format.defaultInstance();
     Path path = Path.of("./llmaptest");
     FileUtils.delete(path);
-    LongLongMap map = LongLongMap.from(args[0], args[1], path, args.length < 5 || Boolean.getBoolean(args[4]));
+    LongLongMap map = LongLongMap.from(args[0], args[1], path, args.length < 5 || Boolean.parseBoolean(args[4]));
     long entries = Long.parseLong(args[2]);
     int readers = Integer.parseInt(args[3]);
 
@@ -36,6 +36,7 @@ public class LongLongMapBench {
     LocalCounter counter = new LocalCounter();
     ProgressLoggers loggers = ProgressLoggers.create()
       .addRatePercentCounter("entries", entries, () -> counter.count, true)
+      .addFileSize(map)
       .newLine()
       .addProcessStats();
     AtomicReference<String> writeRate = new AtomicReference<>();
