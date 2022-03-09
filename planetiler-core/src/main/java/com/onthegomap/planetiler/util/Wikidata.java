@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility to download name translations from wikidata for all OSM elements with a <a
- * href="https://wiki.openstreetmap.org/wiki/Key:wikidata">wikidata tag</a>.
+ * A utility to download name translations from wikidata for all OSM elements with a
+ * <a href="https://wiki.openstreetmap.org/wiki/Key:wikidata">wikidata tag</a>.
  */
 public class Wikidata {
 
@@ -281,7 +281,7 @@ public class Wikidata {
       SELECT ?id ?label where {
         VALUES ?id { %s } ?id (owl:sameAs* / rdfs:label) ?label
       }
-      """.formatted(qidList).replaceAll("\\s+", " ");
+      """.formatted(qidList).replaceAll("\\s+", " ").trim();
 
     HttpRequest request = HttpRequest.newBuilder(URI.create("https://query.wikidata.org/bigdata/namespace/wdq/sparql"))
       .timeout(config.httpTimeout())
@@ -290,10 +290,28 @@ public class Wikidata {
       .header(CONTENT_TYPE, "application/sparql-query")
       .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
       .build();
-    InputStream response = client.send(request);
 
-    try (var bis = new BufferedInputStream(response)) {
-      return parseResults(bis);
+    InputStream response = null;
+    for (int i = 0; i <= config.httpRetries() && response == null; i++) {
+      try {
+        response = client.send(request);
+      } catch (IOException e) {
+        boolean lastTry = i == config.httpRetries();
+        if (!lastTry) {
+          LOGGER.warn("sparql query failed, retrying: " + e);
+        } else {
+          LOGGER.error("sparql query failed, exhausted retries: " + e);
+          throw e;
+        }
+      }
+    }
+
+    if (response != null) {
+      try (var bis = new BufferedInputStream(response)) {
+        return parseResults(bis);
+      }
+    } else {
+      throw new IllegalStateException("No response or exception"); // should never happen
     }
   }
 
@@ -353,8 +371,7 @@ public class Wikidata {
 
     private final LongObjectMap<Map<String, String>> data = Hppc.newLongObjectHashMap();
 
-    public WikidataTranslations() {
-    }
+    public WikidataTranslations() {}
 
     /** Returns a map from language code to translated name for {@code qid}. */
     public Map<String, String> get(long qid) {

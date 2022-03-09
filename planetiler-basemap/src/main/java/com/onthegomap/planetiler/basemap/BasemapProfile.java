@@ -27,15 +27,15 @@ import java.util.List;
  * <p>
  * Layer implementations extend these interfaces to subscribe to elements from different sources:
  * <ul>
- *   <li>{@link LakeCenterlineProcessor}</li>
- *   <li>{@link NaturalEarthProcessor}</li>
- *   <li>{@link OsmWaterPolygonProcessor}</li>
- *   <li>{@link OsmAllProcessor} to process every OSM feature</li>
- *   <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
- *   <li>A {@link Tables.RowHandler} implementation in {@code Tables.java} to process input features filtered and parsed
- *   according to the imposm3 mappings defined in the OpenMapTiles schema. Each element corresponds to a row in the
- *   table that imposm3 would have generated, with generated methods for accessing the data that would have been in each
- *   column</li>
+ * <li>{@link LakeCenterlineProcessor}</li>
+ * <li>{@link NaturalEarthProcessor}</li>
+ * <li>{@link OsmWaterPolygonProcessor}</li>
+ * <li>{@link OsmAllProcessor} to process every OSM feature</li>
+ * <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
+ * <li>A {@link Tables.RowHandler} implementation in {@code Tables.java} to process input features filtered and parsed
+ * according to the imposm3 mappings defined in the OpenMapTiles schema. Each element corresponds to a row in the table
+ * that imposm3 would have generated, with generated methods for accessing the data that would have been in each
+ * column</li>
  * </ul>
  * Layers can also subscribe to notifications when we finished processing an input source by implementing
  * {@link FinishHandler} or post-process features in that layer before rendering the output tile by implementing
@@ -118,9 +118,8 @@ public class BasemapProfile extends ForwardingProfile {
         return new RowDispatch(constructor.create(), handlers);
       }).simplify().index();
     wikidataMappings = Tables.MAPPINGS
-      .mapResults(constructor ->
-        handlerMap.getOrDefault(constructor.rowClass(), List.of()).stream()
-          .anyMatch(handler -> !IgnoreWikidata.class.isAssignableFrom(handler.handlerClass()))
+      .mapResults(constructor -> handlerMap.getOrDefault(constructor.rowClass(), List.of()).stream()
+        .anyMatch(handler -> !IgnoreWikidata.class.isAssignableFrom(handler.handlerClass()))
       ).filterResults(b -> b).simplify().index();
 
     // register a handler for all OSM elements that forwards to imposm3 "table row" handler methods
@@ -149,8 +148,8 @@ public class BasemapProfile extends ForwardingProfile {
     if (elem instanceof OsmElement.Node) {
       return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POINT, tags), false);
     } else if (elem instanceof OsmElement.Way) {
-      return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POLYGON, tags), false)
-        || wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_LINE, tags), false);
+      return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POLYGON, tags), false) ||
+        wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_LINE, tags), false);
     } else if (elem instanceof OsmElement.Relation) {
       return wikidataMappings.getOrElse(SimpleFeature.create(EMPTY_POLYGON, tags), false);
     } else {
@@ -182,15 +181,32 @@ public class BasemapProfile extends ForwardingProfile {
     return OpenMapTilesSchema.VERSION;
   }
 
+  @Override
+  public long estimateIntermediateDiskBytes(long osmFileSize) {
+    // in late 2021, a 60gb OSM file used 200GB for intermediate storage
+    return osmFileSize * 200 / 60;
+  }
+
+  @Override
+  public long estimateOutputBytes(long osmFileSize) {
+    // in late 2021, a 60gb OSM file generated a 100GB output file
+    return osmFileSize * 100 / 60;
+  }
+
+  @Override
+  public long estimateRamRequired(long osmFileSize) {
+    // 30gb for a 60gb OSM file is generally safe, although less might be OK too
+    return osmFileSize / 2;
+  }
+
   /**
-   * Layers should implement this interface to subscribe to elements from <a href="https://www.naturalearthdata.com/">natural
-   * earth</a>.
+   * Layers should implement this interface to subscribe to elements from
+   * <a href="https://www.naturalearthdata.com/">natural earth</a>.
    */
   public interface NaturalEarthProcessor {
 
     /**
-     * Process an element from {@code table} in the<a href="https://www.naturalearthdata.com/">natural earth
-     * source</a>.
+     * Process an element from {@code table} in the<a href="https://www.naturalearthdata.com/">natural earth source</a>.
      *
      * @see Profile#processFeature(SourceFeature, FeatureCollector)
      */
@@ -198,8 +214,8 @@ public class BasemapProfile extends ForwardingProfile {
   }
 
   /**
-   * Layers should implement this interface to subscribe to elements from <a href="https://github.com/lukasmartinelli/osm-lakelines">OSM
-   * lake centerlines source</a>.
+   * Layers should implement this interface to subscribe to elements from
+   * <a href="https://github.com/lukasmartinelli/osm-lakelines">OSM lake centerlines source</a>.
    */
   public interface LakeCenterlineProcessor {
 
@@ -213,8 +229,8 @@ public class BasemapProfile extends ForwardingProfile {
   }
 
   /**
-   * Layers should implement this interface to subscribe to elements from <a href="https://osmdata.openstreetmap.de/data/water-polygons.html">OSM
-   * water polygons source</a>.
+   * Layers should implement this interface to subscribe to elements from
+   * <a href="https://osmdata.openstreetmap.de/data/water-polygons.html">OSM water polygons source</a>.
    */
   public interface OsmWaterPolygonProcessor {
 

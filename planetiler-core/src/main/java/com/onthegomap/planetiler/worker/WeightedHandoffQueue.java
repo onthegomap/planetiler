@@ -104,4 +104,3 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
     return itemBatch == null ? null : itemBatch.poll();
   }
 }
-

@@ -38,8 +38,7 @@ import org.sqlite.SQLiteConfig;
 /**
  * Interface into an mbtiles sqlite file containing tiles and metadata about the tileset.
  *
- * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles
- * Specification</a>
+ * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
 public final class Mbtiles implements Closeable {
 
@@ -157,8 +156,8 @@ public final class Mbtiles implements Closeable {
     return execute(
       "create table " + METADATA_TABLE + " (" + METADATA_COL_NAME + " text, " + METADATA_COL_VALUE + " text);",
       "create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");",
-      "create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " + TILES_COL_Y
-        + ", " + TILES_COL_DATA + " blob);"
+      "create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " + TILES_COL_Y +
+        ", " + TILES_COL_DATA + " blob);"
     );
   }
 
@@ -237,11 +236,10 @@ public final class Mbtiles implements Closeable {
    * Data contained in the {@code json} row of the metadata table
    *
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#vector-tileset-metadata">MBtiles
-   * schema</a>
+   *      schema</a>
    */
   public record MetadataJson(
-    @JsonProperty("vector_layers")
-    List<VectorLayer> vectorLayers
+    @JsonProperty("vector_layers") List<VectorLayer> vectorLayers
   ) {
 
     public MetadataJson(VectorLayer... layers) {
@@ -265,9 +263,12 @@ public final class Mbtiles implements Closeable {
     }
 
     public enum FieldType {
-      @JsonProperty("Number") NUMBER,
-      @JsonProperty("Boolean") BOOLEAN,
-      @JsonProperty("String") STRING;
+      @JsonProperty("Number")
+      NUMBER,
+      @JsonProperty("Boolean")
+      BOOLEAN,
+      @JsonProperty("String")
+      STRING;
 
       /**
        * Per the spec: attributes whose type varies between features SHOULD be listed as "String"
@@ -352,7 +353,9 @@ public final class Mbtiles implements Closeable {
     }
   }
 
-  /** A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches. */
+  /**
+   * A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches.
+   */
   public class BatchedTileWriter implements AutoCloseable {
 
     // max number of parameters in a prepared statements is 999
@@ -374,9 +377,8 @@ public final class Mbtiles implements Closeable {
       }
       try {
         return connection.prepareStatement(
-          "INSERT INTO " + TILES_TABLE + " (" + TILES_COL_Z + "," + TILES_COL_X + "," + TILES_COL_Y + ","
-            + TILES_COL_DATA
-            + ") VALUES " + String.join(", ", groups) + ";");
+          "INSERT INTO " + TILES_TABLE + " (" + TILES_COL_Z + "," + TILES_COL_X + "," + TILES_COL_Y + "," +
+            TILES_COL_DATA + ") VALUES " + String.join(", ", groups) + ";");
       } catch (SQLException throwables) {
         throw new IllegalStateException("Could not create prepared statement", throwables);
       }
@@ -443,8 +445,10 @@ public final class Mbtiles implements Closeable {
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
         LOGGER.debug("Set mbtiles metadata: " + name + "=" + value);
-        try (PreparedStatement statement = connection.prepareStatement(
-          "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")) {
+        try (
+          PreparedStatement statement = connection.prepareStatement(
+            "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")
+        ) {
           statement.setString(1, name);
           statement.setString(2, value.toString());
           statement.execute();

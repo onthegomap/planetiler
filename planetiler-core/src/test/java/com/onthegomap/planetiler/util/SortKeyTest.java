@@ -39,11 +39,10 @@ public class SortKeyTest {
 
   @Test
   public void testTwoLevel() {
-    ToIntBiFunction<Integer, Integer> key = (a, b) ->
-      SortKey
-        .orderByInt(a, 0, 10)
-        .thenByInt(b, 0, 10)
-        .get();
+    ToIntBiFunction<Integer, Integer> key = (a, b) -> SortKey
+      .orderByInt(a, 0, 10)
+      .thenByInt(b, 0, 10)
+      .get();
     assertEquals(
       key.applyAsInt(1, 1),
       key.applyAsInt(1, 1)
@@ -61,11 +60,10 @@ public class SortKeyTest {
   @Test
   public void testDescending() {
     // order by a ASC b DESC
-    ToIntBiFunction<Integer, Integer> key = (a, b) ->
-      SortKey
-        .orderByInt(a, 0, 10)
-        .thenByInt(b, 10, 0)
-        .get();
+    ToIntBiFunction<Integer, Integer> key = (a, b) -> SortKey
+      .orderByInt(a, 0, 10)
+      .thenByInt(b, 10, 0)
+      .get();
     assertEquals(
       key.applyAsInt(0, 1),
       key.applyAsInt(0, 1)
@@ -82,11 +80,10 @@ public class SortKeyTest {
 
   @Test
   public void testDouble() {
-    ToIntBiFunction<Double, Double> key = (a, b) ->
-      SortKey
-        .orderByDouble(a, 0, 10, 10)
-        .thenByDouble(b, 10, 0, 10)
-        .get();
+    ToIntBiFunction<Double, Double> key = (a, b) -> SortKey
+      .orderByDouble(a, 0, 10, 10)
+      .thenByDouble(b, 10, 0, 10)
+      .get();
     assertEquals(
       key.applyAsInt(0d, 0d),
       key.applyAsInt(0.9d, 0.9d)
@@ -103,11 +100,10 @@ public class SortKeyTest {
 
   @Test
   public void testBoolean() {
-    ToIntBiFunction<Boolean, Boolean> key = (a, b) ->
-      SortKey
-        .orderByTruesFirst(a)
-        .thenByTruesLast(b)
-        .get();
+    ToIntBiFunction<Boolean, Boolean> key = (a, b) -> SortKey
+      .orderByTruesFirst(a)
+      .thenByTruesLast(b)
+      .get();
     assertEquals(
       key.applyAsInt(false, false),
       key.applyAsInt(false, false)
@@ -128,11 +124,10 @@ public class SortKeyTest {
 
   @Test
   public void testLog() {
-    ToIntBiFunction<Double, Double> key = (a, b) ->
-      SortKey
-        .orderByLog(a, 1, 1000, 3)
-        .thenByLog(b, 1000, 1, 3)
-        .get();
+    ToIntBiFunction<Double, Double> key = (a, b) -> SortKey
+      .orderByLog(a, 1, 1000, 3)
+      .thenByLog(b, 1000, 1, 3)
+      .get();
     assertEquals(
       key.applyAsInt(1d, 1d),
       key.applyAsInt(1d, 1d)
@@ -181,12 +176,10 @@ public class SortKeyTest {
     int aboveHalfMax = belowHalfMax * 2;
 
     SortKey.orderByDouble(0, 1, 0, max);
-    assertThrows(IllegalArgumentException.class, () ->
-      SortKey.orderByDouble(0, 1, 0, max + 1));
+    assertThrows(IllegalArgumentException.class, () -> SortKey.orderByDouble(0, 1, 0, max + 1));
     SortKey.orderByDouble(0, 1, 0, belowHalfMax - 1)
       .thenByDouble(0, 1, 0, belowHalfMax - 1);
-    assertThrows(IllegalArgumentException.class, () ->
-      SortKey.orderByDouble(0, 1, 0, aboveHalfMax)
-        .thenByDouble(0, 1, 0, aboveHalfMax));
+    assertThrows(IllegalArgumentException.class, () -> SortKey.orderByDouble(0, 1, 0, aboveHalfMax)
+      .thenByDouble(0, 1, 0, aboveHalfMax));
   }
 }

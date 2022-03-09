@@ -95,7 +95,7 @@ public class Timers {
     Stage stage = new Stage(timer);
     timers.put(name, stage);
     Stage last = currentStage.getAndSet(stage);
-    System.out.println();
+    LOGGER.info("");
     LOGGER.info("Starting...");
     return () -> {
       LOGGER.info("Finished in " + timers.get(name).timer.stop());

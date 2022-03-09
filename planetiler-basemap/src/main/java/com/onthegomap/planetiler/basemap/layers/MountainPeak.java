@@ -65,8 +65,9 @@ import org.slf4j.LoggerFactory;
  * Defines the logic for generating map elements for mountain peak label points in the {@code mountain_peak} layer from
  * source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak">OpenMapTiles
- * mountain_peak sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/mountain_peak">OpenMapTiles mountain_peak
+ * sql files</a>.
  */
 public class MountainPeak implements
   BasemapProfile.NaturalEarthProcessor,

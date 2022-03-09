@@ -57,12 +57,12 @@ import vector_tile.VectorTileProto;
  * Encodes a single output tile containing JTS {@link Geometry} features into the compact binary Mapbox Vector Tile
  * format.
  * <p>
- * This class is copied from
- * <a href="https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileEncoder.java">VectorTileEncoder.java</a>
- * and
- * <a href="https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileDecoder.java">VectorTileDecoder.java</a>
+ * This class is copied from <a href=
+ * "https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileEncoder.java">VectorTileEncoder.java</a>
+ * and <a href=
+ * "https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/main/java/no/ecc/vectortile/VectorTileDecoder.java">VectorTileDecoder.java</a>
  * and modified to decouple geometry encoding from vector tile encoding so that encoded commands can be stored in the
- * sorted feature map prior to encoding vector tiles.  The internals are also refactored to improve performance by using
+ * sorted feature map prior to encoding vector tiles. The internals are also refactored to improve performance by using
  * hppc primitive collections.
  *
  * @see <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1">Mapbox Vector Tile Specification</a>
@@ -389,8 +389,9 @@ public class VectorTile {
   }
 
   /**
-   * Encodes a JTS geometry according to <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry
-   * Encoding Specification</a>.
+   * Encodes a JTS geometry according to
+   * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry Encoding
+   * Specification</a>.
    *
    * @param geometry the JTS geometry to encoded
    * @return the geometry type and command array for the encoded geometry
@@ -498,6 +499,7 @@ public class VectorTile {
     MOVE_TO(1),
     LINE_TO(2),
     CLOSE_PATH(7);
+
     final int value;
 
     Command(int value) {
@@ -506,8 +508,9 @@ public class VectorTile {
   }
 
   /**
-   * A vector tile encoded as a list of commands according to the <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">vector
-   * tile specification</a>.
+   * A vector tile encoded as a list of commands according to the
+   * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">vector tile
+   * specification</a>.
    * <p>
    * To encode extra precision in intermediate feature geometries, the geometry contained in {@code commands} is scaled
    * to a tile extent of {@code EXTENT * 2^scale}, so when the {@code scale == 0} the extent is {@link #EXTENT} and when
@@ -635,7 +638,7 @@ public class VectorTile {
 
   /**
    * Encodes a geometry as a sequence of integers according to the
-   * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry   * Encoding
+   * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">Geometry * Encoding
    * Specification</a>.
    */
   private static class CommandEncoder {

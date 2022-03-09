@@ -29,8 +29,9 @@ import org.opengis.referencing.operation.MathTransform;
  * <p>
  * Shapefile processing handled by geotools {@link ShapefileDataStore}.
  *
- * @see <a href="https://www.esri.com/content/dam/esrisites/sitecore-archive/Files/Pdfs/library/whitepapers/pdfs/shapefile.pdf">ESRI
- * Shapefile Specification</a>
+ * @see <a href=
+ *      "https://www.esri.com/content/dam/esrisites/sitecore-archive/Files/Pdfs/library/whitepapers/pdfs/shapefile.pdf">ESRI
+ *      Shapefile Specification</a>
  */
 public class ShapefileReader extends SimpleReader implements Closeable {
 
@@ -72,8 +73,8 @@ public class ShapefileReader extends SimpleReader implements Closeable {
    * Renders map features for all elements from an ESRI Shapefile based on the mapping logic defined in {@code profile}.
    * Overrides the coordinate reference system defined in the shapefile.
    *
-   * @param sourceProjection code for the coordinate reference system of the input data, to be parsed by {@link
-   *                         CRS#decode(String)}
+   * @param sourceProjection code for the coordinate reference system of the input data, to be parsed by
+   *                         {@link CRS#decode(String)}
    * @param sourceName       string ID for this reader to use in logs and stats
    * @param input            path to the {@code .shp} file on disk, or a {@code .zip} file containing the shapefile
    *                         components
@@ -95,8 +96,7 @@ public class ShapefileReader extends SimpleReader implements Closeable {
    * Infers the coordinate reference system from the shapefile.
    *
    * @param sourceName string ID for this reader to use in logs and stats
-   * @param input      path to the {@code .shp} file on disk, or a {@code .zip} file containing the shapefile
-   *                   components
+   * @param input      path to the {@code .shp} file on disk, or a {@code .zip} file containing the shapefile components
    * @param writer     consumer for rendered features
    * @param config     user-defined parameters controlling number of threads and log interval
    * @param profile    logic that defines what map features to emit for each source feature

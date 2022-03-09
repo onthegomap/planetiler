@@ -8,20 +8,24 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
  * ordering approximates the desired ordering.
  * <p>
  * Sort keys get packed into {@link FeatureGroup#SORT_KEY_BITS} bits, so sort key components need to specify the range
- * and number of levels the range gets packed into.  Requests that exceed the total number of available levels will
- * fail.
+ * and number of levels the range gets packed into. Requests that exceed the total number of available levels will fail.
  * <p>
  * To sort by a field descending, specify its range from high to low.
  * <p>
  * For example this SQL ordering:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * ORDER BY rank ASC,
  * population DESC,
  * length(name) ASC
- * }</pre>
+ * }
+ * </pre>
  * <p>
  * would become:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * feature.setSortKey(
  *   SortKey
  *     .orderByInt(rank, MIN_RANK, MAX_RANK)
@@ -29,7 +33,8 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
  *     .thenByInt(name.length(), 0, MAX_LENGTH)
  *     .get()
  * )
- * }</pre>
+ * }
+ * </pre>
  */
 public class SortKey {
 
@@ -37,8 +42,7 @@ public class SortKey {
   private long possibleValues = 1;
   private int result = 0;
 
-  private SortKey() {
-  }
+  private SortKey() {}
 
   /** Returns a new sort key where elements with {@code value == true} sort after ones where {@code value == false} */
   public static SortKey orderByTruesLast(boolean value) {

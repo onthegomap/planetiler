@@ -504,11 +504,9 @@ public class TestUtils {
   public record Way(
     long id,
     @JacksonXmlProperty(localName = "nd")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<NodeRef> nodeRefs,
+    @JacksonXmlElementWrapper(useWrapping = false) List<NodeRef> nodeRefs,
     @JacksonXmlProperty(localName = "tag")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Tag> tags
+    @JacksonXmlElementWrapper(useWrapping = false) List<Tag> tags
   ) {}
 
   @JacksonXmlRootElement(localName = "member")
@@ -520,11 +518,9 @@ public class TestUtils {
   public record Relation(
     long id,
     @JacksonXmlProperty(localName = "member")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<RelationMember> members,
+    @JacksonXmlElementWrapper(useWrapping = false) List<RelationMember> members,
     @JacksonXmlProperty(localName = "tag")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Tag> tags
+    @JacksonXmlElementWrapper(useWrapping = false) List<Tag> tags
   ) {}
 
   //  @JsonIgnoreProperties(ignoreUnknown = true)
@@ -535,14 +531,11 @@ public class TestUtils {
     String attribution,
     String license,
     @JacksonXmlProperty(localName = "node")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Node> nodes,
+    @JacksonXmlElementWrapper(useWrapping = false) List<Node> nodes,
     @JacksonXmlProperty(localName = "way")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Way> ways,
+    @JacksonXmlElementWrapper(useWrapping = false) List<Way> ways,
     @JacksonXmlProperty(localName = "relation")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<Relation> relation
+    @JacksonXmlElementWrapper(useWrapping = false) List<Relation> relation
   ) {}
 
   private static final XmlMapper xmlMapper = new XmlMapper();
@@ -594,8 +587,7 @@ public class TestUtils {
     int minzoom, int maxzoom) {
     try {
       List<String> failures = new ArrayList<>();
-      outer:
-      for (int zoom = 0; zoom <= 14; zoom++) {
+      outer: for (int zoom = 0; zoom <= 14; zoom++) {
         boolean shouldFind = zoom >= minzoom && zoom <= maxzoom;
         var coord = TileCoord.aroundLngLat(lng, lat, zoom);
         Geometry tilePoint = GeoUtils.point(coord.lngLatToTileCoords(lng, lat));

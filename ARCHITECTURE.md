@@ -121,3 +121,4 @@ Finally, a single-threaded writer writes encoded vector tiles to the output MBTi
 - Create the largest prepared statement supported by SQLite (999 parameters)
 - Iterate through finished vector tile batches until the prepared statement is full, flush to disk, then repeat
 - Then flush any remaining tiles at the end
+

@@ -19,9 +19,9 @@ import java.util.function.Consumer;
  * <p>
  * Wraps a standard {@link BlockingDeque}, with a few customizations:
  * <ul>
- *   <li>items are buffered into configurable-sized batches before putting on the actual queue to reduce contention</li>
- *   <li>writers can mark the queue "finished" with {@link #close()} and readers will get {@code null} when there are
- *   no more items to read</li>
+ * <li>items are buffered into configurable-sized batches before putting on the actual queue to reduce contention</li>
+ * <li>writers can mark the queue "finished" with {@link #close()} and readers will get {@code null} when there are no
+ * more items to read</li>
  * </ul>
  * <p>
  * Once a thread starts reading from this queue, it needs to finish otherwise all items might not be read.
@@ -123,7 +123,9 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     return (pendingBatchesCapacity + writers.size() + readers.size()) * batchSize;
   }
 
-  /** Caches thread-local values so that a single thread can accept new items without having to do thread-local lookups. */
+  /**
+   * Caches thread-local values so that a single thread can accept new items without having to do thread-local lookups.
+   */
   private class WriterForThread implements Consumer<T> {
 
     final AtomicReference<Queue<T>> writeBatchRef = new AtomicReference<>(null);
@@ -173,7 +175,9 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     }
   }
 
-  /** Caches thread-local values so that a single thread can read new items without having to do thread-local lookups. */
+  /**
+   * Caches thread-local values so that a single thread can read new items without having to do thread-local lookups.
+   */
   private class ReaderForThread implements IterableOnce<T> {
 
     Queue<T> readBatch = null;
@@ -221,4 +225,3 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
     }
   }
 }
-

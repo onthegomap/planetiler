@@ -14,13 +14,13 @@ import java.util.function.Consumer;
  * A framework for building complex {@link Profile Profiles} that need to be broken apart into multiple handlers (i.e.
  * one per layer).
  * <p>
- * Individual handlers added with {@link #registerHandler(Handler)} can listen on events by implementing these
- * handlers:
+ * Individual handlers added with {@link #registerHandler(Handler)} can listen on events by implementing these handlers:
  * <ul>
- *   <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
- *   <li>{@link FeatureProcessor} to handle features from a particular source (added through {@link #registerSourceHandler(String, FeatureProcessor)})</li>
- *   <li>{@link FinishHandler} to be notified whenever we finish processing each source</li>
- *   <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the output tile</li>
+ * <li>{@link OsmRelationPreprocessor} to process every OSM relation during first pass through OSM file</li>
+ * <li>{@link FeatureProcessor} to handle features from a particular source (added through
+ * {@link #registerSourceHandler(String, FeatureProcessor)})</li>
+ * <li>{@link FinishHandler} to be notified whenever we finish processing each source</li>
+ * <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the output tile</li>
  * </ul>
  * See {@code OpenMapTilesProfile} for a full implementation using this framework.
  */
@@ -52,8 +52,8 @@ public abstract class ForwardingProfile implements Profile {
   }
 
   /**
-   * Call {@code handler} for different events based on which interfaces {@code handler} implements: {@link
-   * OsmRelationPreprocessor}, {@link FinishHandler}, or {@link FeaturePostProcessor}.
+   * Call {@code handler} for different events based on which interfaces {@code handler} implements:
+   * {@link OsmRelationPreprocessor}, {@link FinishHandler}, or {@link FeaturePostProcessor}.
    */
   public void registerHandler(Handler handler) {
     this.handlers.add(handler);
@@ -161,8 +161,7 @@ public abstract class ForwardingProfile implements Profile {
   public interface Handler {
 
     /** Free any resources associated with this profile (i.e. shared data structures) */
-    default void release() {
-    }
+    default void release() {}
   }
 
   public interface HandlerForLayer extends Handler {
@@ -187,8 +186,7 @@ public abstract class ForwardingProfile implements Profile {
   public interface OsmNodePreprocessor extends Handler {
 
     /**
-     * Extracts information from an OSM node during pass 1 of the input OSM data that the profile may need during
-     * pass2.
+     * Extracts information from an OSM node during pass 1 of the input OSM data that the profile may need during pass2.
      *
      * @see Profile#preprocessOsmNode(OsmElement.Node)
      */

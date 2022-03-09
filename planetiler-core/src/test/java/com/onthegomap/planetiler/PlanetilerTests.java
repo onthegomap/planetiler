@@ -1,10 +1,7 @@
 package com.onthegomap.planetiler;
 
 import static com.onthegomap.planetiler.TestUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -93,8 +90,7 @@ public class PlanetilerTests {
       }
 
       @Override
-      public void close() {
-      }
+      public void close() {}
     }.process(featureGroup, config);
   }
 
@@ -1510,8 +1506,7 @@ public class PlanetilerTests {
     }
 
     @Override
-    public void release() {
-    }
+    public void release() {}
 
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
@@ -1575,8 +1570,14 @@ public class PlanetilerTests {
 
   @Test
   public void testPlanetilerRunner(@TempDir Path tempDir) throws Exception {
+    Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
-    Planetiler.create(Arguments.of("tmpdir", tempDir))
+    Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
+    Files.copy(originalOsm, tempOsm);
+    Planetiler.create(Arguments.fromArgs(
+      "--tmpdir", tempDir.toString(),
+      "--free-osm-after-read"
+    ))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -1585,11 +1586,14 @@ public class PlanetilerTests {
           }
         }
       })
-      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .addOsmSource("osm", tempOsm)
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .setOutput("mbtiles", mbtiles)
       .run();
+
+    // make sure it got deleted after write
+    assertFalse(Files.exists(tempOsm));
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       int features = 0;
@@ -1604,6 +1608,63 @@ public class PlanetilerTests {
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
     }
+  }
+
+  private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
+    Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
+      .setProfile(profile)
+      .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
+      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
+      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
+      .run();
+  }
+
+  @Test
+  public void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateIntermediateDiskBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
+    );
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateOutputBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
+    );
+    assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateRamRequired(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
+    );
+  }
+
+  @Test
+  public void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateIntermediateDiskBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateOutputBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
+    runWithProfile(tempDir, new Profile.NullProfile() {
+      @Override
+      public long estimateRamRequired(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, true);
   }
 
   @Test

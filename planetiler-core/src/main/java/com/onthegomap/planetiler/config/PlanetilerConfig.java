@@ -15,7 +15,7 @@ public record PlanetilerConfig(
   boolean deferIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
-  boolean forceOverwrite,
+  boolean force,
   boolean gzipTempStorage,
   int sortMaxReaders,
   int sortMaxWriters,
@@ -23,6 +23,7 @@ public record PlanetilerConfig(
   String nodeMapStorage,
   String httpUserAgent,
   Duration httpTimeout,
+  int httpRetries,
   long downloadChunkSizeMB,
   int downloadThreads,
   double minFeatureSizeAtMaxZoom,
@@ -45,6 +46,9 @@ public record PlanetilerConfig(
     if (maxzoom > MAX_MAXZOOM) {
       throw new IllegalArgumentException("Max zoom must be <= " + MAX_MAXZOOM + ", was " + maxzoom);
     }
+    if (httpRetries < 0) {
+      throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
   }
 
   public static PlanetilerConfig defaults() {
@@ -62,7 +66,7 @@ public record PlanetilerConfig(
       arguments.getBoolean("defer_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
-      arguments.getBoolean("force", "force overwriting output file", false),
+      arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
         6),
@@ -74,6 +78,7 @@ public record PlanetilerConfig(
       arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",
         "Planetiler downloader (https://github.com/onthegomap/planetiler)"),
       arguments.getDuration("http_timeout", "Timeout to use when downloading files over HTTP", "30s"),
+      arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 1),
       arguments.getLong("download_chunk_size_mb", "Size of file chunks to download in parallel in megabytes", 100),
       arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
       arguments.getDouble("min_feature_size_at_max_zoom",

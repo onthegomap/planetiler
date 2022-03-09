@@ -77,13 +77,11 @@ public class AwsOsm {
   @JsonIgnoreProperties(ignoreUnknown = true)
   record IndexXml(
     @JacksonXmlProperty(localName = "Contents")
-    @JacksonXmlElementWrapper(useWrapping = false)
-    List<ContentXml> contents
+    @JacksonXmlElementWrapper(useWrapping = false) List<ContentXml> contents
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record ContentXml(
-    @JacksonXmlProperty(localName = "Key")
-    String key
+    @JacksonXmlProperty(localName = "Key") String key
   ) {}
 }

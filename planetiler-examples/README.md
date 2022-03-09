@@ -4,7 +4,7 @@ This is a minimal example project that shows how to create custom maps with Plan
 
 Requirements:
 
-- [Java 16 or later](https://adoptium.net/installation.html)
+- Java 16+ (see [CONTIRBUTING.md](../CONTRIBUTING.md))
   - on mac: `brew install --cask temurin`
 - [Maven](https://maven.apache.org/install.html)
   - on mac: `brew install maven`
@@ -18,13 +18,13 @@ Requirements:
 
 First, make a copy of this example project. It contains:
 
-- [pom.xml](./pom.xml) - build instructions for Maven:
+- [standalone.pom.xml](./standalone.pom.xml) - build instructions for Maven:
   - `com.onthegomap:planetiler-core` main Planetiler dependency
   - `com.onthegomap:planetiler-core` test dependency for test utilities
-  - `maven-assembly-plugin` build plugin configuration to create a single executable jar file from `mvn package` goal
-    command
-- `child.pom.xml` exists for the parent pom.xml to treat this as a child project, you can remove it to run as a
-  standalone project
+  - `maven-assembly-plugin` build plugin configuration to create a single executable jar file from Maven's `package`
+    goal command
+- `pom.xml` exists for the parent pom.xml to treat this as a child project, you can replace with `standalone.pom.xml`
+  or append `--file standalone.pom.xml` to every maven command to run as a standalone project.
 - [src/main/java/com/onthegomap/planetiler/examples](src/main/java/com/onthegomap/planetiler/examples) - some minimal
   example map profiles:
   - [ToiletsOverlay](src/main/java/com/onthegomap/planetiler/examples/ToiletsOverlay.java) - demonstrates how to build a
@@ -92,7 +92,7 @@ public static void main(String... args) throws Exception {
 Then build the application into a single jar file with all dependencies included:
 
 ```bash
-mvn clean package
+mvn clean package --file standalone.pom.xml
 ```
 
 And run the application:
@@ -177,3 +177,4 @@ Check out:
   - set MBTiles metadata attributes
   - get notified when a source finishes processing
   - and post-process vector-tile features (i.e. merge touching linestrings or polygons)
+

@@ -19,11 +19,11 @@ import org.locationtech.jts.geom.Polygon;
 /**
  * Base class for input features read from a data source.
  * <p>
- * Provides cached convenience methods with lazy initialization for geometric attributes derived from {@link
- * #latLonGeometry()} and {@link #worldGeometry()} to avoid computing them if not needed, and recomputing them if needed
- * by multiple features.
+ * Provides cached convenience methods with lazy initialization for geometric attributes derived from
+ * {@link #latLonGeometry()} and {@link #worldGeometry()} to avoid computing them if not needed, and recomputing them if
+ * needed by multiple features.
  * <p>
- * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where  (0,0) is
+ * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where (0,0) is
  * the northwest corner and (1,1) is the southeast corner of the planet.
  */
 public abstract class SourceFeature implements WithTags {
@@ -46,7 +46,7 @@ public abstract class SourceFeature implements WithTags {
    * Constructs a new input feature.
    *
    * @param tags          string key/value pairs associated with this element
-   * @param source        source name that profile can use to distinguish between  elements from different data sources
+   * @param source        source name that profile can use to distinguish between elements from different data sources
    * @param sourceLayer   layer name within {@code source} that profile can use to distinguish between different kinds
    *                      of elements in a given source.
    * @param relationInfos relations that this element is contained within
@@ -116,7 +116,7 @@ public abstract class SourceFeature implements WithTags {
     return centroid != null ? centroid : (centroid =
       canBePolygon() ? polygon().getCentroid() :
         canBeLine() ? line().getCentroid() :
-          worldGeometry().getCentroid());
+        worldGeometry().getCentroid());
   }
 
   /** Returns and caches {@link Geometry#getInteriorPoint()} of this geometry in world web mercator coordinates. */
@@ -124,13 +124,13 @@ public abstract class SourceFeature implements WithTags {
     return pointOnSurface != null ? pointOnSurface : (pointOnSurface =
       canBePolygon() ? polygon().getInteriorPoint() :
         canBeLine() ? line().getInteriorPoint() :
-          worldGeometry().getInteriorPoint());
+        worldGeometry().getInteriorPoint());
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {
     if (!canBePolygon()) {
       return centroid();
-    } else if (polygon() instanceof Polygon poly &&
+    } else if (polygon()instanceof Polygon poly &&
       poly.getNumInteriorRing() == 0 &&
       GeoUtils.isConvex(poly.getExteriorRing())) {
       return centroid();
@@ -216,7 +216,7 @@ public abstract class SourceFeature implements WithTags {
   /**
    * Returns this feature as a valid {@link Polygon} or {@link MultiPolygon} in world web mercator coordinates.
    * <p>
-   * Validating and fixing invalid polygons can be expensive, so use only if necessary.  Invalid polygons will also be
+   * Validating and fixing invalid polygons can be expensive, so use only if necessary. Invalid polygons will also be
    * fixed at render-time.
    *
    * @throws GeometryException if an error occurs constructing the geometry, or of this feature should not be
@@ -283,7 +283,7 @@ public abstract class SourceFeature implements WithTags {
    * @param relationInfoClass class of the processed relation data
    * @param <T>               type of {@code relationInfoClass}
    * @return A list containing the OSM relation info along with the role that this element is tagged with in that
-   * relation
+   *         relation
    */
   // TODO this should be in a specialized OSM subclass, not the generic superclass
   public <T extends OsmRelationInfo> List<OsmReader.RelationMember<T>> relationInfo(
@@ -295,8 +295,7 @@ public abstract class SourceFeature implements WithTags {
           if (result == null) {
             result = new ArrayList<>();
           }
-          @SuppressWarnings("unchecked")
-          OsmReader.RelationMember<T> casted = (OsmReader.RelationMember<T>) info;
+          @SuppressWarnings("unchecked") OsmReader.RelationMember<T> casted = (OsmReader.RelationMember<T>) info;
           result.add(casted);
         }
       }

@@ -200,7 +200,7 @@ public class OsmMultipolygonTest {
           node(30, 20),
           node(30, 30),
           node(20, 30)
-          // not closed
+        // not closed
         )
       ),
       rectangle(0, 10)

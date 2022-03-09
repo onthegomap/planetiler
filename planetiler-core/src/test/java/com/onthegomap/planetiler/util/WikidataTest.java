@@ -1,10 +1,13 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -30,8 +33,48 @@ import org.mockito.Mockito;
 
 public class WikidataTest {
 
-  final PlanetilerConfig config = PlanetilerConfig.defaults();
+  final PlanetilerConfig config = PlanetilerConfig.from(Arguments.fromArgs("--http-retries=1"));
   final Profile profile = new Profile.NullProfile();
+  final String response = """
+    {
+      "head" : {
+        "vars" : [ "id", "label" ]
+      },
+      "results" : {
+        "bindings" : [ {
+          "id" : {
+            "type" : "uri",
+            "value" : "http://www.wikidata.org/entity/Q1"
+          },
+          "label" : {
+            "xml:lang" : "en",
+            "type" : "literal",
+            "value" : "en name"
+          }
+        }, {
+          "id" : {
+            "type" : "uri",
+            "value" : "http://www.wikidata.org/entity/Q1"
+          },
+          "label" : {
+            "xml:lang" : "es",
+            "type" : "literal",
+            "value" : "es name"
+          }
+        }, {
+          "id" : {
+            "type" : "uri",
+            "value" : "http://www.wikidata.org/entity/Q2"
+          },
+          "label" : {
+            "xml:lang" : "es",
+            "type" : "literal",
+            "value" : "es name2"
+          }
+        } ]
+      }
+    }
+    """;
 
   @Test
   public void testWikidataTranslations() {
@@ -56,46 +99,8 @@ public class WikidataTest {
     Wikidata fixture = new Wikidata(writer, client, 2, profile, config);
     fixture.fetch(1L);
     Mockito.verifyNoInteractions(client);
-    Mockito.when(client.send(Mockito.any())).thenReturn(new ByteArrayInputStream("""
-      {
-        "head" : {
-          "vars" : [ "id", "label" ]
-        },
-        "results" : {
-          "bindings" : [ {
-            "id" : {
-              "type" : "uri",
-              "value" : "http://www.wikidata.org/entity/Q1"
-            },
-            "label" : {
-              "xml:lang" : "en",
-              "type" : "literal",
-              "value" : "en name"
-            }
-          }, {
-            "id" : {
-              "type" : "uri",
-              "value" : "http://www.wikidata.org/entity/Q1"
-            },
-            "label" : {
-              "xml:lang" : "es",
-              "type" : "literal",
-              "value" : "es name"
-            }
-          }, {
-            "id" : {
-              "type" : "uri",
-              "value" : "http://www.wikidata.org/entity/Q2"
-            },
-            "label" : {
-              "xml:lang" : "es",
-              "type" : "literal",
-              "value" : "es name2"
-            }
-          } ]
-        }
-      }
-      """.getBytes(StandardCharsets.UTF_8)));
+    Mockito.when(client.send(Mockito.any()))
+      .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
     fixture.fetch(2L);
 
     return List.of(
@@ -131,6 +136,29 @@ public class WikidataTest {
         Mockito.verifyNoInteractions(client2);
       })
     );
+  }
+
+  @Test
+  public void testRetryFailedRequestOnce() throws IOException, InterruptedException {
+    StringWriter writer = new StringWriter();
+    Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
+    Wikidata fixture = new Wikidata(writer, client, 1, profile, config);
+    Mockito.when(client.send(Mockito.any()))
+      // fail once then succeed
+      .thenThrow(IOException.class)
+      .thenReturn(new ByteArrayInputStream(response.getBytes(StandardCharsets.UTF_8)));
+    fixture.fetch(1L);
+    var translations = Wikidata.load(new BufferedReader(new StringReader(writer.toString())));
+    assertEquals(Map.of("en", "en name", "es", "es name"), translations.get(1));
+    assertEquals(Map.of("es", "es name2"), translations.get(2));
+
+    Mockito.reset(client);
+    Mockito.when(client.send(Mockito.any()))
+      // fail all subsequent requests
+      .thenThrow(IOException.class);
+    var outerException = assertThrows(RuntimeException.class, () -> fixture.fetch(2L));
+    var innerException = outerException.getCause();
+    assertInstanceOf(IOException.class, innerException);
   }
 
   private static void assertEqualsIgnoringWhitespace(String expected, String actual) {

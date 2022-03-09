@@ -23,7 +23,9 @@ public interface OsmElement extends WithTags {
   int cost();
 
   enum Type {
-    NODE, WAY, RELATION
+    NODE,
+    WAY,
+    RELATION
   }
 
   /** An un-handled element read from the .osm.pbf file (i.e. file header). */
@@ -165,7 +167,9 @@ public interface OsmElement extends WithTags {
       return 1 + tags.size() + members.size() * 3;
     }
 
-    /** A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member. */
+    /**
+     * A node, way, or relation contained in a relation with an optional "role" to clarify the purpose of each member.
+     */
     public record Member(
       Type type,
       long ref,

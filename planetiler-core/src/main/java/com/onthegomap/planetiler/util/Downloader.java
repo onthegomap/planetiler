@@ -21,12 +21,15 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,20 +46,23 @@ import org.slf4j.LoggerFactory;
  * changes.
  * <p>
  * For example:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * Downloader.create(PlanetilerConfig.defaults())
  *   .add("natural_earth", "http://url/of/natural_earth.zip", Path.of("natural_earth.zip"))
  *   .add("osm", "http://url/of/file.osm.pbf", Path.of("file.osm.pbf"))
- *   .start();
- * }</pre>
+ *   .run();
+ * }
+ * </pre>
  * <p>
  * As a shortcut to find the URL of a file to download from the <a href="https://download.geofabrik.de/">Geofabrik
  * download site</a>, you can use "geofabrik:extract name" (i.e. "geofabrik:monaco" or "geofabrik:australia") to look up
  * a {@code .osm.pbf} download URL in the <a href="https://download.geofabrik.de/technical.html">Geofabrik JSON
  * index</a>.
  * <p>
- * You can also use "aws:latest" to download the latest {@code planet.osm.pbf} file from the <a
- * href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a>.
+ * You can also use "aws:latest" to download the latest {@code planet.osm.pbf} file from the
+ * <a href="https://registry.opendata.aws/osm/">AWS Open Data Registry</a>.
  */
 @SuppressWarnings("UnusedReturnValue")
 public class Downloader {
@@ -71,6 +77,7 @@ public class Downloader {
   private final ExecutorService executor;
   private final Stats stats;
   private final long chunkSizeBytes;
+  private final ConcurrentMap<FileStore, Long> bytesToDownload = new ConcurrentHashMap<>();
 
   Downloader(PlanetilerConfig config, Stats stats, long chunkSizeBytes) {
     this.chunkSizeBytes = chunkSizeBytes;
@@ -173,7 +180,8 @@ public class Downloader {
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
       }
     }
-    loggers.awaitAndLog(downloads, config.logInterval());
+    loggers.add(" ").addProcessStats()
+      .awaitAndLog(downloads, config.logInterval());
     executor.shutdown();
   }
 
@@ -193,15 +201,15 @@ public class Downloader {
           LOGGER.info("Skipping " + resourceToDownload.id + ": " + resourceToDownload.output + " already up-to-date");
           return CompletableFuture.completedFuture(null);
         } else {
-          String redirectInfo = metadata.canonicalUrl.equals(resourceToDownload.url)
-            ? ""
-            : " (redirected to " + metadata.canonicalUrl + ")";
+          String redirectInfo = metadata.canonicalUrl.equals(resourceToDownload.url) ? "" :
+            " (redirected to " + metadata.canonicalUrl + ")";
           LOGGER.info("Downloading " + resourceToDownload.url + redirectInfo + " to " + resourceToDownload.output);
           FileUtils.delete(resourceToDownload.output);
           FileUtils.createParentDirectories(resourceToDownload.output);
           Path tmpPath = resourceToDownload.tmpPath();
           FileUtils.delete(tmpPath);
           FileUtils.deleteOnExit(tmpPath);
+          checkDiskSpace(tmpPath, metadata.size);
           return httpDownload(resourceToDownload, tmpPath)
             .thenCompose(result -> {
               try {
@@ -223,13 +231,33 @@ public class Downloader {
       }, executor);
   }
 
+  private void checkDiskSpace(Path destination, long size) {
+    try {
+      var fs = Files.getFileStore(destination.toAbsolutePath().getParent());
+      var totalPendingBytes = bytesToDownload.merge(fs, size, Long::sum);
+      var availableBytes = fs.getUnallocatedSpace();
+      if (totalPendingBytes > availableBytes) {
+        var format = Format.defaultInstance();
+        String warning =
+          "Attempting to download " + format.storage(totalPendingBytes) + " to " + fs + " which only has " +
+            format.storage(availableBytes) + " available";
+        if (config.force()) {
+          LOGGER.warn(warning + ", will probably fail.");
+        } else {
+          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+        }
+      }
+    } catch (IOException e) {
+      LOGGER.warn("Unable to check file size for download, you may run out of space: " + e, e);
+    }
+  }
+
   private CompletableFuture<ResourceMetadata> httpHeadFollowRedirects(String url, int redirects) {
     if (redirects > MAX_REDIRECTS) {
       throw new IllegalStateException("Exceeded " + redirects + " redirects for " + url);
     }
-    return httpHead(url).thenComposeAsync(response -> response.redirect.isPresent()
-      ? httpHeadFollowRedirects(response.redirect.get(), redirects + 1)
-      : CompletableFuture.completedFuture(response));
+    return httpHead(url).thenComposeAsync(response -> response.redirect.isPresent() ?
+      httpHeadFollowRedirects(response.redirect.get(), redirects + 1) : CompletableFuture.completedFuture(response));
   }
 
   CompletableFuture<ResourceMetadata> httpHead(String url) {
@@ -253,7 +281,8 @@ public class Downloader {
           boolean supportsRangeRequest = headers.allValues(ACCEPT_RANGES).contains("bytes");
           ResourceMetadata metadata = new ResourceMetadata(location, url, contentLength, supportsRangeRequest);
           return HttpResponse.BodyHandlers.replacing(metadata).apply(responseInfo);
-        }).thenApply(HttpResponse::body);
+        })
+      .thenApply(HttpResponse::body);
   }
 
   private CompletableFuture<?> httpDownload(ResourceToDownload resource, Path tmpPath) {
@@ -293,9 +322,8 @@ public class Downloader {
           try (var fileChannel = FileChannel.open(tmpPath, WRITE)) {
             while (range.size() > 0) {
               try (
-                var inputStream = (ranges || range.start > 0)
-                  ? openStreamRange(canonicalUrl, range.start, range.end)
-                  : openStream(canonicalUrl);
+                var inputStream = (ranges || range.start > 0) ? openStreamRange(canonicalUrl, range.start, range.end) :
+                  openStream(canonicalUrl);
                 var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress)
               ) {
                 // ensure this file has been allocated up to the start of this block
@@ -306,8 +334,8 @@ public class Downloader {
                   throw new IOException("Transferred 0 bytes but " + range.size() + " expected: " + canonicalUrl);
                 } else if (transferred != range.size() && !metadata.acceptRange) {
                   throw new IOException(
-                    "Transferred " + transferred + " bytes but " + range.size() + " expected: " + canonicalUrl
-                      + " and server does not support range requests");
+                    "Transferred " + transferred + " bytes but " + range.size() + " expected: " + canonicalUrl +
+                      " and server does not support range requests");
                 }
                 range = new Range(range.start + transferred, range.end);
               }

@@ -25,7 +25,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up JDK ${{ matrix.jdk }}
         uses: actions/setup-java@v2
         with:
@@ -34,10 +34,10 @@ jobs:
           cache: 'maven'
       - name: Build with mvnw (linux/mac)
         if: ${{ !contains(matrix.os, 'windows') }}
-        run: ./mvnw ${{matrix.args}} --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
+        run: ./mvnw ${{matrix.args}} --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
       - name: Build with mvnw.cmd (windows)
         if: ${{ contains(matrix.os, 'windows') }}
-        run: mvnw.cmd ${{matrix.args}} --batch-mode -no-transfer-progress package jib:buildTar --file pom.xml
+        run: mvnw.cmd ${{matrix.args}} --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
         shell: cmd
 
   regenerate:
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
@@ -54,7 +54,7 @@ jobs:
           cache: 'maven'
       - run: ./scripts/regenerate-openmaptiles.sh
       - run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean install -pl planetiler-basemap -am
-      - run: ./mvnw --batch-mode -no-transfer-progress test -pl planetiler-basemap
+      - run: ./mvnw --batch-mode -no-transfer-progress verify -pl planetiler-basemap
 
   examples:
     name: Example project
@@ -62,14 +62,14 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
           java-version: 17
           distribution: 'temurin'
       - name: Build and test
-        run: mvn --batch-mode -no-transfer-progress package --file pom.xml
+        run: mvn --batch-mode -no-transfer-progress package --file standalone.pom.xml
         working-directory: planetiler-examples
       - name: Find jar
         run: mv target/*with-deps.jar ./run.jar
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Cache data/sources
         uses: ./.github/cache-sources-action
       - name: Set up JDK

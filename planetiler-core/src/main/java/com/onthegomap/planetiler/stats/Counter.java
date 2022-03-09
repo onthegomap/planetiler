@@ -51,8 +51,7 @@ public interface Counter {
    */
   class SingleThreadCounter implements Readable {
 
-    private SingleThreadCounter() {
-    }
+    private SingleThreadCounter() {}
 
     private final AtomicLong counter = new AtomicLong(0);
 
@@ -75,8 +74,7 @@ public interface Counter {
    */
   class MultiThreadCounter implements Readable {
 
-    private MultiThreadCounter() {
-    }
+    private MultiThreadCounter() {}
 
     // keep track of all counters that have been handed out to threads so far
     // and on read, add up the counts from each

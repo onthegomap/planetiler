@@ -166,8 +166,8 @@ public class ProgressLoggers {
       last.set(valueNow);
       lastTime.set(now);
       String result =
-        "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4)
-          + " " + formatter.apply(valueDiff / timeDiff) + "/s ]";
+        "[ " + formatter.apply(valueNow) + " " + padLeft(format.percent(1f * valueNow / total), 4) + " " +
+          formatter.apply(valueDiff / timeDiff) + "/s ]";
       return (color && valueDiff > 0) ? green(result) : result;
     }));
     return this;
@@ -188,12 +188,9 @@ public class ProgressLoggers {
 
   /** Adds the current number of items in a queue and the queue's size to the output. */
   public ProgressLoggers addQueueStats(WorkQueue<?> queue) {
-    loggers.add(new WorkerPipelineLogger(() ->
-      " -> " + padLeft("(" +
-        format.numeric(queue.getPending(), false)
-        + "/" +
-        format.numeric(queue.getCapacity(), false)
-        + ")", 9)
+    loggers.add(new WorkerPipelineLogger(() -> " -> " + padLeft("(" +
+      format.numeric(queue.getPending(), false) + "/" +
+      format.numeric(queue.getCapacity(), false) + ")", 9)
     ));
     return this;
   }
@@ -256,6 +253,11 @@ public class ProgressLoggers {
     loggers.add(new ProgressLogger("mem",
       () -> format.storage(ProcessInfo.getUsedMemoryBytes(), false) + "/" +
         format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
+        ProcessInfo.getDirectMemoryUsage().stream()
+          .filter(usage -> usage > 0)
+          .mapToObj(mem -> " direct: " + format.storage(mem))
+          .findFirst()
+          .orElse("") +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
           .mapToObj(value -> " postGC: " + blue(format.storage(value, false)))
           .findFirst()

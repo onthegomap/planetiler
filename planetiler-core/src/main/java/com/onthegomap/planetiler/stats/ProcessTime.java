@@ -9,12 +9,15 @@ import java.util.Optional;
  * A utility for measuring the wall and CPU time that this JVM consumes between snapshots.
  * <p>
  * For example:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * var start = ProcessTime.now();
  * // do expensive work...
  * var end - ProcessTime.now();
  * LOGGER.log("Expensive work took " + end.minus(start));
- * }</pre>
+ * }
+ * </pre>
  */
 public record ProcessTime(Duration wall, Optional<Duration> cpu, Duration gc) {
 

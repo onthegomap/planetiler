@@ -12,3 +12,6 @@ echo "Building..."
 
 echo "Running..."
 java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.basemap.Generate -tag="${TAG}"
+
+echo "Formatting..."
+./scripts/format.sh

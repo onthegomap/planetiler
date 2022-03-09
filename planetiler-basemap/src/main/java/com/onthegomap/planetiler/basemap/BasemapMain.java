@@ -35,7 +35,8 @@ public class BasemapMain {
       // or osm_path=... osm_url=... in a config file
       .addShapefileSource("EPSG:3857", BasemapProfile.LAKE_CENTERLINE_SOURCE,
         sourcesDir.resolve("lake_centerline.shp.zip"),
-        "https://github.com/lukasmartinelli/osm-lakelines/releases/download/v0.9/lake_centerline.shp.zip")
+        // was previously using this old build from 2016: https://github.com/lukasmartinelli/osm-lakelines/releases/download/v0.9/lake_centerline.shp.zip
+        "https://github.com/acalcutt/osm-lakelines/releases/download/latest/lake_centerline.shp.zip")
       .addShapefileSource(BasemapProfile.WATER_POLYGON_SOURCE,
         sourcesDir.resolve("water-polygons-split-3857.zip"),
         "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip")
