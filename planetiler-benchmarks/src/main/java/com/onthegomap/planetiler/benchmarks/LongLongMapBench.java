@@ -25,7 +25,7 @@ public class LongLongMapBench {
     Format format = Format.defaultInstance();
     Path path = Path.of("./llmaptest");
     FileUtils.delete(path);
-    LongLongMap map = LongLongMap.from(args[0], args[1], path);
+    LongLongMap map = LongLongMap.from(args[0], args[1], path, args.length < 5 || Boolean.getBoolean(args[4]));
     long entries = Long.parseLong(args[2]);
     int readers = Integer.parseInt(args[3]);
 

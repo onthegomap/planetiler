@@ -21,6 +21,7 @@ public record PlanetilerConfig(
   int sortMaxWriters,
   String nodeMapType,
   String nodeMapStorage,
+  boolean nodeMapMadvise,
   String httpUserAgent,
   Duration httpTimeout,
   int httpRetries,
@@ -75,6 +76,8 @@ public record PlanetilerConfig(
       arguments
         .getString("nodemap_type", "type of node location map: noop, sortedtable, or sparsearray", "sortedtable"),
       arguments.getString("nodemap_storage", "storage for location map: mmap or ram", "mmap"),
+      arguments.getBoolean("nodemap_madvise", "use linux madvise(random) to improve memory-mapped read performance",
+        true),
       arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",
         "Planetiler downloader (https://github.com/onthegomap/planetiler)"),
       arguments.getDuration("http_timeout", "Timeout to use when downloading files over HTTP", "30s"),

@@ -27,6 +27,7 @@ abstract class AppendStoreMmap implements AppendStore {
   final long segmentMask;
   final long segmentBytes;
   private final Path path;
+  private final boolean madvise;
   long outIdx = 0;
   private volatile MappedByteBuffer[] segments;
   private volatile FileChannel channel;
@@ -35,11 +36,12 @@ abstract class AppendStoreMmap implements AppendStore {
     MmapUtil.init();
   }
 
-  AppendStoreMmap(Path path) {
-    this(path, 1 << 30); // 1GB
+  AppendStoreMmap(Path path, boolean madvise) {
+    this(path, 1 << 30, madvise); // 1GB
   }
 
-  AppendStoreMmap(Path path, long segmentSizeBytes) {
+  AppendStoreMmap(Path path, long segmentSizeBytes, boolean madvise) {
+    this.madvise = madvise;
     segmentBits = (int) (Math.log(segmentSizeBytes) / Math.log(2));
     segmentMask = (1L << segmentBits) - 1;
     segmentBytes = segmentSizeBytes;
@@ -70,13 +72,15 @@ abstract class AppendStoreMmap implements AppendStore {
             for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
               long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
               MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
-              try {
-                MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
-              } catch (IOException e) {
-                if (!madviseFailed) { // log once
-                  LOGGER.info(
-                    "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
-                  madviseFailed = true;
+              if (madvise) {
+                try {
+                  MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
+                } catch (IOException e) {
+                  if (!madviseFailed) { // log once
+                    LOGGER.info(
+                      "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
+                    madviseFailed = true;
+                  }
                 }
               }
               result[i++] = thisBuffer;
@@ -116,12 +120,12 @@ abstract class AppendStoreMmap implements AppendStore {
 
   static class Ints extends AppendStoreMmap implements AppendStore.Ints {
 
-    Ints(Path path) {
-      super(path);
+    Ints(Path path, boolean madvise) {
+      super(path, madvise);
     }
 
-    Ints(Path path, long segmentSizeBytes) {
-      super(path, segmentSizeBytes);
+    Ints(Path path, long segmentSizeBytes, boolean madvise) {
+      super(path, segmentSizeBytes, madvise);
     }
 
     @Override
@@ -152,12 +156,12 @@ abstract class AppendStoreMmap implements AppendStore {
 
   static class Longs extends AppendStoreMmap implements AppendStore.Longs {
 
-    Longs(Path path) {
-      super(path);
+    Longs(Path path, boolean madvise) {
+      super(path, madvise);
     }
 
-    Longs(Path path, long segmentSizeBytes) {
-      super(path, segmentSizeBytes);
+    Longs(Path path, long segmentSizeBytes, boolean madvise) {
+      super(path, segmentSizeBytes, madvise);
     }
 
     @Override
