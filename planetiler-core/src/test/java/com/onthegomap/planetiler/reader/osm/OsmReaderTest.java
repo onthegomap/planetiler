@@ -335,11 +335,11 @@ public class OsmReaderTest {
     assertThrows(GeometryException.class, feature::length);
   }
 
-  private final Function<OsmElement, Stream<OsmElement.Node>> nodes = elem ->
-    elem instanceof OsmElement.Node node ? Stream.of(node) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Node>> nodes =
+    elem -> elem instanceof OsmElement.Node node ? Stream.of(node) : Stream.empty();
 
-  private final Function<OsmElement, Stream<OsmElement.Way>> ways = elem ->
-    elem instanceof OsmElement.Way way ? Stream.of(way) : Stream.empty();
+  private final Function<OsmElement, Stream<OsmElement.Way>> ways =
+    elem -> elem instanceof OsmElement.Way way ? Stream.of(way) : Stream.empty();
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
@@ -552,7 +552,7 @@ public class OsmReaderTest {
 
     List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
-//      node(2, 0.9, 0.1), MISSING!
+      //      node(2, 0.9, 0.1), MISSING!
       node(3, 0.9, 0.9),
       node(4, 0.1, 0.9),
 
@@ -587,7 +587,7 @@ public class OsmReaderTest {
       node(3, 0.9, 0.9),
       node(4, 0.1, 0.9),
 
-//      outerway, // missing!
+      //      outerway, // missing!
 
       relation
     );

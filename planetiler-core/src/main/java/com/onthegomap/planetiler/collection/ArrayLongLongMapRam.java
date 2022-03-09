@@ -83,11 +83,10 @@ public class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
 
   @Override
   public long estimateMemoryUsageBytes() {
-    return MemoryEstimator.estimateObjectArraySize(segments.size())
-      + MemoryEstimator.estimateLongArraySize(segmentSize) * numSegments.get();
+    return MemoryEstimator.estimateObjectArraySize(segments.size()) +
+      MemoryEstimator.estimateLongArraySize(segmentSize) * numSegments.get();
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 }

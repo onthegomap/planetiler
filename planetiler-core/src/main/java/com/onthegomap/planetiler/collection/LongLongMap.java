@@ -59,10 +59,10 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
     return switch (name) {
       case "noop" -> noop();
-      case "sortedtable" -> ram ? (direct ? newDirectSortedTable() : newInMemorySortedTable())
-        : newDiskBackedSortedTable(path);
-      case "sparsearray" -> ram ? (direct ? newDirectSparseArray() : newInMemorySparseArray())
-        : newDiskBackedSparseArray(path);
+      case "sortedtable" -> ram ? (direct ? newDirectSortedTable() : newInMemorySortedTable()) :
+        newDiskBackedSortedTable(path);
+      case "sparsearray" -> ram ? (direct ? newDirectSparseArray() : newInMemorySparseArray()) :
+        newDiskBackedSparseArray(path);
       default -> throw new IllegalArgumentException("Unexpected value: " + name);
     };
   }
@@ -137,8 +137,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       }
 
       @Override
-      public void close() {
-      }
+      public void close() {}
     };
   }
 
@@ -229,8 +228,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     void put(long key, long value);
 
     @Override
-    default void close() {
-    }
+    default void close() {}
   }
 
   interface SequentialWrites extends LongLongMap {
@@ -243,8 +241,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     }
   }
 
-  interface ParallelWrites extends LongLongMap {
-  }
+  interface ParallelWrites extends LongLongMap {}
 
   /**
    * A longlong map that stores keys and values sorted by key and does a binary search to lookup values.
