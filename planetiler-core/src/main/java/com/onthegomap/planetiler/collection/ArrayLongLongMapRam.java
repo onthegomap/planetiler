@@ -8,11 +8,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
 
-  static final int segmentBits = 20; // 8MB
-  static final long segmentMask = (1L << segmentBits) - 1;
-  static final int segmentSize = 1 << segmentBits;
-  private static final List<long[]> segments = new ArrayList<>();
+  private final int segmentBits;
+  private final long segmentMask;
+  private final int segmentSize;
+  private final List<long[]> segments = new ArrayList<>();
   private final AtomicInteger numSegments = new AtomicInteger(0);
+
+  public ArrayLongLongMapRam() {
+    this(20); // 8MB
+  }
+
+  public ArrayLongLongMapRam(int segmentBits) {
+    this.segmentBits = segmentBits;
+    segmentMask = (1L << segmentBits) - 1;
+    segmentSize = 1 << segmentBits;
+  }
 
   private synchronized long[] getSegment(int index) {
     while (segments.size() <= index) {
@@ -55,7 +65,14 @@ public class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
   public long get(long key) {
     int idx = (int) (key >>> segmentBits);
     int offset = (int) (key & segmentMask);
-    long result = segments.get(idx)[offset];
+    if (idx >= segments.size()) {
+      return LongLongMap.MISSING_VALUE;
+    }
+    long[] longs = segments.get(idx);
+    if (longs == null) {
+      return LongLongMap.MISSING_VALUE;
+    }
+    long result = longs[offset];
     return result == 0 ? LongLongMap.MISSING_VALUE : result;
   }
 

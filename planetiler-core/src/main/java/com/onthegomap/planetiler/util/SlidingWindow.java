@@ -30,6 +30,7 @@ public class SlidingWindow {
       monitor.enterWhen(monitor.newGuard(() -> to - tail.longValue() < windowSize));
       monitor.leave();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     }
   }

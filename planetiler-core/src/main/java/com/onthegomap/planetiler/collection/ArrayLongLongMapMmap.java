@@ -4,6 +4,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import com.carrotsearch.hppc.BitSet;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.SlidingWindow;
 import java.io.IOException;
@@ -16,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,19 +24,34 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   FileChannel writeChannel;
-  static final int segmentBits = 27; // 128MB
-  static final int maxPendingSegments = 20; // 1GB
-  static final long segmentMask = (1L << segmentBits) - 1;
-  static final long segmentBytes = 1 << segmentBits;
-  private final SlidingWindow slidingWindow = new SlidingWindow(maxPendingSegments);
-  final Path path;
-  MappedByteBuffer[] segmentsArray;
-  CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
-  final ConcurrentMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
+  private final int segmentBits;
+  private final long segmentMask;
+  private final long segmentBytes;
+  private final SlidingWindow slidingWindow;
+  private final Path path;
+  private MappedByteBuffer[] segmentsArray;
+  private final CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
+  private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
   private FileChannel readChannel = null;
   private volatile int tail = 0;
+  private final BitSet usedSegments = new BitSet();
 
   public ArrayLongLongMapMmap(Path path) {
+    this(
+      path,
+      27, // 128MB per chunk
+      20 // 2.5GB of pending chunks
+    );
+  }
+
+  public ArrayLongLongMapMmap(Path path, int segmentBits, int maxPendingSegments) {
+    if (segmentBits < 3) {
+      throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
+    }
+    this.segmentBits = segmentBits;
+    segmentMask = (1L << segmentBits) - 1;
+    segmentBytes = 1L << segmentBits;
+    slidingWindow = new SlidingWindow(maxPendingSegments);
     this.path = path;
     try {
       writeChannel = FileChannel.open(path, WRITE, CREATE);
@@ -65,9 +80,13 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       int i = 0;
       for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
         long segmentLength = Math.min(segmentBytes, outIdx - segmentStart);
-        MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
         // TODO madvise
-        segmentsArray[i++] = buffer;
+        if (usedSegments.get(i)) {
+          MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
+          System.err.println("Mapping from " + segmentStart + "->" + segmentLength);
+          segmentsArray[i] = buffer;
+        }
+        i++;
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -97,7 +116,10 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     ByteBuffer await() {
       try {
         return result.get();
-      } catch (InterruptedException | ExecutionException e) {
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
     }
@@ -108,16 +130,23 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       result.complete(ByteBuffer.allocateDirect(1 << segmentBits));
     }
 
-    synchronized void flush() {
+    void flush() {
       try {
-        System.err.println("    " + Thread.currentThread().getName() + " flushing " + id);
+        System.err.println("flushing " + id);
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         buffer.clear();
+        System.err.println("  ==> flushed " + id);
+        synchronized (usedSegments) {
+          usedSegments.set(id);
+        }
         result = null;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
-      } catch (ExecutionException | InterruptedException e) {
+      } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
     }
@@ -136,21 +165,31 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     List<Segment> allocate = new ArrayList<>();
     var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
     if (min == Integer.MAX_VALUE || value == Integer.MAX_VALUE) {
-      for (Integer key : writeBuffers.keySet()) {
-        var segment = writeBuffers.remove(key);
-        if (segment != null) {
-          flush.add(segment);
+      for (Integer key : writeBuffers.keySet().stream().sorted().toList()) {
+        if (key < min) {
+          var segment = writeBuffers.remove(key);
+          if (segment != null) {
+            flush.add(segment);
+          }
+          System.err.println("set tail=" + key);
+          tail = key + 1;
+          slidingWindow.advanceTail(tail);
         }
       }
       return new SegmentActions(flush, allocate, null);
     }
+    System.err.println("min=" + min);
     while (tail < min) {
-      var segment = writeBuffers.remove(tail);
-      if (segment != null) {
-        flush.add(segment);
+      if (writeBuffers.containsKey(tail)) {
+        var segment = writeBuffers.remove(tail);
+        if (segment != null) {
+          flush.add(segment);
+        }
       }
+      System.err.println("tail=" + tail);
       tail++;
     }
+    System.err.println("acvanceTail=" + tail);
     slidingWindow.advanceTail(tail);
     Segment result = writeBuffers.computeIfAbsent(value, id -> {
       var seg = new Segment(id);
@@ -172,8 +211,9 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
       @Override
       public void close() {
-        System.err.println(Thread.currentThread().getName() + " closing");
-        getSegmentActions(currentSeg, Integer.MAX_VALUE).flush.forEach(Segment::flush);
+        var actions = getSegmentActions(currentSeg, Integer.MAX_VALUE);
+        System.err.println(Thread.currentThread().getName() + " closing: " + actions);
+        actions.flush.forEach(Segment::flush);
       }
 
       @Override
@@ -223,8 +263,15 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     initOnce();
     long byteOffset = key << 3;
     int idx = (int) (byteOffset >>> segmentBits);
+    if (idx >= segmentsArray.length) {
+      return LongLongMap.MISSING_VALUE;
+    }
+    MappedByteBuffer mappedByteBuffer = segmentsArray[idx];
+    if (mappedByteBuffer == null) {
+      return LongLongMap.MISSING_VALUE;
+    }
     int offset = (int) (byteOffset & segmentMask);
-    long result = segmentsArray[idx].getLong(offset);
+    long result = mappedByteBuffer.getLong(offset);
     return result == 0 ? LongLongMap.MISSING_VALUE : result;
   }
 
