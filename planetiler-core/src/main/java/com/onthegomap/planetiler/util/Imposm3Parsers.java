@@ -19,12 +19,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Parse utilities ported to Java from <a href="https://github.com/omniscale/imposm3/blob/master/mapping/columns.go">omniscale/imposm3:mapping/columns.go</a>
+ * Parse utilities ported to Java from <a href=
+ * "https://github.com/omniscale/imposm3/blob/master/mapping/columns.go">omniscale/imposm3:mapping/columns.go</a>
  */
 public class Imposm3Parsers {
 
-  private Imposm3Parsers() {
-  }
+  private Imposm3Parsers() {}
 
   private static String string(Object object) {
     return object == null ? null : object.toString();

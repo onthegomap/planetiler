@@ -22,9 +22,9 @@ import org.locationtech.jts.geom.Polygon;
  * <p>
  * The {@code List<List<CoordinateSequence>>} format is:
  * <ul>
- *   <li>For linestrings: {@code [[linestring], [linestring], ...]}</li> for each linestring in the collection
- *   <li>For polygons: {@code [[outer ring, inner ring, inner ring], [outer ring, inner ring, ...], ...]}</li> for each
- *   polygon in the multipolygon
+ * <li>For linestrings: {@code [[linestring], [linestring], ...]}</li> for each linestring in the collection
+ * <li>For polygons: {@code [[outer ring, inner ring, inner ring], [outer ring, inner ring, ...], ...]}</li> for each
+ * polygon in the multipolygon
  * </ul>
  */
 class GeometryCoordinateSequences {
@@ -36,14 +36,13 @@ class GeometryCoordinateSequences {
    * For {@link LineString LineStrings} that means all linestrings over a certain length.
    * <p>
    * For {@link Polygon Polygons} that means all lists of [exterior, interior...] ring coordinate sequences where the
-   * ring is over a certain area.  This utility also ensures that exterior and interior rings use counter-clockwise
+   * ring is over a certain area. This utility also ensures that exterior and interior rings use counter-clockwise
    * winding.
    *
    * @param geom    one or more linestings or polygons
    * @param minSize minimum length of linestrings, or minimum area of exterior/interior rings to include
    * @return the coordinate sequences of the geometry
-   * @throws IllegalArgumentException if {@code geom} contains anything other than linestrings or polygons (i.e.
-   *                                  points)
+   * @throws IllegalArgumentException if {@code geom} contains anything other than linestrings or polygons (i.e. points)
    */
   static List<List<CoordinateSequence>> extractGroups(Geometry geom, double minSize) {
     List<List<CoordinateSequence>> result = new ArrayList<>();

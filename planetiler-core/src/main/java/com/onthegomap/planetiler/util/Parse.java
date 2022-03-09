@@ -8,8 +8,7 @@ import java.util.regex.Pattern;
  */
 public class Parse {
 
-  private Parse() {
-  }
+  private Parse() {}
 
   private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
   private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");

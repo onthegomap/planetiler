@@ -162,15 +162,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             node.encodedLocation();
             if (nodesDone) {
               throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id()
-                  + " after a way or relation");
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id() +
+                  " after a way or relation");
             }
           } else if (element instanceof OsmElement.Way way) {
             nodesDone = true;
             if (waysDone) {
               throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id()
-                  + " after a relation");
+                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id() +
+                  " after a relation");
             }
           } else if (element instanceof OsmElement.Relation) {
             nodesDone = waysDone = true;
@@ -519,7 +519,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param role     "role" of the relation member
    * @param relation user-provided data about the relation from pass1
    */
-  public record RelationMember<T extends OsmRelationInfo>(String role, T relation) {}
+  public record RelationMember<T extends OsmRelationInfo> (String role, T relation) {}
 
   /** Raw relation membership data that gets encoded/decoded into a long. */
   private record RelationMembership(String role, long relationId) {}

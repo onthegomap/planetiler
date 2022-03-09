@@ -62,8 +62,8 @@ import java.util.Locale;
  * Defines the logic for generating map elements for designated parks polygons and their label points in the {@code
  * park} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/park">OpenMapTiles
- * park sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/park">OpenMapTiles park sql files</a>.
  */
 public class Park implements
   OpenMapTilesSchema.Park,

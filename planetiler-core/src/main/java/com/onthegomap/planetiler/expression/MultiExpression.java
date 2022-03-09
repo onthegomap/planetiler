@@ -29,7 +29,7 @@ import java.util.function.Predicate;
  *
  * @param <T> type of data value associated with each expression
  */
-public record MultiExpression<T>(List<Entry<T>> expressions) {
+public record MultiExpression<T> (List<Entry<T>> expressions) {
 
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
     return new MultiExpression<>(expressions);
@@ -94,8 +94,8 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
     if (expressions.isEmpty()) {
       return new EmptyIndex<>();
     }
-    boolean caresAboutGeometryType = expressions.stream().anyMatch(entry ->
-      entry.expression.contains(exp -> exp instanceof Expression.MatchType));
+    boolean caresAboutGeometryType =
+      expressions.stream().anyMatch(entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
     return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(this);
   }
 
@@ -308,13 +308,13 @@ public record MultiExpression<T>(List<Entry<T>> expressions) {
   }
 
   /** An expression/value pair with unique ID to store whether we evaluated it yet. */
-  private record EntryWithId<T>(T result, Expression expression, int id) {}
+  private record EntryWithId<T> (T result, Expression expression, int id) {}
 
   /**
    * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
    */
-  public record Entry<T>(T result, Expression expression) {}
+  public record Entry<T> (T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T>(T match, List<String> keys) {}
+  public record Match<T> (T match, List<String> keys) {}
 }

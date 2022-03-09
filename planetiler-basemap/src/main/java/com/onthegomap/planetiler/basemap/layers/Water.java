@@ -49,8 +49,8 @@ import com.onthegomap.planetiler.util.Translations;
 /**
  * Defines the logic for generating map elements for oceans and lakes in the {@code water} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water">OpenMapTiles
- * water sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water">OpenMapTiles water sql files</a>.
  */
 public class Water implements
   OpenMapTilesSchema.Water,

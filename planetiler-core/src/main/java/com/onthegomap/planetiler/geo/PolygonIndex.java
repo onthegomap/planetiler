@@ -19,12 +19,11 @@ import org.locationtech.jts.index.strtree.STRtree;
 @ThreadSafe
 public class PolygonIndex<T> {
 
-  private record GeomWithData<T>(Polygon poly, T data) {}
+  private record GeomWithData<T> (Polygon poly, T data) {}
 
   private final STRtree index = new STRtree();
 
-  private PolygonIndex() {
-  }
+  private PolygonIndex() {}
 
   public static <T> PolygonIndex<T> create() {
     return new PolygonIndex<>();
@@ -78,7 +77,7 @@ public class PolygonIndex<T> {
     List<?> items = index.query(point.getEnvelopeInternal());
     // optimization: if there's only one then skip checking contains/distance
     if (items.size() == 1) {
-      if (items.get(0) instanceof GeomWithData<?> value) {
+      if (items.get(0)instanceof GeomWithData<?> value) {
         @SuppressWarnings("unchecked") T t = (T) value.data;
         return List.of(t);
       }

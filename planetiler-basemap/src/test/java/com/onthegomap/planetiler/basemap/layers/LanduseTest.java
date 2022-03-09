@@ -44,9 +44,9 @@ public class LanduseTest extends AbstractLayerTest {
         "_minzoom", 9,
         "_maxzoom", 14
       )), process(polygonFeature(Map.of(
-      "landuse", "railway",
-      "amenity", "school"
-    ))));
+        "landuse", "railway",
+        "amenity", "school"
+      ))));
     assertFeatures(13, List.of(Map.of("_layer", "poi"), Map.of(
       "_layer", "landuse",
       "class", "school",
@@ -66,8 +66,8 @@ public class LanduseTest extends AbstractLayerTest {
         "_layer", "landuse",
         "class", "cemetery"
       )), process(polygonFeature(Map.of(
-      "amenity", "grave_yard"
-    ))));
+        "amenity", "grave_yard"
+      ))));
   }
 
   @Test

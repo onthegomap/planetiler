@@ -51,7 +51,8 @@ import com.onthegomap.planetiler.util.Translations;
 /**
  * Defines the logic for generating map elements in the {@code aerodrome_label} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label">OpenMapTiles
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/aerodrome_label">OpenMapTiles
  * aerodrome_layer sql files</a>.
  */
 public class AerodromeLabel implements

@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.collection;
 
-
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.LongByteHashMap;
 import com.carrotsearch.hppc.LongByteMap;

@@ -15,10 +15,12 @@ First decide where to get the `planet.osm.pbf` file:
 - Or a [Daylight Distribution](https://daylightmap.org/) snapshot from Facebook that includes extra quality/consistency
   checks, and add-ons like ML-detected roads and buildings. Combine add-ons and re-number
   using [osmium-tool](https://osmcode.org/osmium-tool/):
+
   ```bash
   osmium apply-changes daylight.osm.pbf admin.osc.bz2 <buildings.osc.bz2, ...> -o everything.osm.pbf
   osmium renumber everything.osm.pbf -o planet.osm.pbf
   ```
+
   NOTE: you need at least `admin.osc.bz2` for the `boundary` layer to show. This takes about 2.5 hours and needs as much
   RAM as the `planet.osm.pbf` size.
 

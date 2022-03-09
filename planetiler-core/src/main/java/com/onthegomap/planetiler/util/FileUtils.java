@@ -19,8 +19,7 @@ public class FileUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
-  private FileUtils() {
-  }
+  private FileUtils() {}
 
   /** Returns a stream that lists all files in {@code fileSystem}. */
   public static Stream<Path> walkFileSystem(FileSystem fileSystem) {

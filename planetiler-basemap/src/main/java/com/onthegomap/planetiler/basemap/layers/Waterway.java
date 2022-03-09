@@ -63,8 +63,9 @@ import java.util.Map;
 /**
  * Defines the logic for generating river map elements in the {@code waterway} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/waterway">OpenMapTiles
- * waterway sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/waterway">OpenMapTiles waterway sql
+ * files</a>.
  */
 public class Waterway implements
   OpenMapTilesSchema.Waterway,

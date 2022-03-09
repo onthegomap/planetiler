@@ -17,7 +17,7 @@ import java.util.Random;
 import org.locationtech.jts.geom.Geometry;
 
 /**
- * Performance tests for {@link MultiExpression}.  Times how long a sample of elements from an OSM input file take to
+ * Performance tests for {@link MultiExpression}. Times how long a sample of elements from an OSM input file take to
  * match.
  */
 public class BasemapMapping {

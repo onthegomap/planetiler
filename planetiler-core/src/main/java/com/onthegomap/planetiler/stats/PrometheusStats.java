@@ -271,8 +271,8 @@ class PrometheusStats implements Stats {
   }
 
   /**
-   * Reports stats on all in-memory objects sizes being monitored through {@link #monitorInMemoryObject(String,
-   * MemoryEstimator.HasEstimate)}.
+   * Reports stats on all in-memory objects sizes being monitored through
+   * {@link #monitorInMemoryObject(String, MemoryEstimator.HasEstimate)}.
    */
   private class HeapObjectSizeCollector extends Collector {
 

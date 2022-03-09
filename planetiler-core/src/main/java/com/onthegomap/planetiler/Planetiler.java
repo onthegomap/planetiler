@@ -39,7 +39,9 @@ import org.slf4j.LoggerFactory;
  * common use-cases.
  * <p>
  * For example:
- * <pre><code>
+ *
+ * <pre>
+ * <code>
  * public static void main(String[] args) {
  *   Planetiler.create(arguments)
  *     .setProfile(new CustomProfile())
@@ -48,7 +50,8 @@ import org.slf4j.LoggerFactory;
  *     .addOsmSource("osm", Path.of("source.osm.pbf"))
  *     .setOutput("mbtiles", Path.of("output.mbtiles"))
  *     .run();
- * }</code></pre>
+ * }</code>
+ * </pre>
  * <p>
  * Each call to a builder API mutates the runner instance and returns it for more chaining.
  * <p>
@@ -140,9 +143,9 @@ public class Planetiler {
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} argument is not set
    * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set.  As a shortcut, can use "geofabrik:monaco" or
-   *                    "geofabrik:australia" shorthand to find an extract by name from <a
-   *                    href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
+   *                    name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
+   *                    "geofabrik:australia" shorthand to find an extract by name from
+   *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
    *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
    *                    Open Data Registry</a>.
    * @return this runner instance for chaining
@@ -180,8 +183,8 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile source that will be processed using a projection inferred from the shapefile when {@link
-   * #run()} is called.
+   * Adds a new ESRI shapefile source that will be processed using a projection inferred from the shapefile when
+   * {@link #run()} is called.
    * <p>
    * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments.
    *
@@ -197,13 +200,12 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile source that will be processed using an explicit projection when {@link #run()} is
-   * called.
+   * Adds a new ESRI shapefile source that will be processed using an explicit projection when {@link #run()} is called.
    * <p>
    * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments.
    *
-   * @param projection  the Coordinate Reference System authority code to use, parsed with {@link
-   *                    org.geotools.referencing.CRS#decode(String)}
+   * @param projection  the Coordinate Reference System authority code to use, parsed with
+   *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
@@ -216,8 +218,8 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile source that will be processed with a projection inferred from the shapefile when {@link
-   * #run()} is called.
+   * Adds a new ESRI shapefile source that will be processed with a projection inferred from the shapefile when
+   * {@link #run()} is called.
    * <p>
    * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
    * {@code defaultUrl}.
@@ -248,8 +250,8 @@ public class Planetiler {
    * To override the location of the {@code shapefile} file, set {@code name_path=newpath.shp.zip} in the arguments and
    * to override the download URL set {@code name_url=http://url/of/shapefile.zip}.
    *
-   * @param projection  the Coordinate Reference System authority code to use, parsed with {@link
-   *                    org.geotools.referencing.CRS#decode(String)}
+   * @param projection  the Coordinate Reference System authority code to use, parsed with
+   *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
@@ -332,8 +334,8 @@ public class Planetiler {
   }
 
   /**
-   * Updates {@link #translations()} to use name translations fetched from wikidata based on the <a
-   * href="https://www.wikidata.org/wiki/Wikidata:OpenStreetMap">wikidata tag</a> on OSM elements.
+   * Updates {@link #translations()} to use name translations fetched from wikidata based on the
+   * <a href="https://www.wikidata.org/wiki/Wikidata:OpenStreetMap">wikidata tag</a> on OSM elements.
    * <p>
    * When either {@code only_fetch_wikidata} or {@code fetch_wikidata} arguments are set to true, this downloads
    * translations for every OSM element that the profile cares about and stores them to {@code defaultWikidataCache} (or
@@ -393,8 +395,7 @@ public class Planetiler {
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Fails if the file already
-   * exists.
+   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Fails if the file already exists.
    * <p>
    * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
    *
@@ -570,9 +571,8 @@ public class Planetiler {
       if (available < requested) {
         var format = Format.defaultInstance();
         String warning =
-          "Planetiler needs ~" + format.storage(requested) + " on " + fs + " during " + phase
-            + " phase, which only has "
-            + format.storage(available) + " available";
+          "Planetiler needs ~" + format.storage(requested) + " on " + fs + " during " + phase +
+            " phase, which only has " + format.storage(available) + " available";
         if (config.force() || requested < available * 1.25) {
           LOGGER.warn(warning + ", may fail.");
         } else {
@@ -592,9 +592,9 @@ public class Planetiler {
 
     if (jvmMemory < requested) {
       String warning =
-        "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only "
-          + format.storage(jvmMemory) + " is available, try setting -Xmx=" + format.storage(requested).toLowerCase(
-          Locale.ROOT);
+        "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only " +
+          format.storage(jvmMemory) + " is available, try setting -Xmx=" + format.storage(requested).toLowerCase(
+            Locale.ROOT);
       if (config.force() || requested < jvmMemory * 1.25) {
         LOGGER.warn(warning + ", may fail.");
       } else {

@@ -33,13 +33,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A collection of utilities for merging features with the same attributes in a rendered tile from {@link
- * Profile#postProcessLayerFeatures(String, int, List)} immediately before a tile is written to the output mbtiles
- * file.
+ * A collection of utilities for merging features with the same attributes in a rendered tile from
+ * {@link Profile#postProcessLayerFeatures(String, int, List)} immediately before a tile is written to the output
+ * mbtiles file.
  * <p>
  * Unlike postgis-based solutions that have a full view of all features after they are loaded into the databse, the
  * planetiler engine only sees a single input feature at a time while processing source features, then only has
- * visibility into multiple features when they are grouped into a tile immediately before emitting.  This ends up being
+ * visibility into multiple features when they are grouped into a tile immediately before emitting. This ends up being
  * sufficient for most real-world use-cases but to do anything more that requires a view of multiple features
  * <em>not</em> within the same tile, {@link Profile} implementations must store input features manually.
  */
@@ -53,8 +53,7 @@ public class FeatureMerge {
   }
 
   /** Don't instantiate */
-  private FeatureMerge() {
-  }
+  private FeatureMerge() {}
 
   /**
    * Combines linestrings with the same set of attributes into a multilinestring where segments with touching endpoints
@@ -69,7 +68,7 @@ public class FeatureMerge {
    * @param tolerance after merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step
    * @param buffer    number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
-   * ordered by the index of the first element in that group from the input list.
+   *         ordered by the index of the first element in that group from the input list.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer) {
@@ -78,7 +77,7 @@ public class FeatureMerge {
 
   /**
    * Merges linestrings with the same attributes like {@link #mergeLineStrings(List, double, double, double)} except
-   * with a dynamic length limit  computed by {@code lengthLimitCalculator} for the attributes of each group.
+   * with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer) {
@@ -186,7 +185,7 @@ public class FeatureMerge {
    * @param features all features in a layer
    * @param minArea  minimum area in square tile pixels of polygons to emit
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
-   * ordered by the index of the first element in that group from the input list.
+   *         ordered by the index of the first element in that group from the input list.
    * @throws GeometryException if an error occurs encoding the combined geometry
    */
   public static List<VectorTile.Feature> mergeOverlappingPolygons(List<VectorTile.Feature> features, double minArea)
@@ -215,7 +214,7 @@ public class FeatureMerge {
    * @param buffer      the amount (in tile pixels) to expand then contract polygons by in order to combine
    *                    almost-touching polygons
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
-   * ordered by the index of the first element in that group from the input list.
+   *         ordered by the index of the first element in that group from the input list.
    * @throws GeometryException if an error occurs encoding the combined geometry
    */
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,

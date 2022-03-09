@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility to download name translations from wikidata for all OSM elements with a <a
- * href="https://wiki.openstreetmap.org/wiki/Key:wikidata">wikidata tag</a>.
+ * A utility to download name translations from wikidata for all OSM elements with a
+ * <a href="https://wiki.openstreetmap.org/wiki/Key:wikidata">wikidata tag</a>.
  */
 public class Wikidata {
 
@@ -371,8 +371,7 @@ public class Wikidata {
 
     private final LongObjectMap<Map<String, String>> data = Hppc.newLongObjectHashMap();
 
-    public WikidataTranslations() {
-    }
+    public WikidataTranslations() {}
 
     /** Returns a map from language code to translated name for {@code qid}. */
     public Map<String, String> get(long qid) {

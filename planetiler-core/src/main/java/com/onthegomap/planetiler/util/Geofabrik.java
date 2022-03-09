@@ -31,7 +31,7 @@ public class Geofabrik {
    * Fetches the Geofabrik index and searches for a {@code .osm.pbf} resource to download where ID or name field
    * contains all the tokens in {@code searchQuery}.
    * <p>
-   * If an exact match is found, returns that. Otherwise, looks for a resource that contains  {@code searchQuery} as a
+   * If an exact match is found, returns that. Otherwise, looks for a resource that contains {@code searchQuery} as a
    * substring.
    * <p>
    * The index is only fetched once and cached after that.
@@ -48,8 +48,10 @@ public class Geofabrik {
 
   private synchronized static IndexJson getAndCacheIndex(PlanetilerConfig config) {
     if (index == null) {
-      try (InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
-        config)) {
+      try (
+        InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
+          config)
+      ) {
         index = parseIndexJson(inputStream);
       } catch (IOException e) {
         throw new IllegalStateException(e);

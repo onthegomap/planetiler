@@ -203,7 +203,7 @@ public class LandcoverTest extends AbstractLayerTest {
     throws GeometryException {
     assertEquals(expected,
       profile.postProcessLayerFeatures("landcover", zoom, in).stream().map(
-          VectorTile.Feature::attrs)
+        VectorTile.Feature::attrs)
         .toList());
   }
 }

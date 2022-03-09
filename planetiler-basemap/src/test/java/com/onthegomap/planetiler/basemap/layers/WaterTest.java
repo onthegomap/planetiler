@@ -110,8 +110,8 @@ public class WaterTest extends AbstractLayerTest {
         "_minzoom", 6,
         "_maxzoom", 14
       )), process(polygonFeature(Map.of(
-      "leisure", "swimming_pool"
-    ))));
+        "leisure", "swimming_pool"
+      ))));
     assertFeatures(14, List.of(), process(polygonFeature(Map.of(
       "natural", "bay"
     ))));

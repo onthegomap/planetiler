@@ -61,8 +61,8 @@ import java.util.Map;
  * Defines the logic for generating map elements for things like shops, parks, and schools in the {@code poi} layer from
  * source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi">OpenMapTiles
- * poi sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/poi">OpenMapTiles poi sql files</a>.
  */
 public class Poi implements
   OpenMapTilesSchema.Poi,
@@ -136,19 +136,8 @@ public class Poi implements
     setupPoiFeature(element, features.centroidIfConvex(LAYER_NAME));
   }
 
-  private <T extends
-    Tables.WithSubclass &
-    Tables.WithStation &
-    Tables.WithFunicular &
-    Tables.WithSport &
-    Tables.WithInformation &
-    Tables.WithReligion &
-    Tables.WithMappingKey &
-    Tables.WithName &
-    Tables.WithIndoor &
-    Tables.WithLayer &
-    Tables.WithSource>
-  void setupPoiFeature(T element, FeatureCollector.Feature output) {
+  private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource> void setupPoiFeature(
+    T element, FeatureCollector.Feature output) {
     String rawSubclass = element.subclass();
     if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
       rawSubclass = "subway";

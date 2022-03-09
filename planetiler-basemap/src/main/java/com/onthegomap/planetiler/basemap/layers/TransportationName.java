@@ -67,7 +67,8 @@ import java.util.function.Function;
  * Defines the logic for generating map elements for road, shipway, rail, and path names in the {@code
  * transportation_name} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation_name">OpenMapTiles
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/transportation_name">OpenMapTiles
  * transportation_name sql files</a>.
  */
 public class TransportationName implements
@@ -222,7 +223,7 @@ public class TransportationName implements
 
     int minzoom = FieldValues.CLASS_TRUNK.equals(baseClass) ? 8 :
       FieldValues.CLASS_MOTORWAY.equals(baseClass) ? 6 :
-        isLink ? 13 : 12; // fallback - get from line minzoom, but floor at 12
+      isLink ? 13 : 12; // fallback - get from line minzoom, but floor at 12
 
     // inherit min zoom threshold from visible road, and ensure we never show a label on a road that's not visible yet.
     minzoom = Math.max(minzoom, transportation.getMinzoom(element, highwayClass));
@@ -235,8 +236,8 @@ public class TransportationName implements
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
-        (relation != null && relation.networkType() != null) ? relation.networkType().name
-          : !nullOrEmpty(ref) ? "road" : null)
+        (relation != null && relation.networkType() != null) ? relation.networkType().name :
+          !nullOrEmpty(ref) ? "road" : null)
       .setAttr(Fields.CLASS, highwayClass)
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
       .setMinPixelSize(0)
@@ -314,7 +315,7 @@ public class TransportationName implements
     Function<Map<String, Object>, Double> lengthLimitCalculator =
       zoom >= 14 ? (p -> 0d) :
         minLength > 0 ? (p -> minLength) :
-          this::getMinLengthForName;
+        this::getMinLengthForName;
     var result = FeatureMerge.mergeLineStrings(items, lengthLimitCalculator, tolerance, BUFFER_SIZE);
     if (limitMerge) {
       // remove temp keys that were just used to improve line merging

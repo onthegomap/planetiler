@@ -16,7 +16,9 @@ import java.util.function.Consumer;
  * A mini-framework for chaining sequential steps that run in dedicated threads with a queue between each.
  * <p>
  * For example:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * WorkerPipeline.start("name", stats)
  *   .readFrom("reader", List.of(1, 2, 3))
  *   .addBuffer("reader_queue", 10)
@@ -24,13 +26,14 @@ import java.util.function.Consumer;
  *   .addBuffer("writer_queue", 10)
  *   .sinkToConsumer("writer", 1, result -> writeToDisk(result))
  *   .await();
- * }</pre>
+ * }
+ * </pre>
  * <p>
  * NOTE: to do any forking/joining, you must construct and wire-up queues and each sequence of steps manually.
  *
  * @param <T> input type of this pipeline
  */
-public record WorkerPipeline<T>(
+public record WorkerPipeline<T> (
   String name,
   WorkerPipeline<?> previous,
   WorkQueue<T> inputQueue,
@@ -213,7 +216,7 @@ public record WorkerPipeline<T>(
    *
    * @param <O> type of elements that the next step must process
    */
-  public record Builder<O>(
+  public record Builder<O> (
     String prefix,
     String name,
     // keep track of previous elements so that build can wire-up the computation graph
