@@ -3,12 +3,21 @@ package com.onthegomap.planetiler.collection;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public abstract class LongLongMapTest {
 
-  protected LongLongMap.SequentialWrites sequential;
+  private LongLongMap.SequentialWrites sequential;
+
+  protected abstract LongLongMap.SequentialWrites createSequentialWriter(Path path);
+
+  @BeforeEach
+  public void setupSequentialWriter(@TempDir Path path) {
+    this.sequential = createSequentialWriter(path);
+  }
 
   @Test
   public void missingValue() {
@@ -72,9 +81,9 @@ public abstract class LongLongMapTest {
 
   public static class SortedTable extends LongLongMapTest {
 
-    @BeforeEach
-    public void setup() {
-      this.sequential = new LongLongMap.SortedTable(
+    @Override
+    protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
+      return new LongLongMap.SortedTable(
         new AppendStore.SmallLongs(
           i -> new AppendStoreRam.Ints()
         ),
@@ -83,19 +92,19 @@ public abstract class LongLongMapTest {
     }
   }
 
-  public static class SparseArray3 extends LongLongMapTest {
+  public static class SparseArray extends LongLongMapTest {
 
-    @BeforeEach
-    public void setup() {
-      this.sequential = new LongLongMap.SparseArray(new AppendStoreRam.Longs());
+    @Override
+    protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
+      return new LongLongMap.SparseArray(new AppendStoreRam.Longs());
     }
   }
 
   public static class Direct extends LongLongMapTest {
 
-    @BeforeEach
-    public void setup() {
-      this.sequential = new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
+    @Override
+    protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
+      return new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
     }
   }
 }

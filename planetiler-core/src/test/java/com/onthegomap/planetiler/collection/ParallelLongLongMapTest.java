@@ -18,38 +18,27 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
   protected abstract LongLongMap.ParallelWrites create(Path path);
 
   @Test
-  @Timeout(1)
-  public void testParallelWritesFromSingleThread() {
-    try (
-      var writer1 = parallel.newWriter();
-      var writer2 = parallel.newWriter();
-    ) {
-      // ordered withing each writer, but out of order between writers
-      System.err.println("2 4");
-      writer1.put(2, 4);
-      System.err.println("1 2");
-      writer2.put(1, 2);
-      System.err.println("4 8");
-      writer1.put(4, 8);
-      System.err.println("3 6");
-      writer2.put(3, 6);
-    }
-    assertEquals(Long.MIN_VALUE, sequential.get(0));
-    assertEquals(2, sequential.get(1));
-    assertEquals(4, sequential.get(2));
-    assertEquals(6, sequential.get(3));
-    assertEquals(8, sequential.get(4));
+  @Timeout(10)
+  public void testWaitForBothWritersToClose() throws InterruptedException {
+    var writer1 = parallel.newWriter();
+    var writer2 = parallel.newWriter();
+    writer1.put(0, 1);
+    writer1.close();
+    writer2.put(1, 2);
+    writer2.close();
+    assertEquals(1, parallel.get(0));
+    assertEquals(2, parallel.get(1));
   }
 
   @Test
   @Timeout(10)
-  public void testParallelWritesFromMultipleThreads() throws InterruptedException {
+  public void testInterleavedWritesFromParallelThreads() throws InterruptedException {
+    int limit = 1000;
     var ready = new CyclicBarrier(2);
     Thread thread1 = new Thread(() -> {
       try (var writer = parallel.newWriter()) {
         ready.await();
-        for (int i = 1; i < 100; i++) {
-          System.err.println("1: put " + i);
+        for (int i = 1; i < limit; i++) {
           writer.put(i * 2, i * 2);
         }
       } catch (InterruptedException | BrokenBarrierException e) {
@@ -59,8 +48,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
     Thread thread2 = new Thread(() -> {
       try (var writer = parallel.newWriter()) {
         ready.await();
-        for (int i = 1; i < 100; i++) {
-          System.err.println("2: put " + i * 50);
+        for (int i = 1; i < limit; i++) {
           writer.put(i * 10 + 1, i * 3);
         }
       } catch (InterruptedException | BrokenBarrierException e) {
@@ -71,18 +59,59 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
     thread2.start();
     thread1.join();
     thread2.join();
-    assertEquals(Long.MIN_VALUE, sequential.get(0));
-    for (int i = 1; i < 100; i++) {
-      assertEquals(i * 2, sequential.get(i * 2));
-      assertEquals(i * 3, sequential.get(i * 10 + 1));
+    assertEquals(Long.MIN_VALUE, parallel.get(0));
+    for (int i = 1; i < limit; i++) {
+      assertEquals(i * 2, parallel.get(i * 2), "item:" + i * 2);
+      assertEquals(i * 3, parallel.get(i * 10 + 1), "item:" + (i * 10 + 1));
+    }
+  }
+
+  @Test
+  @Timeout(10)
+  public void testAdjacentBlocksFromParallelThreads() throws InterruptedException {
+    int limit = 1000;
+    var ready = new CyclicBarrier(2);
+    Thread thread1 = new Thread(() -> {
+      try (var writer = parallel.newWriter()) {
+        ready.await();
+        for (int i = 1; i < limit; i++) {
+          writer.put(i, i);
+        }
+      } catch (InterruptedException | BrokenBarrierException e) {
+        throw new RuntimeException(e);
+      }
+    });
+    Thread thread2 = new Thread(() -> {
+      try (var writer = parallel.newWriter()) {
+        ready.await();
+        for (int i = 1; i < limit * 2; i++) {
+          writer.put(i + limit, i * 2L);
+        }
+      } catch (InterruptedException | BrokenBarrierException e) {
+        throw new RuntimeException(e);
+      }
+    });
+    thread1.start();
+    thread2.start();
+    thread1.join();
+    thread2.join();
+    assertEquals(Long.MIN_VALUE, parallel.get(0));
+    for (int i = 1; i < limit; i++) {
+      assertEquals(i, parallel.get(i), "item:" + i);
+      assertEquals(i * 2, parallel.get(i + limit), "item:" + i * 2);
     }
   }
 
   @BeforeEach
-  public void setup(@TempDir Path path) {
+  public void setupParallelWriter(@TempDir Path path) {
     this.parallel = create(path);
-    var writer = create(path).newWriter();
-    this.sequential = new LongLongMap.SequentialWrites() {
+  }
+
+  @Override
+  protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
+    var sequentialMap = create(path);
+    var writer = sequentialMap.newWriter();
+    return new LongLongMap.SequentialWrites() {
       @Override
       public void put(long key, long value) {
         writer.put(key, value);
@@ -90,13 +119,13 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
       @Override
       public long get(long key) {
-        return parallel.get(key);
+        return sequentialMap.get(key);
       }
 
       @Override
       public void close() throws IOException {
+        sequentialMap.close();
         writer.close();
-        parallel.close();
       }
     };
   }
