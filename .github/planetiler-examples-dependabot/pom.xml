@@ -17,6 +17,6 @@ non-standard name.
   <packaging>pom</packaging>
 
   <modules>
-    <module>../../planetiler-examples/pom.xml</module>
+    <module>../../planetiler-examples/standalone.pom.xml</module>
   </modules>
 </project>
