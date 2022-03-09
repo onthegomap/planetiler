@@ -33,6 +33,14 @@ public abstract class LongLongMapTest {
   }
 
   @Test
+  public void insertLookupHighValue() {
+    sequential.put(1_000_000, 1);
+    assertEquals(Long.MIN_VALUE, sequential.get(999_999));
+    assertEquals(1, sequential.get(1_000_000));
+    assertEquals(Long.MIN_VALUE, sequential.get(1_000_001));
+  }
+
+  @Test
   public void insertWithGaps() {
     sequential.put(1, 2);
     sequential.put(50, 3);

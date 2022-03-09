@@ -66,7 +66,6 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   public void init() {
     try {
-      log("init: " + writeBuffers);
       for (Integer oldKey : writeBuffers.keySet()) {
         if (oldKey < Integer.MAX_VALUE) {
           // no one else needs this segment, flush it
@@ -87,7 +86,6 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         // TODO madvise
         if (usedSegments.get(i)) {
           MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
-          log("  mapping from " + segmentStart + "->" + (segmentStart + segmentLength));
           segmentsArray[i] = buffer;
         }
         i++;
@@ -130,17 +128,14 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
     void allocate() {
       slidingWindow.waitUntilInsideWindow(id);
-      log("  allocating " + id);
       result.complete(ByteBuffer.allocateDirect(1 << segmentBits));
     }
 
     void flush() {
       try {
-        log("  flushing " + id);
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         buffer.clear();
-        log("  flushed " + id);
         synchronized (usedSegments) {
           usedSegments.set(id);
         }
@@ -160,16 +155,10 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     List<Segment> flush, List<Segment> allocate, Segment result
   ) {}
 
-  private void log(Object arg) {
-//    LOGGER.warn(Thread.currentThread().getName() + " " + arg);
-  }
-
   private synchronized SegmentActions getSegmentActions(AtomicInteger currentSeg, int value) {
     var before = segments.toString();
     currentSeg.set(value);
     var after = segments.toString();
-    log("  before=" + before);
-    log("  after=" + after);
     List<Segment> flush = new ArrayList<>();
     List<Segment> allocate = new ArrayList<>();
     var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
@@ -192,7 +181,6 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       slidingWindow.advanceTail(tail);
       return new SegmentActions(flush, allocate, null);
     }
-    log("  min=" + min);
     while (tail < min) {
       if (writeBuffers.containsKey(tail)) {
         var segment = writeBuffers.remove(tail);
@@ -200,10 +188,8 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           flush.add(segment);
         }
       }
-      log("  tail2=" + tail);
       tail++;
     }
-    log("  advanceTail=" + tail);
     slidingWindow.advanceTail(tail);
     Segment result = writeBuffers.computeIfAbsent(value, id -> {
       var seg = new Segment(id);
@@ -225,16 +211,12 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
       @Override
       public void close() {
-        log("closing");
         var actions = getSegmentActions(currentSeg, Integer.MAX_VALUE);
-        log("  close actions=" + actions);
         actions.flush.forEach(Segment::flush);
-        log("  closed");
       }
 
       @Override
       public void put(long key, long value) {
-        log("put(" + key + ", " + value + ")");
         long offset = key << 3;
         long segment = offset >>> segmentBits;
         if (segment > lastSegment) {
@@ -246,8 +228,6 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           SegmentActions actions = getSegmentActions(currentSeg, segInt);
           // if this thread is allocating a new segment, then wait on allocating it
           // if this thread is just using one, then wait for it to become available
-          log("  segments=" + segments + " actions=" + actions);
-
           actions.flush.forEach(Segment::flush);
           actions.allocate.forEach(Segment::allocate);
 
