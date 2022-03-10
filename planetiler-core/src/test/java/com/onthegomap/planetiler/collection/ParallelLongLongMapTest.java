@@ -134,7 +134,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapMmap(path.resolve("node.db"), 20, 2);
+      return new ArrayLongLongMapMmap(path.resolve("node.db"), 20, 2, true);
     }
   }
 
@@ -142,7 +142,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapMmap(path.resolve("node.db"), 4, 2);
+      return new ArrayLongLongMapMmap(path.resolve("node.db"), 4, 2, true);
     }
   }
 

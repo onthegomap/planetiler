@@ -6,6 +6,7 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.carrotsearch.hppc.BitSet;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.MmapUtil;
 import com.onthegomap.planetiler.util.SlidingWindow;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,7 +27,7 @@ import org.slf4j.LoggerFactory;
 public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);
-
+  private final boolean madvise;
   FileChannel writeChannel;
   private final int segmentBits;
   private final long segmentMask;
@@ -40,18 +41,20 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private volatile int tail = 0;
   private final BitSet usedSegments = new BitSet();
 
-  public ArrayLongLongMapMmap(Path path) {
+  public ArrayLongLongMapMmap(Path path, boolean madvise) {
     this(
       path,
       27, // 128MB per chunk
-      20 // 2.5GB of pending chunks
+      20, // 2.5GB of pending chunks
+      madvise
     );
   }
 
-  public ArrayLongLongMapMmap(Path path, int segmentBits, int maxPendingSegments) {
+  public ArrayLongLongMapMmap(Path path, int segmentBits, int maxPendingSegments, boolean madvise) {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }
+    this.madvise = madvise;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
     segmentBytes = 1L << segmentBits;
@@ -81,11 +84,22 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       int segmentCount = (int) (outIdx / segmentBytes + 1);
       segmentsArray = new MappedByteBuffer[segmentCount];
       int i = 0;
+      boolean madviseFailed = false;
       for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
         long segmentLength = Math.min(segmentBytes, outIdx - segmentStart);
-        // TODO madvise
         if (usedSegments.get(i)) {
           MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
+          if (madvise) {
+            try {
+              MmapUtil.madvise(buffer, MmapUtil.Madvice.RANDOM);
+            } catch (IOException e) {
+              if (!madviseFailed) { // log once
+                LOGGER.info(
+                  "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
+                madviseFailed = true;
+              }
+            }
+          }
           segmentsArray[i] = buffer;
         }
         i++;

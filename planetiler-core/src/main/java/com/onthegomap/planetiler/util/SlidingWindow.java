@@ -34,36 +34,4 @@ public class SlidingWindow {
       throw new RuntimeException(e);
     }
   }
-
-  //  private final CopyOnWriteArrayList<AtomicInteger> workers = new CopyOnWriteArrayList<>();
-  //  private final ThreadLocal<AtomicInteger> currentIndex = ThreadLocal.withInitial(() -> {
-  //    var result = new AtomicInteger(0);
-  //    workers.add(result);
-  //    return result;
-  //  });
-  //  final Lock lock = new ReentrantLock();
-  //  final Condition hasSpace = lock.newCondition();
-  //  private final int limit;
-  //
-  //  public SlidingWindow(int limit) {
-  //    this.limit = limit;
-  //  }
-  //
-  //  private synchronized int min() {
-  //    return workers.stream().mapToInt(AtomicInteger::intValue).min().orElseThrow();
-  //  }
-  //
-  //  private synchronized int max() {
-  //    return workers.stream().mapToInt(AtomicInteger::intValue).max().orElseThrow();
-  //  }
-  //
-  //  public void acquireIndex(int value) {
-  //    AtomicInteger old = currentIndex.get();
-  //    int oldMin
-  //  }
-  //
-  //  public void release() {
-  //    AtomicInteger old = currentIndex.get();
-  //    notify();
-  //  }
 }
