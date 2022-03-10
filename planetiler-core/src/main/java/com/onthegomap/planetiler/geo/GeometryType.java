@@ -21,10 +21,8 @@ public enum GeometryType {
   }
 
   public static GeometryType valueOf(Geometry geom) {
-    return geom instanceof Puntal ? POINT
-      : geom instanceof Lineal ? LINE
-        : geom instanceof Polygonal ? POLYGON
-          : UNKNOWN;
+    return geom instanceof Puntal ? POINT : geom instanceof Lineal ? LINE : geom instanceof Polygonal ? POLYGON :
+      UNKNOWN;
   }
 
   public static GeometryType valueOf(VectorTileProto.Tile.GeomType geomType) {

@@ -49,7 +49,8 @@ import java.util.stream.Stream;
  * Utilities to extract common name fields (name, name_en, name_de, name:latin, name:nonlatin, name_int) that the
  * OpenMapTiles schema uses across any map element with a name.
  * <p>
- * Ported from <a href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
+ * Ported from
+ * <a href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
  */
 public class LanguageUtils {
 
@@ -101,12 +102,12 @@ public class LanguageUtils {
    * element should have, derived from name, int_name, name:en, and name:de tags on the input element.
    *
    * <ul>
-   *   <li>name is the original name value from the element</li>
-   *   <li>name_en is the original name:en value from the element, or name if missing</li>
-   *   <li>name_de is the original name:de value from the element, or name/ name_en if missing</li>
-   *   <li>name:latin is the first of name, int_name, or any name: attribute that contains only latin characters</li>
-   *   <li>name:nonlatin is any nonlatin part of name if present</li>
-   *   <li>name_int is the first of int_name name:en name:latin name</li>
+   * <li>name is the original name value from the element</li>
+   * <li>name_en is the original name:en value from the element, or name if missing</li>
+   * <li>name_de is the original name:de value from the element, or name/ name_en if missing</li>
+   * <li>name:latin is the first of name, int_name, or any name: attribute that contains only latin characters</li>
+   * <li>name:nonlatin is any nonlatin part of name if present</li>
+   * <li>name_int is the first of int_name name:en name:latin name</li>
    * </ul>
    */
   public static Map<String, Object> getNamesWithoutTranslations(Map<String, Object> tags) {
@@ -126,8 +127,8 @@ public class LanguageUtils {
     String nameDe = string(tags.get("name:de"));
 
     boolean isLatin = containsOnlyLatinCharacters(name);
-    String latin = isLatin ? name
-      : Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNameTranslationsBesidesEnglishAndGerman(tags))
+    String latin = isLatin ? name :
+      Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNameTranslationsBesidesEnglishAndGerman(tags))
         .filter(LanguageUtils::containsOnlyLatinCharacters)
         .findFirst().orElse(null);
     if (latin == null && translations != null && translations.getShouldTransliterate()) {

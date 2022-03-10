@@ -61,8 +61,9 @@ import org.slf4j.LoggerFactory;
  * Defines the logic for generating map elements for ocean and lake names in the {@code water_name} layer from source
  * features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name">OpenMapTiles
- * water_name sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/water_name">OpenMapTiles water_name sql
+ * files</a>.
  */
 public class WaterName implements
   OpenMapTilesSchema.WaterName,

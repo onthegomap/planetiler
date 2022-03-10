@@ -18,11 +18,12 @@ import java.util.List;
  * <p>
  * To run this example:
  * <ol>
- *   <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
- *   <li>then build the examples: {@code mvn clean package}</li>
- *   <li>then run this example: {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- *   <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles data/bikeroutes.mbtiles}</li>
- *   <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
+ * <li>Download a .osm.pbf extract (see <a href="https://download.geofabrik.de/">Geofabrik download site</a>)</li>
+ * <li>then build the examples: {@code mvn clean package}</li>
+ * <li>then run this example:
+ * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles data/bikeroutes.mbtiles}</li>
+ * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
 public class BikeRouteOverlay implements Profile {
@@ -63,11 +64,11 @@ public class BikeRouteOverlay implements Profile {
           relation.getString("route"),
           // except map network abbreviation to a human-readable value
           switch (relation.getString("network", "")) {
-            case "icn" -> "international";
-            case "ncn" -> "national";
-            case "rcn" -> "regional";
-            case "lcn" -> "local";
-            default -> "other";
+          case "icn" -> "international";
+          case "ncn" -> "national";
+          case "rcn" -> "regional";
+          case "lcn" -> "local";
+          default -> "other";
           }
         ));
       }

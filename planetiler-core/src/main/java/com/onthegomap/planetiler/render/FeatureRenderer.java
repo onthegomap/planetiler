@@ -71,8 +71,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       renderPoint(feature, point.getCoordinates());
     } else if (geom instanceof MultiPoint points) {
       renderPoint(feature, points);
-    } else if (geom instanceof Polygon || geom instanceof MultiPolygon || geom instanceof LineString
-      || geom instanceof MultiLineString) {
+    } else if (geom instanceof Polygon || geom instanceof MultiPolygon || geom instanceof LineString ||
+      geom instanceof MultiLineString) {
       renderLineOrPolygon(feature, geom);
     } else if (geom instanceof GeometryCollection collection) {
       for (int i = 0; i < collection.getNumGeometries(); i++) {

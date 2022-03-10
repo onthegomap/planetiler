@@ -78,8 +78,7 @@
     <module>planetiler-core</module>
     <module>planetiler-basemap</module>
     <module>planetiler-benchmarks</module>
-    <!-- planetiler-examples/pom.xml can also be run as a standalone maven project -->
-    <module>planetiler-examples/child.pom.xml</module>
+    <module>planetiler-examples</module>
     <module>planetiler-dist</module>
   </modules>
 
@@ -106,7 +105,7 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>4.3.1</version>
+        <version>4.4.0</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
@@ -137,6 +136,39 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>2.21.0</version>
+        <configuration>
+          <java>
+            <importOrder/>
+            <removeUnusedImports/>
+            <eclipse>
+              <version>4.21.0</version>
+              <!--suppress UnresolvedMavenProperty -->
+              <file>${maven.multiModuleProjectDirectory}/eclipse-formatter.xml</file>
+            </eclipse>
+          </java>
+          <markdown>
+            <includes>
+              <include>**/*.md</include>
+            </includes>
+            <excludes>
+              <exclude>**/target/**</exclude>
+            </excludes>
+            <flexmark/>
+          </markdown>
+        </configuration>
+        <!-- bind to "mvn verify" -->
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <!-- require building with jdk 16 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -213,7 +245,7 @@
           <executions>
             <execution>
               <id>attach-javadocs</id>
-              <phase>package</phase>
+              <phase>verify</phase>
               <goals>
                 <goal>jar</goal>
               </goals>

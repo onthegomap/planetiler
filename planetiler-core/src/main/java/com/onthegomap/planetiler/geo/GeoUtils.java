@@ -90,12 +90,13 @@ public class GeoUtils {
    * right is (1,1).
    */
   public static final Envelope WORLD_BOUNDS = new Envelope(0, 1, 0, 1);
-  /** Bounds for the entire area of the planet that a web mercator projection covers in latitude/longitude coordinates. */
+  /**
+   * Bounds for the entire area of the planet that a web mercator projection covers in latitude/longitude coordinates.
+   */
   public static final Envelope WORLD_LAT_LON_BOUNDS = toLatLonBoundsBounds(WORLD_BOUNDS);
 
   // should not instantiate
-  private GeoUtils() {
-  }
+  private GeoUtils() {}
 
   /**
    * Returns a copy of {@code geom} transformed from latitude/longitude coordinates to web mercator where top-left
@@ -191,16 +192,16 @@ public class GeoUtils {
   }
 
   /**
-   * Returns the web mercator Y coordinate of the latitude/longitude encoded with {@link #encodeFlatLocation(double,
-   * double)}.
+   * Returns the web mercator Y coordinate of the latitude/longitude encoded with
+   * {@link #encodeFlatLocation(double, double)}.
    */
   public static double decodeWorldY(long encoded) {
     return (((double) (encoded & LOWER_32_BIT_MASK)) / HALF_QUANTIZED_WORLD_SIZE) - 1;
   }
 
   /**
-   * Returns the web mercator X coordinate of the latitude/longitude encoded with {@link #encodeFlatLocation(double,
-   * double)}.
+   * Returns the web mercator X coordinate of the latitude/longitude encoded with
+   * {@link #encodeFlatLocation(double, double)}.
    */
   public static double decodeWorldX(long encoded) {
     return (((double) (encoded >>> 32)) / HALF_QUANTIZED_WORLD_SIZE) - 1;

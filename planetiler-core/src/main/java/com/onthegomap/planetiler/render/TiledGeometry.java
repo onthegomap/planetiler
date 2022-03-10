@@ -200,7 +200,9 @@ class TiledGeometry {
     out.addPoint(x, ay + (by - ay) * t);
   }
 
-  /** Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a horizontal line at y=y. */
+  /**
+   * Adds a new point to {@code out} where the line segment from (ax,ay) to (bx,by) crosses a horizontal line at y=y.
+   */
   private static void intersectY(MutableCoordinateSequence out, double ax, double ay, double bx, double by, double y) {
     double t = (y - ay) / (by - ay);
     out.addPoint(ax + (bx - ax) * t, y);
@@ -221,15 +223,15 @@ class TiledGeometry {
   /**
    * Slices a geometry into tiles and stores in member fields for a single "copy" of the world.
    * <p>
-   * Instead of handling content outside -180 to 180 degrees longitude, return {@link Direction#LEFT} or {@link
-   * Direction#RIGHT} to indicate whether this method should be called again with a different {@code xOffset} to process
-   * wrapped content.
+   * Instead of handling content outside -180 to 180 degrees longitude, return {@link Direction#LEFT} or
+   * {@link Direction#RIGHT} to indicate whether this method should be called again with a different {@code xOffset} to
+   * process wrapped content.
    *
    * @param groups  the geometry
    * @param xOffset offset to apply to each X coordinate (-2^z handles content that wraps too far east and 2^z handles
    *                content that wraps too far west)
    * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
-   * content to the east.
+   *         content to the east.
    */
   private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset) {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
@@ -603,5 +605,8 @@ class TiledGeometry {
     }
   }
 
-  private enum Direction {RIGHT, LEFT}
+  private enum Direction {
+    RIGHT,
+    LEFT
+  }
 }

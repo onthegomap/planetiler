@@ -90,8 +90,7 @@ public class PlanetilerTests {
       }
 
       @Override
-      public void close() {
-      }
+      public void close() {}
     }.process(featureGroup, config);
   }
 
@@ -1507,8 +1506,7 @@ public class PlanetilerTests {
     }
 
     @Override
-    public void release() {
-    }
+    public void release() {}
 
     @Override
     public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
@@ -1577,9 +1575,9 @@ public class PlanetilerTests {
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-        "--tmpdir", tempDir.toString(),
-        "--free-osm-after-read"
-      ))
+      "--tmpdir", tempDir.toString(),
+      "--free-osm-after-read"
+    ))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -1625,25 +1623,25 @@ public class PlanetilerTests {
   @Test
   public void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateIntermediateDiskBytes(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
+      @Override
+      public long estimateIntermediateDiskBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateOutputBytes(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
+      @Override
+      public long estimateOutputBytes(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
     );
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
-        @Override
-        public long estimateRamRequired(long osmSize) {
-          return Long.MAX_VALUE / 10L;
-        }
-      }, false)
+      @Override
+      public long estimateRamRequired(long osmSize) {
+        return Long.MAX_VALUE / 10L;
+      }
+    }, false)
     );
   }
 

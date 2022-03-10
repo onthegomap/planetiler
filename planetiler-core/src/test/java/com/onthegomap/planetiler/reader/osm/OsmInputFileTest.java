@@ -62,15 +62,15 @@ public class OsmInputFileTest {
   @Test
   public void testGetHeader() {
     assertEquals(new OsmHeader(
-        expectedBounds,
-        List.of("OsmSchema-V0.6", "DenseNodes"),
-        List.of(),
-        "osmium/1.8.0",
-        "",
-        Instant.parse("2021-04-21T20:21:46Z"),
-        2947,
-        "http://download.geofabrik.de/europe/monaco-updates"
-      ),
+      expectedBounds,
+      List.of("OsmSchema-V0.6", "DenseNodes"),
+      List.of(),
+      "osmium/1.8.0",
+      "",
+      Instant.parse("2021-04-21T20:21:46Z"),
+      2947,
+      "http://download.geofabrik.de/europe/monaco-updates"
+    ),
       new OsmInputFile(path).getHeader()
     );
   }

@@ -61,8 +61,8 @@ public abstract class AbstractLayerTest {
       if (vals[i - 1] > vals[i]) {
         fail(
           Arrays.toString(vals) +
-            System.lineSeparator() + "element at " + (i - 1) + " (" + vals[i - 1] + ") is greater than element at " + i
-            + " (" + vals[i] + ")");
+            System.lineSeparator() + "element at " + (i - 1) + " (" + vals[i - 1] + ") is greater than element at " +
+            i + " (" + vals[i] + ")");
       }
     }
   }

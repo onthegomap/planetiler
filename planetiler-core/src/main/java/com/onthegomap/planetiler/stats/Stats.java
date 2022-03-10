@@ -17,9 +17,9 @@ import org.slf4j.LoggerFactory;
 /**
  * A utility that collects and reports more detailed statistics about the JVM and running tasks than logs can convey.
  * <p>
- * {@link #inMemory()} stores basic stats in-memory to report at the end of the job and {@link
- * #prometheusPushGateway(String, String, Duration)} pushes stats at a regular interval to a <a
- * href="https://github.com/prometheus/pushgateway">prometheus push gateway</a>.
+ * {@link #inMemory()} stores basic stats in-memory to report at the end of the job and
+ * {@link #prometheusPushGateway(String, String, Duration)} pushes stats at a regular interval to a
+ * <a href="https://github.com/prometheus/pushgateway">prometheus push gateway</a>.
  */
 public interface Stats extends AutoCloseable {
 
@@ -29,8 +29,8 @@ public interface Stats extends AutoCloseable {
   }
 
   /**
-   * Returns a new stat collector pushes stats at a regular interval to a <a href="https://github.com/prometheus/pushgateway">prometheus
-   * push gateway</a> at {@code destination}.
+   * Returns a new stat collector pushes stats at a regular interval to a
+   * <a href="https://github.com/prometheus/pushgateway">prometheus push gateway</a> at {@code destination}.
    */
   static Stats prometheusPushGateway(String destination, String job, Duration interval) {
     return PrometheusStats.createAndStartPushing(destination, job, interval);
@@ -43,7 +43,7 @@ public interface Stats extends AutoCloseable {
   default void printSummary() {
     Format format = Format.defaultInstance();
     Logger LOGGER = LoggerFactory.getLogger(getClass());
-    System.out.println();
+    LOGGER.info("");
     LOGGER.info("-".repeat(40));
     timers().printSummary();
     LOGGER.info("-".repeat(40));
@@ -145,15 +145,13 @@ public interface Stats extends AutoCloseable {
   class InMemory implements Stats {
 
     /** use {@link #inMemory()} */
-    private InMemory() {
-    }
+    private InMemory() {}
 
     private final Timers timers = new Timers();
     private final Map<String, Path> monitoredFiles = new ConcurrentSkipListMap<>();
 
     @Override
-    public void wroteTile(int zoom, int bytes) {
-    }
+    public void wroteTile(int zoom, int bytes) {}
 
     @Override
     public Timers timers() {
@@ -166,12 +164,10 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
-    }
+    public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object) {}
 
     @Override
-    public void counter(String name, Supplier<Number> supplier) {
-    }
+    public void counter(String name, Supplier<Number> supplier) {}
 
     @Override
     public Counter.MultiThreadCounter longCounter(String name) {
@@ -184,24 +180,19 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {
-    }
+    public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {}
 
     @Override
-    public void processedElement(String elemType, String layer) {
-    }
+    public void processedElement(String elemType, String layer) {}
 
     @Override
-    public void dataError(String errorCode) {
-    }
+    public void dataError(String errorCode) {}
 
     @Override
-    public void gauge(String name, Supplier<Number> value) {
-    }
+    public void gauge(String name, Supplier<Number> value) {}
 
     @Override
-    public void emittedFeatures(int z, String layer, int numFeatures) {
-    }
+    public void emittedFeatures(int z, String layer, int numFeatures) {}
 
     @Override
     public void close() {

@@ -24,7 +24,7 @@ public class ParkTest extends AbstractLayerTest {
       "name", "Grand Canyon National Park",
       "name_int", "Grand Canyon National Park",
       "name:latin", "Grand Canyon National Park",
-//      "name:es", "es name", // don't include all translations
+      //      "name:es", "es name", // don't include all translations
       "_minzoom", 5,
       "_maxzoom", 14
     )), process(polygonFeature(Map.of(

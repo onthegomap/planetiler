@@ -40,29 +40,26 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
    * @param name    which implementation to use: {@code "noop"}, {@code "sortedtable"} or {@code "sparsearray"}
    * @param storage how to store data: {@code "ram"}, {@code "mmap"}, or {@code "direct"}
    * @param path    where to store data (if mmap)
+   * @param madvise whether to use linux madvise random to improve read performance
    * @return A longlong map instance
    * @throws IllegalArgumentException if {@code name} or {@code storage} is not valid
    */
-  static LongLongMap from(String name, String storage, Path path) {
+  static LongLongMap from(String name, String storage, Path path, boolean madvise) {
     // TODO turn these storage and long long map types into enums
     if ("array".equals(name)) {
       FileUtils.createDirectory(path);
       return new ArrayLongLongMapMmap(path.resolve("nodes"));
     }
 
-    boolean ram = switch (storage) {
-      case "ram", "direct" -> true;
-      case "mmap" -> false;
-      default -> throw new IllegalArgumentException("Unexpected storage value: " + storage);
-    };
+    boolean ram = isRam(storage);
     boolean direct = "direct".equals(storage);
 
     return switch (name) {
       case "noop" -> noop();
       case "sortedtable" -> ram ? (direct ? newDirectSortedTable() : newInMemorySortedTable()) :
-        newDiskBackedSortedTable(path);
+        newDiskBackedSortedTable(path, madvise);
       case "sparsearray" -> ram ? (direct ? newDirectSparseArray() : newInMemorySparseArray()) :
-        newDiskBackedSparseArray(path);
+        newDiskBackedSparseArray(path, madvise);
       default -> throw new IllegalArgumentException("Unexpected value: " + name);
     };
   }
@@ -161,11 +158,11 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   }
 
   /** Returns a memory-mapped longlong map that uses 12-bytes per node and binary search to find values. */
-  static LongLongMap newDiskBackedSortedTable(Path dir) {
+  static LongLongMap newDiskBackedSortedTable(Path dir, boolean madvise) {
     FileUtils.createDirectory(dir);
     return new SortedTable(
-      new AppendStore.SmallLongs(i -> new AppendStoreMmap.Ints(dir.resolve("keys-" + i))),
-      new AppendStoreMmap.Longs(dir.resolve("values"))
+      new AppendStore.SmallLongs(i -> new AppendStoreMmap.Ints(dir.resolve("keys-" + i), madvise)),
+      new AppendStoreMmap.Longs(dir.resolve("values"), madvise)
     );
   }
 
@@ -189,8 +186,8 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
    * Returns a memory-mapped longlong map that uses 8-bytes per node and O(1) lookup but wastes space storing lots of
    * 0's when the key space is fragmented.
    */
-  static LongLongMap newDiskBackedSparseArray(Path path) {
-    return new SparseArray(new AppendStoreMmap.Longs(path));
+  static LongLongMap newDiskBackedSparseArray(Path path, boolean madvise) {
+    return new SparseArray(new AppendStoreMmap.Longs(path, madvise));
   }
 
   Writer newWriter();

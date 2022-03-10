@@ -90,10 +90,8 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
    * value contains grouping information.
    */
   static long encodeKey(int tile, byte layer, int sortKey, boolean hasGroup) {
-    return ((long) tile << 32L)
-      | ((long) (layer & 0xff) << 24L)
-      | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L)
-      | (hasGroup ? 1 : 0);
+    return ((long) tile << 32L) | ((long) (layer & 0xff) << 24L) | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L) |
+      (hasGroup ? 1 : 0);
   }
 
   static boolean extractHasGroupFromKey(long key) {

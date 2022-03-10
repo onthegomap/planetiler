@@ -39,9 +39,9 @@ public class BikeRouteOverlayTest {
 
     // step 2) process a way contained in that relation
     var way = SimpleFeature.createFakeOsmFeature(TestUtils.newLineString(
-        10, 20, // point 1: 10 east 20 north
-        30, 40 // point 2: 30 east 40 north
-      ), Map.of(), null, null, 2,
+      10, 20, // point 1: 10 east 20 north
+      30, 40 // point 2: 30 east 40 north
+    ), Map.of(), null, null, 2,
       relationResult.stream().map(info -> new OsmReader.RelationMember<>("role", info)).toList());
     List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(way, profile);
 

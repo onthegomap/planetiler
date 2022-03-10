@@ -37,7 +37,7 @@ public class ProcessInfo {
     for (GarbageCollectorMXBean garbageCollectorMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
       if (garbageCollectorMXBean instanceof NotificationEmitter emitter) {
         emitter.addNotificationListener((notification, handback) -> {
-          if (notification.getUserData() instanceof CompositeData compositeData) {
+          if (notification.getUserData()instanceof CompositeData compositeData) {
             var info = GarbageCollectionNotificationInfo.from(compositeData);
             GcInfo gcInfo = info.getGcInfo();
             postGcMemoryUsage.set(gcInfo.getMemoryUsageAfterGc().entrySet().stream()

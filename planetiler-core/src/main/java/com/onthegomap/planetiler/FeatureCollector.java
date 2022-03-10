@@ -22,13 +22,16 @@ import org.locationtech.jts.geom.Geometry;
  * feature.
  * <p>
  * For example to add a polygon feature for a lake and a center label point with its name:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * featureCollector.polygon("water")
  *   .setAttr("class", "lake");
  * featureCollector.centroid("water_name")
  *   .setAttr("class", "lake")
  *   .setAttr("name", element.getString("name"));
- * }</pre>
+ * }
+ * </pre>
  */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
@@ -265,9 +268,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * feature that appear later (higher sort key) in a layer.
      */
     public Feature setSortKey(int sortKey) {
-      assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX :
-        "Sort key " + sortKey + " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", "
-          + FeatureGroup.SORT_KEY_MAX + "]";
+      assert sortKey >= FeatureGroup.SORT_KEY_MIN && sortKey <= FeatureGroup.SORT_KEY_MAX : "Sort key " + sortKey +
+        " outside of allowed range [" + FeatureGroup.SORT_KEY_MIN + ", " + FeatureGroup.SORT_KEY_MAX + "]";
       this.sortKey = sortKey;
       return this;
     }
@@ -349,8 +351,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     /**
      * Sets zoom-specific overrides to the number of pixels of detail to render outside the visible tile boundary.
      * <p>
-     * If {@code buffer} is {@code null} or returns {@code null}, the buffer pixels will default to {@link
-     * #setBufferPixels(double)}.
+     * If {@code buffer} is {@code null} or returns {@code null}, the buffer pixels will default to
+     * {@link #setBufferPixels(double)}.
      */
     public Feature setBufferPixelOverrides(ZoomFunction<Number> buffer) {
       bufferPixelOverrides = buffer;
@@ -365,8 +367,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * features to emit.
      */
     public double getMinPixelSizeAtZoom(int zoom) {
-      return zoom == config.maxzoom() ? minPixelSizeAtMaxZoom
-        : ZoomFunction.applyAsDoubleOrElse(minPixelSize, zoom, defaultMinPixelSize);
+      return zoom == config.maxzoom() ? minPixelSizeAtMaxZoom :
+        ZoomFunction.applyAsDoubleOrElse(minPixelSize, zoom, defaultMinPixelSize);
     }
 
     /**
@@ -400,8 +402,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     /**
      * Overrides the default minimum pixel size at and below {@code zoom} with {@code minPixelSize}.
      * <p>
-     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a {@link
-     * ZoomFunction} explicitly and pass it to {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a
+     * {@link ZoomFunction} explicitly and pass it to {@link #setMinPixelSizeOverrides(ZoomFunction)}.
      */
     public Feature setMinPixelSizeBelowZoom(int zoom, double minPixelSize) {
       if (zoom >= config.maxzoom()) {
@@ -429,7 +431,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Sets the minimum length of line features or square root of the minimum area of polygon features to emit at all
      * zoom levels, including the maximum zoom-level of the map.
      * <p>
-     * This replaces previous default values, but not overrides set with {@link #setMinPixelSizeOverrides(ZoomFunction)}.
+     * This replaces previous default values, but not overrides set with
+     * {@link #setMinPixelSizeOverrides(ZoomFunction)}.
      */
     public Feature setMinPixelSizeAtAllZooms(int minPixelSize) {
       this.minPixelSizeAtMaxZoom = minPixelSize;
@@ -440,8 +443,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Returns the simplification tolerance for lines and polygons in tile pixels at {@code zoom}.
      */
     public double getPixelToleranceAtZoom(int zoom) {
-      return zoom == config.maxzoom() ? pixelToleranceAtMaxZoom
-        : ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
+      return zoom == config.maxzoom() ? pixelToleranceAtMaxZoom :
+        ZoomFunction.applyAsDoubleOrElse(pixelTolerance, zoom, defaultPixelTolerance);
     }
 
     /**
@@ -497,8 +500,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Overrides the default simplification tolerance for lines and polygons in tile pixels at and below {@code zoom}
      * with {@code minPixelSize}.
      * <p>
-     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a {@link
-     * ZoomFunction} explicitly and pass it to {@link #setPixelToleranceOverrides(ZoomFunction)}
+     * This replaces all previous zoom overrides that were set. To use multiple zoom-level thresholds, create a
+     * {@link ZoomFunction} explicitly and pass it to {@link #setPixelToleranceOverrides(ZoomFunction)}
      */
     public Feature setPixelToleranceBelowZoom(int zoom, double tolerance) {
       if (zoom == config.maxzoom()) {
@@ -519,9 +522,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public double getPointLabelGridPixelSizeAtZoom(int zoom) {
       double result = ZoomFunction.applyAsDoubleOrElse(labelGridPixelSize, zoom, DEFAULT_LABEL_GRID_SIZE);
       // TODO is this enough? what about a grid square that ends just before the start of the tile
-      assert result <= getBufferPixelsAtZoom(zoom) :
-        "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was greater than label grid size=%f".formatted(
-          getLayer(), getBufferPixelsAtZoom(zoom), result);
+      assert result <= getBufferPixelsAtZoom(
+        zoom) : "to avoid inconsistent rendering of the same point between adjacent tiles, buffer pixel size should be >= label grid size but in '%s' buffer pixel size=%f was greater than label grid size=%f"
+          .formatted(
+            getLayer(), getBufferPixelsAtZoom(zoom), result);
       return result;
     }
 
@@ -550,7 +554,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @param labelGridSize a function that returns the size of the label grid to use at each zoom level. If function is
      *                      or returns null for a zoom-level, no label grid will be computed.
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     * function</a>
+     *      function</a>
      */
     public Feature setPointLabelGridPixelSize(ZoomFunction<Number> labelGridSize) {
       this.labelGridPixelSize = labelGridSize;
@@ -565,7 +569,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * set for label grid size. To set multiple thresholds, use the other method directly.
      *
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     * function</a>
+     *      function</a>
      */
     public Feature setPointLabelGridPixelSize(int maxzoom, double size) {
       return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size));
@@ -579,7 +583,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @param labelGridLimit a function that returns the size of the label grid to use at each zoom level. If function
      *                       is or returns null for a zoom-level, no label grid will be computed.
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     * function</a>
+     *      function</a>
      */
     public Feature setPointLabelGridLimit(ZoomFunction<Number> labelGridLimit) {
       this.labelGridLimit = labelGridLimit;
@@ -590,9 +594,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Limits the density of points on an output tile at and below {@code maxzoom} by only emitting the {@code limit}
      * features with lowest sort-key in each square of a {@code size x size} pixel grid.
      * <p>
-     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and {@link
-     * #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit. To set
-     * multiple thresholds, use the other methods directly.
+     * This is a thin wrapper around {@link #setPointLabelGridPixelSize(ZoomFunction)} and
+     * {@link #setPointLabelGridLimit(ZoomFunction)}. It replaces any previous value set for label grid size or limit.
+     * To set multiple thresholds, use the other methods directly.
      * <p>
      * NOTE: the label grid is computed within each tile independently of its neighbors, so to ensure consistent limits
      * and ranking of a point rendered in adjacent tiles, be sure to set the buffer pixel size to at least be larger
@@ -602,7 +606,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * @param size    the label grid size to use when computing hashes
      * @param limit   the number of lowest-sort-key points to include in each square of the grid
      * @see <a href="https://github.com/mapbox/postgis-vt-util/blob/master/src/LabelGrid.sql">LabelGrid postgis
-     * function</a>
+     *      function</a>
      */
     public Feature setPointLabelGridSizeAndLimit(int maxzoom, double size, int limit) {
       return setPointLabelGridPixelSize(ZoomFunction.maxZoom(maxzoom, size))
@@ -655,11 +659,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
-     * Sets the value for {@code key} attribute at or above {@code minzoom}.  Below {@code minzoom} it will be ignored.
+     * Sets the value for {@code key} attribute at or above {@code minzoom}. Below {@code minzoom} it will be ignored.
      * <p>
-     * Replaces all previous value that has been for {@code key} at any zoom level.  To have a value that changes at
-     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed {@link
-     * ZoomFunction} value.
+     * Replaces all previous value that has been for {@code key} at any zoom level. To have a value that changes at
+     * multiple zoom level thresholds, call {@link #setAttr(String, Object)} with a manually-constructed
+     * {@link ZoomFunction} value.
      */
     public Feature setAttrWithMinzoom(String key, Object value, int minzoom) {
       return setAttr(key, ZoomFunction.minZoom(minzoom, value));

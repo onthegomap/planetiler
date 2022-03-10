@@ -118,7 +118,7 @@ See the [planetiler-examples](planetiler-examples) project.
 
 Some example runtimes (excluding downloading resources):
 
-| Input                                                                                                                                     | Profile                                     | Machine                                                  | Time                      | mbtiles size | Logs                                                                                                                           |
+|                                                                   Input                                                                   |                   Profile                   |                         Machine                          |           Time            | mbtiles size |                                                              Logs                                                              |
 |-------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------|----------------------------------------------------------|---------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|
 | s3://osm-pds/2021/planet-211011.osm.pbf (65GB)                                                                                            | Basemap                                     | DO 16cpu 128GB                                           | 3h9m cpu:42h1m avg:13.3   | 99GB         | [logs](planet-logs/v0.1.0-planet-do-16cpu-128gb.txt), [VisualVM Profile](planet-logs/v0.1.0-planet-do-16cpu-128gb.nps)         |
 | [Daylight Distribution v1.6](https://daylightmap.org/2021/09/29/daylight-v16-released.html) with ML buildings and admin boundaries (67GB) | Basemap                                     | DO 16cpu 128GB                                           | 3h13m cpu:43h40m avg:13.5 | 101GB        | [logs](planet-logs/v0.1.0-daylight-do-16cpu-128gb.txt)                                                                         |
@@ -217,6 +217,8 @@ Planetiler is made possible by these awesome open source projects:
   and [tag parsing utilities](planetiler-core/src/main/java/com/onthegomap/planetiler/util/Imposm3Parsers.java)
 - [HPPC](http://labs.carrotsearch.com/) for high-performance primitive Java collections
 - [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
+- [JNR-FFI](https://github.com/jnr/jnr-ffi) for utilities to access low-level system utilities to improve memory-mapped
+  file performance.
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

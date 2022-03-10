@@ -17,9 +17,12 @@ import java.util.stream.Stream;
  * <p>
  * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
  * original expression, assuming that the generated code includes:
- * <pre>{@code
+ * 
+ * <pre>
+ * {@code
  * import static com.onthegomap.planetiler.expression.Expression.*;
- * }</pre>
+ * }
+ * </pre>
  */
 public interface Expression {
 
@@ -99,10 +102,10 @@ public interface Expression {
    * <p>
    * Allowed values:
    * <ul>
-   *   <li>"linestring"</li>
-   *   <li>"point"</li>
-   *   <li>"polygon"</li>
-   *   <li>"relation_member"</li>
+   * <li>"linestring"</li>
+   * <li>"point"</li>
+   * <li>"polygon"</li>
+   * <li>"relation_member"</li>
    * </ul>
    */
   static MatchType matchType(String type) {
@@ -190,7 +193,9 @@ public interface Expression {
     return replace(a::equals, b);
   }
 
-  /** Returns a copy of this expression where every nested instance matching {@code replace} is replaced with {@code b}. */
+  /**
+   * Returns a copy of this expression where every nested instance matching {@code replace} is replaced with {@code b}.
+   */
   default Expression replace(Predicate<Expression> replace, Expression b) {
     if (replace.test(this)) {
       return b;

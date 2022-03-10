@@ -22,6 +22,7 @@ The `planetiler-core` module includes the following software:
   - com.google.guava:guava (Apache license)
   - org.openstreetmap.osmosis:osmosis-osm-binary (LGPL 3.0)
   - com.carrotsearch:hppc (Apache license)
+  - com.github.jnr:jnr-ffi (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -31,6 +32,7 @@ The `planetiler-core` module includes the following software:
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
   - `PbfDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
   - `PbfFieldDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
+  - `NativeUtil` from [uppend](https://github.com/upserve/uppend/) (MIT License)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 
@@ -50,10 +52,11 @@ Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https:/
 
 ## Data
 
-| source                     | license                                                                                                                              | used as default | included in repo |
+|           source           |                                                               license                                                                | used as default | included in repo |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------|------------------|
 | OpenStreetMap (OSM) data   | [ODBL](https://www.openstreetmap.org/copyright)                                                                                      | yes             | yes              |
 | Natural Earth              | [public domain](https://www.naturalearthdata.com/about/terms-of-use/)                                                                | yes             | yes              |
 | OSM Lakelines              | [MIT](https://github.com/lukasmartinelli/osm-lakelines), data from OSM [ODBL](https://www.openstreetmap.org/copyright)               | yes             | no               |
 | OSM Water Polygons         | [acknowledgement](https://osmdata.openstreetmap.de/info/license.html), data from OSM [ODBL](https://www.openstreetmap.org/copyright) | yes             | yes              |
 | Wikidata name translations | [CCO](https://www.wikidata.org/wiki/Wikidata:Licensing)                                                                              | no              | no               |
+

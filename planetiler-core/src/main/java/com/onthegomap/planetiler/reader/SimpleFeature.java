@@ -83,14 +83,14 @@ public class SimpleFeature extends SourceFeature {
     return new SimpleFeature(latLonGeometry, null, tags, source, sourceLayer, id, relations) {
       @Override
       public boolean canBePolygon() {
-        return latLonGeometry instanceof Polygonal || (latLonGeometry instanceof LineString line
-          && OsmReader.canBePolygon(line.isClosed(), area, latLonGeometry.getNumPoints()));
+        return latLonGeometry instanceof Polygonal || (latLonGeometry instanceof LineString line &&
+          OsmReader.canBePolygon(line.isClosed(), area, latLonGeometry.getNumPoints()));
       }
 
       @Override
       public boolean canBeLine() {
-        return latLonGeometry instanceof MultiLineString || (latLonGeometry instanceof LineString line
-          && OsmReader.canBeLine(line.isClosed(), area, latLonGeometry.getNumPoints()));
+        return latLonGeometry instanceof MultiLineString || (latLonGeometry instanceof LineString line &&
+          OsmReader.canBeLine(line.isClosed(), area, latLonGeometry.getNumPoints()));
       }
 
       @Override
@@ -103,15 +103,14 @@ public class SimpleFeature extends SourceFeature {
 
   @Override
   public Geometry latLonGeometry() {
-    return latLonGeometry != null ? latLonGeometry
-      : (latLonGeometry = GeoUtils.worldToLatLonCoords(worldGeometry));
+    return latLonGeometry != null ? latLonGeometry : (latLonGeometry = GeoUtils.worldToLatLonCoords(worldGeometry));
   }
 
   @Override
   public Geometry worldGeometry() {
     // we expect outer polygons to appear before inner ones, so process ones with larger areas first
-    return worldGeometry != null ? worldGeometry
-      : (worldGeometry = GeoUtils.sortPolygonsByAreaDescending(GeoUtils.latLonToWorldCoords(latLonGeometry)));
+    return worldGeometry != null ? worldGeometry :
+      (worldGeometry = GeoUtils.sortPolygonsByAreaDescending(GeoUtils.latLonToWorldCoords(latLonGeometry)));
   }
 
   @Override

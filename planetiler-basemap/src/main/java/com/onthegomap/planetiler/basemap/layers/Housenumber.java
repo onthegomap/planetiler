@@ -45,15 +45,15 @@ import com.onthegomap.planetiler.util.Translations;
 /**
  * Defines the logic for generating map elements in the {@code housenumber} layer from source features.
  * <p>
- * This class is ported to Java from <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/housenumber">OpenMapTiles
- * housenumber sql files</a>.
+ * This class is ported to Java from
+ * <a href="https://github.com/openmaptiles/openmaptiles/tree/master/layers/housenumber">OpenMapTiles housenumber sql
+ * files</a>.
  */
 public class Housenumber implements
   OpenMapTilesSchema.Housenumber,
   Tables.OsmHousenumberPoint.Handler {
 
-  public Housenumber(Translations translations, PlanetilerConfig config, Stats stats) {
-  }
+  public Housenumber(Translations translations, PlanetilerConfig config, Stats stats) {}
 
   @Override
   public void process(Tables.OsmHousenumberPoint element, FeatureCollector features) {

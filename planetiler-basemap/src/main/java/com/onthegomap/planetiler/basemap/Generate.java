@@ -38,14 +38,14 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Generates code in the {@code generated} package from the OpenMapTiles schema crawled from a tag or branch in the <a
- * href="https://github.com/openmaptiles/openmaptiles">OpenMapTiles GitHub repo</a>.
+ * Generates code in the {@code generated} package from the OpenMapTiles schema crawled from a tag or branch in the
+ * <a href="https://github.com/openmaptiles/openmaptiles">OpenMapTiles GitHub repo</a>.
  * <p>
  * {@code OpenMapTilesSchema.java} contains the output layer definitions (i.e. attributes and allowed values) so that
  * layer implementations in {@code layers} package can reference them instead of hard-coding.
  * <p>
  * {@code Tables.java} contains the <a href="https://github.com/omniscale/imposm3">imposm3</a> table definitions from
- * mapping.yaml files in the OpenMapTiles repo.  Layers in the {@code layer} package can extend the {@code Handler}
+ * mapping.yaml files in the OpenMapTiles repo. Layers in the {@code layer} package can extend the {@code Handler}
  * nested class for a table definition to "subscribe" to OSM elements that imposm3 would put in that table.
  * <p>
  * To run use {@code ./scripts/regenerate-openmaptiles.sh}
@@ -169,8 +169,7 @@ public class Generate {
 
     emitLayerSchemaDefinitions(config.tileset, layers, packageName, output, tag);
     emitTableDefinitions(tables, packageName, output, tag);
-    LOGGER.info(
-      "Done generating code in 'generated' package, now run IntelliJ 'Reformat Code' operation with 'Optimize imports' and 'Cleanup code' options selected.");
+    LOGGER.info("Done!");
   }
 
   /** Generates {@code OpenMapTilesSchema.java} */
@@ -178,56 +177,57 @@ public class Generate {
     Path output, String tag)
     throws IOException {
     StringBuilder schemaClass = new StringBuilder();
-    schemaClass.append("""
-      %s
-      package %s;
-
-      import static com.onthegomap.planetiler.expression.Expression.*;
-      import com.onthegomap.planetiler.config.PlanetilerConfig;
-      import com.onthegomap.planetiler.stats.Stats;
-      import com.onthegomap.planetiler.expression.MultiExpression;
-      import com.onthegomap.planetiler.basemap.Layer;
-      import com.onthegomap.planetiler.util.Translations;
-      import java.util.List;
-      import java.util.Map;
-      import java.util.Set;
-
-      /**
-       * All vector tile layer definitions, attributes, and allowed values generated from the
-       * <a href="https://github.com/openmaptiles/openmaptiles/blob/%s/openmaptiles.yaml">OpenMapTiles vector tile schema %s</a>.
-       */
-      @SuppressWarnings("unused")
-      public class OpenMapTilesSchema {
-        public static final String NAME = %s;
-        public static final String DESCRIPTION = %s;
-        public static final String VERSION = %s;
-        public static final String ATTRIBUTION = %s;
-        public static final List<String> LANGUAGES = List.of(%s);
-
-        /** Returns a list of expected layer implementation instances from the {@code layers} package. */
-        public static List<Layer> createInstances(Translations translations, PlanetilerConfig config, Stats stats) {
-          return List.of(
-            %s
-          );
-        }
+    schemaClass.append(
       """
-      .formatted(
-        GENERATED_FILE_HEADER,
-        packageName,
-        escapeJavadoc(tag),
-        escapeJavadoc(tag),
-        Format.quote(info.name),
-        Format.quote(info.description),
-        Format.quote(info.version),
-        Format.quote(info.attribution),
-        info.languages.stream().map(Format::quote).collect(joining(", ")),
-        layers.stream()
-          .map(
-            l -> "new com.onthegomap.planetiler.basemap.layers.%s(translations, config, stats)"
-              .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
-          .collect(joining("," + LINE_SEPARATOR))
-          .indent(6).trim()
-      ));
+        %s
+        package %s;
+
+        import static com.onthegomap.planetiler.expression.Expression.*;
+        import com.onthegomap.planetiler.config.PlanetilerConfig;
+        import com.onthegomap.planetiler.stats.Stats;
+        import com.onthegomap.planetiler.expression.MultiExpression;
+        import com.onthegomap.planetiler.basemap.Layer;
+        import com.onthegomap.planetiler.util.Translations;
+        import java.util.List;
+        import java.util.Map;
+        import java.util.Set;
+
+        /**
+         * All vector tile layer definitions, attributes, and allowed values generated from the
+         * <a href="https://github.com/openmaptiles/openmaptiles/blob/%s/openmaptiles.yaml">OpenMapTiles vector tile schema %s</a>.
+         */
+        @SuppressWarnings("unused")
+        public class OpenMapTilesSchema {
+          public static final String NAME = %s;
+          public static final String DESCRIPTION = %s;
+          public static final String VERSION = %s;
+          public static final String ATTRIBUTION = %s;
+          public static final List<String> LANGUAGES = List.of(%s);
+
+          /** Returns a list of expected layer implementation instances from the {@code layers} package. */
+          public static List<Layer> createInstances(Translations translations, PlanetilerConfig config, Stats stats) {
+            return List.of(
+              %s
+            );
+          }
+        """
+        .formatted(
+          GENERATED_FILE_HEADER,
+          packageName,
+          escapeJavadoc(tag),
+          escapeJavadoc(tag),
+          Format.quote(info.name),
+          Format.quote(info.description),
+          Format.quote(info.version),
+          Format.quote(info.attribution),
+          info.languages.stream().map(Format::quote).collect(joining(", ")),
+          layers.stream()
+            .map(
+              l -> "new com.onthegomap.planetiler.basemap.layers.%s(translations, config, stats)"
+                .formatted(lowerUnderscoreToUpperCamel(l.layer.id)))
+            .collect(joining("," + LINE_SEPARATOR))
+            .indent(6).trim()
+        ));
     for (var layer : layers) {
       String layerCode = generateCodeForLayer(tag, layer);
       schemaClass.append(layerCode);
@@ -344,68 +344,70 @@ public class Generate {
     String tag)
     throws IOException {
     StringBuilder tablesClass = new StringBuilder();
-    tablesClass.append("""
-      %s
-      package %s;
+    tablesClass.append(
+      """
+        %s
+        package %s;
 
-      import static com.onthegomap.planetiler.expression.Expression.*;
+        import static com.onthegomap.planetiler.expression.Expression.*;
 
-      import com.onthegomap.planetiler.expression.Expression;
-      import com.onthegomap.planetiler.expression.MultiExpression;
-      import com.onthegomap.planetiler.FeatureCollector;
-      import com.onthegomap.planetiler.reader.SourceFeature;
-      import java.util.ArrayList;
-      import java.util.HashMap;
-      import java.util.HashSet;
-      import java.util.List;
-      import java.util.Map;
-      import java.util.Set;
+        import com.onthegomap.planetiler.expression.Expression;
+        import com.onthegomap.planetiler.expression.MultiExpression;
+        import com.onthegomap.planetiler.FeatureCollector;
+        import com.onthegomap.planetiler.reader.SourceFeature;
+        import java.util.ArrayList;
+        import java.util.HashMap;
+        import java.util.HashSet;
+        import java.util.List;
+        import java.util.Map;
+        import java.util.Set;
 
-      /**
-       * OSM element parsers generated from the <a href="https://github.com/omniscale/imposm3">imposm3</a> table definitions
-       * in the <a href="https://github.com/openmaptiles/openmaptiles/blob/%s/openmaptiles.yaml">OpenMapTiles vector tile schema</a>.
-       *
-       * These filter and parse the raw OSM key/value attribute pairs on tags into records with fields that match the
-       * columns in the tables that imposm3 would generate.  Layer implementations can "subscribe" to elements from each
-       * "table" but implementing the table's {@code Handler} interface and use the element's typed API to access
-       * attributes.
-       */
-      @SuppressWarnings("unused")
-      public class Tables {
-          /** A parsed OSM element that would appear in a "row" of the imposm3 table. */
-          public interface Row {
+        /**
+         * OSM element parsers generated from the <a href="https://github.com/omniscale/imposm3">imposm3</a> table definitions
+         * in the <a href="https://github.com/openmaptiles/openmaptiles/blob/%s/openmaptiles.yaml">OpenMapTiles vector tile schema</a>.
+         *
+         * These filter and parse the raw OSM key/value attribute pairs on tags into records with fields that match the
+         * columns in the tables that imposm3 would generate.  Layer implementations can "subscribe" to elements from each
+         * "table" but implementing the table's {@code Handler} interface and use the element's typed API to access
+         * attributes.
+         */
+        @SuppressWarnings("unused")
+        public class Tables {
+            /** A parsed OSM element that would appear in a "row" of the imposm3 table. */
+            public interface Row {
 
-            /** Returns the original OSM element. */
-            SourceFeature source();
-          }
+              /** Returns the original OSM element. */
+              SourceFeature source();
+            }
 
-          /** A functional interface that the constructor of a new table row can be coerced to. */
-          @FunctionalInterface
-          public interface Constructor {
+            /** A functional interface that the constructor of a new table row can be coerced to. */
+            @FunctionalInterface
+            public interface Constructor {
 
-            Row create(SourceFeature source, String mappingKey);
-          }
+              Row create(SourceFeature source, String mappingKey);
+            }
 
-          /** The {@code rowClass} of an imposm3 table row and its constructor coerced to a {@link Constructor}. */
-          public record RowClassAndConstructor(
-            Class<? extends Row> rowClass,
-            Constructor create
-          ) {}
+            /** The {@code rowClass} of an imposm3 table row and its constructor coerced to a {@link Constructor}. */
+            public record RowClassAndConstructor(
+              Class<? extends Row> rowClass,
+              Constructor create
+            ) {}
 
-          /** A functional interface that the typed handler method that a layer implementation can be coerced to. */
-          @FunctionalInterface
-          public interface RowHandler<T extends Row> {
+            /** A functional interface that the typed handler method that a layer implementation can be coerced to. */
+            @FunctionalInterface
+            public interface RowHandler<T extends Row> {
 
-            /** Process a typed element according to the profile. */
-            void process(T element, FeatureCollector features);
-          }
+              /** Process a typed element according to the profile. */
+              void process(T element, FeatureCollector features);
+            }
 
-          /** The {@code handlerClass} of a layer handler and it's {@code process} method coerced to a {@link RowHandler}. */
-          public record RowHandlerAndClass<T extends Row>(
-            Class<?> handlerClass,
-            RowHandler<T> handler
-          ) {}
-      """.formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag)));
+            /** The {@code handlerClass} of a layer handler and it's {@code process} method coerced to a {@link RowHandler}. */
+            public record RowHandlerAndClass<T extends Row>(
+              Class<?> handlerClass,
+              RowHandler<T> handler
+            ) {}
+        """
+        .formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag)));
 
     List<String> classNames = new ArrayList<>();
     Map<String, String> fieldNameToType = new TreeMap<>();
@@ -489,17 +491,19 @@ public class Generate {
       ));
       """.formatted(
       classNames.stream().map(
-          className -> "MultiExpression.entry(new RowClassAndConstructor(%s.class, %s::new), %s.MAPPING)".formatted(
-            className, className, className))
+        className -> "MultiExpression.entry(new RowClassAndConstructor(%s.class, %s::new), %s.MAPPING)".formatted(
+          className, className, className))
         .collect(joining("," + LINE_SEPARATOR)).indent(2).strip()
     ).indent(2));
 
-    String handlerCondition = classNames.stream().map(className ->
-      """
-        if (handler instanceof %s.Handler typedHandler) {
-          result.computeIfAbsent(%s.class, cls -> new ArrayList<>()).add(new RowHandlerAndClass<>(typedHandler.getClass(), typedHandler::process));
-        }""".formatted(className, className)
-    ).collect(joining(LINE_SEPARATOR));
+    String handlerCondition = classNames.stream()
+      .map(
+        className -> """
+          if (handler instanceof %s.Handler typedHandler) {
+            result.computeIfAbsent(%s.class, cls -> new ArrayList<>()).add(new RowHandlerAndClass<>(typedHandler.getClass(), typedHandler::process));
+          }"""
+          .formatted(className, className)
+      ).collect(joining(LINE_SEPARATOR));
     tablesClass.append("""
         /**
          * Returns a map from imposm3 "table row" class to the layers that have a handler for it from a list of layer
@@ -518,15 +522,15 @@ public class Generate {
   }
 
   /**
-   * Returns an {@link Expression} that implements the same logic as the <a href="https://imposm.org/docs/imposm3/latest/mapping.html">Imposm3
-   * Data Mapping</a> definition for a table.
+   * Returns an {@link Expression} that implements the same logic as the
+   * <a href="https://imposm.org/docs/imposm3/latest/mapping.html">Imposm3 Data Mapping</a> definition for a table.
    */
   static Expression parseImposm3MappingExpression(Imposm3Table table) {
     if (table.type_mappings != null) {
       return or(
-        table.type_mappings.entrySet().stream().map(entry ->
-          parseImposm3MappingExpression(entry.getKey(), entry.getValue(), table.filters)
-        ).toList()
+        table.type_mappings.entrySet().stream()
+          .map(entry -> parseImposm3MappingExpression(entry.getKey(), entry.getValue(), table.filters)
+          ).toList()
       ).simplify();
     } else {
       return parseImposm3MappingExpression(table.type, table.mapping, table.filters);
@@ -534,8 +538,8 @@ public class Generate {
   }
 
   /**
-   * Returns an {@link Expression} that implements the same logic as the <a href="https://imposm.org/docs/imposm3/latest/mapping.html#filters">Imposm3
-   * Data Mapping filters</a> for a table.
+   * Returns an {@link Expression} that implements the same logic as the
+   * <a href="https://imposm.org/docs/imposm3/latest/mapping.html#filters">Imposm3 Data Mapping filters</a> for a table.
    */
   static Expression parseImposm3MappingExpression(String type, JsonNode mapping, Imposm3Filters filters) {
     return and(

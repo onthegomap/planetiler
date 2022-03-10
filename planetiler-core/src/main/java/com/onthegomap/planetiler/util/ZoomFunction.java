@@ -64,15 +64,14 @@ public interface ZoomFunction<T> extends IntFunction<T> {
   }
 
   /**
-   * A zoom function that lets you set the value to return for a zoom level in meters  and when called, it returns how
+   * A zoom function that lets you set the value to return for a zoom level in meters and when called, it returns how
    * many pixels long that number of meters is at the equator.
    */
   class MeterToPixelThresholds implements ZoomFunction<Number> {
 
     private final TreeMap<Integer, Number> levels = new TreeMap<>();
 
-    private MeterToPixelThresholds() {
-    }
+    private MeterToPixelThresholds() {}
 
     /** Sets the value to return at {@code zoom} in meters. */
     public MeterToPixelThresholds put(int zoom, double meters) {

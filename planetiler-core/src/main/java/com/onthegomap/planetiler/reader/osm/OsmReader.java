@@ -95,6 +95,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
   private final AtomicLong roleSizes = new AtomicLong(0);
+  private CountDownLatch allNodesDone = new CountDownLatch(0);
 
   /**
    * Constructs a new {@code OsmReader} from
@@ -136,6 +137,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     var timer = stats.startStage("osm_pass1");
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
     CompletableFuture<?> done;
+
     var loggers = ProgressLoggers.create()
       .addRateCounter("nodes", PASS1_NODES, true)
       .addFileSizeAndRam(nodeLocationDb)
@@ -146,6 +148,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addProcessStats()
       .addInMemoryObject("hppc", this)
       .newLine();
+
 
     if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
       // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
@@ -213,8 +216,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
     timer.stop();
   }
-
-  CountDownLatch allNodesDone;
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
     boolean nodesDone = false, waysDone = false;
