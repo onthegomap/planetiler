@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
+class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);
   private final boolean madvise;
@@ -41,7 +41,7 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private volatile int tail = 0;
   private final BitSet usedSegments = new BitSet();
 
-  public ArrayLongLongMapMmap(Path path, boolean madvise) {
+  ArrayLongLongMapMmap(Path path, boolean madvise) {
     this(
       path,
       27, // 128MB per chunk
@@ -50,7 +50,7 @@ public class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     );
   }
 
-  public ArrayLongLongMapMmap(Path path, int segmentBits, int maxPendingSegments, boolean madvise) {
+  ArrayLongLongMapMmap(Path path, int segmentBits, int maxPendingSegments, boolean madvise) {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }

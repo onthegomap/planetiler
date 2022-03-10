@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.util.SyncPoint;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
 import com.onthegomap.planetiler.worker.WorkQueue;
@@ -36,7 +37,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -95,10 +95,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
   private final AtomicLong roleSizes = new AtomicLong(0);
-  private CountDownLatch allNodesDone = new CountDownLatch(0);
+  private SyncPoint pass1NodesDone = new SyncPoint(0);
 
   /**
-   * Constructs a new {@code OsmReader} from
+   * Constructs a new {@code OsmReader} from a {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
+   * temporary store for node locations.
    *
    * @param name              ID for this reader to use in stats and logs
    * @param osmSourceProvider the file to read raw nodes, ways, and relations from
@@ -153,7 +154,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
       // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
       int parseThreads = Math.max(1, config.threads() - 1);
-      allNodesDone = new CountDownLatch(parseThreads);
+      pass1NodesDone = new SyncPoint(parseThreads);
       var parallelPipeline = pipeline
         .fromGenerator("read", osmBlockSource::forEachBlock)
         .addBuffer("pbf_blocks", parseThreads * 2)
@@ -165,7 +166,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       // and a handle that the result will go on to the single-threaded writer, and the writer emits new nodes when
       // they are ready
       int parseThreads = Math.max(1, config.threads() - 2);
-      allNodesDone = new CountDownLatch(1);
+      pass1NodesDone = new SyncPoint(1);
       int pendingBlocks = parseThreads * 2;
       // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
       // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
@@ -210,26 +211,28 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     loggers.awaitAndLog(done, config.logInterval());
 
     LOGGER.debug("processed " +
-      "blocks:" + FORMAT.integer(PASS1_BLOCKS.get()) +
-      " nodes:" + FORMAT.integer(PASS1_NODES.get()) +
+      "nodes:" + FORMAT.integer(PASS1_NODES.get()) +
       " ways:" + FORMAT.integer(PASS1_WAYS.get()) +
-      " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
+      " relations:" + FORMAT.integer(PASS1_RELATIONS.get()) +
+      " blocks:" + FORMAT.integer(PASS1_BLOCKS.get()));
     timer.stop();
   }
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
-    boolean nodesDone = false, waysDone = false;
-    try (var nodeWriter = nodeLocationDb.newWriter()) {
+    boolean waysDone = false;
+    try (
+      var nodeWriter = nodeLocationDb.newWriter();
+      var nodesDone = pass1NodesDone.newFinisher();
+    ) {
       for (var block : blocks) {
         int nodes = 0, ways = 0, relations = 0;
         for (OsmElement element : block) {
-          // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
-          // shared data structures which are not thread safe
+          // may be called by multiple threads so need to synchronize access to any shared data structures
           if (element.id() < 0) {
             throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
           }
           if (element instanceof OsmElement.Node node) {
-            if (nodesDone) {
+            if (nodesDone.isFinished()) {
               throw new IllegalArgumentException(
                 "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id() +
                   " after a way or relation");
@@ -243,16 +246,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             // TODO allow limiting node storage to only ones that profile cares about
             nodeWriter.put(node.id(), node.encodedLocation());
           } else if (element instanceof OsmElement.Way way) {
-            if (!nodesDone) {
-              nodesDone = true;
-              allNodesDone.countDown();
-              nodeWriter.close();
-            }
-            try {
-              allNodesDone.await();
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
-            }
+            nodesDone.finish();
+            nodesDone.await();
             if (waysDone) {
               throw new IllegalArgumentException(
                 "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id() +
@@ -265,11 +260,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               LOGGER.error("Error preprocessing OSM way " + way.id(), e);
             }
           } else if (element instanceof OsmElement.Relation relation) {
-            if (!nodesDone) {
-              nodesDone = true;
-              allNodesDone.countDown();
-              nodeWriter.close();
-            }
+            nodesDone.finish();
             waysDone = true;
             relations++;
             try {
@@ -339,7 +330,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     // since multiple threads process OSM elements, and we must process all ways before processing any relations,
     // use a count down latch to wait for all threads to finish processing ways
-    CountDownLatch waitForWays = new CountDownLatch(processThreads);
+    SyncPoint waitForWays = new SyncPoint(processThreads);
     // Use a Distributor to keep all worker threads busy when processing the final blocks of relations by offloading
     // items to threads that are done reading blocks
     Distributor<OsmElement.Relation> relationDistributor = Distributor.createWithCapacity(1_000);
@@ -354,7 +345,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         Counter ways = waysProcessed.counterForThread();
         Counter rels = relsProcessed.counterForThread();
 
-        var waysDone = false;
+        var waitForWaysFinisher = waitForWays.newFinisher();
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         final NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
@@ -378,11 +369,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               feature = processWayPass2(way, nodeLocations);
             } else if (element instanceof OsmElement.Relation relation) {
               // ensure all ways finished processing before we start relations
-              if (!waysDone && waitForWays.getCount() > 0) {
-                waitForWays.countDown();
-                waitForWays.await();
-                waysDone = true;
-              }
+              waitForWaysFinisher.finish();
+              waitForWaysFinisher.await();
               relationHandler.accept(relation);
             }
             // render features specified by profile and hand them off to next step that will
@@ -396,8 +384,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
           nodes.incBy(blockNodes);
           ways.incBy(blockWays);
         }
+
         // just in case a worker skipped over all relations
-        waitForWays.countDown();
+        waitForWaysFinisher.close();
 
         // do work for other threads that are still processing blocks of relations
         relationHandler.close();
@@ -421,11 +410,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
-    LOGGER.debug("processed " +
-      "blocks:" + FORMAT.integer(blocksProcessed.get()) +
+    LOGGER.debug("processed" +
       " nodes:" + FORMAT.integer(nodesProcessed.get()) +
       " ways:" + FORMAT.integer(waysProcessed.get()) +
-      " relations:" + FORMAT.integer(relsProcessed.get()));
+      " relations:" + FORMAT.integer(relsProcessed.get()) +
+      " blocks:" + FORMAT.integer(blocksProcessed.get()));
 
     timer.stop();
 

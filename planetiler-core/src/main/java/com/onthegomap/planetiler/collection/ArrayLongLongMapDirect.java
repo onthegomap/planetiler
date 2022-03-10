@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class ArrayLongLongMapDirect implements LongLongMap.ParallelWrites {
+class ArrayLongLongMapDirect implements LongLongMap.ParallelWrites {
 
   private final int segmentBits;
   private final long segmentMask;
@@ -15,11 +15,11 @@ public class ArrayLongLongMapDirect implements LongLongMap.ParallelWrites {
   private final List<ByteBuffer> segments = new ArrayList<>();
   private final AtomicInteger numSegments = new AtomicInteger(0);
 
-  public ArrayLongLongMapDirect() {
+  ArrayLongLongMapDirect() {
     this(23); // 8MB
   }
 
-  public ArrayLongLongMapDirect(int segmentBits) {
+  ArrayLongLongMapDirect(int segmentBits) {
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
     segmentSize = 1 << segmentBits;
