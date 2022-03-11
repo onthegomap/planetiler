@@ -32,15 +32,12 @@ abstract class AppendStoreMmap implements AppendStore {
   private volatile MappedByteBuffer[] segments;
   private volatile FileChannel channel;
 
-  static {
-    MmapUtil.init();
-  }
-
   AppendStoreMmap(Path path, boolean madvise) {
     this(path, 1 << 30, madvise); // 1GB
   }
 
   AppendStoreMmap(Path path, long segmentSizeBytes, boolean madvise) {
+    FileUtils.createParentDirectories(path);
     this.madvise = madvise;
     segmentBits = (int) (Math.log(segmentSizeBytes) / Math.log(2));
     segmentMask = (1L << segmentBits) - 1;
@@ -120,6 +117,10 @@ abstract class AppendStoreMmap implements AppendStore {
 
   static class Ints extends AppendStoreMmap implements AppendStore.Ints {
 
+    Ints(Storage.Params params) {
+      this(params.path(), params.madvise());
+    }
+
     Ints(Path path, boolean madvise) {
       super(path, madvise);
     }
@@ -155,6 +156,10 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   static class Longs extends AppendStoreMmap implements AppendStore.Longs {
+
+    Longs(Storage.Params params) {
+      this(params.path(), params.madvise());
+    }
 
     Longs(Path path, boolean madvise) {
       super(path, madvise);

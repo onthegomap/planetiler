@@ -4,7 +4,6 @@ import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 
 import com.carrotsearch.hppc.ByteArrayList;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.io.Closeable;
 import java.io.IOException;
@@ -14,12 +13,7 @@ import java.nio.file.Path;
  * A map that stores a single {@code long} value for each OSM node. A single thread writes the values for each node ID
  * sequentially then multiple threads can read values concurrently.
  * <p>
- * Three implementations are provided: {@link #noop()} which ignores writes and throws on reads, {@link SortedTable}
- * which stores node IDs and values sorted by node ID and does binary search on lookup, and {@link SparseArray} which
- * only stores values and uses the node ID as the index into the array (with some compression to avoid storing many
- * sequential 0's).
- * <p>
- * Use {@link SortedTable} for small OSM extracts and {@link SparseArray} when processing the entire planet.
+ * See {@link Type} for the available implementations.
  * <p>
  * Each implementation can be backed by either {@link AppendStoreRam} to store data in RAM or {@link AppendStoreMmap} to
  * store data in a memory-mapped file.
@@ -37,70 +31,78 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   /**
    * Returns a new longlong map from config strings.
    *
-   * @param name    which implementation to use: {@code "noop"}, {@code "sortedtable"} or {@code "sparsearray"}
-   * @param storage how to store data: {@code "ram"}, {@code "mmap"}, or {@code "direct"}
+   * @param name    name of the {@link Type} implementation to use
+   * @param storage name of the {@link Storage} implementation to use
    * @param path    where to store data (if mmap)
    * @param madvise whether to use linux madvise random to improve read performance
    * @return A longlong map instance
    * @throws IllegalArgumentException if {@code name} or {@code storage} is not valid
    */
   static LongLongMap from(String name, String storage, Path path, boolean madvise) {
-    // TODO turn these storage and long long map types into enums
-    if ("array".equals(name)) {
-      FileUtils.createDirectory(path);
-      return new ArrayLongLongMapMmap(path.resolve("nodes"), madvise);
-    }
+    return from(Type.from(name), Storage.from(storage), new Storage.Params(path, madvise));
+  }
 
-    boolean ram = isRam(storage);
-    boolean direct = "direct".equals(storage);
-
-    return switch (name) {
-      case "noop" -> noop();
-      case "sortedtable" -> ram ? (direct ? newDirectSortedTable() : newInMemorySortedTable()) :
-        newDiskBackedSortedTable(path, madvise);
-      case "sparsearray" -> ram ? (direct ? newDirectSparseArray() : newInMemorySparseArray()) :
-        newDiskBackedSparseArray(path, madvise);
-      default -> throw new IllegalArgumentException("Unexpected value: " + name);
+  /**
+   * Returns a new longlong map.
+   *
+   * @param type    The {@link Type} implementation to use
+   * @param storage The {@link Storage} implementation to use
+   * @param params  Parameters to pass to storage layer
+   * @return A longlong map instance
+   */
+  static LongLongMap from(Type type, Storage storage, Storage.Params params) {
+    return switch (type) {
+      case NOOP -> noop();
+      case SPARSE_ARRAY -> new SparseArray(AppendStore.Longs.create(storage, params));
+      case SORTED_TABLE -> new SortedTable(
+        new AppendStore.SmallLongs(i -> AppendStore.Ints.create(storage, params.resolve("keys-" + i))),
+        AppendStore.Longs.create(storage, params.resolve("values"))
+      );
+      case ARRAY -> switch (storage) {
+          case MMAP -> new ArrayLongLongMapMmap(params.path(), params.madvise());
+          case RAM -> new ArrayLongLongMapRam();
+          case DIRECT -> new ArrayLongLongMapDirect();
+        };
     };
   }
 
-  /** Estimates the number of bytes of RAM this nodemap will use for a given OSM input file. */
-  static long estimateMemoryUsage(String name, String storage, long osmFileSize) {
-    boolean ram = isRam(storage);
+  static LongLongMap newInMemorySortedTable() {
+    return from(Type.SORTED_TABLE, Storage.RAM, new Storage.Params(Path.of("."), false));
+  }
+
+  record StorageRequired(long onHeapBytes, long offHeapBytes, long diskBytes) {
+
+    static StorageRequired ZERO = new StorageRequired(0, 0, 0);
+    static StorageRequired fixed(Storage type, long bytes) {
+      return ZERO.plus(Storage.RAM, bytes);
+    }
+
+    StorageRequired plus(Storage type, long bytes) {
+      return new StorageRequired(
+        onHeapBytes + (type == Storage.RAM ? bytes : 0),
+        offHeapBytes + (type == Storage.DIRECT ? bytes : 0),
+        diskBytes + (type == Storage.MMAP ? bytes : 0)
+      );
+    }
+  }
+
+  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
+  static StorageRequired estimateStorageRequired(String name, String storage, long osmFileSize) {
+    return estimateStorageRequired(Type.from(name), Storage.from(storage), osmFileSize);
+  }
+
+  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
+  static StorageRequired estimateStorageRequired(Type type, Storage storage, long osmFileSize) {
     long nodes = estimateNumNodes(osmFileSize);
     long maxNodeId = estimateMaxNodeId(osmFileSize);
 
-    return switch (name) {
-      case "noop" -> 0;
-      case "sortedtable" -> 300_000_000L + (ram ? (Integer.BYTES + Long.BYTES) * nodes : 0L);
-      case "sparsearray" -> 300_000_000L + (ram ? 9 * nodes : 0L);
-      case "array" -> ram ? Long.BYTES * maxNodeId : 0;
-      default -> throw new IllegalArgumentException("Unexpected value: " + name);
-    };
-  }
-
-  /** Estimates the number of bytes of disk this nodemap will use for a given OSM input file. */
-  static long estimateDiskUsage(String name, String storage, long osmFileSize) {
-    if (isRam(storage)) {
-      return 0;
-    } else {
-      long nodes = estimateNumNodes(osmFileSize);
-      long maxNodeId = estimateMaxNodeId(osmFileSize);
-      return switch (name) {
-        case "noop" -> 0;
-        case "sortedtable" -> (Integer.BYTES + Long.BYTES) * nodes;
-        case "sparsearray" -> 9 * nodes;
-        case "array" -> Long.BYTES * maxNodeId;
-        default -> throw new IllegalArgumentException("Unexpected value: " + name);
-      };
-    }
-  }
-
-  private static boolean isRam(String storage) {
-    return switch (storage) {
-      case "ram" -> true;
-      case "mmap" -> false;
-      default -> throw new IllegalArgumentException("Unexpected storage value: " + storage);
+    return switch (type) {
+      case NOOP -> StorageRequired.ZERO;
+      case SPARSE_ARRAY -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 9 * nodes);
+      case SORTED_TABLE -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 12 * nodes);
+      case ARRAY -> StorageRequired.fixed(storage, 8 * maxNodeId)
+        // memory-mapped array storage uses direct byte buffers for temporary storage
+        .plus(Storage.DIRECT, storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateOffHeapUsageBytes() : 0);
     };
   }
 
@@ -111,7 +113,8 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
   private static long estimateMaxNodeId(long osmFileSize) {
     // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~950m, so scale from there
-    return Math.round(950_000_000d * (osmFileSize / 66_691_979_646d));
+    // but don't go less than 950m in case it's an extract
+    return Math.round(950_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
   }
 
   /** Returns a longlong map that stores no data and throws on read */
@@ -138,58 +141,6 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     };
   }
 
-  /** Returns an in-memory longlong map that uses 12-bytes per node and binary search to find values. */
-  static LongLongMap newInMemorySortedTable() {
-    return new SortedTable(
-      new AppendStore.SmallLongs(i -> new AppendStoreRam.Ints()),
-      new AppendStoreRam.Longs()
-    );
-  }
-
-  /**
-   * Returns a longlong map stored in off-heap (direct) memory that uses 12-bytes per node and binary search to find
-   * values.
-   */
-  static LongLongMap newDirectSortedTable() {
-    return new SortedTable(
-      new AppendStore.SmallLongs(i -> new AppendStoreDirect.Ints()),
-      new AppendStoreDirect.Longs()
-    );
-  }
-
-  /** Returns a memory-mapped longlong map that uses 12-bytes per node and binary search to find values. */
-  static LongLongMap newDiskBackedSortedTable(Path dir, boolean madvise) {
-    FileUtils.createDirectory(dir);
-    return new SortedTable(
-      new AppendStore.SmallLongs(i -> new AppendStoreMmap.Ints(dir.resolve("keys-" + i), madvise)),
-      new AppendStoreMmap.Longs(dir.resolve("values"), madvise)
-    );
-  }
-
-  /**
-   * Returns an in-memory longlong map that uses 8-bytes per node and O(1) lookup but wastes space storing lots of 0's
-   * when the key space is fragmented.
-   */
-  static LongLongMap newInMemorySparseArray() {
-    return new SparseArray(new AppendStoreRam.Longs());
-  }
-
-  /**
-   * Returns a longlong map stored off-heap in direct byte buffers that uses 8-bytes per node and O(1) lookup but wastes
-   * space storing lots of 0's when the key space is fragmented.
-   */
-  static LongLongMap newDirectSparseArray() {
-    return new SparseArray(new AppendStoreDirect.Longs());
-  }
-
-  /**
-   * Returns a memory-mapped longlong map that uses 8-bytes per node and O(1) lookup but wastes space storing lots of
-   * 0's when the key space is fragmented.
-   */
-  static LongLongMap newDiskBackedSparseArray(Path path, boolean madvise) {
-    return new SparseArray(new AppendStoreMmap.Longs(path, madvise));
-  }
-
   Writer newWriter();
 
   /**
@@ -214,6 +165,59 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       result[i] = get(key[i]);
     }
     return result;
+  }
+
+  /** Which long long map implementation to use. */
+  enum Type {
+    /** Ignore writes and throw an exception on reads. */
+    NOOP("noop"),
+
+    /**
+     * Store an ordered list of keys, and an ordered list of values, and on read do a binary search on keys to find the
+     * index of the value to read.
+     * <p>
+     * Uses exactly 12 bytes per value stored so is ideal for small extracts.
+     * <p>
+     * NOTE: Requires ordered writes from a single thread.
+     */
+    SORTED_TABLE("sortedtable"),
+
+    /**
+     * Stores values in many small arrays indexed by key, compressing large ranges from the key space.
+     * <p>
+     * Uses around ~9 bytes per value stored as the input approaches full planet size. Ideal for full-planet imports
+     * when you want to use as little memory as possible.
+     * <p>
+     * NOTE: Requires ordered writes from a single thread.
+     */
+    SPARSE_ARRAY("sparsearray"),
+
+    /**
+     * Stores values in indexed by key, without compressing unused ranges from the key space so that writes can be done
+     * from multiple threads in parallel.
+     * <p>
+     * Uses exactly {@code maxNodeId * 8} bytes. Suitable only for full-planet imports that use {@link Storage#MMAP}
+     * storage or have plenty of extra RAM.
+     */
+    ARRAY("array");
+
+    private final String name;
+
+    Type(String name) {
+      this.name = name;
+    }
+
+    /**
+     * Returns the type associated with {@code name} or throws {@link IllegalArgumentException} if no match is found.
+     */
+    public static Type from(String name) {
+      for (Type value : values()) {
+        if (value.name.equalsIgnoreCase(name.trim())) {
+          return value;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected long long map type: " + name);
+    }
   }
 
   interface Writer extends AutoCloseable {

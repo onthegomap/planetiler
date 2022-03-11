@@ -115,4 +115,26 @@ public abstract class LongLongMapTest {
       return new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
     }
   }
+
+  public static class AllTest {
+
+    @Test
+    public void testAllImplementations(@TempDir Path path) {
+      for (Storage storage : Storage.values()) {
+        for (LongLongMap.Type type : LongLongMap.Type.values()) {
+          var variant = storage + "-" + type;
+          var params = new Storage.Params(path.resolve(variant), true);
+          LongLongMap map = LongLongMap.from(type, storage, params);
+          try (var writer = map.newWriter()) {
+            writer.put(2, 3);
+            writer.put(4, 5);
+          }
+          if (type != LongLongMap.Type.NOOP) {
+            assertEquals(3, map.get(2), variant);
+            assertEquals(5, map.get(4), variant);
+          }
+        }
+      }
+    }
+  }
 }

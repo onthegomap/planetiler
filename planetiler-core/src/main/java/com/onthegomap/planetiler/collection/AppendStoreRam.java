@@ -53,6 +53,10 @@ abstract class AppendStoreRam<T> implements AppendStore {
 
   static class Ints extends AppendStoreRam<int[]> implements AppendStore.Ints {
 
+    Ints(Storage.Params params) {
+      this();
+    }
+
     Ints() {
       this(1 << 20); // 1MB
     }
@@ -89,6 +93,10 @@ abstract class AppendStoreRam<T> implements AppendStore {
   }
 
   static class Longs extends AppendStoreRam<long[]> implements AppendStore.Longs {
+
+    Longs(Storage.Params params) {
+      this();
+    }
 
     Longs() {
       this(1 << 20); // 1MB

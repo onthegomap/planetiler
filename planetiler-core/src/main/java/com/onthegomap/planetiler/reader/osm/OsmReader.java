@@ -150,7 +150,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addInMemoryObject("hppc", this)
       .newLine();
 
-
     if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
       // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
       int parseThreads = Math.max(1, config.threads() - 1);

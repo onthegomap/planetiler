@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.MmapUtil;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -28,7 +29,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -162,6 +162,9 @@ public class Planetiler {
     Path path = getPath(name, "OSM input file", defaultPath, defaultUrl);
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
+    if (config.nodeMapMadvise()) {
+      MmapUtil.init();
+    }
     return appendStage(new Stage(
       name,
       List.of(
@@ -537,7 +540,8 @@ public class Planetiler {
     Map<FileStore, Long> readPhaseBytes = new HashMap<>();
     Map<FileStore, Long> writePhaseBytes = new HashMap<>();
     long osmSize = osmInputFile.diskUsageBytes();
-    long nodeMapSize = LongLongMap.estimateDiskUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize);
+    long nodeMapSize =
+      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(), osmSize).diskBytes();
     long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
     long outputSize = profile.estimateOutputBytes(osmSize);
 
@@ -585,23 +589,50 @@ public class Planetiler {
 
   private void checkMemory() {
     var format = Format.defaultInstance();
-    long nodeMap = LongLongMap.estimateMemoryUsage(config.nodeMapType(), config.nodeMapStorage(),
-      osmInputFile.diskUsageBytes());
+    LongLongMap.StorageRequired nodeMap =
+      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(),
+        osmInputFile.diskUsageBytes());
     long profile = profile().estimateRamRequired(osmInputFile.diskUsageBytes());
-    long requested = nodeMap + profile;
+    long requested = nodeMap.onHeapBytes() + profile;
     long jvmMemory = ProcessInfo.getMaxMemoryBytes();
 
+    // check on-heap memory
     if (jvmMemory < requested) {
       String warning =
         "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only " +
-          format.storage(jvmMemory) + " is available, try setting -Xmx=" + format.storage(requested).toLowerCase(
-            Locale.ROOT);
+          format.storage(jvmMemory) + " is available";
       if (config.force() || requested < jvmMemory * 1.25) {
         LOGGER.warn(warning + ", may fail.");
       } else {
         throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
       }
     }
+
+    // check off-heap memory if we can get it
+    ProcessInfo.getSystemFreeMemoryBytes().ifPresent(extraMemory -> {
+      if (extraMemory < nodeMap.offHeapBytes()) {
+        String warning =
+          "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
+            " memory available outside the JVM for the node location cache, but only " +
+            format.storage(extraMemory) + " is available";
+        if (config.force() || extraMemory < nodeMap.offHeapBytes() * 1.25) {
+          LOGGER.warn(warning + ", may fail.");
+        } else {
+          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
+        }
+      }
+
+      if (extraMemory < nodeMap.diskBytes() * 1.1) {
+        LOGGER.warn("""
+          Planetiler will use a ~%s memory-mapped file for node locations but the OS only has %s available
+          to cache pages, this may slow the import down. To speed up, run on a machine with more memory or
+          reduce the -Xmx setting.
+          """.formatted(
+          format.storage(nodeMap.diskBytes()),
+          format.storage(extraMemory)
+        ));
+      }
+    });
   }
 
   public Arguments arguments() {

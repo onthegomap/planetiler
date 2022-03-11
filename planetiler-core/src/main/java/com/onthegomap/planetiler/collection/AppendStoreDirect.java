@@ -52,6 +52,10 @@ abstract class AppendStoreDirect implements AppendStore {
 
   static class Ints extends AppendStoreDirect implements AppendStore.Ints {
 
+    Ints(Storage.Params params) {
+      this();
+    }
+
     Ints() {
       this(1 << 20); // 1MB
     }
@@ -88,6 +92,10 @@ abstract class AppendStoreDirect implements AppendStore {
   }
 
   static class Longs extends AppendStoreDirect implements AppendStore.Longs {
+
+    Longs(Storage.Params params) {
+      this();
+    }
 
     Longs() {
       this(1 << 20); // 1MB

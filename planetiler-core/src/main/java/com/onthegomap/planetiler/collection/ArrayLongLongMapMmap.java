@@ -5,6 +5,7 @@ import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.carrotsearch.hppc.BitSet;
+import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.MmapUtil;
 import com.onthegomap.planetiler.util.SlidingWindow;
@@ -40,12 +41,27 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private FileChannel readChannel = null;
   private volatile int tail = 0;
   private final BitSet usedSegments = new BitSet();
+  // 128MB per chunk
+  private static final int DEFAULT_SEGMENT_BITS = 27;
+  // work on up to 5GB of data at a time
+  private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
+
+  public static long estimateOffHeapUsageBytes() {
+    return guessPendingChunkLimit(1 << DEFAULT_SEGMENT_BITS) * (1L << DEFAULT_SEGMENT_BITS);
+  }
+
+  private static int guessPendingChunkLimit(long chunkSize) {
+    int minChunks = 1;
+    int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);
+    int targetChunks = (int) (ProcessInfo.getSystemFreeMemoryBytes().orElse(0L) * 1d / chunkSize);
+    return Math.min(maxChunks, Math.max(minChunks, targetChunks));
+  }
 
   ArrayLongLongMapMmap(Path path, boolean madvise) {
     this(
       path,
-      27, // 128MB per chunk
-      20, // 2.5GB of pending chunks
+      DEFAULT_SEGMENT_BITS,
+      guessPendingChunkLimit(1L << DEFAULT_SEGMENT_BITS),
       madvise
     );
   }

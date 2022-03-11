@@ -37,6 +37,14 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
   /** An array of ints. */
   interface Ints extends AppendStore {
 
+    static Ints create(Storage storage, Storage.Params params) {
+      return switch (storage) {
+        case DIRECT -> new AppendStoreDirect.Ints(params);
+        case RAM -> new AppendStoreRam.Ints(params);
+        case MMAP -> new AppendStoreMmap.Ints(params);
+      };
+    }
+
     void appendInt(int value);
 
     int getInt(long index);
@@ -44,6 +52,14 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
 
   /** An array of longs. */
   interface Longs extends AppendStore {
+
+    static Longs create(Storage storage, Storage.Params params) {
+      return switch (storage) {
+        case DIRECT -> new AppendStoreDirect.Longs(params);
+        case RAM -> new AppendStoreRam.Longs(params);
+        case MMAP -> new AppendStoreMmap.Longs(params);
+      };
+    }
 
     void appendLong(long value);
 

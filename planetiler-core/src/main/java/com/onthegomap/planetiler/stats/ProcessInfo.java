@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.stats;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
-import java.lang.management.BufferPoolMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -74,16 +73,6 @@ public class ProcessInfo {
       .map(Duration::ofNanos);
   }
 
-  /**
-   * Returns the amount direct (off-heap) memory used by the JVM.
-   */
-  public static OptionalLong getDirectMemoryUsage() {
-    return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
-      .filter(bufferPool -> "direct".equals(bufferPool.getName()))
-      .mapToLong(BufferPoolMXBean::getMemoryUsed)
-      .findFirst();
-  }
-
   // reflection helper
   private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
     try {
@@ -117,8 +106,36 @@ public class ProcessInfo {
   }
 
   /** Returns the JVM used memory. */
-  public static long getUsedMemoryBytes() {
-    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  public static long getOnHeapUsedMemoryBytes() {
+    return ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
+  }
+
+  /**
+   * Returns the amount of off-heap memory used by the JVM.
+   */
+  public static long getNonHeapUsedMemoryBytes() {
+    return ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage().getUsed();
+  }
+
+  /**
+   * Returns the total amount of memory available on the system if available.
+   */
+  public static OptionalLong getSystemMemoryBytes() {
+    if (ManagementFactory.getOperatingSystemMXBean()instanceof com.sun.management.OperatingSystemMXBean osBean) {
+      return OptionalLong.of(osBean.getTotalMemorySize());
+    } else {
+      return OptionalLong.empty();
+    }
+  }
+
+  /**
+   * Returns the amount of free memory outside the JVM heap, if available.
+   */
+  public static OptionalLong getSystemFreeMemoryBytes() {
+    return getSystemMemoryBytes().stream()
+      .map(value -> value - getMaxMemoryBytes())
+      .filter(value -> value > 0)
+      .findFirst();
   }
 
   /** Processor usage statistics for a thread. */
