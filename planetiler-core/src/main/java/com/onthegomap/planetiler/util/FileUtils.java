@@ -129,11 +129,11 @@ public class FileUtils {
    */
   public static void createParentDirectories(Path path) {
     try {
-      if (Files.isDirectory(path)) {
+      if (Files.isDirectory(path) && !Files.exists(path)) {
         Files.createDirectories(path);
       } else {
         Path parent = path.getParent();
-        if (parent != null) {
+        if (parent != null && !Files.exists(parent)) {
           Files.createDirectories(parent);
         }
       }
