@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
+import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.util.MmapUtil;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -71,7 +71,7 @@ abstract class AppendStoreMmap implements AppendStore {
               MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
               if (madvise) {
                 try {
-                  MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
+                  ByteBufferUtil.madvise(thisBuffer, ByteBufferUtil.Madvice.RANDOM);
                 } catch (IOException e) {
                   if (!madviseFailed) { // log once
                     LOGGER.info(
@@ -101,7 +101,7 @@ abstract class AppendStoreMmap implements AppendStore {
       }
       if (segments != null) {
         try {
-          MmapUtil.unmap(segments);
+          ByteBufferUtil.free(segments);
         } catch (IOException e) {
           LOGGER.info("Unable to unmap " + path + " " + e);
         }

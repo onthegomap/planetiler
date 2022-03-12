@@ -13,12 +13,12 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
+import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
-import com.onthegomap.planetiler.util.MmapUtil;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -163,7 +163,7 @@ public class Planetiler {
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
     if (config.nodeMapMadvise()) {
-      MmapUtil.init();
+      ByteBufferUtil.init();
     }
     return appendStage(new Stage(
       name,

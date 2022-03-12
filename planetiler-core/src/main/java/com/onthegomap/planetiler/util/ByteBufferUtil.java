@@ -9,11 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utilities for working with memory-mapped files.
+ * Utilities for working with memory-mapped and direct byte buffers.
  */
-public class MmapUtil {
+public class ByteBufferUtil {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MmapUtil.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferUtil.class);
 
 
   /** Attempts to invoke native utility and logs an error message if not available. */
@@ -41,11 +41,13 @@ public class MmapUtil {
 
   /**
    * Attempt to force-unmap a list of memory-mapped file segments so it can safely be deleted.
+   * <p>
+   * Can also be used to force-deallocate a direct byte buffer.
    *
-   * @param segments The segments to unmap
-   * @throws IOException If any error occurs unmapping the segment
+   * @param segments The segments to free
+   * @throws IOException If any error occurs freeing the segment
    */
-  public static void unmap(MappedByteBuffer... segments) throws IOException {
+  public static void free(ByteBuffer... segments) throws IOException {
     try {
       // attempt to force-unmap the file, so we can delete it later
       // https://stackoverflow.com/questions/2972986/how-to-unmap-a-file-from-memory-mapped-using-filechannel-in-java
@@ -60,8 +62,8 @@ public class MmapUtil {
       Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
       theUnsafeField.setAccessible(true);
       Object theUnsafe = theUnsafeField.get(null);
-      for (MappedByteBuffer buffer : segments) {
-        if (buffer != null) {
+      for (ByteBuffer buffer : segments) {
+        if (buffer != null && (buffer instanceof MappedByteBuffer || buffer.isDirect())) {
           clean.invoke(theUnsafe, buffer);
         }
       }

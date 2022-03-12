@@ -101,8 +101,8 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       case SPARSE_ARRAY -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 9 * nodes);
       case SORTED_TABLE -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 12 * nodes);
       case ARRAY -> StorageRequired.fixed(storage, 8 * maxNodeId)
-        // memory-mapped array storage uses direct byte buffers for temporary storage
-        .plus(Storage.DIRECT, storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateOffHeapUsageBytes() : 0);
+        // memory-mapped array storage uses byte buffers for temporary storage
+        .plus(Storage.RAM, storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateTempMemoryUsageBytes() : 0);
     };
   }
 

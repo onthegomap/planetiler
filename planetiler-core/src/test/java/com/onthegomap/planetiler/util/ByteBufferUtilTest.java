@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -13,7 +14,7 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public class MmapUtilTest {
+public class ByteBufferUtilTest {
 
   @Test
   public void testMadviseAndUnmap(@TempDir Path dir) throws IOException {
@@ -25,7 +26,7 @@ public class MmapUtilTest {
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
       MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, bytes);
       try {
-        MmapUtil.madvise(buffer, MmapUtil.Madvice.RANDOM);
+        ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
         byte[] received = new byte[bytes];
         buffer.get(received);
         assertEquals(data, new String(received, StandardCharsets.UTF_8));
@@ -36,10 +37,20 @@ public class MmapUtilTest {
           System.out.println("madvise failed, but the system may not support it");
         }
       } finally {
-        MmapUtil.unmap(buffer);
+        ByteBufferUtil.free(buffer);
       }
     } finally {
       Files.delete(path);
     }
+  }
+
+  @Test
+  public void testFreeDirectByteBuffer() throws IOException {
+    ByteBufferUtil.free(ByteBuffer.allocateDirect(1));
+  }
+
+  @Test
+  public void testFreeHeapByteBuffer() throws IOException {
+    ByteBufferUtil.free(ByteBuffer.allocate(1));
   }
 }

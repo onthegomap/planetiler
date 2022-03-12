@@ -31,7 +31,7 @@ import jnr.ffi.types.size_t;
 
 /**
  * Wrapper for native madvise function to be used via the public API
- * {@link MmapUtil#madvise(ByteBuffer, MmapUtil.Madvice)}.
+ * {@link ByteBufferUtil#madvise(ByteBuffer, ByteBufferUtil.Madvice)}.
  * <p>
  * Ported from <a href=
  * "https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.

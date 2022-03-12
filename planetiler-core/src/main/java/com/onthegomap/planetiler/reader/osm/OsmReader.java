@@ -172,7 +172,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       // like nodes without any tags, but limit the number of pending heavy entities like relations
       int handoffQueueBatches = Math.max(
         10,
-        (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
+        (int) (100d * ProcessInfo.getMaxMemoryBytes() / 20_000_000_000d)
       );
       record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
       var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
@@ -221,7 +221,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     boolean waysDone = false;
     try (
       var nodeWriter = nodeLocationDb.newWriter();
-      var nodesDone = pass1NodesDone.newFinisher();
+      var nodesDone = pass1NodesDone.newFinisher(nodeWriter::close);
     ) {
       for (var block : blocks) {
         int nodes = 0, ways = 0, relations = 0;
@@ -357,14 +357,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         });
 
         for (var block : prev) {
-          int blockNodes = 0, blockWays = 0;
           for (var element : block.decodeElements()) {
             SourceFeature feature = null;
             if (element instanceof OsmElement.Node node) {
-              blockNodes++;
+              nodes.inc();
               feature = processNodePass2(node);
             } else if (element instanceof OsmElement.Way way) {
-              blockWays++;
+              ways.inc();
               feature = processWayPass2(way, nodeLocations);
             } else if (element instanceof OsmElement.Relation relation) {
               // ensure all ways finished processing before we start relations
@@ -378,10 +377,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               render(featureCollectors, renderer, element, feature);
             }
           }
-
           blocks.inc();
-          nodes.incBy(blockNodes);
-          ways.incBy(blockWays);
         }
 
         // just in case a worker skipped over all relations

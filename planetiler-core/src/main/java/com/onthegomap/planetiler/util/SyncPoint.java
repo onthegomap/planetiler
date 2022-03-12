@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,7 +21,13 @@ public class SyncPoint {
 
   /** Returns a handle for workers to mark their work as finished, or to wait for others. */
   public Finisher newFinisher() {
-    return limit == 0 ? new NoopFinisher() : new RealFinisher();
+    return newFinisher(() -> {
+    });
+  }
+
+  /** Returns a handle for workers to mark their work as finished, or to wait for others. */
+  public Finisher newFinisher(RunnableThatThrows action) {
+    return limit == 0 ? new NoopFinisher(action) : new RealFinisher(action);
   }
 
   /** A handle for a single thread. */
@@ -42,11 +49,20 @@ public class SyncPoint {
 
   /** Dummy finisher that always lets {@link #await()} continue. */
   private static class NoopFinisher implements Finisher {
+
+    private final RunnableThatThrows action;
     boolean done = false;
+
+    public NoopFinisher(RunnableThatThrows action) {
+      this.action = action;
+    }
 
     @Override
     public void finish() {
-      done = true;
+      if (!done) {
+        action.runAndWrapException();
+        done = true;
+      }
     }
 
     @Override
@@ -60,13 +76,16 @@ public class SyncPoint {
 
   /** Real finisher that waits for all workers to finish before {@link #await()} continues. */
   private class RealFinisher implements Finisher {
+
+    private final RunnableThatThrows action;
     boolean done = false;
     boolean allDone = false;
 
-    private RealFinisher() {
+    private RealFinisher(RunnableThatThrows action) {
       if (numRegistered.incrementAndGet() > limit) {
         throw new IllegalStateException("Tried to register " + numRegistered + " finishers but limit was " + limit);
       }
+      this.action = action;
     }
 
     @Override
@@ -74,6 +93,7 @@ public class SyncPoint {
       if (!done) {
         latch.countDown();
         done = true;
+        action.runAndWrapException();
       }
     }
 

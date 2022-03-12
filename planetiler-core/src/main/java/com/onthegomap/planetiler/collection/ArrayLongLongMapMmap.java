@@ -6,8 +6,8 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.carrotsearch.hppc.BitSet;
 import com.onthegomap.planetiler.stats.ProcessInfo;
+import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.util.MmapUtil;
 import com.onthegomap.planetiler.util.SlidingWindow;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,20 +41,21 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
   private FileChannel readChannel = null;
   private volatile int tail = 0;
+  private final Semaphore activeChunks;
   private final BitSet usedSegments = new BitSet();
   // 128MB per chunk
   private static final int DEFAULT_SEGMENT_BITS = 27;
   // work on up to 5GB of data at a time
   private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
 
-  public static long estimateOffHeapUsageBytes() {
+  public static long estimateTempMemoryUsageBytes() {
     return guessPendingChunkLimit(1 << DEFAULT_SEGMENT_BITS) * (1L << DEFAULT_SEGMENT_BITS);
   }
 
   private static int guessPendingChunkLimit(long chunkSize) {
     int minChunks = 1;
     int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);
-    int targetChunks = (int) (ProcessInfo.getSystemFreeMemoryBytes().orElse(0L) * 1d / chunkSize);
+    int targetChunks = (int) (ProcessInfo.getMaxMemoryBytes() * 0.5d / chunkSize);
     return Math.min(maxChunks, Math.max(minChunks, targetChunks));
   }
 
@@ -70,6 +72,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }
+    this.activeChunks = new Semaphore(maxPendingSegments);
     this.madvise = madvise;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
@@ -107,7 +110,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
           if (madvise) {
             try {
-              MmapUtil.madvise(buffer, MmapUtil.Madvice.RANDOM);
+              ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
             } catch (IOException e) {
               if (!madviseFailed) { // log once
                 LOGGER.info(
@@ -158,18 +161,24 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
     void allocate() {
       slidingWindow.waitUntilInsideWindow(id);
-      result.complete(ByteBuffer.allocateDirect(1 << segmentBits));
+      try {
+        activeChunks.acquire();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      result.complete(ByteBuffer.allocate(1 << segmentBits));
     }
 
     void flush() {
       try {
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
-        buffer.clear();
         synchronized (usedSegments) {
           usedSegments.set(id);
         }
         result = null;
+        activeChunks.release();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -186,9 +195,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   ) {}
 
   private synchronized SegmentActions getSegmentActions(AtomicInteger currentSeg, int value) {
-    var before = segments.toString();
     currentSeg.set(value);
-    var after = segments.toString();
     List<Segment> flush = new ArrayList<>();
     List<Segment> allocate = new ArrayList<>();
     var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
