@@ -483,6 +483,9 @@ public class Planetiler {
       LOGGER.info("  mbtiles: Encode each tile and write to " + output);
     }
 
+    // in case any temp files are left from a previous run...
+    FileUtils.delete(tmpDir);
+
     if (!toDownload.isEmpty()) {
       download();
     }
