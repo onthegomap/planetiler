@@ -15,7 +15,7 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
   private final AtomicInteger numSegments = new AtomicInteger(0);
 
   ArrayLongLongMapRam() {
-    this(20); // 8MB
+    this(17); // 1MB
   }
 
   ArrayLongLongMapRam(int segmentBits) {

@@ -16,7 +16,7 @@ class ArrayLongLongMapDirect implements LongLongMap.ParallelWrites {
   private final AtomicInteger numSegments = new AtomicInteger(0);
 
   ArrayLongLongMapDirect() {
-    this(23); // 8MB
+    this(20); // 1MB
   }
 
   ArrayLongLongMapDirect(int segmentBits) {
