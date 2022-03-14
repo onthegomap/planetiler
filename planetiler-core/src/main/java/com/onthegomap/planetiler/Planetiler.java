@@ -612,7 +612,6 @@ public class Planetiler {
     }
 
     long directLimit = ProcessInfo.getDirectUsedMemoryLimit();
-    System.err.println("direct: " + format.storage(directLimit) + " " + format.storage(nodeMap.offHeapBytes()));
     if (directLimit < nodeMap.offHeapBytes()) {
       String warning =
         "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
