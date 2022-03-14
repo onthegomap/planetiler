@@ -254,7 +254,7 @@ public class ProgressLoggers {
     loggers.add(new ProgressLogger("heap",
       () -> format.storage(ProcessInfo.getOnHeapUsedMemoryBytes(), false) + "/" +
         format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
-        OptionalLong.of(ProcessInfo.getNonHeapUsedMemoryBytes()).stream()
+        OptionalLong.of(ProcessInfo.getDirectUsedMemoryBytes()).stream()
           .filter(usage -> usage > 0)
           .mapToObj(mem -> " offHeap: " + format.storage(mem))
           .findFirst()

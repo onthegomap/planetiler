@@ -611,6 +611,21 @@ public class Planetiler {
       }
     }
 
+    long directLimit = ProcessInfo.getDirectUsedMemoryLimit();
+    System.err.println("direct: " + format.storage(directLimit) + " " + format.storage(nodeMap.offHeapBytes()));
+    if (directLimit < nodeMap.offHeapBytes()) {
+      String warning =
+        "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
+          " memory available for direct byte buffers for the node location cache, but only " +
+          format.storage(directLimit) + " is available";
+      if (config.force() || nodeMap.offHeapBytes() < directLimit * 1.25) {
+        LOGGER.warn(warning + ", may fail. Please increase the -XX:MaxDirectMemorySize jvm option.");
+      } else {
+        throw new IllegalArgumentException(warning +
+          ". Please increase the -XX:MaxDirectMemorySize jvm option or use the --force argument to continue.");
+      }
+    }
+
     // check off-heap memory if we can get it
     ProcessInfo.getSystemFreeMemoryBytes().ifPresent(extraMemory -> {
       if (extraMemory < nodeMap.offHeapBytes()) {
@@ -618,7 +633,7 @@ public class Planetiler {
           "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
             " memory available outside the JVM for the node location cache, but only " +
             format.storage(extraMemory) + " is available";
-        if (config.force() || extraMemory < nodeMap.offHeapBytes() * 1.25) {
+        if (config.force() || nodeMap.offHeapBytes() < extraMemory * 1.25) {
           LOGGER.warn(warning + ", may fail.");
         } else {
           throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");

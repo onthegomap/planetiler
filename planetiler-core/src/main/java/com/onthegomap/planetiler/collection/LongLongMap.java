@@ -74,7 +74,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
     static StorageRequired ZERO = new StorageRequired(0, 0, 0);
     static StorageRequired fixed(Storage type, long bytes) {
-      return ZERO.plus(Storage.RAM, bytes);
+      return ZERO.plus(type, bytes);
     }
 
     StorageRequired plus(Storage type, long bytes) {
@@ -112,9 +112,9 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   }
 
   private static long estimateMaxNodeId(long osmFileSize) {
-    // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~950m, so scale from there
-    // but don't go less than 950m in case it's an extract
-    return Math.round(950_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
+    // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~9.5b, so scale from there
+    // but don't go less than 9.5b in case it's an extract
+    return Math.round(9_500_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
   }
 
   /** Returns a longlong map that stores no data and throws on read */

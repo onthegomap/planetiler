@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.stats;
 
+import com.onthegomap.planetiler.util.Parse;
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
 import java.lang.management.BufferPoolMXBean;
@@ -113,13 +114,26 @@ public class ProcessInfo {
   }
 
   /**
-   * Returns the amount of off-heap memory used by the JVM.
+   * Returns the amount of direct memory (allocated through {@link java.nio.ByteBuffer#allocateDirect(int)}) used by the
+   * JVM.
    */
-  public static long getNonHeapUsedMemoryBytes() {
+  public static long getDirectUsedMemoryBytes() {
     return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
-      .filter(d -> "direct".equals(d.getName()))
-      .mapToLong(BufferPoolMXBean::getMemoryUsed)
+      .filter(pool -> "direct".equals(pool.getName()))
+      .mapToLong(BufferPoolMXBean::getTotalCapacity)
       .sum();
+  }
+
+  /**
+   * Returns the amount of direct memory (allocated through {@link java.nio.ByteBuffer#allocateDirect(int)}) used by the
+   * JVM.
+   */
+  public static long getDirectUsedMemoryLimit() {
+    return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+      .filter(arg -> arg.startsWith("-XX:MaxDirectMemorySize="))
+      .mapToLong(arg -> Parse.jvmMemoryStringToBytes(arg.replace("-XX:MaxDirectMemorySize=", "")))
+      .findFirst()
+      .orElseGet(ProcessInfo::getMaxMemoryBytes);
   }
 
   /**

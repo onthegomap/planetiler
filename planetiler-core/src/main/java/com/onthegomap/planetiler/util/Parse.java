@@ -109,4 +109,22 @@ public class Parse {
       return null;
     }
   }
+
+  /** Parses a value for {@code -Xmx/-Xms} jvm option like "100" or "500k" or "15g" */
+  public static long jvmMemoryStringToBytes(String value) {
+    value = value.strip();
+    char lastChar = value.charAt(value.length() - 1);
+    if (Character.isDigit(lastChar)) {
+      return Long.parseLong(value);
+    } else {
+      long base = Long.parseLong(value.substring(0, value.length() - 1));
+      lastChar = Character.toLowerCase(lastChar);
+      return switch (lastChar) {
+        case 'k' -> base * 1024L;
+        case 'm' -> base * 1024L * 1024L;
+        case 'g' -> base * 1024L * 1024L * 1024L;
+        default -> throw new IllegalArgumentException("Unrecognized suffix: " + Character.toLowerCase(lastChar));
+      };
+    }
+  }
 }

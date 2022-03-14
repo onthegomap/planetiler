@@ -78,4 +78,17 @@ public class ParseTest {
     ).map(entry -> dynamicTest(entry.getKey().toString(),
       () -> assertEquals(entry.getValue(), Parse.wayzorder(entry.getKey()))));
   }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "0, 0",
+    "1, 1",
+    "999999999999, 999999999999",
+    "2k, 2048",
+    "4M, 4194304",
+    "8G, 8589934592"
+  })
+  public void testParseJvmSize(String input, long expectedOutput) {
+    assertEquals(expectedOutput, Parse.jvmMemoryStringToBytes(input));
+  }
 }
