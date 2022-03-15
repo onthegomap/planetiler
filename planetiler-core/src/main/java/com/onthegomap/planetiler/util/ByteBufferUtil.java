@@ -5,6 +5,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.function.IntPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +72,58 @@ public class ByteBufferUtil {
     } catch (Exception e) {
       throw new IOException("Unable to unmap", e);
     }
+  }
+
+  /**
+   * Same as {@link #mapFile(FileChannel, long, long, boolean, IntPredicate)} except map every segment without testing
+   * that it has data first.
+   */
+  public static MappedByteBuffer[] mapFile(FileChannel readChannel, long expectedLength, long segmentBytes,
+    boolean madvise) throws IOException {
+    return mapFile(readChannel, expectedLength, segmentBytes, madvise, i -> true);
+  }
+
+  /**
+   * Memory-map many segments of a file.
+   *
+   * @param file           A channel for the input file being read
+   * @param expectedLength Expected number of bytes in the file
+   * @param segmentBytes   Number of bytes in each segment
+   * @param madvise        {@code true} to use linux madvise random on the file to improve read performance
+   * @param segmentHasData Predicate that returns {@code false} when a segment index has no data
+   * @return The array of mapped segments.
+   * @throws IOException If an error occurs reading from the file
+   */
+  public static MappedByteBuffer[] mapFile(FileChannel file, long expectedLength, long segmentBytes,
+    boolean madvise, IntPredicate segmentHasData) throws IOException {
+    assert expectedLength == file.size();
+    int segmentCount = (int) (expectedLength / segmentBytes);
+    if (expectedLength % segmentBytes != 0) {
+      segmentCount++;
+    }
+    MappedByteBuffer[] segmentsArray = new MappedByteBuffer[segmentCount];
+    int i = 0;
+    boolean madviseFailed = false;
+    for (long segmentStart = 0; segmentStart < expectedLength; segmentStart += segmentBytes) {
+      long segmentLength = Math.min(segmentBytes, expectedLength - segmentStart);
+      if (segmentHasData.test(i)) {
+        MappedByteBuffer buffer = file.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
+        if (madvise) {
+          try {
+            ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
+          } catch (IOException e) {
+            if (!madviseFailed) { // log once
+              LOGGER.info(
+                "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
+              madviseFailed = true;
+            }
+          }
+        }
+        segmentsArray[i] = buffer;
+      }
+      i++;
+    }
+    return segmentsArray;
   }
 
   /** Values from https://man7.org/linux/man-pages/man2/madvise.2.html */

@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.util.FileUtils;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -54,42 +55,21 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   MappedByteBuffer[] getSegments() {
-    MappedByteBuffer[] result = segments;
-    if (result == null) {
+    if (segments == null) {
       synchronized (this) {
-        if ((result = segments) == null) {
+        if (segments == null) {
           try {
-            boolean madviseFailed = false;
             // prepare the memory mapped file: stop writing, start reading
             outputStream.close();
             channel = FileChannel.open(path, StandardOpenOption.READ);
-            int segmentCount = (int) (outIdx / segmentBytes + 1);
-            result = new MappedByteBuffer[segmentCount];
-            int i = 0;
-            for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
-              long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
-              MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
-              if (madvise) {
-                try {
-                  ByteBufferUtil.madvise(thisBuffer, ByteBufferUtil.Madvice.RANDOM);
-                } catch (IOException e) {
-                  if (!madviseFailed) { // log once
-                    LOGGER.info(
-                      "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
-                    madviseFailed = true;
-                  }
-                }
-              }
-              result[i++] = thisBuffer;
-            }
-            segments = result;
+            segments = ByteBufferUtil.mapFile(channel, outIdx, segmentBytes, madvise);
           } catch (IOException e) {
-            throw new IllegalStateException("Failed preparing SequentialWriteRandomReadFile for reads", e);
+            throw new UncheckedIOException(e);
           }
         }
       }
     }
-    return result;
+    return segments;
   }
 
   @Override

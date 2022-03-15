@@ -23,8 +23,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A map from sequential {@code long} keys to {@code long} values backed by a file on disk where the key defines the
@@ -40,9 +38,11 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
    * slidingWindow to make threads that try to allocate new segments wait until old segments are
    * finished. Also use activeSegments semaphore to make new segments wait to allocate until
    * old segments are actually flushed to disk.
+   *
+   * TODO: cleaner way to limit in-memory segments with sliding window that does not also need the semaphore?
+   * TODO: extract maintaining segments list into a separate utility?
    */
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);
   // 128MB per chunk
   private static final int DEFAULT_SEGMENT_BITS = 27;
   // work on up to 5GB of data at a time
@@ -113,31 +113,8 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         }
       }
       writeChannel.close();
-      readChannel = FileChannel.open(path, READ, WRITE);
-      long outIdx = readChannel.size() + 8;
-      int segmentCount = (int) (outIdx / segmentBytes + 1);
-      segmentsArray = new MappedByteBuffer[segmentCount];
-      int i = 0;
-      boolean madviseFailed = false;
-      for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
-        long segmentLength = Math.min(segmentBytes, outIdx - segmentStart);
-        if (usedSegments.get(i)) {
-          MappedByteBuffer buffer = readChannel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
-          if (madvise) {
-            try {
-              ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
-            } catch (IOException e) {
-              if (!madviseFailed) { // log once
-                LOGGER.info(
-                  "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
-                madviseFailed = true;
-              }
-            }
-          }
-          segmentsArray[i] = buffer;
-        }
-        i++;
-      }
+      readChannel = FileChannel.open(path, READ);
+      segmentsArray = ByteBufferUtil.mapFile(readChannel, readChannel.size(), segmentBytes, madvise, usedSegments::get);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

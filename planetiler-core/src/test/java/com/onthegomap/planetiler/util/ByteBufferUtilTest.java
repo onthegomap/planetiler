@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -52,5 +54,51 @@ public class ByteBufferUtilTest {
   @Test
   public void testFreeHeapByteBuffer() throws IOException {
     ByteBufferUtil.free(ByteBuffer.allocate(1));
+  }
+
+  private String readString(MappedByteBuffer buffer) {
+    byte[] result = new byte[buffer.limit()];
+    buffer.get(result);
+    return new String(result, StandardCharsets.UTF_8);
+  }
+
+  @Test
+  public void testMapFile(@TempDir Path dir) throws IOException {
+    String data = "test";
+    var path = dir.resolve("file");
+    Files.writeString(path, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    var channel = FileChannel.open(path, StandardOpenOption.READ);
+    MappedByteBuffer[] buffers = ByteBufferUtil.mapFile(channel, 4, 2, true);
+    assertEquals(2, buffers.length);
+
+    assertEquals("te", readString(buffers[0]));
+    assertEquals("st", readString(buffers[1]));
+  }
+
+  @Test
+  public void testMapFileLeftoverSegment(@TempDir Path dir) throws IOException {
+    String data = "test!";
+    var path = dir.resolve("file");
+    Files.writeString(path, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    var channel = FileChannel.open(path, StandardOpenOption.READ);
+    MappedByteBuffer[] buffers = ByteBufferUtil.mapFile(channel, 5, 2, true);
+    assertEquals(3, buffers.length);
+
+    assertEquals("te", readString(buffers[0]));
+    assertEquals("st", readString(buffers[1]));
+    assertEquals("!", readString(buffers[2]));
+  }
+
+  @Test
+  public void testMapFileFilterOutSegment(@TempDir Path dir) throws IOException {
+    String data = "test!";
+    var path = dir.resolve("file");
+    Files.writeString(path, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    var channel = FileChannel.open(path, StandardOpenOption.READ);
+    MappedByteBuffer[] buffers = ByteBufferUtil.mapFile(channel, 5, 2, true, i -> i != 0);
+    assertEquals(3, buffers.length);
+    assertNull(buffers[0]);
+    assertNotNull(buffers[1]);
+    assertNotNull(buffers[2]);
   }
 }
