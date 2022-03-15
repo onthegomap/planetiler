@@ -18,7 +18,7 @@ abstract class AppendStoreRam implements AppendStore {
 
   final List<ByteBuffer> arrays;
   private final boolean direct;
-  long size = 0;
+  long writeOffset = 0;
   final int slabSize;
   final int slabBits;
   final long slabMask;
@@ -39,7 +39,7 @@ abstract class AppendStoreRam implements AppendStore {
 
   /** Returns the slab that the next value should be written to. */
   ByteBuffer getSlabForWrite() {
-    int slabIdx = (int) (size >>> slabBits);
+    int slabIdx = (int) (writeOffset >>> slabBits);
     while (arrays.size() <= slabIdx) {
       arrays.add(newSlab());
     }
@@ -71,15 +71,17 @@ abstract class AppendStoreRam implements AppendStore {
 
     @Override
     public void appendInt(int value) {
-      int offset = (int) (size & slabMask);
+      int offset = (int) (this.writeOffset & slabMask);
       getSlabForWrite().putInt(offset, value);
-      size += Integer.BYTES;
+      this.writeOffset += Integer.BYTES;
     }
 
     @Override
     public int getInt(long index) {
-      checkIndexInBounds(index);
       long byteIndex = index << 2;
+      if (byteIndex >= writeOffset) {
+        throw new IndexOutOfBoundsException("index: " + index + " size: " + size());
+      }
       int slabIdx = (int) (byteIndex >>> slabBits);
       int offset = (int) (byteIndex & slabMask);
       return arrays.get(slabIdx).getInt(offset);
@@ -87,7 +89,7 @@ abstract class AppendStoreRam implements AppendStore {
 
     @Override
     public long size() {
-      return size >> 2;
+      return writeOffset >> 2;
     }
 
     @Override
@@ -112,15 +114,17 @@ abstract class AppendStoreRam implements AppendStore {
 
     @Override
     public void appendLong(long value) {
-      int offset = (int) (size & slabMask);
+      int offset = (int) (this.writeOffset & slabMask);
       getSlabForWrite().putLong(offset, value);
-      size += Long.BYTES;
+      this.writeOffset += Long.BYTES;
     }
 
     @Override
     public long getLong(long index) {
-      checkIndexInBounds(index);
       long byteIndex = index << 3;
+      if (byteIndex >= writeOffset) {
+        throw new IndexOutOfBoundsException("index: " + index + " size: " + size());
+      }
       int slabIdx = (int) (byteIndex >>> slabBits);
       int offset = (int) (byteIndex & slabMask);
       return arrays.get(slabIdx).getLong(offset);
@@ -133,7 +137,7 @@ abstract class AppendStoreRam implements AppendStore {
 
     @Override
     public long size() {
-      return size >> 3;
+      return writeOffset >> 3;
     }
   }
 }
