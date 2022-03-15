@@ -1,6 +1,9 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.Storage;
 import java.time.Duration;
+import java.util.Arrays;
 
 /**
  * Holder for common parameters used by many components in planetiler.
@@ -74,8 +77,10 @@ public record PlanetilerConfig(
       arguments.getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks",
         6),
       arguments
-        .getString("nodemap_type", "type of node location map: noop, sortedtable, or sparsearray", "sortedtable"),
-      arguments.getString("nodemap_storage", "storage for location map: mmap or ram", "mmap"),
+        .getString("nodemap_type", "type of node location map, one of " + Arrays.toString(LongLongMap.Type.values()),
+          LongLongMap.Type.SPARSE_ARRAY.name()),
+      arguments.getString("nodemap_storage", "storage for location map, one of " + Arrays.toString(Storage.values()),
+        Storage.MMAP.name()),
       arguments.getBoolean("nodemap_madvise", "use linux madvise(random) to improve memory-mapped read performance",
         false),
       arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",
