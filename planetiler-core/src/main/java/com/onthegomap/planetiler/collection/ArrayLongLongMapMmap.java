@@ -34,6 +34,13 @@ import org.slf4j.LoggerFactory;
  * the segment slides out of the window. During read phase, they file is memory-mapped and read.
  */
 class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
+  /*
+   * In order to limit the number of in-memory segments during writes and ensure liveliness, keep track
+   * of the current segment index that each worker is working on in the "segments" array. Then use
+   * slidingWindow to make threads that try to allocate new segments wait until old segments are
+   * finished. Also use activeSegments semaphore to make new segments wait to allocate until
+   * old segments are actually flushed to disk.
+   */
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);
   // 128MB per chunk
@@ -48,7 +55,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private final Path path;
   private final CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
-  private final Semaphore activeChunks;
+  private final Semaphore activeSegments;
   private final BitSet usedSegments = new BitSet();
   FileChannel writeChannel;
   private MappedByteBuffer[] segmentsArray;
@@ -69,7 +76,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     if (segmentBits < 3) {
       throw new IllegalArgumentException("Segment size must be a multiple of 8, got 2^" + segmentBits);
     }
-    this.activeChunks = new Semaphore(maxPendingSegments);
+    this.activeSegments = new Semaphore(maxPendingSegments);
     this.madvise = madvise;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
@@ -255,7 +262,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     void allocate() {
       slidingWindow.waitUntilInsideWindow(id);
       try {
-        activeChunks.acquire();
+        activeSegments.acquire();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -271,7 +278,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
         result = null;
-        activeChunks.release();
+        activeSegments.release();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -283,6 +290,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
+  /** Handle for a single worker thread to write values in parallel with other workers. */
   private class Writer implements LongLongMap.Writer {
     final AtomicInteger currentSeg = new AtomicInteger(0);
     long lastSegment = -1;
