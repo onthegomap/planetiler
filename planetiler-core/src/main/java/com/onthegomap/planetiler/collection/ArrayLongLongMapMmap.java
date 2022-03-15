@@ -36,35 +36,25 @@ import org.slf4j.LoggerFactory;
 class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);
+  // 128MB per chunk
+  private static final int DEFAULT_SEGMENT_BITS = 27;
+  // work on up to 5GB of data at a time
+  private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
   private final boolean madvise;
-  FileChannel writeChannel;
   private final int segmentBits;
   private final long segmentMask;
   private final long segmentBytes;
   private final SlidingWindow slidingWindow;
   private final Path path;
-  private MappedByteBuffer[] segmentsArray;
   private final CopyOnWriteArrayList<AtomicInteger> segments = new CopyOnWriteArrayList<>();
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
-  private FileChannel readChannel = null;
-  private volatile int tail = 0;
   private final Semaphore activeChunks;
   private final BitSet usedSegments = new BitSet();
-  // 128MB per chunk
-  private static final int DEFAULT_SEGMENT_BITS = 27;
-  // work on up to 5GB of data at a time
-  private static final long MAX_BYTES_TO_USE = 5_000_000_000L;
-
-  public static long estimateTempMemoryUsageBytes() {
-    return guessPendingChunkLimit(1 << DEFAULT_SEGMENT_BITS) * (1L << DEFAULT_SEGMENT_BITS);
-  }
-
-  private static int guessPendingChunkLimit(long chunkSize) {
-    int minChunks = 1;
-    int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);
-    int targetChunks = (int) (ProcessInfo.getMaxMemoryBytes() * 0.5d / chunkSize);
-    return Math.min(maxChunks, Math.max(minChunks, targetChunks));
-  }
+  FileChannel writeChannel;
+  private MappedByteBuffer[] segmentsArray;
+  private FileChannel readChannel = null;
+  private volatile int tail = 0;
+  private volatile boolean initialized = false;
 
   ArrayLongLongMapMmap(Path path, boolean madvise) {
     this(
@@ -93,6 +83,17 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
+  public static long estimateTempMemoryUsageBytes() {
+    return guessPendingChunkLimit(1 << DEFAULT_SEGMENT_BITS) * (1L << DEFAULT_SEGMENT_BITS);
+  }
+
+  private static int guessPendingChunkLimit(long chunkSize) {
+    int minChunks = 1;
+    int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);
+    int targetChunks = (int) (ProcessInfo.getMaxMemoryBytes() * 0.5d / chunkSize);
+    return Math.min(maxChunks, Math.max(minChunks, targetChunks));
+  }
+
   public void init() {
     try {
       for (Integer oldKey : writeBuffers.keySet()) {
@@ -100,7 +101,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
           // no one else needs this segment, flush it
           var toFlush = writeBuffers.remove(oldKey);
           if (toFlush != null) {
-            toFlush.flush();
+            toFlush.flushToDisk();
           }
         }
       }
@@ -135,6 +136,91 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
+  @Override
+  public Writer newWriter() {
+    return new Writer();
+  }
+
+  private void initOnce() {
+    if (!initialized) {
+      synchronized (this) {
+        if (!initialized) {
+          init();
+          initialized = true;
+        }
+      }
+    }
+  }
+
+  @Override
+  public long get(long key) {
+    initOnce();
+    long byteOffset = key << 3;
+    int idx = (int) (byteOffset >>> segmentBits);
+    if (idx >= segmentsArray.length) {
+      return LongLongMap.MISSING_VALUE;
+    }
+    MappedByteBuffer mappedByteBuffer = segmentsArray[idx];
+    if (mappedByteBuffer == null) {
+      return LongLongMap.MISSING_VALUE;
+    }
+    int offset = (int) (byteOffset & segmentMask);
+    long result = mappedByteBuffer.getLong(offset);
+    return result == 0 ? LongLongMap.MISSING_VALUE : result;
+  }
+
+  @Override
+  public long diskUsageBytes() {
+    return FileUtils.size(path);
+  }
+
+  @Override
+  public long estimateMemoryUsageBytes() {
+    return 0;
+  }
+
+  @Override
+  public void close() throws IOException {
+    if (readChannel != null) {
+      readChannel.close();
+      readChannel = null;
+      FileUtils.delete(path);
+    }
+  }
+
+  /**
+   * Instructions that tell a thread which segments must be flushed, and which must be allocated before any threads can
+   * start writing to the result segment.
+   */
+  private static class SegmentActions {
+    private final List<Segment> flush = new ArrayList<>();
+    private final List<Segment> allocate = new ArrayList<>();
+    private Segment result = null;
+    private boolean done = false;
+
+    void setResult(Segment result) {
+      this.result = result;
+    }
+
+    void perform() {
+      if (!done) {
+        // if this thread is allocating a new segment, then wait on allocating it
+        // if this thread is just using one, then wait for it to become available
+        flush.forEach(Segment::flushToDisk);
+        allocate.forEach(Segment::allocate);
+        done = true;
+      }
+    }
+
+    ByteBuffer awaitBuffer() {
+      return result.await();
+    }
+  }
+
+  /**
+   * A segment of the storage file that threads can update in parallel, and can be flushed to disk when all threads are
+   * done writing to it.
+   */
   private class Segment {
 
     private final int id;
@@ -174,16 +260,16 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
+      synchronized (usedSegments) {
+        usedSegments.set(id);
+      }
       result.complete(ByteBuffer.allocate(1 << segmentBits));
     }
 
-    void flush() {
+    void flushToDisk() {
       try {
         ByteBuffer buffer = result.get();
         writeChannel.write(buffer, offset);
-        synchronized (usedSegments) {
-          usedSegments.set(id);
-        }
         result = null;
         activeChunks.release();
       } catch (InterruptedException e) {
@@ -197,140 +283,90 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
-  record SegmentActions(
-    List<Segment> flush, List<Segment> allocate, Segment result
-  ) {}
+  private class Writer implements LongLongMap.Writer {
+    final AtomicInteger currentSeg = new AtomicInteger(0);
+    long lastSegment = -1;
+    long segmentOffset = -1;
+    ByteBuffer buffer = null;
 
-  private synchronized SegmentActions getSegmentActions(AtomicInteger currentSeg, int value) {
-    currentSeg.set(value);
-    List<Segment> flush = new ArrayList<>();
-    List<Segment> allocate = new ArrayList<>();
-    var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
-    if (min == Integer.MAX_VALUE) {
-      // all done
-      flush.addAll(writeBuffers.values());
-      writeBuffers.clear();
-      return new SegmentActions(flush, allocate, null);
-    } else if (value == Integer.MAX_VALUE) {
-      // this worker is done
-      for (Integer key : writeBuffers.keySet()) {
-        if (key < min) {
-          var segment = writeBuffers.remove(key);
-          if (segment != null) {
-            flush.add(segment);
+    Writer() {
+      segments.add(currentSeg);
+    }
+
+    @Override
+    public void close() {
+      SegmentActions actions = advanceTo(Integer.MAX_VALUE);
+      actions.perform();
+    }
+
+    @Override
+    public void put(long key, long value) {
+      long offset = key << 3;
+      long segment = offset >>> segmentBits;
+      // this thread is moving onto the next segment, so coordinate with other threads to allocate
+      // a new buffer if necessary while limiting maximum number of segments held in-memory
+      if (segment > lastSegment) {
+        if (segment >= Integer.MAX_VALUE) {
+          throw new IllegalArgumentException("Segment " + segment + " > Integer.MAX_VALUE");
+        }
+        SegmentActions actions = advanceTo((int) segment);
+        // iterate through the tail-end and free up chunks that aren't needed anymore
+        actions.perform();
+
+        // wait on adding a new buffer to head until the number of pending buffers is small enough
+        buffer = actions.awaitBuffer();
+        lastSegment = segment;
+        segmentOffset = segment << segmentBits;
+      }
+      buffer.putLong((int) (offset - segmentOffset), value);
+    }
+
+    private SegmentActions advanceTo(int value) {
+      synchronized (ArrayLongLongMapMmap.this) {
+        currentSeg.set(value);
+        SegmentActions result = new SegmentActions();
+        var min = segments.stream().mapToInt(AtomicInteger::get).min().orElseThrow();
+        if (min == Integer.MAX_VALUE) {
+          // all workers are done, flush everything
+          result.flush.addAll(writeBuffers.values());
+          writeBuffers.clear();
+          tail = min;
+        } else if (value == Integer.MAX_VALUE) {
+          // this worker is done, advance tail to min
+          for (Integer key : writeBuffers.keySet()) {
+            if (key < min) {
+              var segment = writeBuffers.remove(key);
+              if (segment != null) {
+                result.flush.add(segment);
+              }
+            }
           }
-        }
-      }
-      tail = min;
-      slidingWindow.advanceTail(tail);
-      return new SegmentActions(flush, allocate, null);
-    }
-    while (tail < min) {
-      if (writeBuffers.containsKey(tail)) {
-        var segment = writeBuffers.remove(tail);
-        if (segment != null) {
-          flush.add(segment);
-        }
-      }
-      tail++;
-    }
-    slidingWindow.advanceTail(tail);
-    Segment result = writeBuffers.computeIfAbsent(value, id -> {
-      var seg = new Segment(id);
-      allocate.add(seg);
-      return seg;
-    });
-    return new SegmentActions(flush, allocate, result);
-  }
-
-  @Override
-  public Writer newWriter() {
-    AtomicInteger currentSeg = new AtomicInteger(0);
-    segments.add(currentSeg);
-    return new Writer() {
-
-      long lastSegment = -1;
-      long segmentOffset = -1;
-      ByteBuffer buffer = null;
-
-      @Override
-      public void close() {
-        var actions = getSegmentActions(currentSeg, Integer.MAX_VALUE);
-        actions.flush.forEach(Segment::flush);
-      }
-
-      @Override
-      public void put(long key, long value) {
-        long offset = key << 3;
-        long segment = offset >>> segmentBits;
-        if (segment > lastSegment) {
-          if (segment >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Segment " + segment + " > Integer.MAX_VALUE");
+          tail = min;
+        } else {
+          // if the tail segment just finished, then advance the tail and flush all pending segments
+          while (tail < min) {
+            if (writeBuffers.containsKey(tail)) {
+              var segment = writeBuffers.remove(tail);
+              if (segment != null) {
+                result.flush.add(segment);
+              }
+            }
+            tail++;
           }
-          int segInt = (int) segment;
-          // iterate through the tail-end and free up chunks that aren't needed anymore
-          SegmentActions actions = getSegmentActions(currentSeg, segInt);
-          // if this thread is allocating a new segment, then wait on allocating it
-          // if this thread is just using one, then wait for it to become available
-          actions.flush.forEach(Segment::flush);
-          actions.allocate.forEach(Segment::allocate);
-
-          // wait on adding a new buffer to head until the number of pending buffers is small enough
-          buffer = actions.result.await();
-          lastSegment = segment;
-          segmentOffset = segment << segmentBits;
+          Segment segment = writeBuffers.computeIfAbsent(value, id -> {
+            var seg = new Segment(id);
+            result.allocate.add(seg);
+            return seg;
+          });
+          result.setResult(segment);
         }
-        buffer.putLong((int) (offset - segmentOffset), value);
+
+        // let workers waiting to allocate new segments to the head of the sliding window proceed
+        // NOTE: the memory hasn't been released yet, so the activeChunks semaphore will cause
+        // those workers to wait until the memory has been released.
+        slidingWindow.advanceTail(tail);
+        return result;
       }
-    };
-  }
-
-  private volatile boolean inited = false;
-
-  private void initOnce() {
-    if (!inited) {
-      synchronized (this) {
-        if (!inited) {
-          init();
-          inited = true;
-        }
-      }
-    }
-  }
-
-  @Override
-  public long get(long key) {
-    initOnce();
-    long byteOffset = key << 3;
-    int idx = (int) (byteOffset >>> segmentBits);
-    if (idx >= segmentsArray.length) {
-      return LongLongMap.MISSING_VALUE;
-    }
-    MappedByteBuffer mappedByteBuffer = segmentsArray[idx];
-    if (mappedByteBuffer == null) {
-      return LongLongMap.MISSING_VALUE;
-    }
-    int offset = (int) (byteOffset & segmentMask);
-    long result = mappedByteBuffer.getLong(offset);
-    return result == 0 ? LongLongMap.MISSING_VALUE : result;
-  }
-
-  @Override
-  public long diskUsageBytes() {
-    return FileUtils.size(path);
-  }
-
-  @Override
-  public long estimateMemoryUsageBytes() {
-    return 0;
-  }
-
-  @Override
-  public void close() throws IOException {
-    if (readChannel != null) {
-      readChannel.close();
-      readChannel = null;
-      FileUtils.delete(path);
     }
   }
 }
