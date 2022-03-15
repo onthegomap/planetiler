@@ -132,9 +132,9 @@ public class ResourceUsage {
             LOGGER.warn("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
           }
         } else if (verbose) {
-          LOGGER.info("✓ " + summary);
+          LOGGER.debug("✓ " + summary);
           for (var usage : usages) {
-            LOGGER.info(" - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
+            LOGGER.debug(" - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
           }
         }
 
