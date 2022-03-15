@@ -98,7 +98,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private SyncPoint pass1NodesDone = new SyncPoint(0);
 
   /**
-   * Constructs a new {@code OsmReader} from a {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
+   * Constructs a new {@code OsmReader} from an {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
    * temporary store for node locations.
    *
    * @param name              ID for this reader to use in stats and logs
@@ -218,6 +218,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   }
 
   void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
+    // may be called by multiple threads so need to synchronize access to any shared data structures
     boolean waysDone = false;
     try (
       var nodeWriter = nodeLocationDb.newWriter();
@@ -226,7 +227,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       for (var block : blocks) {
         int nodes = 0, ways = 0, relations = 0;
         for (OsmElement element : block) {
-          // may be called by multiple threads so need to synchronize access to any shared data structures
           if (element.id() < 0) {
             throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
           }
@@ -405,8 +405,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
-    LOGGER.debug("processed" +
-      " nodes:" + FORMAT.integer(nodesProcessed.get()) +
+    LOGGER.debug("processed " +
+      "nodes:" + FORMAT.integer(nodesProcessed.get()) +
       " ways:" + FORMAT.integer(waysProcessed.get()) +
       " relations:" + FORMAT.integer(relsProcessed.get()) +
       " blocks:" + FORMAT.integer(blocksProcessed.get()));

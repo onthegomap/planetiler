@@ -26,6 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A map from sequential {@code long} keys to {@code long} values backed by a file on disk where the key defines the
+ * offset in the input file.
+ * <p>
+ * During write phase, values are stored in a sliding window of {@link ByteBuffer ByteBuffers} and flushed to disk when
+ * the segment slides out of the window. During read phase, they file is memory-mapped and read.
+ */
 class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArrayLongLongMapMmap.class);

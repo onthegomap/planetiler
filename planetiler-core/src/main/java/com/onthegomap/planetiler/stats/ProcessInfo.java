@@ -125,14 +125,16 @@ public class ProcessInfo {
   }
 
   /**
-   * Returns the amount of direct memory (allocated through {@link java.nio.ByteBuffer#allocateDirect(int)}) used by the
-   * JVM.
+   * Returns an estimate the amount of direct memory limit for this JVM by parsing {@code -XX:MaxDirectMemorySize}
+   * argument.
    */
   public static long getDirectUsedMemoryLimit() {
     return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
       .filter(arg -> arg.startsWith("-XX:MaxDirectMemorySize="))
       .mapToLong(arg -> Parse.jvmMemoryStringToBytes(arg.replace("-XX:MaxDirectMemorySize=", "")))
       .findFirst()
+      // if -XX:MaxDirectMemorySize not explicitly specified, then direct limit is equal to -Xmx so total memory
+      // used can be 2x that.
       .orElseGet(ProcessInfo::getMaxMemoryBytes);
   }
 
@@ -148,7 +150,7 @@ public class ProcessInfo {
   }
 
   /**
-   * Returns the amount of free memory outside the JVM heap, if available.
+   * Returns the amount of free memory on this system outside the JVM heap, if available.
    */
   public static OptionalLong getSystemFreeMemoryBytes() {
     return getSystemMemoryBytes().stream()

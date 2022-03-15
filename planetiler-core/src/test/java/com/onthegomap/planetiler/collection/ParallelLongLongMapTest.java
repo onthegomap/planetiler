@@ -130,7 +130,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
     };
   }
 
-  public static class ArrayMmapLarge extends ParallelLongLongMapTest {
+  public static class ArrayMmapLargeTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
@@ -138,7 +138,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
     }
   }
 
-  public static class ArrayMmapSmall extends ParallelLongLongMapTest {
+  public static class ArrayMmapSmallTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
@@ -146,35 +146,35 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
     }
   }
 
-  public static class ArrayDirectSmall extends ParallelLongLongMapTest {
+  public static class ArrayDirectSmallTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapRam(4);
+      return new ArrayLongLongMapRam(true, 4);
     }
   }
 
-  public static class ArrayDirectLarge extends ParallelLongLongMapTest {
+  public static class ArrayDirectLargeTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapRam(10);
+      return new ArrayLongLongMapRam(true, 10);
     }
   }
 
-  public static class ArrayRamLarge extends ParallelLongLongMapTest {
+  public static class ArrayRamLargeTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapRam(10);
+      return new ArrayLongLongMapRam(false, 10);
     }
   }
 
-  public static class ArrayRamSmall extends ParallelLongLongMapTest {
+  public static class ArrayRamSmallTest extends ParallelLongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapRam(4);
+      return new ArrayLongLongMapRam(false, 4);
     }
   }
 }

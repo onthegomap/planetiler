@@ -87,11 +87,11 @@ public abstract class LongLongMapTest {
     assertArrayEquals(expected, result);
   }
 
-  public static class SortedTable extends LongLongMapTest {
+  public static class SortedTableTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
-      return new LongLongMap.SortedTable(
+      return new SortedTableLongLongMap(
         new AppendStore.SmallLongs(
           i -> new AppendStoreRam.Ints(false)
         ),
@@ -100,19 +100,19 @@ public abstract class LongLongMapTest {
     }
   }
 
-  public static class SparseArray extends LongLongMapTest {
+  public static class SparseArrayTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
-      return new LongLongMap.SparseArray(new AppendStoreRam.Longs(false));
+      return new SparseArrayLongLongMap(new AppendStoreRam.Longs(false));
     }
   }
 
-  public static class Direct extends LongLongMapTest {
+  public static class DirectTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
-      return new LongLongMap.SparseArray(new AppendStoreRam.Longs(true));
+      return new SparseArrayLongLongMap(new AppendStoreRam.Longs(true));
     }
   }
 

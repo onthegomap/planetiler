@@ -1,23 +1,15 @@
 package com.onthegomap.planetiler.collection;
 
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
-
-import com.carrotsearch.hppc.ByteArrayList;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.util.ResourceUsage;
 import java.io.Closeable;
-import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- * A map that stores a single {@code long} value for each OSM node. A single thread writes the values for each node ID
- * sequentially then multiple threads can read values concurrently.
+ * A map that stores a single {@code long} value for each OSM node.
  * <p>
- * See {@link Type} for the available implementations.
- * <p>
- * Each implementation can be backed by either {@link AppendStoreRam} to store data in RAM or {@link AppendStoreMmap} to
- * store data in a memory-mapped file.
+ * See {@link Type} for the available map implementations and {@link Storage} for the available storage implementations.
  */
 public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, DiskBacked {
   /*
@@ -54,19 +46,20 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   static LongLongMap from(Type type, Storage storage, Storage.Params params) {
     return switch (type) {
       case NOOP -> noop();
-      case SPARSE_ARRAY -> new SparseArray(AppendStore.Longs.create(storage, params));
-      case SORTED_TABLE -> new SortedTable(
+      case SPARSE_ARRAY -> new SparseArrayLongLongMap(AppendStore.Longs.create(storage, params));
+      case SORTED_TABLE -> new SortedTableLongLongMap(
         new AppendStore.SmallLongs(i -> AppendStore.Ints.create(storage, params.resolve("keys-" + i))),
         AppendStore.Longs.create(storage, params.resolve("values"))
       );
       case ARRAY -> switch (storage) {
           case MMAP -> new ArrayLongLongMapMmap(params.path(), params.madvise());
-          case RAM -> new ArrayLongLongMapRam();
-          case DIRECT -> new ArrayLongLongMapRam();
+          case RAM -> new ArrayLongLongMapRam(false);
+          case DIRECT -> new ArrayLongLongMapRam(true);
         };
     };
   }
 
+  /** Returns a new long map using {@link Type#SORTED_TABLE} and {@link Storage#RAM}. */
   static LongLongMap newInMemorySortedTable() {
     return from(Type.SORTED_TABLE, Storage.RAM, new Storage.Params(Path.of("."), false));
   }
@@ -130,11 +123,12 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     };
   }
 
+  /** Returns a {@link Writer} that a single thread can use to do writes into this map. */
   Writer newWriter();
 
   /**
-   * Returns the value for a key. Safe to be called by multiple threads after all values have been written. After the
-   * first read, all writes will fail.
+   * Returns the value for {@code key}. Safe to be called by multiple threads after all values have been written. After
+   * the first read, all writes will fail.
    */
   long get(long key);
 
@@ -196,10 +190,6 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       this.id = id;
     }
 
-    public String id() {
-      return id;
-    }
-
     /**
      * Returns the type associated with {@code id} or throws {@link IllegalArgumentException} if no match is found.
      */
@@ -211,13 +201,18 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       }
       throw new IllegalArgumentException("Unexpected long long map type: " + id);
     }
+
+    public String id() {
+      return id;
+    }
   }
 
+  /** A handle for a single thread to use to insert into this map. */
   interface Writer extends AutoCloseable {
 
     /**
-     * Writes the value for a key. Not thread safe! All writes must come from a single thread, in order by key. No
-     * writes can be performed after the first read.
+     * Writes the value for a key. Not thread safe! All calls to this method must come from a single thread, in order by
+     * key. No writes can be performed after the first read.
      */
     void put(long key, long value);
 
@@ -225,6 +220,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     default void close() {}
   }
 
+  /** Implementations that only support sequential writes from a single thread. */
   interface SequentialWrites extends LongLongMap {
 
     void put(long key, long value);
@@ -235,174 +231,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     }
   }
 
+  /** Implementations that support parallel writes from multiple threads. */
   interface ParallelWrites extends LongLongMap {}
 
-  /**
-   * A longlong map that stores keys and values sorted by key and does a binary search to lookup values.
-   */
-  class SortedTable implements LongLongMap, SequentialWrites {
-
-    /*
-     * It's not actually a binary search, it keeps track of the first index of each block of 256 keys, so it
-     * can do an O(1) lookup to narrow down the search space to 256 values.
-     */
-    private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
-    private final AppendStore.Longs keys;
-    private final AppendStore.Longs values;
-    private long lastChunk = -1;
-    private long lastKey = -1;
-
-    public SortedTable(AppendStore.Longs keys, AppendStore.Longs values) {
-      this.keys = keys;
-      this.values = values;
-    }
-
-    @Override
-    public void put(long key, long value) {
-      if (key <= lastKey) {
-        throw new IllegalArgumentException("Nodes must be sorted ascending by ID, " + key + " came after " + lastKey);
-      }
-      lastKey = key;
-      long idx = keys.size();
-      long chunk = key >>> 8;
-      if (chunk != lastChunk) {
-        while (offsets.size() <= chunk) {
-          offsets.appendLong(idx);
-        }
-        lastChunk = chunk;
-      }
-      keys.appendLong(key);
-      values.appendLong(value);
-    }
-
-    @Override
-    public long get(long key) {
-      long chunk = key >>> 8;
-      if (chunk >= offsets.size()) {
-        return MISSING_VALUE;
-      }
-
-      // use the "offsets" index to narrow search space to <256 values
-      long lo = offsets.getLong(chunk);
-      long hi = Math.min(keys.size(), chunk >= offsets.size() - 1 ? keys.size() : offsets.getLong(chunk + 1)) - 1;
-
-      while (lo <= hi) {
-        long idx = (lo + hi) >>> 1;
-        long value = keys.getLong(idx);
-        if (value < key) {
-          lo = idx + 1;
-        } else if (value > key) {
-          hi = idx - 1;
-        } else {
-          // found
-          return values.getLong(idx);
-        }
-      }
-      return MISSING_VALUE;
-    }
-
-    @Override
-    public long diskUsageBytes() {
-      return keys.diskUsageBytes() + values.diskUsageBytes();
-    }
-
-    @Override
-    public long estimateMemoryUsageBytes() {
-      return keys.estimateMemoryUsageBytes() + values.estimateMemoryUsageBytes() + offsets.estimateMemoryUsageBytes();
-    }
-
-    @Override
-    public void close() throws IOException {
-      keys.close();
-      values.close();
-      offsets.close();
-    }
-  }
-
-  /**
-   * A longlong map that only stores values and uses the key as an index into the array, with some tweaks to avoid
-   * storing many sequential 0's.
-   */
-  class SparseArray implements LongLongMap, SequentialWrites {
-
-    // The key space is broken into chunks of 256 and for each chunk, store:
-    // 1) the index in the outputs array for the first key in the block
-    private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
-    // 2) the number of leading 0's at the start of each block
-    private final ByteArrayList offsetStartPad = new ByteArrayList();
-
-    private final AppendStore.Longs values;
-    private int lastChunk = -1;
-    private int lastOffset = 0;
-    private long lastKey = -1;
-
-    public SparseArray(AppendStore.Longs values) {
-      this.values = values;
-    }
-
-    @Override
-    public void put(long key, long value) {
-      if (key <= lastKey) {
-        throw new IllegalArgumentException("Nodes must be sorted ascending by ID, " + key + " came after " + lastKey);
-      }
-      lastKey = key;
-      long idx = values.size();
-      int chunk = (int) (key >>> 8);
-      int offset = (int) (key & 255);
-
-      if (chunk != lastChunk) {
-        // new chunk, store offset and leading zeros
-        lastOffset = offset;
-        while (offsets.size() <= chunk) {
-          offsets.appendLong(idx);
-          offsetStartPad.add((byte) offset);
-        }
-        lastChunk = chunk;
-      } else {
-        // same chunk, write not_founds until we get to right idx
-        while (++lastOffset < offset) {
-          values.appendLong(MISSING_VALUE);
-        }
-      }
-      values.appendLong(value);
-    }
-
-    @Override
-    public long get(long key) {
-      int chunk = (int) (key >>> 8);
-      int offset = (int) (key & 255);
-      if (chunk >= offsets.size()) {
-        return MISSING_VALUE;
-      }
-
-      long lo = offsets.getLong(chunk);
-      long hi = Math.min(values.size(), chunk >= offsets.size() - 1 ? values.size() : offsets.getLong(chunk + 1)) - 1;
-      int startPad = offsetStartPad.get(chunk) & 255;
-
-      long index = lo + offset - startPad;
-
-      if (index > hi || index < lo) {
-        return MISSING_VALUE;
-      }
-
-      return values.getLong(index);
-    }
-
-    @Override
-    public long diskUsageBytes() {
-      return values.diskUsageBytes();
-    }
-
-    @Override
-    public long estimateMemoryUsageBytes() {
-      return values.estimateMemoryUsageBytes() + estimateSize(offsets) + estimateSize(offsetStartPad);
-    }
-
-    @Override
-    public void close() throws IOException {
-      offsetStartPad.release();
-      values.close();
-      offsets.close();
-    }
-  }
 }

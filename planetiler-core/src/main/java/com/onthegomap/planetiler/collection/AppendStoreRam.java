@@ -10,6 +10,9 @@ import java.util.List;
 
 /**
  * An array of primitives backed by regular or direct (native) {@link ByteBuffer ByteBuffers}.
+ * <p>
+ * Pass {@code direct=true} into constructors to use {@link ByteBuffer#allocateDirect(int)}, or false to use
+ * {@link ByteBuffer#allocate(int)}.
  */
 abstract class AppendStoreRam implements AppendStore {
 

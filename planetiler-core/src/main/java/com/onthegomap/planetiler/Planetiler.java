@@ -159,6 +159,7 @@ public class Planetiler {
     Path path = getPath(name, "OSM input file", defaultPath, defaultUrl);
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
+    // fail fast if there is some issue with madvise on this system
     if (config.nodeMapMadvise()) {
       ByteBufferUtil.init();
     }

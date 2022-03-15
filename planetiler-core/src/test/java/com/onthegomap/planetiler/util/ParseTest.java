@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.util.Map;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class ParseTest {
 
@@ -90,5 +92,11 @@ public class ParseTest {
   })
   public void testParseJvmSize(String input, long expectedOutput) {
     assertEquals(expectedOutput, Parse.jvmMemoryStringToBytes(input));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"123p", "123gk", "garbage"})
+  public void testParseInvalidJvmSize(String input) {
+    assertThrows(IllegalArgumentException.class, () -> Parse.jvmMemoryStringToBytes(input));
   }
 }

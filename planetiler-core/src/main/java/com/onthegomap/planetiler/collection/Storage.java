@@ -36,8 +36,10 @@ public enum Storage {
     throw new IllegalArgumentException("Unexpected storage type: " + id);
   }
 
+  /** Options for implementations that vary by {@link Storage}. */
   public record Params(Path path, boolean madvise) {
 
+    /** Returns a copy of this instance, with {@code suffix} appended to {@link #path}. */
     public Params resolve(String suffix) {
       return new Params(path.resolve(suffix), madvise);
     }

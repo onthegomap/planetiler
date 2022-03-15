@@ -7,6 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * A map from sequential {@code long} keys to {@code long} values backed by {@link ByteBuffer ByteBuffers} segments
+ * in-memory where key defines the segment and offset into that segment.
+ */
 class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
 
   private final int segmentBits;
@@ -14,24 +18,26 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
   private final int segmentSize;
   private final List<ByteBuffer> segments = new ArrayList<>();
   private final AtomicInteger numSegments = new AtomicInteger(0);
+  private final boolean direct;
 
-  ArrayLongLongMapRam() {
-    this(20); // 1MB
+  ArrayLongLongMapRam(boolean direct) {
+    this(direct, 20); // 1MB
   }
 
-  ArrayLongLongMapRam(int segmentBits) {
+  ArrayLongLongMapRam(boolean direct, int segmentBits) {
+    this.direct = direct;
     this.segmentBits = segmentBits;
     segmentMask = (1L << segmentBits) - 1;
     segmentSize = 1 << segmentBits;
   }
 
-  private synchronized ByteBuffer getSegment(int index) {
+  private synchronized ByteBuffer getOrCreateSegment(int index) {
     while (segments.size() <= index) {
       segments.add(null);
     }
     if (segments.get(index) == null) {
       numSegments.incrementAndGet();
-      segments.set(index, ByteBuffer.allocateDirect(segmentSize));
+      segments.set(index, direct ? ByteBuffer.allocateDirect(segmentSize) : ByteBuffer.allocate(segmentSize));
     }
     return segments.get(index);
   }
@@ -48,14 +54,16 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
       public void put(long key, long value) {
         long offset = key << 3;
         long segment = offset >>> segmentBits;
-        if (segment > lastSegment) {
+        if (segment < lastSegment) {
+          throw new IllegalStateException("Writer encountered of order IDs at " + key);
+        } else if (segment > lastSegment) {
           if (segment >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Segment " + segment + " > Integer.MAX_VALUE");
+            throw new IllegalArgumentException("Segment " + segment + " >= Integer.MAX_VALUE");
           }
 
           lastSegment = segment;
           segmentOffset = segment << segmentBits;
-          buffer = getSegment((int) segment);
+          buffer = getOrCreateSegment((int) segment);
         }
 
         buffer.putLong((int) (offset - segmentOffset), value);
