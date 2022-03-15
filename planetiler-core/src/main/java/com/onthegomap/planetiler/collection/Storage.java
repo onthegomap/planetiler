@@ -13,23 +13,27 @@ public enum Storage {
   /** Off-heap native byte buffers stored in-memory but outside the JVM heap. */
   DIRECT("direct");
 
-  private final String name;
+  private final String id;
 
-  Storage(String name) {
-    this.name = name;
+  Storage(String id) {
+    this.id = id;
+  }
+
+  public String id() {
+    return id;
   }
 
   /**
-   * Returns the storage type associated with {@code name} or throws {@link IllegalArgumentException} if no match is
+   * Returns the storage type associated with {@code id} or throws {@link IllegalArgumentException} if no match is
    * found.
    */
-  public static Storage from(String name) {
+  public static Storage from(String id) {
     for (Storage value : values()) {
-      if (value.name.equalsIgnoreCase(name.trim())) {
+      if (value.id.equalsIgnoreCase(id.trim())) {
         return value;
       }
     }
-    throw new IllegalArgumentException("Unexpected storage type: " + name);
+    throw new IllegalArgumentException("Unexpected storage type: " + id);
   }
 
   public record Params(Path path, boolean madvise) {

@@ -78,9 +78,9 @@ public record PlanetilerConfig(
         6),
       arguments
         .getString("nodemap_type", "type of node location map, one of " + Arrays.toString(LongLongMap.Type.values()),
-          LongLongMap.Type.SPARSE_ARRAY.name()),
+          LongLongMap.Type.SPARSE_ARRAY.id()),
       arguments.getString("nodemap_storage", "storage for location map, one of " + Arrays.toString(Storage.values()),
-        Storage.MMAP.name()),
+        Storage.MMAP.id()),
       arguments.getBoolean("nodemap_madvise", "use linux madvise(random) to improve memory-mapped read performance",
         false),
       arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",

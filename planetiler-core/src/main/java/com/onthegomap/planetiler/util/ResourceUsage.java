@@ -127,7 +127,7 @@ public class ResourceUsage {
           limitString + " available";
 
         if (limit < requested * 1.25) {
-          LOGGER.warn("✕️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
+          LOGGER.warn("❌️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
           for (var usage : usages) {
             LOGGER.warn("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
           }

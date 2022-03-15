@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,11 +12,11 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
   private final int segmentBits;
   private final long segmentMask;
   private final int segmentSize;
-  private final List<long[]> segments = new ArrayList<>();
+  private final List<ByteBuffer> segments = new ArrayList<>();
   private final AtomicInteger numSegments = new AtomicInteger(0);
 
   ArrayLongLongMapRam() {
-    this(17); // 1MB
+    this(20); // 1MB
   }
 
   ArrayLongLongMapRam(int segmentBits) {
@@ -24,13 +25,13 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
     segmentSize = 1 << segmentBits;
   }
 
-  private synchronized long[] getSegment(int index) {
+  private synchronized ByteBuffer getSegment(int index) {
     while (segments.size() <= index) {
       segments.add(null);
     }
     if (segments.get(index) == null) {
       numSegments.incrementAndGet();
-      segments.set(index, new long[segmentSize]);
+      segments.set(index, ByteBuffer.allocateDirect(segmentSize));
     }
     return segments.get(index);
   }
@@ -41,11 +42,12 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
 
       long lastSegment = -1;
       long segmentOffset = -1;
-      long[] buffer = null;
+      ByteBuffer buffer = null;
 
       @Override
       public void put(long key, long value) {
-        long segment = key >>> segmentBits;
+        long offset = key << 3;
+        long segment = offset >>> segmentBits;
         if (segment > lastSegment) {
           if (segment >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Segment " + segment + " > Integer.MAX_VALUE");
@@ -56,23 +58,24 @@ class ArrayLongLongMapRam implements LongLongMap.ParallelWrites {
           buffer = getSegment((int) segment);
         }
 
-        buffer[(int) (key - segmentOffset)] = value;
+        buffer.putLong((int) (offset - segmentOffset), value);
       }
     };
   }
 
   @Override
   public long get(long key) {
-    int idx = (int) (key >>> segmentBits);
-    int offset = (int) (key & segmentMask);
+    long byteOffset = key << 3;
+    int idx = (int) (byteOffset >>> segmentBits);
     if (idx >= segments.size()) {
       return LongLongMap.MISSING_VALUE;
     }
-    long[] longs = segments.get(idx);
-    if (longs == null) {
+    int offset = (int) (byteOffset & segmentMask);
+    ByteBuffer byteBuffer = segments.get(idx);
+    if (byteBuffer == null) {
       return LongLongMap.MISSING_VALUE;
     }
-    long result = longs[offset];
+    long result = byteBuffer.getLong(offset);
     return result == 0 ? LongLongMap.MISSING_VALUE : result;
   }
 

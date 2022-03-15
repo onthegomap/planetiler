@@ -93,9 +93,9 @@ public abstract class LongLongMapTest {
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
       return new LongLongMap.SortedTable(
         new AppendStore.SmallLongs(
-          i -> new AppendStoreRam.Ints()
+          i -> new AppendStoreRam.Ints(false)
         ),
-        new AppendStoreRam.Longs()
+        new AppendStoreRam.Longs(false)
       );
     }
   }
@@ -104,7 +104,7 @@ public abstract class LongLongMapTest {
 
     @Override
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
-      return new LongLongMap.SparseArray(new AppendStoreRam.Longs());
+      return new LongLongMap.SparseArray(new AppendStoreRam.Longs(false));
     }
   }
 
@@ -112,7 +112,7 @@ public abstract class LongLongMapTest {
 
     @Override
     protected LongLongMap.SequentialWrites createSequentialWriter(Path path) {
-      return new LongLongMap.SparseArray(new AppendStoreDirect.Longs());
+      return new LongLongMap.SparseArray(new AppendStoreRam.Longs(true));
     }
   }
 

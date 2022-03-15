@@ -72,7 +72,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStoreRam.Ints(4 << 2);
+      this.store = new AppendStoreRam.Ints(false, 4 << 2);
     }
   }
 
@@ -88,7 +88,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStoreDirect.Ints(4 << 2);
+      this.store = new AppendStoreRam.Ints(true, 4 << 2);
     }
   }
 
@@ -96,7 +96,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStoreRam.Longs(4 << 2);
+      this.store = new AppendStoreRam.Longs(false, 4 << 2);
     }
   }
 
@@ -112,7 +112,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStoreDirect.Longs(4 << 2);
+      this.store = new AppendStoreRam.Longs(true, 4 << 2);
     }
   }
 
@@ -129,7 +129,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(4 << 2));
+      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(false, 4 << 2));
     }
   }
 
@@ -137,7 +137,7 @@ public class AppendStoreTest {
 
     @BeforeEach
     public void setup() {
-      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreDirect.Ints(4 << 2));
+      this.store = new AppendStore.SmallLongs((i) -> new AppendStoreRam.Ints(true, 4 << 2));
     }
   }
 }

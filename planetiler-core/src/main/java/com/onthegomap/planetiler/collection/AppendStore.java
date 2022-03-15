@@ -10,8 +10,8 @@ import java.util.stream.Stream;
 /**
  * A large array of primitives. A single thread appends all elements then allows random access from multiple threads.
  * <p>
- * {@link AppendStoreRam} stores all data in arrays in RAM and {@link AppendStoreMmap} stores all data in a
- * memory-mapped file.
+ * {@link AppendStoreRam} stores all data in {@link java.nio.ByteBuffer ByteBuffers} in RAM and {@link AppendStoreMmap}
+ * stores all data in a memory-mapped file.
  */
 interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked {
 
@@ -39,8 +39,8 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
 
     static Ints create(Storage storage, Storage.Params params) {
       return switch (storage) {
-        case DIRECT -> new AppendStoreDirect.Ints(params);
-        case RAM -> new AppendStoreRam.Ints(params);
+        case DIRECT -> new AppendStoreRam.Ints(true, params);
+        case RAM -> new AppendStoreRam.Ints(false, params);
         case MMAP -> new AppendStoreMmap.Ints(params);
       };
     }
@@ -55,8 +55,8 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
 
     static Longs create(Storage storage, Storage.Params params) {
       return switch (storage) {
-        case DIRECT -> new AppendStoreDirect.Longs(params);
-        case RAM -> new AppendStoreRam.Longs(params);
+        case DIRECT -> new AppendStoreRam.Longs(true, params);
+        case RAM -> new AppendStoreRam.Longs(false, params);
         case MMAP -> new AppendStoreMmap.Longs(params);
       };
     }

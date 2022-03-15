@@ -150,7 +150,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapDirect(4);
+      return new ArrayLongLongMapRam(4);
     }
   }
 
@@ -158,7 +158,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
     @Override
     protected LongLongMap.ParallelWrites create(Path path) {
-      return new ArrayLongLongMapDirect(10);
+      return new ArrayLongLongMapRam(10);
     }
   }
 

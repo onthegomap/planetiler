@@ -62,7 +62,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
       case ARRAY -> switch (storage) {
           case MMAP -> new ArrayLongLongMapMmap(params.path(), params.madvise());
           case RAM -> new ArrayLongLongMapRam();
-          case DIRECT -> new ArrayLongLongMapDirect();
+          case DIRECT -> new ArrayLongLongMapRam();
         };
     };
   }
@@ -190,22 +190,26 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
      */
     ARRAY("array");
 
-    private final String name;
+    private final String id;
 
-    Type(String name) {
-      this.name = name;
+    Type(String id) {
+      this.id = id;
+    }
+
+    public String id() {
+      return id;
     }
 
     /**
-     * Returns the type associated with {@code name} or throws {@link IllegalArgumentException} if no match is found.
+     * Returns the type associated with {@code id} or throws {@link IllegalArgumentException} if no match is found.
      */
-    public static Type from(String name) {
+    public static Type from(String id) {
       for (Type value : values()) {
-        if (value.name.equalsIgnoreCase(name.trim())) {
+        if (value.id.equalsIgnoreCase(id.trim())) {
           return value;
         }
       }
-      throw new IllegalArgumentException("Unexpected long long map type: " + name);
+      throw new IllegalArgumentException("Unexpected long long map type: " + id);
     }
   }
 
@@ -242,7 +246,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
      * It's not actually a binary search, it keeps track of the first index of each block of 256 keys, so it
      * can do an O(1) lookup to narrow down the search space to 256 values.
      */
-    private final AppendStore.Longs offsets = new AppendStoreRam.Longs();
+    private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
     private final AppendStore.Longs keys;
     private final AppendStore.Longs values;
     private long lastChunk = -1;
@@ -323,7 +327,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
 
     // The key space is broken into chunks of 256 and for each chunk, store:
     // 1) the index in the outputs array for the first key in the block
-    private final AppendStore.Longs offsets = new AppendStoreRam.Longs();
+    private final AppendStore.Longs offsets = new AppendStoreRam.Longs(false);
     // 2) the number of leading 0's at the start of each block
     private final ByteArrayList offsetStartPad = new ByteArrayList();
 
