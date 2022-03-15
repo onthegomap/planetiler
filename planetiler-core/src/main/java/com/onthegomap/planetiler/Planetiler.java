@@ -19,17 +19,14 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
+import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
-import java.io.IOException;
-import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -540,112 +537,53 @@ public class Planetiler {
   }
 
   private void checkDiskSpace() {
-    Map<FileStore, Long> readPhaseBytes = new HashMap<>();
-    Map<FileStore, Long> writePhaseBytes = new HashMap<>();
+    ResourceUsage readPhase = new ResourceUsage("read phase disk");
+    ResourceUsage writePhase = new ResourceUsage("write phase disk");
     long osmSize = osmInputFile.diskUsageBytes();
     long nodeMapSize =
-      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(), osmSize).diskBytes();
+      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(), osmSize, tmpDir).diskUsage();
     long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
     long outputSize = profile.estimateOutputBytes(osmSize);
 
-    try {
-      // node locations only needed while reading inputs
-      readPhaseBytes.merge(Files.getFileStore(tmpDir), nodeMapSize, Long::sum);
-      // feature db persists across read/write phase
-      readPhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
-      writePhaseBytes.merge(Files.getFileStore(tmpDir), featureSize, Long::sum);
-      // output only needed during write phase
-      writePhaseBytes.merge(Files.getFileStore(output.toAbsolutePath().getParent()), outputSize, Long::sum);
-      // if the user opts to remove an input source after reading to free up additional space for the output...
-      for (var input : inputPaths) {
-        if (input.freeAfterReading()) {
-          writePhaseBytes.merge(Files.getFileStore(input.path), -Files.size(input.path), Long::sum);
-        }
-      }
-
-      checkDiskSpaceOnDevices(readPhaseBytes, "read");
-      checkDiskSpaceOnDevices(writePhaseBytes, "write");
-    } catch (IOException e) {
-      LOGGER.warn("Unable to check disk space requirements, may run out of room " + e);
-    }
-
-  }
-
-  private void checkDiskSpaceOnDevices(Map<FileStore, Long> readPhaseBytes, String phase) throws IOException {
-    for (var entry : readPhaseBytes.entrySet()) {
-      var fs = entry.getKey();
-      var requested = entry.getValue();
-      long available = fs.getUnallocatedSpace();
-      if (available < requested) {
-        var format = Format.defaultInstance();
-        String warning =
-          "Planetiler needs ~" + format.storage(requested) + " on " + fs + " during " + phase +
-            " phase, which only has " + format.storage(available) + " available";
-        if (config.force() || requested < available * 1.25) {
-          LOGGER.warn(warning + ", may fail.");
-        } else {
-          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-        }
+    // node locations only needed while reading inputs
+    readPhase.addDisk(tmpDir, nodeMapSize, "temporary node location cache");
+    // feature db persists across read/write phase
+    readPhase.addDisk(tmpDir, featureSize, "temporary feature storage");
+    writePhase.addDisk(tmpDir, featureSize, "temporary feature storage");
+    // output only needed during write phase
+    writePhase.addDisk(output, outputSize, "mbtiles output");
+    // if the user opts to remove an input source after reading to free up additional space for the output...
+    for (var input : inputPaths) {
+      if (input.freeAfterReading()) {
+        writePhase.addDisk(input.path, -FileUtils.size(input.path), "delete " + input.id + " source after reading");
       }
     }
+
+    readPhase.checkAgainstLimits(config.force(), true);
+    writePhase.checkAgainstLimits(config.force(), true);
   }
 
   private void checkMemory() {
-    var format = Format.defaultInstance();
-    LongLongMap.StorageRequired nodeMap =
-      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(),
-        osmInputFile.diskUsageBytes());
-    long profile = profile().estimateRamRequired(osmInputFile.diskUsageBytes());
-    long requested = nodeMap.onHeapBytes() + profile;
-    long jvmMemory = ProcessInfo.getMaxMemoryBytes();
+    Format format = Format.defaultInstance();
+    ResourceUsage check = new ResourceUsage("read phase memory");
+    ResourceUsage nodeMapUsages = LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(),
+      osmInputFile.diskUsageBytes(), tmpDir);
+    long nodeMapDiskUsage = nodeMapUsages.diskUsage();
 
-    // check on-heap memory
-    if (jvmMemory < requested) {
-      String warning =
-        "Planetiler needs ~" + format.storage(requested) + " memory for the JVM, but only " +
-          format.storage(jvmMemory) + " is available";
-      if (config.force() || requested < jvmMemory * 1.25) {
-        LOGGER.warn(warning + ", may fail.");
-      } else {
-        throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-      }
-    }
+    check.addAll(nodeMapUsages)
+      .addMemory(profile().estimateRamRequired(osmInputFile.diskUsageBytes()), "temporary profile storage");
 
-    long directLimit = ProcessInfo.getDirectUsedMemoryLimit();
-    if (directLimit < nodeMap.offHeapBytes()) {
-      String warning =
-        "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
-          " memory available for direct byte buffers for the node location cache, but only " +
-          format.storage(directLimit) + " is available";
-      if (config.force() || nodeMap.offHeapBytes() < directLimit * 1.25) {
-        LOGGER.warn(warning + ", may fail. Please increase the -XX:MaxDirectMemorySize jvm option.");
-      } else {
-        throw new IllegalArgumentException(warning +
-          ". Please increase the -XX:MaxDirectMemorySize jvm option or use the --force argument to continue.");
-      }
-    }
+    check.checkAgainstLimits(config().force(), true);
 
     // check off-heap memory if we can get it
     ProcessInfo.getSystemFreeMemoryBytes().ifPresent(extraMemory -> {
-      if (extraMemory < nodeMap.offHeapBytes()) {
-        String warning =
-          "Planetiler needs ~" + format.storage(nodeMap.offHeapBytes()) +
-            " memory available outside the JVM for the node location cache, but only " +
-            format.storage(extraMemory) + " is available";
-        if (config.force() || nodeMap.offHeapBytes() < extraMemory * 1.25) {
-          LOGGER.warn(warning + ", may fail.");
-        } else {
-          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-        }
-      }
-
-      if (extraMemory < nodeMap.diskBytes() * 1.1) {
+      if (extraMemory < nodeMapDiskUsage) {
         LOGGER.warn("""
           Planetiler will use a ~%s memory-mapped file for node locations but the OS only has %s available
           to cache pages, this may slow the import down. To speed up, run on a machine with more memory or
           reduce the -Xmx setting.
           """.formatted(
-          format.storage(nodeMap.diskBytes()),
+          format.storage(nodeMapDiskUsage),
           format.storage(extraMemory)
         ));
       }

@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 import com.carrotsearch.hppc.ByteArrayList;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.util.ResourceUsage;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -70,39 +71,27 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     return from(Type.SORTED_TABLE, Storage.RAM, new Storage.Params(Path.of("."), false));
   }
 
-  record StorageRequired(long onHeapBytes, long offHeapBytes, long diskBytes) {
-
-    static StorageRequired ZERO = new StorageRequired(0, 0, 0);
-    static StorageRequired fixed(Storage type, long bytes) {
-      return ZERO.plus(type, bytes);
-    }
-
-    StorageRequired plus(Storage type, long bytes) {
-      return new StorageRequired(
-        onHeapBytes + (type == Storage.RAM ? bytes : 0),
-        offHeapBytes + (type == Storage.DIRECT ? bytes : 0),
-        diskBytes + (type == Storage.MMAP ? bytes : 0)
-      );
-    }
+  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
+  static ResourceUsage estimateStorageRequired(String name, String storage, long osmFileSize, Path path) {
+    return estimateStorageRequired(Type.from(name), Storage.from(storage), osmFileSize, path);
   }
 
   /** Estimates the resource requirements for this nodemap for a given OSM input file. */
-  static StorageRequired estimateStorageRequired(String name, String storage, long osmFileSize) {
-    return estimateStorageRequired(Type.from(name), Storage.from(storage), osmFileSize);
-  }
-
-  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
-  static StorageRequired estimateStorageRequired(Type type, Storage storage, long osmFileSize) {
+  static ResourceUsage estimateStorageRequired(Type type, Storage storage, long osmFileSize, Path path) {
     long nodes = estimateNumNodes(osmFileSize);
     long maxNodeId = estimateMaxNodeId(osmFileSize);
+    ResourceUsage check = new ResourceUsage("long long map");
 
     return switch (type) {
-      case NOOP -> StorageRequired.ZERO;
-      case SPARSE_ARRAY -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 9 * nodes);
-      case SORTED_TABLE -> StorageRequired.fixed(Storage.RAM, 300_000_000L).plus(storage, 12 * nodes);
-      case ARRAY -> StorageRequired.fixed(storage, 8 * maxNodeId)
-        // memory-mapped array storage uses byte buffers for temporary storage
-        .plus(Storage.RAM, storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateTempMemoryUsageBytes() : 0);
+      case NOOP -> check;
+      case SPARSE_ARRAY -> check.addMemory(300_000_000L, "sparsearray node location in-memory index")
+        .add(path, storage, 9 * nodes, "sparsearray node location cache");
+      case SORTED_TABLE -> check.addMemory(300_000_000L, "sortedtable node location in-memory index")
+        .add(path, storage, 12 * nodes, "sortedtable node location cache");
+      case ARRAY -> check
+        .add(path, storage, 8 * maxNodeId, "array node location cache (switch to sparsearray to reduce size)")
+        .addMemory(storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateTempMemoryUsageBytes() : 0,
+          "array node location temporary storage for inserts");
     };
   }
 

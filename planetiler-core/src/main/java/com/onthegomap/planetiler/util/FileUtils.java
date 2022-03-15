@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -94,6 +95,21 @@ public class FileUtils {
     } else {
       deleteFile(path);
     }
+  }
+
+  /** Returns the {@link FileStore} for {@code path}, or its nearest parent directory if it does not exist yet. */
+  public static FileStore getFileStore(final Path path) {
+    Path absolutePath = path.toAbsolutePath();
+    IOException exception = null;
+    while (absolutePath != null) {
+      try {
+        return Files.getFileStore(absolutePath);
+      } catch (IOException e) {
+        exception = e;
+        absolutePath = absolutePath.getParent();
+      }
+    }
+    throw new UncheckedIOException("Cannot get file store for " + path, exception);
   }
 
   /**
