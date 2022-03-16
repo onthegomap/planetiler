@@ -73,6 +73,8 @@ public class ByteBufferUtilTest {
 
     assertEquals("te", readString(buffers[0]));
     assertEquals("st", readString(buffers[1]));
+
+    ByteBufferUtil.free(buffers);
   }
 
   @Test
@@ -87,6 +89,8 @@ public class ByteBufferUtilTest {
     assertEquals("te", readString(buffers[0]));
     assertEquals("st", readString(buffers[1]));
     assertEquals("!", readString(buffers[2]));
+
+    ByteBufferUtil.free(buffers);
   }
 
   @Test
@@ -100,5 +104,7 @@ public class ByteBufferUtilTest {
     assertNull(buffers[0]);
     assertNotNull(buffers[1]);
     assertNotNull(buffers[2]);
+
+    ByteBufferUtil.free(buffers);
   }
 }
