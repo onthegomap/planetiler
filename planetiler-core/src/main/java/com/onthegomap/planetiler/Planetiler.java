@@ -495,10 +495,9 @@ public class Planetiler {
       return; // exit only if just fetching wikidata or downloading sources
     }
 
-    checkDiskSpace();
-    checkMemory();
-
     if (osmInputFile != null) {
+      checkDiskSpace();
+      checkMemory();
       config.bounds().setFallbackProvider(osmInputFile);
     }
 
