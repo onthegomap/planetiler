@@ -10,6 +10,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystems;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.HashMap;
 import org.geotools.data.FeatureSource;
@@ -125,7 +126,9 @@ public class ShapefileReader extends SimpleReader implements Closeable {
       } else {
         throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");
       }
-      return new ShapefileDataStore(uri.toURL());
+      var store = new ShapefileDataStore(uri.toURL());
+      store.setCharset(Charset.forName("UTF8"));
+      return store;
     } catch (IOException e) {
       throw new IllegalArgumentException(e);
     }
