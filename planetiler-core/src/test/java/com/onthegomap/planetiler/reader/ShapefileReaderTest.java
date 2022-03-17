@@ -41,6 +41,7 @@ public class ShapefileReaderTest {
   public void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
+      List<String> names = new ArrayList<>();
       WorkerPipeline.start("test", Stats.inMemory())
         .fromGenerator("shapefile", reader.read())
         .addBuffer("reader_queue", 100, 1)
@@ -49,8 +50,10 @@ public class ShapefileReaderTest {
           assertEquals("test", elem.getSource());
           assertNull(elem.getSourceLayer());
           points.add(elem.latLonGeometry());
+          names.add(elem.getTag("name").toString());
         }).await();
       assertEquals(86, points.size());
+      assertTrue(names.contains("Van Dörn Street"));
       var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
       var centroid = gc.getCentroid();
       assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
