@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,7 +188,7 @@ class PrometheusStats implements Stats {
   }
 
   @Override
-  public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {
+  public void counter(String name, String label, Supplier<Map<String, LongSupplier>> values) {
     new Collector() {
       @Override
       public List<MetricFamilySamples> collect() {
@@ -195,7 +196,7 @@ class PrometheusStats implements Stats {
         CounterMetricFamily family = new CounterMetricFamily(BASE + sanitizeMetricName(name), "", List.of(label));
         result.add(family);
         for (var entry : values.get().entrySet()) {
-          family.addMetric(List.of(entry.getKey()), entry.getValue().get());
+          family.addMetric(List.of(entry.getKey()), entry.getValue().getAsLong());
         }
         return result;
       }

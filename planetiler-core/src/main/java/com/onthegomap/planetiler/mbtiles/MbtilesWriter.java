@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -78,7 +79,7 @@ public class MbtilesWriter {
       .toArray(LongAccumulator[]::new);
     memoizedTiles = stats.longCounter("mbtiles_memoized_tiles");
     featuresProcessed = stats.longCounter("mbtiles_features_processed");
-    Map<String, Counter.Readable> countsByZoom = new LinkedHashMap<>();
+    Map<String, LongSupplier> countsByZoom = new LinkedHashMap<>();
     for (int zoom = config.minzoom(); zoom <= config.maxzoom(); zoom++) {
       countsByZoom.put(Integer.toString(zoom), tilesByZoom[zoom]);
     }
