@@ -125,7 +125,9 @@ public class ShapefileReader extends SimpleReader implements Closeable {
       } else {
         throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");
       }
-      return new ShapefileDataStore(uri.toURL());
+      var store = new ShapefileDataStore(uri.toURL());
+      store.setTryCPGFile(true);
+      return store;
     } catch (IOException e) {
       throw new IllegalArgumentException(e);
     }
