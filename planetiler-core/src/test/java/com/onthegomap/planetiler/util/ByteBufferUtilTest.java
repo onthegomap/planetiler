@@ -28,7 +28,7 @@ public class ByteBufferUtilTest {
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
       MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, bytes);
       try {
-        ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
+        ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.RANDOM);
         byte[] received = new byte[bytes];
         buffer.get(received);
         assertEquals(data, new String(received, StandardCharsets.UTF_8));

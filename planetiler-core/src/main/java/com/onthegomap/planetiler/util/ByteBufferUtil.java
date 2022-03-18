@@ -22,7 +22,7 @@ public class ByteBufferUtil {
   public static void init() {
     if (Madvise.pageSize < 0) {
       try {
-        madvise(ByteBuffer.allocateDirect(1), Madvice.RANDOM);
+        posixMadvise(ByteBuffer.allocateDirect(1), Madvice.RANDOM);
       } catch (IOException e) {
         LOGGER.info("madvise not available on this system");
       }
@@ -35,10 +35,10 @@ public class ByteBufferUtil {
    * @param buffer The mapped memory segment.
    * @param value  The advice to use.
    * @throws IOException If an error occurs or madvise not available on this system
-   * @see <a href="https://man7.org/linux/man-pages/man2/madvise.2.html">madvise(2) — Linux manual page</a>
+   * @see <a href="https://man7.org/linux/man-pages/man3/posix_madvise.3.html">posix_madvise(3) — Linux manual page</a>
    */
-  public static void madvise(ByteBuffer buffer, Madvice value) throws IOException {
-    Madvise.madvise(buffer, value.value);
+  public static void posixMadvise(ByteBuffer buffer, Madvice value) throws IOException {
+    Madvise.posixMadvise(buffer, value.value);
   }
 
   /**
@@ -110,7 +110,7 @@ public class ByteBufferUtil {
         MappedByteBuffer buffer = file.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentLength);
         if (madvise) {
           try {
-            ByteBufferUtil.madvise(buffer, ByteBufferUtil.Madvice.RANDOM);
+            ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.RANDOM);
           } catch (IOException e) {
             if (!madviseFailed) { // log once
               LOGGER.info(
