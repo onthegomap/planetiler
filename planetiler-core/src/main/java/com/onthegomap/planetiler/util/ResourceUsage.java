@@ -126,10 +126,15 @@ public class ResourceUsage {
         String summary = requestedString + " " + resource.description() + " requested for " + description + ", " +
           limitString + " available";
 
-        if (limit < requested * 1.25) {
+        if (limit < requested) {
           LOGGER.warn("❌️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
           for (var usage : usages) {
             LOGGER.warn("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
+          }
+        } else if (limit < requested * 1.1) {
+          LOGGER.info("⚠️️ " + summary + (resource instanceof Fixable fixable ? " (" + fixable.howToFix() + ")" : ""));
+          for (var usage : usages) {
+            LOGGER.info("   - " + FORMAT.storage(usage.amount) + " used for " + usage.description);
           }
         } else if (verbose) {
           LOGGER.debug("✓ " + summary);
@@ -200,7 +205,7 @@ public class ResourceUsage {
 
     @Override
     public String description() {
-      return fileStore.toString();
+      return "storage on " + fileStore.toString();
     }
   }
 }

@@ -97,9 +97,9 @@ class OsmPhaser {
    * processed.
    */
   public void printSummary() {
-    LOGGER.info("  " + getSummary(Phase.NODES));
-    LOGGER.info("  " + getSummary(Phase.WAYS));
-    LOGGER.info("  " + getSummary(Phase.RELATIONS));
+    LOGGER.debug("  " + getSummary(Phase.NODES));
+    LOGGER.debug("  " + getSummary(Phase.WAYS));
+    LOGGER.debug("  " + getSummary(Phase.RELATIONS));
   }
 
   /**

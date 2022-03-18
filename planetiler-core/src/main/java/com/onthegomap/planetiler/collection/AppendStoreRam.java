@@ -1,8 +1,8 @@
 package com.onthegomap.planetiler.collection;
 
 import static com.onthegomap.planetiler.util.MemoryEstimator.POINTER_BYTES;
+import static com.onthegomap.planetiler.util.MemoryEstimator.estimateByteArraySize;
 import static com.onthegomap.planetiler.util.MemoryEstimator.estimateIntArraySize;
-import static com.onthegomap.planetiler.util.MemoryEstimator.estimateLongArraySize;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -132,7 +132,7 @@ abstract class AppendStoreRam implements AppendStore {
 
     @Override
     public long estimateMemoryUsageBytes() {
-      return arrays.size() * (estimateLongArraySize(slabSize) + POINTER_BYTES);
+      return arrays.size() * (estimateByteArraySize(slabSize) + POINTER_BYTES);
     }
 
     @Override

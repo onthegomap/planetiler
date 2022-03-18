@@ -89,8 +89,8 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   }
 
   private static long estimateNumNodes(long osmFileSize) {
-    // On 2/14/2022, planet.pbf was 66691979646 bytes with ~750m nodes, so scale from there
-    return Math.round(750_000_000d * (osmFileSize / 66_691_979_646d));
+    // On 2/14/2022, planet.pbf was 66691979646 bytes with ~7.5b nodes, so scale from there
+    return Math.round(7_500_000_000d * (osmFileSize / 66_691_979_646d));
   }
 
   private static long estimateMaxNodeId(long osmFileSize) {

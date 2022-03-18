@@ -565,7 +565,7 @@ public class Planetiler {
 
   private void checkMemory() {
     Format format = Format.defaultInstance();
-    ResourceUsage check = new ResourceUsage("read phase memory");
+    ResourceUsage check = new ResourceUsage("read phase");
     ResourceUsage nodeMapUsages = LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(),
       osmInputFile.diskUsageBytes(), tmpDir);
     long nodeMapDiskUsage = nodeMapUsages.diskUsage();
