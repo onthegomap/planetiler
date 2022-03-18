@@ -256,7 +256,7 @@ public class ProgressLoggers {
         format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
         OptionalLong.of(ProcessInfo.getDirectUsedMemoryBytes()).stream()
           .filter(usage -> usage > 0)
-          .mapToObj(mem -> " offHeap: " + format.storage(mem))
+          .mapToObj(mem -> " direct: " + format.storage(mem))
           .findFirst()
           .orElse("") +
         ProcessInfo.getMemoryUsageAfterLastGC().stream()
