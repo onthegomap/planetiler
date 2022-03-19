@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.stats;
 
+import com.onthegomap.planetiler.util.Parse;
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
 import java.lang.management.BufferPoolMXBean;
@@ -74,16 +75,6 @@ public class ProcessInfo {
       .map(Duration::ofNanos);
   }
 
-  /**
-   * Returns the amount direct (off-heap) memory used by the JVM.
-   */
-  public static OptionalLong getDirectMemoryUsage() {
-    return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
-      .filter(bufferPool -> "direct".equals(bufferPool.getName()))
-      .mapToLong(BufferPoolMXBean::getMemoryUsed)
-      .findFirst();
-  }
-
   // reflection helper
   private static <T> T callGetter(Method method, Object obj, Class<T> resultClazz) throws InvocationTargetException {
     try {
@@ -117,8 +108,55 @@ public class ProcessInfo {
   }
 
   /** Returns the JVM used memory. */
-  public static long getUsedMemoryBytes() {
-    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  public static long getOnHeapUsedMemoryBytes() {
+    var runtime = Runtime.getRuntime();
+    return runtime.totalMemory() - runtime.freeMemory();
+  }
+
+  /**
+   * Returns the amount of direct memory (allocated through {@link java.nio.ByteBuffer#allocateDirect(int)}) used by the
+   * JVM.
+   */
+  public static long getDirectUsedMemoryBytes() {
+    return ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class).stream()
+      .filter(pool -> "direct".equals(pool.getName()))
+      .mapToLong(BufferPoolMXBean::getTotalCapacity)
+      .sum();
+  }
+
+  /**
+   * Returns an estimate the amount of direct memory limit for this JVM by parsing {@code -XX:MaxDirectMemorySize}
+   * argument.
+   */
+  public static long getDirectUsedMemoryLimit() {
+    return ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+      .filter(arg -> arg.startsWith("-XX:MaxDirectMemorySize="))
+      .mapToLong(arg -> Parse.jvmMemoryStringToBytes(arg.replace("-XX:MaxDirectMemorySize=", "")))
+      .findFirst()
+      // if -XX:MaxDirectMemorySize not explicitly specified, then direct limit is equal to -Xmx so total memory
+      // used can be 2x that.
+      .orElseGet(ProcessInfo::getMaxMemoryBytes);
+  }
+
+  /**
+   * Returns the total amount of memory available on the system if available.
+   */
+  public static OptionalLong getSystemMemoryBytes() {
+    if (ManagementFactory.getOperatingSystemMXBean()instanceof com.sun.management.OperatingSystemMXBean osBean) {
+      return OptionalLong.of(osBean.getTotalMemorySize());
+    } else {
+      return OptionalLong.empty();
+    }
+  }
+
+  /**
+   * Returns the amount of free memory on this system outside the JVM heap, if available.
+   */
+  public static OptionalLong getSystemFreeMemoryBytes() {
+    return getSystemMemoryBytes().stream()
+      .map(value -> value - getMaxMemoryBytes())
+      .filter(value -> value > 0)
+      .findFirst();
   }
 
   /** Processor usage statistics for a thread. */

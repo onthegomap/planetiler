@@ -21,15 +21,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * changes.
  * <p>
  * For example:
- * 
+ *
  * <pre>
  * {@code
  * Downloader.create(PlanetilerConfig.defaults())
@@ -77,7 +74,7 @@ public class Downloader {
   private final ExecutorService executor;
   private final Stats stats;
   private final long chunkSizeBytes;
-  private final ConcurrentMap<FileStore, Long> bytesToDownload = new ConcurrentHashMap<>();
+  private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
 
   Downloader(PlanetilerConfig config, Stats stats, long chunkSizeBytes) {
     this.chunkSizeBytes = chunkSizeBytes;
@@ -209,7 +206,8 @@ public class Downloader {
           Path tmpPath = resourceToDownload.tmpPath();
           FileUtils.delete(tmpPath);
           FileUtils.deleteOnExit(tmpPath);
-          checkDiskSpace(tmpPath, metadata.size);
+          diskSpaceCheck.addDisk(tmpPath, metadata.size, resourceToDownload.id);
+          diskSpaceCheck.checkAgainstLimits(config.force(), false);
           return httpDownload(resourceToDownload, tmpPath)
             .thenCompose(result -> {
               try {
@@ -229,27 +227,6 @@ public class Downloader {
             }, executor);
         }
       }, executor);
-  }
-
-  private void checkDiskSpace(Path destination, long size) {
-    try {
-      var fs = Files.getFileStore(destination.toAbsolutePath().getParent());
-      var totalPendingBytes = bytesToDownload.merge(fs, size, Long::sum);
-      var availableBytes = fs.getUnallocatedSpace();
-      if (totalPendingBytes > availableBytes) {
-        var format = Format.defaultInstance();
-        String warning =
-          "Attempting to download " + format.storage(totalPendingBytes) + " to " + fs + " which only has " +
-            format.storage(availableBytes) + " available";
-        if (config.force()) {
-          LOGGER.warn(warning + ", will probably fail.");
-        } else {
-          throw new IllegalArgumentException(warning + ", use the --force argument to continue anyway.");
-        }
-      }
-    } catch (IOException e) {
-      LOGGER.warn("Unable to check file size for download, you may run out of space: " + e, e);
-    }
   }
 
   private CompletableFuture<ResourceMetadata> httpHeadFollowRedirects(String url, int redirects) {

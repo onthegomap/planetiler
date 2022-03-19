@@ -7,4 +7,12 @@ package com.onthegomap.planetiler.worker;
 public interface RunnableThatThrows {
 
   void run() throws Exception;
+
+  default void runAndWrapException() {
+    try {
+      run();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 }

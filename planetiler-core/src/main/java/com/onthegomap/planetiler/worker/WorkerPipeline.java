@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * A mini-framework for chaining sequential steps that run in dedicated threads with a queue between each.
  * <p>
  * For example:
- * 
+ *
  * <pre>
  * {@code
  * WorkerPipeline.start("name", stats)
@@ -59,7 +59,6 @@ public record WorkerPipeline<T> (
    */
   public void awaitAndLog(ProgressLoggers loggers, Duration logInterval) {
     loggers.awaitAndLog(done, logInterval);
-    loggers.log();
   }
 
   /**

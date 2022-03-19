@@ -31,7 +31,7 @@ import jnr.ffi.types.size_t;
 
 /**
  * Wrapper for native madvise function to be used via the public API
- * {@link MmapUtil#madvise(ByteBuffer, MmapUtil.Madvice)}.
+ * {@link ByteBufferUtil#posixMadvise(ByteBuffer, ByteBufferUtil.Madvice)}.
  * <p>
  * Ported from <a href=
  * "https://github.com/upserve/uppend/blob/70967c6f24d7f1a3bbc18799f485d981da93f53b/src/main/java/com/upserve/uppend/blobs/NativeIO.java">upserve/uppend/NativeIO</a>.
@@ -69,7 +69,7 @@ class Madvise {
    * @throws IOException If an error occurs or madvise not available on this system
    * @see <a href="https://man7.org/linux/man-pages/man2/madvise.2.html">madvise(2) — Linux manual page</a>
    */
-  static void madvise(ByteBuffer buffer, int value) throws IOException {
+  static void posixMadvise(ByteBuffer buffer, int value) throws IOException {
     if (pageSize <= 0) {
       throw new IOException("madvise failed, pagesize not available");
     }
@@ -79,7 +79,7 @@ class Madvise {
     long alignedAddress = alignedAddress(address);
     long alignedSize = alignedSize(alignedAddress, capacity);
     try {
-      int val = nativeC.madvise(alignedAddress, alignedSize, value);
+      int val = nativeC.posix_madvise(alignedAddress, alignedSize, value);
       if (val != 0) {
         throw new IOException(String.format("System call madvise failed with code: %d", val));
       }
@@ -91,7 +91,7 @@ class Madvise {
   /** JNR-FFI will automatically compile these to wrappers around native functions with the same signatures. */
   public interface NativeC {
 
-    int madvise(@size_t long address, @size_t long size, int advice);
+    int posix_madvise(@size_t long address, @size_t long size, int advice);
 
     int getpagesize();
   }
