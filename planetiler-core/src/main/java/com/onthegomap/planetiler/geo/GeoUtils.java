@@ -480,6 +480,23 @@ public class GeoUtils {
     }
   }
 
+  /** Combines multiple geometries into one {@link GeometryCollection}. */
+  public static Geometry combine(Geometry... geometries) {
+    List<Geometry> innerGeometries = new ArrayList<>();
+    // attempt to flatten out nested geometry collections
+    for (var geom : geometries) {
+      if (geom instanceof GeometryCollection collection) {
+        for (int i = 0; i < collection.getNumGeometries(); i++) {
+          innerGeometries.add(collection.getGeometryN(i));
+        }
+      } else {
+        innerGeometries.add(geom);
+      }
+    }
+    return innerGeometries.size() == 1 ? innerGeometries.get(0) :
+      JTS_FACTORY.createGeometryCollection(innerGeometries.toArray(Geometry[]::new));
+  }
+
   /** Helper class to sort polygons by area of their outer shell. */
   private record PolyAndArea(Polygon poly, double area) implements Comparable<PolyAndArea> {
 

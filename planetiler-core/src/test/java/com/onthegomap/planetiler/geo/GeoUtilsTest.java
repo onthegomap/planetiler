@@ -300,4 +300,40 @@ public class GeoUtilsTest {
       }
     }
   }
+
+  @Test
+  public void testCombineEmpty() {
+    assertEquals(EMPTY_GEOMETRY, GeoUtils.combine());
+  }
+
+  @Test
+  public void testCombineOne() {
+    assertEquals(newLineString(0, 0, 1, 1), GeoUtils.combine(newLineString(0, 0, 1, 1)));
+  }
+
+  @Test
+  public void testCombineTwo() {
+    assertEquals(GeoUtils.JTS_FACTORY.createGeometryCollection(new Geometry[]{
+      newLineString(0, 0, 1, 1),
+      newLineString(2, 2, 3, 3)
+    }), GeoUtils.combine(
+      newLineString(0, 0, 1, 1),
+      newLineString(2, 2, 3, 3)
+    ));
+  }
+
+  @Test
+  public void testCombineNested() {
+    assertEquals(GeoUtils.JTS_FACTORY.createGeometryCollection(new Geometry[]{
+      newLineString(0, 0, 1, 1),
+      newLineString(2, 2, 3, 3),
+      newLineString(4, 4, 5, 5)
+    }), GeoUtils.combine(
+      GeoUtils.combine(
+        newLineString(0, 0, 1, 1),
+        newLineString(2, 2, 3, 3)
+      ),
+      newLineString(4, 4, 5, 5)
+    ));
+  }
 }
