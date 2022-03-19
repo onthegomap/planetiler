@@ -111,7 +111,13 @@ public class WaterName implements
       try {
         // multiple threads call this concurrently
         synchronized (this) {
-          lakeCenterlines.put(osmId, feature.worldGeometry());
+          // if we already have a centerline for this OSM_ID, then merge the existing one with this one
+          var newGeometry = feature.worldGeometry();
+          var oldGeometry = lakeCenterlines.get(osmId);
+          if (oldGeometry != null) {
+            newGeometry = GeoUtils.combine(oldGeometry, newGeometry);
+          }
+          lakeCenterlines.put(osmId, newGeometry);
         }
       } catch (GeometryException e) {
         e.log(stats, "omt_water_name_lakeline", "Bad lake centerline: " + feature);
