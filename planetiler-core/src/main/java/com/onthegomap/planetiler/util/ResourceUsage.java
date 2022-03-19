@@ -59,6 +59,15 @@ public class ResourceUsage {
       .sum();
   }
 
+  /** Returns the total amount of disk requested so far for {@code types}. */
+  public long get(LimitedResource... types) {
+    var typeList = List.of(types);
+    return usages.stream()
+      .filter(d -> typeList.contains(d.resource))
+      .mapToLong(d -> d.amount)
+      .sum();
+  }
+
   /** Requests {@code amount} bytes on the file system that contains {@code path}. */
   public ResourceUsage addDisk(Path path, long amount, String description) {
     return add(new DiskUsage(path), amount, description);

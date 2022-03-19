@@ -90,10 +90,6 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     }
   }
 
-  public static long estimateTempMemoryUsageBytes() {
-    return guessPendingChunkLimit(1 << DEFAULT_SEGMENT_BITS) * (1L << DEFAULT_SEGMENT_BITS);
-  }
-
   private static int guessPendingChunkLimit(long chunkSize) {
     int minChunks = 1;
     int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);

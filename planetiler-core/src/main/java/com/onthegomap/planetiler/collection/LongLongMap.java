@@ -81,10 +81,8 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
         .add(path, storage, 9 * nodes, "sparsearray node location cache");
       case SORTED_TABLE -> check.addMemory(300_000_000L, "sortedtable node location in-memory index")
         .add(path, storage, 12 * nodes, "sortedtable node location cache");
-      case ARRAY -> check
-        .add(path, storage, 8 * maxNodeId, "array node location cache (switch to sparsearray to reduce size)")
-        .addMemory(storage == Storage.MMAP ? ArrayLongLongMapMmap.estimateTempMemoryUsageBytes() : 0,
-          "array node location temporary storage for inserts");
+      case ARRAY -> check.add(path, storage, 8 * maxNodeId,
+        "array node location cache (switch to sparsearray to reduce size)");
     };
   }
 

@@ -2,7 +2,10 @@ package com.onthegomap.planetiler.collection;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.ResourceUsage;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -124,6 +127,17 @@ public abstract class LongLongMapTest {
         for (LongLongMap.Type type : LongLongMap.Type.values()) {
           var variant = storage + "-" + type;
           var params = new Storage.Params(path.resolve(variant), true);
+          var estimatedSize = LongLongMap.estimateStorageRequired(type, storage, 70_000_000_000L, params.path());
+          var usage = storage == Storage.MMAP ? estimatedSize.diskUsage() :
+            estimatedSize.get(
+              storage == Storage.DIRECT ? ResourceUsage.DIRECT_MEMORY : ResourceUsage.HEAP
+            );
+          var sizeDescription = variant + " " + Format.defaultInstance().storage(usage);
+          // sanity check to ensure that the estimate size is between 60 and 100GB for a 70GB input file
+          if (type != LongLongMap.Type.NOOP) {
+            assertTrue(usage > 60_000_000_000L, sizeDescription);
+            assertTrue(usage < 100_000_000_000L, sizeDescription);
+          }
           LongLongMap map = LongLongMap.from(type, storage, params);
           try (var writer = map.newWriter()) {
             writer.put(2, 3);
