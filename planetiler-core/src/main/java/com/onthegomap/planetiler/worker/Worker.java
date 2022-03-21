@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ public class Worker {
   private static final Logger LOGGER = LoggerFactory.getLogger(Worker.class);
   private final String prefix;
   private final CompletableFuture<?> done;
+  private static final AtomicBoolean firstWorkerDied = new AtomicBoolean(false);
 
   /**
    * Constructs a new worker and immediately starts {@code threads} thread all running {@code task}.
@@ -51,7 +53,10 @@ public class Worker {
           stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
         } catch (Throwable e) {
           System.err.println("Worker " + id + " died");
-          e.printStackTrace();
+          // when one worker dies it may close resources causing others to die as well, so only log the first
+          if (firstWorkerDied.compareAndSet(false, true)) {
+            e.printStackTrace();
+          }
           throwRuntimeException(e);
         } finally {
           LOGGER.trace("Finished worker");

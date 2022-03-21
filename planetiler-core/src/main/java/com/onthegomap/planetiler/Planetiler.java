@@ -177,7 +177,8 @@ public class Planetiler {
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
           var multipolygonGeometries =
-            LongLongMultimap.newDensedOrderedMultimap(Storage.MMAP, new Storage.Params(multipolygonPath, false));
+            LongLongMultimap.newDensedOrderedMultimap(Storage.MMAP,
+              new Storage.Params(multipolygonPath, config.nodeMapMadvise()));
           var osmReader = new OsmReader(name, thisInputFile, nodeLocations, multipolygonGeometries, profile(), stats)
         ) {
           osmReader.pass1(config);

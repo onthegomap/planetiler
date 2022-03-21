@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -88,7 +89,8 @@ public class ToiletsOverlayLowLevelApi {
        * any node locations.
        */
       var nodeLocations = LongLongMap.noop();
-      var osmReader = new OsmReader("osm", new OsmInputFile(input), nodeLocations, profile, stats)
+      var multipolygons = LongLongMultimap.noop();
+      var osmReader = new OsmReader("osm", new OsmInputFile(input), nodeLocations, multipolygons, profile, stats)
     ) {
       // Normally you need to run OsmReader.pass1(config) first which stores node locations and preprocesses relations for
       // way processing, and counts elements. But since this profile only processes nodes we can skip pass 1.

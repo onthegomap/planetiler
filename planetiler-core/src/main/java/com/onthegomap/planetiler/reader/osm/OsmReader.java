@@ -119,7 +119,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       "ways", pass1Phaser::ways,
       "relations", pass1Phaser::relations
     ));
-    multipolygonGeometries = multipolygonGeometries;
+    this.multipolygonWayGeometries = multipolygonGeometries;
   }
 
   /**
@@ -310,7 +310,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("read", osmBlockSource::forEachBlock)
-      .addBuffer("pbf_blocks", 100)
+      .addBuffer("pbf_blocks", Math.max(10, threads / 2))
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
         Counter blocks = blocksProcessed.counterForThread();
