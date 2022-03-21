@@ -146,7 +146,7 @@ public class DownloaderTest {
 
     var resource1 = new Downloader.ResourceToDownload("resource", url, dest);
     var exception = assertThrows(ExecutionException.class, () -> downloader.downloadIfNecessary(resource1).get());
-    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
+    assertInstanceOf(IllegalStateException.class, exception.getCause());
     assertTrue(exception.getMessage().contains("--force"), exception.getMessage());
   }
 }

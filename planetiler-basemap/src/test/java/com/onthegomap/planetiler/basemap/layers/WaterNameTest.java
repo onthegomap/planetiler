@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Geometry;
 
 public class WaterNameTest extends AbstractLayerTest {
 
@@ -72,6 +73,56 @@ public class WaterNameTest extends AbstractLayerTest {
       "_layer", "water_name",
       "_type", "line",
       "_geom", new TestUtils.NormGeometry(GeoUtils.latLonToWorldCoords(newLineString(0, 0, 1, 1))),
+      "_minzoom", 9,
+      "_maxzoom", 14,
+      "_minpixelsize", "waterway".length() * 6d
+    )), process(SimpleFeature.create(
+      GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
+      new HashMap<>(Map.<String, Object>of(
+        "name", "waterway",
+        "name:es", "waterway es",
+        "natural", "water",
+        "water", "pond"
+      )),
+      OSM_SOURCE,
+      null,
+      10
+    )));
+  }
+
+  @Test
+  public void testWaterNameMultipleLakelines() {
+    assertFeatures(11, List.of(), process(SimpleFeature.create(
+      newLineString(0, 0, 1, 1),
+      new HashMap<>(Map.<String, Object>of(
+        "OSM_ID", -10
+      )),
+      LAKE_CENTERLINE_SOURCE,
+      null,
+      0
+    )));
+    assertFeatures(11, List.of(), process(SimpleFeature.create(
+      newLineString(2, 2, 3, 3),
+      new HashMap<>(Map.<String, Object>of(
+        "OSM_ID", -10
+      )),
+      LAKE_CENTERLINE_SOURCE,
+      null,
+      0
+    )));
+    assertFeatures(10, List.of(Map.of(
+      "_layer", "water"
+    ), Map.of(
+      "name", "waterway",
+      "name:es", "waterway es",
+
+      "_layer", "water_name",
+      "_geom",
+      new TestUtils.NormGeometry(
+        GeoUtils.latLonToWorldCoords(GeoUtils.JTS_FACTORY.createGeometryCollection(new Geometry[]{
+          newLineString(0, 0, 1, 1),
+          newLineString(2, 2, 3, 3)
+        }))),
       "_minzoom", 9,
       "_maxzoom", 14,
       "_minpixelsize", "waterway".length() * 6d

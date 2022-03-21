@@ -41,15 +41,18 @@ public class LongLongMapBench {
       .addProcessStats();
     AtomicReference<String> writeRate = new AtomicReference<>();
     new Worker("writer", Stats.inMemory(), 1, () -> {
-      long start = System.nanoTime();
-      for (long i = 0; i < entries; i++) {
-        map.put(i + 1L, i + 2L);
-        counter.count = i;
+      try (var writer = map.newWriter()) {
+        long start = System.nanoTime();
+        for (long i = 0; i < entries; i++) {
+          writer.put(i + 1L, i + 2L);
+          counter.count = i;
+        }
+        long end = System.nanoTime();
+        String rate = format.numeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
+        System.err.println(
+          "Loaded " + entries + " in " + Duration.ofNanos(end - start).toSeconds() + "s (" + rate + ")");
+        writeRate.set(rate);
       }
-      long end = System.nanoTime();
-      String rate = format.numeric(entries * NANOSECONDS_PER_SECOND / (end - start), false) + "/s";
-      System.err.println("Loaded " + entries + " in " + Duration.ofNanos(end - start).toSeconds() + "s (" + rate + ")");
-      writeRate.set(rate);
     }).awaitAndLog(loggers, Duration.ofSeconds(10));
 
     map.get(1);

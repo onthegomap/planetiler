@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import java.io.Closeable;
+import java.util.Iterator;
 import java.util.function.Consumer;
 
 /**
@@ -19,15 +20,23 @@ public interface OsmBlockSource extends Closeable {
    * An individual block of raw bytes from an osm.pbf file that can be decompressed/parsed with
    * {@link #decodeElements()}.
    */
-  interface Block {
+  interface Block extends Iterable<OsmElement> {
 
     /** Create a fake block from existing elements - useful for tests. */
-    static Block of(Iterable<? extends OsmElement> items) {
-      return () -> items;
+    static <T extends OsmElement> Block of(Iterable<T> items) {
+      return () -> {
+        @SuppressWarnings("unchecked") Iterable<OsmElement> iterable = (Iterable<OsmElement>) items;
+        return iterable;
+      };
     }
 
     /** Decompress and parse OSM elements from this block. */
-    Iterable<? extends OsmElement> decodeElements();
+    Iterable<OsmElement> decodeElements();
+
+    @Override
+    default Iterator<OsmElement> iterator() {
+      return decodeElements().iterator();
+    }
 
     default int id() {
       return -1;

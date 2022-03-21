@@ -51,6 +51,7 @@ public class Worker {
           stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
         } catch (Throwable e) {
           System.err.println("Worker " + id + " died");
+          e.printStackTrace();
           throwRuntimeException(e);
         } finally {
           LOGGER.trace("Finished worker");

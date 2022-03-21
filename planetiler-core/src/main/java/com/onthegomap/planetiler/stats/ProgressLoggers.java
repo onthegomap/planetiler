@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -250,10 +251,10 @@ public class ProgressLoggers {
       String formatted = format.percent(num);
       return num > 0.6 ? red(formatted) : num > 0.3 ? yellow(formatted) : formatted;
     });
-    loggers.add(new ProgressLogger("mem",
-      () -> format.storage(ProcessInfo.getUsedMemoryBytes(), false) + "/" +
+    loggers.add(new ProgressLogger("heap",
+      () -> format.storage(ProcessInfo.getOnHeapUsedMemoryBytes(), false) + "/" +
         format.storage(ProcessInfo.getMaxMemoryBytes(), false) +
-        ProcessInfo.getDirectMemoryUsage().stream()
+        OptionalLong.of(ProcessInfo.getDirectUsedMemoryBytes()).stream()
           .filter(usage -> usage > 0)
           .mapToObj(mem -> " direct: " + format.storage(mem))
           .findFirst()

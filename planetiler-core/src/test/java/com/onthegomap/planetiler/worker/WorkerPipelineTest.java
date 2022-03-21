@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.worker;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.ExpectedException;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import java.time.Duration;
@@ -91,7 +92,6 @@ public class WorkerPipelineTest {
   @Timeout(10)
   @ValueSource(ints = {1, 2, 3})
   public void testThrowingExceptionInPipelineHandledGracefully(int failureStage) {
-    class ExpectedException extends RuntimeException {}
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         if (failureStage == 1) {
