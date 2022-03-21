@@ -86,7 +86,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongHashSet waysInMultipolygon = new LongHashSet();
   private final Object waysInMultipolygonLock = new Object();
   // ~7GB
-  private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
+  private LongLongMultimap multipolygonWayGeometries;
   // keep track of data needed to encode/decode role strings into a long
   private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
@@ -97,15 +97,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * Constructs a new {@code OsmReader} from an {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
    * temporary store for node locations.
    *
-   * @param name              ID for this reader to use in stats and logs
-   * @param osmSourceProvider the file to read raw nodes, ways, and relations from
-   * @param nodeLocationDb    store that will temporarily hold node locations (encoded as a long) between passes to
-   *                          reconstruct way geometries
-   * @param profile           logic that defines what map features to emit for each source feature
-   * @param stats             to keep track of counters and timings
+   * @param name                   ID for this reader to use in stats and logs
+   * @param osmSourceProvider      the file to read raw nodes, ways, and relations from
+   * @param nodeLocationDb         store that will temporarily hold node locations (encoded as a long) between passes to
+   *                               reconstruct way geometries
+   * @param multipolygonGeometries store that will temporarily hold multipolygon way geometries
+   * @param profile                logic that defines what map features to emit for each source feature
+   * @param stats                  to keep track of counters and timings
    */
-  public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb, Profile profile,
-    Stats stats) {
+  public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb,
+    LongLongMultimap multipolygonGeometries, Profile profile, Stats stats) {
     this.name = name;
     this.osmBlockSource = osmSourceProvider.get();
     this.nodeLocationDb = nodeLocationDb;
@@ -118,6 +119,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       "ways", pass1Phaser::ways,
       "relations", pass1Phaser::relations
     ));
+    multipolygonGeometries = multipolygonGeometries;
   }
 
   /**
@@ -478,7 +480,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   @Override
   public void close() throws IOException {
-    multipolygonWayGeometries = null;
+    if (multipolygonWayGeometries != null) {
+      multipolygonWayGeometries.close();
+      multipolygonWayGeometries = null;
+    }
     wayToRelations = null;
     waysInMultipolygon = null;
     relationInfo = null;

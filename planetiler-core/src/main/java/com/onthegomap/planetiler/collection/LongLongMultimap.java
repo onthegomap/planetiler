@@ -6,6 +6,9 @@ import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +17,28 @@ import org.slf4j.LoggerFactory;
  * An in-memory map that stores a multiple {@code long} values for each {@code long} key.
  */
 // TODO: The two implementations should probably not implement the same interface
-public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
+public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoCloseable {
+
+  static LongLongMultimap noop() {
+    LongArrayList EMPTY_LIST = new LongArrayList();
+    return new LongLongMultimap() {
+      @Override
+      public void put(long key, long value) {}
+
+      @Override
+      public LongArrayList get(long key) {
+        return EMPTY_LIST;
+      }
+
+      @Override
+      public long estimateMemoryUsageBytes() {
+        return 0;
+      }
+
+      @Override
+      public void close() {}
+    };
+  }
 
   /**
    * Writes the value for a key. Not thread safe!
@@ -34,14 +58,21 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
   }
 
   /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
-  static LongLongMultimap newDensedOrderedMultimap() {
-    return new DenseOrderedHppcMultimap();
+  static LongLongMultimap newDensedOrderedMultimap(Storage storage, Storage.Params params) {
+    return new DenseOrderedHppcMultimap(storage, params);
+  }
+
+  static LongLongMultimap newInMemoryDenseOrderedMultimap() {
+    return newDensedOrderedMultimap(Storage.RAM, new Storage.Params(Path.of("/dev/null"), false));
   }
 
   /** Returns a new multimap where each write adds a value for the given key. */
   static LongLongMultimap newSparseUnorderedMultimap() {
     return new SparseUnorderedBinarySearchMultimap();
   }
+
+  @Override
+  void close();
 
   /**
    * A map from {@code long} to {@code long} stored as a list of keys and values that uses binary search to find the
@@ -143,6 +174,12 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     public long estimateMemoryUsageBytes() {
       return estimateSize(keys) + estimateSize(values);
     }
+
+    @Override
+    public void close() {
+      keys.release();
+      values.release();
+    }
   }
 
   /**
@@ -154,16 +191,26 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
     private final LongIntHashMap keyToValuesIndex = Hppc.newLongIntHashMap();
     // each block starts with a "length" header then contains that number of entries
-    private final LongArrayList values = new LongArrayList();
+    private final AppendStore.Longs values;
+
+    public DenseOrderedHppcMultimap(Storage storage, Storage.Params params) {
+      values = switch (storage) {
+        case MMAP -> new AppendStoreMmap.Longs(params);
+        case RAM -> new AppendStoreRam.Longs(false, params);
+        case DIRECT -> new AppendStoreRam.Longs(true, params);
+      };
+    }
 
     @Override
     public void putAll(long key, LongArrayList others) {
       if (others.isEmpty()) {
         return;
       }
-      keyToValuesIndex.put(key, values.size());
-      values.add(others.size());
-      values.add(others.buffer, 0, others.size());
+      keyToValuesIndex.put(key, (int) values.size());
+      values.appendLong(others.size());
+      for (int i = 0; i < others.size(); i++) {
+        values.appendLong(others.get(i));
+      }
     }
 
     @Override
@@ -176,8 +223,10 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
       int index = keyToValuesIndex.getOrDefault(key, -1);
       if (index >= 0) {
         LongArrayList result = new LongArrayList();
-        int num = (int) values.get(index);
-        result.add(values.buffer, index + 1, num);
+        int num = (int) values.getLong(index);
+        for (int i = 0; i < num; i++) {
+          result.add(values.getLong(i + index + 1));
+        }
         return result;
       } else {
         return EMPTY_LIST;
@@ -187,6 +236,16 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate {
     @Override
     public long estimateMemoryUsageBytes() {
       return estimateSize(keyToValuesIndex) + estimateSize(values);
+    }
+
+    @Override
+    public void close() {
+      keyToValuesIndex.release();
+      try {
+        values.close();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
   }
 }

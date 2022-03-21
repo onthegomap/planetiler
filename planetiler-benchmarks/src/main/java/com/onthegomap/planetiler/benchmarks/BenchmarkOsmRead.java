@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.benchmarks;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -23,7 +24,8 @@ public class BenchmarkOsmRead {
       Timer timer = Timer.start();
       try (
         var nodes = LongLongMap.noop();
-        var reader = new OsmReader("osm", file, nodes, profile, stats)
+        var multipolygons = LongLongMultimap.noop();
+        var reader = new OsmReader("osm", file, nodes, multipolygons, profile, stats)
       ) {
         reader.pass1(config);
       }

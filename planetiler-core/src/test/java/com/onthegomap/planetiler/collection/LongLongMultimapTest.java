@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.carrotsearch.hppc.LongArrayList;
+import java.nio.file.Path;
 import java.util.Arrays;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,7 +159,8 @@ public abstract class LongLongMultimapTest {
     @BeforeEach
     public void setup() {
       retainInputOrder = true;
-      this.map = LongLongMultimap.newDensedOrderedMultimap();
+      this.map =
+        LongLongMultimap.newDensedOrderedMultimap(Storage.RAM, new Storage.Params(Path.of("/dev/null"), false));
     }
   }
 }

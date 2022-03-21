@@ -2,6 +2,8 @@ package com.onthegomap.planetiler;
 
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.LongLongMultimap;
+import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -76,6 +78,7 @@ public class Planetiler {
   private boolean overwrite = false;
   private boolean ran = false;
   private Path nodeDbPath;
+  private Path multipolygonPath;
   // most common OSM languages
   private List<String> languages = List.of(
     "en", "ru", "ar", "zh", "ja", "ko", "fr",
@@ -173,12 +176,15 @@ public class Planetiler {
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
-          var osmReader = new OsmReader(name, thisInputFile, nodeLocations, profile(), stats)
+          var multipolygonGeometries =
+            LongLongMultimap.newDensedOrderedMultimap(Storage.MMAP, new Storage.Params(multipolygonPath, false));
+          var osmReader = new OsmReader(name, thisInputFile, nodeLocations, multipolygonGeometries, profile(), stats)
         ) {
           osmReader.pass1(config);
           osmReader.pass2(featureGroup, config);
         } finally {
           FileUtils.delete(nodeDbPath);
+          FileUtils.delete(multipolygonPath);
         }
       }))
     );
@@ -507,6 +513,7 @@ public class Planetiler {
 
     Files.createDirectories(tmpDir);
     nodeDbPath = tmpDir.resolve("node.db");
+    multipolygonPath = tmpDir.resolve("multipolygon.db");
     Path featureDbPath = tmpDir.resolve("feature.db");
     featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
     stats.monitorFile("nodes", nodeDbPath);

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -104,7 +105,8 @@ public class PlanetilerTests {
       next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
+    var multipolygons = LongLongMultimap.newInMemoryDenseOrderedMultimap();
+    try (var reader = new OsmReader("osm", () -> elems, nodeMap, multipolygons, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
     }
@@ -777,7 +779,8 @@ public class PlanetilerTests {
             OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
         };
         var nodeMap = LongLongMap.newInMemorySortedTable();
-        try (var reader = new OsmReader("osm", () -> elems, nodeMap, profile, Stats.inMemory())) {
+        var multipolygons = LongLongMultimap.newInMemoryDenseOrderedMultimap();
+        try (var reader = new OsmReader("osm", () -> elems, nodeMap, multipolygons, profile, Stats.inMemory())) {
           // skip pass 1
           reader.pass2(featureGroup, config);
         }
