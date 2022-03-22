@@ -56,7 +56,7 @@ public class MyProfile implements Profile {
 }
 ```
 
-Then, implement the `processFeature()` method in your class (add the code before the last closing curly bracket) 
+Then, implement the `processFeature()` method in your class (add the code before the last closing curly bracket)
 that determines what vector tile features to emit for each source feature.
 For example, to include a map of [toilets from OpenStreetMap](https://wiki.openstreetmap.org/wiki/Tag:amenity=toilets)
 at zoom level 12 and above:
