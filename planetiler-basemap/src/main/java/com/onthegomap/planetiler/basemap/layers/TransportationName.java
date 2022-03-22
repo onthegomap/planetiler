@@ -151,7 +151,9 @@ public class TransportationName implements
   @Override
   public void preprocessOsmNode(OsmElement.Node node) {
     if (node.hasTag("highway", "motorway_junction")) {
-      motorwayJunctionHighwayClasses.put(node.id(), HighwayClass.UNKNOWN.value);
+      synchronized (motorwayJunctionHighwayClasses) {
+        motorwayJunctionHighwayClasses.put(node.id(), HighwayClass.UNKNOWN.value);
+      }
     }
   }
 
@@ -162,13 +164,15 @@ public class TransportationName implements
       HighwayClass cls = HighwayClass.from(highway);
       if (cls != HighwayClass.UNKNOWN) {
         LongArrayList nodes = way.nodes();
-        for (int i = 0; i < nodes.size(); i++) {
-          long node = nodes.get(i);
-          if (motorwayJunctionHighwayClasses.containsKey(node)) {
-            byte oldValue = motorwayJunctionHighwayClasses.get(node);
-            byte newValue = cls.value;
-            if (newValue > oldValue) {
-              motorwayJunctionHighwayClasses.put(node, newValue);
+        synchronized (motorwayJunctionHighwayClasses) {
+          for (int i = 0; i < nodes.size(); i++) {
+            long node = nodes.get(i);
+            if (motorwayJunctionHighwayClasses.containsKey(node)) {
+              byte oldValue = motorwayJunctionHighwayClasses.get(node);
+              byte newValue = cls.value;
+              if (newValue > oldValue) {
+                motorwayJunctionHighwayClasses.put(node, newValue);
+              }
             }
           }
         }

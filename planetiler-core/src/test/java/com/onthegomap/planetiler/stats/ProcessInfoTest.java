@@ -15,6 +15,26 @@ public class ProcessInfoTest {
   }
 
   @Test
+  public void testGetDirectUsedMemoryBytes() {
+    assertTrue(ProcessInfo.getDirectUsedMemoryBytes() >= 0);
+  }
+
+  @Test
+  public void testGetDirectUsedMemoryLimit() {
+    assertTrue(ProcessInfo.getDirectUsedMemoryLimit() >= 0);
+  }
+
+  @Test
+  public void testGetOnHeapUsedMemoryBytes() {
+    assertTrue(ProcessInfo.getOnHeapUsedMemoryBytes() >= 0);
+  }
+
+  @Test
+  public void testGetSystemUsedMemoryBytes() {
+    assertTrue(ProcessInfo.getSystemMemoryBytes().getAsLong() >= 0);
+  }
+
+  @Test
   public void testCPU() {
     assertFalse(ProcessInfo.getProcessCpuTime().isEmpty());
   }

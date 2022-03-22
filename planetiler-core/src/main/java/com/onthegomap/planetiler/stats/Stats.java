@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,7 +130,7 @@ public interface Stats extends AutoCloseable {
    * Tracks a group of counters with a {@code label} key that is set to the key in each entry of the map returned from
    * {@code values}.
    */
-  void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values);
+  void counter(String name, String label, Supplier<Map<String, LongSupplier>> values);
 
   /**
    * Records that an invalid input feature was discarded where {@code errorCode} can be used to identify the kind of
@@ -180,7 +181,7 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public void counter(String name, String label, Supplier<Map<String, Counter.Readable>> values) {}
+    public void counter(String name, String label, Supplier<Map<String, LongSupplier>> values) {}
 
     @Override
     public void processedElement(String elemType, String layer) {}

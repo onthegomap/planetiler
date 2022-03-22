@@ -34,4 +34,14 @@ public class FileUtilsTest {
     assertEquals(0, FileUtils.size(parent));
     assertEquals(0, FileUtils.size(tmpDir));
   }
+
+  @Test
+  public void testGetFileStore() throws IOException {
+    var filestore = Files.getFileStore(tmpDir);
+    assertEquals(filestore, FileUtils.getFileStore(tmpDir.resolve("nonexistant_file")));
+    assertEquals(filestore, FileUtils.getFileStore(tmpDir.resolve("subdir").resolve("nonexistant_file")));
+    var nested = tmpDir.resolve("subdir").resolve("nonexistant_file");
+    FileUtils.createParentDirectories(nested);
+    assertEquals(filestore, FileUtils.getFileStore(nested));
+  }
 }

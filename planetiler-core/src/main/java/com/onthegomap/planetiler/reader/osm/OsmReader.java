@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -70,9 +70,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private final Stats stats;
   private final LongLongMap nodeLocationDb;
   private final Counter.Readable PASS1_BLOCKS = Counter.newSingleThreadCounter();
-  private final Counter.Readable PASS1_NODES = Counter.newSingleThreadCounter();
-  private final Counter.Readable PASS1_WAYS = Counter.newSingleThreadCounter();
-  private final Counter.Readable PASS1_RELATIONS = Counter.newSingleThreadCounter();
   private final Profile profile;
   private final String name;
   private final AtomicLong relationInfoSizes = new AtomicLong(0);
@@ -83,18 +80,22 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
   private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
+  private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
   private LongHashSet waysInMultipolygon = new LongHashSet();
+  private final Object waysInMultipolygonLock = new Object();
   // ~7GB
   private LongLongMultimap multipolygonWayGeometries = LongLongMultimap.newDensedOrderedMultimap();
   // keep track of data needed to encode/decode role strings into a long
   private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
   private final AtomicLong roleSizes = new AtomicLong(0);
+  private final OsmPhaser pass1Phaser = new OsmPhaser(0);
 
   /**
-   * Constructs a new {@code OsmReader} from
+   * Constructs a new {@code OsmReader} from an {@code osmSourceProvider} that will use {@code nodeLocationDb} as a
+   * temporary store for node locations.
    *
    * @param name              ID for this reader to use in stats and logs
    * @param osmSourceProvider the file to read raw nodes, ways, and relations from
@@ -113,9 +114,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     stats.monitorInMemoryObject("osm_relations", this);
     stats.counter("osm_pass1_elements_processed", "type", () -> Map.of(
       "blocks", PASS1_BLOCKS,
-      "nodes", PASS1_NODES,
-      "ways", PASS1_WAYS,
-      "relations", PASS1_RELATIONS
+      "nodes", pass1Phaser::nodes,
+      "ways", pass1Phaser::ways,
+      "relations", pass1Phaser::relations
     ));
   }
 
@@ -130,141 +131,150 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param config user-provided arguments to control the number of threads, and log interval
    */
   public void pass1(PlanetilerConfig config) {
-    record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
     var timer = stats.startStage("osm_pass1");
-    int parseThreads = Math.max(1, config.threads() - 2);
-    int pendingBlocks = parseThreads * 2;
-    // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
-    // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
-    // like nodes without any tags, but limit the number of pending heavy entities like relations
-    int handoffQueueBatches = Math.max(
-      10,
-      (int) (100d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
-    );
-    var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
     var pipeline = WorkerPipeline.start("osm_pass1", stats);
-    var readBranch = pipeline
-      .<BlockWithResult>fromGenerator("read", next -> {
-        osmBlockSource.forEachBlock((block) -> {
-          WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
-          parsedBatches.accept(result);
-          next.accept(new BlockWithResult(block, result));
-        });
-        parsedBatches.close();
-      })
-      .addBuffer("pbf_blocks", pendingBlocks)
-      .sinkToConsumer("parse", parseThreads, block -> {
-        List<OsmElement> result = new ArrayList<>();
-        boolean nodesDone = false, waysDone = false;
-        for (var element : block.block.decodeElements()) {
-          if (element instanceof OsmElement.Node node) {
-            // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
-            node.encodedLocation();
-            if (nodesDone) {
-              throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered node " + node.id() +
-                  " after a way or relation");
-            }
-          } else if (element instanceof OsmElement.Way way) {
-            nodesDone = true;
-            if (waysDone) {
-              throw new IllegalArgumentException(
-                "Input file must be sorted with nodes first, then ways, then relations. Encountered way " + way.id() +
-                  " after a relation");
-            }
-          } else if (element instanceof OsmElement.Relation) {
-            nodesDone = waysDone = true;
-          }
-          block.result.accept(element, element.cost());
-        }
-        block.result.close();
-      });
-
-    var processBranch = pipeline
-      .readFromQueue(parsedBatches)
-      .sinkToConsumer("process", 1, this::processPass1Block);
+    CompletableFuture<?> done;
 
     var loggers = ProgressLoggers.create()
-      .addRateCounter("nodes", PASS1_NODES, true)
+      .addRateCounter("nodes", pass1Phaser::nodes, true)
       .addFileSizeAndRam(nodeLocationDb)
-      .addRateCounter("ways", PASS1_WAYS, true)
-      .addRateCounter("rels", PASS1_RELATIONS, true)
+      .addRateCounter("ways", pass1Phaser::ways, true)
+      .addRateCounter("rels", pass1Phaser::relations, true)
       .addRateCounter("blocks", PASS1_BLOCKS)
       .newLine()
       .addProcessStats()
       .addInMemoryObject("hppc", this)
-      .newLine()
-      .addPipelineStats(readBranch)
-      .addPipelineStats(processBranch);
+      .newLine();
 
-    loggers.awaitAndLog(joinFutures(readBranch.done(), processBranch.done()), config.logInterval());
+    if (nodeLocationDb instanceof LongLongMap.ParallelWrites) {
+      // If the node location writer supports parallel writes, then parse, process, and write node locations from worker threads
+      int parseThreads = Math.max(1, config.threads() - 1);
+      pass1Phaser.registerWorkers(parseThreads);
+      var parallelPipeline = pipeline
+        .fromGenerator("read", osmBlockSource::forEachBlock)
+        .addBuffer("pbf_blocks", parseThreads * 2)
+        .sinkTo("process", parseThreads, this::processPass1Blocks);
+      loggers.addPipelineStats(parallelPipeline);
+      done = parallelPipeline.done();
+    } else {
+      // If the node location writer requires sequential writes, then the reader hands off the block to workers
+      // and a handle that the result will go on to the single-threaded writer, and the writer emits new nodes when
+      // they are ready
+      int parseThreads = Math.max(1, config.threads() - 2);
+      int pendingBlocks = parseThreads * 2;
+      // Each worker will hand off finished elements to the single process thread. A Future<List<OsmElement>> would result
+      // in too much memory usage/GC so use a WeightedHandoffQueue instead which will fill up with lightweight objects
+      // like nodes without any tags, but limit the number of pending heavy entities like relations
+      int handoffQueueBatches = Math.max(
+        10,
+        (int) (100d * ProcessInfo.getMaxMemoryBytes() / 20_000_000_000d)
+      );
+      record BlockWithResult(OsmBlockSource.Block block, WeightedHandoffQueue<OsmElement> result) {}
+      pass1Phaser.registerWorkers(1);
+      var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
+      var readBranch = pipeline
+        .<BlockWithResult>fromGenerator("read", next -> {
+          osmBlockSource.forEachBlock((block) -> {
+            WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
+            parsedBatches.accept(result);
+            next.accept(new BlockWithResult(block, result));
+          });
+          parsedBatches.close();
+        })
+        .addBuffer("pbf_blocks", pendingBlocks)
+        .sinkToConsumer("parse", parseThreads, block -> {
+          for (var element : block.block.decodeElements()) {
+            if (element instanceof OsmElement.Node node) {
+              // pre-compute encoded location in worker threads since it is fairly expensive and should be done in parallel
+              node.encodedLocation();
+            }
+            block.result.accept(element, element.cost());
+          }
+          block.result.close();
+        });
 
-    LOGGER.debug("processed " +
-      "blocks:" + FORMAT.integer(PASS1_BLOCKS.get()) +
-      " nodes:" + FORMAT.integer(PASS1_NODES.get()) +
-      " ways:" + FORMAT.integer(PASS1_WAYS.get()) +
-      " relations:" + FORMAT.integer(PASS1_RELATIONS.get()));
+      var processBranch = pipeline
+        .readFromQueue(parsedBatches)
+        .sinkTo("process", 1, this::processPass1Blocks);
+
+      loggers
+        .addPipelineStats(readBranch)
+        .addPipelineStats(processBranch);
+      done = joinFutures(readBranch.done(), processBranch.done());
+    }
+
+    loggers.awaitAndLog(done, config.logInterval());
+
+    LOGGER.debug("Processed " + FORMAT.integer(PASS1_BLOCKS.get()) + " blocks:");
+    pass1Phaser.printSummary();
     timer.stop();
   }
 
-  void processPass1Block(Iterable<? extends OsmElement> elements) {
-    int nodes = 0, ways = 0, relations = 0;
-    for (OsmElement element : elements) {
-      // only a single thread calls this with elements ordered by ID, so it's safe to manipulate these
-      // shared data structures which are not thread safe
-      if (element.id() < 0) {
-        throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
-      }
-      if (element instanceof OsmElement.Node node) {
-        nodes++;
-        try {
-          profile.preprocessOsmNode(node);
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM node " + node.id(), e);
-        }
-        // TODO allow limiting node storage to only ones that profile cares about
-        nodeLocationDb.put(node.id(), node.encodedLocation());
-      } else if (element instanceof OsmElement.Way way) {
-        ways++;
-        try {
-          profile.preprocessOsmWay(way);
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM way " + way.id(), e);
-        }
-      } else if (element instanceof OsmElement.Relation relation) {
-        relations++;
-        try {
-          List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
-          if (infos != null) {
-            for (OsmRelationInfo info : infos) {
-              relationInfo.put(relation.id(), info);
-              relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
-              for (var member : relation.members()) {
-                var type = member.type();
-                // TODO handle nodes in relations and super-relations
-                if (type == OsmElement.Type.WAY) {
-                  wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+  void processPass1Blocks(Iterable<? extends Iterable<? extends OsmElement>> blocks) {
+    // may be called by multiple threads so need to synchronize access to any shared data structures
+    try (
+      var nodeWriter = nodeLocationDb.newWriter();
+      var phases = pass1Phaser.forWorker()
+        .whenWorkerFinishes(OsmPhaser.Phase.NODES, nodeWriter::close)
+    ) {
+      for (var block : blocks) {
+        for (OsmElement element : block) {
+          if (element.id() < 0) {
+            throw new IllegalArgumentException("Negative OSM element IDs not supported: " + element);
+          }
+          if (element instanceof OsmElement.Node node) {
+            phases.arrive(OsmPhaser.Phase.NODES);
+            try {
+              profile.preprocessOsmNode(node);
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM node " + node.id(), e);
+            }
+            // TODO allow limiting node storage to only ones that profile cares about
+            nodeWriter.put(node.id(), node.encodedLocation());
+          } else if (element instanceof OsmElement.Way way) {
+            phases.arriveAndWaitForOthers(OsmPhaser.Phase.WAYS);
+            try {
+              profile.preprocessOsmWay(way);
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM way " + way.id(), e);
+            }
+          } else if (element instanceof OsmElement.Relation relation) {
+            phases.arrive(OsmPhaser.Phase.RELATIONS);
+            try {
+              List<OsmRelationInfo> infos = profile.preprocessOsmRelation(relation);
+              if (infos != null) {
+                synchronized (wayToRelationsLock) {
+                  for (OsmRelationInfo info : infos) {
+                    relationInfo.put(relation.id(), info);
+                    relationInfoSizes.addAndGet(info.estimateMemoryUsageBytes());
+                    for (var member : relation.members()) {
+                      var type = member.type();
+                      // TODO handle nodes in relations and super-relations
+                      if (type == OsmElement.Type.WAY) {
+                        wayToRelations.put(member.ref(), encodeRelationMembership(member.role(), relation.id()));
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (Exception e) {
+              LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
+            }
+            // TODO allow limiting multipolygon storage to only ones that profile cares about
+            if (isMultipolygon(relation)) {
+              synchronized (waysInMultipolygonLock) {
+                for (var member : relation.members()) {
+                  if (member.type() == OsmElement.Type.WAY) {
+                    waysInMultipolygon.add(member.ref());
+                  }
                 }
               }
             }
           }
-        } catch (Exception e) {
-          LOGGER.error("Error preprocessing OSM relation " + relation.id(), e);
         }
-        // TODO allow limiting multipolygon storage to only ones that profile cares about
-        if (isMultipolygon(relation)) {
-          for (var member : relation.members()) {
-            if (member.type() == OsmElement.Type.WAY) {
-              waysInMultipolygon.add(member.ref());
-            }
-          }
-        }
+        PASS1_BLOCKS.inc();
       }
     }
-    PASS1_BLOCKS.inc();
-    PASS1_NODES.incBy(nodes);
-    PASS1_WAYS.incBy(ways);
-    PASS1_RELATIONS.incBy(relations);
   }
 
   private static boolean isMultipolygon(OsmElement.Relation relation) {
@@ -282,19 +292,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     int threads = config.threads();
     int processThreads = Math.max(threads < 4 ? threads : (threads - 1), 1);
     Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
-    Counter.MultiThreadCounter nodesProcessed = Counter.newMultiThreadCounter();
-    Counter.MultiThreadCounter waysProcessed = Counter.newMultiThreadCounter();
-    Counter.MultiThreadCounter relsProcessed = Counter.newMultiThreadCounter();
+    // track relation count separately because they get enqueued onto the distributor near the end
+    Counter.MultiThreadCounter relationsProcessed = Counter.newMultiThreadCounter();
+    OsmPhaser pass2Phaser = new OsmPhaser(processThreads);
     stats.counter("osm_pass2_elements_processed", "type", () -> Map.of(
-      "blocks", blocksProcessed,
-      "nodes", nodesProcessed,
-      "ways", waysProcessed,
-      "relations", relsProcessed
+      "blocks", blocksProcessed::get,
+      "nodes", pass2Phaser::nodes,
+      "ways", pass2Phaser::ways,
+      "relations", relationsProcessed
     ));
 
-    // since multiple threads process OSM elements, and we must process all ways before processing any relations,
-    // use a count down latch to wait for all threads to finish processing ways
-    CountDownLatch waitForWays = new CountDownLatch(processThreads);
     // Use a Distributor to keep all worker threads busy when processing the final blocks of relations by offloading
     // items to threads that are done reading blocks
     Distributor<OsmElement.Relation> relationDistributor = Distributor.createWithCapacity(1_000);
@@ -305,11 +312,9 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
         Counter blocks = blocksProcessed.counterForThread();
-        Counter nodes = nodesProcessed.counterForThread();
-        Counter ways = waysProcessed.counterForThread();
-        Counter rels = relsProcessed.counterForThread();
+        Counter rels = relationsProcessed.counterForThread();
 
-        var waysDone = false;
+        var phaser = pass2Phaser.forWorker();
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         final NodeLocationProvider nodeLocations = newNodeLocationProvider();
         FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
@@ -322,22 +327,16 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         });
 
         for (var block : prev) {
-          int blockNodes = 0, blockWays = 0;
           for (var element : block.decodeElements()) {
             SourceFeature feature = null;
             if (element instanceof OsmElement.Node node) {
-              blockNodes++;
+              phaser.arrive(OsmPhaser.Phase.NODES);
               feature = processNodePass2(node);
             } else if (element instanceof OsmElement.Way way) {
-              blockWays++;
+              phaser.arrive(OsmPhaser.Phase.WAYS);
               feature = processWayPass2(way, nodeLocations);
             } else if (element instanceof OsmElement.Relation relation) {
-              // ensure all ways finished processing before we start relations
-              if (!waysDone && waitForWays.getCount() > 0) {
-                waitForWays.countDown();
-                waitForWays.await();
-                waysDone = true;
-              }
+              phaser.arriveAndWaitForOthers(OsmPhaser.Phase.RELATIONS);
               relationHandler.accept(relation);
             }
             // render features specified by profile and hand them off to next step that will
@@ -346,13 +345,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               render(featureCollectors, renderer, element, feature);
             }
           }
-
           blocks.inc();
-          nodes.incBy(blockNodes);
-          ways.incBy(blockWays);
         }
-        // just in case a worker skipped over all relations
-        waitForWays.countDown();
+
+        phaser.close();
 
         // do work for other threads that are still processing blocks of relations
         relationHandler.close();
@@ -361,10 +357,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .sinkToConsumer("write", 1, writer);
 
     var logger = ProgressLoggers.create()
-      .addRatePercentCounter("nodes", PASS1_NODES.get(), nodesProcessed, true)
+      .addRatePercentCounter("nodes", pass1Phaser.nodes(), pass2Phaser::nodes, true)
       .addFileSizeAndRam(nodeLocationDb)
-      .addRatePercentCounter("ways", PASS1_WAYS.get(), waysProcessed, true)
-      .addRatePercentCounter("rels", PASS1_RELATIONS.get(), relsProcessed, true)
+      .addRatePercentCounter("ways", pass1Phaser.ways(), pass2Phaser::ways, true)
+      .addRatePercentCounter("rels", pass1Phaser.relations(), relationsProcessed, true)
       .addRateCounter("features", writer::numFeaturesWritten)
       .addFileSize(writer)
       .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed, false)
@@ -376,11 +372,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     pipeline.awaitAndLog(logger, config.logInterval());
 
-    LOGGER.debug("processed " +
-      "blocks:" + FORMAT.integer(blocksProcessed.get()) +
-      " nodes:" + FORMAT.integer(nodesProcessed.get()) +
-      " ways:" + FORMAT.integer(waysProcessed.get()) +
-      " relations:" + FORMAT.integer(relsProcessed.get()));
+    LOGGER.debug("Processed " + FORMAT.integer(blocksProcessed.get()) + " blocks:");
+    pass2Phaser.printSummary();
 
     timer.stop();
 

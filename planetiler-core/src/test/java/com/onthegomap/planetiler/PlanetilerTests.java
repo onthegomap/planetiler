@@ -810,7 +810,7 @@ public class PlanetilerTests {
         with(new OsmElement.Node(1, 0, 0), t -> t.setTag("attr", "value"))
       ),
       (in, features) -> {
-        throw new Error();
+        throw new ExpectedException();
       }
     ));
   }

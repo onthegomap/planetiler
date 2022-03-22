@@ -1,10 +1,11 @@
 package com.onthegomap.planetiler.collection;
 
+import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.util.MmapUtil;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -32,15 +33,12 @@ abstract class AppendStoreMmap implements AppendStore {
   private volatile MappedByteBuffer[] segments;
   private volatile FileChannel channel;
 
-  static {
-    MmapUtil.init();
-  }
-
   AppendStoreMmap(Path path, boolean madvise) {
     this(path, 1 << 30, madvise); // 1GB
   }
 
   AppendStoreMmap(Path path, long segmentSizeBytes, boolean madvise) {
+    FileUtils.createParentDirectories(path);
     this.madvise = madvise;
     segmentBits = (int) (Math.log(segmentSizeBytes) / Math.log(2));
     segmentMask = (1L << segmentBits) - 1;
@@ -57,42 +55,21 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   MappedByteBuffer[] getSegments() {
-    MappedByteBuffer[] result = segments;
-    if (result == null) {
+    if (segments == null) {
       synchronized (this) {
-        if ((result = segments) == null) {
+        if (segments == null) {
           try {
-            boolean madviseFailed = false;
             // prepare the memory mapped file: stop writing, start reading
             outputStream.close();
             channel = FileChannel.open(path, StandardOpenOption.READ);
-            int segmentCount = (int) (outIdx / segmentBytes + 1);
-            result = new MappedByteBuffer[segmentCount];
-            int i = 0;
-            for (long segmentStart = 0; segmentStart < outIdx; segmentStart += segmentBytes) {
-              long segmentEnd = Math.min(segmentBytes, outIdx - segmentStart);
-              MappedByteBuffer thisBuffer = channel.map(FileChannel.MapMode.READ_ONLY, segmentStart, segmentEnd);
-              if (madvise) {
-                try {
-                  MmapUtil.madvise(thisBuffer, MmapUtil.Madvice.RANDOM);
-                } catch (IOException e) {
-                  if (!madviseFailed) { // log once
-                    LOGGER.info(
-                      "madvise not available on this system - node location lookup may be slower when less free RAM is available outside the JVM");
-                    madviseFailed = true;
-                  }
-                }
-              }
-              result[i++] = thisBuffer;
-            }
-            segments = result;
+            segments = ByteBufferUtil.mapFile(channel, outIdx, segmentBytes, madvise);
           } catch (IOException e) {
-            throw new IllegalStateException("Failed preparing SequentialWriteRandomReadFile for reads", e);
+            throw new UncheckedIOException(e);
           }
         }
       }
     }
-    return result;
+    return segments;
   }
 
   @Override
@@ -104,7 +81,7 @@ abstract class AppendStoreMmap implements AppendStore {
       }
       if (segments != null) {
         try {
-          MmapUtil.unmap(segments);
+          ByteBufferUtil.free(segments);
         } catch (IOException e) {
           LOGGER.info("Unable to unmap " + path + " " + e);
         }
@@ -119,6 +96,10 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   static class Ints extends AppendStoreMmap implements AppendStore.Ints {
+
+    Ints(Storage.Params params) {
+      this(params.path(), params.madvise());
+    }
 
     Ints(Path path, boolean madvise) {
       super(path, madvise);
@@ -155,6 +136,10 @@ abstract class AppendStoreMmap implements AppendStore {
   }
 
   static class Longs extends AppendStoreMmap implements AppendStore.Longs {
+
+    Longs(Storage.Params params) {
+      this(params.path(), params.madvise());
+    }
 
     Longs(Path path, boolean madvise) {
       super(path, madvise);

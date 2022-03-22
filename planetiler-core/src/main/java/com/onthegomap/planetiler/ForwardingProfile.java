@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  * <li>{@link FinishHandler} to be notified whenever we finish processing each source</li>
  * <li>{@link FeaturePostProcessor} to post-process features in a layer before rendering the output tile</li>
  * </ul>
- * See {@code OpenMapTilesProfile} for a full implementation using this framework.
+ * See {@code BasemapProfile} for a full implementation using this framework.
  */
 public abstract class ForwardingProfile implements Profile {
 
