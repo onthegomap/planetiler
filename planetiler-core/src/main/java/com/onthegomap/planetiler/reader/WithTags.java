@@ -1,9 +1,8 @@
 package com.onthegomap.planetiler.reader;
 
-import java.util.Map;
-
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
+import java.util.Map;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
