@@ -1,8 +1,9 @@
 package com.onthegomap.planetiler.reader;
 
+import java.util.Map;
+
 import com.onthegomap.planetiler.util.Imposm3Parsers;
 import com.onthegomap.planetiler.util.Parse;
-import java.util.Map;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
@@ -28,12 +29,6 @@ public interface WithTags {
 
   default boolean hasTag(String key, Object value) {
     return value.equals(getTag(key));
-  }
-
-  /** Returns true if the value for {@code key} is {@code value1} or {@code value2}. */
-  default boolean hasTag(String key, Object value1, Object value2) {
-    Object actual = getTag(key);
-    return value1.equals(actual) || value2.equals(actual);
   }
 
   /** Returns true if the value for {@code key} is {@code value1} or {@code value2}. */
