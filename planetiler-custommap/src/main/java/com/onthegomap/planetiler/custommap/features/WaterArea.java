@@ -35,6 +35,9 @@ public class WaterArea implements CustomFeature {
 
   @Override
   public boolean includeWhen(SourceFeature sourceFeature) {
+    if (sourceFeature.getSource().equals("water_polygons")) {
+      return true;
+    }
     return sourceFeature.canBePolygon() && sourceFeature.hasTag("natural", "water");
   }
 

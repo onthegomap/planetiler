@@ -21,11 +21,16 @@ public class CustomProfile implements Profile {
   }
 
   static void run(Arguments args) throws Exception {
+    Path dataDir = Path.of("data");
+    Path sourcesDir = dataDir.resolve("sources");
+
     String area = args.getString("area", "geofabrik area to download", "rhode-island");
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler.create(args)
       .setProfile(new CustomProfile())
-      // override this default with osm_path="path/to/data.osm.pbf"
+      .addShapefileSource("water_polygons",
+        sourcesDir.resolve("water-polygons-split-3857.zip"),
+        "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip") // override this default with osm_path="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
       .overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
