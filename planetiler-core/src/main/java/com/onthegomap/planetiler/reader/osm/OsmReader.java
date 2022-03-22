@@ -79,14 +79,14 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   // <~500mb
   private LongObjectHashMap<OsmRelationInfo> relationInfo = Hppc.newLongObjectHashMap();
   // ~800mb, ~1.6GB when sorting
-  private LongLongMultimap wayToRelations = LongLongMultimap.newSparseUnorderedMultimap();
+  private LongLongMultimap.Appendable wayToRelations = LongLongMultimap.newAppendableMultimap();
   private final Object wayToRelationsLock = new Object();
   // for multipolygons need to store way info (20m ways, 800m nodes) to use when processing relations (4.5m)
   // ~300mb
   private LongHashSet waysInMultipolygon = new LongHashSet();
   private final Object waysInMultipolygonLock = new Object();
   // ~7GB
-  private LongLongMultimap multipolygonWayGeometries;
+  private LongLongMultimap.Replaceable multipolygonWayGeometries;
   // keep track of data needed to encode/decode role strings into a long
   private final ObjectIntHashMap<String> roleIds = new ObjectIntHashMap<>();
   private final IntObjectHashMap<String> roleIdsReverse = new IntObjectHashMap<>();
@@ -106,7 +106,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param stats                  to keep track of counters and timings
    */
   public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb,
-    LongLongMultimap multipolygonGeometries, Profile profile, Stats stats) {
+    LongLongMultimap.Replaceable multipolygonGeometries, Profile profile, Stats stats) {
     this.name = name;
     this.osmBlockSource = osmSourceProvider.get();
     this.nodeLocationDb = nodeLocationDb;
@@ -425,7 +425,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       // if this is part of a multipolygon, store the node IDs for this way ID so that when
       // we get to the multipolygon we can go from way IDs -> node IDs -> node locations.
       synchronized (this) { // multiple threads may update this concurrently
-        multipolygonWayGeometries.putAll(way.id(), nodes);
+        multipolygonWayGeometries.replaceValues(way.id(), nodes);
       }
     }
     boolean closed = nodes.size() > 1 && nodes.get(0) == nodes.get(nodes.size() - 1);

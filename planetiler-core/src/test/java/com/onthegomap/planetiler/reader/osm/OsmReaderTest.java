@@ -29,7 +29,7 @@ public class OsmReaderTest {
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
-  private final LongLongMultimap multipolygons = LongLongMultimap.newInMemoryDenseOrderedMultimap();
+  private final LongLongMultimap.Replaceable multipolygons = LongLongMultimap.newInMemoryReplaceableMultimap();
 
   private void processPass1Block(OsmReader reader, Iterable<OsmElement> block) {
     reader.processPass1Blocks(List.of(block));

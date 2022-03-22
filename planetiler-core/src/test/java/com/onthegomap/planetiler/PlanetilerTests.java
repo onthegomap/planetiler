@@ -105,7 +105,7 @@ public class PlanetilerTests {
       next.accept(OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
     };
     var nodeMap = LongLongMap.newInMemorySortedTable();
-    var multipolygons = LongLongMultimap.newInMemoryDenseOrderedMultimap();
+    var multipolygons = LongLongMultimap.newInMemoryReplaceableMultimap();
     try (var reader = new OsmReader("osm", () -> elems, nodeMap, multipolygons, profile, Stats.inMemory())) {
       reader.pass1(config);
       reader.pass2(featureGroup, config);
@@ -779,7 +779,7 @@ public class PlanetilerTests {
             OsmBlockSource.Block.of(osmElements.stream().filter(e -> e instanceof OsmElement.Relation).toList()));
         };
         var nodeMap = LongLongMap.newInMemorySortedTable();
-        var multipolygons = LongLongMultimap.newInMemoryDenseOrderedMultimap();
+        var multipolygons = LongLongMultimap.newInMemoryReplaceableMultimap();
         try (var reader = new OsmReader("osm", () -> elems, nodeMap, multipolygons, profile, Stats.inMemory())) {
           // skip pass 1
           reader.pass2(featureGroup, config);

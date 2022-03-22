@@ -8,42 +8,37 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * An in-memory map that stores a multiple {@code long} values for each {@code long} key.
+ * <p>
+ * Implementations extend {@link Replaceable} if they support replacing the previous set of values for a key and/or
+ * {@link Appendable} if they support adding new values for a key.
  */
-// TODO: The two implementations should probably not implement the same interface
 public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoCloseable {
 
-  static LongLongMultimap noop() {
-    LongArrayList EMPTY_LIST = new LongArrayList();
-    return new LongLongMultimap() {
-      @Override
-      public void put(long key, long value) {}
-
-      @Override
-      public LongArrayList get(long key) {
-        return EMPTY_LIST;
-      }
-
-      @Override
-      public long estimateMemoryUsageBytes() {
-        return 0;
-      }
-
-      @Override
-      public void close() {}
-    };
+  /** Returns a {@link Noop} implementation that does nothin on put and throws an exception if you try to get. */
+  static Noop noop() {
+    return new Noop();
   }
 
-  /**
-   * Writes the value for a key. Not thread safe!
-   */
-  void put(long key, long value);
+  /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
+  static LongLongMultimap.Replaceable newReplaceableMultimap(Storage storage, Storage.Params params) {
+    return new DenseOrderedMultimap(storage, params);
+  }
+
+  /** Returns a new replaceable multimap held in-memory. */
+  static LongLongMultimap.Replaceable newInMemoryReplaceableMultimap() {
+    return newReplaceableMultimap(Storage.RAM, null);
+  }
+
+  /** Returns a new multimap where each write adds a value for the given key. */
+  static LongLongMultimap.Appendable newAppendableMultimap() {
+    return new SparseUnorderedBinarySearchMultimap();
+  }
 
   /**
    * Returns the values for a key. Safe to be called by multiple threads after all values have been written. After the
@@ -51,34 +46,65 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoClose
    */
   LongArrayList get(long key);
 
-  default void putAll(long key, LongArrayList vals) {
-    for (int i = 0; i < vals.size(); i++) {
-      put(key, vals.get(i));
+  @Override
+  void close();
+
+  /**
+   * A map from long to list of longs where you can use {@link #replaceValues(long, LongArrayList)} to set replace the
+   * previous list of values with a new one.
+   */
+  interface Replaceable extends LongLongMultimap {
+
+    /** Replaces the previous list of values for {@code key} with {@code values}. */
+    void replaceValues(long key, LongArrayList values);
+  }
+
+  /**
+   * A map from long to list of longs where you can use {@link #put(long, long)} or {@link #putAll(long, LongArrayList)}
+   * to append values for a key.
+   */
+  interface Appendable extends LongLongMultimap {
+
+    /**
+     * Writes the value for a key. Not thread safe!
+     */
+    void put(long key, long value);
+
+    default void putAll(long key, LongArrayList vals) {
+      for (int i = 0; i < vals.size(); i++) {
+        put(key, vals.get(i));
+      }
     }
   }
 
-  /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
-  static LongLongMultimap newDensedOrderedMultimap(Storage storage, Storage.Params params) {
-    return new DenseOrderedHppcMultimap(storage, params);
-  }
+  /** Dummy implementation of a map that throws an exception from {@link #get(long)}. */
+  class Noop implements Replaceable, Appendable {
 
-  static LongLongMultimap newInMemoryDenseOrderedMultimap() {
-    return newDensedOrderedMultimap(Storage.RAM, new Storage.Params(Path.of("/dev/null"), false));
-  }
+    @Override
+    public void put(long key, long value) {}
 
-  /** Returns a new multimap where each write adds a value for the given key. */
-  static LongLongMultimap newSparseUnorderedMultimap() {
-    return new SparseUnorderedBinarySearchMultimap();
-  }
+    @Override
+    public LongArrayList get(long key) {
+      throw new UnsupportedOperationException("get(key) not implemented");
+    }
 
-  @Override
-  void close();
+    @Override
+    public long estimateMemoryUsageBytes() {
+      return 0;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public void replaceValues(long key, LongArrayList values) {}
+  }
 
   /**
    * A map from {@code long} to {@code long} stored as a list of keys and values that uses binary search to find the
    * values for a key. Inserts do not need to be ordered, the first read will sort the array.
    */
-  class SparseUnorderedBinarySearchMultimap implements LongLongMultimap {
+  class SparseUnorderedBinarySearchMultimap implements Appendable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SparseUnorderedBinarySearchMultimap.class);
 
@@ -186,36 +212,31 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoClose
    * A map from {@code long} to {@code long} where each putAll replaces previous values and results are returned in the
    * same order they were inserted.
    */
-  class DenseOrderedHppcMultimap implements LongLongMultimap {
+  class DenseOrderedMultimap implements Replaceable {
 
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
     private final LongIntHashMap keyToValuesIndex = Hppc.newLongIntHashMap();
     // each block starts with a "length" header then contains that number of entries
     private final AppendStore.Longs values;
 
-    public DenseOrderedHppcMultimap(Storage storage, Storage.Params params) {
+    public DenseOrderedMultimap(Storage storage, Storage.Params params) {
       values = switch (storage) {
         case MMAP -> new AppendStoreMmap.Longs(params);
-        case RAM -> new AppendStoreRam.Longs(false, params);
-        case DIRECT -> new AppendStoreRam.Longs(true, params);
+        case RAM -> new AppendStoreRam.Longs(false);
+        case DIRECT -> new AppendStoreRam.Longs(true);
       };
     }
 
     @Override
-    public void putAll(long key, LongArrayList others) {
-      if (others.isEmpty()) {
+    public void replaceValues(long key, LongArrayList values) {
+      if (values.isEmpty()) {
         return;
       }
-      keyToValuesIndex.put(key, (int) values.size());
-      values.appendLong(others.size());
-      for (int i = 0; i < others.size(); i++) {
-        values.appendLong(others.get(i));
+      keyToValuesIndex.put(key, (int) this.values.size());
+      this.values.appendLong(values.size());
+      for (int i = 0; i < values.size(); i++) {
+        this.values.appendLong(values.get(i));
       }
-    }
-
-    @Override
-    public void put(long key, long val) {
-      putAll(key, LongArrayList.from(val));
     }
 
     @Override
