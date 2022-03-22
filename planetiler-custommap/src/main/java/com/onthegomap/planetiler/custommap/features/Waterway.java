@@ -7,46 +7,39 @@ import com.onthegomap.planetiler.custommap.ValueParser;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 
-public class WaterArea implements CustomFeature {
+public class Waterway implements CustomFeature {
 
-  double BUFFER_SIZE = 4.0;
+  private double BUFFER_SIZE = 4.0;
 
-  private static Set<String> waterExcludeNames = new HashSet<>(Arrays.asList("river", "canal", "stream"));
+  private static Collection<String> waterwayIncludeNames = Arrays.asList("river", "canal", "stream");
 
-  private static Predicate<SourceFeature> renderNameLogic = sf -> {
-    String water = sf.getString("water");
-    return Objects.isNull(water) || !waterExcludeNames.contains(water);
-  };
+  private static Predicate<SourceFeature> renderNameLogic =
+    sf -> waterwayIncludeNames.contains(sf.getString("waterway"));
 
   private static List<BiConsumer<SourceFeature, Feature>> attributeProcessors =
     Arrays.asList(
-      ValueParser.passBoolAttrIfTrue("intermittent", 0),
-      ValueParser.passAttrOnCondition("name", 0, renderNameLogic)
+      ValueParser.passBoolAttrIfTrue("intermittent", 7),
+      ValueParser.passAttrOnCondition("name", 12, renderNameLogic)
     );
 
   @Override
   public boolean includeWhen(SourceFeature sourceFeature) {
-    if (sourceFeature.getSource().equals("water_polygons")) {
-      return true;
-    }
-    return sourceFeature.canBePolygon() && sourceFeature.hasTag("natural", "water");
+    return sourceFeature.canBeLine() && sourceFeature.hasTag("waterway", "river", "canal", "stream");
   }
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    Feature f = features.polygon("water")
+    Feature f = features.line("water")
       .setBufferPixels(BUFFER_SIZE)
-      .setAttrWithMinzoom("natural", "water", 0)
-      .setZoomRange(0, 14)
-      .setMinPixelSize(2)
+      .setAttrWithMinzoom("waterway", sourceFeature.getTag("waterway"), 7)
+      .setZoomRange(7, 14)
+      .setMinPixelSize(1)
       // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
       // label grid squares will be the consistent between adjacent tiles
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
