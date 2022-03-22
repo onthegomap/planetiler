@@ -1,6 +1,6 @@
 # Planetiler Basemap Profile
 
-This basemap profile is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) v3.12.2.
+This basemap profile is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) v3.13.
 See [README.md](../README.md) in the parent directory for instructions on how to run.
 
 ## Differences from OpenMapTiles
@@ -41,7 +41,7 @@ To run `Generate.java`, use [scripts/regenerate-openmaptiles.sh](../scripts/rege
 OpenMapTiles release tag:
 
 ```bash
-./scripts/regenerate-openmaptiles.sh v3.12.2
+./scripts/regenerate-openmaptiles.sh v3.13 https://raw.githubusercontent.com/openmaptiles/openmaptiles/
 ```
 
 Then follow the instructions it prints for reformatting generated code.
