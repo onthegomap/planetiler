@@ -195,8 +195,8 @@ public class BasemapProfile extends ForwardingProfile {
 
   @Override
   public long estimateRamRequired(long osmFileSize) {
-    // 30gb for a 60gb OSM file is generally safe, although less might be OK too
-    return osmFileSize / 2;
+    // 20gb for a 67gb OSM file is safe, although less might be OK too
+    return osmFileSize * 20 / 67;
   }
 
   /**
