@@ -1,5 +1,9 @@
 package com.onthegomap.planetiler.custommap;
 
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
@@ -7,9 +11,6 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.features.WaterArea;
 import com.onthegomap.planetiler.custommap.features.Waterway;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
 
 public class CustomProfile implements Profile {
 
