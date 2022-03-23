@@ -64,6 +64,11 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
   @Override
   void close();
 
+  @Override
+  default long diskUsageBytes() {
+    return 0L;
+  }
+
   /**
    * A map from long to list of longs where you can use {@link #replaceValues(long, LongArrayList)} to set replace the
    * previous list of values with a new one.
@@ -221,11 +226,6 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
       keys.release();
       values.release();
     }
-  }
-
-  @Override
-  default long diskUsageBytes() {
-    return 0L;
   }
 
   /**
