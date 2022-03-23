@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.collection.SortableFeature;
+import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -26,12 +27,14 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.worker.Distributor;
 import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +123,15 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       "relations", pass1Phaser::relations
     ));
     this.multipolygonWayGeometries = multipolygonGeometries;
+  }
+
+  /**
+   * Alias for {@link #OsmReader(String, Supplier, LongLongMap, LongLongMultimap.Replaceable, Profile, Stats)} that sets
+   * the multipolygon geometry multimap to a default in-memory implementation.
+   */
+  public OsmReader(String name, Supplier<OsmBlockSource> osmSourceProvider, LongLongMap nodeLocationDb, Profile profile,
+    Stats stats) {
+    this(name, osmSourceProvider, nodeLocationDb, LongLongMultimap.newInMemoryReplaceableMultimap(), profile, stats);
   }
 
   /**
@@ -368,7 +380,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       .addRatePercentCounter("blocks", PASS1_BLOCKS.get(), blocksProcessed, false)
       .newLine()
       .addProcessStats()
-      .addInMemoryObject("hppc", this)
+      .addInMemoryObject("relInfo", this)
+      .addFileSizeAndRam("mpGeoms", multipolygonWayGeometries)
       .newLine()
       .addPipelineStats(pipeline);
 
@@ -386,6 +399,57 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
     }
+  }
+
+  /** Estimates the resource requirements for a nodemap but parses the type/storage from strings. */
+  public static ResourceUsage estimateNodeLocationUsage(String type, String storage, long osmFileSize, Path path) {
+    return estimateNodeLocationUsage(LongLongMap.Type.from(type), Storage.from(storage), osmFileSize, path);
+  }
+
+  /** Estimates the resource requirements for a nodemap for a given OSM input file. */
+  public static ResourceUsage estimateNodeLocationUsage(LongLongMap.Type type, Storage storage, long osmFileSize,
+    Path path) {
+    long nodes = estimateNumNodes(osmFileSize);
+    long maxNodeId = estimateMaxNodeId(osmFileSize);
+
+    ResourceUsage check = new ResourceUsage("nodemap");
+
+    return switch (type) {
+      case NOOP -> check;
+      case SPARSE_ARRAY -> check.addMemory(300_000_000L, "sparsearray node location in-memory index")
+        .add(path, storage, 9 * nodes, "sparsearray node location cache");
+      case SORTED_TABLE -> check.addMemory(300_000_000L, "sortedtable node location in-memory index")
+        .add(path, storage, 12 * nodes, "sortedtable node location cache");
+      case ARRAY -> check.add(path, storage, 8 * maxNodeId,
+        "array node location cache (switch to sparsearray to reduce size)");
+    };
+  }
+
+  /**
+   * Estimates the resource requirements for a multipolygon geometry multimap but parses the type/storage from strings.
+   */
+  public static ResourceUsage estimateMultipolygonGeometryUsage(String storage, long osmFileSize, Path path) {
+    return estimateMultipolygonGeometryUsage(Storage.from(storage), osmFileSize, path);
+  }
+
+  /** Estimates the resource requirements for a multipolygon geometry multimap for a given OSM input file. */
+  public static ResourceUsage estimateMultipolygonGeometryUsage(Storage storage, long osmFileSize, Path path) {
+    // Massachusetts extract (260MB) requires about 20MB for way geometries
+    long estimatedSize = 20_000_000L * osmFileSize / 260_000_000L;
+
+    return new ResourceUsage("way geometry multipolygon")
+      .add(path, storage, estimatedSize, "multipolygon way geometries");
+  }
+
+  private static long estimateNumNodes(long osmFileSize) {
+    // On 2/14/2022, planet.pbf was 66691979646 bytes with ~7.5b nodes, so scale from there
+    return Math.round(7_500_000_000d * (osmFileSize / 66_691_979_646d));
+  }
+
+  private static long estimateMaxNodeId(long osmFileSize) {
+    // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~9.5b, so scale from there
+    // but don't go less than 9.5b in case it's an extract
+    return Math.round(9_500_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
   }
 
   private void render(FeatureCollector.Factory featureCollectors, FeatureRenderer renderer, OsmElement element,
@@ -468,7 +532,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   public long estimateMemoryUsageBytes() {
     long size = 0;
     size += estimateSize(waysInMultipolygon);
-    size += estimateSize(multipolygonWayGeometries);
+    // multipolygonWayGeometries is reported separately
     size += estimateSize(wayToRelations);
     size += estimateSize(relationInfo);
     size += estimateSize(roleIdsReverse);

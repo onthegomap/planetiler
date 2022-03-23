@@ -3,7 +3,6 @@ package com.onthegomap.planetiler;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
-import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -163,7 +162,7 @@ public class Planetiler {
     var thisInputFile = new OsmInputFile(path, config.osmLazyReads());
     osmInputFile = thisInputFile;
     // fail fast if there is some issue with madvise on this system
-    if (config.nodeMapMadvise()) {
+    if (config.nodeMapMadvise() || config.multipolygonGeometryMadvise()) {
       ByteBufferUtil.init();
     }
     return appendStage(new Stage(
@@ -176,8 +175,8 @@ public class Planetiler {
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
-          var multipolygonGeometries = LongLongMultimap.newReplaceableMultimap(Storage.MMAP,
-            new Storage.Params(multipolygonPath, config.nodeMapMadvise()));
+          var multipolygonGeometries = LongLongMultimap.newReplaceableMultimap(
+            config.multipolygonGeometryStorage(), multipolygonPath, config.multipolygonGeometryMadvise());
           var osmReader = new OsmReader(name, thisInputFile, nodeLocations, multipolygonGeometries, profile(), stats)
         ) {
           osmReader.pass1(config);
@@ -548,12 +547,15 @@ public class Planetiler {
     ResourceUsage writePhase = new ResourceUsage("write phase disk");
     long osmSize = osmInputFile.diskUsageBytes();
     long nodeMapSize =
-      LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(), osmSize, tmpDir).diskUsage();
+      OsmReader.estimateNodeLocationUsage(config.nodeMapType(), config.nodeMapStorage(), osmSize, tmpDir).diskUsage();
+    long multipolygonGeometrySize =
+      OsmReader.estimateMultipolygonGeometryUsage(config.multipolygonGeometryStorage(), osmSize, tmpDir).diskUsage();
     long featureSize = profile.estimateIntermediateDiskBytes(osmSize);
     long outputSize = profile.estimateOutputBytes(osmSize);
 
-    // node locations only needed while reading inputs
+    // node locations and multipolygon geometries only needed while reading inputs
     readPhase.addDisk(tmpDir, nodeMapSize, "temporary node location cache");
+    readPhase.addDisk(tmpDir, multipolygonGeometrySize, "temporary multipolygon geometry cache");
     // feature db persists across read/write phase
     readPhase.addDisk(tmpDir, featureSize, "temporary feature storage");
     writePhase.addDisk(tmpDir, featureSize, "temporary feature storage");
@@ -573,25 +575,37 @@ public class Planetiler {
   private void checkMemory() {
     Format format = Format.defaultInstance();
     ResourceUsage check = new ResourceUsage("read phase");
-    ResourceUsage nodeMapUsages = LongLongMap.estimateStorageRequired(config.nodeMapType(), config.nodeMapStorage(),
+    ResourceUsage nodeMapUsages = OsmReader.estimateNodeLocationUsage(config.nodeMapType(), config.nodeMapStorage(),
       osmInputFile.diskUsageBytes(), tmpDir);
-    long nodeMapDiskUsage = nodeMapUsages.diskUsage();
+    ResourceUsage multipolygonGeometryUsages =
+      OsmReader.estimateMultipolygonGeometryUsage(config.nodeMapStorage(), osmInputFile.diskUsageBytes(), tmpDir);
+    long memoryMappedFiles = nodeMapUsages.diskUsage() + multipolygonGeometryUsages.diskUsage();
 
-    check.addAll(nodeMapUsages)
+    check
+      .addAll(nodeMapUsages)
+      .addAll(multipolygonGeometryUsages)
       .addMemory(profile().estimateRamRequired(osmInputFile.diskUsageBytes()), "temporary profile storage");
 
     check.checkAgainstLimits(config().force(), true);
 
     // check off-heap memory if we can get it
     ProcessInfo.getSystemFreeMemoryBytes().ifPresent(extraMemory -> {
-      if (extraMemory < nodeMapDiskUsage) {
-        LOGGER.warn("""
-          Planetiler will use a ~%s memory-mapped file for node locations but the OS only has %s available
-          to cache pages, this may slow the import down. To speed up, run on a machine with more memory or
-          reduce the -Xmx setting.
-          """.formatted(
-          format.storage(nodeMapDiskUsage),
+      if (extraMemory < memoryMappedFiles) {
+        LOGGER.warn(
+          """
+            Planetiler will use ~%s memory-mapped files for node locations and multipolygon geometries but the OS only
+            has %s available to cache pages, this may slow the import down. To speed up, run on a machine with more
+            memory or reduce the -Xmx setting.
+            """
+            .formatted(
+              format.storage(memoryMappedFiles),
+              format.storage(extraMemory)
+            ));
+      } else {
+        LOGGER.debug("✓ %s temporary files and %s of free memory for OS to cache them".formatted(
+          format.storage(memoryMappedFiles),
           format.storage(extraMemory)
+
         ));
       }
     });

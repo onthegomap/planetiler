@@ -5,9 +5,11 @@ import static com.onthegomap.planetiler.util.MemoryEstimator.estimateSize;
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.onthegomap.planetiler.stats.Timer;
+import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * Implementations extend {@link Replaceable} if they support replacing the previous set of values for a key and/or
  * {@link Appendable} if they support adding new values for a key.
  */
-public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoCloseable {
+public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacked, AutoCloseable {
 
   /** Returns a {@link Noop} implementation that does nothin on put and throws an exception if you try to get. */
   static Noop noop() {
@@ -26,18 +28,31 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoClose
   }
 
   /** Returns a new multimap where each write sets the list of values for a key, and that order is preserved on read. */
-  static LongLongMultimap.Replaceable newReplaceableMultimap(Storage storage, Storage.Params params) {
+  static Replaceable newReplaceableMultimap(Storage storage, Storage.Params params) {
     return new DenseOrderedMultimap(storage, params);
   }
 
   /** Returns a new replaceable multimap held in-memory. */
-  static LongLongMultimap.Replaceable newInMemoryReplaceableMultimap() {
+  static Replaceable newInMemoryReplaceableMultimap() {
     return newReplaceableMultimap(Storage.RAM, null);
   }
 
   /** Returns a new multimap where each write adds a value for the given key. */
-  static LongLongMultimap.Appendable newAppendableMultimap() {
+  static Appendable newAppendableMultimap() {
     return new SparseUnorderedBinarySearchMultimap();
+  }
+
+  /**
+   * Returns a new longlong multimap from config strings.
+   *
+   * @param storage name of the {@link Storage} implementation to use
+   * @param path    where to store data (if mmap)
+   * @param madvise whether to use linux madvise random to improve read performance
+   * @return A longlong map instance
+   * @throws IllegalArgumentException if {@code name} or {@code storage} is not valid
+   */
+  static Replaceable newReplaceableMultimap(String storage, Path path, boolean madvise) {
+    return newReplaceableMultimap(Storage.from(storage), new Storage.Params(path, madvise));
   }
 
   /**
@@ -208,6 +223,11 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoClose
     }
   }
 
+  @Override
+  default long diskUsageBytes() {
+    return 0L;
+  }
+
   /**
    * A map from {@code long} to {@code long} where each putAll replaces previous values and results are returned in the
    * same order they were inserted.
@@ -257,6 +277,11 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, AutoClose
     @Override
     public long estimateMemoryUsageBytes() {
       return estimateSize(keyToValuesIndex) + estimateSize(values);
+    }
+
+    @Override
+    public long diskUsageBytes() {
+      return values.diskUsageBytes();
     }
 
     @Override

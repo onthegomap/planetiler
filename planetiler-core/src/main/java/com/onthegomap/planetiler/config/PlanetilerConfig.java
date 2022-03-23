@@ -25,6 +25,8 @@ public record PlanetilerConfig(
   String nodeMapType,
   String nodeMapStorage,
   boolean nodeMapMadvise,
+  String multipolygonGeometryStorage,
+  boolean multipolygonGeometryMadvise,
   String httpUserAgent,
   Duration httpTimeout,
   int httpRetries,
@@ -60,6 +62,18 @@ public record PlanetilerConfig(
   }
 
   public static PlanetilerConfig from(Arguments arguments) {
+    // use --madvise and --storage options as default for temp storage, but allow users to override them explicitly for
+    // multipolygon geometries or node locations
+    boolean defaultMadvise =
+      arguments.getBoolean("madvise",
+        "default value for whether to use linux madvise(random) to improve memory-mapped read performance for temporary storage",
+        true);
+    // nodemap_storage was previously the only option, so if that's set make it the default
+    String fallbackTempStorage = arguments.getArg("nodemap_storage", Storage.MMAP.id());
+    String defaultTempStorage = arguments.getString("storage",
+      "default storage type for temporary data, one of " + Stream.of(Storage.values()).map(
+        Storage::id).toList(),
+      fallbackTempStorage);
     return new PlanetilerConfig(
       arguments,
       new Bounds(arguments.bounds("bounds", "bounds")),
@@ -79,9 +93,15 @@ public record PlanetilerConfig(
       arguments
         .getString("nodemap_type", "type of node location map, one of " + Stream.of(LongLongMap.Type.values()).map(
           t -> t.id()).toList(), LongLongMap.Type.SPARSE_ARRAY.id()),
-      arguments.getString("nodemap_storage", "storage for location map, one of " + Stream.of(Storage.values()).map(
-        Storage::id).toList(), Storage.MMAP.id()),
-      arguments.getBoolean("nodemap_madvise", "use linux madvise(random) to improve memory-mapped read performance",
+      arguments.getString("nodemap_storage", "storage for node location map, one of " + Stream.of(Storage.values()).map(
+        Storage::id).toList(), defaultTempStorage),
+      arguments.getBoolean("nodemap_madvise", "use linux madvise(random) for node locations", defaultMadvise),
+      arguments.getString("multipolygon_geometry_storage",
+        "storage for multipolygon geometries, one of " + Stream.of(Storage.values()).map(
+          Storage::id).toList(),
+        defaultTempStorage),
+      arguments.getBoolean("multipolygon_geometry_madvise",
+        "use linux madvise(random) for temporary multipolygon geometry storage",
         false),
       arguments.getString("http_user_agent", "User-Agent header to set when downloading files over HTTP",
         "Planetiler downloader (https://github.com/onthegomap/planetiler)"),
