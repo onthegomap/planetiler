@@ -41,10 +41,16 @@ To run `Generate.java`, use [scripts/regenerate-openmaptiles.sh](../scripts/rege
 OpenMapTiles release tag:
 
 ```bash
-./scripts/regenerate-openmaptiles.sh v3.13 https://raw.githubusercontent.com/openmaptiles/openmaptiles/
+./scripts/regenerate-openmaptiles.sh v3.13
 ```
 
 Then follow the instructions it prints for reformatting generated code.
+
+If you want to regenerate from a different repository than the default openmaptiles, you can specify the url like this:
+
+```bash
+./scripts/regenerate-openmaptiles.sh v3.13 https://raw.githubusercontent.com/openmaptiles/openmaptiles/
+```
 
 ## License and Attribution
 
