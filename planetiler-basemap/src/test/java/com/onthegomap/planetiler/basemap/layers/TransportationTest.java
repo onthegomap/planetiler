@@ -391,16 +391,35 @@ public class TransportationTest extends AbstractLayerTest {
     rel1.setTag("ref", "GFW");
     rel1.setTag("name", "Georg-Fahrbach-Weg");
 
-    FeatureCollector rendered = process(lineFeatureWithRelation(
-      profile.preprocessOsmRelation(rel1),
-      Map.of(
-        "highway", "tertiary"
-      )));
-
     assertFeatures(13, List.of(mapOf(
       "_layer", "transportation",
       "class", "tertiary"
-    )), rendered);
+    )), process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(rel1),
+      Map.of(
+        "highway", "tertiary"
+      ))));
+
+    var profileWithMinorRefs = new BasemapProfile(translations, PlanetilerConfig.from(Arguments.of(Map.of(
+      "transportation_name_minor_refs", "true"
+    ))), Stats.inMemory());
+
+    SourceFeature feature = lineFeatureWithRelation(
+      profileWithMinorRefs.preprocessOsmRelation(rel1),
+      Map.of(
+        "highway", "tertiary"
+      ));
+    var collector = featureCollectorFactory.get(feature);
+    profileWithMinorRefs.processFeature(feature, collector);
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "tertiary"
+    ), mapOf(
+      "_layer", "transportation_name",
+      "class", "tertiary",
+      "ref", "GFW",
+      "network", "road"
+    )), collector);
   }
 
   @Test

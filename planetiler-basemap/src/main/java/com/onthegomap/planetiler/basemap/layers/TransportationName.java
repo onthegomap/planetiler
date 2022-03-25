@@ -121,6 +121,7 @@ public class TransportationName implements
   private final boolean sizeForShield;
   private final boolean limitMerge;
   private final PlanetilerConfig config;
+  private final boolean minorRefs;
   private Transportation transportation;
   private final LongByteMap motorwayJunctionHighwayClasses = Hppc.newLongByteHashMap();
 
@@ -139,6 +140,11 @@ public class TransportationName implements
     this.limitMerge = config.arguments().getBoolean(
       "transportation_name_limit_merge",
       "transportation_name layer: limit merge so we don't combine different relations to help merge long highways",
+      false
+    );
+    this.minorRefs = config.arguments().getBoolean(
+      "transportation_name_minor_refs",
+      "transportation_name layer: include name and refs from minor road networks if not present on a way",
       false
     );
   }
@@ -213,8 +219,17 @@ public class TransportationName implements
       .findFirst()
       .orElse(null);
 
-    if (firstRelationWithNetwork != null && nullIfEmpty(firstRelationWithNetwork.ref()) != null) {
+    if (firstRelationWithNetwork != null && !nullOrEmpty(firstRelationWithNetwork.ref())) {
       ref = firstRelationWithNetwork.ref();
+    }
+
+    // if transportation_name_minor_refs flag set and we don't have a ref yet, then pull it from any network
+    if (nullOrEmpty(ref) && minorRefs && !relations.isEmpty()) {
+      ref = relations.stream()
+        .map(r -> r.ref())
+        .filter(r -> !nullOrEmpty(r))
+        .findFirst()
+        .orElse(null);
     }
 
     String name = nullIfEmpty(element.name());
@@ -244,9 +259,8 @@ public class TransportationName implements
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
-        firstRelationWithNetwork != null ?
-          firstRelationWithNetwork.networkType().name :
-          !nullOrEmpty(ref) ? "road" : null)
+        firstRelationWithNetwork != null ? firstRelationWithNetwork.networkType().name : !nullOrEmpty(ref) ? "road" :
+          null)
       .setAttr(Fields.CLASS, highwayClass)
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
       .setMinPixelSize(0)
