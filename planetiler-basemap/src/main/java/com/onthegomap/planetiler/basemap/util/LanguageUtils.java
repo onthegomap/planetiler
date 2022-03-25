@@ -59,7 +59,8 @@ public class LanguageUtils {
   // Name tags that should be eligible for finding a latin name.
   // See https://wiki.openstreetmap.org/wiki/Multilingual_names
   private static final Predicate<String> VALID_NAME_TAGS =
-    Pattern.compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_][a-z]{2,})?(-[a-z]{2})?$", Pattern.CASE_INSENSITIVE)
+    Pattern
+      .compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_](x-)?[a-z]{2,})?(-([a-z]{2}|[0-9]{3}))?$", Pattern.CASE_INSENSITIVE)
       .asMatchPredicate();
 
   // Match strings that only contain latin characters.

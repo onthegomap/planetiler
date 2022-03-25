@@ -99,6 +99,8 @@ public class LanguageUtilsTest {
   @ValueSource(strings = {
     // OSM tags that SHOULD be eligible for name:latin feature in the output
     "name:en",
+    "name:en-US",
+    "name:en-010",
     "int_name",
     "name:fr",
     "name:es",
@@ -124,6 +126,7 @@ public class LanguageUtilsTest {
     "name:yue-Latn-jyutping",
     // https://wiki.openstreetmap.org/wiki/Multilingual_names#France
     "name:fr",
+    "name:fr-x-gallo",
     "name:br",
     "name:oc",
     "name:vls",
