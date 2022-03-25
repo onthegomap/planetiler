@@ -244,7 +244,7 @@ public class TransportationName implements
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
-        (firstRelationWithNetwork != null && firstRelationWithNetwork.networkType() != null) ?
+        firstRelationWithNetwork != null ?
           firstRelationWithNetwork.networkType().name :
           !nullOrEmpty(ref) ? "road" : null)
       .setAttr(Fields.CLASS, highwayClass)
