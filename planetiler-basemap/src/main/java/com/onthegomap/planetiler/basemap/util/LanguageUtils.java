@@ -42,6 +42,7 @@ import com.onthegomap.planetiler.util.Translations;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -53,10 +54,23 @@ import java.util.stream.Stream;
  * <a href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
  */
 public class LanguageUtils {
+  // See https://github.com/onthegomap/planetiler/issues/86
 
-  private static final Pattern NONLATIN = Pattern
-    .compile("[^\\x{0000}-\\x{024f}\\x{1E00}-\\x{1EFF}\\x{0300}-\\x{036f}\\x{0259}]");
-  private static final Pattern LETTER = Pattern.compile("[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+");
+  // Name tags that should be eligible for finding a latin name.
+  // See https://wiki.openstreetmap.org/wiki/Multilingual_names
+  private static final Predicate<String> VALID_NAME_TAGS =
+    Pattern
+      .compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_](x-)?[a-z]{2,})?(-([a-z]{2}|[0-9]{3}))?$", Pattern.CASE_INSENSITIVE)
+      .asMatchPredicate();
+
+  // Match strings that only contain latin characters.
+  private static final Predicate<String> ONLY_LATIN = Pattern
+    .compile("^[\\P{IsLetter}[\\p{IsLetter}&&\\p{IsLatin}]]+$")
+    .asMatchPredicate();
+
+  // Match only latin letters
+  private static final Pattern LATIN_LETTER = Pattern.compile("[\\p{IsLetter}&&\\p{IsLatin}]+");
+
   private static final Pattern EMPTY_PARENS = Pattern.compile("(\\([ -.]*\\)|\\[[ -.]*])");
   private static final Pattern LEADING_TRAILING_JUNK = Pattern.compile("(^\\s*([./-]\\s*)*|(\\s+[./-])*\\s*$)");
   private static final Pattern WHITESPACE = Pattern.compile("\\s+");
@@ -73,7 +87,7 @@ public class LanguageUtils {
   }
 
   static boolean containsOnlyLatinCharacters(String string) {
-    return string != null && !NONLATIN.matcher(string).find();
+    return string != null && ONLY_LATIN.test(string);
   }
 
   private static String transliteratedName(Map<String, Object> tags) {
@@ -84,7 +98,7 @@ public class LanguageUtils {
     if (name == null) {
       return null;
     }
-    var matcher = LETTER.matcher(name);
+    var matcher = LATIN_LETTER.matcher(name);
     if (matcher.find()) {
       String result = matcher.replaceAll("");
       // if the name was "<nonlatin text> (<latin description)"
@@ -128,7 +142,8 @@ public class LanguageUtils {
 
     boolean isLatin = containsOnlyLatinCharacters(name);
     String latin = isLatin ? name :
-      Stream.concat(Stream.of(nameEn, intName, nameDe), getAllNameTranslationsBesidesEnglishAndGerman(tags))
+      Stream
+        .concat(Stream.of(nameEn, intName, nameDe), getAllNameTranslationsBesidesEnglishAndGerman(tags))
         .filter(LanguageUtils::containsOnlyLatinCharacters)
         .findFirst().orElse(null);
     if (latin == null && translations != null && translations.getShouldTransliterate()) {
@@ -160,12 +175,8 @@ public class LanguageUtils {
 
   private static Stream<String> getAllNameTranslationsBesidesEnglishAndGerman(Map<String, Object> tags) {
     return tags.entrySet().stream()
-      .filter(e -> {
-        String key = e.getKey();
-        return key.startsWith("name:") && !EN_DE_NAME_KEYS.contains(key);
-      })
+      .filter(e -> !EN_DE_NAME_KEYS.contains(e.getKey()) && VALID_NAME_TAGS.test(e.getKey()))
       .map(Map.Entry::getValue)
       .map(LanguageUtils::string);
   }
-
 }
