@@ -434,8 +434,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   /** Estimates the resource requirements for a multipolygon geometry multimap for a given OSM input file. */
   public static ResourceUsage estimateMultipolygonGeometryUsage(Storage storage, long osmFileSize, Path path) {
-    // Massachusetts extract (260MB) requires about 20MB for way geometries
-    long estimatedSize = 20_000_000L * osmFileSize / 260_000_000L;
+    // Planet extract (62G) requires about 9.5G for way geometries
+    long estimatedSize = (long) (9.5 * osmFileSize / 62);
 
     return new ResourceUsage("way geometry multipolygon")
       .add(path, storage, estimatedSize, "multipolygon way geometries");
