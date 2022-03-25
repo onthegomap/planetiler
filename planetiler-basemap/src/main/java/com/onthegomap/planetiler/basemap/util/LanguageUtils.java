@@ -54,21 +54,22 @@ import java.util.stream.Stream;
  * <a href="https://github.com/openmaptiles/openmaptiles-tools/blob/master/sql/zzz_language.sql">openmaptiles-tools</a>.
  */
 public class LanguageUtils {
+  // See https://github.com/onthegomap/planetiler/issues/86
 
   // Name tags that should be eligible for finding a latin name.
   // See https://wiki.openstreetmap.org/wiki/Multilingual_names
-  // and https://github.com/onthegomap/planetiler/issues/86
   private static final Predicate<String> VALID_NAME_TAGS =
     Pattern.compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_][a-z]{2,})?(-[a-z]{2})?$", Pattern.CASE_INSENSITIVE)
       .asMatchPredicate();
 
   // Match strings that only contain latin characters.
-  // and https://github.com/onthegomap/planetiler/issues/86
   private static final Predicate<String> ONLY_LATIN = Pattern
     .compile("^[\\P{IsLetter}[\\p{IsLetter}&&\\p{IsLatin}]]+$")
     .asMatchPredicate();
 
-  private static final Pattern LETTER = Pattern.compile("[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+");
+  // Match only latin letters
+  private static final Pattern LATIN_LETTER = Pattern.compile("[\\p{IsLetter}&&\\p{IsLatin}]+");
+
   private static final Pattern EMPTY_PARENS = Pattern.compile("(\\([ -.]*\\)|\\[[ -.]*])");
   private static final Pattern LEADING_TRAILING_JUNK = Pattern.compile("(^\\s*([./-]\\s*)*|(\\s+[./-])*\\s*$)");
   private static final Pattern WHITESPACE = Pattern.compile("\\s+");
@@ -96,7 +97,7 @@ public class LanguageUtils {
     if (name == null) {
       return null;
     }
-    var matcher = LETTER.matcher(name);
+    var matcher = LATIN_LETTER.matcher(name);
     if (matcher.find()) {
       String result = matcher.replaceAll("");
       // if the name was "<nonlatin text> (<latin description)"
