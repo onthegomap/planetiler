@@ -213,16 +213,8 @@ public class TransportationName implements
       .findFirst()
       .orElse(null);
 
-    // first choice is to set ref from a major network this way is a pary of
     if (firstRelationWithNetwork != null && nullIfEmpty(firstRelationWithNetwork.ref()) != null) {
       ref = firstRelationWithNetwork.ref();
-    }
-
-    // second choice is to set ref from the element itself
-
-    // third choice is to fall back to a minor network the way exists in
-    if (ref == null) {
-      ref = relations.stream().map(rel -> rel.ref()).findFirst().orElse(null);
     }
 
     String name = nullIfEmpty(element.name());

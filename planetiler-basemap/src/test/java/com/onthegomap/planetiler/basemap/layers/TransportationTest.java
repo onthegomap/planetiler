@@ -383,6 +383,27 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
+  public void testMinorRouteRef() {
+    var rel1 = new OsmElement.Relation(1);
+    rel1.setTag("type", "route");
+    rel1.setTag("route", "road");
+    rel1.setTag("network", "rwn");
+    rel1.setTag("ref", "GFW");
+    rel1.setTag("name", "Georg-Fahrbach-Weg");
+
+    FeatureCollector rendered = process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(rel1),
+      Map.of(
+        "highway", "tertiary"
+      )));
+
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "tertiary"
+    )), rendered);
+  }
+
+  @Test
   public void testPolishHighwayIssue165() {
     var rel1 = new OsmElement.Relation(1);
     rel1.setTag("type", "route");
