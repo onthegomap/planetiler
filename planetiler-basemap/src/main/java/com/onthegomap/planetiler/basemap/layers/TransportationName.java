@@ -208,9 +208,21 @@ public class TransportationName implements
   public void process(Tables.OsmHighwayLinestring element, FeatureCollector features) {
     String ref = element.ref();
     List<Transportation.RouteRelation> relations = transportation.getRouteRelations(element);
-    Transportation.RouteRelation relation = relations.isEmpty() ? null : relations.get(0);
-    if (relation != null && nullIfEmpty(relation.ref()) != null) {
-      ref = relation.ref();
+    Transportation.RouteRelation firstRelationWithNetwork = relations.stream()
+      .filter(rel -> rel.networkType() != null)
+      .findFirst()
+      .orElse(null);
+
+    // first choice is to set ref from a
+    if (firstRelationWithNetwork != null && nullIfEmpty(firstRelationWithNetwork.ref()) != null) {
+      ref = firstRelationWithNetwork.ref();
+    }
+
+    // second choice is to set ref from the element itself
+
+    // third choice is to fall back to another relation the way exists in
+    if (ref == null) {
+      ref = relations.stream().map(rel -> rel.ref()).findFirst().orElse(null);
     }
 
     String name = nullIfEmpty(element.name());
@@ -240,7 +252,8 @@ public class TransportationName implements
       .setAttr(Fields.REF, ref)
       .setAttr(Fields.REF_LENGTH, ref != null ? ref.length() : null)
       .setAttr(Fields.NETWORK,
-        (relation != null && relation.networkType() != null) ? relation.networkType().name :
+        (firstRelationWithNetwork != null && firstRelationWithNetwork.networkType() != null) ?
+          firstRelationWithNetwork.networkType().name :
           !nullOrEmpty(ref) ? "road" : null)
       .setAttr(Fields.CLASS, highwayClass)
       .setAttr(Fields.SUBCLASS, highwaySubclass(highwayClass, null, highway))
@@ -267,7 +280,7 @@ public class TransportationName implements
     if (limitMerge) {
       feature
         .setAttr(LINK_TEMP_KEY, isLink ? 1 : 0)
-        .setAttr(RELATION_ID_TEMP_KEY, relation == null ? null : relation.id());
+        .setAttr(RELATION_ID_TEMP_KEY, firstRelationWithNetwork == null ? null : firstRelationWithNetwork.id());
     }
 
     if (isFootwayOrSteps(highway)) {
