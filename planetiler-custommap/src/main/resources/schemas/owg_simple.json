@@ -12,7 +12,7 @@
                     "includeWhen": {"geometry": ["polygon"], "tag": {"key": "natural", "value": ["water"]}},
                     "attributes": [
                         {"key": "natural", "constantValue": "water", "minZoom": 0},
-                        {"key": "intermittent", "constantValue": "true", "dataType": "boolean", "includeWhen": {"valueEquals": true}},
+                        {"key": "intermittent", "constantValue": "true", "dataType": "boolean", "includeWhen": {"key": "intermittent", "value": true}},
                         {
                             "key": "name",
                             "tagValue": "name", "dataType": "string",

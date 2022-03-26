@@ -1,11 +1,13 @@
 package com.onthegomap.planetiler.custommap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -38,14 +40,7 @@ public class ConfiguredFeature implements CustomFeature {
       .map(ConfiguredFeature::geometryTest)
       .collect(Collectors.toSet());
 
-    JsonNode tagConstraint = includeWhen.get("tag");
-    if (tagConstraint == null) {
-      tagTest = sf -> true;
-    } else {
-      String keyTest = tagConstraint.get("key").asText();
-      Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
-      tagTest = tagTest(keyTest, valTest);
-    }
+    tagTest = tagTest(includeWhen.get("tag"));
 
     attributes = featureDef.get("attributes");
     for (int i = 0; i < attributes.size(); i++) {
@@ -53,10 +48,64 @@ public class ConfiguredFeature implements CustomFeature {
     }
   }
 
+  private static Function<SourceFeature, Object> attributeValueProducer(JsonNode json) {
+
+    String constVal = JsonParser.getStringField(json, "constantValue");
+    if (constVal != null) {
+      return sf -> constVal;
+    }
+
+    String tagVal = JsonParser.getStringField(json, "tagValue");
+    if (tagVal != null) {
+      Function<Object, Object> typeConverter = typeConverter(JsonParser.getStringField(json, "dataType"));
+      return sf -> typeConverter.apply(sf.getTag(tagVal, null));
+    }
+    throw new IllegalArgumentException("No value producer specified");
+  }
+
+  private static Function<Object, Object> typeConverter(String type) {
+
+    switch (type) {
+      case "boolean":
+        return booleanTypeConverter();
+    }
+
+    //Default: pass through
+    return in -> {
+      return in;
+    };
+  }
+
+  private static Set<String> booleanTrue = new HashSet<>(Arrays.<String>asList("true", "yes", "1"));
+  private static Set<String> booleanFalse = new HashSet<>(Arrays.<String>asList("false", "no", "0"));
+
+  private static Function<Object, Object> booleanTypeConverter() {
+    return s -> {
+      if (booleanTrue.contains(s)) {
+        return Boolean.TRUE;
+      }
+      if (booleanFalse.contains(s)) {
+        return Boolean.FALSE;
+      }
+      return null;
+    };
+  }
+
   private static BiConsumer<SourceFeature, Feature> attributeProcessor(JsonNode json) {
     System.err.println(json);
-    return (sf, f) -> {
 
+    String tagKey = json.get("key").asText();
+    Integer configuredMinZoom = JsonParser.getIntField(json, "minZoom");
+
+    int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom;
+    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(json);
+
+    Predicate<SourceFeature> attributeTest = tagTest(json.get("includeWhen"));
+
+    return (sf, f) -> {
+      if (attributeTest.test(sf)) {
+        f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), minZoom);
+      }
     };
   }
 
@@ -67,6 +116,18 @@ public class ConfiguredFeature implements CustomFeature {
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
+  }
+
+  private static Predicate<SourceFeature> tagTest(JsonNode tagConstraint) {
+    if (tagConstraint == null) {
+      return sf -> true;
+    }
+    String keyTest = JsonParser.getStringField(tagConstraint, "key");
+    Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
+    if (keyTest == null) {
+      return sf -> true;
+    }
+    return tagTest(keyTest, valTest);
   }
 
   private static Predicate<SourceFeature> tagTest(String key, Collection<String> values) {
