@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
 
@@ -26,6 +27,7 @@ public class ConfiguredFeature implements CustomFeature {
   private JsonNode attributes;
 
   private static final double BUFFER_SIZE = 4.0;
+  private static final double LOG4 = Math.log(4);
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
@@ -91,6 +93,17 @@ public class ConfiguredFeature implements CustomFeature {
     };
   }
 
+  private static Function<SourceFeature, Integer> attributeZoomThreshold(double minTilePercent, int minZoom) {
+    return sf -> {
+      try {
+        int zoom = (int) (Math.log(minTilePercent / sf.area()) / LOG4);
+        return Math.max(minZoom, Math.min(zoom, 14));
+      } catch (GeometryException e) {
+        return 14;
+      }
+    };
+  };
+
   private static BiConsumer<SourceFeature, Feature> attributeProcessor(JsonNode json) {
     String tagKey = json.get("key").asText();
     Integer configuredMinZoom = JsonParser.getIntField(json, "minZoom");
@@ -98,11 +111,22 @@ public class ConfiguredFeature implements CustomFeature {
     int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom;
     Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(json);
 
-    Predicate<SourceFeature> attributeTest = attributeTagTest(json.get("includeWhen"), attributeValueProducer);
+    JsonNode attrIncludeWhen = json.get("includeWhen");
+
+    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer);
+    Double minTileCoverage = JsonParser.getDoubleField(attrIncludeWhen, "minTileCoverSize");
+
+    Function<SourceFeature, Integer> attributeZoomProducer;
+
+    if (minTileCoverage != null && minTileCoverage > 0.0) {
+      attributeZoomProducer = attributeZoomThreshold(minTileCoverage, minZoom);
+    } else {
+      attributeZoomProducer = sf -> minZoom;
+    }
 
     return (sf, f) -> {
       if (attributeTest.test(sf)) {
-        f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), minZoom);
+        f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
       }
     };
   }

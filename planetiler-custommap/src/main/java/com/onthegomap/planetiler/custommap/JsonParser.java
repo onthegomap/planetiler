@@ -34,4 +34,16 @@ public class JsonParser {
     }
     return val.asInt();
   }
+
+  public static Double getDoubleField(JsonNode json, String field) {
+    if (json == null) {
+      return null;
+    }
+    JsonNode val = json.get(field);
+    if (val == null) {
+      return null;
+    }
+    return val.asDouble();
+  }
+
 }
