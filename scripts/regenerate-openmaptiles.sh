@@ -7,11 +7,14 @@ set -o nounset
 TAG="${1:-"v3.13"}"
 echo "tag=${TAG}"
 
+BASE_URL="${2:-"https://raw.githubusercontent.com/openmaptiles/openmaptiles/"}"
+echo "base-url=${BASE_URL}"
+
 echo "Building..."
 ./mvnw -DskipTests=true --projects planetiler-dist -am package
 
 echo "Running..."
-java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.basemap.Generate -tag="${TAG}"
+java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.basemap.Generate -tag="${TAG}" -base-url="${BASE_URL}"
 
 echo "Formatting..."
 ./scripts/format.sh

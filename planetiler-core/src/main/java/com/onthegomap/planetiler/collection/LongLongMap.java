@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
-import com.onthegomap.planetiler.util.ResourceUsage;
 import java.io.Closeable;
 import java.nio.file.Path;
 
@@ -62,39 +61,6 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
   /** Returns a new long map using {@link Type#SORTED_TABLE} and {@link Storage#RAM}. */
   static LongLongMap newInMemorySortedTable() {
     return from(Type.SORTED_TABLE, Storage.RAM, new Storage.Params(Path.of("."), false));
-  }
-
-  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
-  static ResourceUsage estimateStorageRequired(String name, String storage, long osmFileSize, Path path) {
-    return estimateStorageRequired(Type.from(name), Storage.from(storage), osmFileSize, path);
-  }
-
-  /** Estimates the resource requirements for this nodemap for a given OSM input file. */
-  static ResourceUsage estimateStorageRequired(Type type, Storage storage, long osmFileSize, Path path) {
-    long nodes = estimateNumNodes(osmFileSize);
-    long maxNodeId = estimateMaxNodeId(osmFileSize);
-    ResourceUsage check = new ResourceUsage("long long map");
-
-    return switch (type) {
-      case NOOP -> check;
-      case SPARSE_ARRAY -> check.addMemory(300_000_000L, "sparsearray node location in-memory index")
-        .add(path, storage, 9 * nodes, "sparsearray node location cache");
-      case SORTED_TABLE -> check.addMemory(300_000_000L, "sortedtable node location in-memory index")
-        .add(path, storage, 12 * nodes, "sortedtable node location cache");
-      case ARRAY -> check.add(path, storage, 8 * maxNodeId,
-        "array node location cache (switch to sparsearray to reduce size)");
-    };
-  }
-
-  private static long estimateNumNodes(long osmFileSize) {
-    // On 2/14/2022, planet.pbf was 66691979646 bytes with ~7.5b nodes, so scale from there
-    return Math.round(7_500_000_000d * (osmFileSize / 66_691_979_646d));
-  }
-
-  private static long estimateMaxNodeId(long osmFileSize) {
-    // On 2/14/2022, planet.pbf was 66691979646 bytes and max node ID was ~9.5b, so scale from there
-    // but don't go less than 9.5b in case it's an extract
-    return Math.round(9_500_000_000d * Math.max(1, osmFileSize / 66_691_979_646d));
   }
 
   /** Returns a longlong map that stores no data and throws on read */
