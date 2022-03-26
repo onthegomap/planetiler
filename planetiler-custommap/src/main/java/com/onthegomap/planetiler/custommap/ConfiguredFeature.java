@@ -27,7 +27,7 @@ public class ConfiguredFeature implements CustomFeature {
 
   private static final double BUFFER_SIZE = 4.0;
 
-  private static List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
+  private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
   public ConfiguredFeature(String layerName, JsonNode featureDef) {
     this.layerName = layerName;
@@ -92,15 +92,13 @@ public class ConfiguredFeature implements CustomFeature {
   }
 
   private static BiConsumer<SourceFeature, Feature> attributeProcessor(JsonNode json) {
-    System.err.println(json);
-
     String tagKey = json.get("key").asText();
     Integer configuredMinZoom = JsonParser.getIntField(json, "minZoom");
 
     int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom;
     Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(json);
 
-    Predicate<SourceFeature> attributeTest = tagTest(json.get("includeWhen"));
+    Predicate<SourceFeature> attributeTest = attributeTagTest(json.get("includeWhen"), attributeValueProducer);
 
     return (sf, f) -> {
       if (attributeTest.test(sf)) {
@@ -116,6 +114,25 @@ public class ConfiguredFeature implements CustomFeature {
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
+  }
+
+  private static Predicate<SourceFeature> attributeTagTest(JsonNode tagConstraint,
+    Function<SourceFeature, Object> attributeValueProducer) {
+    if (tagConstraint == null) {
+      return sf -> true;
+    }
+
+    String keyTest = JsonParser.getStringField(tagConstraint, "key");
+    Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
+    if (keyTest == null) {
+      return sf -> true;
+    }
+    return sf -> {
+      if (sf.hasTag(keyTest)) {
+        return valTest.contains(attributeValueProducer.apply(sf));
+      }
+      return false;
+    };
   }
 
   private static Predicate<SourceFeature> tagTest(JsonNode tagConstraint) {
@@ -163,14 +180,10 @@ public class ConfiguredFeature implements CustomFeature {
 
     Feature f = features.polygon(layerName)
       .setBufferPixels(BUFFER_SIZE)
-      .setAttrWithMinzoom("natural", "water", 0)
-      .setZoomRange(0, 14) //TODO
-      .setMinPixelSize(2)
       // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
       // label grid squares will be the consistent between adjacent tiles
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
 
     attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
-
   }
 }
