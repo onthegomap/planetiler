@@ -1,13 +1,12 @@
 package com.onthegomap.planetiler.custommap;
 
+import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.reader.SourceFeature;
 
 public class ValueParser {
   private static final Set<String> booleanTrueValues = Set.of("1", "true", "yes");

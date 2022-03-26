@@ -39,7 +39,6 @@ public class Waterway implements CustomFeature {
       .setBufferPixels(BUFFER_SIZE)
       .setAttrWithMinzoom("waterway", sourceFeature.getTag("waterway"), 7)
       .setZoomRange(7, 14)
-      .setMinPixelSize(1)
       // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
       // label grid squares will be the consistent between adjacent tiles
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));

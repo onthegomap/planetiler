@@ -1,5 +1,12 @@
 package com.onthegomap.planetiler.custommap.features;
 
+import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.custommap.CustomFeature;
+import com.onthegomap.planetiler.custommap.ValueParser;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -8,14 +15,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import com.onthegomap.planetiler.FeatureCollector;
-import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.custommap.CustomFeature;
-import com.onthegomap.planetiler.custommap.ValueParser;
-import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.util.ZoomFunction;
 
 
 public class WaterArea implements CustomFeature {
