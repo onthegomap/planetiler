@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  */
 public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacked, AutoCloseable {
 
-  /** Returns a {@link Noop} implementation that does nothin on put and throws an exception if you try to get. */
+  /** Returns a {@link Noop} implementation that does nothing on put and throws an exception if you try to get. */
   static Noop noop() {
     return new Noop();
   }

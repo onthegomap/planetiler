@@ -220,7 +220,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
           // post-processing.  Features need to be "unscaled" in FeatureGroup after line merging,
           // and before emitting to output mbtiles.
           scale = Math.max(config.maxzoom(), 14) - zoom;
-          // need 14 bits to represent tile coordinates (4096 * 2 for buffer * 2 for zig zag encoding)
+          // need 14 bits to represent tile coordinates (4096 * 2 for buffer * 2 for zigzag encoding)
           // so cap the scale factor to avoid overflowing 32-bit integer space
           scale = Math.min(31 - 14, scale);
         }

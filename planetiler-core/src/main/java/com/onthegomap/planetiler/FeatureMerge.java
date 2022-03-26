@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * {@link Profile#postProcessLayerFeatures(String, int, List)} immediately before a tile is written to the output
  * mbtiles file.
  * <p>
- * Unlike postgis-based solutions that have a full view of all features after they are loaded into the databse, the
+ * Unlike postgis-based solutions that have a full view of all features after they are loaded into the database, the
  * planetiler engine only sees a single input feature at a time while processing source features, then only has
  * visibility into multiple features when they are grouped into a tile immediately before emitting. This ends up being
  * sufficient for most real-world use-cases but to do anything more that requires a view of multiple features
@@ -76,7 +76,7 @@ public class FeatureMerge {
   }
 
   /**
-   * Merges linestrings with the same attributes like {@link #mergeLineStrings(List, double, double, double)} except
+   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double)} except
    * with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
@@ -200,7 +200,7 @@ public class FeatureMerge {
   }
 
   /**
-   * Combines polygons with the same set of attributes within {@code minDist} from eachother, expanding then contracting
+   * Combines polygons with the same set of attributes within {@code minDist} from each other, expanding then contracting
    * the merged geometry by {@code buffer} to combine polygons that are almost touching.
    * <p>
    * Ignores any non-polygons and passes them through to the output unaltered.
