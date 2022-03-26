@@ -112,8 +112,12 @@ public class ConfiguredFeature implements CustomFeature {
     Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(json);
 
     JsonNode attrIncludeWhen = json.get("includeWhen");
+    JsonNode attrExcludeWhen = json.get("excludeWhen");
 
-    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer);
+    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer, true);
+    Predicate<SourceFeature> attributeExcludeTest =
+      attributeTagTest(attrExcludeWhen, attributeValueProducer, false).negate();
+
     Double minTileCoverage = JsonParser.getDoubleField(attrIncludeWhen, "minTileCoverSize");
 
     Function<SourceFeature, Integer> attributeZoomProducer;
@@ -125,7 +129,7 @@ public class ConfiguredFeature implements CustomFeature {
     }
 
     return (sf, f) -> {
-      if (attributeTest.test(sf)) {
+      if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
         f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
       }
     };
@@ -141,15 +145,15 @@ public class ConfiguredFeature implements CustomFeature {
   }
 
   private static Predicate<SourceFeature> attributeTagTest(JsonNode tagConstraint,
-    Function<SourceFeature, Object> attributeValueProducer) {
+    Function<SourceFeature, Object> attributeValueProducer, boolean defaultVal) {
     if (tagConstraint == null) {
-      return sf -> true;
+      return sf -> defaultVal;
     }
 
     String keyTest = JsonParser.getStringField(tagConstraint, "key");
     Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
     if (keyTest == null) {
-      return sf -> true;
+      return sf -> defaultVal;
     }
     return sf -> {
       if (sf.hasTag(keyTest)) {
