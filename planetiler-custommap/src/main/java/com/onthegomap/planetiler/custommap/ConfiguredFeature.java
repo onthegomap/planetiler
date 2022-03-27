@@ -139,6 +139,10 @@ public class ConfiguredFeature implements CustomFeature {
     switch (type) {
       case "polygon":
         return sf -> sf.canBePolygon();
+      case "linestring":
+        return sf -> sf.canBeLine();
+      case "point":
+        return sf -> sf.isPoint();
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
