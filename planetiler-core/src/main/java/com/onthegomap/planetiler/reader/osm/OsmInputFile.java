@@ -182,7 +182,7 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
    */
   private class LazyReader implements OsmBlockSource {
 
-    FileChannel lazyReadChannel = openChannel();
+    final FileChannel lazyReadChannel = openChannel();
 
     @Override
     public void forEachBlock(Consumer<Block> consumer) {

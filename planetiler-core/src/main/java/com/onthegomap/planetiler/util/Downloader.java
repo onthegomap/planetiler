@@ -138,7 +138,7 @@ public class Downloader {
    *
    * @param id     short name to use for this download when logging progress
    * @param url    the external resource to fetch, "aws:latest" (for the latest planet .osm.pbf), or "geofabrik:extract
-   *               name" as a shortcut to use {@link Geofabrik#getDownloadUrl(String, PlanetilerConfig)} to lookup a
+   *               name" as a shortcut to use {@link Geofabrik#getDownloadUrl(String, PlanetilerConfig)} to look up a
    *               {@code .osm.pbf} <a href="https://download.geofabrik.de/">Geofabrik</a> extract URL by partial match
    *               on area name
    * @param output where to download the file to

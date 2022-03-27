@@ -608,7 +608,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   }
 
   /**
-   * A source feature generated from OSM elements. Inferring the geometry can be expensive, so each sublass is
+   * A source feature generated from OSM elements. Inferring the geometry can be expensive, so each subclass is
    * constructed with the inputs necessary to create the geometry, but the geometry is constructed lazily on read.
    */
   private abstract class OsmFeature extends SourceFeature {

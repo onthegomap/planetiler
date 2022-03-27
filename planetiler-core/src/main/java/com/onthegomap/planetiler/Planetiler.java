@@ -349,7 +349,7 @@ public class Planetiler {
    * the value of the {@code wikidata_cache} argument) before processing any sources.
    * <p>
    * As long as {@code use_wikidata} is not set to false, then previously-downloaded wikidata translations will be
-   * loaded from the cache file so you can run with {@code fetch_wikidata=true} once, then without it each subsequent
+   * loaded from the cache file, so you can run with {@code fetch_wikidata=true} once, then without it each subsequent
    * run to only download translations once.
    *
    * @param defaultWikidataCache Path to store downloaded wikidata name translations to, and to read them from on

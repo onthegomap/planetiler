@@ -114,7 +114,7 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
     return result;
   }
 
-  /** Which long long map implementation to use. */
+  /** Which long map implementation to use. */
   enum Type {
     /** Ignore writes and throw an exception on reads. */
     NOOP("noop"),

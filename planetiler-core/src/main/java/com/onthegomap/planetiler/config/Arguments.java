@@ -310,7 +310,7 @@ public class Arguments {
   /**
    * Returns an argument as long.
    *
-   * @throws NumberFormatException if the argument cannot be parsed as an long
+   * @throws NumberFormatException if the argument cannot be parsed as a long
    */
   public long getLong(String key, String description, long defaultValue) {
     String value = getArg(key, Long.toString(defaultValue));

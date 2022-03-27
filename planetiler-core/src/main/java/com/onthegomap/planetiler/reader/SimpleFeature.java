@@ -50,7 +50,7 @@ public class SimpleFeature extends SourceFeature {
     return new SimpleFeature(latLonGeometry, null, tags, source, sourceLayer, id, null);
   }
 
-  /** Returns a new feature with no tags and a geometry specified in latitude/longitide coordinates. */
+  /** Returns a new feature with no tags and a geometry specified in latitude/longitude coordinates. */
   public static SimpleFeature fromLatLonGeometry(Geometry latLonGeometry) {
     return new SimpleFeature(latLonGeometry, null, Map.of(), null, null, idGenerator.incrementAndGet(), null);
   }

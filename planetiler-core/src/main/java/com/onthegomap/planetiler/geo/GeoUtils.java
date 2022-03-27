@@ -35,7 +35,7 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 public class GeoUtils {
 
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
-  public static final PrecisionModel TILE_PRECISON = new PrecisionModel(4096d / 256d);
+  public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
   public static final WKBReader WKB_READER = new WKBReader(JTS_FACTORY);
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
@@ -277,11 +277,11 @@ public class GeoUtils {
   }
 
   /**
-   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISON} and fixes any polygon
+   * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
   public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISON);
+    return snapAndFixPolygon(geom, TILE_PRECISION);
   }
 
   /**
@@ -405,7 +405,7 @@ public class GeoUtils {
 
   /**
    * Returns {@code true} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
-   * {@code ring}, ignoring repeated and colinear points.
+   * {@code ring}, ignoring repeated and collinear points.
    */
   public static boolean isConvex(LinearRing ring) {
     CoordinateSequence seq = ring.getCoordinateSequence();
@@ -440,14 +440,14 @@ public class GeoUtils {
       double z = dx1 * dy2 - dy1 * dx2;
 
       // if z == 0 (with small delta to account for rounding errors) then keep skipping
-      // points to ignore repeated or colinear points
+      // points to ignore repeated or collinear points
       if (Math.abs(z) < 1e-10) {
         continue;
       }
 
       int s = z >= 0d ? 1 : -1;
       if (sign == 0) {
-        // on the first non-repeated, non-colinear points, store sign of the area for comparison
+        // on the first non-repeated, non-collinear points, store sign of the area for comparison
         sign = s;
       } else if (sign != s) {
         // the sign of this triangle has changed, not convex

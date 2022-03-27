@@ -122,7 +122,6 @@ public class Timers {
 
   /** A handle that callers can use to indicate a task has finished. */
   public interface Finishable {
-
     void stop();
   }
 

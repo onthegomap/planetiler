@@ -22,7 +22,7 @@ import org.locationtech.jts.geom.Geometry;
  * feature.
  * <p>
  * For example to add a polygon feature for a lake and a center label point with its name:
- * 
+ *
  * <pre>
  * {@code
  * featureCollector.polygon("water")
@@ -673,7 +673,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
      * {@code minzoom}.
      * <p>
-     * Replaces values that have already been set.
+     * Replace values that have already been set.
      */
     public Feature putAttrsWithMinzoom(Map<String, Object> attrs, int minzoom) {
       for (var entry : attrs.entrySet()) {

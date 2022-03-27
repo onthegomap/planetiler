@@ -279,7 +279,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
         int valueIndex = nodes.getKeysVals(kvIndex++);
 
         if (tags == null) {
-          // divide by 2 as key&value, multiple by 2 because of the better approximation
+          // divide by 2 as key&value, multiply by 2 because of the better approximation
           tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
         }
 

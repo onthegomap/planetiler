@@ -42,7 +42,7 @@ public class ByteBufferUtil {
   }
 
   /**
-   * Attempt to force-unmap a list of memory-mapped file segments so it can safely be deleted.
+   * Attempt to force-unmap a list of memory-mapped file segments, so it can safely be deleted.
    * <p>
    * Can also be used to force-deallocate a direct byte buffer.
    *
