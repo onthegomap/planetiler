@@ -10,7 +10,7 @@
           "sources": ["osm"],
           "zoom": [0, 14],
           "includeWhen": {
-            "geometry": ["polygon"],
+            "geometry": "polygon",
             "tag": {"key": "natural", "value": ["water"]}
           },
           "attributes": [
@@ -36,9 +36,26 @@
         {
           "sources": ["water_polygons"],
           "zoom": [0, 14],
-          "includeWhen": {"geometry": ["polygon"]},
+          "includeWhen": {"geometry": "polygon"},
           "attributes": [
             {"key": "natural", "constantValue": "water", "minZoom": 0}
+          ]
+        },
+        {
+          "sources": ["osm"],
+          "zoom": [7, 14],
+          "includeWhen": {
+            "geometry": "linestring",
+            "tag": {"key": "waterway", "value": ["river", "stream", "canal"]}
+          },
+          "attributes": [
+            {"key": "waterway", "tagValue": "waterway"},
+            {
+              "key": "intermittent",
+              "constantValue": "true",
+              "dataType": "boolean",
+              "includeWhen": {"key": "intermittent", "value": [true]}
+            }
           ]
         }
       ]

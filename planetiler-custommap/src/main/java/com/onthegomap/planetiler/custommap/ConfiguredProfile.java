@@ -6,7 +6,6 @@ import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.custommap.features.Waterway;
 import com.onthegomap.planetiler.reader.SourceFeature;
 
 public class ConfiguredProfile implements Profile {
@@ -36,7 +35,7 @@ public class ConfiguredProfile implements Profile {
       }
     }
 
-    features.add(new Waterway());
+    //    features.add(new Waterway());
   }
 
   @Override

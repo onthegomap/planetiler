@@ -5,11 +5,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.onthegomap.planetiler.FeatureCollector;
@@ -21,7 +21,8 @@ import com.onthegomap.planetiler.util.ZoomFunction;
 public class ConfiguredFeature implements CustomFeature {
 
   private Set<String> sources = new HashSet<>();
-  private Set<Predicate<SourceFeature>> geometryTests;
+  private Predicate<SourceFeature> geometryTest;
+  private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
   private String layerName;
   private JsonNode attributes;
@@ -36,11 +37,10 @@ public class ConfiguredFeature implements CustomFeature {
     sources = JsonParser.extractStringSet(featureDef.get("sources"));
     JsonNode includeWhen = featureDef.get("includeWhen");
 
-    Set<String> geometry = JsonParser.extractStringSet(includeWhen.get("geometry"));
+    String geometryType = JsonParser.getStringField(includeWhen, "geometry");
 
-    geometryTests = geometry.stream()
-      .map(ConfiguredFeature::geometryTest)
-      .collect(Collectors.toSet());
+    geometryTest = geometryTest(geometryType);
+    geometryFactory = geometryMapFeature(layerName, geometryType);
 
     tagTest = tagTest(includeWhen.get("tag"));
 
@@ -66,6 +66,12 @@ public class ConfiguredFeature implements CustomFeature {
   }
 
   private static Function<Object, Object> typeConverter(String type) {
+
+    if (Objects.isNull(type)) {
+      return in -> {
+        return in;
+      };
+    }
 
     switch (type) {
       case "boolean":
@@ -135,6 +141,19 @@ public class ConfiguredFeature implements CustomFeature {
     };
   }
 
+  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, String type) {
+    switch (type) {
+      case "polygon":
+        return fc -> fc.polygon(layerName);
+      case "linestring":
+        return fc -> fc.line(layerName);
+      case "point":
+        return fc -> fc.point(layerName);
+      default:
+        throw new IllegalArgumentException("Unhandled geometry type " + type);
+    }
+  }
+
   private static Predicate<SourceFeature> geometryTest(String type) {
     switch (type) {
       case "polygon":
@@ -196,10 +215,7 @@ public class ConfiguredFeature implements CustomFeature {
     }
 
     //Is this the right type of geometry?
-    if (geometryTests.stream()
-      .filter(p -> p.test(sourceFeature))
-      .findAny()
-      .isEmpty()) {
+    if (!geometryTest.test(sourceFeature)) {
       return false;
     }
 
@@ -210,8 +226,9 @@ public class ConfiguredFeature implements CustomFeature {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
 
-    Feature f = features.polygon(layerName)
-      .setBufferPixels(BUFFER_SIZE)
+    Feature f = geometryFactory.apply(features);
+
+    f.setBufferPixels(BUFFER_SIZE)
       // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
       // label grid squares will be the consistent between adjacent tiles
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
