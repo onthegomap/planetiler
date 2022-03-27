@@ -3,7 +3,7 @@
 name: Bug report
 about: Create a report to help improve Planetiler
 title: "[BUG] "
-labels: ''
+labels: ["bug"]
 assignees: ''
 
 ---
@@ -19,7 +19,8 @@ Steps to reproduce the behavior:
 3. See error
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+A clear and concise description of what you expected to happen. For map data issues, plase include OSM element IDs and
+the vector tile features you expect in the output to make help reproduce the issue in tests.
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem (include tile IDs or latitude/longitude for visual issues

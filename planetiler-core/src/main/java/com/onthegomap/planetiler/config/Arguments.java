@@ -155,12 +155,12 @@ public class Arguments {
     });
   }
 
-  private String getArg(String key) {
+  String getArg(String key) {
     String value = get(key);
     return value == null ? null : value.trim();
   }
 
-  private String getArg(String key, String defaultValue) {
+  String getArg(String key, String defaultValue) {
     String value = getArg(key);
     return value == null ? defaultValue : value;
   }

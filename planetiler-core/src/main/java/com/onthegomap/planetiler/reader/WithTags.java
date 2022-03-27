@@ -30,18 +30,32 @@ public interface WithTags {
     return value.equals(getTag(key));
   }
 
-  /** Returns true if the value for {@code key} is {@code value1} or {@code value2}. */
+  /**
+   * Returns true if the value for {@code key} is {@code value1} or {@code value2}.
+   * <p>
+   * Specialized version of {@link #hasTag(String, Object, Object, Object...)} for the most common use-case of small
+   * number of values to test against that avoids allocating an array.
+   */
   default boolean hasTag(String key, Object value1, Object value2) {
     Object actual = getTag(key);
-    return value1.equals(actual) || value2.equals(actual);
+    if (actual == null) {
+      return false;
+    } else {
+      return value1.equals(actual) || value2.equals(actual);
+    }
   }
 
-  /** Returns true if the value for {@code key} is {@code value1} or {@code value2}. */
-  default boolean hasTag(String key, Object... values) {
+  /** Returns true if the value for {@code key} is equal to any one of the values. */
+  default boolean hasTag(String key, Object value1, Object value2, Object... others) {
     Object actual = getTag(key);
-    for (Object value : values) {
-      if (value.equals(actual)) {
+    if (actual != null) {
+      if (value1.equals(actual) || value2.equals(actual)) {
         return true;
+      }
+      for (Object value : others) {
+        if (value.equals(actual)) {
+          return true;
+        }
       }
     }
     return false;

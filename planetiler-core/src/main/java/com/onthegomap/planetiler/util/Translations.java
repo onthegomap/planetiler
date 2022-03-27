@@ -88,6 +88,10 @@ public class Translations {
     return this;
   }
 
+  /** Returns true if {@code language} is in the set of language translations to use. */
+  public boolean careAboutLanguage(String language) {
+    return languageSet.contains(language);
+  }
 
   /** A source of name translations. */
   public interface TranslationProvider {

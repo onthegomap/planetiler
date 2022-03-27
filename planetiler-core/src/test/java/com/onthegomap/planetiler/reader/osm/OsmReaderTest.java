@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -28,6 +29,7 @@ public class OsmReaderTest {
   private final Stats stats = Stats.inMemory();
   private final Profile profile = new Profile.NullProfile();
   private final LongLongMap nodeMap = LongLongMap.newInMemorySortedTable();
+  private final LongLongMultimap.Replaceable multipolygons = LongLongMultimap.newInMemoryReplaceableMultimap();
 
   private void processPass1Block(OsmReader reader, Iterable<OsmElement> block) {
     reader.processPass1Blocks(List.of(block));
@@ -608,7 +610,7 @@ public class OsmReaderTest {
   public void testWayInRelation() {
     record OtherRelInfo(long id) implements OsmRelationInfo {}
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
@@ -635,7 +637,7 @@ public class OsmReaderTest {
   @Test
   public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
-    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, new Profile.NullProfile() {
+    OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override
       public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
         return List.of(new TestRelInfo(1, "name"));
@@ -659,6 +661,6 @@ public class OsmReaderTest {
   }
 
   private OsmReader newOsmReader() {
-    return new OsmReader("osm", () -> osmSource, nodeMap, profile, stats);
+    return new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, profile, stats);
   }
 }

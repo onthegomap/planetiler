@@ -128,8 +128,10 @@ public class Generate {
   public static void main(String[] args) throws IOException {
     Arguments arguments = Arguments.fromArgsOrConfigFile(args);
     PlanetilerConfig planetilerConfig = PlanetilerConfig.from(arguments);
-    String tag = arguments.getString("tag", "openmaptiles tag to use", "v3.12.2");
-    String base = "https://raw.githubusercontent.com/openmaptiles/openmaptiles/" + tag + "/";
+    String tag = arguments.getString("tag", "openmaptiles tag to use", "v3.13");
+    String baseUrl = arguments.getString("base-url", "the url used to download the openmaptiles.yml",
+      "https://raw.githubusercontent.com/openmaptiles/openmaptiles/");
+    String base = baseUrl + tag + "/";
 
     // start crawling from openmaptiles.yaml
     // then crawl schema from each layers/<layer>/<layer>.yaml file that it references

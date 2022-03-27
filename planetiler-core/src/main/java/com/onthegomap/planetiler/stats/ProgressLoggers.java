@@ -227,11 +227,16 @@ public class ProgressLoggers {
     return add(() -> " " + padRight(format.storage(longSupplier.diskUsageBytes(), false), 5));
   }
 
-  /** Adds the total of disk and memory usage of {@code thing}. */
+  /** Adds the name and total of disk and memory usage of {@code thing}. */
   public <T extends DiskBacked & MemoryEstimator.HasEstimate> ProgressLoggers addFileSizeAndRam(T thing) {
+    return addFileSizeAndRam("", thing);
+  }
+
+  /** Adds the total of disk and memory usage of {@code thing}. */
+  public <T extends DiskBacked & MemoryEstimator.HasEstimate> ProgressLoggers addFileSizeAndRam(String name, T thing) {
     return add(() -> {
       long bytes = thing.diskUsageBytes() + thing.estimateMemoryUsageBytes();
-      return " " + padRight(format.storage(bytes, false), 5);
+      return " " + name + (name.isBlank() ? "" : ": ") + padRight(format.storage(bytes, false), 5);
     });
   }
 

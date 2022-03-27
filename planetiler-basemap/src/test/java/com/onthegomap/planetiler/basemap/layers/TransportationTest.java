@@ -341,15 +341,25 @@ public class TransportationTest extends AbstractLayerTest {
 
   @Test
   public void testRouteWithoutNetworkType() {
-    var rel = new OsmElement.Relation(1);
-    rel.setTag("type", "route");
-    rel.setTag("route", "road");
-    rel.setTag("network", "US:NJ:NJTP");
-    rel.setTag("ref", "NJTP");
-    rel.setTag("name", "New Jersey Turnpike (mainline)");
+    var rel1 = new OsmElement.Relation(1);
+    rel1.setTag("type", "route");
+    rel1.setTag("route", "road");
+    rel1.setTag("network", "US:NJ:NJTP");
+    rel1.setTag("ref", "NJTP");
+    rel1.setTag("name", "New Jersey Turnpike (mainline)");
+
+    var rel2 = new OsmElement.Relation(1);
+    rel2.setTag("type", "route");
+    rel2.setTag("route", "road");
+    rel2.setTag("network", "US:I");
+    rel2.setTag("ref", "95");
+    rel2.setTag("name", "I 95 (NJ)");
 
     FeatureCollector rendered = process(lineFeatureWithRelation(
-      profile.preprocessOsmRelation(rel),
+      Stream.concat(
+        profile.preprocessOsmRelation(rel1).stream(),
+        profile.preprocessOsmRelation(rel2).stream()
+      ).toList(),
       Map.of(
         "highway", "motorway",
         "name", "New Jersey Turnpike",
@@ -364,10 +374,91 @@ public class TransportationTest extends AbstractLayerTest {
       "_layer", "transportation_name",
       "class", "motorway",
       "name", "New Jersey Turnpike",
-      "ref", "NJTP",
-      "ref_length", 4,
-      "route_1", "US:NJ:NJTP=NJTP",
+      "ref", "95",
+      "ref_length", 2,
+      "route_1", "US:I=95",
+      "route_2", "US:NJ:NJTP=NJTP",
       "_minzoom", 6
+    )), rendered);
+  }
+
+  @Test
+  public void testMinorRouteRef() {
+    var rel1 = new OsmElement.Relation(1);
+    rel1.setTag("type", "route");
+    rel1.setTag("route", "road");
+    rel1.setTag("network", "rwn");
+    rel1.setTag("ref", "GFW");
+    rel1.setTag("name", "Georg-Fahrbach-Weg");
+
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "tertiary"
+    )), process(lineFeatureWithRelation(
+      profile.preprocessOsmRelation(rel1),
+      Map.of(
+        "highway", "tertiary"
+      ))));
+
+    var profileWithMinorRefs = new BasemapProfile(translations, PlanetilerConfig.from(Arguments.of(Map.of(
+      "transportation_name_minor_refs", "true"
+    ))), Stats.inMemory());
+
+    SourceFeature feature = lineFeatureWithRelation(
+      profileWithMinorRefs.preprocessOsmRelation(rel1),
+      Map.of(
+        "highway", "tertiary"
+      ));
+    var collector = featureCollectorFactory.get(feature);
+    profileWithMinorRefs.processFeature(feature, collector);
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "tertiary"
+    ), mapOf(
+      "_layer", "transportation_name",
+      "class", "tertiary",
+      "ref", "GFW",
+      "network", "road"
+    )), collector);
+  }
+
+  @Test
+  public void testPolishHighwayIssue165() {
+    var rel1 = new OsmElement.Relation(1);
+    rel1.setTag("type", "route");
+    rel1.setTag("route", "road");
+    rel1.setTag("network", "e-road");
+    rel1.setTag("ref", "E 77");
+    rel1.setTag("name", "European route E 77");
+
+    var rel2 = new OsmElement.Relation(2);
+    rel2.setTag("type", "route");
+    rel2.setTag("route", "road");
+    rel2.setTag("network", "e-road");
+    rel2.setTag("ref", "E 28");
+    rel2.setTag("name", "European route E 28");
+
+    FeatureCollector rendered = process(lineFeatureWithRelation(
+      Stream.concat(
+        profile.preprocessOsmRelation(rel1).stream(),
+        profile.preprocessOsmRelation(rel2).stream()
+      ).toList(),
+      Map.of(
+        "highway", "trunk",
+        "ref", "S7"
+      )));
+
+    assertFeatures(13, List.of(mapOf(
+      "_layer", "transportation",
+      "class", "trunk"
+    ), Map.of(
+      "_layer", "transportation_name",
+      "class", "trunk",
+      "name", "<null>",
+      "ref", "S7",
+      "ref_length", 2,
+      "route_1", "e-road=E 28",
+      "route_2", "e-road=E 77"
     )), rendered);
   }
 
