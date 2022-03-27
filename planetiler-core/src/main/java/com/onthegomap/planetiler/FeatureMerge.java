@@ -76,8 +76,8 @@ public class FeatureMerge {
   }
 
   /**
-   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double)} except
-   * with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
+   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double)} except with
+   * a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer) {
@@ -200,8 +200,8 @@ public class FeatureMerge {
   }
 
   /**
-   * Combines polygons with the same set of attributes within {@code minDist} from each other, expanding then contracting
-   * the merged geometry by {@code buffer} to combine polygons that are almost touching.
+   * Combines polygons with the same set of attributes within {@code minDist} from each other, expanding then
+   * contracting the merged geometry by {@code buffer} to combine polygons that are almost touching.
    * <p>
    * Ignores any non-polygons and passes them through to the output unaltered.
    * <p>
