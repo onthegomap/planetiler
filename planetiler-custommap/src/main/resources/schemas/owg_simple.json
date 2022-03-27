@@ -55,7 +55,8 @@
               "constantValue": "true",
               "dataType": "boolean",
               "includeWhen": {"key": "intermittent", "value": [true]}
-            }
+            },
+            {"key": "name", "tagValue": "name", "minZoom": 12}
           ]
         }
       ]
