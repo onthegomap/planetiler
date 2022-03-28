@@ -23,7 +23,7 @@ public class CustomProfile {
     Path dataDir = Path.of("data");
     Path sourcesDir = dataDir.resolve("sources");
 
-    String area = args.getString("area", "geofabrik area to download", "rhode-island");
+    //TODO move to command-line args
     String schemaFile =
       args.getString("schema", "mbtiles schema",
         Paths.get("src", "main", "resources", "schemas", "owg_simple.json").toString());
