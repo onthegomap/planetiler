@@ -2,6 +2,14 @@
   "schemaName": "OWG Simple Schema",
   "schemaDescription": "Simple vector tile schema",
   "attribution": "<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>",
+  "sources": [
+    {
+      "name": "water_polygons",
+      "type": "shapefile",
+      "url": "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip"
+    },
+    {"name": "osm", "type": "osm", "area": "geofabrik:rhode-island"}
+  ],
   "layers": [
     {
       "name": "water",

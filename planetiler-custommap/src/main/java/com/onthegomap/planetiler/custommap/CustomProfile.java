@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -31,19 +32,36 @@ public class CustomProfile {
     JsonNode schemaRoot = mapper.readTree(new File(schemaFile));
 
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
-    Planetiler.create(args)
-      .setProfile(new ConfiguredProfile(schemaRoot))
+    Planetiler planetiler = Planetiler.create(args)
+      .setProfile(new ConfiguredProfile(schemaRoot));
 
-      //TODO -- configure
-      .addShapefileSource("water_polygons",
-        sourcesDir.resolve("water-polygons-split-3857.zip"),
-        "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip") // override this default with osm_path="path/to/data.osm.pbf"
+    JsonNode sourcesJson = schemaRoot.get("sources");
+    for (int i = 0; i < sourcesJson.size(); i++) {
+      configureSource(planetiler, sourcesDir, sourcesJson.get(i));
+    }
 
-      //TODO -- configure
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
-
-      // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
+    planetiler.overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
       .run();
+  }
+
+  private static void configureSource(Planetiler planetiler, Path sourcesDir, JsonNode sourcesJson) throws Exception {
+    String sourceType = sourcesJson.get("type").asText();
+    String sourceName = sourcesJson.get("name").asText();
+
+    switch (sourceType) {
+      case "osm":
+        String area = sourcesJson.get("area").asText();
+        String[] areaParts = area.split(":");
+        String areaName = areaParts[areaParts.length - 1];
+        planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
+        return;
+      case "shapefile":
+        String url = sourcesJson.get("url").asText();
+        String filename = Paths.get(new URI(url).getPath()).getFileName().toString();
+        planetiler.addShapefileSource(sourceName, sourcesDir.resolve(filename), url);
+        return;
+      default:
+        throw new IllegalArgumentException("Uhandled source " + sourceType);
+    }
   }
 }
