@@ -66,6 +66,9 @@ public class Planetiler {
   private final Arguments arguments;
   private final Stats stats;
   private final Path tmpDir;
+  private final Path nodeDbPath;
+  private final Path multipolygonPath;
+  private final Path featureDbPath;
   private final boolean downloadSources;
   private final boolean onlyDownloadSources;
   private Profile profile = null;
@@ -76,8 +79,6 @@ public class Planetiler {
   private Path output;
   private boolean overwrite = false;
   private boolean ran = false;
-  private Path nodeDbPath;
-  private Path multipolygonPath;
   // most common OSM languages
   private List<String> languages = List.of(
     "en", "ru", "ar", "zh", "ja", "ko", "fr",
@@ -98,6 +99,11 @@ public class Planetiler {
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
+
+    nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
+    multipolygonPath =
+      arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
+    featureDbPath = arguments.file("temp_features", "temp feature db location", tmpDir.resolve("feature.db"));
   }
 
   /** Returns a new empty runner that will get configuration from {@code arguments}. */
@@ -487,13 +493,15 @@ public class Planetiler {
     }
 
     // in case any temp files are left from a previous run...
-    FileUtils.delete(tmpDir);
+    FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
+    Files.createDirectories(tmpDir);
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output);
 
     if (!toDownload.isEmpty()) {
       download();
     }
     ensureInputFilesExist();
-    Files.createDirectories(tmpDir);
+
     if (fetchWikidata) {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
@@ -510,13 +518,10 @@ public class Planetiler {
       config.bounds().setFallbackProvider(osmInputFile);
     }
 
-    Files.createDirectories(tmpDir);
-    nodeDbPath = tmpDir.resolve("node.db");
-    multipolygonPath = tmpDir.resolve("multipolygon.db");
-    Path featureDbPath = tmpDir.resolve("feature.db");
     featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);
+    stats.monitorFile("multipolygons", multipolygonPath);
     stats.monitorFile("mbtiles", output);
 
     for (Stage stage : stages) {
@@ -554,11 +559,11 @@ public class Planetiler {
     long outputSize = profile.estimateOutputBytes(osmSize);
 
     // node locations and multipolygon geometries only needed while reading inputs
-    readPhase.addDisk(tmpDir, nodeMapSize, "temporary node location cache");
-    readPhase.addDisk(tmpDir, multipolygonGeometrySize, "temporary multipolygon geometry cache");
+    readPhase.addDisk(nodeDbPath, nodeMapSize, "temporary node location cache");
+    readPhase.addDisk(multipolygonPath, multipolygonGeometrySize, "temporary multipolygon geometry cache");
     // feature db persists across read/write phase
-    readPhase.addDisk(tmpDir, featureSize, "temporary feature storage");
-    writePhase.addDisk(tmpDir, featureSize, "temporary feature storage");
+    readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
+    writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
     writePhase.addDisk(output, outputSize, "mbtiles output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
