@@ -88,12 +88,14 @@ public class FileUtils {
     }
   }
 
-  /** Deletes a file or directory recursively, failing silently if missing. */
-  public static void delete(Path path) {
-    if (Files.isDirectory(path)) {
-      deleteDirectory(path);
-    } else {
-      deleteFile(path);
+  /** Deletes files or directories recursively, failing silently if missing. */
+  public static void delete(Path... paths) {
+    for (Path path : paths) {
+      if (Files.isDirectory(path)) {
+        deleteDirectory(path);
+      } else {
+        deleteFile(path);
+      }
     }
   }
 
@@ -139,22 +141,24 @@ public class FileUtils {
   }
 
   /**
-   * Ensures all parent directories of {@code path} exist.
+   * Ensures all parent directories of each path in {@code paths} exist.
    *
    * @throws IllegalStateException if an error occurs
    */
-  public static void createParentDirectories(Path path) {
-    try {
-      if (Files.isDirectory(path) && !Files.exists(path)) {
-        Files.createDirectories(path);
-      } else {
-        Path parent = path.getParent();
-        if (parent != null && !Files.exists(parent)) {
-          Files.createDirectories(parent);
+  public static void createParentDirectories(Path... paths) {
+    for (var path : paths) {
+      try {
+        if (Files.isDirectory(path) && !Files.exists(path)) {
+          Files.createDirectories(path);
+        } else {
+          Path parent = path.getParent();
+          if (parent != null && !Files.exists(parent)) {
+            Files.createDirectories(parent);
+          }
         }
+      } catch (IOException e) {
+        throw new IllegalStateException("Unable to create parent directories " + path, e);
       }
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to create parent directories " + path, e);
     }
   }
 

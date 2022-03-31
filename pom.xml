@@ -10,7 +10,9 @@
   <packaging>pom</packaging>
 
   <name>Planetiler Parent</name>
-  <description>Planetiler Parent</description>
+  <description>
+    Super pom of the Planetiler tool for building planet-scale vector tilesets from OpenStreetMap data fast.
+  </description>
   <url>https://github.com/onthegomap/planetiler</url>
 
   <properties>

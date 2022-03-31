@@ -1,8 +1,8 @@
 # Generating a Map of the World
 
 To generate a map of the world using the built-in [basemap profile](planetiler-basemap), you will need a machine with
-Java 16 or later installed and at least 10x as much disk space and 1.5x as much RAM as the `planet.osm.pbf` file you
-start from. All testing has been done using Digital Ocean droplets with dedicated
+Java 16 or later installed and at least 10x as much disk space and at least 0.5x as much RAM as the `planet.osm.pbf`
+file you start from. All testing has been done using Digital Ocean droplets with dedicated
 vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and OpenJDK 17 installed through `apt`. Planetiler splits work
 among available CPUs so the more you have, the less time it takes.
 
@@ -28,23 +28,41 @@ First decide where to get the `planet.osm.pbf` file:
 
 Download the [latest release](https://github.com/onthegomap/planetiler/releases/latest) of `planetiler.jar`.
 
-Then run `java -Xms100g -Xmx100g -jar planetiler.jar` (replacing `100g` with 1.5x the `planet.osm.pbf` size)
-with these options:
+If your system has at least 1.5x as much memory as the input OSM file size, run this command to store node location
+cache in-memory:
 
-- `--bounds=world` to set bounding box to the entire planet
-- `--nodemap-type=sparsearray` to store node locations in a sparse array instead of a sorted table - `sortedtable` is
-  more efficient when there are large gaps in ID spaces (i.e. extracts) and `sparsearray` is more efficient with no/few
-  ID gaps (planet, or renumbered extracts).
-- `--nodemap-storage=ram` to store all node locations in RAM instead of a memory-mapped file - when using `ram` give the
-  JVM 1.5x the input file size instead of 0.5x when using `mmap`
-- `--download` to fetch [other data sources](NOTICE.md#data) automatically
-- One of these to point planetiler at your data source:
-  - `--osm-path=path/to/planet.osm.pbf` to point Planetiler at a file you downloaded
-  - `--osm-url=http://url/of/planet.osm.pbf` to download automatically
-  - `--osm-url=s3:211011` to download a specific snapshot from the AWS Registry of Open Data or `--osm-url=s3:latest` to
-    download the latest snapshot
-  - `--area=planet` to use the file in `./data/sources/planet.osm.pbf` or download the latest snapshot from AWS S3
-    mirror if missing.
+```bash
+java -Xmx110g \
+  `# return unused heap memory to the OS` \
+  -XX:MaxHeapFreeRatio=40 \
+  -jar planetiler.jar \
+  `# Download the latest planet.osm.pbf from s3://osm-pds bucket` \
+  --area=planet --bounds=planet --download \
+  `# Accelerate the download by fetching the 10 1GB chunks at a time in parallel` \
+  --download-threads=10 --download-chunk-size-mb=1000 \
+  `# Also download name translations from wikidata` \
+  --fetch-wikidata \
+  --mbtiles=output.mbtiles \
+  `# Store temporary node locations in memory` \
+  --nodemap-type=array --storage=ram
+```
+
+If your system has less than 1.5x as much memory as the input OSM file size, run this command to store node location
+cache in a temporary memory-mapped file by setting `--storage=mmap` and `-Xmx20g` to reduce the JVM's memory usage.
+
+```bash
+java -Xmx20g \
+  -jar planetiler.jar \
+  `# Download the latest planet.osm.pbf from s3://osm-pds bucket` \
+  --area=planet --bounds=planet --download \
+  `# Accelerate the download by fetching the 10 1GB chunks at a time in parallel` \
+  --download-threads=10 --download-chunk-size-mb=1000 \
+  `# Also download name translations from wikidata` \
+  --fetch-wikidata \
+  --mbtiles=output.mbtiles \
+  `# Store temporary node locations at fixed positions in a memory-mapped file` \
+  --nodemap-type=array --storage=mmap
+```
 
 Run with `--help` to see all available arguments.
 
@@ -69,8 +87,7 @@ Then I added a script `runworld.sh` to run with 100GB of RAM:
 ```bash
 #!/usr/bin/env bash
 set -e
-java -Xmx100g -Xms100g \
-  -XX:OnOutOfMemoryError="kill -9 %p" \
+java -Xmx100g \
   -jar planetiler.jar \
   `# Download the latest planet.osm.pbf from s3://osm-pds bucket` \
   --area=planet --bounds=world --download \
