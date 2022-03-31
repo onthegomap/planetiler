@@ -6,7 +6,7 @@
 
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-parent</artifactId>
-  <version>0.3-SNAPSHOT</version>
+  <version>0.4-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Planetiler Parent</name>
@@ -227,7 +227,7 @@
         <plugin>
           <groupId>com.google.cloud.tools</groupId>
           <artifactId>jib-maven-plugin</artifactId>
-          <version>3.2.0</version>
+          <version>3.2.1</version>
           <configuration>
             <skip>true</skip>
           </configuration>
