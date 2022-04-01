@@ -1,0 +1,85 @@
+---
+schemaName: OWG Simple Schema
+schemaDescription: Simple vector tile schema
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
+  OpenStreetMap contributors</a>
+sources:
+- name: water_polygons
+  type: shapefile
+  url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+- name: osm
+  type: osm
+  area: rhode-island
+layers:
+- name: water
+  features:
+  - sources:
+    - osm
+    zoom:
+    - 0
+    - 14
+    includeWhen:
+      geometry: polygon
+      tag:
+        key: natural
+        value:
+        - water
+    attributes:
+    - key: natural
+      constantValue: water
+      minZoom: 0
+    - key: intermittent
+      constantValue: 'true'
+      dataType: boolean
+      includeWhen:
+        key: intermittent
+        value:
+        - true
+    - key: name
+      tagValue: name
+      dataType: string
+      includeWhen:
+        minTileCoverSize: 0.01
+      excludeWhen:
+        key: water
+        value:
+        - river
+        - canal
+        - stream
+  - sources:
+    - water_polygons
+    zoom:
+    - 0
+    - 14
+    includeWhen:
+      geometry: polygon
+    attributes:
+    - key: natural
+      constantValue: water
+      minZoom: 0
+  - sources:
+    - osm
+    zoom:
+    - 7
+    - 14
+    includeWhen:
+      geometry: linestring
+      tag:
+        key: waterway
+        value:
+        - river
+        - stream
+        - canal
+    attributes:
+    - key: waterway
+      tagValue: waterway
+    - key: intermittent
+      constantValue: 'true'
+      dataType: boolean
+      includeWhen:
+        key: intermittent
+        value:
+        - true
+    - key: name
+      tagValue: name
+      minZoom: 12
