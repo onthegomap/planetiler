@@ -2,8 +2,8 @@ package com.onthegomap.planetiler.custommap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -16,26 +16,25 @@ public class ConfiguredProfile implements Profile {
 
   private List<CustomFeature> features = new ArrayList<>();
 
-  public ConfiguredProfile(JsonNode profileDef) {
-    schemaName = profileDef.get("schemaName").asText();
-    attribution = profileDef.get("attribution").asText(
+  public ConfiguredProfile(Map<String, Object> profileDef) {
+    schemaName = YamlParser.getString(profileDef, "shemaName");
+    attribution = YamlParser.getString(profileDef, "attribution",
       "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>");
-    description = profileDef.get("schemaDescription").asText("");
+    description = YamlParser.getString(profileDef, "schemaDescription");
 
-    JsonNode layers = profileDef.get("layers");
-
-    for (int i = 0; i < layers.size(); i++) {
-      JsonNode layer = layers.get(i);
-      String layerName = layer.get("name").asText();
-
-      JsonNode featureDefs = layer.get("features");
-
-      for (int j = 0; j < featureDefs.size(); j++) {
-        features.add(new ConfiguredFeature(layerName, featureDefs.get(j)));
-      }
+    List<Map<String, Object>> layers = (List<Map<String, Object>>) profileDef.get("layers");
+    if (layers == null) {
+      return;
     }
 
-    //    features.add(new Waterway());
+    layers.stream().forEach(layer -> {
+      String layerName = YamlParser.getString(layer, "name");
+      List<Object> featureDefs = (List<Object>) layer.get("features");
+
+      for (int j = 0; j < featureDefs.size(); j++) {
+        features.add(new ConfiguredFeature(layerName, (Map<String, Object>) featureDefs.get(j)));
+      }
+    });
   }
 
   @Override

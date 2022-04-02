@@ -1,9 +1,13 @@
 package com.onthegomap.planetiler.custommap;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+
+import org.yaml.snakeyaml.Yaml;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,9 +35,13 @@ public class CustomProfile {
     ObjectMapper mapper = new ObjectMapper();
     JsonNode schemaRoot = mapper.readTree(new File(schemaFile));
 
+    Yaml yml = new Yaml();
+    Map<String, Object> config = (Map<String, Object>) yml.load(new FileInputStream(new File(schemaFile)));
+    System.out.println(config);
+
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler planetiler = Planetiler.create(args)
-      .setProfile(new ConfiguredProfile(schemaRoot));
+      .setProfile(new ConfiguredProfile(config));
 
     JsonNode sourcesJson = schemaRoot.get("sources");
     for (int i = 0; i < sourcesJson.size(); i++) {

@@ -5,13 +5,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -25,41 +25,41 @@ public class ConfiguredFeature implements CustomFeature {
   private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
   private String layerName;
-  private JsonNode attributes;
+  private List<Object> attributes;
 
   private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
-  public ConfiguredFeature(String layerName, JsonNode featureDef) {
+  public ConfiguredFeature(String layerName, Map<String, Object> featureDef) {
     this.layerName = layerName;
-    sources = JsonParser.extractStringSet(featureDef.get("sources"));
-    JsonNode includeWhen = featureDef.get("includeWhen");
+    sources = YamlParser.extractStringSet(featureDef.get("sources"));
+    Map<String, Object> includeWhen = (Map<String, Object>) featureDef.get("includeWhen");
 
-    String geometryType = JsonParser.getStringField(includeWhen, "geometry");
+    String geometryType = YamlParser.getString(includeWhen, "geometry");
 
     geometryTest = geometryTest(geometryType);
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
-    tagTest = tagTest(includeWhen.get("tag"));
+    tagTest = tagTest((Map<String, Object>) includeWhen.get("tag"));
 
-    attributes = featureDef.get("attributes");
+    attributes = (List<Object>) featureDef.get("attributes");
     for (int i = 0; i < attributes.size(); i++) {
-      attributeProcessors.add(attributeProcessor(attributes.get(i)));
+      attributeProcessors.add(attributeProcessor((Map<String, Object>) attributes.get(i)));
     }
   }
 
-  private static Function<SourceFeature, Object> attributeValueProducer(JsonNode json) {
+  private static Function<SourceFeature, Object> attributeValueProducer(Map<String, Object> map) {
 
-    String constVal = JsonParser.getStringField(json, "constantValue");
+    String constVal = YamlParser.getString(map, "constantValue");
     if (constVal != null) {
       return sf -> constVal;
     }
 
-    String tagVal = JsonParser.getStringField(json, "tagValue");
+    String tagVal = YamlParser.getString(map, "tagValue");
     if (tagVal != null) {
-      Function<Object, Object> typeConverter = typeConverter(JsonParser.getStringField(json, "dataType"));
+      Function<Object, Object> typeConverter = typeConverter(YamlParser.getString(map, "dataType"));
       return sf -> typeConverter.apply(sf.getTag(tagVal, null));
     }
     throw new IllegalArgumentException("No value producer specified");
@@ -110,21 +110,21 @@ public class ConfiguredFeature implements CustomFeature {
     };
   };
 
-  private static BiConsumer<SourceFeature, Feature> attributeProcessor(JsonNode json) {
-    String tagKey = json.get("key").asText();
-    Integer configuredMinZoom = JsonParser.getIntField(json, "minZoom");
+  private static BiConsumer<SourceFeature, Feature> attributeProcessor(Map<String, Object> map) {
+    String tagKey = YamlParser.getString(map, "key");
+    Long configuredMinZoom = YamlParser.getLong(map, "minZoom");
 
-    int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom;
-    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(json);
+    int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
+    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(map);
 
-    JsonNode attrIncludeWhen = json.get("includeWhen");
-    JsonNode attrExcludeWhen = json.get("excludeWhen");
+    Map<String, Object> attrIncludeWhen = (Map<String, Object>) map.get("includeWhen");
+    Map<String, Object> attrExcludeWhen = (Map<String, Object>) map.get("excludeWhen");
 
     Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer, true);
     Predicate<SourceFeature> attributeExcludeTest =
       attributeTagTest(attrExcludeWhen, attributeValueProducer, false).negate();
 
-    Double minTileCoverage = JsonParser.getDoubleField(attrIncludeWhen, "minTileCoverSize");
+    Double minTileCoverage = YamlParser.getDouble(attrIncludeWhen, "minTileCoverSize");
 
     Function<SourceFeature, Integer> attributeZoomProducer;
 
@@ -167,14 +167,14 @@ public class ConfiguredFeature implements CustomFeature {
     }
   }
 
-  private static Predicate<SourceFeature> attributeTagTest(JsonNode tagConstraint,
+  private static Predicate<SourceFeature> attributeTagTest(Map<String, Object> tagConstraint,
     Function<SourceFeature, Object> attributeValueProducer, boolean defaultVal) {
     if (tagConstraint == null) {
       return sf -> defaultVal;
     }
 
-    String keyTest = JsonParser.getStringField(tagConstraint, "key");
-    Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
+    String keyTest = YamlParser.getString(tagConstraint, "key");
+    Set<String> valTest = YamlParser.extractStringSet(tagConstraint.get("value"));
     if (keyTest == null) {
       return sf -> defaultVal;
     }
@@ -186,12 +186,12 @@ public class ConfiguredFeature implements CustomFeature {
     };
   }
 
-  private static Predicate<SourceFeature> tagTest(JsonNode tagConstraint) {
+  private static Predicate<SourceFeature> tagTest(Map<String, Object> tagConstraint) {
     if (tagConstraint == null) {
       return sf -> true;
     }
-    String keyTest = JsonParser.getStringField(tagConstraint, "key");
-    Set<String> valTest = JsonParser.extractStringSet(tagConstraint.get("value"));
+    String keyTest = YamlParser.getString(tagConstraint, "key");
+    Set<String> valTest = YamlParser.extractStringSet(tagConstraint.get("value"));
     if (keyTest == null) {
       return sf -> true;
     }
