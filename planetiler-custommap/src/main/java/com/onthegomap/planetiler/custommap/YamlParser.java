@@ -8,8 +8,8 @@ import java.util.Set;
 
 public class YamlParser {
 
-  public static String getString(Map<String, Object> profileDef, String key) {
-    return getString(profileDef, key, "");
+  public static String getString(Map<String, Object> map, String key) {
+    return getString(map, key, "");
   }
 
   public static String getString(Map<String, Object> profileDef, String key, String defaultValue) {
