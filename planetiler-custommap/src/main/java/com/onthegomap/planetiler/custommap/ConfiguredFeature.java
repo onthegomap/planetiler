@@ -134,15 +134,6 @@ public class ConfiguredFeature implements CustomFeature {
     }
 
     return (sf, f) -> {
-
-      if (tagKey.equals("waterway") && null != sf.getTag("name")) {
-        System.err.println(sf.getTag("name"));
-        System.err.println(attributeValueProducer.apply(sf));
-        System.err.println(attributeZoomProducer.apply(sf));
-        System.err.println(attributeTest.test(sf));
-        System.err.println(attributeExcludeTest.test(sf));
-      }
-
       if (attributeTest.test(sf) && !attributeExcludeTest.test(sf)) {
         f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
       }
