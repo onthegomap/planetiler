@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -14,74 +13,74 @@ import java.util.function.Predicate;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.custommap.configschema.AttributeDataType;
+import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
+import com.onthegomap.planetiler.custommap.configschema.FeatureCriteria;
+import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
+import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
 
 public class ConfiguredFeature implements CustomFeature {
 
-  private Set<String> sources = new HashSet<>();
+  private Collection<String> sources;
   private Predicate<SourceFeature> geometryTest;
   private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
-  private String layerName;
-  private List<Object> attributes;
 
   private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
-  public ConfiguredFeature(String layerName, Map<String, Object> featureDef) {
-    this.layerName = layerName;
-    sources = YamlParser.extractStringSet(featureDef.get("sources"));
-    Map<String, Object> includeWhen = (Map<String, Object>) featureDef.get("includeWhen");
+  public ConfiguredFeature(String layerName, FeatureItem feature) {
+    sources = feature.getSources();
+    FeatureCriteria includeWhen = feature.getIncludeWhen();
 
-    String geometryType = YamlParser.getString(includeWhen, "geometry");
+    FeatureGeometryType geometryType = includeWhen.getGeometry();
 
     geometryTest = geometryTest(geometryType);
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
-    tagTest = tagTest((Map<String, Object>) includeWhen.get("tag"));
+    tagTest = tagTest(includeWhen.getTag());
 
-    attributes = (List<Object>) featureDef.get("attributes");
-    for (int i = 0; i < attributes.size(); i++) {
-      attributeProcessors.add(attributeProcessor((Map<String, Object>) attributes.get(i)));
-    }
+    feature.getAttributes().forEach(attribute -> {
+      attributeProcessors.add(attributeProcessor(attribute));
+    });
   }
 
-  private static Function<SourceFeature, Object> attributeValueProducer(Map<String, Object> map) {
+  static Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {
 
-    String constVal = YamlParser.getString(map, "constantValue");
+    String constVal = attribute.getConstantValue();
     if (constVal != null) {
       return sf -> constVal;
     }
 
-    String tagVal = YamlParser.getString(map, "tagValue");
+    String tagVal = attribute.getTagValue();
     if (tagVal != null) {
-      Function<Object, Object> typeConverter = typeConverter(YamlParser.getString(map, "dataType"));
+      Function<Object, Object> typeConverter = typeConverter(attribute.getDataType());
       return sf -> typeConverter.apply(sf.getTag(tagVal, null));
     }
     throw new IllegalArgumentException("No value producer specified");
   }
 
-  private static Function<Object, Object> typeConverter(String type) {
+  private static Function<Object, Object> typeConverter(AttributeDataType attributeDataType) {
 
-    if (Objects.isNull(type)) {
+    if (Objects.isNull(attributeDataType)) {
       return in -> {
         return in;
       };
     }
 
-    switch (type) {
-      case "boolean":
+    switch (attributeDataType) {
+      case bool:
         return booleanTypeConverter();
+      //Default: pass through
+      default:
+        return in -> in;
     }
-
-    //Default: pass through
-    return in -> {
-      return in;
-    };
   }
 
   private static Set<String> booleanTrue = new HashSet<>(Arrays.<String>asList("true", "yes", "1"));
@@ -110,21 +109,21 @@ public class ConfiguredFeature implements CustomFeature {
     };
   };
 
-  private static BiConsumer<SourceFeature, Feature> attributeProcessor(Map<String, Object> map) {
-    String tagKey = YamlParser.getString(map, "key");
-    Long configuredMinZoom = YamlParser.getLong(map, "minZoom");
+  private static BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
+    String tagKey = attribute.getKey();
+    Integer configuredMinZoom = attribute.getMinZoom();
 
     int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
-    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(map);
+    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(attribute);
 
-    Map<String, Object> attrIncludeWhen = (Map<String, Object>) map.get("includeWhen");
-    Map<String, Object> attrExcludeWhen = (Map<String, Object>) map.get("excludeWhen");
+    FeatureCriteria attrIncludeWhen = attribute.getIncludeWhen();
+    FeatureCriteria attrExcludeWhen = attribute.getExcludeWhen();
 
-    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer, true);
+    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer);
     Predicate<SourceFeature> attributeExcludeTest =
-      attributeTagTest(attrExcludeWhen, attributeValueProducer, false).negate();
+      attributeTagTest(attrExcludeWhen, attributeValueProducer).negate();
 
-    Double minTileCoverage = YamlParser.getDouble(attrIncludeWhen, "minTileCoverSize");
+    Double minTileCoverage = attrIncludeWhen == null ? null : attrIncludeWhen.getMinTileCoverSize();
 
     Function<SourceFeature, Integer> attributeZoomProducer;
 
@@ -135,63 +134,93 @@ public class ConfiguredFeature implements CustomFeature {
     }
 
     return (sf, f) -> {
-      if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
+
+      if (tagKey.equals("waterway") && null != sf.getTag("name")) {
+        System.err.println(sf.getTag("name"));
+        System.err.println(attributeValueProducer.apply(sf));
+        System.err.println(attributeZoomProducer.apply(sf));
+        System.err.println(attributeTest.test(sf));
+        System.err.println(attributeExcludeTest.test(sf));
+      }
+
+      if (attributeTest.test(sf) && !attributeExcludeTest.test(sf)) {
         f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
       }
     };
   }
 
-  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, String type) {
+  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, FeatureGeometryType type) {
     switch (type) {
-      case "polygon":
+      case polygon:
         return fc -> fc.polygon(layerName);
-      case "linestring":
+      case linestring:
         return fc -> fc.line(layerName);
-      case "point":
+      case point:
         return fc -> fc.point(layerName);
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
   }
 
-  private static Predicate<SourceFeature> geometryTest(String type) {
+  private static Predicate<SourceFeature> geometryTest(FeatureGeometryType type) {
     switch (type) {
-      case "polygon":
+      case polygon:
         return sf -> sf.canBePolygon();
-      case "linestring":
+      case linestring:
         return sf -> sf.canBeLine();
-      case "point":
+      case point:
         return sf -> sf.isPoint();
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
   }
 
-  private static Predicate<SourceFeature> attributeTagTest(Map<String, Object> tagConstraint,
-    Function<SourceFeature, Object> attributeValueProducer, boolean defaultVal) {
-    if (tagConstraint == null) {
-      return sf -> defaultVal;
-    }
-
-    String keyTest = YamlParser.getString(tagConstraint, "key");
-    Set<String> valTest = YamlParser.extractStringSet(tagConstraint.get("value"));
-    if (keyTest == null) {
-      return sf -> defaultVal;
-    }
-    return sf -> {
-      if (sf.hasTag(keyTest)) {
-        return valTest.contains(attributeValueProducer.apply(sf));
-      }
-      return false;
-    };
-  }
-
-  private static Predicate<SourceFeature> tagTest(Map<String, Object> tagConstraint) {
-    if (tagConstraint == null) {
+  static Predicate<SourceFeature> attributeTagTest(FeatureCriteria attrIncludeWhen,
+    Function<SourceFeature, Object> attributeValueProducer) {
+    if (attrIncludeWhen == null) {
       return sf -> true;
     }
-    String keyTest = YamlParser.getString(tagConstraint, "key");
-    Set<String> valTest = YamlParser.extractStringSet(tagConstraint.get("value"));
+
+    List<Predicate<SourceFeature>> conditions = new ArrayList<>();
+
+    TagCriteria tagCriteria = attrIncludeWhen.getTag();
+
+    if (tagCriteria != null) {
+
+      String keyTest = tagCriteria.getKey();
+      Collection<String> valTest = tagCriteria.getValue();
+
+      if (keyTest == null) {
+        conditions.add(sf -> true);
+      } else {
+        conditions.add(sf -> {
+          if (sf.hasTag(keyTest)) {
+            return valTest.contains(attributeValueProducer.apply(sf));
+          }
+          return false;
+        });
+      }
+
+    }
+
+    if (conditions.isEmpty()) {
+      return sf -> true;
+    }
+
+    Predicate<SourceFeature> test = conditions.remove(0);
+    for (Predicate<SourceFeature> condition : conditions) {
+      test = test.and(condition);
+    }
+
+    return test;
+  }
+
+  private static Predicate<SourceFeature> tagTest(TagCriteria tagCriteria) {
+    if (tagCriteria == null) {
+      return sf -> true;
+    }
+    String keyTest = tagCriteria.getKey();
+    Collection<String> valTest = tagCriteria.getValue();
     if (keyTest == null) {
       return sf -> true;
     }

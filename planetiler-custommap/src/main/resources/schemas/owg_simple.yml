@@ -1,4 +1,3 @@
----
 schemaName: OWG Simple Schema
 schemaDescription: Simple vector tile schema
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
@@ -30,22 +29,24 @@ layers:
       minZoom: 0
     - key: intermittent
       constantValue: 'true'
-      dataType: boolean
+      dataType: bool
       includeWhen:
-        key: intermittent
-        value:
-        - true
+        tag:
+          key: intermittent
+          value:
+          - true
     - key: name
       tagValue: name
       dataType: string
       includeWhen:
         minTileCoverSize: 0.01
       excludeWhen:
-        key: water
-        value:
-        - river
-        - canal
-        - stream
+        tag:
+          key: water
+          value:
+          - river
+          - canal
+          - stream
   - sources:
     - water_polygons
     zoom:
@@ -75,11 +76,12 @@ layers:
       tagValue: waterway
     - key: intermittent
       constantValue: 'true'
-      dataType: boolean
+      dataType: bool
       includeWhen:
-        key: intermittent
-        value:
-        - true
+        tag:
+          key: intermittent
+          value:
+          - true
     - key: name
       tagValue: name
       minZoom: 12

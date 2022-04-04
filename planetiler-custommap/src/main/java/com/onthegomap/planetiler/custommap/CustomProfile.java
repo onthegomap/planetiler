@@ -5,13 +5,15 @@ import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
+import java.util.Collection;
 
 import org.yaml.snakeyaml.Yaml;
 
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.custommap.configschema.DataSource;
+import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
+import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 
 public class CustomProfile {
 
@@ -32,37 +34,36 @@ public class CustomProfile {
         Paths.get("src", "main", "resources", "schemas", "owg_simple.yml").toString());
 
     Yaml yml = new Yaml();
-    Map<String, Object> config = (Map<String, Object>) yml.load(new FileInputStream(new File(schemaFile)));
-    System.out.println(config);
+    SchemaConfig config = yml.loadAs(new FileInputStream(new File(schemaFile)), SchemaConfig.class);
 
     // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
 
-    List<Object> sources = (List<Object>) config.get("sources");
-    for (int i = 0; i < sources.size(); i++) {
-      configureSource(planetiler, sourcesDir, (Map<String, Object>) sources.get(i));
+    Collection<DataSource> sources = config.getSources();
+    for (DataSource source : sources) {
+      configureSource(planetiler, sourcesDir, source);
     }
 
     planetiler.overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
       .run();
   }
 
-  private static void configureSource(Planetiler planetiler, Path sourcesDir, Map<String, Object> sources)
+  private static void configureSource(Planetiler planetiler, Path sourcesDir, DataSource source)
     throws Exception {
 
-    String sourceType = YamlParser.getString(sources, "type");
-    String sourceName = YamlParser.getString(sources, "name");
+    DataSourceType sourceType = source.getType();
+    String sourceName = source.getName();
 
     switch (sourceType) {
-      case "osm":
-        String area = YamlParser.getString(sources, "area");
+      case osm:
+        String area = source.getArea();
         String[] areaParts = area.split(":");
         String areaName = areaParts[areaParts.length - 1];
         planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
         return;
-      case "shapefile":
-        String url = YamlParser.getString(sources, "url");
+      case shapefile:
+        String url = source.getUrl();
         String filename = Paths.get(new URI(url).getPath()).getFileName().toString();
         planetiler.addShapefileSource(sourceName, sourcesDir.resolve(filename), url);
         return;

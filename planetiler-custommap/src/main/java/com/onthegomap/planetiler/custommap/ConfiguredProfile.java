@@ -1,11 +1,14 @@
 package com.onthegomap.planetiler.custommap;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
+import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
 
 public class ConfiguredProfile implements Profile {
@@ -16,24 +19,23 @@ public class ConfiguredProfile implements Profile {
 
   private List<CustomFeature> features = new ArrayList<>();
 
-  public ConfiguredProfile(Map<String, Object> profileDef) {
-    schemaName = YamlParser.getString(profileDef, "shemaName");
-    attribution = YamlParser.getString(profileDef, "attribution",
-      "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>");
-    description = YamlParser.getString(profileDef, "schemaDescription");
+  public ConfiguredProfile(SchemaConfig schemaConfig) {
+    schemaName = schemaConfig.getSchemaName();
+    attribution = schemaConfig.getAttribution();
+    description = schemaConfig.getSchemaDescription();
 
-    List<Map<String, Object>> layers = (List<Map<String, Object>>) profileDef.get("layers");
+    Collection<FeatureLayer> layers = schemaConfig.getLayers();
     if (layers == null) {
       return;
     }
 
     layers.stream().forEach(layer -> {
-      String layerName = YamlParser.getString(layer, "name");
-      List<Object> featureDefs = (List<Object>) layer.get("features");
+      String layerName = layer.getName();
+      Collection<FeatureItem> featureDefs = layer.getFeatures();
 
-      for (int j = 0; j < featureDefs.size(); j++) {
-        features.add(new ConfiguredFeature(layerName, (Map<String, Object>) featureDefs.get(j)));
-      }
+      featureDefs.forEach(feature -> {
+        features.add(new ConfiguredFeature(layerName, feature));
+      });
     });
   }
 
