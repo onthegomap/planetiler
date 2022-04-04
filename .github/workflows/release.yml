@@ -9,7 +9,7 @@ on:
       image_tags:
         description: 'Extra docker image tags ("latest,test")'
         required: true
-        default: 'latest'
+        default: 'latest,release'
 jobs:
   publish:
     runs-on: ubuntu-latest

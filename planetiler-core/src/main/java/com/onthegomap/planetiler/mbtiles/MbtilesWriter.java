@@ -60,12 +60,12 @@ public class MbtilesWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
 
-  private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMeatadata,
+  private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
     Stats stats, LayerStats layerStats) {
     this.features = features;
     this.db = db;
     this.config = config;
-    this.mbtilesMetadata = mbtilesMeatadata;
+    this.mbtilesMetadata = mbtilesMetadata;
     this.stats = stats;
     this.layerStats = layerStats;
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())

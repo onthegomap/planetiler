@@ -1,0 +1,1274 @@
+
+0:00:00 DEB - argument: config=null (path to config file)
+0:00:00 DEB - argument: area=planet (name of the extract to download if osm_url/osm_path not specified (i.e. 'monaco' 'rhode island' 'australia' or 'planet'))
+0:00:00 INF - Using in-memory stats
+0:00:00 INF [overall] - 
+0:00:00 INF [overall] - Starting...
+0:00:00 DEB - argument: madvise=true (default value for whether to use linux madvise(random) to improve memory-mapped read performance for temporary storage)
+0:00:00 DEB - argument: storage=ram (default storage type for temporary data, one of [ram, mmap, direct])
+0:00:00 DEB - argument: bounds=Env[-180.0 : 180.0, -85.0511287798066 : 85.0511287798066] (bounds)
+0:00:00 DEB - argument: threads=64 (num threads)
+0:00:00 DEB - argument: loginterval=10 seconds (time between logs)
+0:00:00 DEB - argument: minzoom=0 (minimum zoom level)
+0:00:00 DEB - argument: maxzoom=14 (maximum zoom level (limit 14))
+0:00:00 DEB - argument: defer_mbtiles_index_creation=false (skip adding index to mbtiles file)
+0:00:00 DEB - argument: optimize_db=false (optimize mbtiles after writing)
+0:00:00 DEB - argument: emit_tiles_in_order=true (emit tiles in index order)
+0:00:00 DEB - argument: force=false (overwriting output file and ignore disk/RAM warnings)
+0:00:00 DEB - argument: gzip_temp=false (gzip temporary feature storage (uses more CPU, but less disk space))
+0:00:00 DEB - argument: sort_max_readers=6 (maximum number of concurrent read threads to use when sorting chunks)
+0:00:00 DEB - argument: sort_max_writers=6 (maximum number of concurrent write threads to use when sorting chunks)
+0:00:00 DEB - argument: nodemap_type=array (type of node location map, one of [noop, sortedtable, sparsearray, array])
+0:00:00 DEB - argument: nodemap_storage=ram (storage for node location map, one of [ram, mmap, direct])
+0:00:00 DEB - argument: nodemap_madvise=true (use linux madvise(random) for node locations)
+0:00:00 DEB - argument: multipolygon_geometry_storage=ram (storage for multipolygon geometries, one of [ram, mmap, direct])
+0:00:00 DEB - argument: multipolygon_geometry_madvise=true (use linux madvise(random) for temporary multipolygon geometry storage)
+0:00:00 DEB - argument: http_user_agent=Planetiler downloader (https://github.com/onthegomap/planetiler) (User-Agent header to set when downloading files over HTTP)
+0:00:00 DEB - argument: http_timeout=30 seconds (Timeout to use when downloading files over HTTP)
+0:00:00 DEB - argument: http_retries=1 (Retries to use when downloading files over HTTP)
+0:00:00 DEB - argument: download_chunk_size_mb=100 (Size of file chunks to download in parallel in megabytes)
+0:00:00 DEB - argument: download_threads=1 (Number of parallel threads to use when downloading each file)
+0:00:00 DEB - argument: min_feature_size_at_max_zoom=0.0625 (Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming)
+0:00:00 DEB - argument: min_feature_size=1.0 (Default value for the minimum size in tile pixels of features to emit below the maximum zoom level)
+0:00:00 DEB - argument: simplify_tolerance_at_max_zoom=0.0625 (Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming)
+0:00:00 DEB - argument: simplify_tolerance=0.1 (Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level)
+0:00:00 DEB - argument: osm_lazy_reads=false (Read OSM blocks from disk in worker threads)
+0:00:00 DEB - argument: tmpdir=data/tmp (temp directory)
+0:00:00 DEB - argument: only_download=false (download source data then exit)
+0:00:00 DEB - argument: download=false (download sources)
+0:00:00 DEB - argument: temp_node_db=data/tmp/node.db (temp node db location)
+0:00:00 DEB - argument: temp_multipolygon_db=data/tmp/multipolygon.db (temp multipolygon db location)
+0:00:00 DEB - argument: temp_feature_db=data/tmp/feature.db (temp feature db location)
+0:00:00 DEB - argument: only_fetch_wikidata=false (fetch wikidata translations then quit)
+0:00:00 DEB - argument: fetch_wikidata=false (fetch wikidata translations then continue)
+0:00:00 DEB - argument: use_wikidata=true (use wikidata translations)
+0:00:00 DEB - argument: wikidata_cache=data/sources/wikidata_names.json (wikidata cache file)
+0:00:00 DEB - argument: lake_centerlines_path=data/sources/lake_centerline.shp.zip (lake_centerlines shapefile path)
+0:00:00 DEB - argument: free_lake_centerlines_after_read=false (delete lake_centerlines input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: water_polygons_path=data/sources/water-polygons-split-3857.zip (water_polygons shapefile path)
+0:00:00 DEB - argument: free_water_polygons_after_read=false (delete water_polygons input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: natural_earth_path=data/sources/natural_earth_vector.sqlite.zip (natural_earth sqlite db path)
+0:00:00 DEB - argument: free_natural_earth_after_read=false (delete natural_earth input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: osm_path=data/sources/planet.osm.pbf (osm OSM input file path)
+0:00:00 DEB - argument: free_osm_after_read=false (delete osm input file after reading to make space for output (reduces peak disk usage))
+0:00:00 DEB - argument: mbtiles=data/output.mbtiles (mbtiles output file)
+0:00:00 DEB - argument: transliterate=true (attempt to transliterate latin names)
+0:00:00 DEB - argument: languages=am,ar,az,be,bg,br,bs,ca,co,cs,cy,da,de,el,en,eo,es,et,eu,fi,fr,fy,ga,gd,he,hi,hr,hu,hy,id,is,it,ja,ja_kana,ja_rm,ja-Latn,ja-Hira,ka,kk,kn,ko,ko-Latn,ku,la,lb,lt,lv,mk,mt,ml,nl,no,oc,pl,pt,rm,ro,ru,sk,sl,sq,sr,sr-Latn,sv,ta,te,th,tr,uk,zh (languages to use)
+0:00:00 DEB - argument: only_layers= (Include only certain layers)
+0:00:00 DEB - argument: exclude_layers= (Exclude certain layers)
+0:00:00 DEB - argument: boundary_country_names=true (boundary layer: add left/right codes of neighboring countries)
+0:00:00 DEB - argument: transportation_z13_paths=false (transportation(_name) layer: show all paths on z13)
+0:00:00 DEB - argument: building_merge_z13=false (building layer: merge nearby buildings at z13)
+0:00:00 DEB - argument: transportation_name_brunnel=false (transportation_name layer: set to false to omit brunnel and help merge long highways)
+0:00:00 DEB - argument: transportation_name_size_for_shield=false (transportation_name layer: allow road names on shorter segments (ie. they will have a shield))
+0:00:00 DEB - argument: transportation_name_limit_merge=false (transportation_name layer: limit merge so we don't combine different relations to help merge long highways)
+0:00:00 DEB - argument: transportation_name_minor_refs=false (transportation_name layer: include name and refs from minor road networks if not present on a way)
+0:00:00 DEB - argument: mbtiles_name=OpenMapTiles ('name' attribute for mbtiles metadata)
+0:00:00 DEB - argument: mbtiles_description=A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org ('description' attribute for mbtiles metadata)
+0:00:00 DEB - argument: mbtiles_attribution=<a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a> ('attribution' attribute for mbtiles metadata)
+0:00:00 DEB - argument: mbtiles_version=3.13.0 ('version' attribute for mbtiles metadata)
+0:00:00 DEB - argument: mbtiles_type=baselayer ('type' attribute for mbtiles metadata)
+0:00:00 DEB - argument: help=false (show arguments then exit)
+0:00:00 INF - Building BasemapProfile profile into data/output.mbtiles in these phases:
+0:00:00 INF -   lake_centerlines: Process features in data/sources/lake_centerline.shp.zip
+0:00:00 INF -   water_polygons: Process features in data/sources/water-polygons-split-3857.zip
+0:00:00 INF -   natural_earth: Process features in data/sources/natural_earth_vector.sqlite.zip
+0:00:00 INF -   osm_pass1: Pre-process OpenStreetMap input (store node locations then relation members)
+0:00:00 INF -   osm_pass2: Process OpenStreetMap nodes, ways, then relations
+0:00:00 INF -   sort: Sort rendered features by tile ID
+0:00:00 INF -   mbtiles: Encode each tile and write to data/output.mbtiles
+0:00:00 INF - error loading /data/data/sources/wikidata_names.json: java.nio.file.NoSuchFileException: data/sources/wikidata_names.json
+0:00:00 DEB - ✓ 223G storage on /data (/dev/nvme1n1) requested for read phase disk, 1.8T available
+0:00:00 DEB -  - 223G used for temporary feature storage
+0:00:00 DEB - ✓ 335G storage on /data (/dev/nvme1n1) requested for write phase disk, 1.8T available
+0:00:00 DEB -  - 223G used for temporary feature storage
+0:00:00 DEB -  - 111G used for mbtiles output
+0:00:00 DEB - ✓ 106G JVM heap requested for read phase, 118G available
+0:00:00 DEB -  - 76G used for array node location cache (switch to sparsearray to reduce size)
+0:00:00 DEB -  - 10G used for multipolygon way geometries
+0:00:00 DEB -  - 20G used for temporary profile storage
+0:00:00 DEB - ✓ 0 temporary files and 14G of free memory for OS to cache them
+0:00:00 INF - Using merge sort feature map, chunk size=922mb workers=64
+0:00:01 INF - dataFileCache open start
+0:00:01 INF [lake_centerlines] - 
+0:00:01 INF [lake_centerlines] - Starting...
+0:00:03 INF [lake_centerlines] -  read: [  51k 100%  30k/s ] write: [    0    0/s ] 0    
+    cpus: 2.8 gc:  1% heap: 418M/118G direct: 73k postGC: 135M
+    read( -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/115k) -> write( -%)
+0:00:03 INF [lake_centerlines] - Finished in 2s cpu:5s avg:3
+0:00:03 INF [lake_centerlines] -   read     1x(84% 1s)
+0:00:03 INF [lake_centerlines] -   process 64x(1% 0s wait:2s)
+0:00:03 INF [lake_centerlines] -   write    1x(0% 0s wait:2s)
+0:00:03 INF [water_polygons] - 
+0:00:03 INF [water_polygons] - Starting...
+0:00:13 INF [water_polygons] -  read: [   3k  21%  308/s ] write: [  18M 1.8M/s ] 1G   
+    cpus: 45.4 gc:  5% heap: 13G/118G direct: 54M postGC: 2.6G
+    read(94%) ->    (0/1k) -> process(62% 72% 54% 86% 75% 78% 89% 76% 51% 52% 54% 87% 64% 45% 56% 59% 61% 72% 64% 59% 58% 58% 61% 66% 87% 53% 70% 58% 72% 55% 55% 65% 51% 60% 67% 64% 73% 61% 56% 45% 74% 62% 62% 62% 65% 77% 62% 58% 61% 66% 73% 57% 62% 84% 41% 60% 66% 62% 43% 58% 45% 78% 73% 68%) -> (31k/115k) -> write(43%)
+0:00:23 INF [water_polygons] -  read: [   7k  49%  391/s ] write: [  51M 3.3M/s ] 2.7G 
+    cpus: 45 gc:  3% heap: 5.8G/118G direct: 54M postGC: 2.1G
+    read(71%) ->   (1k/1k) -> process(81% 70% 53% 62% 68% 66% 58% 80% 56% 80% 84% 74% 78% 94% 60% 49% 90% 55% 58% 70% 64% 63% 65% 68% 69% 59% 66% 48% 58% 59% 60% 60% 62% 73% 58% 54% 69% 56% 80% 58% 69% 66% 81% 59% 59% 95% 54% 59% 55% 58% 58% 76% 58% 56% 53% 66% 60% 86% 70% 69% 65% 82% 54% 65%) -> (109k/115k) -> write(67%)
+0:00:33 INF [water_polygons] -  read: [ 9.3k  65%  232/s ] write: [ 104M 5.3M/s ] 5.1G 
+    cpus: 5.9 gc:  0% heap: 7.7G/118G direct: 54M postGC: 1.6G
+    read( 0%) ->   (1k/1k) -> process(18%  6%  6%  6%  7%  6%  6% 35%  6% 10%  6%  6%  6% 13%  6%  6%  8%  6%  6%  6%  6%  6%  7%  7%  7%  6%  7%  7%  7%  6%  7%  7%  6%  7%  6%  7%  7%  7% 18%  7%  7%  7%  8%  6%  6%  7%  7%  7%  7%  6%  7%  7%  6%  7%  6%  6%  7%  7%  6%  6%  7%  7%  6%  8%) -> (113k/115k) -> write(100%)
+0:00:43 INF [water_polygons] -  read: [  11k  81%  233/s ] write: [ 158M 5.3M/s ] 7.4G 
+    cpus: 5.2 gc:  0% heap: 6.7G/118G direct: 54M postGC: 1.6G
+    read( 1%) ->   (1k/1k) -> process( 9%  6%  6%  6%  7%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  7%  7%  7%  6%  7%  6%  6%  6%  6%  7%  7%  7%  7%  7%  6%  6%  6%  7%  6%  7%  6%  7%  7%  7%  6%  7%  6%  7%  6%  7%  7%  6%  6%  6%  6%  7%  7%  7%  6%  6%  7%  8%) -> (113k/115k) -> write(100%)
+0:00:53 INF [water_polygons] -  read: [  13k  97%  231/s ] write: [ 211M 5.2M/s ] 9.8G 
+    cpus: 5.1 gc:  0% heap: 5.2G/118G direct: 54M postGC: 1.6G
+    read( -%) ->  (467/1k) -> process( 8%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  7%  6%  7%  6%  7%  6%  6%  7%  7%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  7%  6%  6%  6%  6%  6%  6%  7%  6%  6%  6%  6%  6%  6%  6%  6%  6%  6%  9%) -> (113k/115k) -> write(100%)
+0:00:55 INF [water_polygons] -  read: [  14k 100%  218/s ] write: [ 222M 5.3M/s ] 10G  
+    cpus: 5.2 gc:  0% heap: 19G/118G direct: 54M postGC: 1.6G
+    read( -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/115k) -> write( -%)
+0:00:55 INF [water_polygons] - Finished in 52s cpu:18m avg:20.7
+0:00:55 INF [water_polygons] -   read     1x(32% 17s sys:1s wait:30s done:4s)
+0:00:55 INF [water_polygons] -   process 64x(29% 15s wait:36s)
+0:00:55 INF [water_polygons] -   write    1x(83% 43s sys:5s wait:8s)
+0:00:55 INF [natural_earth] - unzipping /data/data/sources/natural_earth_vector.sqlite.zip to data/tmp/natearth.sqlite
+0:01:00 INF [natural_earth] - 
+0:01:00 INF [natural_earth] - Starting...
+0:01:10 INF [natural_earth] -  read: [ 339k  97%  33k/s ] write: [   1k   99/s ] 10G  
+    cpus: 2.6 gc:  0% heap: 3G/118G direct: 54M postGC: 1.6G
+    read(98%) ->    (0/1k) -> process( 1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  2%  1%  1%  1%  1%  2%  2%  1%  1%  1%  1%  2%  1%  1% 10%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%) -> (28k/115k) -> write( 0%)
+0:01:11 INF [natural_earth] -  read: [ 349k 100%  19k/s ] write: [  33k  66k/s ] 10G  
+    cpus: 2.5 gc:  0% heap: 3.4G/118G direct: 54M postGC: 1.6G
+    read( -%) ->    (0/1k) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/115k) -> write( -%)
+0:01:11 INF [natural_earth] - Finished in 11s cpu:28s avg:2.6
+0:01:11 INF [natural_earth] -   read     1x(93% 10s sys:2s)
+0:01:11 INF [natural_earth] -   process 64x(2% 0.2s wait:10s)
+0:01:11 INF [natural_earth] -   write    1x(0% 0s wait:10s)
+0:01:11 INF [osm_pass1] - 
+0:01:11 INF [osm_pass1] - Starting...
+0:01:21 INF [osm_pass1] -  nodes: [   1B 109M/s ] 12G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [ 2.3k  238/s ]
+    cpus: 57.6 gc:  7% heap: 36G/118G direct: 60M postGC: 18G hppc: 1.2k
+    read(62%) -> (127/190) -> process(87% 83% 86% 88% 88% 89% 85% 85% 83% 88% 86% 87% 85% 85% 85% 88% 84% 88% 86% 86% 84% 86% 85% 86% 84% 86% 85% 87% 86% 86% 83% 86% 86% 84% 88% 83% 86% 86% 85% 84% 82% 86% 84% 84% 85% 85% 86% 89% 86% 85% 85% 85% 85% 84% 85% 83% 84% 84% 87% 86% 85% 85% 81%)
+0:01:31 INF [osm_pass1] -  nodes: [ 2.4B 138M/s ] 26G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [ 4.8k  249/s ]
+    cpus: 58 gc: 10% heap: 36G/118G direct: 60M postGC: 35G hppc: 1.2k
+    read(60%) -> (127/190) -> process(80% 86% 85% 83% 85% 85% 81% 85% 85% 84% 86% 82% 87% 82% 87% 81% 86% 83% 85% 87% 88% 86% 87% 84% 80% 86% 85% 86% 86% 83% 86% 88% 86% 88% 86% 86% 84% 80% 84% 85% 83% 86% 83% 84% 83% 86% 87% 85% 85% 83% 82% 82% 82% 86% 85% 82% 86% 84% 86% 82% 86% 86% 84%)
+0:01:41 INF [osm_pass1] -  nodes: [ 3.8B 136M/s ] 40G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [ 6.9k  200/s ]
+    cpus: 56.8 gc: 10% heap: 65G/118G direct: 60M postGC: 53G hppc: 1.2k
+    read(62%) -> (125/190) -> process(85% 83% 81% 83% 81% 84% 82% 80% 83% 80% 86% 84% 86% 83% 85% 85% 80% 82% 84% 85% 78% 82% 83% 85% 84% 85% 82% 88% 84% 88% 80% 84% 84% 83% 84% 87% 79% 84% 78% 85% 82% 80% 80% 84% 83% 84% 78% 81% 83% 84% 85% 83% 83% 85% 84% 82% 83% 83% 82% 81% 84% 84% 84%)
+0:01:51 INF [osm_pass1] -  nodes: [ 5.2B 134M/s ] 53G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [ 8.8k  193/s ]
+    cpus: 56.3 gc: 13% heap: 91G/118G direct: 60M postGC: 89G hppc: 1.2k
+    read(60%) -> (115/190) -> process(78% 80% 81% 82% 78% 82% 80% 81% 80% 80% 82% 80% 81% 82% 81% 78% 79% 80% 81% 81% 80% 79% 79% 80% 80% 80% 78% 80% 84% 81% 81% 81% 77% 80% 81% 80% 82% 81% 81% 79% 83% 80% 79% 80% 80% 82% 82% 79% 79% 82% 77% 78% 81% 80% 78% 79% 82% 79% 77% 78% 81% 82% 79%)
+0:02:01 INF [osm_pass1] -  nodes: [ 6.5B 132M/s ] 66G   ways: [    0    0/s ] rels: [    0    0/s ] blocks: [  10k  186/s ]
+    cpus: 54.3 gc: 19% heap: 88G/118G direct: 60M postGC: 88G hppc: 1.2k
+    read(47%) -> (118/190) -> process(69% 68% 70% 67% 71% 68% 72% 72% 72% 71% 68% 72% 70% 73% 71% 71% 72% 70% 70% 70% 70% 70% 72% 72% 70% 71% 72% 70% 71% 69% 72% 71% 66% 71% 68% 72% 72% 71% 68% 67% 72% 73% 73% 72% 68% 70% 68% 72% 70% 70% 72% 70% 69% 72% 72% 71% 70% 71% 72% 72% 71% 69% 72%)
+0:02:09 INF [osm_pass1:process] - Finished nodes: 7,546,573,682 (131M/s) in 58s cpu:53m43s gc:8s avg:56
+0:02:11 INF [osm_pass1] -  nodes: [ 7.5B  99M/s ] 76G   ways: [   9M 892k/s ] rels: [    0    0/s ] blocks: [  12k  148/s ]
+    cpus: 46.4 gc: 22% heap: 103G/118G direct: 60M postGC: 103G hppc: 1.2k
+    read(32%) -> (126/190) -> process(56% 56% 54% 54% 55% 54% 55% 57% 56% 55% 59% 57% 54% 58% 56% 55% 54% 58% 57% 55% 55% 54% 56% 57% 57% 60% 57% 55% 59% 59% 59% 55% 57% 55% 55% 55% 56% 59% 56% 57% 56% 59% 54% 60% 58% 55% 54% 56% 56% 58% 57% 56% 56% 57% 55% 56% 55% 56% 58% 56% 55% 57% 56%)
+0:02:21 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [  64M 5.5M/s ] rels: [    0    0/s ] blocks: [  12k   57/s ]
+    cpus: 34.3 gc: 24% heap: 91G/118G direct: 10M postGC: 89G hppc: 1.2k
+    read(12%) -> (127/190) -> process(14% 15% 15% 13% 13% 14% 16% 16% 16% 17% 14% 16% 17% 15% 10% 27% 17% 17% 16% 10% 18% 16% 16% 15% 18% 14% 17% 14% 12% 12% 16% 12% 20% 15% 17% 20% 14% 16% 15% 16% 16% 16% 15% 14% 15% 14% 17% 21% 12% 16% 12% 16% 15% 14% 19% 14% 14% 18% 18% 17% 14% 14% 15%)
+0:02:31 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 144M   8M/s ] rels: [    0    0/s ] blocks: [  13k   67/s ]
+    cpus: 24.6 gc: 17% heap: 104G/118G direct: 10M postGC: 103G hppc: 1.2k
+    read(13%) -> (127/190) -> process(17% 16% 19% 20% 20% 24% 21% 20% 18% 22% 18% 21% 22% 16% 17% 19% 18% 18% 21% 19% 18% 20% 19% 17% 17% 17% 19% 21% 23% 18% 23% 20% 22% 18% 20% 21% 21% 20% 20% 18% 18% 21% 21% 20% 20% 18% 18% 17% 21% 17% 19% 21% 18% 18% 23% 22% 17% 19% 22% 20% 19% 21% 21%)
+0:02:41 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 245M  10M/s ] rels: [    0    0/s ] blocks: [  14k   82/s ]
+    cpus: 28.9 gc: 21% heap: 104G/118G direct: 10M postGC: 104G hppc: 1.2k
+    read(15%) -> (127/190) -> process(20% 20% 22% 25% 22% 24% 21% 21% 21% 23% 22% 21% 21% 19% 25% 23% 24% 23% 20% 23% 23% 21% 23% 18% 22% 20% 30% 22% 22% 23% 26% 22% 27% 21% 24% 21% 22% 23% 23% 26% 22% 25% 24% 19% 23% 21% 26% 22% 23% 21% 22% 20% 24% 22% 23% 24% 21% 19% 20% 22% 30% 24% 22%)
+0:02:51 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 357M  11M/s ] rels: [    0    0/s ] blocks: [  15k   84/s ]
+    cpus: 30 gc: 22% heap: 107G/118G direct: 10M postGC: 107G hppc: 1.2k
+    read(14%) -> (127/190) -> process(20% 20% 21% 24% 23% 25% 25% 24% 18% 22% 20% 24% 22% 22% 22% 20% 23% 23% 26% 27% 26% 22% 22% 21% 22% 21% 22% 25% 23% 24% 27% 24% 24% 23% 22% 25% 24% 22% 27% 25% 25% 25% 22% 21% 24% 22% 23% 21% 24% 22% 22% 21% 22% 22% 22% 19% 21% 21% 23% 24% 24% 22% 22%)
+0:03:01 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 478M  11M/s ] rels: [    0    0/s ] blocks: [  16k   85/s ]
+    cpus: 30.6 gc: 26% heap: 105G/118G direct: 10M postGC: 105G hppc: 1.2k
+    read(11%) -> (127/190) -> process(23% 23% 24% 20% 20% 20% 21% 25% 26% 21% 24% 21% 21% 21% 23% 21% 24% 23% 22% 22% 21% 19% 20% 21% 21% 25% 19% 21% 19% 24% 21% 25% 21% 23% 20% 25% 23% 21% 20% 22% 21% 22% 25% 22% 21% 20% 24% 19% 24% 24% 21% 21% 21% 22% 25% 24% 24% 22% 21% 22% 20% 24% 21%)
+0:03:11 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 585M  10M/s ] rels: [    0    0/s ] blocks: [  16k   76/s ]
+    cpus: 30.2 gc: 31% heap: 99G/118G direct: 10M postGC: 97G hppc: 1.2k
+    read(11%) -> (127/190) -> process(18% 23% 19% 22% 22% 20% 18% 20% 22% 19% 23% 17% 18% 23% 20% 24% 22% 18% 21% 20% 18% 18% 22% 22% 21% 19% 19% 20% 21% 18% 20% 23% 19% 20% 18% 19% 19% 21% 21% 17% 19% 19% 18% 22% 17% 21% 17% 22% 20% 17% 22% 21% 19% 20% 21% 20% 18% 19% 19% 22% 19% 17% 17%)
+0:03:21 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 701M  11M/s ] rels: [    0    0/s ] blocks: [  17k   83/s ]
+    cpus: 29.1 gc: 23% heap: 112G/118G direct: 10M postGC: 111G hppc: 1.2k
+    read(11%) -> (127/190) -> process(22% 19% 23% 20% 23% 20% 22% 18% 25% 21% 21% 21% 25% 20% 24% 19% 19% 24% 21% 19% 22% 21% 21% 21% 22% 20% 21% 22% 26% 26% 21% 26% 25% 21% 21% 19% 23% 25% 23% 21% 21% 21% 20% 20% 24% 21% 22% 19% 24% 24% 21% 20% 22% 21% 21% 21% 21% 26% 20% 19% 19% 25% 22%)
+0:03:31 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 829M  12M/s ] rels: [    0    0/s ] blocks: [  18k   88/s ]
+    cpus: 32.2 gc: 27% heap: 112G/118G direct: 10M postGC: 110G hppc: 1.2k
+    read(12%) -> (126/190) -> process(22% 24% 22% 24% 24% 24% 22% 22% 22% 24% 22% 24% 22% 21% 23% 20% 25% 22% 21% 24% 24% 24% 20% 24% 23% 22% 25% 24% 24% 24% 23% 24% 22% 20% 22% 22% 24% 24% 22% 23% 24% 21% 22% 23% 22% 23% 22% 23% 23% 20% 21% 25% 23% 22% 24% 22% 21% 23% 24% 24% 22% 22% 23%)
+0:03:33 INF [osm_pass1:process] - Finished ways: 841,994,745 (10M/s) in 1m24s cpu:41m52s gc:20s avg:30
+0:03:41 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 841M 1.2M/s ] rels: [ 7.5M 750k/s ] blocks: [  18k   19/s ]
+    cpus: 14.1 gc:  8% heap: 96G/118G direct: 3.9M postGC: 92G hppc: 719M
+    read( -%) ->   (0/190) -> process(12% 13% 19% 10% 16% 12% 13% 22% 10% 10% 14% 12% 17% 13% 17% 11% 13% 11% 14% 14% 15% 22% 13% 11% 12% 20%  9%  8% 11% 12%  -% 15% 10% 10% 23% 16%  9% 13% 10% 15%  8% 12% 18% 18% 11% 13% 16% 14% 10% 11%  9%  9% 11% 12% 11% 10% 10% 12% 11% 14% 13% 11% 11%)
+0:03:44 INF [osm_pass1:process] - Finished relations: 9,718,612 (904k/s) in 11s cpu:1m21s avg:7.5
+0:03:44 INF [osm_pass1] -  nodes: [ 7.5B    0/s ] 76G   ways: [ 841M    0/s ] rels: [ 9.7M 891k/s ] blocks: [  18k   25/s ]
+    cpus: 4.4 gc:  2% heap: 94G/118G direct: 3.9M postGC: 92G hppc:   1G
+    read( -%) ->   (0/190) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%)
+0:03:44 DEB [osm_pass1] - Processed 18,767 blocks:
+0:03:44 DEB [osm_pass1] -   nodes: 7,546,573,682 (131M/s) in 58s cpu:53m43s gc:8s avg:56
+0:03:44 DEB [osm_pass1] -   ways: 841,994,745 (10M/s) in 1m24s cpu:41m52s gc:20s avg:30
+0:03:44 DEB [osm_pass1] -   relations: 9,718,612 (904k/s) in 11s cpu:1m21s avg:7.5
+0:03:44 INF [osm_pass1] - Finished in 2m33s cpu:1h37m43s gc:28s avg:38.4
+0:03:44 INF [osm_pass1] -   read     1x(28% 42s sys:34s wait:1m10s done:11s)
+0:03:44 INF [osm_pass1] -   process 63x(42% 1m4s sys:7s block:59s done:1s)
+0:03:44 INF [osm_pass2] - 
+0:03:44 INF [osm_pass2] - Starting...
+0:03:54 INF [osm_pass2] -  nodes: [ 233M   3%  23M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 244M 2.1M/s ] 12G   blocks: [  524   3%   52/s ]
+    cpus: 46.9 gc:  7% heap: 98G/118G direct: 10M postGC: 89G relInfo:   1G mpGeoms: 297  
+    read(17%) ->   (33/96) -> process(68% 46% 68% 68% 59% 42% 48% 65% 59% 55% 63% 66% 54% 71% 73% 68% 48% 57% 66% 46% 47% 70% 67% 71% 58% 65% 63% 66% 71% 69% 69% 65% 68% 66% 62% 68% 66% 45% 59% 68% 67% 70% 70% 67% 65% 69% 69% 68% 71% 64% 64% 72% 64% 65% 71% 70% 56% 57% 65% 70% 59% 70% 68%) -> (99k/114k) -> write(78%)
+0:04:04 INF [osm_pass2] -  nodes: [ 486M   6%  25M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 268M 2.4M/s ] 15G   blocks: [   1k   6%   51/s ]
+    cpus: 46.5 gc:  8% heap: 103G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read(14%) ->   (33/96) -> process(41% 57% 69% 54% 60% 65% 60% 69% 71% 68% 71% 36% 42% 62% 76% 58% 66% 69% 49% 50% 52% 73% 63% 69% 65% 39% 59% 73% 70% 72% 71% 54% 75% 70% 39% 44% 65% 69% 52% 71% 61% 66% 75% 50% 73% 54% 65% 63% 76% 68% 63% 68% 38% 69% 66% 68% 69% 61% 69% 71% 68% 71% 65%) -> (36k/114k) -> write(90%)
+0:04:14 INF [osm_pass2] -  nodes: [ 825M  11%  33M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 284M 1.5M/s ] 17G   blocks: [ 1.8k  10%   76/s ]
+    cpus: 55.8 gc: 10% heap: 100G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read(24%) ->   (33/96) -> process(76% 78% 79% 78% 80% 80% 78% 79% 81% 78% 79% 80% 78% 78% 76% 77% 81% 79% 78% 79% 79% 80% 79% 77% 80% 80% 75% 79% 79% 78% 76% 79% 78% 80% 77% 78% 80% 77% 78% 80% 79% 78% 80% 77% 80% 81% 79% 79% 79% 80% 79% 80% 77% 79% 80% 77% 79% 78% 77% 79% 79% 78% 78%) -> (86k/114k) -> write(61%)
+0:04:24 INF [osm_pass2] -  nodes: [ 1.1B  15%  32M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 301M 1.6M/s ] 19G   blocks: [ 2.5k  13%   68/s ]
+    cpus: 54.4 gc:  9% heap: 99G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read(19%) ->   (33/96) -> process(81% 80% 82% 82% 81% 78% 80% 83% 80% 80% 80% 39% 80% 81% 79% 81% 80% 81% 78% 80% 80% 82% 40% 82% 82% 79% 82% 80% 81% 81% 81% 82% 40% 76% 81% 77% 37% 80% 82% 81% 81% 80% 81% 79% 82% 80% 39% 81% 80% 81% 77% 82% 79% 78% 40% 82% 82% 81% 83% 79% 80% 79% 79%) -> (28k/114k) -> write(64%)
+0:04:34 INF [osm_pass2] -  nodes: [ 1.4B  19%  31M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 311M   1M/s ] 20G   blocks: [ 3.1k  17%   61/s ]
+    cpus: 49.9 gc:  8% heap: 100G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read(14%) ->   (33/96) -> process(76% 75% 81% 77% 77% 79% 79% 78% 77% 74% 74% 10% 80% 80% 77% 75% 69% 70% 79% 79% 75% 78% 10% 77% 80% 76% 80% 77% 79% 77% 81% 72% 11% 80% 77% 74% 12% 78% 77% 75% 78% 69% 76% 78% 75% 76% 10% 73% 75% 74% 80% 76% 76% 76% 10% 75% 76% 79% 78% 80% 80% 75% 76%) -> (32k/114k) -> write(39%)
+0:04:44 INF [osm_pass2] -  nodes: [ 1.7B  23%  29M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 322M 1.1M/s ] 21G   blocks: [ 3.6k  20%   54/s ]
+    cpus: 46.8 gc:  8% heap: 94G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read(12%) ->   (33/96) -> process(64% 77% 76% 65% 73% 76% 62% 71% 72% 73% 73% 10% 75% 72% 72% 71% 76% 75% 71% 42% 72% 73%  9% 75% 69% 75%  8% 71% 72% 71% 76% 71%  9% 77% 78% 72% 10% 68% 65% 74% 75% 80% 71% 76% 67% 73%  9% 64% 74% 78% 73% 65% 67% 77% 62% 74% 72% 69% 78% 59% 72% 79% 71%) -> (29k/114k) -> write(40%)
+0:04:54 INF [osm_pass2] -  nodes: [   2B  27%  29M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 338M 1.5M/s ] 22G   blocks: [ 4.2k  22%   55/s ]
+    cpus: 48.7 gc:  9% heap: 94G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read(12%) ->   (33/96) -> process(70% 75% 71% 67% 71% 81% 70% 75% 75% 76% 74% 10% 73% 71% 78% 74% 71% 75% 75% 79% 78% 81%  9% 76% 72% 74%  8% 71% 72% 75% 54% 72% 10% 78% 70% 70% 10% 80% 78% 79% 75% 72% 78% 78% 71% 75% 10% 73% 73% 70% 76% 81% 76% 80% 69% 80% 78% 70% 69% 77% 75% 68% 82%) -> (47k/114k) -> write(56%)
+0:05:04 INF [osm_pass2] -  nodes: [ 2.3B  31%  30M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 358M   2M/s ] 23G   blocks: [ 4.7k  25%   48/s ]
+    cpus: 50.3 gc:  9% heap: 95G/118G direct: 10M postGC: 92G relInfo:   1G mpGeoms: 297  
+    read(10%) ->   (32/96) -> process(75% 81% 80% 65% 72% 74% 79% 72% 74% 70% 78% 13% 78% 75% 78% 74% 75% 74% 76% 72% 78% 77% 12% 81% 67% 81% 10% 69% 74% 77% 76% 69% 12% 78% 76% 74% 51% 76% 77% 74% 57% 75% 72% 73% 76% 77% 58% 76% 79% 76% 77% 67% 71% 79% 71% 79% 78% 73% 75% 74% 83% 78% 68%) -> (34k/114k) -> write(71%)
+0:05:14 INF [osm_pass2] -  nodes: [ 2.6B  36%  31M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 369M   1M/s ] 24G   blocks: [ 5.1k  28%   47/s ]
+    cpus: 48.9 gc:  8% heap: 96G/118G direct: 10M postGC: 92G relInfo:   1G mpGeoms: 297  
+    read(10%) ->   (33/96) -> process(78% 72% 68% 75% 70% 71% 76% 77% 74% 73% 72% 12% 77% 59% 74% 74% 77% 75% 68% 70% 79% 78% 11% 76% 76% 74% 10% 79% 80% 77% 70% 78% 12% 65% 77% 73% 75% 77% 76% 63% 73% 73% 71% 73% 73% 75% 75% 76% 81% 73% 81% 74%  5% 53% 76% 73% 71% 75% 69% 75% 73% 74% 80%) -> (32k/114k) -> write(37%)
+0:05:24 INF [osm_pass2] -  nodes: [ 2.9B  39%  30M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 378M 984k/s ] 25G   blocks: [ 5.6k  30%   44/s ]
+    cpus: 46.3 gc:  8% heap: 91G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read( 9%) ->   (33/96) -> process(66% 70% 69% 68% 75% 58% 68% 69% 68% 76% 73% 37% 77% 64% 74% 72% 71% 19% 70% 69% 71% 75% 10% 72% 70% 67%  8% 72% 69% 71% 69% 76%  8% 70% 76% 75% 66% 68% 78% 64% 70% 68% 69% 73% 76% 65% 66% 68% 52% 74% 66% 62% 68% 69% 63% 72% 54% 77% 67% 66% 61% 71% 69%) -> (32k/114k) -> write(35%)
+0:05:34 INF [osm_pass2] -  nodes: [ 3.2B  44%  31M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 387M 849k/s ] 26G   blocks: [   6k  32%   45/s ]
+    cpus: 47.8 gc:  8% heap: 97G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read( 9%) ->   (33/96) -> process(72% 75% 76% 72% 73% 67% 69% 80% 68% 67% 68% 78% 65% 70% 72% 74% 77% 73% 72% 68% 70% 69% 13% 71% 68% 74% 10% 75% 72% 71% 72% 62% 12% 77% 75% 68% 66% 71% 69% 73% 72% 69% 72% 69% 70% 77% 71% 65%  8% 70% 78% 69% 72% 70% 70% 71% 66% 72% 75% 69% 64% 70% 74%) -> (29k/114k) -> write(31%)
+0:05:44 INF [osm_pass2] -  nodes: [ 3.5B  47%  26M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 397M   1M/s ] 27G   blocks: [ 6.4k  34%   38/s ]
+    cpus: 41.9 gc:  8% heap: 91G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read( 7%) ->   (33/96) -> process(73% 69% 70% 62% 67% 59% 66% 57% 67% 68% 70% 51% 56% 54% 63% 63% 64% 57% 57% 63% 58% 36%  8% 67% 54% 61% 21% 62% 63% 71% 69% 65%  8% 57% 61% 66% 68% 67% 58% 59% 62% 39% 56% 53% 64% 64% 73% 68% 13% 63% 57% 68% 56% 68% 56% 63% 67% 69% 63% 66% 64% 64% 53%) -> (30k/114k) -> write(36%)
+0:05:54 INF [osm_pass2] -  nodes: [ 3.8B  51%  29M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 406M 885k/s ] 28G   blocks: [ 6.8k  37%   42/s ]
+    cpus: 45.1 gc:  8% heap: 98G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read( 8%) ->   (32/96) -> process(67% 70% 65% 60% 73% 73% 73% 58% 71% 67% 73% 63% 69% 53% 69% 69% 64% 66% 66% 65% 61% 61% 69% 65% 71% 68% 67% 56% 61% 68% 58% 73% 10% 69% 67% 47% 71% 65% 68% 59% 61% 10% 62% 65% 59% 69% 65% 64% 57% 72% 55% 62% 68% 59% 62% 61% 59% 60% 70% 64% 77% 68% 68%) -> (31k/114k) -> write(32%)
+0:06:04 INF [osm_pass2] -  nodes: [ 4.1B  54%  25M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 413M 705k/s ] 29G   blocks: [ 7.2k  39%   35/s ]
+    cpus: 38.1 gc:  6% heap: 99G/118G direct: 10M postGC: 92G relInfo:   1G mpGeoms: 297  
+    read( 6%) ->   (33/96) -> process(47% 51% 47% 56% 67% 48% 63% 49% 62% 57% 57% 47% 58% 48% 48% 59% 54% 56% 34% 66% 65% 63% 45% 52% 65% 61% 53% 48% 64% 43% 47% 56%  8% 54% 49% 48% 49% 59% 56% 69% 46% 51% 63% 48% 64% 62% 57% 61% 48% 54% 53% 55% 43% 50% 65% 58% 57% 49% 43% 49% 71% 59% 50%) -> (31k/114k) -> write(25%)
+0:06:14 INF [osm_pass2] -  nodes: [ 4.3B  58%  26M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 422M 918k/s ] 30G   blocks: [ 7.6k  41%   38/s ]
+    cpus: 40.2 gc:  7% heap: 103G/118G direct: 10M postGC: 93G relInfo:   1G mpGeoms: 297  
+    read( 7%) ->   (33/96) -> process(60% 63% 46% 48% 54% 51% 54% 43% 48% 58% 68% 53% 59% 62% 51% 45% 57% 53% 63% 57% 48% 67% 63% 62% 42% 58% 67% 63% 69% 66% 66% 64%  8% 47% 56% 50% 64% 65% 55% 55% 46% 55% 52% 58% 58% 53% 47% 55% 55% 59% 50% 68% 68% 65% 62% 63% 67% 53% 55% 50% 60% 57% 55%) -> (31k/114k) -> write(31%)
+0:06:24 INF [osm_pass2] -  nodes: [ 4.6B  62%  32M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 431M 866k/s ] 31G   blocks: [ 8.1k  43%   46/s ]
+    cpus: 49.6 gc:  8% heap: 100G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read( 9%) ->   (33/96) -> process(68% 72% 75% 76% 77% 74% 68% 69% 70% 72% 74% 68% 73% 68% 74% 76% 70% 66% 74% 75% 63% 72% 55% 72% 72% 76% 63% 69% 73% 68% 69% 67% 20% 75% 68% 78% 69% 77% 64% 67% 75% 68% 70% 72% 68% 72% 71% 68% 69% 71% 78% 79% 73% 66% 66% 70% 76% 75% 61% 67% 72% 79% 80%) -> (31k/114k) -> write(31%)
+0:06:34 INF [osm_pass2] -  nodes: [   5B  67%  32M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 439M 821k/s ] 31G   blocks: [ 8.5k  46%   46/s ]
+    cpus: 49.1 gc:  9% heap: 97G/118G direct: 10M postGC: 93G relInfo:   1G mpGeoms: 297  
+    read(10%) ->   (32/96) -> process(70% 59% 71% 78% 69% 70% 69% 68% 65% 66% 68% 73% 70% 67% 62% 74% 72% 61% 64% 66% 65% 71% 60% 66% 73% 68% 64% 63% 69% 71% 71% 74% 78% 65% 68% 71% 73% 67% 63% 66% 74% 67% 67% 69% 68% 70% 75% 67% 69% 70% 71% 57% 59% 67% 73% 71% 77% 67% 64% 75% 71% 76% 71%) -> (32k/114k) -> write(30%)
+0:06:44 INF [osm_pass2] -  nodes: [ 5.3B  71%  35M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 448M 845k/s ] 32G   blocks: [   9k  48%   51/s ]
+    cpus: 54.4 gc:  9% heap: 98G/118G direct: 10M postGC: 92G relInfo:   1G mpGeoms: 297  
+    read(11%) ->   (33/96) -> process(75% 78% 78% 76% 75% 78% 82% 74% 80% 74% 76% 74% 74% 67% 77% 80% 75% 75% 78% 76% 66% 74% 80% 81% 66% 78% 82% 78% 79% 72% 73% 77% 73% 80% 79% 80% 76% 76% 76% 81% 73% 81% 77% 79% 79% 77% 76% 82% 79% 81% 79% 79% 72% 72% 79% 70% 83% 76% 81% 79% 78% 64% 74%) -> (33k/114k) -> write(33%)
+0:06:54 INF [osm_pass2] -  nodes: [ 5.7B  76%  32M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 459M 1.1M/s ] 33G   blocks: [ 9.5k  51%   46/s ]
+    cpus: 50.7 gc:  9% heap: 102G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read( 9%) ->   (33/96) -> process(70% 68% 79% 60% 81% 71% 71% 76% 73% 69% 67% 60% 75% 66% 67% 71% 74% 78% 71% 75% 70% 73% 73% 78% 72% 72% 51% 66% 71% 74% 62% 66% 78% 71% 68% 76% 68% 58% 73% 72% 71% 70% 61% 75% 75% 72% 67% 79% 75% 79% 73% 79% 72% 72% 69% 74% 76% 72% 78% 81% 76% 61% 74%) -> (30k/114k) -> write(42%)
+0:07:04 INF [osm_pass2] -  nodes: [   6B  81%  37M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 470M   1M/s ] 34G   blocks: [  10k  54%   52/s ]
+    cpus: 56.8 gc: 10% heap: 95G/118G direct: 10M postGC: 93G relInfo:   1G mpGeoms: 297  
+    read(11%) ->   (33/96) -> process(78% 78% 80% 81% 77% 83% 80% 81% 80% 78% 77% 82% 80% 78% 79% 78% 80% 82% 79% 81% 79% 84% 81% 83% 82% 78% 79% 81% 80% 80% 80% 83% 77% 76% 81% 82% 79% 80% 81% 82% 80% 78% 75% 84% 79% 76% 82% 81% 81% 81% 81% 74% 81% 81% 80% 81% 79% 81% 79% 78% 81% 76% 81%) -> (27k/114k) -> write(41%)
+0:07:14 INF [osm_pass2] -  nodes: [ 6.4B  85%  36M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 479M 907k/s ] 35G   blocks: [  10k  56%   50/s ]
+    cpus: 55.2 gc:  9% heap: 97G/118G direct: 10M postGC: 93G relInfo:   1G mpGeoms: 297  
+    read(11%) ->   (33/96) -> process(79% 78% 78% 81% 76% 76% 77% 71% 80% 76% 78% 76% 79% 77% 80% 74% 82% 79% 78% 79% 79% 73% 76% 77% 81% 78% 81% 76% 79% 81% 81% 77% 83% 75% 84% 73% 77% 78% 82% 76% 75% 78% 78% 82% 76% 76% 76% 81% 81% 78% 79% 75% 74% 81% 81% 79% 75% 79% 80% 81% 75% 81% 78%) -> (34k/114k) -> write(35%)
+0:07:24 INF [osm_pass2] -  nodes: [ 6.8B  90%  35M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 492M 1.3M/s ] 36G   blocks: [  11k  59%   51/s ]
+    cpus: 56.4 gc: 10% heap: 90G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read(11%) ->   (33/96) -> process(80% 78% 79% 79% 74% 78% 78% 77% 73% 81% 78% 78% 79% 82% 80% 80% 81% 83% 81% 83% 80% 82% 81% 79% 83% 74% 76% 82% 75% 77% 82% 78% 77% 79% 80% 82% 74% 79% 77% 80% 73% 80% 71% 80% 80% 78% 81% 79% 75% 78% 81% 83% 80% 81% 80% 78% 83% 80% 78% 80% 76% 79% 73%) -> (29k/114k) -> write(50%)
+0:07:34 INF [osm_pass2] -  nodes: [ 6.9B  93%  18M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 499M 678k/s ] 37G   blocks: [  11k  60%   25/s ]
+    cpus: 28 gc:  5% heap: 93G/118G direct: 10M postGC: 91G relInfo:   1G mpGeoms: 297  
+    read( 4%) ->   (32/96) -> process(49% 47% 76%  4% 10% 49% 63%  5% 30% 53% 19% 59% 62%  4% 65%  4% 50% 77% 52% 15% 34% 32% 38% 15% 21% 44%  4% 62%  3%  5% 48% 65%  6% 59% 57% 56% 52% 41%  8% 29%  5% 58%  5% 51% 67% 49% 29% 62% 68% 45% 38% 40% 45% 45% 61% 28% 65% 70%  5% 63% 69% 25% 19%) -> (30k/114k) -> write(22%)
+0:07:44 INF [osm_pass2] -  nodes: [ 7.1B  95%  16M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 504M 531k/s ] 37G   blocks: [  11k  62%   23/s ]
+    cpus: 25.6 gc:  5% heap: 98G/118G direct: 10M postGC: 90G relInfo:   1G mpGeoms: 297  
+    read( 4%) ->   (33/96) -> process(35% 19% 70%  5% 56% 61% 56%  4% 16% 42% 27% 12% 45% 13% 35% 56% 60% 41% 39% 29% 59% 20% 59% 47%  4% 56%  3% 30% 48% 36% 45% 44% 25% 20% 38% 55% 21% 53% 62% 52%  8% 52%  4% 56% 32%  6% 32% 57% 54% 56% 25% 43% 18% 58% 37% 17% 30% 37%  3% 56% 43% 17% 30%) -> (34k/114k) -> write(17%)
+0:07:54 INF [osm_pass2] -  nodes: [ 7.3B  97%  19M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 508M 406k/s ] 38G   blocks: [  11k  63%   26/s ]
+    cpus: 28.8 gc:  5% heap: 95G/118G direct: 10M postGC: 92G relInfo:   1G mpGeoms: 297  
+    read( 4%) ->   (33/96) -> process(55% 47% 60% 49% 71% 34% 67%  4% 52% 61%  4% 16% 54% 59% 57% 36% 52% 40%  5% 54% 38% 60% 49% 50% 25% 31%  3% 43% 58% 48% 50% 14% 39% 19% 32% 60% 24% 56%  5% 21% 55% 53%  4% 65% 57% 40% 55%  8% 55% 41% 18% 64% 59% 65% 60% 38% 38% 56%  4% 34% 65%  6% 22%) -> (30k/114k) -> write(13%)
+0:08:01 DEB [osm_pass2:process] - Sorting long long multimap...
+0:08:04 INF [osm_pass2:process] - Finished nodes: 7,546,573,682 (29M/s) in 4m20s cpu:3h19m37s gc:21s avg:46.1
+0:08:04 INF [osm_pass2] -  nodes: [ 7.5B 100%  19M/s ] 76G   ways: [    0   0%    0/s ] rels: [    0   0%    0/s ] features: [ 514M 583k/s ] 38G   blocks: [  12k  65%   30/s ]
+    cpus: 33.1 gc:  7% heap: 98G/118G direct: 10M postGC: 93G relInfo:   1G mpGeoms: 297  
+    read( 6%) ->   (33/96) -> process(55% 46% 44% 44% 39% 32% 41% 13% 46% 45% 35% 51% 42% 45% 57% 57% 34% 53%  6% 52% 48% 45% 48% 45% 42% 47% 43% 38% 45% 42% 51% 46% 67% 55% 51% 42% 45% 53% 46% 40% 35% 43% 21% 46% 42% 46% 41% 50% 58% 50% 47% 38% 46% 51% 55% 51% 48% 42% 33% 37% 41% 11% 51%) -> (34k/114k) -> write(20%)
+0:08:07 DEB [osm_pass2:process] - Sorted long long multimap 6s cpu:56s avg:9.4
+0:08:14 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 2.7M   0% 274k/s ] rels: [    0   0%    0/s ] features: [ 532M 1.7M/s ] 40G   blocks: [  12k  65%   <1/s ]
+    cpus: 23.1 gc:  1% heap: 94G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 30M  
+    read( 0%) ->   (33/96) -> process(31% 32% 31% 27% 31% 32% 32% 31% 28% 30% 29% 30% 31% 31% 31% 30% 29% 30% 32% 30% 31% 31% 31% 28% 27% 30% 29% 31% 30% 33% 30% 32% 59% 30% 31% 30% 28% 30% 32% 33% 33% 32% 30% 26% 32% 33% 31% 34% 30% 35% 29% 30% 30% 30% 29% 27% 26% 31% 31% 31% 31% 29% 30%) -> (102k/114k) -> write(65%)
+0:08:24 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 6.9M   1% 414k/s ] rels: [    0   0%    0/s ] features: [ 558M 2.6M/s ] 42G   blocks: [  12k  65%    5/s ]
+    cpus: 25 gc:  3% heap: 101G/118G direct: 10M postGC: 90G relInfo: 971M mpGeoms: 69M  
+    read( 1%) ->   (33/96) -> process(33% 34% 34% 28% 32% 31% 35% 33% 28% 34% 32% 33% 33% 33% 38% 31% 33% 32% 37% 33% 32% 34% 32% 31% 30% 30% 33% 32% 32% 34% 32% 35% 31% 31% 34% 29% 28% 32% 30% 34% 33% 34% 34% 28% 36% 33% 47% 33% 35% 34% 31% 36% 30% 31% 31% 28% 28% 31% 33% 32% 33% 33% 35%) -> (103k/114k) -> write(96%)
+0:08:34 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  11M   1% 439k/s ] rels: [    0   0%    0/s ] features: [ 584M 2.6M/s ] 45G   blocks: [  12k  65%    5/s ]
+    cpus: 25.7 gc:  4% heap: 96G/118G direct: 10M postGC: 90G relInfo: 971M mpGeoms: 102M 
+    read( 1%) ->   (33/96) -> process(33% 34% 36% 33% 33% 30% 32% 32% 32% 33% 33% 35% 32% 32% 35% 32% 30% 32% 33% 29% 34% 33% 32% 30% 32% 34% 29% 30% 30% 35% 31% 31% 32% 29% 40% 30% 33% 33% 35% 30% 32% 32% 36% 35% 33% 34% 28% 34% 32% 31% 33% 36% 31% 31% 36% 31% 32% 31% 32% 32% 33% 33% 35%) -> (101k/114k) -> write(96%)
+0:08:44 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  15M   2% 433k/s ] rels: [    0   0%    0/s ] features: [ 610M 2.5M/s ] 47G   blocks: [  12k  66%    3/s ]
+    cpus: 29.5 gc:  4% heap: 91G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 187M 
+    read( 1%) ->   (33/96) -> process(33% 40% 35% 39% 42% 39% 41% 41% 42% 32% 39% 39% 42% 36% 40% 44% 43% 39% 33% 34% 39% 34% 34% 39% 40% 43% 45% 34% 34% 34% 40% 41% 38% 40% 42% 38% 43% 40% 32% 31% 41% 31% 40% 39% 35% 41% 48% 41% 37% 37% 42% 35% 40% 31% 51% 39% 40% 31% 32% 34% 45% 38% 39%) -> (97k/114k) -> write(95%)
+0:08:54 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  20M   2% 470k/s ] rels: [    0   0%    0/s ] features: [ 635M 2.5M/s ] 49G   blocks: [  12k  66%    5/s ]
+    cpus: 34.8 gc:  6% heap: 103G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 310M 
+    read( 1%) ->   (33/96) -> process(50% 47% 43% 53% 45% 45% 41% 40% 45% 51% 47% 44% 51% 47% 43% 45% 43% 44% 46% 46% 45% 46% 44% 51% 44% 46% 66% 48% 46% 44% 51% 45% 40% 49% 44% 45% 47% 47% 44% 45% 47% 43% 45% 48% 46% 43% 46% 39% 48% 47% 45% 46% 44% 45% 52% 43% 49% 53% 52% 47% 46% 56% 45%) -> (96k/114k) -> write(94%)
+0:09:04 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  25M   3% 533k/s ] rels: [    0   0%    0/s ] features: [ 659M 2.3M/s ] 52G   blocks: [  12k  66%    6/s ]
+    cpus: 40.9 gc:  8% heap: 89G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 436M 
+    read( 2%) ->   (33/96) -> process(55% 67% 51% 54% 48% 51% 57% 61% 54% 51% 51% 53% 60% 68% 50% 52% 62% 61% 52% 48% 57% 51% 49% 58% 47% 51% 54% 50% 51% 49% 60% 49% 47% 53% 45% 51% 50% 50% 48% 48% 52% 53% 57% 61% 51% 50% 66% 57% 48% 52% 53% 51% 53% 47% 47% 49% 64% 67% 50% 49% 51% 67% 57%) -> (80k/114k) -> write(92%)
+0:09:14 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  31M   4% 576k/s ] rels: [    0   0%    0/s ] features: [ 683M 2.3M/s ] 54G   blocks: [  12k  66%    6/s ]
+    cpus: 44.5 gc:  7% heap: 102G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 598M 
+    read( 2%) ->   (33/96) -> process(55% 56% 58% 56% 52% 59% 79% 81% 60% 61% 56% 59% 78% 59% 59% 55% 78% 60% 57% 57% 52% 56% 55% 57% 56% 55% 66% 57% 58% 62% 80% 55% 58% 56% 58% 57% 56% 63% 56% 55% 60% 55% 55% 55% 57% 59% 79% 59% 76% 55% 60% 55% 58% 55% 54% 57% 78% 61% 58% 55% 55% 55% 63%) -> (90k/114k) -> write(93%)
+0:09:24 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  38M   5% 722k/s ] rels: [    0   0%    0/s ] features: [ 705M 2.2M/s ] 56G   blocks: [  12k  67%    7/s ]
+    cpus: 49.5 gc:  8% heap: 94G/118G direct: 10M postGC: 89G relInfo: 971M mpGeoms: 722M 
+    read( 2%) ->   (33/96) -> process(71% 67% 69% 51% 71% 44% 82% 83% 72% 42% 36% 42% 78% 68% 68% 43% 83% 72% 72% 71% 69% 72% 72% 44% 68% 61% 75% 70% 70% 59% 84% 73% 70% 69% 69% 66% 71% 47% 64% 57% 72% 55% 70% 69% 73% 69% 82% 70% 78% 71% 68% 71% 72% 36% 70% 39% 83% 71% 71% 58% 70% 70% 69%) -> (85k/114k) -> write(92%)
+0:09:34 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  48M   6%   1M/s ] rels: [    0   0%    0/s ] features: [ 726M 2.1M/s ] 57G   blocks: [  12k  67%    9/s ]
+    cpus: 51.9 gc:  9% heap: 96G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 822M 
+    read( 3%) ->   (33/96) -> process(78% 76% 77% 46% 77% 62% 76% 80% 75% 40% 33% 42% 76% 76% 75% 36% 76% 76% 77% 75% 75% 76% 76% 46% 77% 75% 74% 77% 76% 77% 76% 76% 76% 76% 76% 54% 77% 52% 77% 69% 76% 39% 76% 75% 75% 77% 75% 76% 76% 76% 78% 76% 76% 33% 77% 41% 76% 76% 76% 75% 76% 77% 75%) -> (76k/114k) -> write(90%)
+0:09:44 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  57M   7% 884k/s ] rels: [    0   0%    0/s ] features: [ 748M 2.1M/s ] 59G   blocks: [  12k  68%    8/s ]
+    cpus: 52.6 gc:  8% heap: 91G/118G direct: 10M postGC: 90G relInfo: 971M mpGeoms: 964M 
+    read( 3%) ->   (33/96) -> process(75% 74% 75% 72% 68% 70% 67% 71% 71% 72% 67% 72% 73% 72% 71% 70% 71% 71% 70% 73% 66% 72% 71% 71% 72% 68% 68% 72% 71% 74% 72% 69% 74% 72% 72% 71% 72% 73% 71% 72% 73% 72% 71% 74% 71% 73% 73% 68% 69% 70% 70% 70% 69% 69% 70% 69% 67% 75% 78% 72% 72% 69% 75%) -> (57k/114k) -> write(90%)
+0:09:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  65M   8% 801k/s ] rels: [    0   0%    0/s ] features: [ 769M 2.1M/s ] 61G   blocks: [  12k  68%    7/s ]
+    cpus: 53.2 gc:  8% heap: 95G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1G   
+    read( 2%) ->   (33/96) -> process(80% 73% 70% 71% 69% 68% 71% 70% 68% 71% 70% 68% 71% 69% 69% 70% 67% 67% 70% 76% 68% 69% 75% 74% 76% 71% 68% 75% 66% 70% 78% 69% 72% 71% 74% 69% 69% 73% 68% 73% 73% 77% 74% 70% 69% 72% 74% 71% 71% 70% 71% 70% 68% 66% 71% 67% 70% 70% 77% 70% 70% 68% 74%) -> (85k/114k) -> write(88%)
+0:10:05 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  74M   9% 810k/s ] rels: [    0   0%    0/s ] features: [ 791M 2.1M/s ] 63G   blocks: [  12k  69%    8/s ]
+    cpus: 50.8 gc: 10% heap: 91G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1.2G 
+    read( 2%) ->   (33/96) -> process(72% 68% 69% 66% 67% 66% 69% 68% 71% 70% 67% 72% 70% 67% 68% 69% 70% 70% 69% 67% 70% 69% 71% 68% 68% 68% 66% 67% 65% 68% 70% 66% 68% 69% 66% 66% 69% 67% 67% 69% 68% 66% 71% 67% 67% 69% 70% 67% 69% 68% 68% 66% 71% 68% 65% 68% 68% 66% 70% 67% 67% 68% 68%) -> (44k/114k) -> write(90%)
+0:10:15 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  82M  10% 868k/s ] rels: [    0   0%    0/s ] features: [ 815M 2.3M/s ] 64G   blocks: [  12k  69%    7/s ]
+    cpus: 45.3 gc:  7% heap: 91G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1.2G 
+    read( 2%) ->   (33/96) -> process(60% 61% 59% 64% 60% 61% 61% 64% 57% 61% 61% 59% 57% 64% 62% 60% 61% 58% 60% 63% 60% 61% 57% 57% 65% 58% 58% 57% 58% 61% 58% 60% 61% 59% 61% 60% 60% 59% 61% 61% 64% 62% 63% 61% 58% 61% 59% 59% 64% 60% 59% 61% 60% 61% 59% 62% 60% 55% 57% 59% 59% 59% 61%) -> (70k/114k) -> write(92%)
+0:10:25 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [  91M  11% 864k/s ] rels: [    0   0%    0/s ] features: [ 838M 2.3M/s ] 66G   blocks: [  13k  70%    7/s ]
+    cpus: 45.6 gc:  8% heap: 94G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1.3G 
+    read( 2%) ->   (33/96) -> process(59% 59% 60% 59% 59% 61% 59% 59% 61% 60% 61% 59% 58% 57% 59% 61% 61% 60% 57% 60% 62% 60% 61% 60% 62% 56% 64% 57% 58% 60% 60% 60% 58% 58% 56% 58% 60% 58% 58% 61% 58% 59% 59% 57% 59% 61% 56% 61% 59% 61% 60% 60% 59% 61% 60% 60% 62% 60% 59% 61% 61% 61% 58%) -> (96k/114k) -> write(92%)
+0:10:35 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 100M  12% 851k/s ] rels: [    0   0%    0/s ] features: [ 860M 2.2M/s ] 68G   blocks: [  13k  70%    6/s ]
+    cpus: 49 gc:  8% heap: 102G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 1.4G 
+    read( 2%) ->   (33/96) -> process(67% 67% 64% 66% 68% 65% 64% 65% 67% 66% 65% 65% 67% 63% 65% 62% 65% 66% 66% 64% 66% 65% 66% 62% 67% 65% 65% 66% 66% 69% 64% 65% 67% 66% 63% 67% 63% 65% 64% 63% 63% 65% 62% 67% 66% 66% 68% 67% 66% 66% 65% 66% 66% 65% 67% 65% 63% 67% 65% 65% 65% 64% 64%) -> (90k/114k) -> write(91%)
+0:10:45 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 108M  13% 885k/s ] rels: [    0   0%    0/s ] features: [ 883M 2.2M/s ] 70G   blocks: [  13k  70%    7/s ]
+    cpus: 47.8 gc:  8% heap: 92G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 1.6G 
+    read( 2%) ->   (33/96) -> process(63% 63% 65% 62% 61% 64% 64% 62% 62% 65% 63% 65% 61% 60% 62% 61% 61% 64% 63% 61% 63% 62% 62% 64% 62% 63% 63% 64% 65% 61% 64% 62% 61% 63% 63% 60% 63% 64% 64% 63% 62% 62% 64% 64% 65% 63% 60% 62% 62% 63% 64% 64% 63% 60% 64% 63% 59% 62% 65% 61% 61% 66% 65%) -> (75k/114k) -> write(91%)
+0:10:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 117M  14% 891k/s ] rels: [    0   0%    0/s ] features: [ 907M 2.3M/s ] 72G   blocks: [  13k  71%    6/s ]
+    cpus: 45.4 gc:  7% heap: 95G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1.7G 
+    read( 2%) ->   (33/96) -> process(60% 58% 62% 61% 60% 58% 60% 59% 61% 60% 60% 62% 60% 60% 61% 61% 62% 59% 59% 62% 61% 68% 60% 60% 59% 61% 59% 62% 61% 59% 62% 61% 61% 61% 61% 60% 59% 61% 61% 59% 61% 61% 61% 62% 58% 61% 60% 61% 62% 62% 61% 63% 60% 60% 61% 59% 60% 59% 60% 61% 60% 60% 59%) -> (91k/114k) -> write(92%)
+0:11:05 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 126M  15% 851k/s ] rels: [    0   0%    0/s ] features: [ 930M 2.3M/s ] 73G   blocks: [  13k  71%    7/s ]
+    cpus: 44.6 gc:  7% heap: 101G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 1.8G 
+    read( 2%) ->   (33/96) -> process(58% 58% 60% 57% 57% 57% 60% 59% 58% 57% 56% 58% 59% 58% 60% 59% 61% 60% 58% 59% 60% 62% 59% 56% 60% 56% 59% 60% 59% 57% 58% 60% 59% 61% 60% 60% 58% 60% 61% 58% 57% 57% 60% 61% 57% 59% 59% 58% 57% 56% 60% 59% 58% 55% 58% 59% 58% 57% 60% 58% 55% 58% 58%) -> (95k/114k) -> write(92%)
+0:11:15 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 134M  16% 853k/s ] rels: [    0   0%    0/s ] features: [ 953M 2.2M/s ] 75G   blocks: [  13k  71%    7/s ]
+    cpus: 47.2 gc:  8% heap: 100G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 1.9G 
+    read( 2%) ->   (33/96) -> process(63% 61% 61% 61% 63% 62% 64% 68% 63% 61% 64% 63% 64% 63% 68% 60% 63% 64% 60% 63% 63% 63% 63% 61% 64% 63% 64% 62% 62% 66% 65% 62% 64% 62% 61% 63% 61% 64% 66% 63% 67% 62% 62% 64% 61% 64% 62% 63% 61% 61% 63% 64% 63% 65% 63% 63% 64% 64% 62% 63% 61% 61% 63%) -> (91k/114k) -> write(91%)
+0:11:25 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 143M  17% 874k/s ] rels: [    0   0%    0/s ] features: [ 975M 2.2M/s ] 77G   blocks: [  13k  72%    7/s ]
+    cpus: 48.6 gc:  8% heap: 99G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2G   
+    read( 2%) ->   (33/96) -> process(64% 66% 62% 65% 62% 65% 63% 68% 62% 64% 64% 65% 66% 65% 67% 65% 63% 63% 64% 61% 63% 63% 63% 61% 65% 64% 65% 65% 63% 63% 62% 62% 65% 65% 63% 64% 63% 66% 70% 63% 63% 65% 64% 62% 66% 68% 62% 65% 65% 63% 67% 62% 61% 62% 62% 63% 63% 61% 65% 63% 62% 63% 61%) -> (92k/114k) -> write(91%)
+0:11:35 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 152M  18% 892k/s ] rels: [    0   0%    0/s ] features: [ 998M 2.2M/s ] 79G   blocks: [  13k  72%    6/s ]
+    cpus: 47.1 gc:  9% heap: 95G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.1G 
+    read( 2%) ->   (33/96) -> process(63% 62% 63% 64% 65% 61% 63% 63% 61% 61% 61% 61% 62% 61% 63% 61% 62% 64% 63% 63% 64% 63% 63% 64% 64% 63% 62% 62% 60% 63% 60% 62% 64% 63% 62% 62% 61% 64% 61% 62% 62% 62% 63% 61% 62% 61% 62% 63% 61% 63% 63% 61% 61% 62% 62% 60% 62% 63% 63% 63% 63% 60% 63%) -> (91k/114k) -> write(90%)
+0:11:45 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 162M  19% 964k/s ] rels: [    0   0%    0/s ] features: [   1B 2.2M/s ] 80G   blocks: [  13k  73%    7/s ]
+    cpus: 48.8 gc:  8% heap: 101G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 2.2G 
+    read( 2%) ->   (33/96) -> process(65% 65% 64% 64% 65% 64% 65% 64% 63% 63% 64% 63% 64% 63% 66% 63% 63% 64% 67% 65% 64% 63% 64% 64% 63% 66% 65% 64% 64% 63% 64% 64% 65% 63% 66% 64% 64% 65% 63% 66% 64% 63% 65% 64% 65% 63% 63% 66% 63% 63% 65% 60% 62% 67% 64% 65% 63% 65% 65% 66% 62% 63% 63%) -> (91k/114k) -> write(91%)
+0:11:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 171M  20% 893k/s ] rels: [    0   0%    0/s ] features: [   1B 2.2M/s ] 82G   blocks: [  13k  73%    7/s ]
+    cpus: 48.4 gc:  8% heap: 95G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.3G 
+    read( 2%) ->   (33/96) -> process(61% 65% 63% 64% 63% 63% 63% 63% 62% 62% 63% 61% 62% 66% 65% 59% 63% 63% 65% 65% 66% 62% 64% 64% 66% 63% 64% 63% 64% 63% 65% 62% 64% 63% 66% 64% 65% 63% 63% 60% 63% 63% 64% 63% 63% 63% 65% 64% 64% 63% 64% 67% 64% 64% 64% 63% 62% 66% 64% 63% 66% 65% 63%) -> (93k/114k) -> write(91%)
+0:12:05 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 180M  21% 916k/s ] rels: [    0   0%    0/s ] features: [   1B 2.2M/s ] 84G   blocks: [  13k  73%    7/s ]
+    cpus: 48.9 gc:  8% heap: 101G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.4G 
+    read( 2%) ->   (33/96) -> process(65% 66% 70% 64% 65% 66% 64% 65% 65% 63% 68% 65% 65% 70% 65% 65% 63% 65% 64% 65% 65% 64% 64% 64% 64% 64% 65% 66% 66% 64% 65% 65% 65% 63% 65% 64% 64% 64% 65% 65% 65% 64% 65% 64% 63% 62% 60% 64% 65% 64% 70% 66% 67% 64% 65% 65% 65% 64% 66% 65% 74% 67% 63%) -> (89k/114k) -> write(91%)
+0:12:15 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 190M  23% 987k/s ] rels: [    0   0%    0/s ] features: [   1B 2.2M/s ] 85G   blocks: [  13k  74%    8/s ]
+    cpus: 49.3 gc:  9% heap: 100G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.5G 
+    read( 2%) ->   (33/96) -> process(65% 64% 64% 64% 64% 66% 62% 66% 65% 66% 66% 63% 65% 65% 64% 63% 64% 63% 63% 67% 64% 65% 67% 65% 64% 64% 66% 64% 63% 64% 64% 64% 64% 64% 64% 63% 64% 65% 65% 63% 63% 66% 65% 64% 65% 65% 64% 64% 65% 64% 63% 65% 66% 64% 63% 65% 64% 63% 63% 66% 64% 67% 66%) -> (89k/114k) -> write(90%)
+0:12:25 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 200M  24% 973k/s ] rels: [    0   0%    0/s ] features: [ 1.1B 2.2M/s ] 87G   blocks: [  13k  74%    7/s ]
+    cpus: 50.3 gc:  8% heap: 104G/118G direct: 10M postGC: 91G relInfo: 971M mpGeoms: 2.6G 
+    read( 2%) ->   (33/96) -> process(65% 69% 66% 65% 66% 65% 68% 66% 66% 65% 67% 71% 67% 64% 68% 68% 67% 67% 67% 67% 64% 68% 67% 67% 66% 67% 65% 67% 67% 67% 65% 64% 68% 69% 67% 66% 65% 63% 66% 67% 65% 67% 69% 65% 64% 65% 68% 68% 65% 64% 69% 64% 65% 68% 67% 64% 66% 64% 67% 65% 68% 66% 65%) -> (89k/114k) -> write(91%)
+0:12:35 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 211M  25% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 2.1M/s ] 88G   blocks: [  14k  75%    9/s ]
+    cpus: 52.9 gc:  9% heap: 98G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.8G 
+    read( 2%) ->   (33/96) -> process(70% 72% 67% 72% 69% 71% 72% 72% 69% 70% 69% 67% 71% 69% 71% 68% 72% 66% 71% 72% 70% 71% 70% 72% 72% 70% 73% 71% 69% 70% 67% 70% 72% 71% 71% 72% 71% 69% 71% 70% 71% 72% 72% 68% 70% 69% 73% 70% 70% 70% 69% 68% 74% 71% 73% 72% 69% 71% 69% 71% 71% 68% 72%) -> (89k/114k) -> write(89%)
+0:12:45 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 222M  26% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 2.1M/s ] 90G   blocks: [  14k  75%    9/s ]
+    cpus: 52.5 gc:  9% heap: 97G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 2.9G 
+    read( 2%) ->   (33/96) -> process(70% 70% 72% 73% 67% 69% 69% 70% 69% 69% 68% 68% 69% 68% 68% 67% 70% 70% 73% 69% 70% 67% 67% 69% 70% 71% 70% 67% 69% 67% 68% 68% 71% 70% 70% 69% 69% 69% 73% 69% 69% 70% 71% 68% 69% 70% 67% 66% 69% 70% 66% 70% 70% 71% 71% 69% 68% 69% 66% 70% 69% 68% 70%) -> (89k/114k) -> write(90%)
+0:12:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 232M  28%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.1B 2.1M/s ] 91G   blocks: [  14k  76%    8/s ]
+    cpus: 51.6 gc:  9% heap: 99G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 3G   
+    read( 2%) ->   (33/96) -> process(69% 68% 67% 69% 68% 67% 69% 67% 67% 69% 68% 69% 67% 68% 67% 69% 69% 69% 68% 67% 70% 70% 68% 66% 67% 67% 67% 68% 68% 70% 68% 66% 68% 67% 69% 68% 69% 67% 67% 69% 69% 65% 67% 69% 67% 68% 72% 70% 70% 70% 69% 69% 68% 67% 69% 68% 68% 67% 66% 68% 67% 68% 67%) -> (91k/114k) -> write(91%)
+0:13:05 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 242M  29% 967k/s ] rels: [    0   0%    0/s ] features: [ 1.1B 2.1M/s ] 93G   blocks: [  14k  76%    7/s ]
+    cpus: 50.4 gc:  9% heap: 94G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 3.1G 
+    read( 2%) ->   (33/96) -> process(64% 65% 66% 66% 67% 67% 68% 66% 66% 65% 66% 64% 66% 66% 66% 65% 67% 67% 68% 67% 67% 66% 65% 64% 67% 67% 66% 65% 69% 66% 66% 66% 68% 67% 66% 66% 66% 65% 65% 67% 67% 67% 67% 65% 66% 66% 67% 65% 66% 66% 67% 67% 66% 66% 65% 65% 65% 67% 66% 67% 68% 68% 66%) -> (48k/114k) -> write(90%)
+0:13:15 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 251M  30% 958k/s ] rels: [    0   0%    0/s ] features: [ 1.2B 2.2M/s ] 95G   blocks: [  14k  77%    7/s ]
+    cpus: 50.7 gc:  9% heap: 93G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 3.2G 
+    read( 2%) ->   (33/96) -> process(68% 65% 63% 67% 67% 67% 68% 68% 68% 68% 68% 66% 67% 65% 68% 67% 68% 66% 67% 69% 66% 66% 65% 67% 67% 66% 67% 66% 66% 67% 69% 65% 67% 63% 68% 67% 67% 66% 66% 67% 68% 64% 66% 66% 68% 66% 66% 66% 66% 69% 67% 67% 66% 66% 67% 67% 68% 67% 68% 68% 67% 66% 66%) -> (58k/114k) -> write(91%)
+0:13:25 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 262M  31%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 2.2M/s ] 96G   blocks: [  14k  77%    7/s ]
+    cpus: 51.2 gc:  8% heap: 97G/118G direct: 10M postGC: 92G relInfo: 971M mpGeoms: 3.4G 
+    read( 2%) ->   (33/96) -> process(68% 71% 67% 67% 69% 68% 69% 67% 69% 70% 69% 69% 67% 68% 68% 68% 70% 68% 67% 68% 67% 69% 67% 68% 67% 67% 68% 68% 67% 68% 69% 68% 67% 67% 67% 67% 67% 68% 68% 69% 67% 68% 68% 69% 68% 67% 68% 67% 66% 66% 68% 69% 68% 67% 67% 70% 68% 66% 70% 68% 67% 68% 70%) -> (88k/114k) -> write(91%)
+0:13:35 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 273M  32% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 2.1M/s ] 98G   blocks: [  14k  77%    8/s ]
+    cpus: 52.1 gc:  9% heap: 98G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 3.5G 
+    read( 2%) ->   (33/96) -> process(68% 69% 69% 68% 68% 68% 71% 69% 70% 68% 69% 69% 67% 67% 71% 69% 71% 70% 66% 71% 69% 67% 71% 68% 71% 70% 72% 66% 69% 70% 66% 66% 69% 68% 70% 70% 70% 66% 67% 68% 69% 69% 68% 71% 68% 68% 70% 66% 69% 66% 67% 69% 66% 69% 69% 69% 69% 65% 70% 72% 68% 68% 67%) -> (91k/114k) -> write(90%)
+0:13:45 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 284M  34% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.2B 2.1M/s ] 99G   blocks: [  14k  78%    9/s ]
+    cpus: 52.2 gc:  9% heap: 94G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 3.7G 
+    read( 2%) ->   (33/96) -> process(66% 69% 68% 67% 69% 68% 69% 68% 70% 71% 67% 68% 69% 69% 66% 67% 66% 69% 69% 68% 69% 71% 68% 65% 69% 68% 70% 69% 69% 69% 69% 68% 69% 70% 68% 69% 67% 70% 66% 69% 69% 68% 68% 66% 67% 67% 70% 68% 68% 68% 68% 68% 69% 68% 66% 70% 69% 67% 70% 70% 70% 68% 67%) -> (60k/114k) -> write(90%)
+0:13:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 295M  35%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.2M/s ] 101G  blocks: [  14k  78%    7/s ]
+    cpus: 50.6 gc:  8% heap: 99G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 3.8G 
+    read( 2%) ->   (33/96) -> process(67% 67% 65% 69% 65% 66% 67% 67% 69% 66% 68% 66% 67% 68% 68% 65% 64% 68% 66% 67% 66% 67% 68% 68% 68% 65% 67% 66% 65% 68% 66% 66% 69% 67% 67% 68% 66% 69% 66% 68% 64% 66% 66% 67% 65% 67% 65% 67% 65% 67% 67% 70% 67% 68% 66% 67% 68% 66% 67% 65% 67% 66% 66%) -> (92k/114k) -> write(91%)
+0:14:05 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 306M  36%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.1M/s ] 102G  blocks: [  14k  79%    8/s ]
+    cpus: 51.8 gc:  9% heap: 104G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 3.9G 
+    read( 2%) ->   (33/96) -> process(71% 69% 68% 68% 70% 69% 67% 68% 69% 68% 68% 66% 71% 69% 66% 66% 69% 70% 65% 68% 68% 70% 68% 69% 69% 70% 68% 68% 67% 68% 69% 67% 70% 70% 69% 67% 67% 66% 69% 68% 69% 66% 70% 69% 68% 68% 70% 68% 67% 69% 65% 70% 67% 68% 67% 67% 70% 69% 68% 68% 74% 68% 69%) -> (89k/114k) -> write(91%)
+0:14:15 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 316M  38%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.1M/s ] 104G  blocks: [  14k  79%    8/s ]
+    cpus: 51.8 gc:  9% heap: 100G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 4.1G 
+    read( 2%) ->   (33/96) -> process(71% 70% 70% 69% 67% 68% 67% 69% 70% 67% 67% 68% 69% 68% 69% 67% 68% 67% 68% 68% 70% 69% 68% 67% 69% 68% 67% 67% 69% 68% 66% 66% 70% 69% 66% 66% 69% 66% 71% 67% 68% 67% 66% 68% 65% 66% 67% 70% 67% 69% 69% 68% 66% 71% 68% 65% 69% 70% 69% 68% 65% 67% 67%) -> (90k/114k) -> write(90%)
+0:14:25 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 328M  39% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.1M/s ] 105G  blocks: [  14k  80%    7/s ]
+    cpus: 53 gc:  9% heap: 95G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 4.2G 
+    read( 2%) ->   (33/96) -> process(69% 71% 72% 69% 68% 68% 71% 68% 72% 66% 70% 67% 71% 69% 67% 65% 71% 69% 70% 69% 71% 70% 69% 69% 70% 70% 70% 68% 69% 70% 69% 70% 70% 68% 71% 68% 66% 68% 71% 68% 68% 69% 69% 68% 65% 68% 71% 70% 69% 68% 71% 75% 72% 69% 69% 71% 68% 71% 67% 68% 70% 69% 68%) -> (51k/114k) -> write(90%)
+0:14:35 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 340M  40% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.3B 2.1M/s ] 107G  blocks: [  15k  80%    8/s ]
+    cpus: 51.9 gc:  9% heap: 100G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 4.3G 
+    read( 2%) ->   (33/96) -> process(69% 71% 66% 70% 69% 67% 69% 71% 68% 66% 67% 69% 68% 69% 67% 68% 68% 70% 69% 67% 70% 67% 66% 66% 66% 68% 68% 68% 67% 65% 68% 69% 67% 69% 69% 67% 67% 67% 67% 66% 68% 68% 67% 68% 66% 68% 68% 68% 66% 68% 68% 70% 69% 64% 70% 68% 66% 69% 67% 68% 68% 66% 67%) -> (89k/114k) -> write(90%)
+0:14:45 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 350M  42%   1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B 2.1M/s ] 108G  blocks: [  15k  81%    9/s ]
+    cpus: 51.6 gc: 10% heap: 98G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 4.4G 
+    read( 2%) ->   (33/96) -> process(69% 65% 69% 67% 66% 65% 69% 68% 68% 65% 65% 68% 67% 67% 63% 68% 67% 69% 70% 70% 67% 67% 68% 62% 69% 69% 70% 70% 68% 68% 70% 66% 67% 69% 66% 67% 67% 68% 70% 69% 67% 70% 67% 68% 65% 68% 70% 67% 64% 67% 67% 69% 67% 67% 68% 68% 65% 74% 68% 67% 66% 69% 62%) -> (87k/114k) -> write(89%)
+0:14:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 362M  43% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B 2.1M/s ] 110G  blocks: [  15k  81%    8/s ]
+    cpus: 52.6 gc: 10% heap: 97G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 4.5G 
+    read( 2%) ->   (33/96) -> process(69% 66% 68% 71% 68% 71% 69% 67% 72% 69% 69% 67% 68% 70% 69% 69% 70% 67% 69% 68% 71% 71% 65% 69% 65% 70% 67% 70% 69% 70% 69% 69% 68% 71% 67% 70% 67% 69% 72% 68% 69% 71% 68% 70% 70% 70% 70% 69% 70% 70% 70% 66% 69% 69% 68% 69% 68% 73% 66% 69% 67% 71% 68%) -> (91k/114k) -> write(89%)
+0:15:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 374M  44% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B 2.1M/s ] 111G  blocks: [  15k  81%    7/s ]
+    cpus: 53 gc:  9% heap: 102G/118G direct: 10M postGC: 93G relInfo: 971M mpGeoms: 4.6G 
+    read( 1%) ->   (33/96) -> process(69% 68% 72% 71% 68% 71% 68% 71% 70% 70% 72% 70% 71% 70% 70% 69% 70% 69% 71% 71% 72% 70% 72% 71% 72% 68% 70% 71% 69% 72% 67% 68% 66% 68% 74% 69% 67% 68% 72% 72% 68% 68% 72% 70% 71% 70% 70% 70% 71% 67% 68% 71% 71% 70% 71% 71% 70% 72% 69% 69% 70% 70% 69%) -> (90k/114k) -> write(90%)
+0:15:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 385M  46% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.4B 2.1M/s ] 112G  blocks: [  15k  82%    9/s ]
+    cpus: 52 gc: 10% heap: 101G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 4.8G 
+    read( 2%) ->   (33/96) -> process(67% 67% 67% 70% 68% 68% 66% 69% 69% 67% 66% 69% 66% 66% 64% 66% 68% 70% 69% 66% 69% 68% 66% 70% 63% 68% 67% 67% 68% 66% 69% 67% 69% 68% 65% 66% 67% 67% 66% 68% 69% 66% 67% 67% 67% 65% 68% 66% 64% 68% 68% 69% 65% 66% 67% 69% 68% 68% 68% 66% 65% 68% 68%) -> (55k/114k) -> write(87%)
+0:15:26 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 397M  47% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 2.1M/s ] 114G  blocks: [  15k  82%    8/s ]
+    cpus: 53.3 gc: 10% heap: 95G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 5G   
+    read( 2%) ->   (33/96) -> process(71% 70% 70% 70% 68% 70% 71% 70% 70% 69% 69% 70% 70% 68% 70% 70% 68% 69% 70% 72% 67% 68% 67% 71% 67% 73% 71% 72% 72% 71% 68% 70% 71% 72% 70% 69% 67% 71% 69% 68% 70% 72% 72% 71% 70% 68% 72% 72% 69% 68% 69% 68% 68% 68% 67% 70% 70% 70% 71% 71% 71% 67% 70%) -> (61k/114k) -> write(89%)
+0:15:36 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 410M  49% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 2.1M/s ] 115G  blocks: [  15k  83%    7/s ]
+    cpus: 52.6 gc:  9% heap: 94G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 5G   
+    read( 1%) ->   (33/96) -> process(70% 68% 69% 70% 70% 70% 70% 68% 68% 68% 69% 68% 69% 72% 70% 68% 67% 71% 67% 67% 69% 71% 68% 67% 69% 67% 70% 70% 71% 68% 69% 69% 67% 69% 67% 70% 69% 66% 68% 68% 70% 71% 71% 69% 67% 68% 63% 67% 68% 69% 69% 68% 70% 67% 70% 68% 68% 70% 67% 70% 69% 69% 67%) -> (55k/114k) -> write(90%)
+0:15:46 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 422M  50% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 2.1M/s ] 117G  blocks: [  15k  83%   10/s ]
+    cpus: 53.5 gc: 10% heap: 103G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.1G 
+    read( 2%) ->   (33/96) -> process(68% 70% 68% 70% 71% 71% 72% 70% 70% 70% 71% 72% 69% 68% 67% 67% 68% 69% 72% 69% 69% 66% 69% 69% 70% 73% 71% 68% 68% 70% 73% 67% 69% 68% 69% 71% 70% 70% 68% 67% 69% 69% 67% 69% 71% 71% 70% 70% 69% 68% 72% 68% 70% 69% 71% 69% 71% 70% 68% 70% 71% 70% 68%) -> (81k/114k) -> write(88%)
+0:15:56 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 435M  52% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 2.1M/s ] 118G  blocks: [  15k  84%    7/s ]
+    cpus: 52.2 gc:  9% heap: 97G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 5.2G 
+    read( 1%) ->   (33/96) -> process(68% 70% 67% 68% 69% 68% 69% 69% 67% 69% 65% 67% 69% 67% 69% 68% 69% 67% 69% 65% 69% 67% 70% 69% 70% 69% 65% 68% 68% 66% 70% 68% 67% 66% 69% 70% 69% 67% 65% 69% 68% 70% 69% 69% 68% 69% 69% 67% 70% 69% 70% 70% 64% 70% 69% 69% 67% 68% 67% 69% 68% 66% 66%) -> (92k/114k) -> write(90%)
+0:16:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 447M  53% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.5B 2.2M/s ] 119G  blocks: [  15k  84%    8/s ]
+    cpus: 51.7 gc:  9% heap: 98G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 5.3G 
+    read( 2%) ->   (33/96) -> process(69% 67% 68% 69% 68% 68% 68% 68% 69% 68% 68% 68% 68% 67% 68% 65% 68% 68% 65% 64% 69% 70% 68% 65% 66% 69% 66% 67% 67% 66% 69% 70% 69% 68% 70% 67% 68% 69% 67% 69% 67% 68% 69% 67% 67% 66% 68% 66% 68% 64% 66% 68% 68% 65% 68% 66% 69% 68% 69% 67% 68% 67% 66%) -> (86k/114k) -> write(90%)
+0:16:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 459M  55% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.6B 2.1M/s ] 121G  blocks: [  15k  85%    9/s ]
+    cpus: 52.2 gc: 10% heap: 101G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.4G 
+    read( 2%) ->   (32/96) -> process(67% 68% 66% 68% 67% 67% 66% 67% 66% 66% 68% 67% 66% 68% 66% 67% 68% 68% 65% 68% 65% 65% 65% 70% 69% 66% 68% 69% 66% 66% 66% 67% 65% 66% 68% 67% 66% 68% 66% 66% 66% 67% 65% 66% 68% 66% 69% 66% 67% 67% 70% 66% 66% 67% 69% 65% 67% 66% 66% 67% 69% 64% 68%) -> (92k/114k) -> write(89%)
+0:16:26 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 471M  56% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.6B 2.1M/s ] 122G  blocks: [  15k  85%    7/s ]
+    cpus: 51.8 gc: 10% heap: 101G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 5.5G 
+    read( 1%) ->   (33/96) -> process(66% 67% 68% 65% 67% 68% 67% 67% 69% 65% 67% 69% 68% 68% 67% 66% 68% 67% 68% 67% 69% 64% 66% 69% 70% 67% 67% 68% 66% 65% 67% 67% 69% 67% 65% 65% 66% 69% 65% 69% 69% 70% 67% 68% 66% 65% 67% 67% 67% 68% 68% 68% 69% 66% 67% 65% 66% 69% 68% 70% 67% 67% 66%) -> (93k/114k) -> write(90%)
+0:16:36 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 484M  58% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.6B 2.1M/s ] 124G  blocks: [  16k  86%    8/s ]
+    cpus: 52.6 gc: 10% heap: 102G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.6G 
+    read( 1%) ->   (33/96) -> process(68% 67% 67% 71% 70% 68% 66% 69% 70% 68% 68% 70% 68% 67% 69% 70% 67% 71% 69% 69% 68% 69% 68% 67% 67% 66% 68% 69% 70% 69% 71% 69% 69% 70% 67% 70% 67% 65% 68% 70% 68% 65% 68% 67% 67% 66% 70% 69% 71% 67% 68% 68% 70% 69% 69% 68% 67% 67% 69% 69% 69% 69% 68%) -> (91k/114k) -> write(89%)
+0:16:46 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 497M  59% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.6B 2.1M/s ] 125G  blocks: [  16k  86%    8/s ]
+    cpus: 52.2 gc: 10% heap: 99G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.7G 
+    read( 2%) ->   (33/96) -> process(68% 66% 68% 67% 66% 70% 67% 68% 67% 68% 68% 69% 68% 65% 66% 68% 64% 68% 66% 66% 68% 67% 66% 67% 67% 64% 65% 66% 67% 66% 67% 67% 67% 68% 66% 68% 67% 71% 68% 67% 65% 68% 68% 68% 67% 66% 69% 66% 70% 65% 67% 65% 67% 67% 67% 69% 66% 67% 66% 68% 65% 68% 66%) -> (89k/114k) -> write(89%)
+0:16:56 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 510M  61% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 2.1M/s ] 126G  blocks: [  16k  87%    9/s ]
+    cpus: 52.4 gc: 10% heap: 101G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.8G 
+    read( 2%) ->   (33/96) -> process(69% 69% 68% 69% 71% 68% 67% 67% 66% 67% 66% 70% 66% 67% 69% 67% 65% 66% 67% 67% 70% 68% 69% 67% 69% 64% 66% 66% 68% 69% 68% 68% 66% 70% 70% 65% 67% 71% 67% 67% 68% 65% 67% 69% 68% 67% 68% 68% 67% 65% 70% 67% 68% 64% 68% 69% 68% 67% 68% 67% 69% 70% 67%) -> (90k/114k) -> write(89%)
+0:17:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 522M  62% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 2.1M/s ] 128G  blocks: [  16k  87%    7/s ]
+    cpus: 52.9 gc:  9% heap: 100G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.9G 
+    read( 1%) ->   (33/96) -> process(70% 71% 70% 68% 68% 70% 67% 67% 70% 67% 68% 68% 69% 69% 69% 71% 69% 68% 71% 69% 66% 69% 69% 69% 70% 69% 69% 69% 71% 70% 69% 68% 70% 73% 69% 69% 69% 68% 70% 67% 68% 68% 68% 69% 69% 73% 69% 71% 68% 70% 70% 71% 70% 66% 70% 67% 69% 67% 70% 70% 69% 67% 66%) -> (64k/114k) -> write(90%)
+0:17:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 535M  64% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 2.1M/s ] 129G  blocks: [  16k  87%    8/s ]
+    cpus: 52.4 gc: 10% heap: 104G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 5.9G 
+    read( 2%) ->   (33/96) -> process(68% 69% 68% 68% 66% 67% 69% 68% 66% 67% 68% 70% 67% 66% 66% 66% 67% 68% 70% 69% 67% 64% 65% 66% 66% 68% 67% 67% 66% 69% 66% 68% 69% 69% 67% 65% 69% 67% 69% 70% 65% 69% 64% 68% 68% 67% 67% 69% 67% 67% 67% 64% 68% 66% 68% 66% 70% 68% 69% 66% 66% 68% 67%) -> (79k/114k) -> write(89%)
+0:17:26 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 546M  65% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 2.1M/s ] 130G  blocks: [  16k  88%    8/s ]
+    cpus: 53 gc: 10% heap: 97G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.1G 
+    read( 2%) ->   (33/96) -> process(69% 70% 70% 70% 70% 69% 71% 69% 69% 69% 69% 72% 71% 72% 68% 70% 69% 69% 69% 69% 70% 69% 70% 67% 70% 66% 67% 69% 70% 68% 69% 72% 70% 68% 71% 67% 74% 70% 71% 69% 67% 69% 69% 70% 71% 67% 72% 72% 71% 70% 70% 67% 68% 70% 72% 68% 66% 70% 69% 68% 70% 68% 68%) -> (59k/114k) -> write(88%)
+0:17:36 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 557M  66% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.7B 2.2M/s ] 132G  blocks: [  16k  88%    8/s ]
+    cpus: 51.7 gc:  9% heap: 97G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.1G 
+    read( 2%) ->   (33/96) -> process(67% 67% 68% 67% 68% 64% 66% 67% 66% 64% 69% 69% 67% 68% 65% 67% 68% 69% 68% 67% 67% 68% 68% 69% 67% 64% 68% 69% 67% 67% 67% 67% 67% 67% 66% 68% 69% 65% 66% 68% 65% 68% 69% 68% 68% 67% 66% 67% 67% 67% 67% 67% 67% 65% 64% 69% 67% 68% 66% 68% 69% 66% 68%) -> (93k/114k) -> write(90%)
+0:17:46 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 568M  68% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 2.2M/s ] 133G  blocks: [  16k  89%    8/s ]
+    cpus: 52.2 gc:  9% heap: 98G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 6.3G 
+    read( 2%) ->   (33/96) -> process(70% 69% 68% 67% 70% 67% 68% 67% 70% 72% 68% 70% 69% 72% 68% 67% 66% 67% 68% 69% 69% 69% 67% 70% 69% 67% 68% 67% 69% 66% 68% 67% 71% 70% 67% 70% 65% 68% 66% 67% 68% 68% 69% 66% 69% 69% 67% 67% 66% 68% 68% 69% 67% 71% 68% 66% 67% 70% 67% 71% 67% 69% 70%) -> (62k/114k) -> write(90%)
+0:17:56 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 580M  69% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 2.2M/s ] 135G  blocks: [  16k  89%    8/s ]
+    cpus: 52.2 gc:  9% heap: 99G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.4G 
+    read( 1%) ->   (33/96) -> process(67% 69% 67% 70% 69% 67% 70% 69% 68% 67% 67% 67% 67% 70% 71% 68% 68% 69% 68% 67% 68% 69% 65% 67% 67% 68% 66% 67% 67% 67% 66% 71% 69% 68% 71% 68% 65% 71% 68% 71% 67% 67% 68% 67% 68% 67% 68% 68% 67% 68% 70% 70% 67% 68% 69% 69% 69% 71% 69% 68% 69% 70% 68%) -> (92k/114k) -> write(90%)
+0:18:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 592M  70% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 2.2M/s ] 136G  blocks: [  16k  90%    8/s ]
+    cpus: 51.9 gc: 10% heap: 99G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.5G 
+    read( 2%) ->   (33/96) -> process(65% 67% 64% 67% 68% 67% 68% 69% 63% 67% 65% 66% 69% 68% 67% 69% 66% 69% 67% 68% 68% 68% 67% 67% 67% 67% 66% 67% 65% 66% 71% 66% 69% 66% 66% 68% 66% 67% 68% 67% 67% 66% 68% 68% 67% 65% 68% 69% 67% 67% 66% 67% 66% 66% 65% 66% 66% 68% 67% 70% 66% 66% 66%) -> (94k/114k) -> write(89%)
+0:18:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 604M  72% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 2.2M/s ] 138G  blocks: [  16k  90%    8/s ]
+    cpus: 50.5 gc:  9% heap: 103G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.6G 
+    read( 2%) ->   (33/96) -> process(65% 68% 66% 66% 66% 66% 66% 63% 66% 67% 66% 66% 68% 65% 67% 68% 65% 67% 65% 67% 67% 65% 65% 66% 67% 66% 66% 67% 66% 65% 65% 64% 67% 66% 66% 66% 63% 64% 66% 65% 65% 65% 63% 63% 64% 66% 65% 65% 67% 66% 66% 62% 66% 66% 66% 64% 66% 69% 65% 65% 65% 65% 63%) -> (90k/114k) -> write(90%)
+0:18:26 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 616M  73% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.8B 2.2M/s ] 139G  blocks: [  17k  91%    8/s ]
+    cpus: 51.6 gc: 10% heap: 99G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 6.7G 
+    read( 2%) ->   (32/96) -> process(67% 64% 67% 67% 64% 65% 65% 68% 67% 66% 63% 65% 65% 66% 66% 62% 67% 67% 67% 65% 65% 64% 66% 68% 67% 68% 69% 66% 67% 67% 64% 66% 65% 66% 67% 66% 68% 68% 67% 64% 66% 66% 67% 65% 66% 66% 66% 67% 64% 68% 68% 63% 69% 71% 64% 66% 69% 68% 66% 69% 66% 68% 67%) -> (92k/114k) -> write(89%)
+0:18:36 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 627M  75% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 2.2M/s ] 141G  blocks: [  17k  91%    7/s ]
+    cpus: 51.7 gc: 10% heap: 100G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 6.9G 
+    read( 1%) ->   (33/96) -> process(64% 68% 68% 70% 66% 68% 68% 71% 70% 64% 68% 66% 69% 66% 68% 71% 70% 69% 67% 66% 70% 66% 65% 69% 69% 70% 67% 66% 67% 68% 66% 64% 67% 65% 68% 68% 64% 65% 65% 68% 70% 68% 67% 66% 67% 68% 68% 66% 65% 66% 69% 68% 69% 69% 69% 72% 64% 66% 67% 67% 69% 68% 66%) -> (88k/114k) -> write(89%)
+0:18:46 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 638M  76% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 2.2M/s ] 142G  blocks: [  17k  91%    8/s ]
+    cpus: 53 gc: 10% heap: 103G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 7G   
+    read( 2%) ->   (33/96) -> process(68% 74% 68% 69% 73% 68% 70% 69% 69% 69% 66% 70% 68% 70% 67% 70% 69% 67% 68% 74% 68% 69% 68% 68% 69% 67% 71% 67% 70% 69% 67% 68% 66% 67% 68% 64% 67% 69% 67% 68% 70% 70% 70% 69% 65% 66% 67% 69% 68% 67% 68% 69% 70% 68% 63% 69% 67% 68% 71% 70% 68% 69% 66%) -> (91k/114k) -> write(89%)
+0:18:56 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 650M  77% 1.1M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 2.2M/s ] 144G  blocks: [  17k  92%    8/s ]
+    cpus: 53.5 gc: 10% heap: 100G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 7.2G 
+    read( 1%) ->   (33/96) -> process(68% 68% 66% 69% 70% 79% 76% 71% 70% 69% 71% 70% 69% 67% 69% 69% 69% 69% 70% 74% 68% 72% 71% 68% 69% 72% 69% 70% 68% 69% 67% 71% 66% 68% 70% 71% 71% 68% 66% 68% 71% 68% 71% 68% 67% 71% 69% 69% 70% 69% 69% 67% 69% 70% 68% 74% 69% 68% 69% 69% 68% 70% 69%) -> (92k/114k) -> write(89%)
+0:19:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 663M  79% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 1.9B 2.2M/s ] 145G  blocks: [  17k  92%    8/s ]
+    cpus: 51.7 gc: 10% heap: 104G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 7.3G 
+    read( 1%) ->   (33/96) -> process(66% 67% 66% 66% 69% 66% 66% 67% 68% 65% 65% 67% 66% 66% 64% 67% 67% 69% 69% 66% 68% 66% 64% 70% 66% 67% 67% 63% 64% 68% 67% 66% 65% 66% 67% 67% 64% 69% 69% 65% 66% 67% 64% 67% 66% 63% 67% 65% 66% 68% 67% 68% 66% 66% 67% 66% 68% 68% 66% 65% 66% 67% 66%) -> (67k/114k) -> write(89%)
+0:19:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 675M  80% 1.2M/s ] rels: [    0   0%    0/s ] features: [   2B 2.2M/s ] 147G  blocks: [  17k  93%    9/s ]
+    cpus: 50.9 gc: 10% heap: 97G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 7.4G 
+    read( 2%) ->   (33/96) -> process(65% 65% 64% 68% 66% 68% 63% 63% 68% 66% 64% 65% 69% 67% 66% 70% 64% 65% 63% 65% 70% 67% 68% 66% 66% 64% 67% 61% 66% 65% 64% 67% 65% 64% 62% 67% 66% 66% 67% 68% 67% 66% 64% 64% 64% 66% 65% 60% 64% 65% 60% 64% 65% 67% 65% 62% 64% 66% 67% 64% 65% 67% 66%) -> (59k/114k) -> write(89%)
+0:19:26 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 687M  82% 1.1M/s ] rels: [    0   0%    0/s ] features: [   2B 2.2M/s ] 148G  blocks: [  17k  93%    7/s ]
+    cpus: 52.7 gc: 10% heap: 102G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 7.5G 
+    read( 1%) ->   (33/96) -> process(68% 68% 68% 67% 66% 67% 66% 68% 68% 66% 65% 72% 77% 67% 67% 77% 69% 66% 66% 67% 79% 68% 67% 69% 67% 69% 69% 68% 69% 66% 64% 67% 65% 68% 65% 67% 67% 67% 65% 67% 67% 68% 64% 66% 67% 70% 66% 68% 69% 69% 66% 69% 66% 68% 65% 67% 67% 68% 67% 65% 65% 67% 67%) -> (91k/114k) -> write(89%)
+0:19:36 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 699M  83% 1.2M/s ] rels: [    0   0%    0/s ] features: [   2B 2.2M/s ] 149G  blocks: [  17k  94%    8/s ]
+    cpus: 52.7 gc: 10% heap: 98G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 7.6G 
+    read( 2%) ->   (33/96) -> process(68% 69% 67% 65% 69% 67% 68% 69% 66% 67% 68% 68% 68% 69% 64% 71% 70% 67% 66% 71% 69% 66% 66% 67% 67% 68% 67% 65% 66% 67% 67% 67% 69% 71% 68% 68% 69% 69% 68% 66% 68% 68% 69% 69% 68% 68% 67% 71% 66% 68% 68% 67% 67% 61% 68% 68% 68% 67% 71% 70% 67% 67% 68%) -> (60k/114k) -> write(88%)
+0:19:46 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 712M  85% 1.2M/s ] rels: [    0   0%    0/s ] features: [   2B 2.1M/s ] 151G  blocks: [  17k  94%    8/s ]
+    cpus: 53.1 gc: 10% heap: 98G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 7.7G 
+    read( 1%) ->   (33/96) -> process(68% 67% 69% 71% 69% 71% 69% 70% 68% 67% 72% 67% 70% 70% 68% 68% 69% 71% 70% 70% 65% 70% 68% 71% 68% 69% 70% 69% 70% 68% 69% 67% 68% 67% 71% 68% 69% 70% 70% 67% 69% 67% 70% 68% 70% 68% 69% 67% 67% 67% 72% 67% 69% 66% 69% 68% 67% 71% 70% 69% 69% 69% 71%) -> (84k/114k) -> write(88%)
+0:19:56 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 724M  86% 1.2M/s ] rels: [    0   0%    0/s ] features: [   2B 2.2M/s ] 152G  blocks: [  17k  95%    8/s ]
+    cpus: 53.1 gc: 10% heap: 99G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 7.9G 
+    read( 1%) ->   (33/96) -> process(70% 69% 68% 65% 72% 69% 68% 68% 68% 70% 67% 69% 68% 67% 69% 67% 67% 71% 64% 67% 67% 69% 68% 68% 66% 69% 69% 68% 71% 69% 70% 67% 70% 69% 69% 70% 69% 68% 70% 66% 70% 71% 70% 66% 69% 66% 69% 67% 72% 66% 69% 70% 71% 66% 70% 68% 68% 69% 69% 69% 69% 70% 72%) -> (91k/114k) -> write(89%)
+0:20:06 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 737M  88% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 2.2M/s ] 154G  blocks: [  17k  95%    9/s ]
+    cpus: 52.8 gc: 10% heap: 101G/118G direct: 10M postGC: 98G relInfo: 971M mpGeoms: 7.9G 
+    read( 2%) ->   (33/96) -> process(68% 69% 67% 66% 69% 69% 68% 69% 68% 69% 68% 70% 66% 64% 69% 67% 67% 68% 68% 70% 70% 68% 70% 70% 67% 66% 69% 67% 70% 70% 72% 68% 67% 65% 67% 70% 66% 69% 67% 65% 68% 69% 65% 65% 67% 69% 67% 65% 65% 67% 67% 66% 69% 67% 70% 67% 67% 66% 69% 66% 65% 67% 68%) -> (100k/114k) -> write(88%)
+0:20:16 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 750M  89% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 2.2M/s ] 155G  blocks: [  17k  96%    8/s ]
+    cpus: 53.2 gc: 11% heap: 100G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 8G   
+    read( 1%) ->   (33/96) -> process(69% 72% 71% 68% 68% 68% 71% 69% 72% 70% 67% 67% 68% 66% 67% 71% 66% 69% 70% 67% 68% 70% 70% 71% 68% 70% 72% 71% 71% 70% 71% 68% 68% 68% 68% 69% 67% 68% 69% 63% 70% 68% 69% 67% 68% 68% 66% 68% 65% 68% 68% 71% 66% 69% 70% 69% 70% 66% 69% 67% 67% 68% 68%) -> (59k/114k) -> write(88%)
+0:20:27 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 763M  91% 1.3M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 2.1M/s ] 156G  blocks: [  18k  96%   10/s ]
+    cpus: 53.2 gc: 11% heap: 103G/118G direct: 10M postGC: 98G relInfo: 971M mpGeoms: 8.1G 
+    read( 2%) ->   (33/96) -> process(70% 68% 67% 70% 70% 71% 69% 71% 67% 68% 70% 70% 67% 68% 69% 68% 71% 63% 66% 66% 67% 70% 67% 71% 65% 67% 69% 68% 67% 68% 71% 69% 67% 69% 67% 71% 68% 70% 70% 68% 66% 69% 68% 70% 66% 68% 67% 70% 65% 69% 68% 69% 69% 69% 67% 65% 68% 67% 70% 68% 68% 71% 67%) -> (92k/114k) -> write(88%)
+0:20:37 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 776M  92% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.1B 2.1M/s ] 158G  blocks: [  18k  97%    8/s ]
+    cpus: 54.1 gc: 11% heap: 97G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 8.2G 
+    read( 1%) ->   (33/96) -> process(72% 72% 68% 69% 69% 68% 72% 69% 68% 71% 71% 71% 71% 68% 68% 70% 70% 69% 71% 67% 70% 70% 69% 71% 67% 70% 68% 71% 72% 68% 68% 68% 71% 65% 68% 69% 70% 68% 71% 70% 73% 68% 67% 72% 68% 69% 71% 67% 67% 68% 67% 72% 71% 67% 71% 70% 71% 70% 69% 68% 68% 69% 67%) -> (63k/114k) -> write(88%)
+0:20:47 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 788M  94% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 2.1M/s ] 159G  blocks: [  18k  97%    8/s ]
+    cpus: 53.6 gc: 10% heap: 103G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 8.3G 
+    read( 1%) ->   (33/96) -> process(69% 68% 68% 69% 68% 69% 68% 68% 71% 66% 70% 67% 69% 69% 70% 68% 67% 71% 68% 67% 68% 71% 68% 67% 69% 70% 72% 68% 67% 72% 68% 67% 68% 70% 66% 69% 68% 69% 71% 67% 72% 69% 68% 66% 71% 67% 70% 70% 70% 68% 69% 67% 71% 70% 68% 73% 70% 69% 71% 67% 67% 68% 65%) -> (93k/114k) -> write(88%)
+0:20:57 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 801M  95% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 2.1M/s ] 160G  blocks: [  18k  98%    8/s ]
+    cpus: 54.8 gc: 11% heap: 103G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 8.4G 
+    read( 2%) ->   (33/96) -> process(68% 70% 71% 69% 69% 73% 72% 69% 69% 71% 71% 70% 69% 69% 73% 70% 72% 71% 73% 70% 71% 71% 68% 67% 69% 72% 71% 73% 70% 70% 73% 70% 69% 73% 69% 69% 72% 74% 71% 72% 68% 70% 70% 69% 68% 71% 70% 69% 66% 71% 69% 73% 70% 71% 70% 74% 67% 72% 70% 68% 70% 72% 70%) -> (91k/114k) -> write(87%)
+0:21:07 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 814M  97% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 2.1M/s ] 162G  blocks: [  18k  98%    8/s ]
+    cpus: 54.8 gc: 11% heap: 103G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 8.5G 
+    read( 1%) ->   (33/96) -> process(71% 71% 71% 72% 71% 71% 70% 68% 70% 66% 70% 69% 69% 72% 71% 69% 68% 72% 69% 69% 70% 71% 73% 71% 72% 72% 71% 72% 69% 69% 71% 69% 68% 67% 71% 70% 71% 70% 74% 70% 72% 68% 72% 72% 71% 72% 68% 68% 69% 70% 71% 69% 70% 71% 69% 71% 70% 70% 70% 68% 72% 69% 71%) -> (89k/114k) -> write(86%)
+0:21:17 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 827M  98% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B 2.1M/s ] 163G  blocks: [  18k  98%    9/s ]
+    cpus: 55.2 gc: 11% heap: 101G/118G direct: 10M postGC: 98G relInfo: 971M mpGeoms: 8.6G 
+    read( 2%) ->   (33/96) -> process(67% 72% 70% 68% 72% 69% 71% 69% 72% 67% 73% 71% 71% 74% 72% 69% 70% 72% 68% 68% 72% 71% 71% 69% 73% 72% 72% 70% 71% 73% 73% 72% 70% 70% 69% 69% 72% 71% 72% 69% 71% 71% 72% 69% 69% 71% 72% 71% 71% 72% 69% 71% 72% 70% 72% 69% 72% 72% 72% 70% 71% 71% 72%) -> (90k/114k) -> write(86%)
+0:21:27 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 839M 100% 1.2M/s ] rels: [    0   0%    0/s ] features: [ 2.2B   2M/s ] 164G  blocks: [  18k  99%    7/s ]
+    cpus: 54.1 gc: 10% heap: 104G/118G direct: 10M postGC: 97G relInfo: 971M mpGeoms: 9.1G 
+    read( 2%) ->   (33/96) -> process(71% 63% 71% 71% 68% 71% 69% 69% 71% 70% 71% 73% 70% 67% 69% 58% 69% 71% 67% 72% 70% 72% 72% 73% 72% 73% 70% 70% 74% 70% 70% 73% 71% 74% 72% 69% 67% 73% 59% 68% 77% 71% 71% 70% 71% 70% 58% 73% 71% 69% 72% 72% 72% 71% 67% 72% 59% 71% 72% 70% 72% 70% 69%) -> (50k/114k) -> write(85%)
+0:21:30 INF [osm_pass2:process] - Finished ways: 841,994,745 (1M/s) in 13m30s cpu:11h8m20s gc:1m12s avg:49.5
+0:21:37 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100% 226k/s ] rels: [ 420k   4%  41k/s ] features: [ 2.3B 615k/s ] 165G  blocks: [  18k  99%    5/s ]
+    cpus: 50.3 gc:  5% heap: 96G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 9.1G 
+    read( 1%) ->   (33/96) -> process(58% 54% 58% 58% 57% 69% 85% 55% 73% 81% 83% 83% 57% 54% 83% 56% 83% 56% 58% 59% 82% 60% 66% 61% 79% 76% 75% 64% 77% 89% 57% 68% 65% 60% 69% 60% 71% 88% 53% 59% 60% 75% 54% 67% 75% 73% 55% 79% 64% 65% 81% 81% 69% 83% 54% 59% 56% 81% 69% 56% 89% 76% 61%) -> (35k/114k) -> write(26%)
+0:21:47 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 983k  10%  56k/s ] features: [ 2.3B 967k/s ] 167G  blocks: [  18k  99%   <1/s ]
+    cpus: 62.4 gc:  3% heap: 100G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(94% 95% 88% 91% 90% 96% 91% 92% 94% 91% 86% 90% 91% 92% 90% 90% 90% 94% 89% 94% 95% 94% 90% 93% 93% 90% 89% 91% 91% 94% 93% 89% 90% 88% 92% 91% 91% 92% 91% 90% 88% 93% 90% 89% 89% 89% 91% 93% 91% 85% 88% 86% 89% 89% 90% 85% 87% 91% 90% 91% 88% 87% 91%) -> (27k/114k) -> write(29%)
+0:21:57 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 1.5M  16%  58k/s ] features: [ 2.3B 681k/s ] 168G  blocks: [  18k  99%    0/s ]
+    cpus: 62.4 gc:  3% heap: 104G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(89% 93% 95% 92% 87% 94% 91% 90% 91% 92% 95% 92% 92% 90% 94% 95% 90% 93% 93% 95% 95% 95% 92% 90% 91% 90% 89% 94% 90% 94% 88% 91% 87% 90% 90% 93% 92% 93% 91% 88% 88% 87% 92% 94% 87% 88% 90% 90% 87% 87% 92% 88% 91% 90% 90% 91% 84% 86% 89% 87% 92% 90% 91%) -> (34k/114k) -> write(23%)
+0:22:07 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 2.1M  22%  57k/s ] features: [ 2.3B 877k/s ] 169G  blocks: [  18k  99%   <1/s ]
+    cpus: 62.4 gc:  3% heap: 101G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(90% 88% 95% 88% 93% 92% 94% 92% 95% 88% 85% 88% 94% 90% 92% 93% 95% 87% 94% 93% 93% 93% 89% 89% 92% 91% 90% 93% 92% 90% 88% 89% 91% 91% 92% 89% 94% 92% 95% 93% 92% 92% 90% 88% 92% 88% 94% 85% 89% 87% 92% 91% 91% 88% 91% 87% 92% 88% 94% 89% 88% 92% 93%) -> (29k/114k) -> write(27%)
+0:22:17 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 2.7M  28%  56k/s ] features: [ 2.3B 423k/s ] 170G  blocks: [  18k  99%   <1/s ]
+    cpus: 62.2 gc:  4% heap: 104G/118G direct: 10M postGC: 94G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(93% 93% 92% 94% 92% 92% 89% 94% 91% 91% 92% 90% 94% 82% 90% 88% 89% 92% 94% 90% 88% 89% 91% 87% 92% 92% 86% 91% 91% 83% 86% 94% 92% 92% 91% 87% 85% 90% 86% 88% 85% 90% 94% 91% 85% 92% 85% 92% 92% 89% 91% 89% 94% 93% 92% 92% 87% 88% 88% 86% 84% 93% 93%) -> (29k/114k) -> write(20%)
+0:22:27 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 3.3M  34%  60k/s ] features: [ 2.3B 412k/s ] 171G  blocks: [  18k  99%    1/s ]
+    cpus: 61.3 gc:  8% heap: 98G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(86% 89% 87% 86% 89% 87% 86% 85% 87% 88% 87% 89% 86% 88% 88% 83% 86% 90% 87% 90% 85% 83% 87% 84% 85% 85% 90% 85% 84% 88% 88% 88% 86% 87% 88% 87% 90% 88% 84% 83% 85% 89% 85% 87% 86% 89% 89% 83% 82% 86% 88% 85% 88% 86% 85% 81% 86% 83% 87% 87% 85% 89% 86%) -> (34k/114k) -> write(19%)
+0:22:37 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 3.9M  41%  65k/s ] features: [ 2.3B 428k/s ] 172G  blocks: [  18k  99%   <1/s ]
+    cpus: 61.7 gc:  6% heap: 102G/118G direct: 10M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(87% 88% 88% 87% 92% 89% 90% 87% 86% 88% 91% 87% 88% 87% 92% 88% 87% 90% 88% 89% 81% 90% 86% 90% 87% 88% 87% 86% 85% 86% 89% 86% 85% 82% 87% 86% 87% 86% 84% 90% 86% 87% 92% 86% 86% 89% 86% 89% 91% 86% 86% 85% 87% 85% 88% 90% 86% 84% 87% 86% 83% 88% 85%) -> (36k/114k) -> write(19%)
+0:22:47 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 4.6M  48%  68k/s ] features: [ 2.3B 611k/s ] 173G  blocks: [  18k  99%    1/s ]
+    cpus: 61.1 gc:  8% heap: 98G/118G direct: 10M postGC: 96G relInfo: 971M mpGeoms: 9.1G 
+    read( 0%) ->   (33/96) -> process(88% 81% 83% 87% 81% 88% 85% 87% 87% 87% 89% 86% 84% 85% 83% 85% 84% 84% 82% 82% 88% 89% 83% 88% 85% 87% 85% 82% 86% 86% 89% 89% 84% 83% 85% 88% 80% 82% 84% 85% 84% 82% 85% 83% 85% 85% 82% 87% 86% 84% 83% 85% 79% 85% 84% 84% 81% 87% 90% 85% 84% 87% 87%) -> (30k/114k) -> write(23%)
+0:22:57 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 5.3M  55%  73k/s ] features: [ 2.3B 916k/s ] 176G  blocks: [  18k 100%   <1/s ]
+    cpus: 61.7 gc:  6% heap: 104G/118G direct: 4M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->   (28/96) -> process(88% 89% 87% 90% 92% 87% 89% 88% 88% 86% 89% 89% 91% 88% 90% 85% 84% 82% 92% 85% 88% 88% 88% 89% 88% 88% 89% 84% 89% 92% 87% 89% 84% 86% 85% 84% 90% 87% 82% 93% 84% 81% 89% 83% 89% 89% 92% 82% 86% 85% 88% 89% 89% 85% 87% 86% 90% 85% 86% 89% 86% 82% 88%) -> (36k/114k) -> write(32%)
+0:23:07 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 6.1M  63%  73k/s ] features: [ 2.3B 497k/s ] 177G  blocks: [  18k 100%   <1/s ]
+    cpus: 61.9 gc:  5% heap: 98G/118G direct: 4M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->   (23/96) -> process(88% 87% 89% 93% 89% 90% 89% 88% 90% 84% 91% 92% 86% 93% 92% 90% 85% 91% 86% 89% 90% 92% 88% 84% 91% 85% 84% 88% 90% 88% 85% 85% 89% 89% 91% 88% 87% 87% 90% 85% 89% 89% 92% 87% 87% 91% 85% 89% 86% 88% 87% 89% 89% 85% 86% 86% 85% 90% 91% 86% 88% 86% 87%) -> (34k/114k) -> write(21%)
+0:23:17 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 6.8M  71%  72k/s ] features: [ 2.3B 384k/s ] 178G  blocks: [  18k 100%    1/s ]
+    cpus: 61.9 gc:  5% heap: 102G/118G direct: 4M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->   (10/96) -> process(92% 87% 87% 87% 86% 91% 89% 90% 90% 88% 85% 91% 86% 89% 85% 90% 91% 88% 91% 85% 91% 86% 90% 90% 85% 86% 86% 89% 90% 90% 88% 91% 85% 86% 84% 85% 82% 90% 84% 86% 89% 90% 86% 87% 86% 87% 90% 87% 89% 89% 89% 92% 88% 87% 88% 91% 89% 88% 89% 87% 88% 88% 88%) -> (36k/114k) -> write(18%)
+0:23:27 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 7.6M  78%  76k/s ] features: [ 2.3B 380k/s ] 179G  blocks: [  18k 100%    1/s ]
+    cpus: 61.7 gc:  6% heap: 95G/118G direct: 4M postGC: 95G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->    (0/96) -> process(92% 91% 87% 87% 91% 87% 88% 86% 88% 86% 89% 90% 86% 88% 91% 90% 89% 84% 91% 92% 88% 91% 89% 89% 90% 88% 87% 87% 90% 88% 88% 91% 90% 84% 83% 86% 89% 85% 92% 89% 86% 87% 86% 88% 87% 86% 88% 86% 86% 86% 86% 86% 88% 83% 89% 87% 94% 88% 89% 85% 83% 87% 85%) -> (32k/114k) -> write(18%)
+0:23:37 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 8.4M  86%  77k/s ] features: [ 2.3B 439k/s ] 180G  blocks: [  18k 100%    1/s ]
+    cpus: 62.5 gc:  3% heap: 96G/118G direct: 4M postGC: 94G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->    (0/96) -> process(93% 87% 91% 89% 96% 90% 90% 90% 92% 91% 92% 95% 94% 94% 93% 93% 95% 93% 86% 95% 89% 93% 94% 93% 91% 90% 93% 96% 95% 95% 94% 87% 92% 91% 86% 90% 86% 89% 89% 90% 91% 89% 95% 90% 86% 89% 89% 90% 93% 88% 96% 91% 89% 92% 91% 91% 94% 93% 88% 91% 88% 88% 91%) -> (33k/114k) -> write(20%)
+0:23:47 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 9.2M  95%  80k/s ] features: [ 2.3B 367k/s ] 181G  blocks: [  18k 100%    1/s ]
+    cpus: 62.3 gc:  3% heap: 100G/118G direct: 4M postGC: 93G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->    (0/96) -> process(92% 95% 90% 86% 95% 95% 93% 91% 91% 94% 92% 92% 92% 91% 88% 88% 95% 91% 90% 91% 90% 90% 96% 90% 91% 93% 93% 93% 90% 92% 94% 89% 92% 96% 93% 95% 91% 87% 93% 93% 91% 91% 88% 93% 95% 89% 94% 92% 93% 95% 93% 93% 93% 95% 91% 93% 90% 87% 89% 93% 90% 94% 92%) -> (36k/114k) -> write(18%)
+0:23:54 INF [osm_pass2:process] - Finished relations: 9,718,612 (67k/s) in 2m24s cpu:2h28m12s gc:7s avg:61.9
+0:23:55 INF [osm_pass2] -  nodes: [ 7.5B 100%    0/s ] 76G   ways: [ 841M 100%    0/s ] rels: [ 9.7M 100%  68k/s ] features: [ 2.3B 320k/s ] 181G  blocks: [  18k 100%    4/s ]
+    cpus: 55.5 gc:  2% heap: 92G/118G direct: 3.9M postGC: 92G relInfo: 971M mpGeoms: 9.1G 
+    read( -%) ->    (0/96) -> process( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/114k) -> write( -%)
+0:23:55 DEB [osm_pass2] - Processed 18,767 blocks:
+0:23:55 DEB [osm_pass2] -   nodes: 7,546,573,682 (29M/s) in 4m20s cpu:3h19m37s gc:21s avg:46.1
+0:23:55 DEB [osm_pass2] -   ways: 841,994,745 (1M/s) in 13m30s cpu:11h8m20s gc:1m12s avg:49.5
+0:23:55 DEB [osm_pass2] -   relations: 9,718,612 (67k/s) in 2m24s cpu:2h28m12s gc:7s avg:61.9
+0:23:55 INF [osm_pass2] - Finished in 20m11s cpu:16h55m20s gc:1m39s avg:50.3
+0:23:55 INF [osm_pass2] -   read     1x(3% 41s sys:32s wait:17m43s done:1m4s)
+0:23:55 INF [osm_pass2] -   process 63x(68% 13m38s block:1m12s wait:3m23s)
+0:23:55 INF [osm_pass2] -   write    1x(71% 14m18s sys:1m34s wait:4m25s)
+0:23:55 INF [boundaries] - 
+0:23:55 INF [boundaries] - Starting...
+0:23:55 INF [boundaries] - Creating polygons for 218 boundaries
+0:24:04 INF [boundaries] - Finished creating 218 country polygons
+0:24:10 WAR [boundaries] - no left or right country for border between OSM country relations: [449220] around https://www.openstreetmap.org/#map=10/24.37468/118.13815
+0:24:12 INF [boundaries] - Finished in 18s cpu:23s avg:1.3
+0:24:12 INF - Deleting node.db to make room for output file
+0:24:12 INF [sort] - 
+0:24:12 INF [sort] - Starting...
+0:24:22 INF [sort] -  chunks: [  12 / 332   4% ] 179G 
+    cpus: 13.7 gc:  7% heap: 13G/118G direct: 5.2M postGC: 13G
+    -> (256/397) -> worker(43% 42% 42% 43% 42% 43% 42% 43% 43% 41% 42% 42% 32% 31% 32% 31% 31% 29% 11% 10% 10%  9%  9%  7%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:24:32 INF [sort] -  chunks: [  24 / 332   7% ] 180G 
+    cpus: 17.3 gc:  8% heap: 24G/118G direct: 6.4M postGC: 24G
+    -> (244/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0% 12% 13% 12% 13% 12% 14% 31% 31% 32% 32% 33% 40% 59% 59% 58% 58% 57% 56% 42% 42% 41% 41% 40% 40% 28% 26% 26% 26% 25% 24% 13% 11% 10%  9%  9%  8%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:24:42 INF [sort] -  chunks: [  39 / 332  12% ] 181G 
+    cpus: 19.3 gc:  4% heap: 35G/118G direct: 7M postGC: 34G
+    -> (229/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0% 20% 23% 20% 11% 12% 12% 26% 32% 35% 36% 31% 43% 50% 47% 48% 51% 51% 39% 56% 56% 45% 53% 48% 48% 46% 41% 40% 47% 47% 44% 13%  9% 10% 10%  7%  8%  0%  0%  0%  0%)
+0:24:52 INF [sort] -  chunks: [  58 / 332  17% ] 180G 
+    cpus: 13.5 gc:  3% heap: 20G/118G direct: 7.2M postGC: 23G
+    -> (210/397) -> worker(10% 15% 41% 20% 10% 10%  0%  0%  1%  5%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  3%  0% 12% 15% 14% 14% 13% 28% 30% 21% 19% 22% 46% 49% 48% 49% 51% 52% 55% 47% 44% 32%)
+0:25:02 INF [sort] -  chunks: [  71 / 332  21% ] 180G 
+    cpus: 21.3 gc:  9% heap: 22G/118G direct: 7.2M postGC: 22G
+    -> (197/397) -> worker(55% 54% 18% 45% 61% 56% 69% 64% 74% 62% 64% 61% 57% 35% 47% 34% 53% 34% 30% 23% 14% 19% 15% 13%  0%  0%  0% 11%  3%  5%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  1%  0% 11% 12% 13% 35%)
+0:25:12 INF [sort] -  chunks: [  89 / 332  27% ] 180G 
+    cpus: 24.3 gc:  5% heap: 28G/118G direct: 7.2M postGC: 30G
+    -> (179/397) -> worker( 0%  0%  0%  0%  0%  0% 11% 14%  7%  0% 16% 21% 29% 55% 44% 53% 38% 53% 53% 61% 71% 64% 72% 71% 70% 65% 76% 73% 77% 77% 64% 57% 54% 32% 38% 28%  4% 17% 15%  3%  7% 37%  0%  6%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:25:22 INF [sort] -  chunks: [ 105 / 332  32% ] 181G 
+    cpus: 15 gc:  5% heap: 17G/118G direct: 7.2M postGC: 14G
+    -> (163/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0% 12% 14%  3%  0%  0%  0% 14% 15% 15% 31% 27% 35% 65% 52% 57% 68% 61% 26% 45% 62% 48% 36% 37% 37% 21% 12% 11% 19% 36% 12% 10%  0%  0%  1%  0%  0%  0%  0%  0%  0%)
+0:25:33 INF [sort] -  chunks: [ 121 / 332  36% ] 180G 
+    cpus: 20.7 gc:  8% heap: 22G/118G direct: 7.2M postGC: 22G
+    -> (147/397) -> worker(15% 22% 34% 24%  7%  8%  1%  0%  3%  6%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  1%  0%  0% 33%  0% 23% 35% 33% 35% 50% 57% 58% 55% 35% 59% 59% 72% 70% 62% 69% 72% 63% 56% 53% 33%)
+0:25:43 INF [sort] -  chunks: [ 136 / 332  41% ] 180G 
+    cpus: 19 gc:  7% heap: 22G/118G direct: 7.2M postGC: 22G
+    -> (132/397) -> worker(55% 47% 29% 44% 62% 58% 71% 69% 68% 64% 61% 59% 58% 36% 49% 40% 55% 47% 37% 25% 14% 22%  6%  8%  0%  0%  3%  7%  0%  1%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  3%  0%  8% 13% 13% 30%)
+0:25:53 INF [sort] -  chunks: [ 154 / 332  46% ] 181G 
+    cpus: 19.2 gc:  6% heap: 19G/118G direct: 7.2M postGC: 18G
+    -> (114/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0% 10% 11% 12% 34% 14% 26% 15% 16% 33% 47% 58% 51% 57% 59% 53% 51% 63% 57% 60% 71% 54% 38% 34% 22% 21% 23%  4% 17% 12%  3%  5% 27%  0%  9%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:26:03 INF [sort] -  chunks: [ 172 / 332  52% ] 181G 
+    cpus: 19.6 gc:  8% heap: 23G/118G direct: 7.2M postGC: 22G
+    ->  (96/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0% 21% 20%  0%  0% 10%  0% 22% 31% 37% 48% 49% 50% 68% 50% 51% 67% 66% 43% 71% 57% 72% 38% 63% 45% 30% 13%  6% 25% 43% 14% 19%  1%  4%  9%  0%  0%  0%  0%  0%  0%)
+0:26:13 INF [sort] -  chunks: [ 187 / 332  56% ] 181G 
+    cpus: 22.3 gc:  8% heap: 26G/118G direct: 7.2M postGC: 25G
+    ->  (81/397) -> worker(33% 36% 58% 51% 18% 23%  6%  4% 12% 12%  1%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  2%  0%  0% 37%  6% 24% 47% 60% 66% 50% 26% 59% 59% 71% 69% 65% 66% 68% 63% 62% 61% 52%)
+0:26:23 INF [sort] -  chunks: [ 204 / 332  61% ] 180G 
+    cpus: 21.3 gc:  6% heap: 22G/118G direct: 7.2M postGC: 19G
+    ->  (64/397) -> worker(42% 39%  7% 23% 56% 50% 63% 70% 62% 59% 74% 72% 69% 41% 66% 56% 61% 59% 48% 36% 31% 31% 11% 20%  0%  1% 10% 15%  4%  5%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  1% 22%)
+0:26:33 INF [sort] -  chunks: [ 220 / 332  66% ] 180G 
+    cpus: 20.1 gc:  9% heap: 21G/118G direct: 7.2M postGC: 18G
+    ->  (48/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  4% 21%  6% 16% 13% 13% 19% 25% 36% 35% 59% 50% 64% 68% 63% 56% 65% 65% 61% 57% 49% 43% 37% 33% 12% 31% 21%  9% 17% 48%  1% 21%  7%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:26:43 INF [sort] -  chunks: [ 236 / 332  71% ] 181G 
+    cpus: 21.5 gc:  8% heap: 22G/118G direct: 7.2M postGC: 22G
+    ->  (32/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  7%  1%  0%  0%  0%  0%  7%  8% 14% 19% 23% 34% 60% 39% 52% 61% 55% 14% 71% 51% 65% 51% 70% 67% 48% 34% 22% 42% 56% 39% 42% 16% 17% 27% 14%  7% 10%  4%  0%  0%)
+0:26:53 INF [sort] -  chunks: [ 254 / 332  77% ] 180G 
+    cpus: 19.2 gc:  7% heap: 20G/118G direct: 7.2M postGC: 18G
+    ->  (14/397) -> worker(41% 48% 63% 55% 31% 34% 21% 18% 24% 29% 13% 11% 10%  0%  6%  0%  2%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  2%  0%  0% 23%  2%  5% 25% 38% 47% 32% 12% 35% 31% 55% 49% 44% 56% 60% 52% 66% 66% 60%)
+0:27:03 INF [sort] -  chunks: [ 271 / 332  82% ] 180G 
+    cpus: 24.3 gc:  7% heap: 24G/118G direct: 7M postGC: 22G
+    ->   (0/397) -> worker(34% 19% 11% 17% 45% 43% 54% 58% 51% 47% 66% 69%  -% 66%  -% 73%  -% 80% 69% 51% 41% 47% 28% 31%  3%  7% 19% 29% 11% 15%  4%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  7% 14%)
+0:27:13 INF [sort] -  chunks: [ 287 / 332  86% ] 181G 
+    cpus: 23.6 gc:  7% heap: 21G/118G direct: 6.2M postGC: 24G
+    ->   (0/397) -> worker( 0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -% 79% 74% 62% 57% 56% 24% 47% 38% 22% 31% 70% 15% 42% 17%  3% 11%  7%  0%  0%  0%  0%  5%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%  0%)
+0:27:23 INF [sort] -  chunks: [ 307 / 332  92% ] 179G 
+    cpus: 19.6 gc:  6% heap: 20G/118G direct: 5.2M postGC: 23G
+    ->   (0/397) -> worker( 0%  0%  1%  0%  0%  0%  0%  0%  0%  0%  0%  0%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -% 34% 54%  -% 54% 64% 22% 32% 35% 11% 10% 13%  6%  5%  0%)
+0:27:33 INF [sort] -  chunks: [ 320 / 332  96% ] 180G 
+    cpus: 6.9 gc:  5% heap: 12G/118G direct: 4.6M postGC: 11G
+    ->   (0/397) -> worker(29% 29% 27% 26% 23% 30% 11%  8% 19% 19%  6%  3%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%)
+0:27:39 INF [sort] -  chunks: [ 332 / 332 100% ] 181G 
+    cpus: 2.3 gc:  0% heap: 13G/118G direct: 3.9M postGC: 12G
+    ->   (0/397) -> worker( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%)
+0:27:39 INF [sort] - Finished in 3m27s cpu:1h3m59s gc:13s avg:18.6
+0:27:39 INF [sort] -   worker 64x(17% 35s sys:3s wait:2m17s done:19s)
+0:27:39 INF - read:1203s write:802s sort:1221s
+0:27:39 INF [mbtiles] - 
+0:27:39 INF [mbtiles] - Starting...
+0:27:39 DEB [mbtiles:write] - Execute mbtiles: create table metadata (name text, value text);
+0:27:39 DEB [mbtiles:write] - Execute mbtiles: create unique index name on metadata (name);
+0:27:39 DEB [mbtiles:write] - Execute mbtiles: create table tiles (zoom_level integer, tile_column integer, tile_row, tile_data blob);
+0:27:39 DEB [mbtiles:write] - Execute mbtiles: create unique index tile_index on tiles (zoom_level, tile_column, tile_row)
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: name=OpenMapTiles
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: format=pbf
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: description=A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: attribution=<a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: version=3.13.0
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: type=baselayer
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: bounds=-180,-85.05113,180,85.05113
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: center=0,0,0
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: minzoom=0
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: maxzoom=14
+0:27:39 DEB [mbtiles:write] - Set mbtiles metadata: json={"vector_layers":[{"id":"aerodrome_label","fields":{"name:fy":"String","name:oc":"String","name_int":"String","name:bs":"String","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:sq":"String","name:ca":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","ele":"Number","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:ja_kana":"String","name:nl":"String","name:be":"String","name:fi":"String","name:ru":"String","name:no":"String","iata":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","name:zh":"String","name:es":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:he":"String","name:da":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","ele_ft":"Number","icao":"String","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":8,"maxzoom":14},{"id":"aeroway","fields":{"ref":"String","class":"String"},"minzoom":10,"maxzoom":14},{"id":"boundary","fields":{"adm0_r":"String","disputed":"Number","admin_level":"Number","disputed_name":"String","maritime":"Number","adm0_l":"String","claimed_by":"String"},"minzoom":0,"maxzoom":14},{"id":"building","fields":{"colour":"String","render_height":"Number","render_min_height":"Number","hide_3d":"Boolean"},"minzoom":13,"maxzoom":14},{"id":"housenumber","fields":{"housenumber":"String"},"minzoom":14,"maxzoom":14},{"id":"landcover","fields":{"subclass":"String","class":"String","_numpoints":"Number"},"minzoom":0,"maxzoom":14},{"id":"landuse","fields":{"class":"String"},"minzoom":4,"maxzoom":14},{"id":"mountain_peak","fields":{"name:oc":"String","name_int":"String","name:bs":"String","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:sq":"String","name:ca":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","rank":"Number","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","ele":"Number","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:nl":"String","name:ja_kana":"String","name:be":"String","name:fi":"String","name:ru":"String","name:no":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","customary_ft":"Number","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","name:zh":"String","name:es":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","ele_ft":"Number","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":7,"maxzoom":14},{"id":"park","fields":{"name:fy":"String","name:oc":"String","name_int":"String","name:bs":"String","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:sq":"String","name:ca":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:ja_kana":"String","name:nl":"String","name:be":"String","name:fi":"String","name:ru":"String","name:no":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","name:es":"String","name:zh":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":4,"maxzoom":14},{"id":"place","fields":{"name:fy":"String","name:oc":"String","name_int":"String","name:bs":"String","capital":"Number","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:sq":"String","name:ca":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","name:co":"String","rank":"Number","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:ja_kana":"String","name:nl":"String","name:be":"String","name:ru":"String","name:fi":"String","name:no":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","name:mt":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","iso_a2":"String","name:zh":"String","name:es":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":0,"maxzoom":14},{"id":"poi","fields":{"name:fy":"String","name:oc":"String","name_int":"String","name:bs":"String","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:sq":"String","name:ca":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","level":"Number","name:rm":"String","name:az":"String","name:ro":"String","name:nl":"String","name:ja_kana":"String","name:be":"String","name:fi":"String","name:ru":"String","name:no":"String","name:bg":"String","name":"String","indoor":"Number","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","layer":"Number","name:mk":"String","name:mt":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","name:es":"String","name:zh":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","subclass":"String","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":12,"maxzoom":14},{"id":"transportation","fields":{"brunnel":"String","access":"String","expressway":"Number","bicycle":"String","surface":"String","level":"Number","ramp":"Number","mtb_scale":"String","toll":"Number","layer":"Number","oneway":"Number","network":"String","horse":"String","service":"String","subclass":"String","indoor":"Number","class":"String","foot":"String"},"minzoom":4,"maxzoom":14},{"id":"transportation_name","fields":{"name_int":"String","level":"Number","name:nonlatin":"String","route_5":"String","route_4":"String","route_3":"String","route_2":"String","route_1":"String","layer":"Number","network":"String","ref":"String","route_6":"String","name_de":"String","name":"String","subclass":"String","ref_length":"Number","indoor":"Number","class":"String","name_en":"String","name:latin":"String"},"minzoom":6,"maxzoom":14},{"id":"water","fields":{"brunnel":"String","intermittent":"Number","class":"String"},"minzoom":0,"maxzoom":14},{"id":"water_name","fields":{"name:fy":"String","name:oc":"String","name_int":"String","name:bs":"String","name:sk":"String","name:ka":"String","name:nonlatin":"String","name:ja-Latn":"String","intermittent":"Number","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:ca":"String","name:sq":"String","name:kn":"String","name:sv":"String","name:ko":"String","name_de":"String","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:ja_kana":"String","name:nl":"String","name:be":"String","name:ru":"String","name:fi":"String","name:no":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","name:mt":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:is":"String","name:eo":"String","name:et":"String","name:eu":"String","class":"String","name:es":"String","name:zh":"String","name:th":"String","name:te":"String","name:la":"String","name:lb":"String","name:cy":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:hi":"String","name:de":"String","name:lt":"String","name:lv":"String","name:hr":"String","name:hu":"String","name_en":"String"},"minzoom":0,"maxzoom":14},{"id":"waterway","fields":{"name:fy":"String","name_int":"String","name:oc":"String","name:bs":"String","name:sk":"String","name:nonlatin":"String","name:ka":"String","intermittent":"Number","name:ja-Latn":"String","name:sl":"String","name:ga":"String","name:sr":"String","name:kk":"String","name:gd":"String","name:ca":"String","name:sq":"String","name:sv":"String","name:kn":"String","name:ko":"String","name_de":"String","name:co":"String","name:ku":"String","name:cs":"String","name:ta":"String","name:latin":"String","name:ko-Latn":"String","name:ar":"String","name:ja":"String","name:rm":"String","name:az":"String","name:ro":"String","name:nl":"String","name:ja_kana":"String","name:fi":"String","name:ru":"String","name:be":"String","name:no":"String","name:bg":"String","name":"String","name:fr":"String","name:ja_rm":"String","name:br":"String","name:hy":"String","brunnel":"String","name:uk":"String","name:id":"String","name:ja-Hira":"String","name:ml":"String","name:mk":"String","name:mt":"String","name:el":"String","name:sr-Latn":"String","name:it":"String","name:am":"String","name:en":"String","name:eo":"String","name:is":"String","name:et":"String","name:eu":"String","class":"String","name:es":"String","name:zh":"String","name:th":"String","name:te":"String","name:la":"String","_relid":"Number","name:cy":"String","name:lb":"String","name:pl":"String","name:da":"String","name:he":"String","name:tr":"String","name:pt":"String","name:de":"String","name:hi":"String","name:lt":"String","name:hr":"String","name:lv":"String","name:hu":"String","name_en":"String"},"minzoom":3,"maxzoom":14}]}
+0:27:40 INF [mbtiles:write] - Starting z0
+0:27:40 INF [mbtiles:write] - Finished z0 in 0s cpu:0s avg:0, now starting z1
+0:27:40 INF [mbtiles:write] - Finished z1 in 0s cpu:0s avg:0, now starting z2
+0:27:40 INF [mbtiles:write] - Finished z2 in 0s cpu:0s avg:0, now starting z3
+0:27:40 INF [mbtiles:write] - Finished z3 in 0s cpu:0.9s avg:34.5, now starting z4
+0:27:41 INF [mbtiles:write] - Finished z4 in 1s cpu:39s avg:27.3, now starting z5
+0:27:42 INF [mbtiles:write] - Finished z5 in 0.5s cpu:12s avg:25.6, now starting z6
+0:27:44 INF [mbtiles:write] - Finished z6 in 2s cpu:42s avg:19.1, now starting z7
+0:27:49 INF [mbtiles] -  features: [  18M   1% 1.8M/s ] 181G  tiles: [  11k 1.1k/s ] 92M  
+    cpus: 24.9 gc: 11% heap: 3.9G/118G direct: 4M postGC: 1.3G
+    read(83%) ->  (0/5.9k) -> encode(16% 26% 31% 30% 31% 33% 48% 34% 22% 47% 26% 36% 34% 34% 42% 26% 31% 33% 49% 23% 20% 27% 28% 34% 40% 21% 38% 19% 17% 25% 12% 24% 33% 31% 35% 19% 45% 25% 32% 40% 21% 25% 22% 17% 18% 25% 24% 17% 28% 31% 26% 19% 18% 42% 26% 23% 20% 24% 30% 14% 25% 25% 14% 17%) -> (350/5.9k) -> write( 3%)
+    last tile: 7/51/66 (z7 40%) https://www.openstreetmap.org/#map=7/-5.61599/-36.56250
+0:27:53 INF [mbtiles:write] - Finished z7 in 9s cpu:3m25s avg:23.9, now starting z8
+0:27:59 INF [mbtiles] -  features: [  34M   1% 1.6M/s ] 181G  tiles: [  49k 3.8k/s ] 260M 
+    cpus: 27.6 gc:  8% heap: 10G/118G direct: 4M postGC: 1.6G
+    read(86%) ->  (1/5.9k) -> encode(51% 21% 34% 22% 39% 44% 47% 38% 32% 39% 37% 43% 44% 18% 31% 41% 24% 35% 28% 31% 41% 41% 17% 52% 48% 54% 19% 46% 24% 47% 49% 28% 54% 34% 31% 40% 44% 35% 39% 38% 22% 28% 41% 23% 55% 26% 24% 40% 40% 22% 24% 34% 38% 44% 39% 65% 43% 42% 29% 36% 56% 30% 40% 36%) -> (242/5.9k) -> write( 4%)
+    last tile: 8/136/126 (z8 53%) https://www.openstreetmap.org/#map=8/2.81137/11.25000
+0:28:06 INF [mbtiles:write] - Finished z8 in 14s cpu:6m5s avg:26.4, now starting z9
+0:28:09 INF [mbtiles] -  features: [  54M   2% 1.9M/s ] 181G  tiles: [ 126k 7.6k/s ] 474M 
+    cpus: 29.3 gc:  2% heap: 26G/118G direct: 4M postGC: 2G
+    read(97%) ->  (0/5.9k) -> encode(37% 37% 36% 29% 31% 39% 48% 46% 48% 53% 44% 43% 35% 44% 54% 67% 38% 41% 49% 41% 45% 33% 43% 58% 32% 37% 51% 30% 50% 51% 47% 39% 36% 37% 53% 49% 43% 51% 56% 48% 58% 35% 18% 42% 34% 42% 32% 54% 54% 40% 26% 40% 45% 42% 32% 43% 35% 54% 44% 58% 48% 26% 47% 48%) -> (405/5.9k) -> write( 6%)
+    last tile: 9/119/181 (z9 23%) https://www.openstreetmap.org/#map=9/46.55886/-96.32813
+0:28:19 INF [mbtiles] -  features: [  68M   3% 1.4M/s ] 181G  tiles: [ 194k 6.7k/s ] 773M 
+    cpus: 51.8 gc:  4% heap: 14G/118G direct: 4M postGC: 1.9G
+    read(94%) -> (52/5.9k) -> encode(81% 76% 81% 83% 77% 72% 73% 81% 74% 76% 74% 72% 72% 75% 77% 73% 66% 87% 80% 75% 75% 75% 74% 74% 87% 73% 73% 79% 73% 77% 80% 76% 75% 77% 72% 84% 65% 79% 79% 86% 88% 78% 77% 75% 80% 74% 74% 75% 71% 82% 75% 81% 82% 76% 78% 70% 73% 75% 79% 84% 84% 72% 80% 78%) -> (429/5.9k) -> write( 9%)
+    last tile: 9/272/139 (z9 53%) https://www.openstreetmap.org/#map=9/63.23363/11.25000
+0:28:29 INF [mbtiles] -  features: [  83M   4% 1.5M/s ] 181G  tiles: [ 220k 2.5k/s ] 1G   
+    cpus: 45.6 gc:  4% heap: 16G/118G direct: 4M postGC: 2.1G
+    read(90%) ->  (0/5.9k) -> encode(69% 63% 71% 75% 62% 65% 71% 79% 64% 61% 69% 72% 65% 62% 67% 60% 67% 58% 63% 62% 61% 92% 62% 63% 65% 71% 75% 55% 71% 64% 59% 75% 69% 79% 68% 68% 81% 63% 72% 62% 68% 71% 71% 68% 69% 61% 64% 66% 68% 66% 61% 61% 68% 65% 86% 55% 64% 63% 69% 65% 65% 70% 54% 55%) -> (527/5.9k) -> write( 9%)
+    last tile: 9/337/170 (z9 66%) https://www.openstreetmap.org/#map=9/51.61802/56.95313
+0:28:36 INF [mbtiles:write] - Finished z9 in 29s cpu:22m20s gc:1s avg:45.8, now starting z10
+0:28:39 INF [mbtiles] -  features: [ 102M   4% 1.8M/s ] 181G  tiles: [ 737k  51k/s ] 1.8G 
+    cpus: 32.1 gc:  3% heap: 14G/118G direct: 4M postGC: 1.3G
+    read(96%) ->  (0/5.9k) -> encode(48% 43% 41% 45% 45% 43% 46% 38% 52% 43% 60% 45% 41% 46% 53% 35% 54% 42% 44% 44% 32% 49% 55% 42% 42% 71% 52% 57% 43% 50% 44% 44% 39% 49% 46% 46% 40% 42% 42% 51% 43% 48% 47% 52% 44% 55% 41% 37% 65% 63% 37% 39% 52% 46% 54% 47% 46% 47% 41% 45% 50% 32% 41% 38%) -> (61/5.9k) -> write(24%)
+    last tile: 10/514/372 (z10 50%) https://www.openstreetmap.org/#map=10/44.08759/0.70313
+0:28:49 INF [mbtiles] -  features: [ 122M   5% 1.9M/s ] 181G  tiles: [ 908k  17k/s ] 2.6G 
+    cpus: 29.2 gc:  1% heap: 4.5G/118G direct: 4M postGC: 1.3G
+    read(98%) ->  (0/5.9k) -> encode(40% 50% 51% 51% 46% 41% 39% 37% 45% 35% 44% 41% 48% 42% 39% 41% 43% 44% 46% 44% 48% 49% 45% 46% 40% 43% 34% 41% 46% 32% 48% 42% 43% 41% 45% 44% 48% 49% 42% 51% 49% 45% 46% 44% 48% 45% 37% 39% 51% 47% 39% 33% 38% 40% 44% 42% 48% 45% 39% 36% 39% 50% 49% 36%) -> (13/5.9k) -> write(16%)
+    last tile: 10/730/337 (z10 71%) https://www.openstreetmap.org/#map=10/52.26816/76.64063
+0:28:56 INF [mbtiles:write] - Finished z10 in 20s cpu:8m19s avg:24.9, now starting z11
+0:28:59 INF [mbtiles] -  features: [ 143M   6% 2.1M/s ] 181G  tiles: [   2M 112k/s ] 3.4G 
+    cpus: 18.1 gc:  0% heap: 27G/118G direct: 4M postGC: 1.3G
+    read(99%) ->  (0/5.9k) -> encode(23% 26% 35% 22% 27% 25% 24% 27% 30% 25% 24% 21% 28% 26% 23% 23% 27% 25% 22% 26% 31% 27% 25% 34% 29% 27% 24% 27% 21% 23% 20% 26% 30% 29% 29% 26% 26% 31% 26% 27% 28% 30% 23% 25% 27% 33% 29% 26% 30% 21% 20% 25% 27% 33% 29% 27% 23% 25% 22% 29% 27% 18% 21% 18%) -> (25/5.9k) -> write(36%)
+    last tile: 11/528/826 (z11 25%) https://www.openstreetmap.org/#map=11/32.84267/-87.18750
+0:29:09 INF [mbtiles] -  features: [ 164M   7%   2M/s ] 181G  tiles: [ 2.9M  86k/s ] 4.3G 
+    cpus: 18.1 gc:  0% heap: 21G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(27% 20% 26% 21% 25% 30% 24% 26% 23% 28% 22% 27% 27% 25% 24% 24% 35% 26% 29% 26% 23% 19% 26% 23% 26% 28% 23% 30% 29% 25% 30% 29% 28% 27% 26% 30% 26% 26% 32% 26% 27% 22% 26% 21% 27% 26% 17% 24% 31% 25% 30% 29% 23% 25% 26% 23% 31% 22% 24% 31% 30% 27% 30% 26%) -> (67/5.9k) -> write(31%)
+    last tile: 11/1037/760 (z11 50%) https://www.openstreetmap.org/#map=11/42.03297/2.28516
+0:29:20 INF [mbtiles] -  features: [ 184M   8% 1.9M/s ] 181G  tiles: [ 3.1M  22k/s ] 5.1G 
+    cpus: 22.5 gc:  0% heap: 13G/118G direct: 4M postGC: 1.3G
+    read(99%) ->  (0/5.9k) -> encode(29% 34% 26% 31% 35% 37% 40% 38% 35% 23% 35% 29% 34% 25% 30% 34% 34% 20% 39% 33% 34% 31% 30% 34% 28% 36% 39% 38% 36% 32% 32% 26% 32% 34% 35% 34% 34% 33% 32% 42% 31% 37% 41% 32% 35% 36% 38% 31% 32% 31% 32% 34% 33% 20% 37% 36% 34% 34% 35% 28% 36% 29% 41% 36%) -> (45/5.9k) -> write(15%)
+    last tile: 11/1183/621 (z11 57%) https://www.openstreetmap.org/#map=11/57.61011/27.94922
+0:29:30 INF [mbtiles] -  features: [ 203M   9% 1.8M/s ] 181G  tiles: [ 3.8M  66k/s ] 6.1G 
+    cpus: 21.7 gc:  0% heap: 18G/118G direct: 4M postGC: 1.3G
+    read(96%) ->  (0/5.9k) -> encode(23% 34% 35% 30% 33% 31% 36% 34% 26% 30% 33% 27% 27% 33% 33% 31% 34% 37% 30% 37% 27% 29% 35% 45% 29% 31% 41% 33% 25% 33% 29% 35% 25% 36% 26% 36% 31% 27% 27% 38% 42% 36% 35% 35% 32% 31% 33% 24% 31% 20% 37% 32% 31% 33% 26% 33% 27% 26% 29% 34% 31% 29% 39% 30%) -> (19/5.9k) -> write(28%)
+    last tile: 11/1635/816 (z11 79%) https://www.openstreetmap.org/#map=11/34.30714/107.40234
+0:29:36 INF [mbtiles:write] - Finished z11 in 41s cpu:13m22s avg:19.8, now starting z12
+0:29:40 INF [mbtiles] -  features: [ 225M   9% 2.1M/s ] 181G  tiles: [ 5.9M 212k/s ] 6.8G 
+    cpus: 16.3 gc:  1% heap: 13G/118G direct: 4M postGC: 2.4G
+    read(99%) ->  (0/5.9k) -> encode(24% 24% 20% 30% 20% 24% 25% 26% 24% 24% 25% 19% 21% 25% 25% 20% 23% 30% 22% 25% 23% 24% 20% 21% 28% 20% 21% 25% 27% 25% 22% 25% 23% 22% 23% 24% 22% 16% 22% 19% 22% 18% 20% 22% 18% 19% 21% 23% 23% 21% 22% 23% 20% 24% 24% 24% 24% 24% 17% 24% 25% 21% 27% 24%) -> (1.4k/5.9k) -> write(52%)
+    last tile: 12/388/585 (z12 9%) https://www.openstreetmap.org/#map=12/77.89726/-145.89844
+0:29:50 INF [mbtiles] -  features: [ 248M  10% 2.3M/s ] 181G  tiles: [ 7.9M 201k/s ] 7.8G 
+    cpus: 15.2 gc:  1% heap: 9G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(17% 21% 20% 24% 21% 21% 20% 23% 16% 24% 22% 24% 19% 17% 23% 21% 17% 24% 21% 23% 19% 22% 22% 24% 20% 24% 21% 21% 18% 19% 22% 19% 17% 22% 22% 22% 20% 23% 19% 22% 23% 20% 26% 20% 20% 20% 23% 16% 22% 19% 15% 23% 22% 21% 18% 23% 19% 19% 24% 21% 19% 26% 23% 18%) -> (10/5.9k) -> write(53%)
+    last tile: 12/1044/1501 (z12 25%) https://www.openstreetmap.org/#map=12/43.26121/-88.24219
+0:30:00 INF [mbtiles] -  features: [ 271M  11% 2.2M/s ] 181G  tiles: [ 8.5M  54k/s ] 8.5G 
+    cpus: 15.4 gc:  0% heap: 17G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(21% 20% 24% 25% 20% 20% 22% 21% 22% 18% 23% 20% 17% 24% 25% 25% 23% 22% 23% 19% 23% 21% 20% 27% 25% 21% 23% 25% 27% 20% 18% 24% 18% 20% 21% 24% 22% 22% 27% 23% 21% 16% 25% 24% 16% 26% 22% 23% 21% 23% 21% 28% 22% 25% 21% 20% 20% 22% 20% 23% 22% 21% 22% 22%) -> (21/5.9k) -> write(20%)
+    last tile: 12/1228/2204 (z12 30%) https://www.openstreetmap.org/#map=12/-13.58192/-72.07031
+0:30:10 INF [mbtiles] -  features: [ 294M  12% 2.2M/s ] 181G  tiles: [  10M 185k/s ] 9.3G 
+    cpus: 16.7 gc:  0% heap: 24G/118G direct: 4M postGC: 1.3G
+    read(97%) ->  (0/5.9k) -> encode(20% 28% 20% 22% 28% 25% 28% 29% 22% 25% 21% 31% 21% 21% 25% 27% 21% 21% 21% 25% 18% 27% 21% 27% 23% 26% 23% 26% 19% 24% 22% 23% 23% 26% 26% 20% 19% 20% 25% 26% 22% 26% 20% 27% 23% 23% 19% 23% 23% 24% 26% 26% 27% 24% 24% 24% 27% 23% 24% 20% 21% 25% 25% 25%) -> (534/5.9k) -> write(51%)
+    last tile: 12/1749/2533 (z12 42%) https://www.openstreetmap.org/#map=12/-39.16414/-26.27930
+0:30:20 INF [mbtiles] -  features: [ 316M  13% 2.2M/s ] 181G  tiles: [  11M 105k/s ] 10G  
+    cpus: 15.8 gc:  0% heap: 3.3G/118G direct: 4M postGC: 1.3G
+    read(99%) ->  (0/5.9k) -> encode(25% 28% 25% 19% 24% 25% 25% 24% 20% 26% 24% 24% 21% 23% 22% 22% 17% 19% 21% 22% 26% 24% 23% 26% 22% 19% 16% 24% 21% 17% 19% 27% 23% 25% 19% 24% 26% 24% 23% 25% 24% 25% 22% 21% 25% 22% 23% 27% 14% 18% 19% 24% 22% 31% 20% 20% 15% 23% 22% 19% 16% 20% 21% 28%) -> (40/5.9k) -> write(30%)
+    last tile: 12/2074/1521 (z12 50%) https://www.openstreetmap.org/#map=12/41.96766/2.28516
+0:30:30 INF [mbtiles] -  features: [ 338M  14% 2.2M/s ] 181G  tiles: [  11M  27k/s ] 10G  
+    cpus: 15.5 gc:  0% heap: 14G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(24% 17% 23% 29% 21% 27% 24% 24% 21% 23% 23% 24% 23% 22% 21% 26% 23% 17% 22% 17% 26% 17% 23% 19% 24% 22% 22% 21% 22% 25% 25% 22% 16% 20% 21% 23% 23% 26% 24% 24% 21% 25% 23% 28% 21% 24% 28% 18% 19% 25% 21% 23% 21% 19% 22% 28% 25% 22% 22% 16% 24% 24% 19% 17%) -> (43/5.9k) -> write(12%)
+    last tile: 12/2161/2355 (z12 52%) https://www.openstreetmap.org/#map=12/-26.03704/9.93164
+0:30:40 INF [mbtiles] -  features: [ 360M  15% 2.1M/s ] 181G  tiles: [  12M  30k/s ] 11G  
+    cpus: 19.2 gc:  0% heap: 5G/118G direct: 4M postGC: 1.3G
+    read(99%) ->  (0/5.9k) -> encode(33% 32% 33% 32% 30% 28% 29% 34% 26% 31% 29% 32% 22% 30% 29% 29% 27% 25% 29% 28% 29% 30% 21% 33% 27% 30% 29% 30% 26% 24% 25% 28% 26% 20% 29% 28% 29% 28% 25% 29% 29% 27% 23% 24% 26% 27% 29% 25% 22% 26% 26% 29% 32% 27% 30% 26% 31% 28% 33% 28% 24% 34% 25% 26%) -> (29/5.9k) -> write(15%)
+    last tile: 12/2261/1971 (z12 55%) https://www.openstreetmap.org/#map=12/6.75190/18.72070
+0:30:50 INF [mbtiles] -  features: [ 381M  16% 2.1M/s ] 181G  tiles: [  12M  46k/s ] 12G  
+    cpus: 20.1 gc:  0% heap: 24G/118G direct: 4M postGC: 1.3G
+    read(98%) ->  (0/5.9k) -> encode(32% 34% 29% 23% 34% 30% 31% 38% 26% 31% 28% 32% 27% 33% 27% 32% 31% 24% 24% 27% 35% 27% 27% 37% 28% 28% 28% 28% 29% 33% 32% 24% 30% 28% 30% 20% 31% 32% 33% 31% 32% 32% 28% 31% 29% 24% 29% 27% 35% 27% 28% 29% 24% 25% 25% 34% 32% 29% 28% 40% 30% 24% 29% 28%) -> (35/5.9k) -> write(22%)
+    last tile: 12/2415/1293 (z12 58%) https://www.openstreetmap.org/#map=12/55.12865/32.25586
+0:31:00 INF [mbtiles] -  features: [ 403M  17% 2.1M/s ] 181G  tiles: [  13M  94k/s ] 13G  
+    cpus: 20.4 gc:  0% heap: 14G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(32% 29% 31% 28% 29% 32% 29% 30% 37% 33% 23% 29% 26% 31% 28% 32% 33% 26% 32% 35% 26% 25% 29% 34% 24% 27% 27% 30% 31% 36% 29% 29% 30% 26% 31% 33% 32% 27% 28% 34% 29% 28% 30% 29% 31% 29% 24% 26% 28% 26% 35% 30% 32% 28% 30% 28% 28% 25% 35% 33% 32% 31% 26% 31%) -> (48/5.9k) -> write(34%)
+    last tile: 12/2733/1277 (z12 66%) https://www.openstreetmap.org/#map=12/55.92459/60.20508
+0:31:10 INF [mbtiles] -  features: [ 426M  18% 2.3M/s ] 181G  tiles: [  14M 141k/s ] 14G  
+    cpus: 18.7 gc:  0% heap: 2.5G/118G direct: 4M postGC: 1.3G
+    read(99%) ->  (0/5.9k) -> encode(25% 31% 26% 30% 27% 31% 27% 27% 22% 29% 32% 23% 23% 27% 29% 27% 28% 30% 26% 26% 23% 23% 30% 30% 25% 23% 24% 30% 24% 29% 31% 27% 27% 25% 31% 23% 25% 23% 27% 22% 29% 22% 25% 28% 26% 29% 33% 27% 26% 34% 25% 28% 27% 24% 23% 31% 22% 22% 27% 25% 31% 28% 25% 27%) -> (19/5.9k) -> write(44%)
+    last tile: 12/3240/1791 (z12 79%) https://www.openstreetmap.org/#map=12/22.02455/104.76563
+0:31:20 INF [mbtiles] -  features: [ 449M  19% 2.3M/s ] 181G  tiles: [  15M  79k/s ] 14G  
+    cpus: 16.1 gc:  0% heap: 27G/118G direct: 4M postGC: 1.2G
+    read(99%) ->  (0/5.9k) -> encode(23% 21% 24% 25% 23% 27% 21% 25% 22% 23% 25% 25% 22% 25% 23% 24% 28% 20% 23% 26% 16% 23% 26% 24% 24% 21% 25% 22% 25% 19% 26% 22% 24% 25% 18% 22% 26% 25% 22% 19% 24% 26% 28% 23% 23% 24% 26% 20% 26% 23% 19% 25% 22% 23% 25% 21% 24% 22% 24% 19% 22% 20% 19% 25%) -> (55/5.9k) -> write(28%)
+    last tile: 12/3537/1670 (z12 86%) https://www.openstreetmap.org/#map=12/31.50363/130.86914
+0:31:27 INF [mbtiles:write] - Finished z12 in 1m51s cpu:31m37s avg:17.1, now starting z13
+0:31:30 INF [mbtiles] -  features: [ 472M  20% 2.2M/s ] 181G  tiles: [  18M 307k/s ] 15G  
+    cpus: 13.2 gc:  1% heap: 9.9G/118G direct: 4M postGC: 3G
+    read(93%) ->  (0/5.9k) -> encode(20% 18% 21% 18% 15% 16% 18% 18% 16% 18% 18% 16% 17% 17% 16% 18% 15% 19% 16% 19% 16% 19% 19% 20% 17% 18% 19% 17% 18% 17% 17% 12% 16% 18% 18% 18% 14% 20% 17% 18% 19% 19% 16% 18% 19% 18% 16% 16% 16% 18% 16% 16% 18% 21% 15% 16% 19% 18% 16% 17% 20% 18% 20% 18%) -> (5.9k/5.9k) -> write(74%)
+    last tile: 13/158/4110 (z13 1%) https://www.openstreetmap.org/#map=13/-0.61522/-173.05664
+0:31:40 INF [mbtiles] -  features: [ 487M  20% 1.5M/s ] 181G  tiles: [  22M 415k/s ] 16G  
+    cpus: 13.4 gc:  7% heap: 16G/118G direct: 4M postGC: 5.6G
+    read(66%) ->  (0/5.9k) -> encode(16% 18% 14% 15% 16% 14% 10% 14% 12% 15% 12% 13% 12% 13% 12% 13% 11% 15% 14% 12% 14% 11% 16% 13% 12% 15% 16% 15% 15% 19% 15% 13% 14% 14% 15% 10% 12% 15% 13% 12% 15% 14% 14% 18% 15% 17% 14% 14% 13% 14% 15% 15% 14% 13% 16% 12% 13% 15% 15% 11% 15% 13% 13% 12%) -> (5.6k/5.9k) -> write(93%)
+    last tile: 13/709/2127 (z13 8%) https://www.openstreetmap.org/#map=13/65.09065/-148.84277
+0:31:50 INF [mbtiles] -  features: [ 509M  21% 2.2M/s ] 181G  tiles: [  26M 406k/s ] 17G  
+    cpus: 17.6 gc:  4% heap: 17G/118G direct: 4M postGC: 10G
+    read(95%) ->  (0/5.9k) -> encode(18% 25% 20% 20% 18% 24% 18% 25% 25% 25% 21% 23% 22% 20% 22% 23% 19% 24% 27% 25% 22% 27% 21% 22% 24% 20% 17% 17% 25% 19% 19% 17% 26% 26% 17% 20% 22% 21% 23% 24% 26% 21% 20% 24% 22% 23% 23% 17% 27% 22% 24% 27% 18% 19% 24% 18% 18% 22% 19% 24% 19% 17% 18% 19%) -> (5k/5.9k) -> write(96%)
+    last tile: 13/1345/3096 (z13 16%) https://www.openstreetmap.org/#map=13/40.17887/-120.89355
+0:32:00 INF [mbtiles] -  features: [ 532M  22% 2.2M/s ] 181G  tiles: [  30M 363k/s ] 18G  
+    cpus: 16.9 gc:  4% heap: 18G/118G direct: 4M postGC: 14G
+    read(95%) ->  (0/5.9k) -> encode(19% 19% 27% 16% 23% 18% 21% 18% 20% 22% 18% 21% 13% 19% 22% 22% 20% 24% 23% 20% 19% 19% 24% 18% 22% 20% 18% 21% 19% 22% 20% 20% 21% 19% 23% 20% 21% 21% 23% 22% 18% 22% 21% 20% 18% 21% 16% 22% 22% 22% 22% 22% 21% 21% 22% 22% 22% 21% 23% 23% 15% 21% 23% 22%) -> (2.4k/5.9k) -> write(96%)
+    last tile: 13/1964/5473 (z13 23%) https://www.openstreetmap.org/#map=13/-51.64529/-93.69141
+0:32:10 INF [mbtiles] -  features: [ 554M  23% 2.2M/s ] 181G  tiles: [  32M 230k/s ] 20G  
+    cpus: 15.6 gc:  1% heap: 14G/118G direct: 4M postGC: 12G
+    read(96%) ->  (0/5.9k) -> encode(26% 24% 21% 20% 20% 19% 20% 23% 27% 18% 22% 18% 22% 20% 18% 20% 20% 18% 24% 18% 20% 25% 21% 17% 22% 22% 22% 26% 20% 20% 20% 17% 25% 20% 22% 20% 25% 21% 24% 22% 22% 22% 22% 21% 18% 20% 19% 22% 20% 24% 22% 22% 18% 19% 24% 21% 18% 23% 20% 17% 23% 21% 21% 22%) -> (22/5.9k) -> write(69%)
+    last tile: 13/2366/2979 (z13 28%) https://www.openstreetmap.org/#map=13/43.99281/-76.02539
+0:32:20 INF [mbtiles] -  features: [ 576M  24% 2.2M/s ] 181G  tiles: [  35M 230k/s ] 21G  
+    cpus: 18.3 gc:  0% heap: 14G/118G direct: 4M postGC: 12G
+    read(99%) ->  (0/5.9k) -> encode(24% 24% 25% 28% 28% 23% 29% 26% 31% 26% 29% 25% 29% 27% 27% 29% 24% 26% 27% 25% 25% 22% 28% 30% 27% 23% 28% 26% 24% 22% 24% 27% 29% 25% 26% 20% 28% 23% 29% 28% 25% 24% 24% 27% 24% 26% 26% 25% 27% 24% 26% 25% 27% 23% 26% 25% 28% 27% 23% 21% 27% 21% 26% 29%) -> (249/5.9k) -> write(69%)
+    last tile: 13/2730/72 (z13 33%) https://www.openstreetmap.org/#map=13/84.77053/-60.02930
+0:32:30 INF [mbtiles] -  features: [ 599M  25% 2.2M/s ] 181G  tiles: [  39M 389k/s ] 22G  
+    cpus: 16.4 gc:  1% heap: 41G/118G direct: 4M postGC: 12G
+    read(99%) ->  (1/5.9k) -> encode(23% 26% 20% 26% 25% 24% 27% 21% 27% 18% 17% 19% 19% 19% 24% 24% 19% 21% 19% 20% 16% 25% 22% 26% 20% 22% 24% 25% 19% 22% 26% 26% 25% 22% 25% 19% 23% 20% 21% 19% 19% 20% 27% 23% 20% 19% 23% 21% 21% 26% 21% 22% 22% 23% 28% 27% 22% 18% 20% 20% 23% 21% 22% 19%) -> (2.2k/5.9k) -> write(99%)
+    last tile: 13/3259/2244 (z13 39%) https://www.openstreetmap.org/#map=13/62.83509/-36.78223
+0:32:40 INF [mbtiles] -  features: [ 621M  26% 2.1M/s ] 181G  tiles: [  43M 411k/s ] 23G  
+    cpus: 17.1 gc:  4% heap: 39G/118G direct: 4M postGC: 16G
+    read(96%) ->  (0/5.9k) -> encode(27% 19% 22% 23% 21% 20% 20% 22% 21% 20% 20% 26% 22% 20% 22% 27% 22% 22% 24% 18% 19% 23% 23% 21% 21% 19% 17% 20% 21% 21% 20% 23% 16% 22% 20% 24% 25% 22% 24% 17% 24% 17% 22% 17% 22% 19% 23% 22% 18% 22% 22% 18% 20% 25% 21% 17% 25% 22% 19% 21% 19% 23% 20% 23%) -> (2.6k/5.9k) -> write(96%)
+    last tile: 13/3867/3396 (z13 47%) https://www.openstreetmap.org/#map=13/29.38218/-10.06348
+0:32:50 INF [mbtiles] -  features: [ 643M  27% 2.1M/s ] 181G  tiles: [  45M 203k/s ] 24G  
+    cpus: 16.4 gc:  2% heap: 28G/118G direct: 4M postGC: 15G
+    read(97%) ->  (1/5.9k) -> encode(21% 18% 21% 20% 23% 19% 20% 23% 22% 19% 21% 24% 20% 23% 21% 21% 24% 22% 22% 19% 22% 24% 24% 26% 29% 24% 27% 19% 18% 24% 22% 21% 25% 22% 24% 19% 19% 23% 23% 24% 20% 17% 23% 25% 23% 24% 22% 21% 18% 25% 22% 20% 23% 20% 25% 23% 23% 25% 22% 20% 25% 19% 21% 22%) -> (25/5.9k) -> write(60%)
+    last tile: 13/4197/2883 (z13 51%) https://www.openstreetmap.org/#map=13/46.95026/4.43848
+0:33:00 INF [mbtiles] -  features: [ 665M  28% 2.2M/s ] 181G  tiles: [  45M  58k/s ] 25G  
+    cpus: 16 gc:  0% heap: 42G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(24% 25% 24% 18% 22% 22% 27% 24% 25% 23% 23% 23% 24% 21% 29% 23% 23% 18% 22% 21% 21% 26% 19% 25% 19% 26% 25% 20% 23% 24% 20% 24% 26% 25% 22% 21% 17% 21% 21% 24% 20% 25% 25% 27% 25% 19% 26% 24% 24% 23% 27% 21% 25% 17% 24% 20% 23% 21% 24% 25% 23% 24% 24% 25%) ->  (8/5.9k) -> write(21%)
+    last tile: 13/4291/2771 (z13 52%) https://www.openstreetmap.org/#map=13/50.20503/8.56934
+0:33:10 INF [mbtiles] -  features: [ 687M  29% 2.1M/s ] 181G  tiles: [  46M  51k/s ] 26G  
+    cpus: 15.4 gc:  0% heap: 41G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(18% 25% 27% 26% 19% 22% 23% 26% 18% 22% 20% 25% 16% 26% 18% 23% 23% 22% 18% 19% 27% 21% 26% 20% 25% 27% 23% 22% 21% 23% 21% 21% 24% 22% 24% 19% 22% 23% 29% 19% 18% 17% 23% 22% 23% 20% 24% 25% 18% 18% 22% 25% 23% 22% 23% 21% 26% 21% 23% 23% 22% 24% 17% 18%) -> (33/5.9k) -> write(21%)
+    last tile: 13/4374/2317 (z13 53%) https://www.openstreetmap.org/#map=13/61.33354/12.21680
+0:33:20 INF [mbtiles] -  features: [ 709M  30% 2.1M/s ] 181G  tiles: [  47M  74k/s ] 27G  
+    cpus: 20 gc:  0% heap: 26G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(24% 27% 23% 33% 33% 27% 31% 29% 32% 28% 32% 28% 30% 28% 29% 23% 27% 25% 28% 32% 31% 35% 29% 28% 30% 28% 34% 31% 29% 34% 26% 35% 34% 30% 30% 26% 30% 33% 28% 22% 31% 28% 28% 33% 25% 33% 26% 29% 23% 30% 34% 25% 30% 32% 24% 27% 28% 31% 27% 31% 23% 30% 31% 25%) -> (28/5.9k) -> write(30%)
+    last tile: 13/4502/2976 (z13 54%) https://www.openstreetmap.org/#map=13/44.08759/17.84180
+0:33:30 INF [mbtiles] -  features: [ 730M  31% 2.1M/s ] 181G  tiles: [  48M 108k/s ] 28G  
+    cpus: 20 gc:  0% heap: 27G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(33% 29% 32% 26% 22% 26% 34% 31% 29% 28% 26% 26% 26% 33% 31% 26% 30% 33% 25% 28% 26% 23% 31% 28% 30% 24% 30% 28% 27% 29% 32% 24% 25% 28% 27% 31% 31% 34% 30% 28% 30% 30% 30% 30% 31% 25% 32% 26% 28% 26% 34% 30% 28% 27% 38% 27% 34% 26% 31% 34% 29% 26% 28% 26%) -> (47/5.9k) -> write(40%)
+    last tile: 13/4691/5599 (z13 57%) https://www.openstreetmap.org/#map=13/-54.95239/26.14746
+0:33:40 INF [mbtiles] -  features: [ 753M  32% 2.2M/s ] 181G  tiles: [  49M 123k/s ] 29G  
+    cpus: 20.3 gc:  0% heap: 27G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(28% 30% 32% 25% 29% 25% 27% 27% 29% 28% 29% 29% 29% 33% 31% 22% 29% 31% 26% 27% 24% 32% 25% 25% 31% 30% 32% 36% 30% 32% 29% 27% 31% 24% 31% 34% 27% 28% 30% 33% 27% 32% 27% 30% 34% 31% 34% 31% 35% 27% 37% 29% 29% 31% 27% 25% 30% 31% 29% 28% 30% 31% 28% 26%) -> (67/5.9k) -> write(44%)
+    last tile: 13/4898/2524 (z13 59%) https://www.openstreetmap.org/#map=13/56.65623/35.24414
+0:33:50 INF [mbtiles] -  features: [ 775M  33% 2.2M/s ] 181G  tiles: [  51M 213k/s ] 30G  
+    cpus: 20.3 gc:  0% heap: 20G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(25% 28% 31% 30% 29% 29% 32% 26% 31% 27% 32% 29% 25% 28% 34% 29% 26% 30% 29% 31% 29% 30% 26% 29% 30% 26% 30% 33% 22% 25% 27% 26% 27% 28% 29% 30% 24% 28% 30% 30% 34% 23% 31% 29% 25% 33% 29% 27% 29% 28% 33% 32% 31% 28% 33% 29% 34% 24% 32% 31% 29% 28% 32% 25%) -> (42/5.9k) -> write(66%)
+    last tile: 13/5261/3226 (z13 64%) https://www.openstreetmap.org/#map=13/35.67515/51.19629
+0:34:00 INF [mbtiles] -  features: [ 798M  34% 2.2M/s ] 181G  tiles: [  55M 363k/s ] 32G  
+    cpus: 19.1 gc:  1% heap: 31G/118G direct: 4M postGC: 16G
+    read(99%) ->  (0/5.9k) -> encode(24% 28% 24% 26% 24% 26% 31% 30% 21% 27% 18% 28% 27% 25% 29% 26% 25% 23% 23% 27% 23% 34% 26% 26% 25% 23% 19% 22% 27% 25% 24% 27% 29% 28% 28% 25% 26% 30% 29% 25% 26% 23% 24% 31% 27% 25% 29% 28% 28% 24% 27% 32% 29% 26% 27% 33% 29% 27% 26% 23% 28% 24% 27% 29%) -> (201/5.9k) -> write(97%)
+    last tile: 13/5907/3825 (z13 72%) https://www.openstreetmap.org/#map=13/11.82434/79.58496
+0:34:10 INF [mbtiles] -  features: [ 822M  35% 2.3M/s ] 181G  tiles: [  58M 312k/s ] 33G  
+    cpus: 19.1 gc:  0% heap: 18G/118G direct: 4M postGC: 15G
+    read(99%) ->  (0/5.9k) -> encode(27% 23% 26% 28% 28% 23% 24% 25% 33% 29% 32% 31% 26% 23% 25% 23% 26% 26% 27% 26% 25% 25% 30% 24% 33% 26% 28% 27% 29% 29% 19% 25% 28% 27% 25% 25% 24% 24% 26% 24% 25% 30% 28% 34% 29% 29% 28% 29% 30% 28% 26% 23% 24% 26% 25% 27% 26% 23% 24% 29% 28% 28% 23% 29%) -> (26/5.9k) -> write(86%)
+    last tile: 13/6527/3498 (z13 79%) https://www.openstreetmap.org/#map=13/25.40358/106.83105
+0:34:20 INF [mbtiles] -  features: [ 845M  36% 2.3M/s ] 181G  tiles: [  60M 221k/s ] 34G  
+    cpus: 17.4 gc:  0% heap: 44G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(24% 19% 28% 23% 21% 27% 24% 26% 24% 26% 24% 22% 24% 23% 24% 20% 23% 26% 26% 24% 23% 30% 21% 27% 28% 26% 25% 22% 28% 27% 27% 27% 23% 27% 22% 21% 27% 22% 21% 26% 25% 24% 26% 22% 22% 26% 33% 26% 19% 23% 25% 27% 27% 29% 29% 23% 22% 25% 25% 25% 29% 23% 22% 22%) -> (118/5.9k) -> write(64%)
+    last tile: 13/6964/3995 (z13 85%) https://www.openstreetmap.org/#map=13/4.43404/126.03516
+0:34:30 INF [mbtiles] -  features: [ 869M  37% 2.3M/s ] 181G  tiles: [  63M 332k/s ] 35G  
+    cpus: 17.5 gc:  0% heap: 39G/118G direct: 4M postGC: 15G
+    read(100%) ->  (0/5.9k) -> encode(25% 27% 25% 23% 25% 24% 21% 25% 26% 24% 22% 20% 27% 20% 24% 25% 23% 23% 21% 25% 22% 29% 24% 22% 22% 27% 24% 28% 28% 27% 23% 27% 24% 25% 22% 22% 27% 23% 25% 22% 28% 25% 23% 24% 26% 26% 24% 26% 25% 23% 23% 24% 25% 24% 26% 21% 28% 23% 23% 24% 23% 25% 25% 22%) -> (1.8k/5.9k) -> write(87%)
+    last tile: 13/7568/249 (z13 92%) https://www.openstreetmap.org/#map=13/84.01144/152.57813
+0:34:40 INF [mbtiles] -  features: [ 880M  37%   1M/s ] 181G  tiles: [  68M 433k/s ] 36G  
+    cpus: 4.2 gc:  0% heap: 32G/118G direct: 4M postGC: 16G
+    read(45%) ->  (0/5.9k) -> encode( 3%  4%  5%  3%  5%  3%  3%  5%  5%  3%  5%  6%  4%  5%  4%  2%  4%  6%  3%  6%  4%  3%  5%  3%  4%  4%  4%  4%  4%  4%  3%  3%  3%  3%  3%  4%  5%  4%  4%  4%  4%  3%  4%  3%  4%  4%  4%  4%  5%  4%  3%  3%  4%  4%  4%  4%  3%  4%  4%  4%  4%  4%  4%  6%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 13/8189/869 (z13 99%) https://www.openstreetmap.org/#map=13/80.37905/179.86816
+0:34:40 INF [mbtiles:write] - Finished z13 in 3m13s cpu:53m59s gc:3s avg:16.8, now starting z14
+0:34:50 INF [mbtiles] -  features: [ 885M  37% 506k/s ] 181G  tiles: [  72M 462k/s ] 36G  
+    cpus: 1.6 gc:  0% heap: 36G/118G direct: 4M postGC: 16G
+    read(21%) ->  (0/5.9k) -> encode( 1%  0%  1%  1%  0%  0%  0%  1%  1%  1%  1%  1%  1%  0%  1%  0%  1%  1%  1%  1%  1%  0%  1%  0%  1%  1%  1%  1%  1%  1%  1%  0%  1%  1%  1%  1%  1%  1%  1%  1%  0%  1%  1%  1%  1%  1%  1%  1%  0%  0%  1%  1%  1%  1%  0%  1%  1%  0%  1%  1%  1%  1%  1%  1%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 14/290/6895 (z14 1%) https://www.openstreetmap.org/#map=14/27.39128/-173.62793
+0:35:00 INF [mbtiles] -  features: [ 891M  37% 569k/s ] 181G  tiles: [  77M 454k/s ] 37G  
+    cpus: 2.2 gc:  0% heap: 43G/118G direct: 4M postGC: 16G
+    read(24%) ->  (0/5.9k) -> encode( 1%  2%  2%  2%  1%  1%  1%  2%  2%  1%  1%  2%  2%  2%  2%  1%  2%  2%  2%  2%  1%  1%  1%  1%  1%  2%  1%  2%  1%  1%  1%  3%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  2%  1%  2%  1%  2%  2%  2%  3%  1%  2%  2%  1%  1%  2%  1%  1%  2%  2%  2%  2%  1%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 14/574/5276 (z14 3%) https://www.openstreetmap.org/#map=14/53.80065/-167.38770
+0:35:10 INF [mbtiles] -  features: [ 896M  38% 514k/s ] 181G  tiles: [  81M 446k/s ] 38G  
+    cpus: 2.4 gc:  1% heap: 23G/118G direct: 4M postGC: 18G
+    read(22%) ->  (0/5.9k) -> encode( 1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  2%  1%  2%  1%  1%  1%  1%  1%  2%  1%  1%  1%  2%  1%  2%  1%  2%  1%  2%  1%  1%  1%  1%  2%  2%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  1%) -> (5.9k/5.9k) -> write(99%)
+    last tile: 14/863/13029 (z14 5%) https://www.openstreetmap.org/#map=14/-72.21539/-161.03760
+0:35:20 INF [mbtiles] -  features: [ 901M  38% 528k/s ] 181G  tiles: [  86M 448k/s ] 38G  
+    cpus: 2.2 gc:  0% heap: 30G/118G direct: 4M postGC: 18G
+    read(23%) ->  (0/5.9k) -> encode( 2%  1%  2%  2%  1%  2%  1%  1%  2%  2%  2%  1%  1%  1%  2%  2%  2%  1%  1%  2%  1%  1%  2%  1%  2%  1%  2%  2%  2%  1%  1%  1%  2%  2%  1%  2%  2%  1%  1%  1%  1%  3%  2%  1%  2%  1%  1%  2%  2%  2%  2%  2%  2%  1%  2%  1%  1%  1%  2%  2%  2%  1%  1%  2%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 14/1168/12799 (z14 7%) https://www.openstreetmap.org/#map=14/-70.60532/-154.33594
+0:35:30 INF [mbtiles] -  features: [ 906M  38% 495k/s ] 181G  tiles: [  90M 451k/s ] 39G  
+    cpus: 2 gc:  0% heap: 36G/118G direct: 4M postGC: 18G
+    read(21%) ->  (0/5.9k) -> encode( 1%  1%  2%  2%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  2%  2%  1%  1%  1%  1%  1%  1%  1%  2%  2%  2%  2%  1%  2%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  2%  2%  2%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 14/1497/10868 (z14 9%) https://www.openstreetmap.org/#map=14/-50.56928/-147.10693
+0:35:40 INF [mbtiles] -  features: [ 911M  38% 545k/s ] 181G  tiles: [  95M 442k/s ] 39G  
+    cpus: 3.1 gc:  1% heap: 21G/118G direct: 4M postGC: 18G
+    read(23%) ->  (0/5.9k) -> encode( 2%  2%  1%  4%  3%  1%  1%  2%  4%  3%  2%  2%  2%  1%  2%  2%  4%  3%  2%  2%  4%  2%  3%  2%  2%  2%  2%  2%  3%  3%  3%  2%  3%  2%  3%  3%  4%  2%  2%  2%  3%  2%  2%  3%  2%  2%  3%  2%  3%  2%  3%  2%  3%  1%  2%  2%  3%  2%  3%  2%  3%  4%  2%  2%) -> (5.9k/5.9k) -> write(99%)
+    last tile: 14/1830/2688 (z14 11%) https://www.openstreetmap.org/#map=14/76.18500/-139.79004
+0:35:50 INF [mbtiles] -  features: [ 923M  39% 1.1M/s ] 181G  tiles: [  99M 438k/s ] 40G  
+    cpus: 7 gc:  1% heap: 33G/118G direct: 4M postGC: 18G
+    read(46%) ->  (0/5.9k) -> encode( 7%  9%  7%  9%  8%  7%  6%  5%  7% 11%  5%  8%  9%  9%  6%  9%  9%  7%  6%  8% 10%  7%  7%  9%  7%  7%  6%  8%  8%  9%  9%  8%  8%  9%  8% 11%  7%  7%  6%  6%  7% 10%  7%  7%  8%  8% 11%  8%  7%  9% 10%  7%  8%  6%  6%  9%  6%  7%  9%  6%  8%  7% 11%  8%) -> (5.8k/5.9k) -> write(99%)
+    last tile: 14/2173/9523 (z14 13%) https://www.openstreetmap.org/#map=14/-28.05259/-132.25342
+0:36:00 INF [mbtiles] -  features: [ 945M  40% 2.2M/s ] 181G  tiles: [ 104M 427k/s ] 41G  
+    cpus: 14.8 gc:  4% heap: 38G/118G direct: 4M postGC: 22G
+    read(91%) ->  (0/5.9k) -> encode(18% 20% 18% 18% 19% 18% 20% 16% 20% 15% 20% 17% 18% 18% 19% 16% 17% 18% 17% 20% 14% 16% 20% 14% 20% 14% 15% 18% 18% 18% 14% 17% 11% 17% 18% 17% 20% 19% 15% 16% 21% 13% 19% 17% 25% 18% 22% 17% 19% 23% 16% 20% 18% 17% 17% 22% 16% 17% 17% 19% 18% 14% 12% 17%) -> (5.8k/5.9k) -> write(96%)
+    last tile: 14/2522/8533 (z14 15%) https://www.openstreetmap.org/#map=14/-7.47141/-124.58496
+0:36:10 INF [mbtiles] -  features: [ 968M  41% 2.3M/s ] 181G  tiles: [ 107M 369k/s ] 42G  
+    cpus: 16 gc:  4% heap: 30G/118G direct: 4M postGC: 28G
+    read(95%) ->  (0/5.9k) -> encode(17% 20% 21% 15% 22% 15% 18% 17% 14% 23% 19% 15% 23% 20% 21% 21% 17% 18% 19% 14% 19% 17% 20% 19% 23% 16% 18% 23% 19% 19% 26% 22% 19% 18% 18% 24% 19% 20% 18% 18% 16% 22% 19% 16% 19% 18% 16% 20% 17% 21% 19% 25% 17% 18% 22% 22% 22% 19% 18% 21% 16% 22% 17% 18%) -> (4.9k/5.9k) -> write(96%)
+    last tile: 14/2829/11735 (z14 17%) https://www.openstreetmap.org/#map=14/-61.17503/-117.83936
+0:36:20 INF [mbtiles] -  features: [ 990M  42% 2.1M/s ] 181G  tiles: [ 111M 386k/s ] 43G  
+    cpus: 16.7 gc:  4% heap: 41G/118G direct: 4M postGC: 33G
+    read(91%) ->  (0/5.9k) -> encode(18% 25% 18% 23% 19% 16% 21% 17% 19% 19% 20% 22% 24% 19% 16% 19% 22% 23% 23% 20% 22% 21% 21% 25% 21% 23% 19% 23% 20% 21% 21% 17% 22% 27% 20% 20% 21% 21% 19% 24% 20% 25% 20% 23% 20% 21% 17% 20% 22% 21% 17% 21% 23% 23% 23% 20% 21% 17% 25% 15% 23% 17% 19% 19%) -> (5.9k/5.9k) -> write(96%)
+    last tile: 14/3161/6567 (z14 19%) https://www.openstreetmap.org/#map=14/33.59632/-110.54443
+0:36:30 INF [mbtiles] -  features: [   1B  43% 2.1M/s ] 181G  tiles: [ 115M 391k/s ] 44G  
+    cpus: 15.4 gc:  4% heap: 42G/118G direct: 4M postGC: 37G
+    read(90%) ->  (0/5.9k) -> encode(18% 18% 21% 19% 20% 21% 13% 22% 21% 17% 18% 18% 20% 25% 19% 20% 20% 20% 18% 18% 19% 19% 14% 20% 21% 19% 20% 21% 22% 19% 17% 16% 21% 19% 18% 21% 17% 21% 17% 20% 16% 15% 16% 20% 21% 18% 17% 20% 22% 18% 18% 19% 18% 21% 20% 15% 20% 16% 17% 18% 19% 18% 19% 19%) -> (5.3k/5.9k) -> write(96%)
+    last tile: 14/3499/3806 (z14 21%) https://www.openstreetmap.org/#map=14/68.92681/-103.11768
+0:36:40 INF [mbtiles] -  features: [   1B  44% 2.2M/s ] 181G  tiles: [ 119M 371k/s ] 45G  
+    cpus: 16.2 gc:  4% heap: 43G/118G direct: 4M postGC: 42G
+    read(94%) ->  (0/5.9k) -> encode(16% 22% 19% 16% 19% 20% 21% 18% 21% 21% 17% 21% 24% 16% 19% 19% 18% 20% 19% 22% 24% 23% 17% 20% 21% 20% 19% 20% 20% 19% 20% 18% 23% 20% 21% 21% 18% 22% 23% 21% 17% 22% 18% 19% 17% 19% 17% 22% 21% 20% 19% 21% 20% 22% 21% 16% 21% 22% 18% 20% 19% 20% 19% 22%) -> (4k/5.9k) -> write(96%)
+    last tile: 14/3824/8244 (z14 23%) https://www.openstreetmap.org/#map=14/-1.14250/-95.97656
+0:36:50 INF [mbtiles] -  features: [   1B  44% 2.2M/s ] 181G  tiles: [ 122M 366k/s ] 47G  
+    cpus: 15.4 gc:  3% heap: 17G/118G direct: 4M postGC: 4.7G
+    read(95%) ->  (0/5.9k) -> encode(17% 16% 15% 15% 19% 19% 19% 22% 18% 15% 15% 20% 21% 16% 18% 17% 19% 17% 21% 18% 20% 17% 16% 17% 17% 22% 13% 20% 18% 19% 20% 17% 21% 16% 18% 24% 16% 20% 16% 21% 14% 19% 18% 19% 19% 17% 20% 19% 15% 16% 17% 24% 20% 20% 11% 16% 22% 19% 16% 17% 21% 23% 24% 14%) -> (2.1k/5.9k) -> write(96%)
+    last tile: 14/4158/7553 (z14 25%) https://www.openstreetmap.org/#map=14/13.90208/-88.63770
+0:37:00 INF [mbtiles] -  features: [   1B  45% 2.3M/s ] 181G  tiles: [ 125M 293k/s ] 48G  
+    cpus: 14.7 gc:  2% heap: 17G/118G direct: 4M postGC: 5.1G
+    read(98%) ->  (0/5.9k) -> encode(19% 17% 18% 22% 23% 22% 20% 19% 19% 20% 21% 16% 22% 20% 16% 17% 20% 16% 19% 17% 20% 22% 18% 15% 17% 19% 19% 23% 22% 18% 17% 22% 17% 22% 17% 14% 17% 18% 17% 18% 23% 22% 18% 23% 17% 15% 20% 21% 19% 23% 19% 21% 15% 17% 17% 17% 20% 18% 23% 18% 21% 21% 20% 18%) -> (28/5.9k) -> write(81%)
+    last tile: 14/4423/6425 (z14 27%) https://www.openstreetmap.org/#map=14/36.15562/-82.81494
+0:37:10 INF [mbtiles] -  features: [ 1.1B  46% 2.3M/s ] 181G  tiles: [ 127M 147k/s ] 49G  
+    cpus: 13.5 gc:  0% heap: 9.3G/118G direct: 4M postGC: 5.1G
+    read(100%) ->  (0/5.9k) -> encode(18% 18% 18% 15% 21% 19% 19% 21% 20% 20% 16% 19% 19% 19% 20% 22% 21% 17% 19% 16% 22% 16% 19% 21% 21% 17% 16% 17% 18% 17% 21% 17% 17% 21% 22% 18% 20% 17% 17% 20% 20% 19% 20% 21% 18% 16% 17% 19% 20% 22% 15% 17% 17% 19% 15% 20% 20% 21% 17% 16% 19% 21% 20% 18%) -> (21/5.9k) -> write(44%)
+    last tile: 14/4552/3476 (z14 27%) https://www.openstreetmap.org/#map=14/71.38514/-79.98047
+0:37:20 INF [mbtiles] -  features: [ 1.1B  47% 2.3M/s ] 181G  tiles: [ 128M 161k/s ] 50G  
+    cpus: 13.5 gc:  0% heap: 11G/118G direct: 4M postGC: 5.1G
+    read(98%) ->  (0/5.9k) -> encode(19% 22% 18% 20% 19% 19% 19% 20% 18% 18% 20% 23% 14% 21% 21% 18% 16% 19% 14% 19% 19% 20% 19% 18% 18% 18% 20% 16% 20% 20% 19% 21% 17% 22% 17% 19% 15% 18% 22% 16% 20% 13% 20% 16% 21% 22% 18% 16% 17% 15% 19% 19% 19% 19% 16% 22% 18% 25% 19% 20% 18% 18% 20% 19%) -> (17/5.9k) -> write(47%)
+    last tile: 14/4689/6493 (z14 28%) https://www.openstreetmap.org/#map=14/34.93999/-76.97021
+0:37:30 INF [mbtiles] -  features: [ 1.1B  48% 2.4M/s ] 181G  tiles: [ 130M 163k/s ] 51G  
+    cpus: 13.7 gc:  0% heap: 12G/118G direct: 4M postGC: 5.1G
+    read(100%) ->  (0/5.9k) -> encode(19% 18% 20% 16% 17% 16% 17% 16% 20% 20% 20% 18% 20% 19% 18% 20% 22% 20% 19% 20% 16% 18% 21% 18% 17% 20% 20% 24% 19% 15% 18% 21% 21% 23% 22% 18% 20% 20% 19% 19% 17% 19% 21% 19% 19% 18% 18% 21% 19% 18% 17% 18% 20% 19% 20% 20% 20% 18% 18% 17% 15% 22% 16% 18%) -> (16/5.9k) -> write(49%)
+    last tile: 14/4824/6162 (z14 29%) https://www.openstreetmap.org/#map=14/40.68064/-74.00391
+0:37:40 INF [mbtiles] -  features: [ 1.1B  50% 2.5M/s ] 181G  tiles: [ 131M 141k/s ] 52G  
+    cpus: 13.6 gc:  0% heap: 7.9G/118G direct: 4M postGC: 5.1G
+    read(100%) ->  (0/5.9k) -> encode(16% 20% 20% 17% 22% 19% 16% 18% 19% 18% 19% 16% 18% 16% 20% 23% 17% 18% 19% 22% 17% 18% 15% 22% 19% 22% 20% 19% 18% 18% 18% 27% 18% 20% 21% 15% 14% 20% 21% 20% 20% 18% 16% 17% 19% 20% 18% 23% 20% 20% 21% 18% 20% 22% 19% 15% 17% 19% 18% 16% 18% 17% 19% 23%) -> (26/5.9k) -> write(44%)
+    last tile: 14/4942/12169 (z14 30%) https://www.openstreetmap.org/#map=14/-65.44913/-71.41113
+0:37:50 INF [mbtiles] -  features: [ 1.2B  51% 2.4M/s ] 181G  tiles: [ 134M 286k/s ] 53G  
+    cpus: 16.2 gc:  1% heap: 13G/118G direct: 4M postGC: 5.9G
+    read(99%) ->  (0/5.9k) -> encode(17% 19% 19% 20% 21% 20% 20% 25% 21% 24% 20% 24% 27% 20% 25% 19% 19% 16% 23% 23% 21% 20% 23% 21% 23% 21% 20% 24% 25% 23% 20% 21% 26% 21% 22% 23% 20% 22% 25% 22% 23% 18% 23% 21% 27% 24% 24% 26% 21% 22% 22% 23% 22% 21% 23% 26% 24% 21% 22% 24% 21% 22% 22% 25%) -> (930/5.9k) -> write(79%)
+    last tile: 14/5197/7350 (z14 31%) https://www.openstreetmap.org/#map=14/18.18761/-65.80811
+0:38:00 INF [mbtiles] -  features: [ 1.2B  52% 2.3M/s ] 181G  tiles: [ 138M 378k/s ] 54G  
+    cpus: 14.8 gc:  3% heap: 13G/118G direct: 4M postGC: 8.9G
+    read(96%) ->  (0/5.9k) -> encode(16% 18% 19% 16% 20% 17% 20% 21% 19% 22% 20% 19% 18% 16% 15% 16% 22% 19% 13% 20% 18% 18% 17% 21% 16% 17% 15% 21% 14% 21% 17% 18% 15% 19% 21% 20% 18% 17% 20% 18% 20% 20% 19% 18% 18% 19% 18% 19% 16% 19% 15% 17% 17% 19% 20% 17% 16% 16% 18% 19% 17% 18% 15% 17%) -> (3.9k/5.9k) -> write(97%)
+    last tile: 14/5479/1460 (z14 33%) https://www.openstreetmap.org/#map=14/81.34808/-59.61182
+0:38:10 WAR [mbtiles:encode] - {x=6070 y=9294 z=14} 1000kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6070 y=9292 z=14} 1002kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6071 y=9291 z=14} 1010kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6071 y=9292 z=14} 1281kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6073 y=9297 z=14} 1064kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6074 y=9296 z=14} 1065kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6074 y=9297 z=14} 1203kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6074 y=9293 z=14} 1026kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6075 y=9297 z=14} 1092kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6075 y=9293 z=14} 1134kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6076 y=9293 z=14} 1108kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6077 y=9293 z=14} 985kb uncompressed
+0:38:10 WAR [mbtiles:encode] - {x=6079 y=9292 z=14} 1016kb uncompressed
+0:38:10 INF [mbtiles] -  features: [ 1.2B  52% 2.1M/s ] 181G  tiles: [ 142M 387k/s ] 55G  
+    cpus: 13.9 gc:  4% heap: 21G/118G direct: 4M postGC: 13G
+    read(88%) ->  (0/5.9k) -> encode(20% 13% 17% 16% 20% 11% 17% 16% 12% 17% 17% 20% 15% 19% 14% 17% 13% 18% 19% 12% 19% 17% 18% 13% 16% 20% 20% 14% 17% 14% 17% 17% 19% 15% 18% 17% 16% 14% 21% 16% 13% 18% 19% 14% 18% 17% 20% 13% 15% 17% 14% 13% 16% 14% 19% 14% 23% 20% 14% 17% 16% 10% 16% 15%) -> (5.7k/5.9k) -> write(96%)
+    last tile: 14/5742/11661 (z14 35%) https://www.openstreetmap.org/#map=14/-60.38129/-53.83301
+0:38:20 INF [mbtiles] -  features: [ 1.2B  53% 1.2M/s ] 181G  tiles: [ 146M 390k/s ] 56G  
+    cpus: 9 gc:  3% heap: 24G/118G direct: 4M postGC: 17G
+    read(52%) ->  (0/5.9k) -> encode( 7%  8% 11%  7%  7%  9% 13% 11%  7%  7% 12% 14% 10% 10%  9% 10% 11% 12% 11% 11%  9%  6% 10% 15% 13%  9% 10% 10%  6% 10% 10% 10% 10% 14%  8%  6% 10%  7%  8%  7% 11% 12%  6% 11% 10% 10%  6% 13%  8% 10%  5%  7% 12% 12%  8%  7%  5% 14% 12%  6%  9% 12%  6%  9%) -> (5.9k/5.9k) -> write(97%)
+    last tile: 14/6017/4763 (z14 36%) https://www.openstreetmap.org/#map=14/59.94401/-47.79053
+0:38:23 WAR [mbtiles:encode] - {x=6435 y=8363 z=14} 1049kb uncompressed
+0:38:23 WAR [mbtiles:encode] - {x=6435 y=8361 z=14} 1688kb uncompressed
+0:38:30 INF [mbtiles] -  features: [ 1.2B  53% 914k/s ] 181G  tiles: [ 150M 403k/s ] 57G  
+    cpus: 5.2 gc:  2% heap: 26G/118G direct: 4M postGC: 19G
+    read(39%) ->  (0/5.9k) -> encode( 7%  6%  5%  5%  4%  4%  4%  4%  6%  4%  7%  5%  5%  4%  6%  5%  3%  7%  4%  7%  3%  3%  4%  3%  5%  7%  6%  3%  3%  3%  2%  4%  5%  2%  5%  7%  5%  3%  6%  3%  4%  4%  5%  2%  4%  5%  3%  3%  8%  5%  5%  4%  5%  5%  4%  4%  2%  5%  3%  8%  4%  5%  7%  5%) -> (5.9k/5.9k) -> write(98%)
+    last tile: 14/6294/6430 (z14 38%) https://www.openstreetmap.org/#map=14/36.06686/-41.70410
+0:38:40 INF [mbtiles] -  features: [ 1.2B  54% 554k/s ] 181G  tiles: [ 154M 412k/s ] 58G  
+    cpus: 2.5 gc:  1% heap: 24G/118G direct: 4M postGC: 21G
+    read(25%) ->  (0/5.9k) -> encode( 1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  1%  2%  1%  1%  1%  1%  1%  1%  1%  1%  1%) -> (5.9k/5.9k) -> write(99%)
+    last tile: 14/6574/10982 (z14 40%) https://www.openstreetmap.org/#map=14/-52.13349/-35.55176
+0:38:50 INF [mbtiles] -  features: [ 1.2B  54% 574k/s ] 181G  tiles: [ 158M 421k/s ] 58G  
+    cpus: 3.4 gc:  2% heap: 27G/118G direct: 4M postGC: 22G
+    read(26%) ->  (0/5.9k) -> encode( 2%  3%  2%  2%  3%  1%  2%  3%  1%  2%  2%  3%  1%  2%  3%  2%  2%  2%  2%  2%  2%  3%  2%  2%  2%  2%  2%  2%  1%  2%  1%  1%  2%  2%  2%  2%  2%  2%  2%  2%  2%  2%  3%  1%  2%  2%  2%  2%  2%  2%  1%  3%  2%  2%  2%  2%  2%  2%  2%  2%  2%  2%  2%  2%) -> (5.9k/5.9k) -> write(98%)
+    last tile: 14/6873/9422 (z14 41%) https://www.openstreetmap.org/#map=14/-26.07652/-28.98193
+0:39:00 INF [mbtiles] -  features: [ 1.2B  54% 900k/s ] 181G  tiles: [ 163M 419k/s ] 59G  
+    cpus: 5.1 gc:  2% heap: 29G/118G direct: 4M postGC: 25G
+    read(37%) ->  (0/5.9k) -> encode( 3%  6%  5%  2%  3%  5%  5%  2%  3%  6%  5%  3%  5%  3%  4%  6%  7%  4%  5%  6%  4%  5%  4%  5%  4%  4%  4%  5%  6%  3%  4%  3%  3%  4%  5%  3%  4%  5%  4%  5%  6%  3%  3%  4%  3%  5%  6%  3%  4%  6%  6%  4%  5%  5%  5%  4%  4%  4%  5%  6%  4%  4%  3%  3%) -> (5.9k/5.9k) -> write(98%)
+    last tile: 14/7183/7339 (z14 43%) https://www.openstreetmap.org/#map=14/18.41708/-22.17041
+0:39:10 INF [mbtiles] -  features: [ 1.3B  55% 1.6M/s ] 181G  tiles: [ 167M 416k/s ] 60G  
+    cpus: 10.2 gc:  3% heap: 29G/118G direct: 4M postGC: 29G
+    read(69%) ->  (0/5.9k) -> encode(13% 12%  8% 13% 11% 15%  7% 13% 11% 15%  9% 11% 11% 14% 12%  9% 11% 10% 16%  9% 15% 11% 10% 13% 11% 14% 11%  9% 10% 13% 11% 10% 12% 13% 10% 11% 11% 14% 15% 14% 11% 15% 12% 13% 13% 13% 14% 13% 14% 11%  9% 10% 11%  9% 12% 10% 10% 12% 11% 11% 14%  8% 10% 12%) -> (5.6k/5.9k) -> write(97%)
+    last tile: 14/7494/486 (z14 45%) https://www.openstreetmap.org/#map=14/84.03889/-15.33691
+0:39:17 WAR [mbtiles:encode] - {x=7990 y=6392 z=14} 1284kb uncompressed
+0:39:20 INF [mbtiles] -  features: [ 1.3B  56% 2.2M/s ] 181G  tiles: [ 171M 399k/s ] 61G  
+    cpus: 15.5 gc:  4% heap: 14G/118G direct: 4M postGC: 8.2G
+    read(95%) ->  (0/5.9k) -> encode(16% 18% 15% 17% 16% 15% 19% 15% 16% 15% 20% 17% 16% 17% 16% 19% 19% 11% 18% 16% 21% 15% 20% 15% 15% 16% 15% 16% 20% 21% 21% 18% 16% 18% 19% 18% 17% 18% 22% 17% 18% 16% 19% 20% 20% 23% 18% 24% 18% 21% 17% 19% 15% 16% 22% 20% 17% 21% 21% 18% 18% 16% 19% 19%) -> (4.6k/5.9k) -> write(96%)
+    last tile: 14/7812/10503 (z14 47%) https://www.openstreetmap.org/#map=14/-45.19752/-8.34961
+0:39:31 INF [mbtiles] -  features: [ 1.3B  57% 2.3M/s ] 181G  tiles: [ 174M 354k/s ] 62G  
+    cpus: 14.1 gc:  3% heap: 21G/118G direct: 4M postGC: 11G
+    read(97%) ->  (0/5.9k) -> encode(19% 19% 13% 17% 17% 16% 17% 18% 18% 15% 17% 16% 15% 19% 16% 17% 16% 19% 20% 19% 17% 19% 19% 19% 16% 16%  9% 13% 19% 17% 16% 17% 19% 12% 13% 17% 18% 20% 14% 20% 16% 18% 19% 18% 17% 17% 20% 21% 19% 15% 16% 15% 16% 16% 18% 15% 15% 19% 17% 15% 16% 15% 15% 21%) -> (394/5.9k) -> write(97%)
+    last tile: 14/8102/11072 (z14 49%) https://www.openstreetmap.org/#map=14/-53.33087/-1.97754
+0:39:41 INF [mbtiles] -  features: [ 1.3B  58% 2.4M/s ] 181G  tiles: [ 175M  80k/s ] 63G  
+    cpus: 11.7 gc:  0% heap: 20G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(17% 16% 19% 13% 16% 15% 14% 15% 18% 18% 18% 17% 16% 18% 18% 14% 14% 16% 16% 14% 18% 13% 20% 16% 15% 13% 15% 13% 17% 16% 18% 17% 18% 17% 17% 18% 17% 18% 15% 18% 11% 17% 15% 18% 19% 17% 17% 12% 18% 19% 17% 11% 14% 18% 19% 16% 18% 20% 17% 19% 13% 15% 18% 15%) -> (11/5.9k) -> write(26%)
+    last tile: 14/8168/5730 (z14 49%) https://www.openstreetmap.org/#map=14/47.48751/-0.52734
+0:39:42 WAR [mbtiles:encode] - {x=8174 y=6234 z=14} 1236kb uncompressed
+0:39:51 INF [mbtiles] -  features: [ 1.4B  59% 2.4M/s ] 181G  tiles: [ 176M  82k/s ] 64G  
+    cpus: 11.6 gc:  0% heap: 11G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(19% 16% 17% 19% 16% 15% 14% 14% 19% 18% 18% 16% 13% 18% 15% 16% 17% 14% 14% 16% 19% 18% 18% 12% 15% 15% 14% 17% 19% 17% 19% 16% 17% 13% 16% 18% 15% 19% 19% 18% 18% 17% 16% 16% 16% 15% 17% 16% 14% 11% 13% 16% 15% 13% 14% 16% 15% 14% 19% 15% 17% 15% 17% 15%) -> (20/5.9k) -> write(27%)
+    last tile: 14/8236/5369 (z14 50%) https://www.openstreetmap.org/#map=14/52.57635/0.96680
+0:39:55 WAR [mbtiles:encode] - {x=8270 y=6129 z=14} 1036kb uncompressed
+0:39:57 WAR [mbtiles:encode] - {x=8290 y=6119 z=14} 1276kb uncompressed
+0:39:57 WAR [mbtiles:encode] - {x=8290 y=6118 z=14} 1320kb uncompressed
+0:39:58 WAR [mbtiles:encode] - {x=8292 y=6115 z=14} 1271kb uncompressed
+0:40:01 INF [mbtiles] -  features: [ 1.4B  60% 2.5M/s ] 181G  tiles: [ 177M  84k/s ] 65G  
+    cpus: 11.5 gc:  0% heap: 13G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(16% 15% 14% 16% 18% 14% 12% 13% 14% 14% 20% 14% 15% 16% 17% 16% 16% 17% 15% 18% 19% 17% 16% 17% 18% 15% 19% 14% 17% 17% 15% 14% 19% 15% 18% 17% 13% 16% 17% 19% 14% 18% 13% 18% 15% 11% 20% 13% 18% 17% 15% 20% 13% 15% 17% 15% 15% 15% 12% 19% 17% 15% 18% 17%) ->  (6/5.9k) -> write(27%)
+    last tile: 14/8306/5641 (z14 50%) https://www.openstreetmap.org/#map=14/48.79239/2.50488
+0:40:11 INF [mbtiles] -  features: [ 1.4B  61% 2.5M/s ] 181G  tiles: [ 178M  88k/s ] 65G  
+    cpus: 11.2 gc:  0% heap: 11G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(15% 14% 14% 14% 15% 14% 18% 18% 14% 15% 14% 14% 17% 14% 15% 15% 18% 18% 17% 16% 16% 14% 17% 16% 13% 20% 14% 15% 16% 15% 12% 13% 16% 13% 17% 14% 17% 16% 16% 19% 17% 15% 16% 16% 15% 13% 15% 16% 18% 16% 17% 14% 19% 15% 14% 14% 15% 13% 18% 14% 15% 15% 15% 16%) ->  (9/5.9k) -> write(27%)
+    last tile: 14/8380/5977 (z14 51%) https://www.openstreetmap.org/#map=14/43.69171/4.13086
+0:40:12 WAR [mbtiles:encode] - {x=8387 y=5406 z=14} 980kb uncompressed
+0:40:19 WAR [mbtiles:encode] - {x=8413 y=5384 z=14} 1143kb uncompressed
+0:40:19 WAR [mbtiles:encode] - {x=8414 y=5385 z=14} 1044kb uncompressed
+0:40:20 WAR [mbtiles:encode] - {x=8414 y=5384 z=14} 1159kb uncompressed
+0:40:21 INF [mbtiles] -  features: [ 1.4B  62% 2.6M/s ] 181G  tiles: [ 178M  46k/s ] 66G  
+    cpus: 10.7 gc:  0% heap: 21G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(13% 17% 11% 13% 14% 16% 15% 14% 18% 14% 16% 15% 18% 18% 16% 14% 12% 15% 12% 17% 21% 16% 10% 14% 15% 16% 16% 13% 13% 18% 15% 13% 17% 14% 13% 13% 15% 12% 16% 17% 17% 15% 12% 13% 15% 15% 12% 14% 16% 20% 18% 12% 11% 13% 19% 16% 11% 16% 13% 12% 16% 17% 16% 14%) -> (10/5.9k) -> write(17%)
+    last tile: 14/8419/5739 (z14 51%) https://www.openstreetmap.org/#map=14/47.35371/4.98779
+0:40:31 INF [mbtiles] -  features: [ 1.5B  63% 2.5M/s ] 181G  tiles: [ 179M  48k/s ] 67G  
+    cpus: 10.9 gc:  0% heap: 16G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(18% 17% 14% 14% 15% 12% 14% 15% 15% 15% 17% 14% 18% 17% 16% 15% 11% 15% 16% 14% 14% 16% 14% 16% 14% 15% 15% 13% 15% 12% 15% 14% 18% 16% 17% 15% 16% 15% 13% 16% 13% 12% 17% 16% 17% 15% 15% 16% 13% 17% 15% 14% 16% 14% 14% 19% 14% 17% 15% 12% 13% 14% 17% 17%) -> (15/5.9k) -> write(18%)
+    last tile: 14/8459/5412 (z14 51%) https://www.openstreetmap.org/#map=14/51.99841/5.86670
+0:40:41 INF [mbtiles] -  features: [ 1.5B  64% 2.5M/s ] 181G  tiles: [ 179M  50k/s ] 67G  
+    cpus: 11 gc:  0% heap: 14G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(14% 16% 18% 17% 16% 16% 17% 14% 15% 12% 17% 14% 15% 15% 16% 13% 14% 17% 16% 13% 16% 13% 16% 15% 13% 13% 12% 12% 16% 14% 18% 11% 17% 14% 15% 17% 16% 15% 15% 18% 15% 14% 14% 17% 16% 15% 21% 15% 19% 15% 14% 13% 19% 20% 13% 16% 16% 14% 15% 15% 15% 14% 17% 17%) -> (11/5.9k) -> write(19%)
+    last tile: 14/8500/5510 (z14 51%) https://www.openstreetmap.org/#map=14/50.65294/6.76758
+0:40:51 INF [mbtiles] -  features: [ 1.5B  65% 2.5M/s ] 181G  tiles: [ 180M  46k/s ] 68G  
+    cpus: 11.1 gc:  0% heap: 13G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(16% 12% 16% 14% 12% 17% 14% 15% 16% 14% 16% 14% 16% 16% 14% 19% 14% 17% 17% 13% 16% 13% 19% 18% 15% 15% 16% 17% 16% 14% 16% 17% 15% 15% 17% 12% 18% 16% 14% 13% 15% 16% 17% 16% 14% 18% 14% 15% 14% 16% 15% 15% 19% 18% 14% 16% 17% 14% 16% 13% 13% 19% 15% 17%) ->  (7/5.9k) -> write(18%)
+    last tile: 14/8538/5470 (z14 52%) https://www.openstreetmap.org/#map=14/51.20688/7.60254
+0:41:01 INF [mbtiles] -  features: [ 1.5B  66% 2.4M/s ] 181G  tiles: [ 180M  53k/s ] 69G  
+    cpus: 11.4 gc:  0% heap: 16G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(17% 18% 15% 14% 17% 14% 22% 17% 16% 13% 14% 15% 19% 20% 12% 17% 12% 16% 14% 16% 16% 18% 19% 20% 20% 15% 18% 17% 13% 17% 16% 19% 19% 14% 12% 12% 18% 18% 14%  8% 16% 14% 16% 18% 14% 20% 18% 13% 15% 15% 16% 18% 13% 14% 16% 16% 17% 19% 16% 13% 15% 15% 12% 16%) -> (19/5.9k) -> write(20%)
+    last tile: 14/8581/4897 (z14 52%) https://www.openstreetmap.org/#map=14/58.43623/8.54736
+0:41:11 INF [mbtiles] -  features: [ 1.6B  67% 2.4M/s ] 181G  tiles: [ 181M  42k/s ] 69G  
+    cpus: 11.3 gc:  0% heap: 18G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(16% 19% 16% 16% 20% 17% 18% 15% 19% 15% 16% 19% 20% 15% 15% 14% 18% 12% 19% 17% 14% 15% 15% 13% 12% 16% 14% 19% 15% 18% 13% 17% 15% 12% 17% 15% 14% 13% 18% 11% 17% 13% 14% 12% 17% 15% 16% 18% 19% 16% 15% 14% 15% 16% 16% 15% 14% 19% 17% 16% 18% 14% 14% 12%) -> (24/5.9k) -> write(17%)
+    last tile: 14/8615/4669 (z14 52%) https://www.openstreetmap.org/#map=14/60.96244/9.29443
+0:41:21 INF [mbtiles] -  features: [ 1.6B  69% 2.4M/s ] 181G  tiles: [ 181M  49k/s ] 70G  
+    cpus: 11.4 gc:  0% heap: 20G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(16% 17% 15% 15% 13% 14% 15% 18% 14% 15% 18% 12% 14% 16% 16% 19% 18% 14% 17% 20% 12% 17% 18% 15% 15% 16% 15% 17% 19% 17% 18% 17% 17% 18% 16% 15% 14% 13% 17% 14% 17% 14% 16% 14% 17% 12% 12% 14% 18% 16% 16% 17% 17% 17% 15% 16% 12% 18% 14% 16% 16% 13% 17% 20%) -> (16/5.9k) -> write(20%)
+    last tile: 14/8655/5086 (z14 52%) https://www.openstreetmap.org/#map=14/56.19448/10.17334
+0:41:31 INF [mbtiles] -  features: [ 1.6B  70% 2.4M/s ] 181G  tiles: [ 182M  55k/s ] 71G  
+    cpus: 11.6 gc:  0% heap: 24G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(17% 17% 14% 12% 10% 14% 19% 17% 16% 13% 16% 20% 15% 16% 18% 17% 15% 14% 19% 17% 16% 16% 13% 18% 15% 19% 13% 10% 18% 12% 16% 17% 15% 17% 17% 18% 16% 18% 14% 16% 15% 14% 15% 17% 16% 18% 19% 19% 14% 19% 18% 17% 13% 17% 18% 16% 15% 20% 16% 14% 20% 18% 17% 17%) ->  (9/5.9k) -> write(21%)
+    last tile: 14/8700/5645 (z14 53%) https://www.openstreetmap.org/#map=14/48.73446/11.16211
+0:41:41 INF [mbtiles] -  features: [ 1.6B  71% 2.4M/s ] 181G  tiles: [ 182M  57k/s ] 71G  
+    cpus: 11.7 gc:  0% heap: 12G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(15% 17% 15% 15% 18% 19% 18% 16% 16% 20% 19% 14% 14% 12% 20% 18% 18% 16% 20% 16% 15% 16% 13% 18% 17% 17% 17% 14% 14% 13% 14% 19% 15% 19% 19% 17% 11% 21% 18% 16% 19% 19% 17% 14% 18% 17% 13% 14% 18% 18% 15% 15% 15% 16% 15% 14% 16% 18% 18% 15% 16% 12% 17% 16%) ->  (8/5.9k) -> write(22%)
+    last tile: 14/8747/5820 (z14 53%) https://www.openstreetmap.org/#map=14/46.13417/12.19482
+0:41:51 INF [mbtiles] -  features: [ 1.7B  72% 2.4M/s ] 181G  tiles: [ 183M  63k/s ] 72G  
+    cpus: 12 gc:  0% heap: 18G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(19% 15% 17% 15% 15% 16% 15% 17% 17% 19% 15% 13% 18% 23% 19% 18% 18% 12% 16% 17% 18% 18% 14% 19% 16% 16% 18% 15% 17% 16% 14% 16% 20% 18% 19% 13% 15% 14% 16% 21% 22% 17% 19% 17% 16% 15% 16% 17% 17% 18% 17% 17% 16% 17% 14% 15% 11% 21% 21% 16% 14% 16% 16% 19%) -> (17/5.9k) -> write(24%)
+    last tile: 14/8800/5118 (z14 53%) https://www.openstreetmap.org/#map=14/55.80128/13.35938
+0:42:01 INF [mbtiles] -  features: [ 1.7B  73% 2.4M/s ] 181G  tiles: [ 183M  68k/s ] 73G  
+    cpus: 12.7 gc:  0% heap: 11G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(17% 17% 18% 15% 19% 20% 21% 17% 20% 16% 19% 19% 17% 16% 18% 17% 18% 17% 18% 17% 14% 15% 17% 19% 17% 18% 17% 19% 18% 17% 17% 20% 20% 17% 18% 18% 21% 14% 19% 18% 17% 16% 16% 17% 17% 16% 19% 20% 15% 15% 23% 19% 18% 19% 19% 19% 15% 16% 23% 23% 22% 14% 16% 19%) -> (16/5.9k) -> write(26%)
+    last tile: 14/8859/5400 (z14 54%) https://www.openstreetmap.org/#map=14/52.16045/14.65576
+0:42:11 INF [mbtiles] -  features: [ 1.7B  74% 2.4M/s ] 181G  tiles: [ 184M  81k/s ] 74G  
+    cpus: 13 gc:  0% heap: 21G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(18% 18% 22% 17% 16% 20% 19% 18% 20% 17% 21% 18% 17% 20% 17% 18% 22% 17% 18% 19% 20% 15% 16% 18% 19% 18% 20% 21% 20% 16% 19% 17% 20% 15% 18% 18% 15% 18% 20% 18% 18% 18% 15% 22% 19% 16% 19% 19% 16% 19% 19% 18% 16% 18% 17% 16% 16% 21% 22% 19% 17% 18% 20% 16%) -> (35/5.9k) -> write(30%)
+    last tile: 14/8931/3852 (z14 54%) https://www.openstreetmap.org/#map=14/68.56038/16.23779
+0:42:21 INF [mbtiles] -  features: [ 1.7B  75% 2.4M/s ] 181G  tiles: [ 185M  90k/s ] 75G  
+    cpus: 12.3 gc:  0% heap: 25G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(19% 18% 15% 18% 16% 15% 15% 18% 16% 20% 17% 20% 20% 16% 17% 21% 20% 17% 14% 15% 16% 20% 19% 15% 17% 19% 17% 18% 19% 17% 16% 19% 17% 19% 18% 16% 21% 16% 16% 16% 17% 15% 18% 17% 17% 16% 18% 17% 17% 16% 15% 17% 19% 15% 15% 18% 17% 17% 17% 19% 13% 15% 18% 13%) -> (21/5.9k) -> write(31%)
+    last tile: 14/9013/4801 (z14 55%) https://www.openstreetmap.org/#map=14/59.52318/18.03955
+0:42:31 INF [mbtiles] -  features: [ 1.8B  76% 2.4M/s ] 181G  tiles: [ 186M  88k/s ] 76G  
+    cpus: 12.1 gc:  0% heap: 13G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(17% 17% 15% 16% 18% 20% 18% 15% 17% 16% 19% 19% 20% 17% 19% 15% 16% 13% 13% 16% 17% 19% 16% 13% 14% 15% 11% 20% 18% 19% 17% 18% 19% 16% 18% 15% 14% 20% 18% 16% 20% 19% 14% 16% 16% 21% 16% 16% 12% 18% 15% 18% 13% 18% 21% 17% 17% 18% 16% 15% 19% 16% 18% 19%) -> (16/5.9k) -> write(30%)
+    last tile: 14/9095/5967 (z14 55%) https://www.openstreetmap.org/#map=14/43.85037/19.84131
+0:42:41 INF [mbtiles] -  features: [ 1.8B  77% 2.4M/s ] 181G  tiles: [ 187M 110k/s ] 77G  
+    cpus: 12.9 gc:  0% heap: 22G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(21% 16% 21% 17% 17% 17% 20% 19% 15% 17% 17% 19% 14% 19% 18% 15% 15% 16% 18% 19% 18% 17% 15% 23% 17% 19% 17% 15% 18% 16% 22% 16% 18% 20% 15% 18% 20% 18% 20% 16% 25% 23% 20% 14% 18% 17% 12% 20% 13% 18% 16% 17% 20% 16% 21% 19% 20% 19% 18% 19% 19% 17% 17% 20%) -> (25/5.9k) -> write(37%)
+    last tile: 14/9195/1047 (z14 56%) https://www.openstreetmap.org/#map=14/82.61158/22.03857
+0:42:51 INF [mbtiles] -  features: [ 1.8B  78% 2.3M/s ] 181G  tiles: [ 188M 128k/s ] 78G  
+    cpus: 14.1 gc:  0% heap: 21G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(21% 17% 21% 21% 17% 21% 17% 21% 22% 14% 23% 21% 19% 19% 20% 26% 21% 19% 20% 19% 16% 18% 16% 20% 19% 21% 19% 20% 18% 22% 19% 14% 21% 20% 23% 18% 22% 19% 20% 19% 18% 23% 19% 16% 22% 19% 23% 22% 23% 21% 18% 17% 19% 17% 20% 18% 17% 20% 18% 20% 19% 19% 25% 20%) -> (22/5.9k) -> write(44%)
+    last tile: 14/9310/4427 (z14 56%) https://www.openstreetmap.org/#map=14/63.44069/24.56543
+0:43:01 INF [mbtiles] -  features: [ 1.8B  79% 2.3M/s ] 181G  tiles: [ 190M 146k/s ] 79G  
+    cpus: 14 gc:  0% heap: 19G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(19% 21% 19% 24% 18% 16% 22% 18% 20% 19% 22% 18% 20% 23% 21% 22% 21% 18% 20% 21% 17% 22% 19% 16% 24% 23% 18% 21% 23% 19% 19% 17% 20% 19% 17% 19% 22% 18% 16% 17% 21% 22% 18% 23% 19% 20% 21% 17% 16% 20% 19% 17% 19% 20% 18% 17% 16% 21% 22% 19% 20% 19% 19% 19%) -> (24/5.9k) -> write(49%)
+    last tile: 14/9439/6005 (z14 57%) https://www.openstreetmap.org/#map=14/43.24520/27.39990
+0:43:11 INF [mbtiles] -  features: [ 1.8B  80% 2.4M/s ] 181G  tiles: [ 191M 115k/s ] 80G  
+    cpus: 13.1 gc:  0% heap: 26G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(20% 17% 20% 20% 16% 19% 18% 20% 16% 19% 23% 23% 19% 21% 15% 21% 21% 19% 19% 17% 16% 15% 20% 17% 17% 21% 19% 20% 21% 21% 18% 19% 18% 14% 15% 14% 18% 20% 13% 13% 24% 18% 18% 15% 20% 17% 15% 20% 22% 18% 17% 17% 20% 15% 15% 16% 21% 19% 23% 15% 21% 15% 16% 17%) -> (23/5.9k) -> write(39%)
+    last tile: 14/9540/4649 (z14 58%) https://www.openstreetmap.org/#map=14/61.17503/29.61914
+0:43:21 INF [mbtiles] -  features: [ 1.9B  81% 2.5M/s ] 181G  tiles: [ 192M  90k/s ] 81G  
+    cpus: 12.2 gc:  0% heap: 14G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(15% 18% 15% 20% 15% 18% 17% 18% 20% 15% 19% 17% 17% 17% 17% 16% 15% 18% 18% 18% 14% 21% 15% 15% 18% 13% 18% 18% 14% 16% 20% 21% 21% 10% 12% 15% 16% 21% 13% 18% 18% 18% 16% 20% 21% 15% 16% 20% 20% 17% 20% 22% 19% 16% 15% 15% 17% 16% 17% 15% 15% 13% 16% 16%) -> (25/5.9k) -> write(32%)
+    last tile: 14/9618/6753 (z14 58%) https://www.openstreetmap.org/#map=14/30.12612/31.33301
+0:43:26 WAR [mbtiles:encode] - {x=9674 y=8175 z=14} 1014kb uncompressed
+0:43:31 INF [mbtiles] -  features: [ 1.9B  82% 2.5M/s ] 181G  tiles: [ 193M 131k/s ] 81G  
+    cpus: 12.7 gc:  0% heap: 18G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(18% 19% 16% 16% 20% 21% 15% 16% 19% 18% 19% 17% 13% 17% 18% 18% 21% 17% 18% 17% 17% 21% 18% 17% 16% 18% 16% 21% 22% 18% 19% 17% 17% 18% 17% 17% 15% 21% 16% 22% 19% 17% 18% 15% 15% 16% 15% 18% 16% 15% 18% 16% 17% 15% 17% 23% 18% 21% 14% 19% 14% 18% 18% 15%) -> (31/5.9k) -> write(42%)
+    last tile: 14/9732/4839 (z14 59%) https://www.openstreetmap.org/#map=14/59.09703/33.83789
+0:43:41 INF [mbtiles] -  features: [ 1.9B  83% 2.4M/s ] 181G  tiles: [ 195M 140k/s ] 82G  
+    cpus: 12.8 gc:  0% heap: 23G/118G direct: 4M postGC: 10G
+    read(99%) ->  (0/5.9k) -> encode(18% 19% 19% 17% 18% 22% 17% 15% 15% 14% 17% 19% 17% 19% 21% 19% 14% 23% 13% 17% 16% 20% 17% 22% 18% 18% 21% 17% 18% 16% 15% 20% 20% 15% 19% 17% 20% 17% 19% 13% 18% 15% 18% 18% 14% 22% 22% 14% 18% 18% 16% 15% 19% 20% 20% 19% 17% 20% 15% 17% 18% 16% 19% 20%) -> (29/5.9k) -> write(44%)
+    last tile: 14/9853/6472 (z14 60%) https://www.openstreetmap.org/#map=14/35.31737/36.49658
+0:43:50 WAR [mbtiles:encode] - {x=9977 y=8504 z=14} 992kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9977 y=8503 z=14} 1239kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9977 y=8501 z=14} 1278kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9977 y=8502 z=14} 1596kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9978 y=8505 z=14} 1090kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9978 y=8503 z=14} 1071kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9978 y=8501 z=14} 1324kb uncompressed
+0:43:50 WAR [mbtiles:encode] - {x=9978 y=8502 z=14} 1437kb uncompressed
+0:43:51 INF [mbtiles] -  features: [ 1.9B  84% 2.4M/s ] 181G  tiles: [ 196M 161k/s ] 83G  
+    cpus: 12.7 gc:  0% heap: 26G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(16% 22% 19% 19% 20% 18% 15% 15% 19% 14% 23% 22% 18% 17% 21% 17% 16% 23% 18% 19% 17% 16% 18% 20% 14% 13% 17% 17% 17% 16% 17% 18% 19% 17% 15% 18% 16% 16% 18% 16% 15% 19% 16% 21% 15% 18% 17% 14% 18% 22% 19% 19% 14% 17% 20% 17% 17% 18% 15% 15% 18% 13% 21% 16%) -> (21/5.9k) -> write(48%)
+    last tile: 14/9992/5204 (z14 60%) https://www.openstreetmap.org/#map=14/54.72462/39.55078
+0:43:57 WAR [mbtiles:encode] - {x=10153 y=7662 z=14} 1025kb uncompressed
+0:44:01 INF [mbtiles] -  features: [   2B  85% 2.3M/s ] 181G  tiles: [ 199M 280k/s ] 84G  
+    cpus: 14.7 gc:  0% heap: 21G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(19% 18% 19% 21% 17% 21% 22% 17% 24% 24% 16% 20% 20% 21% 20% 20% 18% 20% 21% 20% 20% 20% 21% 23% 22% 21% 18% 19% 16% 25% 20% 20% 22% 16% 18% 24% 18% 20% 21% 20% 20% 23% 23% 19% 18% 21% 19% 20% 19% 20% 18% 21% 20% 20% 16% 20% 21% 23% 19% 22% 21% 19% 24% 23%) -> (34/5.9k) -> write(78%)
+    last tile: 14/10238/7525 (z14 62%) https://www.openstreetmap.org/#map=14/14.49851/44.95605
+0:44:11 INF [mbtiles] -  features: [   2B  86% 2.4M/s ] 181G  tiles: [ 202M 306k/s ] 86G  
+    cpus: 14.2 gc:  0% heap: 16G/118G direct: 4M postGC: 10G
+    read(100%) ->  (0/5.9k) -> encode(21% 19% 20% 16% 19% 22% 18% 21% 20% 21% 19% 19% 14% 15% 18% 19% 19% 18% 21% 20% 19% 20% 22% 18% 20% 19% 21% 21% 21% 19% 20% 15% 21% 18% 21% 19% 22% 23% 19% 20% 17% 16% 18% 21% 19% 19% 17% 18% 18% 20% 17% 18% 23% 20% 23% 18% 19% 19% 15% 18% 20% 17% 22% 18%) -> (149/5.9k) -> write(85%)
+    last tile: 14/10511/5000 (z14 64%) https://www.openstreetmap.org/#map=14/57.23150/50.95459
+0:44:21 INF [mbtiles] -  features: [   2B  87% 2.2M/s ] 181G  tiles: [ 206M 388k/s ] 87G  
+    cpus: 13.5 gc:  1% heap: 21G/118G direct: 4M postGC: 11G
+    read(95%) ->  (0/5.9k) -> encode(16% 22% 17% 11% 17% 21% 17% 17% 18% 15% 18% 17% 19% 13% 18% 21% 15% 17% 18% 18% 17% 16% 19% 22% 19% 18% 19% 19% 22% 16% 18% 14% 14% 15% 17% 17% 19% 17% 16% 20% 19% 19% 16% 19% 19% 16% 15% 20% 16% 17% 14% 20% 19% 14% 17% 15% 19% 18% 17% 17% 16% 19% 18% 17%) -> (1.8k/5.9k) -> write(99%)
+    last tile: 14/10874/1604 (z14 66%) https://www.openstreetmap.org/#map=14/80.85887/58.93066
+0:44:31 INF [mbtiles] -  features: [   2B  88% 2.2M/s ] 181G  tiles: [ 210M 388k/s ] 88G  
+    cpus: 15.3 gc:  5% heap: 23G/118G direct: 4M postGC: 17G
+    read(95%) ->  (0/5.9k) -> encode(17% 17% 19% 16% 17% 20% 19% 15% 21% 18% 20% 20% 17% 14% 18% 14% 18% 16% 17% 19% 20% 20% 19% 21% 15% 19% 19% 13% 14% 19% 15% 16% 18% 17% 17% 19% 16% 17% 17% 17% 17% 16% 16% 23% 16% 20% 20% 16% 21% 19% 22% 19% 17% 18% 18% 21% 17% 16% 18% 16% 20% 21% 17% 19%) -> (4.7k/5.9k) -> write(95%)
+    last tile: 14/11233/1327 (z14 68%) https://www.openstreetmap.org/#map=14/81.77679/66.81885
+0:44:41 INF [mbtiles] -  features: [ 2.1B  89% 2.3M/s ] 181G  tiles: [ 214M 382k/s ] 89G  
+    cpus: 15.4 gc:  4% heap: 28G/118G direct: 4M postGC: 21G
+    read(96%) ->  (0/5.9k) -> encode(16% 21% 16% 19% 16% 16% 18% 19% 22% 19% 19% 18% 18% 14% 18% 17% 20% 17% 18% 22% 15% 19% 19% 15% 18% 15% 15% 17% 18% 18% 24% 18% 21% 21% 20% 15% 20% 18% 17% 22% 20% 17% 23% 20% 17% 20% 22% 19% 17% 19% 18% 17% 14% 21% 17% 21% 21% 18% 17% 17% 23% 16% 20% 19%) -> (4.8k/5.9k) -> write(96%)
+    last tile: 14/11578/2245 (z14 70%) https://www.openstreetmap.org/#map=14/78.32720/74.39941
+0:44:47 WAR [mbtiles:encode] - {x=12074 y=6878 z=14} 985kb uncompressed
+0:44:51 INF [mbtiles] -  features: [ 2.1B  90% 2.4M/s ] 181G  tiles: [ 218M 366k/s ] 90G  
+    cpus: 14.6 gc:  4% heap: 28G/118G direct: 4M postGC: 26G
+    read(96%) ->  (0/5.9k) -> encode(17% 18% 17% 17% 16% 20% 16% 19% 16% 17% 18% 17% 16% 17% 19% 15% 20% 15% 15% 20% 20% 20% 16% 17% 13% 13% 18% 19% 20% 19% 16% 19% 19% 20% 19% 15% 16% 15% 19% 15% 19% 20% 19% 14% 18% 16% 20% 17% 18% 16% 14% 16% 20% 16% 13% 17% 22% 17% 18% 15% 16% 20% 17% 17%) -> (4.2k/5.9k) -> write(96%)
+    last tile: 14/11923/6787 (z14 72%) https://www.openstreetmap.org/#map=14/29.47786/81.97998
+0:44:54 WAR [mbtiles:encode] - {x=12306 y=7080 z=14} 998kb uncompressed
+0:44:57 WAR [mbtiles:encode] - {x=12385 y=7204 z=14} 1047kb uncompressed
+0:44:57 WAR [mbtiles:encode] - {x=12386 y=7204 z=14} 1436kb uncompressed
+0:45:01 INF [mbtiles] -  features: [ 2.1B  91% 2.4M/s ] 181G  tiles: [ 221M 376k/s ] 91G  
+    cpus: 13.5 gc:  4% heap: 8.3G/118G direct: 4M postGC: 6G
+    read(94%) ->  (0/5.9k) -> encode(14% 16% 12% 16% 11% 16% 14% 18% 18% 16% 15% 13% 16% 16% 16% 18% 14% 17% 15% 13% 15% 12% 14% 16% 16% 15% 15% 13% 15% 17% 15% 18% 14% 14% 15% 17% 18% 14% 13% 15% 11% 15% 17% 15% 14% 16% 16% 16% 16% 14% 16% 15% 17% 14% 16% 16% 15% 14% 16% 12% 13% 14% 13% 14%) -> (4.6k/5.9k) -> write(96%)
+    last tile: 14/12291/7883 (z14 75%) https://www.openstreetmap.org/#map=14/6.77372/90.06592
+0:45:11 INF [mbtiles] -  features: [ 2.1B  92% 2.2M/s ] 181G  tiles: [ 225M 389k/s ] 92G  
+    cpus: 17 gc:  4% heap: 21G/118G direct: 4M postGC: 10G
+    read(96%) ->  (0/5.9k) -> encode(21% 26% 18% 21% 18% 18% 17% 19% 22% 23% 22% 22% 21% 21% 23% 22% 25% 18% 23% 19% 20% 19% 18% 21% 21% 23% 25% 24% 21% 17% 21% 23% 25% 20% 21% 22% 16% 22% 22% 22% 17% 21% 21% 20% 21% 21% 22% 21% 19% 27% 17% 23% 22% 22% 17% 20% 21% 17% 21% 22% 22% 18% 24% 25%) -> (4k/5.9k) -> write(96%)
+    last tile: 14/12713/10499 (z14 77%) https://www.openstreetmap.org/#map=14/-45.13556/99.33838
+0:45:13 WAR [mbtiles:encode] - {x=13052 y=8472 z=14} 1259kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13055 y=8478 z=14} 1009kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13055 y=8475 z=14} 978kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13055 y=8474 z=14} 1038kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13055 y=8473 z=14} 1101kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13057 y=8471 z=14} 1019kb uncompressed
+0:45:14 WAR [mbtiles:encode] - {x=13058 y=8475 z=14} 1043kb uncompressed
+0:45:16 WAR [mbtiles:encode] - {x=13088 y=8508 z=14} 1130kb uncompressed
+0:45:21 INF [mbtiles] -  features: [ 2.2B  93% 2.5M/s ] 181G  tiles: [ 229M 350k/s ] 93G  
+    cpus: 14.3 gc:  7% heap: 15G/118G direct: 4M postGC: 14G
+    read(93%) ->  (0/5.9k) -> encode(16% 11% 16% 14% 17% 16% 13% 15% 14% 19% 19% 21% 17% 14% 14% 15% 15% 14% 17% 15% 14% 18% 16% 13% 17% 16% 13% 14% 15% 16% 12% 13% 16% 13% 16% 15% 12% 19% 14% 17% 13% 14% 16% 17% 15% 17% 16% 19% 15% 15% 11% 16% 16% 17% 15% 14% 14% 14% 17% 15% 16% 12% 14% 13%) -> (1.8k/5.9k) -> write(93%)
+    last tile: 14/13096/7025 (z14 79%) https://www.openstreetmap.org/#map=14/24.82662/107.75391
+0:45:26 WAR [mbtiles:encode] - {x=13322 y=8523 z=14} 1137kb uncompressed
+0:45:26 WAR [mbtiles:encode] - {x=13323 y=8522 z=14} 1040kb uncompressed
+0:45:31 INF [mbtiles] -  features: [ 2.2B  94% 2.5M/s ] 181G  tiles: [ 232M 342k/s ] 95G  
+    cpus: 13.6 gc:  1% heap: 31G/118G direct: 4M postGC: 12G
+    read(99%) ->  (0/5.9k) -> encode(15% 15% 20% 19% 16% 17% 16% 18% 21% 16% 16% 16% 19% 18% 18% 18% 23% 17% 17% 16% 18% 16% 17% 17% 20% 18% 17% 19% 17% 17% 19% 18% 17% 20% 17% 22% 17% 16% 16% 19% 17% 20% 19% 18% 18% 19% 18% 15% 19% 19% 19% 20% 15% 16% 23% 20% 17% 17% 18% 17% 18% 17% 21% 17%) -> (47/5.9k) -> write(91%)
+    last tile: 14/13452/2852 (z14 82%) https://www.openstreetmap.org/#map=14/75.29774/115.57617
+0:45:40 WAR [mbtiles:encode] - {x=13682 y=7058 z=14} 1155kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13682 y=7057 z=14} 1230kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13683 y=7057 z=14} 1060kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13683 y=7059 z=14} 1395kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13683 y=7058 z=14} 1659kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13684 y=7059 z=14} 1347kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13684 y=7057 z=14} 1453kb uncompressed
+0:45:40 WAR [mbtiles:encode] - {x=13684 y=7058 z=14} 1628kb uncompressed
+0:45:41 INF [mbtiles] -  features: [ 2.2B  95% 2.4M/s ] 181G  tiles: [ 235M 238k/s ] 96G  
+    cpus: 13.4 gc:  0% heap: 23G/118G direct: 4M postGC: 12G
+    read(98%) ->  (0/5.9k) -> encode(17% 17% 17% 19% 17% 13% 20% 19% 22% 18% 15% 20% 17% 20% 20% 18% 16% 21% 17% 16% 19% 19% 20% 14% 19% 16% 21% 18% 18% 21% 16% 18% 20% 16% 17% 20% 16% 15% 16% 19% 22% 18% 14% 19% 21% 19% 17% 21% 20% 22% 17% 18% 15% 17% 20% 19% 19% 22% 19% 19% 17% 19% 21% 20%) -> (18/5.9k) -> write(66%)
+    last tile: 14/13695/7529 (z14 83%) https://www.openstreetmap.org/#map=14/14.41340/120.91553
+0:45:42 WAR [mbtiles:encode] - {x=13702 y=7515 z=14} 1208kb uncompressed
+0:45:42 WAR [mbtiles:encode] - {x=13703 y=7515 z=14} 1017kb uncompressed
+0:45:51 INF [mbtiles] -  features: [ 2.2B  96% 2.4M/s ] 181G  tiles: [ 238M 314k/s ] 97G  
+    cpus: 13.1 gc:  0% heap: 25G/118G direct: 4M postGC: 13G
+    read(100%) ->  (0/5.9k) -> encode(17% 17% 17% 19% 16% 18% 18% 15% 18% 19% 16% 19% 14% 23% 18% 19% 15% 16% 21% 19% 19% 15% 17% 18% 15% 17% 16% 20% 15% 16% 20% 20% 20% 17% 18% 20% 19% 22% 19% 18% 17% 17% 17% 15% 19% 16% 14% 19% 17% 17% 19% 19% 19% 18% 20% 16% 19% 15% 15% 18% 20% 16% 13% 17%) -> (144/5.9k) -> write(82%)
+    last tile: 14/14013/9171 (z14 85%) https://www.openstreetmap.org/#map=14/-21.02298/127.90283
+0:45:59 WAR [mbtiles:encode] - {x=14369 y=6489 z=14} 1003kb uncompressed
+0:45:59 WAR [mbtiles:encode] - {x=14369 y=6488 z=14} 1186kb uncompressed
+0:46:00 WAR [mbtiles:encode] - {x=14370 y=6487 z=14} 991kb uncompressed
+0:46:00 WAR [mbtiles:encode] - {x=14370 y=6489 z=14} 1182kb uncompressed
+0:46:01 INF [mbtiles] -  features: [ 2.3B  97% 2.3M/s ] 181G  tiles: [ 242M 396k/s ] 98G  
+    cpus: 13.8 gc:  1% heap: 32G/118G direct: 4M postGC: 13G
+    read(99%) ->  (0/5.9k) -> encode(17% 17% 16% 17% 16% 19% 17% 16% 15% 17% 21% 19% 18% 17% 18% 21% 15% 19% 15% 18% 19% 22% 15% 20% 18% 18% 16% 17% 17% 17% 19% 24% 16% 18% 17% 17% 21% 17% 19% 18% 16% 18% 18% 20% 15% 22% 17% 19% 16% 18% 18% 17% 18% 19% 20% 18% 21% 19% 20% 21% 18% 20% 21% 18%) -> (411/5.9k) -> write(99%)
+    last tile: 14/14402/5359 (z14 87%) https://www.openstreetmap.org/#map=14/52.70968/136.45020
+0:46:07 WAR [mbtiles:encode] - {x=14552 y=6450 z=14} 992kb uncompressed
+0:46:07 WAR [mbtiles:encode] - {x=14553 y=6450 z=14} 1383kb uncompressed
+0:46:11 INF [mbtiles] -  features: [ 2.3B  98% 2.4M/s ] 181G  tiles: [ 244M 248k/s ] 99G  
+    cpus: 13.1 gc:  0% heap: 17G/118G direct: 4M postGC: 12G
+    read(100%) ->  (0/5.9k) -> encode(18% 18% 21% 15% 18% 19% 15% 22% 16% 20% 16% 18% 23% 16% 19% 18% 18% 16% 16% 17% 18% 16% 20% 17% 17% 17% 16% 18% 17% 16% 18% 20% 15% 18% 16% 19% 19% 16% 20% 15% 19% 18% 17% 18% 16% 17% 16% 19% 19% 17% 18% 16% 20% 15% 18% 15% 18% 16% 18% 21% 20% 21% 17% 20%) -> (38/5.9k) -> write(67%)
+    last tile: 14/14638/2879 (z14 89%) https://www.openstreetmap.org/#map=14/75.14641/141.63574
+0:46:21 INF [mbtiles] -  features: [ 2.3B  99% 2.2M/s ] 181G  tiles: [ 248M 396k/s ] 100G 
+    cpus: 13.6 gc:  3% heap: 16G/118G direct: 4M postGC: 15G
+    read(95%) ->  (0/5.9k) -> encode(15% 16% 15% 18% 15% 15% 18% 15% 19% 15% 14% 18% 17% 16% 15% 16% 16% 16% 16% 18% 17% 18% 17% 18% 19% 18% 12% 14% 14% 17% 16% 16% 17% 17% 16% 19% 17% 14% 17% 14% 15% 17% 20% 19% 15% 15% 20% 16% 16% 19% 19% 14% 15% 20% 17% 15% 20% 14% 15% 15% 18% 16% 18% 17%) -> (4.7k/5.9k) -> write(97%)
+    last tile: 14/14998/3047 (z14 91%) https://www.openstreetmap.org/#map=14/74.17008/149.54590
+0:46:31 INF [mbtiles] -  features: [ 2.3B  99% 702k/s ] 181G  tiles: [ 252M 427k/s ] 100G 
+    cpus: 2.9 gc:  0% heap: 25G/118G direct: 4M postGC: 15G
+    read(31%) ->  (0/5.9k) -> encode( 2%  2%  2%  2%  2%  2%  2%  2%  3%  2%  2%  2%  3%  2%  2%  4%  2%  2%  2%  2%  3%  2%  2%  3%  3%  2%  3%  4%  2%  3%  3%  2%  3%  2%  3%  2%  3%  3%  2%  2%  2%  2%  3%  2%  3%  2%  3%  2%  3%  2%  2%  3%  3%  2%  3%  2%  3%  2%  3%  3%  2%  2%  3%  3%) -> (5.9k/5.9k) -> write(100%)
+    last tile: 14/15362/9071 (z14 93%) https://www.openstreetmap.org/#map=14/-18.95825/157.54395
+0:46:41 INF [mbtiles] -  features: [ 2.3B 100% 662k/s ] 181G  tiles: [ 257M 429k/s ] 101G 
+    cpus: 3.4 gc:  1% heap: 22G/118G direct: 4M postGC: 16G
+    read(28%) ->  (0/5.9k) -> encode( 3%  3%  4%  2%  3%  4%  1%  3%  3%  3%  2%  3%  3%  5%  4%  2%  3%  3%  3%  2%  3%  2%  3%  3%  3%  4%  3%  2%  2%  3%  2%  3%  2%  3%  2%  3%  3%  3%  2%  3%  3%  3%  3%  2%  2%  2%  2%  2%  3%  3%  2%  3%  3%  2%  3%  2%  3%  5%  2%  2%  2%  1%  2%  4%) -> (5.9k/5.9k) -> write(99%)
+    last tile: 14/15694/8115 (z14 95%) https://www.openstreetmap.org/#map=14/1.69165/164.83887
+0:46:51 INF [mbtiles] -  features: [ 2.3B 100% 881k/s ] 181G  tiles: [ 261M 431k/s ] 102G 
+    cpus: 4.3 gc:  1% heap: 28G/118G direct: 4M postGC: 16G
+    read(35%) ->  (0/5.9k) -> encode( 4%  3%  4%  3%  4%  6%  3%  4%  4%  5%  5%  6%  5%  3%  3%  3%  5%  2%  5%  4%  4%  4%  6%  2%  3%  3%  3%  4%  4%  4%  6%  4%  3%  2%  4%  4%  4%  3%  3%  6%  4%  2%  4%  4%  6%  4%  3%  5%  4%  2%  3%  6%  5%  6%  4%  3%  4%  4%  4%  5%  5%  3%  4%  3%) -> (5.9k/5.9k) -> write(99%)
+    last tile: 14/15993/14799 (z14 97%) https://www.openstreetmap.org/#map=14/-80.92496/171.40869
+0:47:01 INF [mbtiles] -  features: [ 2.3B 100%  54k/s ] 181G  tiles: [ 265M 438k/s ] 102G 
+    cpus: 1.1 gc:  0% heap: 28G/118G direct: 3.9M postGC: 16G
+    read( -%) ->  (0/5.9k) -> encode( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) -> (1.5k/5.9k) -> write(100%)
+    last tile: 14/16282/5928 (z14 99%) https://www.openstreetmap.org/#map=14/44.46515/177.75879
+0:47:05 INF [mbtiles:write] - Finished z14 in 12m25s cpu:2h19m3s gc:10s avg:11.2
+0:47:05 INF [mbtiles] -  features: [ 2.3B 100%    0/s ] 181G  tiles: [ 267M 443k/s ] 103G 
+    cpus: 1 gc:  0% heap: 29G/118G direct: 3.9M postGC: 16G
+    read( -%) ->  (0/5.9k) -> encode( -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%  -%) ->  (0/5.9k) -> write( -%)
+    last tile: 14/16383/0 (z14 100%) https://www.openstreetmap.org/#map=14/85.05113/179.97803
+0:47:05 DEB [mbtiles] - Tile stats:
+0:47:05 DEB [mbtiles] - z0 avg:67k max:67k
+0:47:05 DEB [mbtiles] - z1 avg:159k max:180k
+0:47:05 DEB [mbtiles] - z2 avg:297k max:537k
+0:47:05 DEB [mbtiles] - z3 avg:104k max:498k
+0:47:05 DEB [mbtiles] - z4 avg:42k max:501k
+0:47:05 DEB [mbtiles] - z5 avg:23k max:524k
+0:47:05 DEB [mbtiles] - z6 avg:12k max:341k
+0:47:05 DEB [mbtiles] - z7 avg:9.9k max:408k
+0:47:05 DEB [mbtiles] - z8 avg:5.8k max:341k
+0:47:05 DEB [mbtiles] - z9 avg:5.6k max:461k
+0:47:05 DEB [mbtiles] - z10 avg:2.5k max:319k
+0:47:05 DEB [mbtiles] - z11 avg:1.2k max:182k
+0:47:05 DEB [mbtiles] - z12 avg:716 max:205k
+0:47:05 DEB [mbtiles] - z13 avg:380 max:265k
+0:47:05 DEB [mbtiles] - z14 avg:354 max:1.7M
+0:47:05 DEB [mbtiles] - all avg:402 max:0
+0:47:05 DEB [mbtiles] -  # features: 2,378,668,931
+0:47:05 DEB [mbtiles] -     # tiles: 267,493,185
+0:47:05 INF [mbtiles] - Finished in 19m26s cpu:4h40m9s gc:16s avg:14.4
+0:47:05 INF [mbtiles] -   read    1x(87% 16m51s sys:1m29s wait:1m59s done:13s)
+0:47:05 INF [mbtiles] -   encode 64x(19% 3m45s sys:1s wait:15m23s done:12s)
+0:47:05 INF [mbtiles] -   write   1x(61% 11m48s sys:1m14s wait:7m25s)
+0:47:05 INF - Finished in 47m5s cpu:24h36m22s gc:2m38s avg:31.4
+0:47:05 INF - FINISHED!
+0:47:05 INF - 
+0:47:05 INF - ----------------------------------------
+0:47:05 INF - 	overall          47m5s cpu:24h36m22s gc:2m38s avg:31.4
+0:47:05 INF - 	lake_centerlines 2s cpu:5s avg:3
+0:47:05 INF - 	  read     1x(84% 1s)
+0:47:05 INF - 	  process 64x(1% 0s wait:2s)
+0:47:05 INF - 	  write    1x(0% 0s wait:2s)
+0:47:05 INF - 	water_polygons   52s cpu:18m avg:20.7
+0:47:05 INF - 	  read     1x(32% 17s sys:1s wait:30s done:4s)
+0:47:05 INF - 	  process 64x(29% 15s wait:36s)
+0:47:05 INF - 	  write    1x(83% 43s sys:5s wait:8s)
+0:47:05 INF - 	natural_earth    11s cpu:28s avg:2.6
+0:47:05 INF - 	  read     1x(93% 10s sys:2s)
+0:47:05 INF - 	  process 64x(2% 0.2s wait:10s)
+0:47:05 INF - 	  write    1x(0% 0s wait:10s)
+0:47:05 INF - 	osm_pass1        2m33s cpu:1h37m43s gc:28s avg:38.4
+0:47:05 INF - 	  read     1x(28% 42s sys:34s wait:1m10s done:11s)
+0:47:05 INF - 	  process 63x(42% 1m4s sys:7s block:59s done:1s)
+0:47:05 INF - 	osm_pass2        20m11s cpu:16h55m20s gc:1m39s avg:50.3
+0:47:05 INF - 	  read     1x(3% 41s sys:32s wait:17m43s done:1m4s)
+0:47:05 INF - 	  process 63x(68% 13m38s block:1m12s wait:3m23s)
+0:47:05 INF - 	  write    1x(71% 14m18s sys:1m34s wait:4m25s)
+0:47:05 INF - 	boundaries       18s cpu:23s avg:1.3
+0:47:05 INF - 	sort             3m27s cpu:1h3m59s gc:13s avg:18.6
+0:47:05 INF - 	  worker 64x(17% 35s sys:3s wait:2m17s done:19s)
+0:47:05 INF - 	mbtiles          19m26s cpu:4h40m9s gc:16s avg:14.4
+0:47:05 INF - 	  read    1x(87% 16m51s sys:1m29s wait:1m59s done:13s)
+0:47:05 INF - 	  encode 64x(19% 3m45s sys:1s wait:15m23s done:12s)
+0:47:05 INF - 	  write   1x(61% 11m48s sys:1m14s wait:7m25s)
+0:47:05 INF - ----------------------------------------
+0:47:05 INF - 	features	181GB
+0:47:05 INF - 	mbtiles	103GB

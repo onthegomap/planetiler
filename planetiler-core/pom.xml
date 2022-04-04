@@ -7,12 +7,12 @@
   <artifactId>planetiler-core</artifactId>
 
   <name>Planetiler Core</name>
-  <description>Planetiler Core</description>
+  <description>Planetiler is tool to build planet-scale vector tilesets from OpenStreetMap data fast.</description>
 
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.4-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -35,7 +35,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
-      <version>2.2.11</version>
+      <version>2.2.12</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>

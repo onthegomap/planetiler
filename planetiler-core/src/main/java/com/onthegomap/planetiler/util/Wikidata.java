@@ -163,14 +163,19 @@ public class Wikidata {
    */
   public static WikidataTranslations load(Path path) {
     Timer timer = Timer.start();
-    try (BufferedReader fis = Files.newBufferedReader(path)) {
-      WikidataTranslations result = load(fis);
-      LOGGER.info(
-        "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
-      return result;
-    } catch (IOException e) {
-      LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
+    if (!Files.exists(path)) {
+      LOGGER.info("no wikidata translations found, run with --fetch-wikidata to download");
       return new WikidataTranslations();
+    } else {
+      try (BufferedReader fis = Files.newBufferedReader(path)) {
+        WikidataTranslations result = load(fis);
+        LOGGER.info(
+          "loaded from " + result.getAll().size() + " mappings from " + path.toAbsolutePath() + " in " + timer.stop());
+        return result;
+      } catch (IOException e) {
+        LOGGER.info("error loading " + path.toAbsolutePath() + ": " + e);
+        return new WikidataTranslations();
+      }
     }
   }
 

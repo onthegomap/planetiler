@@ -166,7 +166,7 @@ public class ResourceUsage {
   /** A resource with instructions for increasing. */
   public interface Fixable {
 
-    /** Instructions to increase a resouce. */
+    /** Instructions to increase a resource. */
     String howToFix();
   }
 
