@@ -17,7 +17,7 @@ public class ConfiguredProfile implements Profile {
   private String attribution;
   private String description;
 
-  private List<CustomFeature> features = new ArrayList<>();
+  private List<ConfiguredFeature> features = new ArrayList<>();
 
   public ConfiguredProfile(SchemaConfig schemaConfig) {
     schemaName = schemaConfig.getSchemaName();

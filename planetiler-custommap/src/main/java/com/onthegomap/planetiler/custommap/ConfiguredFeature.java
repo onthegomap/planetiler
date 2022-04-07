@@ -23,7 +23,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
 
-public class ConfiguredFeature implements CustomFeature {
+public class ConfiguredFeature {
 
   private Collection<String> sources;
   private Predicate<SourceFeature> geometryTest;
@@ -119,9 +119,10 @@ public class ConfiguredFeature implements CustomFeature {
     FeatureCriteria attrIncludeWhen = attribute.getIncludeWhen();
     FeatureCriteria attrExcludeWhen = attribute.getExcludeWhen();
 
-    Predicate<SourceFeature> attributeTest = attributeTagTest(attrIncludeWhen, attributeValueProducer);
+    Predicate<SourceFeature> attributeTest =
+      attrIncludeWhen == null ? sf -> true : attributeTagTest(attrIncludeWhen, attributeValueProducer);
     Predicate<SourceFeature> attributeExcludeTest =
-      attributeTagTest(attrExcludeWhen, attributeValueProducer).negate();
+      attrExcludeWhen == null ? sf -> true : attributeTagTest(attrExcludeWhen, attributeValueProducer).negate();
 
     Double minTileCoverage = attrIncludeWhen == null ? null : attrIncludeWhen.getMinTileCoverSize();
 
@@ -134,7 +135,7 @@ public class ConfiguredFeature implements CustomFeature {
     }
 
     return (sf, f) -> {
-      if (attributeTest.test(sf) && !attributeExcludeTest.test(sf)) {
+      if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
         f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
       }
     };
@@ -168,9 +169,6 @@ public class ConfiguredFeature implements CustomFeature {
 
   static Predicate<SourceFeature> attributeTagTest(FeatureCriteria attrIncludeWhen,
     Function<SourceFeature, Object> attributeValueProducer) {
-    if (attrIncludeWhen == null) {
-      return sf -> true;
-    }
 
     List<Predicate<SourceFeature>> conditions = new ArrayList<>();
 
@@ -186,7 +184,7 @@ public class ConfiguredFeature implements CustomFeature {
       } else {
         conditions.add(sf -> {
           if (sf.hasTag(keyTest)) {
-            return valTest.contains(attributeValueProducer.apply(sf));
+            return valTest.contains(sf.getTag(keyTest));
           }
           return false;
         });
@@ -227,7 +225,6 @@ public class ConfiguredFeature implements CustomFeature {
     };
   }
 
-  @Override
   public boolean includeWhen(SourceFeature sourceFeature) {
     //Is this from the right source?
     if (!sources.contains(sourceFeature.getSource())) {
@@ -243,7 +240,6 @@ public class ConfiguredFeature implements CustomFeature {
     return tagTest.test(sourceFeature);
   }
 
-  @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
 
     Feature f = geometryFactory.apply(features);

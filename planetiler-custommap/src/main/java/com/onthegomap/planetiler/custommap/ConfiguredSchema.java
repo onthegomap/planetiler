@@ -15,7 +15,7 @@ import com.onthegomap.planetiler.custommap.configschema.DataSource;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 
-public class CustomProfile {
+public class ConfiguredSchema {
 
   /*
    * Main entrypoint for the example program
@@ -31,12 +31,11 @@ public class CustomProfile {
     //TODO move to command-line args
     String schemaFile =
       args.getString("schema", "mbtiles schema",
-        Paths.get("src", "main", "resources", "schemas", "owg_simple.yml").toString());
+        Paths.get("samples", "owg_simple.yml").toString());
 
     Yaml yml = new Yaml();
     SchemaConfig config = yml.loadAs(new FileInputStream(new File(schemaFile)), SchemaConfig.class);
 
-    // Planetiler is a convenience wrapper around the lower-level API for the most common use-cases.
     Planetiler planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
 
@@ -45,6 +44,7 @@ public class CustomProfile {
       configureSource(planetiler, sourcesDir, source);
     }
 
+    //TODO move to command-line args
     planetiler.overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
       .run();
   }
