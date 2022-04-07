@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,12 @@ public class ConfiguredSingleFeatureTest {
     return factory.get(SimpleFeature.create(TestUtils.newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
   }
 
+  private static FeatureCollector linestringFeatureCollector() {
+    PlanetilerConfig config = PlanetilerConfig.defaults();
+    FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
+    return factory.get(SimpleFeature.create(TestUtils.newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
+  }
+
   private static Profile configureProfile(String filename) throws Exception {
     Path staticAttributeConfig = TestConfigurableUtils.pathToResource(filename);
     Yaml yml = new Yaml();
@@ -41,12 +48,12 @@ public class ConfiguredSingleFeatureTest {
     return profile;
   }
 
-  private static void testPolygon(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
+  private static void testFeature(String profileConfig, SourceFeature sf, Supplier<FeatureCollector> fcFactory,
+    Consumer<Feature> test)
     throws Exception {
-    SourceFeature sf = new TestAreaSourceFeature(tags, "osm", "testLayer");
 
     Profile profile = configureProfile(profileConfig);
-    FeatureCollector fc = polygonFeatureCollector();
+    FeatureCollector fc = fcFactory.get();
 
     profile.processFeature(sf, fc);
 
@@ -60,18 +67,35 @@ public class ConfiguredSingleFeatureTest {
     assertEquals(1, length.get());
   }
 
-  private static Map<String, Object> tags = new HashMap<>();
+  private static void testPolygon(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
+    throws Exception {
+    SourceFeature sf = new TestAreaSourceFeature(tags, "osm", "testLayer");
+    testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::polygonFeatureCollector, test);
+  }
+
+  private static void testLinestring(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
+    throws Exception {
+    SourceFeature sf = new TestLinestringSourceFeature(tags, "osm", "testLayer");
+    testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::linestringFeatureCollector, test);
+  }
+
+  private static Map<String, Object> waterTags = new HashMap<>();
+  private static Map<String, Object> motorwayTags = new HashMap<>();
 
   @BeforeAll
   private static void setup() {
-    tags.put("natural", "water");
-    tags.put("water", "pond");
-    tags.put("name", "Little Pond");
+    waterTags.put("natural", "water");
+    waterTags.put("water", "pond");
+    waterTags.put("name", "Little Pond");
+
+    motorwayTags.put("highway", "motorway");
+    motorwayTags.put("layer", "1");
+    motorwayTags.put("bridge", "yes");
   }
 
   @Test
   public void testStaticAttributeTest() throws Exception {
-    testPolygon("static_attribute.yml", tags, f -> {
+    testPolygon("static_attribute.yml", waterTags, f -> {
       Map<String, Object> attr = f.getAttrsAtZoom(14);
       assertEquals("aTestConstantValue", attr.get("natural"));
     });
@@ -79,7 +103,7 @@ public class ConfiguredSingleFeatureTest {
 
   @Test
   public void testTagValueAttributeTest() throws Exception {
-    testPolygon("tag_attribute.yml", tags, f -> {
+    testPolygon("tag_attribute.yml", waterTags, f -> {
       Map<String, Object> attr = f.getAttrsAtZoom(14);
       assertEquals("water", attr.get("natural"));
     });
@@ -87,10 +111,18 @@ public class ConfiguredSingleFeatureTest {
 
   @Test
   public void testTagIncludeAttributeTest() throws Exception {
-    testPolygon("tag_include.yml", tags, f -> {
+    testPolygon("tag_include.yml", waterTags, f -> {
       Map<String, Object> attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
       assertFalse(attr.containsKey("test_exclude"));
+    });
+  }
+
+  @Test
+  public void testTagHighwayLinestringTest() throws Exception {
+    testLinestring("road_motorway.yml", motorwayTags, f -> {
+      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      assertEquals("motorway", attr.get("highway"));
     });
   }
 

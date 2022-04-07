@@ -23,7 +23,7 @@ public class SchemaYAMLLoadTest {
   @Test
   public void testSchemaLoad() throws Exception {
     Path schemaDir =
-      Paths.get("src", "main", "resources", "schemas");
+      Paths.get("samples");
 
     List<File> schemaFiles = Files.walk(schemaDir)
       .filter(p -> p.getFileName().toString().endsWith(".yml"))
