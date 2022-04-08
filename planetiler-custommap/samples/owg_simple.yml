@@ -8,7 +8,7 @@ sources:
   url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
 - name: osm
   type: osm
-  area: rhode-island
+  area: geofabrik:rhode-island
 layers:
 - name: water
   features:
@@ -85,3 +85,43 @@ layers:
     - key: name
       tagValue: name
       minZoom: 12
+- name: road
+  features:
+  - sources:
+    - osm
+    zoom:
+    - 4
+    - 14
+    includeWhen:
+      geometry: linestring
+      tag:
+        key: highway
+        value:
+        - motorway
+    attributes:
+    - key: highway
+      constantValue: highway
+    - key: bridge
+      constantValue: true
+      dataType: bool
+      includeWhen:
+        tag:
+          key: bridge
+          value:
+          - true
+      minZoom: 11
+    - key: tunnel
+      constantValue: true
+      dataType: bool
+      includeWhen:
+        tag:
+          key: tunnel
+          value:
+          - true
+      minZoom: 11
+    - key: name
+      tagValue: name
+      minZoom: 12
+    - key: layer
+      tagValue: layer
+      minZoom: 13
