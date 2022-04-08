@@ -142,7 +142,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.22.0</version>
+        <version>2.22.1</version>
         <configuration>
           <java>
             <importOrder/>
@@ -201,7 +201,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>3.0.0-M5</version>
+        <version>3.0.0-M6</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
