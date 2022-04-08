@@ -1,12 +1,10 @@
 package com.onthegomap.planetiler.custommap;
 
-import java.util.Collections;
-import java.util.Map;
-
-import org.locationtech.jts.geom.Geometry;
-
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.Collections;
+import java.util.Map;
+import org.locationtech.jts.geom.Geometry;
 
 public class TestLinestringSourceFeature extends SourceFeature {
 

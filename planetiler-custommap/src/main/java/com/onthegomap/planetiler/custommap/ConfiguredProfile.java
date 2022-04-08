@@ -1,15 +1,14 @@
 package com.onthegomap.planetiler.custommap;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class ConfiguredProfile implements Profile {
 
