@@ -8,9 +8,27 @@ on:
     branches: [ main ]
 
 jobs:
-  # TODO: add format/checkstyle
+  # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
+  # is the problem by putting the check into a standalone job
+  lint:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Ensure code formatted with mvn spotless:apply
+        run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
+
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
+    # Wait until after we check that you ran mvn spotless:apply, otherwise will fail with a cryptic error message
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +62,8 @@ jobs:
     name: Regenerate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Wait until after we check that you ran mvn spotless:apply, otherwise will fail with a cryptic error message
+    needs: lint
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 17
