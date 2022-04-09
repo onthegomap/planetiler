@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * A profile configured from a yml file.
+ */
 public class ConfiguredProfile implements Profile {
 
   private String schemaName;

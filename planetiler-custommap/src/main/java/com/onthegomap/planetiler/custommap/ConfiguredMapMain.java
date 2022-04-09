@@ -13,23 +13,34 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import org.yaml.snakeyaml.Yaml;
 
-public class ConfiguredSchema {
+public class ConfiguredMapMain {
 
   /*
-   * Main entrypoint for the example program
+   * Main entrypoint
    */
   public static void main(String[] args) throws Exception {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
-  static void run(Arguments args) throws Exception {
+  private static void run(Arguments args) throws Exception {
     Path dataDir = Path.of("data");
     Path sourcesDir = dataDir.resolve("sources");
 
-    //TODO move to command-line args
-    String schemaFile =
-      args.getString("schema", "mbtiles schema",
-        Paths.get("samples", "owg_simple.yml").toString());
+    String schemaFile = args.getString(
+      "schema",
+      "Location of YML-format schema definition file",
+      "");
+
+    if (schemaFile.isEmpty()) {
+      System.out.println("Schema not specified; use --schema=schema_file_name.yml");
+      return;
+    }
+
+    String mbtilesOutput = args.getString(
+      "mbtiles",
+      "Location to store output mbtiles",
+      "output.mbtiles"
+    );
 
     Yaml yml = new Yaml();
     SchemaConfig config = yml.loadAs(new FileInputStream(new File(schemaFile)), SchemaConfig.class);
@@ -42,8 +53,7 @@ public class ConfiguredSchema {
       configureSource(planetiler, sourcesDir, source);
     }
 
-    //TODO move to command-line args
-    planetiler.overwriteOutput("mbtiles", Path.of("data", "spartan.mbtiles"))
+    planetiler.overwriteOutput("mbtiles", Path.of(mbtilesOutput))
       .run();
   }
 

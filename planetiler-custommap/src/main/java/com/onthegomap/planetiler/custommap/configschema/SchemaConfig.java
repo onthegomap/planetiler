@@ -2,6 +2,9 @@ package com.onthegomap.planetiler.custommap.configschema;
 
 import java.util.Collection;
 
+/**
+ * An object representation of a vector tile server schema. This object is mapped to a schema YML file using SnakeYAML.
+ */
 public class SchemaConfig {
   private String schemaName;
   private String schemaDescription;
