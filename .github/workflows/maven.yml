@@ -28,7 +28,7 @@ jobs:
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
     # Wait until after we check that you ran mvn spotless:apply, otherwise will fail with a cryptic error message
-    needs: format
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Wait until after we check that you ran mvn spotless:apply, otherwise will fail with a cryptic error message
-    needs: format
+    needs: lint
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 17
