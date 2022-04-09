@@ -2,6 +2,8 @@ package com.onthegomap.planetiler.custommap.configschema;
 
 import java.util.Collection;
 
+import com.onthegomap.planetiler.reader.SourceFeature;
+
 public class TagCriteria {
   private String key;
   private Collection<String> value;
@@ -20,5 +22,15 @@ public class TagCriteria {
 
   public void setValue(Collection<String> value) {
     this.value = value;
+  }
+
+  /**
+   * Determines whether a source feature matches this specification
+   * 
+   * @param sf source feature
+   * @return true if this filter matches
+   */
+  public boolean match(SourceFeature sf) {
+    return sf.hasTag(key) && value.contains(sf.getTag(key));
   }
 }

@@ -89,6 +89,26 @@ layers:
   features:
   - sources:
     - osm
+    includeWhen:
+      geometry: linestring
+      tag:
+        key: highway
+        value:
+        - motorway
+        - trunk
+        - primary
+        - secondary
+        - tertiary
+        - motorway_link
+        - trunk_link
+        - primary_link
+        - secondary_link
+        - tertiary_link
+        - unclassified
+        - residential
+        - living_street
+        - service
+        - track
     zoom:
       minZoom: 4
       maxZoom: 14
@@ -135,16 +155,6 @@ layers:
           value:
           - service
         minZoom: 13
-    includeWhen:
-      geometry: linestring
-      tag:
-        key: highway
-        value:
-        - motorway
-        - trunk
-        - primary
-        - secondary
-        - tertiary
     attributes:
     - key: highway
       tagValue: highway
@@ -166,6 +176,14 @@ layers:
           value:
           - true
       minZoom: 11
+    - key: service
+      tagValue: service
+      includeWhen:
+        tag:
+          key: highway
+          value:
+          - service
+      minZoom: 13
     - key: name
       tagValue: name
       minZoom: 12

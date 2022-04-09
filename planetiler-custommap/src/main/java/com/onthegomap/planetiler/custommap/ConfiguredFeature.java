@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -20,6 +21,7 @@ import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
 import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
+import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
@@ -30,7 +32,7 @@ public class ConfiguredFeature {
   private Predicate<SourceFeature> geometryTest;
   private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
-  private BiConsumer<SourceFeature, Feature> zoomFilter;
+  private BiConsumer<SourceFeature, Feature> zoomConfig;
 
   private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
@@ -44,7 +46,7 @@ public class ConfiguredFeature {
     FeatureGeometryType geometryType = includeWhen.getGeometry();
 
     geometryTest = geometryTest(geometryType);
-    zoomFilter = zoomFilter(feature.getZoom());
+    zoomConfig = zoomFilter(feature.getZoom());
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
     tagTest = tagTest(includeWhen.getTag());
@@ -56,9 +58,23 @@ public class ConfiguredFeature {
 
   private BiConsumer<SourceFeature, Feature> zoomFilter(ZoomConfig zoomConfig) {
 
+    Collection<ZoomFilter> zfList = zoomConfig.getZoomFilter();
+
     return (sf, f) -> {
-      f.setMinZoom(zoomConfig.getMinZoom());
-      f.setMaxZoom(zoomConfig.getMaxZoom());
+      if (zfList == null) {
+        return;
+      }
+      Optional<ZoomFilter> zoomFilterMatch = zfList
+        .stream()
+        .filter(zf -> zf.getTag().match(sf))
+        .findFirst();
+
+      if (zoomFilterMatch.isPresent()) {
+        ZoomFilter zf = zoomFilterMatch.get();
+        f.setMinZoom(zf.getMinZoom());
+      } else {
+        f.setMinZoom(zoomConfig.getMinZoom());
+      }
     };
   }
 
@@ -120,7 +136,7 @@ public class ConfiguredFeature {
     };
   };
 
-  private static BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
+  private BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
     String tagKey = attribute.getKey();
     Integer configuredMinZoom = attribute.getMinZoom();
 
@@ -186,21 +202,7 @@ public class ConfiguredFeature {
     TagCriteria tagCriteria = attrIncludeWhen.getTag();
 
     if (tagCriteria != null) {
-
-      String keyTest = tagCriteria.getKey();
-      Collection<String> valTest = tagCriteria.getValue();
-
-      if (keyTest == null) {
-        conditions.add(sf -> true);
-      } else {
-        conditions.add(sf -> {
-          if (sf.hasTag(keyTest)) {
-            return valTest.contains(sf.getTag(keyTest));
-          }
-          return false;
-        });
-      }
-
+      conditions.add(tagCriteria::match);
     }
 
     if (conditions.isEmpty()) {
@@ -260,6 +262,7 @@ public class ConfiguredFeature {
       // label grid squares will be the consistent between adjacent tiles
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
 
+    zoomConfig.accept(sourceFeature, f);
     attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
   }
 }
