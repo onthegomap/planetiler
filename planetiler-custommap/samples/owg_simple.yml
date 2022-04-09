@@ -92,6 +92,49 @@ layers:
     zoom:
       minZoom: 4
       maxZoom: 14
+      zoomFilter:
+      - tag:
+          key: highway
+          value:
+          - trunk
+        minZoom: 5
+      - tag:
+          key: highway
+          value:
+          - primary
+        minZoom: 7
+      - tag:
+          key: highway
+          value:
+          - secondary
+        minZoom: 8
+      - tag:
+          key: highway
+          value:
+          - tertiary
+          - motorway_link
+          - trunk_link
+          - primary_link
+          - secondary_link
+          - tertiary_link
+        minZoom: 9
+      - tag:
+          key: highway
+          value:
+          - unclassified
+          - residential
+          - living_street
+        minZoom: 11
+      - tag:
+          key: highway
+          value:
+          - track
+        minZoom: 12
+      - tag:
+          key: highway
+          value:
+          - service
+        minZoom: 13
     includeWhen:
       geometry: linestring
       tag:

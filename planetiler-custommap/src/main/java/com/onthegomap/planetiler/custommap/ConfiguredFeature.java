@@ -1,16 +1,5 @@
 package com.onthegomap.planetiler.custommap;
 
-import com.onthegomap.planetiler.FeatureCollector;
-import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.custommap.configschema.AttributeDataType;
-import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
-import com.onthegomap.planetiler.custommap.configschema.FeatureCriteria;
-import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
-import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
-import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
-import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,12 +11,26 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.custommap.configschema.AttributeDataType;
+import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
+import com.onthegomap.planetiler.custommap.configschema.FeatureCriteria;
+import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
+import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
+import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.util.ZoomFunction;
+
 public class ConfiguredFeature {
 
   private Collection<String> sources;
   private Predicate<SourceFeature> geometryTest;
   private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
+  private BiConsumer<SourceFeature, Feature> zoomFilter;
 
   private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
@@ -41,6 +44,7 @@ public class ConfiguredFeature {
     FeatureGeometryType geometryType = includeWhen.getGeometry();
 
     geometryTest = geometryTest(geometryType);
+    zoomFilter = zoomFilter(feature.getZoom());
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
     tagTest = tagTest(includeWhen.getTag());
@@ -48,6 +52,14 @@ public class ConfiguredFeature {
     feature.getAttributes().forEach(attribute -> {
       attributeProcessors.add(attributeProcessor(attribute));
     });
+  }
+
+  private BiConsumer<SourceFeature, Feature> zoomFilter(ZoomConfig zoomConfig) {
+
+    return (sf, f) -> {
+      f.setMinZoom(zoomConfig.getMinZoom());
+      f.setMaxZoom(zoomConfig.getMaxZoom());
+    };
   }
 
   static Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {

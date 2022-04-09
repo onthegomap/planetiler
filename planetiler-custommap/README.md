@@ -37,6 +37,12 @@ A feature is a defined set of objects that meet specified filter criteria.
 Specifies the zoom inclusion rules for this feature.
 * `minZoom` - Minimum zoom to render this feature
 * `maxZoom` - Maximum zoom to render this feature
+* `zoomFilter` - A list of tag-specific zoom filter overrides.  The first matching filter will apply.  See [Zoom Tag Specification](#zoom-tag-specification)
+
+### Zoom Tag Specification
+Specifies tag-based rules for setting the zoom range for a feature.
+* `tag` - A filter specification which determines to which features this zoom limit applies.  See [Filters](#filters)
+* `minZoom` - Minimum zoom to show the feature that matches the filter specification.
 
 ### Attributes
 * `key` - Name of this attribute in the tile.
