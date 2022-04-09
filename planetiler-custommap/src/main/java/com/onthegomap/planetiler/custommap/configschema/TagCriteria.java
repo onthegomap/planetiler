@@ -1,8 +1,7 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
-import java.util.Collection;
-
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.Collection;
 
 public class TagCriteria {
   private String key;
