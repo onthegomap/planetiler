@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public class Planetiler {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Planetiler.class);
   private final List<Stage> stages = new ArrayList<>();
   private final List<ToDownload> toDownload = new ArrayList<>();
   private final List<InputPath> inputPaths = new ArrayList<>();
