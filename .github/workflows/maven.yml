@@ -11,7 +11,7 @@ jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
   # is the problem by putting the check into a standalone job
   lint:
-    name: Check formatted with mvn spotless:apply
+    name: Check formatting
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
