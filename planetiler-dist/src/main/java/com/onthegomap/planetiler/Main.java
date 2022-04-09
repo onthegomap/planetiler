@@ -1,9 +1,5 @@
 package com.onthegomap.planetiler;
 
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Map;
-
 import com.onthegomap.planetiler.basemap.BasemapMain;
 import com.onthegomap.planetiler.basemap.util.VerifyMonaco;
 import com.onthegomap.planetiler.benchmarks.BasemapMapping;
@@ -13,6 +9,9 @@ import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.mbtiles.Verify;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Main entry-point for executable jar and container distributions of Planetiler, which delegates to individual {@code
