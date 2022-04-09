@@ -15,8 +15,8 @@ layers:
   - sources:
     - osm
     zoom:
-    - 0
-    - 14
+      minZoom: 0
+      maxZoom: 14
     includeWhen:
       geometry: polygon
       tag:
@@ -50,8 +50,8 @@ layers:
   - sources:
     - water_polygons
     zoom:
-    - 0
-    - 14
+      minZoom: 0
+      minZoom: 14
     includeWhen:
       geometry: polygon
     attributes:
@@ -61,8 +61,8 @@ layers:
   - sources:
     - osm
     zoom:
-    - 7
-    - 14
+      minZoom: 7
+      maxZoom: 14
     includeWhen:
       geometry: linestring
       tag:
@@ -90,17 +90,21 @@ layers:
   - sources:
     - osm
     zoom:
-    - 4
-    - 14
+      minZoom: 4
+      maxZoom: 14
     includeWhen:
       geometry: linestring
       tag:
         key: highway
         value:
         - motorway
+        - trunk
+        - primary
+        - secondary
+        - tertiary
     attributes:
     - key: highway
-      constantValue: highway
+      tagValue: highway
     - key: bridge
       constantValue: true
       dataType: bool

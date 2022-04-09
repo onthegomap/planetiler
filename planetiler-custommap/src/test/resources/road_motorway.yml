@@ -15,8 +15,8 @@ layers:
   - sources:
     - osm
     zoom:
-    - 4
-    - 14
+      minZoom: 4
+      maxZoom: 14
     includeWhen:
       geometry: linestring
       tag:

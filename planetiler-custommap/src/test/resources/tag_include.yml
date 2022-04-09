@@ -11,8 +11,8 @@ layers:
   - sources:
     - osm
     zoom:
-    - 0
-    - 14
+      minZoom: 0
+      minZoom: 14
     includeWhen:
       geometry: polygon
       tag:

@@ -4,7 +4,7 @@ import java.util.Collection;
 
 public class FeatureItem {
   private Collection<String> sources;
-  private int[] zoom;
+  private ZoomConfig zoom;
   private FeatureCriteria includeWhen;
   private FeatureCriteria excludeWhen;
   private Collection<AttributeDefinition> attributes;
@@ -17,11 +17,11 @@ public class FeatureItem {
     this.sources = sources;
   }
 
-  public int[] getZoom() {
+  public ZoomConfig getZoom() {
     return zoom;
   }
 
-  public void setZoom(int[] zoom) {
+  public void setZoom(ZoomConfig zoom) {
     this.zoom = zoom;
   }
 

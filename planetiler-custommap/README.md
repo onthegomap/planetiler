@@ -28,10 +28,15 @@ A layer contains a thematically-related set of features.
 ### Features
 A feature is a defined set of objects that meet specified filter criteria.
 * `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
-* `zoom` - A 2-element array with the overall minimum and maximum zoom level for this feature.
+* `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
 * `includeWhen` - A filter specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Filters](#filters)
 * `excludeWhen` - A filter specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Filters](#filters)
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
+
+### Zoom Specification
+Specifies the zoom inclusion rules for this feature.
+* `minZoom` - Minimum zoom to render this feature
+* `maxZoom` - Maximum zoom to render this feature
 
 ### Attributes
 * `key` - Name of this attribute in the tile.
