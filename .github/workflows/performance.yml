@@ -86,7 +86,7 @@ jobs:
           cat log | strip-ansi > build-info/baselogs.txt
 
       - name: 'Upload build-info'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: build-info
           path: ./build-info
