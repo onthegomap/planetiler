@@ -4,7 +4,6 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDataType;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
-import com.onthegomap.planetiler.custommap.configschema.FeatureCriteria;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
@@ -43,15 +42,17 @@ public class ConfiguredFeature {
 
   public ConfiguredFeature(String layerName, FeatureItem feature) {
     sources = feature.getSources();
-    FeatureCriteria includeWhen = feature.getIncludeWhen();
 
-    FeatureGeometryType geometryType = includeWhen.getGeometry();
+    FeatureGeometryType geometryType = feature.getGeometry();
 
     //Test to determine whether this type of geometry is included
     geometryTest = geometryTest(geometryType);
 
     //Test to determine whether this feature is included based on tagging
-    tagTest = tagTest(includeWhen.getTag());
+    tagTest = Optional.ofNullable(feature.getIncludeWhen())
+      .filter(Objects::nonNull)
+      .map(TagCriteria::matcher)
+      .orElse(sf -> true);
 
     //Test to determine at which zooms to include this feature based on tagging
     zoomConfig = zoomFilter(feature.getZoom());
@@ -83,7 +84,7 @@ public class ConfiguredFeature {
       }
       Optional<ZoomFilter> zoomFilterMatch = zfList
         .stream()
-        .filter(zf -> zf.getTag().match(sf))
+        .filter(zf -> zf.getTag().matcher().test(sf))
         .findFirst();
 
       if (zoomFilterMatch.isPresent()) {
@@ -194,15 +195,15 @@ public class ConfiguredFeature {
     int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
     Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(attribute);
 
-    FeatureCriteria attrIncludeWhen = attribute.getIncludeWhen();
-    FeatureCriteria attrExcludeWhen = attribute.getExcludeWhen();
+    TagCriteria attrIncludeWhen = attribute.getIncludeWhen();
+    TagCriteria attrExcludeWhen = attribute.getExcludeWhen();
 
     Predicate<SourceFeature> attributeTest =
-      attrIncludeWhen == null ? sf -> true : attributeTagTest(attrIncludeWhen, attributeValueProducer);
+      attrIncludeWhen == null ? sf -> true : attrIncludeWhen.matcher();
     Predicate<SourceFeature> attributeExcludeTest =
-      attrExcludeWhen == null ? sf -> true : attributeTagTest(attrExcludeWhen, attributeValueProducer).negate();
+      attrExcludeWhen == null ? sf -> true : attrExcludeWhen.matcher().negate();
 
-    Double minTileCoverage = attrIncludeWhen == null ? null : attrIncludeWhen.getMinTileCoverSize();
+    Double minTileCoverage = attrIncludeWhen == null ? null : attribute.getMinTileCoverSize();
 
     Function<SourceFeature, Integer> attributeZoomProducer;
 
@@ -257,59 +258,6 @@ public class ConfiguredFeature {
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
     }
-  }
-
-  /**
-   * Generate a test for whether a feature should be included on the basis of its tagging.
-   * 
-   * @param attrIncludeWhen        - criteria for whether to include a tag
-   * @param attributeValueProducer - method for generating the attribute value from raw tagging
-   * @return tagging test method
-   */
-  static Predicate<SourceFeature> attributeTagTest(FeatureCriteria attrIncludeWhen,
-    Function<SourceFeature, Object> attributeValueProducer) {
-
-    List<Predicate<SourceFeature>> conditions = new ArrayList<>();
-
-    TagCriteria tagCriteria = attrIncludeWhen.getTag();
-
-    if (tagCriteria != null) {
-      conditions.add(tagCriteria::match);
-    }
-
-    if (conditions.isEmpty()) {
-      return sf -> true;
-    }
-
-    Predicate<SourceFeature> test = conditions.remove(0);
-    for (Predicate<SourceFeature> condition : conditions) {
-      test = test.and(condition);
-    }
-
-    return test;
-  }
-
-  /**
-   * Generate a test for whether a {@link SourceFeature} matches a specified tag criteria.
-   * 
-   * @param tagCriteria - tag criteria
-   * @return tag test method
-   */
-  private static Predicate<SourceFeature> tagTest(TagCriteria tagCriteria) {
-    if (tagCriteria == null) {
-      return sf -> true;
-    }
-    String keyTest = tagCriteria.getKey();
-    Collection<String> valTest = tagCriteria.getValue();
-    if (keyTest == null) {
-      return sf -> true;
-    }
-    return sf -> {
-      if (sf.hasTag(keyTest)) {
-        return valTest.contains(sf.getTag(keyTest).toString());
-      }
-      return false;
-    };
   }
 
   /**

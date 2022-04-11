@@ -5,9 +5,10 @@ public class AttributeDefinition {
   private String constantValue;
   private String tagValue;
   private AttributeDataType dataType;
-  private FeatureCriteria includeWhen;
-  private FeatureCriteria excludeWhen;
+  private TagCriteria includeWhen;
+  private TagCriteria excludeWhen;
   private int minZoom;
+  private Double minTileCoverSize;
 
   public String getKey() {
     return key;
@@ -41,19 +42,19 @@ public class AttributeDefinition {
     this.dataType = dataType;
   }
 
-  public FeatureCriteria getIncludeWhen() {
+  public TagCriteria getIncludeWhen() {
     return includeWhen;
   }
 
-  public void setIncludeWhen(FeatureCriteria includeWhen) {
+  public void setIncludeWhen(TagCriteria includeWhen) {
     this.includeWhen = includeWhen;
   }
 
-  public FeatureCriteria getExcludeWhen() {
+  public TagCriteria getExcludeWhen() {
     return excludeWhen;
   }
 
-  public void setExcludeWhen(FeatureCriteria excludeWhen) {
+  public void setExcludeWhen(TagCriteria excludeWhen) {
     this.excludeWhen = excludeWhen;
   }
 
@@ -65,4 +66,11 @@ public class AttributeDefinition {
     this.minZoom = minZoom;
   }
 
+  public Double getMinTileCoverSize() {
+    return minTileCoverSize;
+  }
+
+  public void setMinTileCoverSize(Double minTileCoverSize) {
+    this.minTileCoverSize = minTileCoverSize;
+  }
 }

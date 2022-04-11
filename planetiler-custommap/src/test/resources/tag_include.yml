@@ -13,24 +13,15 @@ layers:
     zoom:
       minZoom: 0
       minZoom: 14
+    geometry: polygon
     includeWhen:
-      geometry: polygon
-      tag:
-        key: natural
-        value:
-        - water
+      natural: water
     attributes:
     - key: test_include
       constantValue: ok
       includeWhen:
-        tag:
-          key: natural
-          value:
-          - water
+        natural: water
     - key: test_exclude
       constantValue: bad
       includeWhen:
-        tag:
-          key: natural
-          value:
-          - mud
+        natural: mud

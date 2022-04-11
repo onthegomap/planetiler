@@ -17,12 +17,9 @@ layers:
     zoom:
       minZoom: 4
       maxZoom: 14
+    geometry: linestring
     includeWhen:
-      geometry: linestring
-      tag:
-        key: highway
-        value:
-        - motorway
+      highway: motorway
     attributes:
     - key: highway
       tagValue: highway
@@ -30,19 +27,13 @@ layers:
       constantValue: true
       dataType: bool
       includeWhen:
-        tag:
-          key: bridge
-          value:
-          - true
+        bridge: true
       minZoom: 11
     - key: tunnel
       constantValue: true
       dataType: bool
       includeWhen:
-        tag:
-          key: tunnel
-          value:
-          - true
+        tunnel: true
       minZoom: 11
     - key: name
       tagValue: name
@@ -50,3 +41,4 @@ layers:
     - key: layer
       tagValue: layer
       minZoom: 13
+      

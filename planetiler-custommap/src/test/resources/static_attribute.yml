@@ -13,12 +13,9 @@ layers:
     zoom:
       minZoom: 0
       maxZoom: 14
+    geometry: polygon
     includeWhen:
-      geometry: polygon
-      tag:
-        key: natural
-        value:
-        - water
+      natural: water
     attributes:
     - key: natural
       constantValue: aTestConstantValue

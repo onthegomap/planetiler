@@ -17,12 +17,9 @@ layers:
     zoom:
       minZoom: 0
       maxZoom: 14
+    geometry: polygon
     includeWhen:
-      geometry: polygon
-      tag:
-        key: natural
-        value:
-        - water
+      natural: water
     attributes:
     - key: natural
       constantValue: water
@@ -31,15 +28,12 @@ layers:
       constantValue: 'true'
       dataType: bool
       includeWhen:
-        tag:
-          key: intermittent
-          value:
-          - true
+        intermittent: true
     - key: name
       tagValue: name
       dataType: string
+      minTileCoverSize: 0.01
       includeWhen:
-        minTileCoverSize: 0.01
       excludeWhen:
         tag:
           key: water
@@ -52,8 +46,8 @@ layers:
     zoom:
       minZoom: 0
       minZoom: 14
+    geometry: polygon
     includeWhen:
-      geometry: polygon
     attributes:
     - key: natural
       constantValue: water
@@ -63,8 +57,8 @@ layers:
     zoom:
       minZoom: 7
       maxZoom: 14
+    geometry: linestring
     includeWhen:
-      geometry: linestring
       tag:
         key: waterway
         value:
@@ -78,10 +72,7 @@ layers:
       constantValue: 'true'
       dataType: bool
       includeWhen:
-        tag:
-          key: intermittent
-          value:
-          - true
+        intermittent: true
     - key: name
       tagValue: name
       minZoom: 12
@@ -89,48 +80,39 @@ layers:
   features:
   - sources:
     - osm
+    geometry: linestring
     includeWhen:
-      geometry: linestring
-      tag:
-        key: highway
-        value:
-        - motorway
-        - trunk
-        - primary
-        - secondary
-        - tertiary
-        - motorway_link
-        - trunk_link
-        - primary_link
-        - secondary_link
-        - tertiary_link
-        - unclassified
-        - residential
-        - living_street
-        - service
-        - track
+      highway:
+      - motorway
+      - trunk
+      - primary
+      - secondary
+      - tertiary
+      - motorway_link
+      - trunk_link
+      - primary_link
+      - secondary_link
+      - tertiary_link
+      - unclassified
+      - residential
+      - living_street
+      - service
+      - track
     zoom:
       minZoom: 4
       maxZoom: 14
       zoomFilter:
       - tag:
-          key: highway
-          value:
-          - trunk
+          highway: trunk
         minZoom: 5
       - tag:
-          key: highway
-          value:
-          - primary
+          highway: primary
         minZoom: 7
       - tag:
-          key: highway
-          value:
-          - secondary
+          highway: secondary
         minZoom: 8
       - tag:
-          key: highway
-          value:
+          highway:
           - tertiary
           - motorway_link
           - trunk_link
@@ -139,21 +121,16 @@ layers:
           - tertiary_link
         minZoom: 9
       - tag:
-          key: highway
-          value:
+          highway:
           - unclassified
           - residential
           - living_street
         minZoom: 11
       - tag:
-          key: highway
-          value:
-          - track
+          highway: track
         minZoom: 12
       - tag:
-          key: highway
-          value:
-          - service
+          highway: service
         minZoom: 13
     attributes:
     - key: highway
@@ -162,27 +139,18 @@ layers:
       constantValue: true
       dataType: bool
       includeWhen:
-        tag:
-          key: bridge
-          value:
-          - true
+        bridge: true
       minZoom: 11
     - key: tunnel
       constantValue: true
       dataType: bool
       includeWhen:
-        tag:
-          key: tunnel
-          value:
-          - true
+        tunnel: true
       minZoom: 11
     - key: service
       tagValue: service
       includeWhen:
-        tag:
-          key: highway
-          value:
-          - service
+        highway: service
       minZoom: 13
     - key: name
       tagValue: name

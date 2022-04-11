@@ -33,8 +33,10 @@ A layer contains a thematically-related set of features.
 A feature is a defined set of objects that meet specified filter criteria.
 * `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
 * `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
-* `includeWhen` - A filter specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Filters](#filters)
-* `excludeWhen` - A filter specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Filters](#filters)
+* `geometry` - Include objects of a certain geometry type.  Options are `polygon`, `linestring`, or `point`.
+* `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
+* `includeWhen` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
+* `excludeWhen` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
 
 ### Zoom Specification
@@ -47,7 +49,7 @@ Specifies the zoom inclusion rules for this feature.
 ### Zoom Tag Specification
 
 Specifies tag-based rules for setting the zoom range for a feature.
-* `tag` - A filter specification which determines to which features this zoom limit applies.  See [Filters](#filters)
+* `tag` - A filter specification which determines to which features this zoom limit applies.  See [Tag Filters](#tag-filters)
 * `minZoom` - Minimum zoom to show the feature that matches the filter specification.
 
 ### Attributes
@@ -56,19 +58,12 @@ Specifies tag-based rules for setting the zoom range for a feature.
 * `constantValue` - Value of the attribute in the tile, as a constant
 * `tagValue` - Value of the attribute in the tile, as copied from the value of the specified tag key.
 * `dataType` - Whether to perform type alignment, so that rendered attribute values are consistently set.  Valid values include `bool` and `string`.
-* `includeWhen` - A filter specification which determines whether to include this attribute.  If unspecified, the attribute will be included unless excluded by `excludeWhen`.  See [Filters](#filters)
-* `excludeWhen` - A filter specification which determines whether to exclude this attribute.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Filters](#filters)
+* `includeWhen` - A filter specification which determines whether to include this attribute.  If unspecified, the attribute will be included unless excluded by `excludeWhen`.  See [Tag Filters](#tag-filters)
+* `excludeWhen` - A filter specification which determines whether to exclude this attribute.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `minZoom` - The minimum zoom at which to render this attribute.
 
-### Filters
+### Tag Filters
 
-A filter is a specification applied to each object in a data source based on a matching criteria.
-* `geometry` - Match objects of a certain geometry type.  Options are `polygon`, `linestring`, or `point`.
-* `tag` - Match objects that match a certain tagging.    See [Tag Filter](#tag-filter)
-* `minTileCoverSize` - Match objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
-
-### Tag Filter
-
-A tag filter matches an object based on its tagging.
-* `key` - Match objects that contain this key.
-* `value` - A list of values.  Match objects in the specified key that contains one of these values.
+A tag filter matches an object based on its tagging.  Multiple key entries may be specified:
+* `<key>:` - Match objects that contain this key.
+* `  <value>` - A single value or a list of values.  Match objects in the specified key that contains one of these values.

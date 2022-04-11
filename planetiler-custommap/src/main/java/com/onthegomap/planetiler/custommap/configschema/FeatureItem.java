@@ -5,8 +5,10 @@ import java.util.Collection;
 public class FeatureItem {
   private Collection<String> sources;
   private ZoomConfig zoom;
-  private FeatureCriteria includeWhen;
-  private FeatureCriteria excludeWhen;
+  private FeatureGeometryType geometry;
+  private TagCriteria includeWhen;
+  private TagCriteria excludeWhen;
+
   private Collection<AttributeDefinition> attributes;
 
   public Collection<String> getSources() {
@@ -25,19 +27,27 @@ public class FeatureItem {
     this.zoom = zoom;
   }
 
-  public FeatureCriteria getIncludeWhen() {
+  public FeatureGeometryType getGeometry() {
+    return geometry;
+  }
+
+  public void setGeometry(FeatureGeometryType geometry) {
+    this.geometry = geometry;
+  }
+
+  public TagCriteria getIncludeWhen() {
     return includeWhen;
   }
 
-  public void setIncludeWhen(FeatureCriteria includeWhen) {
+  public void setIncludeWhen(TagCriteria includeWhen) {
     this.includeWhen = includeWhen;
   }
 
-  public FeatureCriteria getExcludeWhen() {
+  public TagCriteria getExcludeWhen() {
     return excludeWhen;
   }
 
-  public void setExcludeWhen(FeatureCriteria excludeWhen) {
+  public void setExcludeWhen(TagCriteria excludeWhen) {
     this.excludeWhen = excludeWhen;
   }
 
