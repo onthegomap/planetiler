@@ -1,19 +1,17 @@
 package com.onthegomap.planetiler.custommap;
 
+import com.onthegomap.planetiler.Planetiler;
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.custommap.configschema.DataSource;
+import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
+import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-
 import org.yaml.snakeyaml.Yaml;
-
-import com.onthegomap.planetiler.Planetiler;
-import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.custommap.configschema.DataSource;
-import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
-import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 
 public class ConfiguredMapMain {
 
