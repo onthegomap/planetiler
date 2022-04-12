@@ -53,6 +53,7 @@ public class Main {
   @FunctionalInterface
   private interface EntryPoint {
 
+
     void main(String[] args) throws Exception;
   }
 }
