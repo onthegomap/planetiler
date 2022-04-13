@@ -26,7 +26,7 @@ jobs:
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
       - run: 'echo ::add-matcher::.github/pmd-matcher.json'
       - name: Run PMD Analysis
-        run: ./mvnw clean package pmd:pmd && tail -q -n+2 */target/pmd.csv
+        run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean package pmd:pmd && tail -q -n+2 */target/pmd.csv
 
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
