@@ -24,7 +24,7 @@ jobs:
           cache: 'maven'
       - run: 'echo ::add-matcher::.github/javac-matcher.json'
       - name: Get compile warnings
-        run: ./mvnw --batch-mode --no-transfer-progress clean compile | sed -z -E 's/\n([^\[])/%0A\1/g'
+        run: ./mvnw --batch-mode --no-transfer-progress clean compile | sed -z -E 's/\n([^\[])/\1/g; s/see (http.?:\/\/[^)])/see [\1](\1)/g'
       - name: Ensure you ran spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
