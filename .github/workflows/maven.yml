@@ -23,6 +23,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - run: 'echo ::add-matcher::.github/javac-matcher.json'
+      - name: Get compile warnings
+        run: ./mvnw --batch-mode --no-transfer-progress clean compile
       - name: Ensure code formatted with mvn spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
