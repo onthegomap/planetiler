@@ -5,7 +5,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
@@ -20,10 +20,9 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: 17
-          distribution: "temurin"
-          cache: "maven"
-      - name: Error prone
-        run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean compile
+          distribution: 'temurin'
+          cache: 'maven'
+      - run: "echo ::add-matcher::.github/javac-matcher.json"
       - name: Ensure code formatted with mvn spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
@@ -34,8 +33,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        jdk: [17]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        jdk: [ 17 ]
         include:
           - os: ubuntu-latest
             jdk: 16
@@ -50,8 +49,8 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: ${{ matrix.jdk }}
-          distribution: "temurin"
-          cache: "maven"
+          distribution: 'temurin'
+          cache: 'maven'
       - name: Build with mvnw (linux/mac)
         if: ${{ !contains(matrix.os, 'windows') }}
         run: ./mvnw ${{matrix.args}} --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
@@ -72,8 +71,8 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: 17
-          distribution: "temurin"
-          cache: "maven"
+          distribution: 'temurin'
+          cache: 'maven'
       - run: ./scripts/regenerate-openmaptiles.sh
       - run: ./mvnw -DskipTests --batch-mode -no-transfer-progress clean install -pl planetiler-basemap -am
       - run: ./mvnw --batch-mode -no-transfer-progress verify -pl planetiler-basemap
@@ -89,7 +88,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: 17
-          distribution: "temurin"
+          distribution: 'temurin'
       - name: Build and test
         run: mvn --batch-mode -no-transfer-progress package --file standalone.pom.xml
         working-directory: planetiler-examples
@@ -115,8 +114,8 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: 17
-          distribution: "temurin"
-          cache: "maven"
+          distribution: 'temurin'
+          cache: 'maven'
 
       - name: Build this branch
         run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
