@@ -11,7 +11,7 @@ jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
   # is the problem by putting the check into a standalone job
   lint:
-    name: Check formatting
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,7 +25,7 @@ jobs:
       - run: 'echo ::add-matcher::.github/javac-matcher.json'
       - name: Get compile warnings
         run: ./mvnw --batch-mode --no-transfer-progress clean compile
-      - name: Ensure code formatted with mvn spotless:apply
+      - name: Ensure you ran spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
   build:
