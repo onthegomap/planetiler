@@ -171,6 +171,18 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <configuration>
+          <!-- default pmd format xml -->
+          <format>csv</format>
+          <includeTests>false</includeTests>
+          <excludes>
+            <exclude>**/VectorTileProto.java</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
       <!-- require building with jdk 16 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -270,6 +282,12 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-pmd-plugin</artifactId>
+          <version>3.16.0</version>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -280,6 +298,15 @@
       </testResource>
     </testResources>
   </build>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <profiles>
     <profile>

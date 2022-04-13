@@ -11,7 +11,7 @@ jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
   # is the problem by putting the check into a standalone job
   lint:
-    name: Check formatting
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,6 +22,9 @@ jobs:
           java-version: 17
           distribution: 'temurin'
           cache: 'maven'
+      - run: 'echo ::add-matcher::.github/pmd-matcher.json'
+      - name: Run PMD Analysis
+        run: ./mvnw clean compile pmd:pmd && tail -q -n+2 */target/pmd.csv
       - name: Ensure code formatted with mvn spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
