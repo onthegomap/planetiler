@@ -22,7 +22,7 @@ jobs:
           java-version: 17
           distribution: 'temurin'
           cache: 'maven'
-      - run: "echo ::add-matcher::.github/javac-matcher.json"
+      - run: 'echo ::add-matcher::.github/javac-matcher.json'
       - name: Ensure code formatted with mvn spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
