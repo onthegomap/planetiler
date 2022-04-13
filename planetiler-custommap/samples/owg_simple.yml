@@ -25,13 +25,11 @@ layers:
       constantValue: water
       minZoom: 0
     - key: intermittent
-      constantValue: 'true'
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        intermittent: true
+        intermittent: 'yes'
     - key: name
       tagValue: name
-      dataType: string
       minTileCoverSize: 0.01
       includeWhen:
       excludeWhen:
@@ -69,10 +67,9 @@ layers:
     - key: waterway
       tagValue: waterway
     - key: intermittent
-      constantValue: 'true'
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        intermittent: true
+        intermittent: 'yes'
     - key: name
       tagValue: name
       minZoom: 12
@@ -136,16 +133,14 @@ layers:
     - key: highway
       tagValue: highway
     - key: bridge
-      constantValue: true
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        bridge: true
+        bridge: 'yes'
       minZoom: 11
     - key: tunnel
-      constantValue: true
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        tunnel: true
+        tunnel: 'yes'
       minZoom: 11
     - key: service
       tagValue: service

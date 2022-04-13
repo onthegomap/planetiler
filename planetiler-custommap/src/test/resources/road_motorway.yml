@@ -24,16 +24,14 @@ layers:
     - key: highway
       tagValue: highway
     - key: bridge
-      constantValue: true
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        bridge: true
+        bridge: 'yes'
       minZoom: 11
     - key: tunnel
-      constantValue: true
-      dataType: bool
+      constantValue: 'yes'
       includeWhen:
-        tunnel: true
+        tunnel: 'yes'
       minZoom: 11
     - key: name
       tagValue: name

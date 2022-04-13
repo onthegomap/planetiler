@@ -1,8 +1,16 @@
 package com.onthegomap.planetiler.custommap;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.custommap.configschema.AttributeDataType;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
@@ -12,17 +20,6 @@ import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.ZoomFunction;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * A map feature, configured from a YML configuration file
@@ -114,54 +111,9 @@ public class ConfiguredFeature {
 
     String tagVal = attribute.getTagValue();
     if (tagVal != null) {
-      Function<Object, Object> typeConverter = typeConverter(attribute.getDataType());
-      return sf -> typeConverter.apply(sf.getTag(tagVal, null));
+      return sf -> sf.getTag(tagVal, null);
     }
     throw new IllegalArgumentException("No value producer specified");
-  }
-
-  /**
-   * Performs data type normalization in cases where there are value variations. For example, yes/1/true all mean the
-   * same thing if a tag is boolean in nature.
-   * 
-   * @param attributeDataType data type to normalize
-   * @return lambda that converts raw tag values to normalized attribute values
-   */
-  private static Function<Object, Object> typeConverter(AttributeDataType attributeDataType) {
-
-    if (Objects.isNull(attributeDataType)) {
-      return in -> {
-        return in;
-      };
-    }
-
-    switch (attributeDataType) {
-      case bool:
-        return booleanTypeConverter();
-      //Default: pass through
-      default:
-        return in -> in;
-    }
-  }
-
-  private static Set<String> booleanTrue = new HashSet<>(Arrays.<String>asList("true", "yes", "1"));
-  private static Set<String> booleanFalse = new HashSet<>(Arrays.<String>asList("false", "no", "0"));
-
-  /**
-   * Convert a raw tag value to a corresponding normalized boolean value.
-   * 
-   * @return normalization function
-   */
-  private static Function<Object, Object> booleanTypeConverter() {
-    return s -> {
-      if (booleanTrue.contains(s)) {
-        return Boolean.TRUE;
-      }
-      if (booleanFalse.contains(s)) {
-        return Boolean.FALSE;
-      }
-      return null;
-    };
   }
 
   /**

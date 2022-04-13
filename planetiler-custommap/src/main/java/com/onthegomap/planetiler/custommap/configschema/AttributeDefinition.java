@@ -4,7 +4,6 @@ public class AttributeDefinition {
   private String key;
   private String constantValue;
   private String tagValue;
-  private AttributeDataType dataType;
   private TagCriteria includeWhen;
   private TagCriteria excludeWhen;
   private int minZoom;
@@ -32,14 +31,6 @@ public class AttributeDefinition {
 
   public void setTagValue(String tagValue) {
     this.tagValue = tagValue;
-  }
-
-  public AttributeDataType getDataType() {
-    return dataType;
-  }
-
-  public void setDataType(AttributeDataType dataType) {
-    this.dataType = dataType;
   }
 
   public TagCriteria getIncludeWhen() {
