@@ -11,7 +11,7 @@ jobs:
   # When spotless:apply fails, the error message is a bit cryptic, so try to make it obvious that
   # is the problem by putting the check into a standalone job
   lint:
-    name: Lint
+    name: Check formatting
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,10 +22,15 @@ jobs:
           java-version: 17
           distribution: 'temurin'
           cache: 'maven'
-      - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@v5.0.2
       - name: Ensure code formatted with mvn spotless:apply
         run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
+
+  qodana:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: 'Qodana Scan'
+        uses: JetBrains/qodana-action@v5.0.2
 
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
