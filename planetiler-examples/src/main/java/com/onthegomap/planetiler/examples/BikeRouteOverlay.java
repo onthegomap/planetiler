@@ -65,11 +65,11 @@ public class BikeRouteOverlay implements Profile {
           relation.getString("route"),
           // except map network abbreviation to a human-readable value
           switch (relation.getString("network", "")) {
-            case "icn" -> "international";
-            case "ncn" -> "national";
-            case "rcn" -> "regional";
-            case "lcn" -> "local";
-            default -> "other";
+          case "icn" -> "international";
+          case "ncn" -> "national";
+          case "rcn" -> "regional";
+          case "lcn" -> "local";
+          default -> "other";
           }
         ));
       }
