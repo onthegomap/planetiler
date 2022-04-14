@@ -19,7 +19,7 @@ The root of the schema has the following attributes:
 A data source contains geospatial objects with tags that are consumed by planetiler.  The configured data sources in the schema provide complete information on how to access those data sources.
 * `name` - Name of this data source, which is referenced in other parts of the schema
 * `type` - Either `shapefile` or `osm`
-* `url` - Location to download the a shapefile from
+* `url` - Location to download the shapefile from
 * `area` - Location to download osm data from.  Needs to be prefixed with the source, for example `geofabrik:rhode-island`
 
 ### Layers
