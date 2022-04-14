@@ -48,7 +48,10 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
       - name: Analyze with SonarCloud
         run: |
-          mvn -Dpullrequest.key="${{ github.event.pull_request.number }}" -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Pcoverage
+          mvn -Dsonar.pullrequest.key="${{ github.event.pull_request.number }}" \
+              -Dsonar.pullrequest.branch="${{ github.head_ref }}" \
+              -Dsonar.pullrequest.base="${{ github.base_ref }}" \
+              -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
         env:
           # Needed to get some information about the pull request, if any
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

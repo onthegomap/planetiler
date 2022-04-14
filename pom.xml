@@ -25,7 +25,7 @@
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
-    <sonar.moduleKey>${artifactId}</sonar.moduleKey>
+    <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
   </properties>
 
   <scm>
