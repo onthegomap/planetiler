@@ -34,6 +34,7 @@ import org.locationtech.jts.geom.Geometry;
  * </pre>
  */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
+  private int unused = 1;
 
   private static final Geometry EMPTY_GEOM = GeoUtils.JTS_FACTORY.createGeometryCollection();
 
