@@ -128,7 +128,7 @@ public class Landcover implements
         .setAttr(Fields.CLASS, clazz)
         .setAttr(Fields.SUBCLASS, subclass)
         .setNumPointsAttr(TEMP_NUM_POINTS_ATTR)
-        .setMinZoom(WOOD_OR_FOREST.contains(subclass) ? 9 : 7);
+        .setMinZoom(7);
     }
   }
 
