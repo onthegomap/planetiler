@@ -1,0 +1,15 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "sonar",
+      "pattern": [
+        {
+          "regexp": "^[^:]*:(.*?)__SEPARATOR__(.*?)__SEPARATOR__(.*?)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      ]
+    }
+  ]
+}

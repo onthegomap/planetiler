@@ -59,6 +59,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - run: 'echo ::add-matcher::.github/sonar-matcher.json'
+      - name: Create annotations from sonar issues
+        run: |
+          curl -s 'https://sonarcloud.io/api/issues/search?pullRequest=${{ github.event.pull_request.number }}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all' | \
+          jq '.issues[] | .component + "__SEPARATOR__" + (.line | tostring) + "__SEPARATOR__[" + .severity + " " + .type + "] " + .message + " (" + .rule + ")"'
+
 
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
