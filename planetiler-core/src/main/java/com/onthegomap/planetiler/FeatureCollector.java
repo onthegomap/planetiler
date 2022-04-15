@@ -10,6 +10,9 @@ import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
 import com.onthegomap.planetiler.util.ZoomFunction;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -47,6 +50,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     this.source = source;
     this.config = config;
     this.stats = stats;
+    try {
+      var writer = Files.newBufferedWriter(Path.of("fasfadsf"));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
