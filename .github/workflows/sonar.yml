@@ -39,8 +39,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - run: "echo ${{ github.event.workflow_run.event }}"
       - name: Upload annotations on PRs
-        if: ${{ github.event.workflow_run.event == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ github.token }}
