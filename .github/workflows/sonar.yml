@@ -59,11 +59,11 @@ jobs:
                 const message = [
                   issue.message,
                   '',
-                  `rule: ${issue.rule} see: https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule}`,
+                  `rule: ${issue.rule} (https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule})`,
                   `issue url: https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
                 ].join('\n');
                 const args = {
-                  title: `Sonar ${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`,
+                  title: `${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`.replace(/^\w/, (c) => c.toUpperCase()),
                   file: issue.component.replace(/^[^:]*:/, ''),
                   startLine: textRange.startLine,
                   endLine: textRange.endLine,
