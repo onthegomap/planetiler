@@ -30,13 +30,14 @@ public class ConfiguredFeature {
   private Function<FeatureCollector, Feature> geometryFactory;
   private Predicate<SourceFeature> tagTest;
   private BiConsumer<SourceFeature, Feature> zoomConfig;
+  private TagValueProducer tagValueProducer;
 
   private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
-  public ConfiguredFeature(String layerName, FeatureItem feature) {
+  public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = feature.getSources();
 
     FeatureGeometryType geometryType = feature.getGeometry();
@@ -44,10 +45,13 @@ public class ConfiguredFeature {
     //Test to determine whether this type of geometry is included
     geometryTest = geometryTest(geometryType);
 
+    //Factory to treat OSM tag values as specific data type values
+    this.tagValueProducer = tagValueProducer;
+
     //Test to determine whether this feature is included based on tagging
     tagTest = Optional.ofNullable(feature.getIncludeWhen())
       .filter(Objects::nonNull)
-      .map(TagCriteria::matcher)
+      .map(tc -> tc.matcher(tagValueProducer))
       .orElse(sf -> true);
 
     //Test to determine at which zooms to include this feature based on tagging
@@ -80,7 +84,7 @@ public class ConfiguredFeature {
       }
       Optional<ZoomFilter> zoomFilterMatch = zfList
         .stream()
-        .filter(zf -> zf.getTag().matcher().test(sf))
+        .filter(zf -> zf.getTag().matcher(tagValueProducer).test(sf))
         .findFirst();
 
       if (zoomFilterMatch.isPresent()) {
@@ -101,16 +105,16 @@ public class ConfiguredFeature {
    * @return a function that generates an attribute value from a {@link SourceFeature} based on an attribute
    *         configuration.
    */
-  static Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {
+  private Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {
 
-    String constVal = attribute.getConstantValue();
+    Object constVal = attribute.getConstantValue();
     if (constVal != null) {
       return sf -> constVal;
     }
 
     String tagVal = attribute.getTagValue();
     if (tagVal != null) {
-      return sf -> sf.getTag(tagVal, null);
+      return tagValueProducer.getValueProducer(tagVal);
     }
     throw new IllegalArgumentException("No value producer specified");
   }
@@ -150,9 +154,9 @@ public class ConfiguredFeature {
     TagCriteria attrExcludeWhen = attribute.getExcludeWhen();
 
     Predicate<SourceFeature> attributeTest =
-      attrIncludeWhen == null ? sf -> true : attrIncludeWhen.matcher();
+      attrIncludeWhen == null ? sf -> true : attrIncludeWhen.matcher(tagValueProducer);
     Predicate<SourceFeature> attributeExcludeTest =
-      attrExcludeWhen == null ? sf -> true : attrExcludeWhen.matcher().negate();
+      attrExcludeWhen == null ? sf -> true : attrExcludeWhen.matcher(tagValueProducer).negate();
 
     Double minTileCoverage = attrIncludeWhen == null ? null : attribute.getMinTileCoverSize();
 

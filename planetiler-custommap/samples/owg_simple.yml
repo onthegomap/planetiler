@@ -9,6 +9,13 @@ sources:
 - name: osm
   type: osm
   area: geofabrik:rhode-island
+dataTypes:
+  BOOLEAN:
+  - intermittent
+  - bridge
+  - tunnel
+  LONG:
+  - layer
 layers:
 - name: water
   features:
@@ -25,9 +32,9 @@ layers:
       constantValue: water
       minZoom: 0
     - key: intermittent
-      constantValue: 'yes'
+      tagValue: intermittent
       includeWhen:
-        intermittent: 'yes'
+        intermittent: true
     - key: name
       tagValue: name
       minTileCoverSize: 0.01
@@ -67,9 +74,9 @@ layers:
     - key: waterway
       tagValue: waterway
     - key: intermittent
-      constantValue: 'yes'
+      tagValue: intermittent
       includeWhen:
-        intermittent: 'yes'
+        intermittent: true
     - key: name
       tagValue: name
       minZoom: 12
@@ -133,14 +140,14 @@ layers:
     - key: highway
       tagValue: highway
     - key: bridge
-      constantValue: 'yes'
+      constantValue: true
       includeWhen:
-        bridge: 'yes'
+        bridge: true
       minZoom: 11
     - key: tunnel
-      constantValue: 'yes'
+      constantValue: true
       includeWhen:
-        tunnel: 'yes'
+        bridge: true
       minZoom: 11
     - key: service
       tagValue: service

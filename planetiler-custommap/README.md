@@ -32,12 +32,19 @@ A layer contains a thematically-related set of features.
 
 A feature is a defined set of objects that meet specified filter criteria.
 * `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
+* `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Data Types](#data-types).
 * `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
 * `geometry` - Include objects of a certain geometry type.  Options are `polygon`, `linestring`, or `point`.
 * `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
 * `includeWhen` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
 * `excludeWhen` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
+
+### Data Types
+
+Specifies that certain tag key should have their values treated as being a certain data type.
+* `<data type>` - One of BOOLEAN, STRING, DIRECTION, LONG
+* `<list of values>` - A list of strings corresponding to keys that are treated as this data type.
 
 ### Zoom Specification
 

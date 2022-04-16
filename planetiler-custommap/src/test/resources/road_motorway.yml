@@ -9,6 +9,12 @@ sources:
 - name: osm
   type: osm
   area: geofabrik:rhode-island
+dataTypes:
+  BOOLEAN:
+  - bridge
+  - tunnel
+  LONG:
+  - layer
 layers:
 - name: road
   features:
@@ -24,14 +30,14 @@ layers:
     - key: highway
       tagValue: highway
     - key: bridge
-      constantValue: 'yes'
+      tagValue: bridge
       includeWhen:
-        bridge: 'yes'
+        bridge: true
       minZoom: 11
     - key: tunnel
-      constantValue: 'yes'
+      constantValue: true
       includeWhen:
-        tunnel: 'yes'
+        tunnel: true
       minZoom: 11
     - key: name
       tagValue: name

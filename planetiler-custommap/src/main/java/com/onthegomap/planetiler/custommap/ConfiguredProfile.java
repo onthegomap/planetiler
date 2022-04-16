@@ -31,12 +31,14 @@ public class ConfiguredProfile implements Profile {
       return;
     }
 
+    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getDataTypes());
+
     layers.stream().forEach(layer -> {
       String layerName = layer.getName();
       Collection<FeatureItem> featureDefs = layer.getFeatures();
 
       featureDefs.forEach(feature -> {
-        features.add(new ConfiguredFeature(layerName, feature));
+        features.add(new ConfiguredFeature(layerName, tagValueProducer, feature));
       });
     });
   }

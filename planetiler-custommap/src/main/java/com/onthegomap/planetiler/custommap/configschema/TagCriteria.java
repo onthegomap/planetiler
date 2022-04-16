@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
+import com.onthegomap.planetiler.custommap.TagValueProducer;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,7 +18,7 @@ public class TagCriteria extends HashMap<String, Object> {
    * @param sf source feature
    * @return a predicate which returns true if this criteria matches
    */
-  public Predicate<SourceFeature> matcher() {
+  public Predicate<SourceFeature> matcher(TagValueProducer tagValueProducer) {
 
     List<Predicate<SourceFeature>> tagTests = new ArrayList<>();
 
@@ -29,10 +30,12 @@ public class TagCriteria extends HashMap<String, Object> {
             Collection<?> values =
               (Collection<?>) entry.getValue();
             tagTests
-              .add((Predicate<SourceFeature>) sf -> values.contains(sf.getTag(entry.getKey())));
+              .add((Predicate<SourceFeature>) sf -> values
+                .contains(tagValueProducer.getValueProducer(entry.getKey()).apply(sf)));
           } else {
             tagTests
-              .add((Predicate<SourceFeature>) sf -> entry.getValue().toString().equals(sf.getTag(entry.getKey())));
+              .add((Predicate<SourceFeature>) sf -> entry.getValue()
+                .equals(tagValueProducer.getValueProducer(entry.getKey()).apply(sf)));
           }
         });
 

@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.custommap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
@@ -89,6 +90,7 @@ public class ConfiguredSingleFeatureTest {
     motorwayTags.put("highway", "motorway");
     motorwayTags.put("layer", "1");
     motorwayTags.put("bridge", "yes");
+    motorwayTags.put("tunnel", "yes");
   }
 
   @Test
@@ -121,6 +123,21 @@ public class ConfiguredSingleFeatureTest {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
       Map<String, Object> attr = f.getAttrsAtZoom(14);
       assertEquals("motorway", attr.get("highway"));
+    });
+  }
+
+  @Test
+  public void testTagTypeConversionTest() throws Exception {
+    testLinestring("road_motorway.yml", motorwayTags, f -> {
+      Map<String, Object> attr = f.getAttrsAtZoom(14);
+
+      assertTrue(attr.containsKey("layer"), "Produce attribute layer");
+      assertTrue(attr.containsKey("bridge"), "Produce attribute bridge");
+      assertTrue(attr.containsKey("tunnel"), "Produce attribute tunnel");
+
+      assertEquals(1L, attr.get("layer"), "Extract layer as LONG");
+      assertEquals(true, attr.get("bridge"), "Extract bridge as tagValue BOOLEAN");
+      assertEquals(true, attr.get("tunnel"), "Extract tunnel as constantValue BOOLEAN");
     });
   }
 
