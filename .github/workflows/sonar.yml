@@ -58,8 +58,9 @@ jobs:
               try {
                 const message = [
                   issue.message,
-                  `${rule} see: https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule}`,
-                  `https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
+                  '',
+                  `rule: ${issue.rule} see: https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule}`,
+                  `issue url: https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
                 ].join('\n');
                 const args = {
                   title: `Sonar ${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`,
