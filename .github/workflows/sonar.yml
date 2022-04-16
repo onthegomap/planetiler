@@ -58,7 +58,7 @@ jobs:
                   `https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
                 ].join('\n');
                 const args = {
-                  title: 'Sonar ${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`,
+                  title: `Sonar ${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`,
                   file: issue.component.replace(/^[^:]*:/, ''),
                   startLine: textRange.startLine,
                   endLine: textRange.endLine,
