@@ -11,6 +11,7 @@ on:
 
 jobs:
   sonar:
+    name: SonarCloud
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,7 +44,6 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const core = require('@actions/core');
             const pr = github.event.pull_request.number;
             const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
