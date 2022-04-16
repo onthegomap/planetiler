@@ -39,12 +39,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Upload annotations
+      - name: Upload annotations on PRs
+        if: ${{ github.event.workflow_run.event == 'pull_request' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ github.token }}
           script: |
-            const pr = github.event.pull_request.number;
+            const pr = context.payload.pull_request.number;
             const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
             const result = JSON.parse(await github.request(url));
