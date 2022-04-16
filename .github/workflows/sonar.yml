@@ -48,24 +48,28 @@ jobs:
             const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
             const result = JSON.parse(await github.request(url));
-            for (const issue of result.issues) {
+            result.issues.forEach(issue => {
               const textRange = issue.textRange;
+              const rule = encodeURIComponent(issue.rule);
               try {
-                core.warning([
-                  message,
-                  `${rule} see: https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${issue.key}&id=onthegomap_planetiler`
-                ].join('\n'), {
+                const message = [
+                  issue.message,
+                  `${rule} see: https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule}`,
+                  `https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
+                ].join('\n');
+                const args = {
                   title: 'Sonar ${issue.severity.toLowerCase()} ${issue.type.toLowerCase().replace(/_/g, ' ')}`,
                   file: issue.component.replace(/^[^:]*:/, ''),
                   startLine: textRange.startLine,
                   endLine: textRange.endLine,
                   startColumn: textRange.startOffset,
                   endColumn: textRange.endOffset
-                });
+                };
+                core.warning(message, args);
               } catch (e) {
                 core.error(`Unable to parse sonar issue: ${JSON.stringify(issue)}`);
               }
-            }
+            });
 
 # old logic
 #      - run: 'echo ::add-matcher::.github/sonar-matcher.json'
