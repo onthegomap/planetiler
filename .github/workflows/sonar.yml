@@ -49,7 +49,9 @@ jobs:
             const pr = context.payload.pull_request.number;
             const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
-            const result = JSON.parse(await github.request(url));
+            const response = await github.request(url);
+            console.log("Got " + response);
+            const result = JSON.parse(response.data);
             result.issues.forEach(issue => {
               const textRange = issue.textRange;
               const rule = encodeURIComponent(issue.rule);
