@@ -4,6 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
@@ -13,16 +24,6 @@ import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import java.io.FileInputStream;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.Yaml;
 
 public class ConfiguredSingleFeatureTest {
 
@@ -78,20 +79,18 @@ public class ConfiguredSingleFeatureTest {
     testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::linestringFeatureCollector, test);
   }
 
-  private static Map<String, Object> waterTags = new HashMap<>();
-  private static Map<String, Object> motorwayTags = new HashMap<>();
+  private static final Map<String, Object> waterTags = Map.of(
+    "natural", "water",
+    "water", "pond",
+    "name", "Little Pond"
+  );
 
-  @BeforeAll
-  private static void setup() {
-    waterTags.put("natural", "water");
-    waterTags.put("water", "pond");
-    waterTags.put("name", "Little Pond");
-
-    motorwayTags.put("highway", "motorway");
-    motorwayTags.put("layer", "1");
-    motorwayTags.put("bridge", "yes");
-    motorwayTags.put("tunnel", "yes");
-  }
+  private static Map<String, Object> motorwayTags = Map.of(
+    "highway", "motorway",
+    "layer", "1",
+    "bridge", "yes",
+    "tunnel", "yes"
+  );
 
   @Test
   public void testStaticAttributeTest() throws Exception {
