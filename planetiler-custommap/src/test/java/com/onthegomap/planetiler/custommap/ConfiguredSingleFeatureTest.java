@@ -7,16 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.Yaml;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
@@ -26,6 +16,14 @@ import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
 
 public class ConfiguredSingleFeatureTest {
 

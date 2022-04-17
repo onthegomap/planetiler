@@ -1,14 +1,5 @@
 package com.onthegomap.planetiler.custommap;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
@@ -19,6 +10,14 @@ import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * A map feature, configured from a YML configuration file
