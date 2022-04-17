@@ -50,6 +50,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     this.source = source;
     this.config = config;
     this.stats = stats;
+  }
+
+  @Deprecated
+  public void badMethod() {
+    // TODO todo
     try {
       var writer = Files.newBufferedWriter(Path.of("fasfadsf"));
     } catch (IOException e) {
