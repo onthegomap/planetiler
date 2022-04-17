@@ -24,14 +24,13 @@ import java.util.function.Predicate;
  */
 public class ConfiguredFeature {
 
-  private Collection<String> sources;
-  private Predicate<SourceFeature> geometryTest;
-  private Function<FeatureCollector, Feature> geometryFactory;
-  private Predicate<SourceFeature> tagTest;
-  private BiConsumer<SourceFeature, Feature> zoomConfig;
-  private TagValueProducer tagValueProducer;
+  private final Collection<String> sources;
+  private final Predicate<SourceFeature> geometryTest;
+  private final Function<FeatureCollector, Feature> geometryFactory;
+  private final Predicate<SourceFeature> tagTest;
+  private final BiConsumer<SourceFeature, Feature> zoomConfig;
+  private final TagValueProducer tagValueProducer;
 
-  private static final double BUFFER_SIZE = 4.0;
   private static final double LOG4 = Math.log(4);
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
