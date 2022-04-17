@@ -10,7 +10,6 @@ import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
 import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -243,14 +242,7 @@ public class ConfiguredFeature {
    * @param features      - output rendered feature collector
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-
     Feature f = geometryFactory.apply(features);
-
-    f.setBufferPixels(BUFFER_SIZE)
-      // and also whenever you set a label grid size limit, make sure you increase the buffer size so no
-      // label grid squares will be the consistent between adjacent tiles
-      .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 32));
-
     zoomConfig.accept(sourceFeature, f);
     attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
   }
