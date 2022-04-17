@@ -59,9 +59,10 @@ public class ConfiguredMapMain {
 
     switch (sourceType) {
       case osm:
-        String area = source.getArea();
-        String[] areaParts = area.split(":");
-        String areaName = areaParts[areaParts.length - 1];
+        String area = source.getUrl();
+        String[] areaParts = area.split("[:/]");
+        String areaFilename = areaParts[areaParts.length - 1];
+        String areaName = areaFilename.replaceAll("\\..*?$", "");
         planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
         return;
       case shapefile:

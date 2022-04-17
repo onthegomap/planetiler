@@ -8,7 +8,7 @@ sources:
   url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
 - name: osm
   type: osm
-  area: geofabrik:rhode-island
+  url: geofabrik:rhode-island
 dataTypes:
   BOOLEAN:
   - intermittent

@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.custommap.configschema;
 public class DataSource {
   private String name;
   private DataSourceType type;
-  private String area;
   private String url;
 
   public String getName() {
@@ -20,14 +19,6 @@ public class DataSource {
 
   public void setType(DataSourceType type) {
     this.type = type;
-  }
-
-  public String getArea() {
-    return area;
-  }
-
-  public void setArea(String area) {
-    this.area = area;
   }
 
   public String getUrl() {
