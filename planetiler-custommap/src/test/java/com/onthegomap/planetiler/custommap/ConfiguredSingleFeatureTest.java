@@ -16,8 +16,7 @@ import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import java.io.FileInputStream;
-import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,36 +28,33 @@ import org.yaml.snakeyaml.Yaml;
 public class ConfiguredSingleFeatureTest {
 
   private static FeatureCollector polygonFeatureCollector() {
-    PlanetilerConfig config = PlanetilerConfig.defaults();
-    FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
+    var config = PlanetilerConfig.defaults();
+    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
     return factory.get(SimpleFeature.create(TestUtils.newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
   }
 
   private static FeatureCollector linestringFeatureCollector() {
-    PlanetilerConfig config = PlanetilerConfig.defaults();
-    FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
+    var config = PlanetilerConfig.defaults();
+    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
     return factory.get(SimpleFeature.create(TestUtils.newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
   }
 
   private static Profile configureProfile(String filename) throws Exception {
-    Path staticAttributeConfig = TestConfigurableUtils.pathToResource(filename);
-    Yaml yml = new Yaml();
-    SchemaConfig schema = yml.loadAs(new FileInputStream(staticAttributeConfig.toFile()), SchemaConfig.class);
-
-    ConfiguredProfile profile = new ConfiguredProfile(schema);
-    return profile;
+    var staticAttributeConfig = TestConfigurableUtils.pathToResource(filename);
+    var schema = new Yaml().loadAs(Files.newInputStream(staticAttributeConfig), SchemaConfig.class);
+    return new ConfiguredProfile(schema);
   }
 
   private static void testFeature(String profileConfig, SourceFeature sf, Supplier<FeatureCollector> fcFactory,
     Consumer<Feature> test)
     throws Exception {
 
-    Profile profile = configureProfile(profileConfig);
-    FeatureCollector fc = fcFactory.get();
+    var profile = configureProfile(profileConfig);
+    var fc = fcFactory.get();
 
     profile.processFeature(sf, fc);
 
-    AtomicInteger length = new AtomicInteger(0);
+    var length = new AtomicInteger(0);
 
     fc.forEach(f -> {
       test.accept(f);
@@ -70,14 +66,14 @@ public class ConfiguredSingleFeatureTest {
 
   private static void testPolygon(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
     throws Exception {
-    SourceFeature sf =
+    var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::polygonFeatureCollector, test);
   }
 
   private static void testLinestring(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
     throws Exception {
-    SourceFeature sf =
+    var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::linestringFeatureCollector, test);
   }
@@ -98,7 +94,7 @@ public class ConfiguredSingleFeatureTest {
   @Test
   public void testStaticAttributeTest() throws Exception {
     testPolygon("static_attribute.yml", waterTags, f -> {
-      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      var attr = f.getAttrsAtZoom(14);
       assertEquals("aTestConstantValue", attr.get("natural"));
     });
   }
@@ -106,7 +102,7 @@ public class ConfiguredSingleFeatureTest {
   @Test
   public void testTagValueAttributeTest() throws Exception {
     testPolygon("tag_attribute.yml", waterTags, f -> {
-      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      var attr = f.getAttrsAtZoom(14);
       assertEquals("water", attr.get("natural"));
     });
   }
@@ -114,7 +110,7 @@ public class ConfiguredSingleFeatureTest {
   @Test
   public void testTagIncludeAttributeTest() throws Exception {
     testPolygon("tag_include.yml", waterTags, f -> {
-      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      var attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
       assertFalse(attr.containsKey("test_exclude"));
     });
@@ -123,7 +119,7 @@ public class ConfiguredSingleFeatureTest {
   @Test
   public void testTagHighwayLinestringTest() throws Exception {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
-      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      var attr = f.getAttrsAtZoom(14);
       assertEquals("motorway", attr.get("highway"));
     });
   }
@@ -131,7 +127,7 @@ public class ConfiguredSingleFeatureTest {
   @Test
   public void testTagTypeConversionTest() throws Exception {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
-      Map<String, Object> attr = f.getAttrsAtZoom(14);
+      var attr = f.getAttrsAtZoom(14);
 
       assertTrue(attr.containsKey("layer"), "Produce attribute layer");
       assertTrue(attr.containsKey("bridge"), "Produce attribute bridge");
