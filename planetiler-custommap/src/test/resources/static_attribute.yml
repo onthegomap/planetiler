@@ -2,9 +2,9 @@ schemaName: Test Case Schema
 schemaDescription: Test case tile schema
 attribution: Test attribution
 sources:
-- name: osm
-  type: osm
-  url: geofabrik:rhode-island
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
 layers:
 - name: testLayer
   features:

@@ -11,7 +11,7 @@ public class SchemaConfig {
   private String schemaDescription;
   private String attribution =
     "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>";
-  private Collection<DataSource> sources;
+  private Map<String, DataSource> sources;
   private Map<TagValueDataType, Collection<String>> dataTypes;
   private Collection<FeatureLayer> layers;
 
@@ -39,11 +39,11 @@ public class SchemaConfig {
     this.attribution = attribution;
   }
 
-  public Collection<DataSource> getSources() {
+  public Map<String, DataSource> getSources() {
     return sources;
   }
 
-  public void setSources(Collection<DataSource> sources) {
+  public void setSources(Map<String, DataSource> sources) {
     this.sources = sources;
   }
 

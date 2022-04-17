@@ -10,7 +10,7 @@ import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
+import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
 public class ConfiguredMapMain {
@@ -42,20 +42,19 @@ public class ConfiguredMapMain {
     Planetiler planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
 
-    Collection<DataSource> sources = config.getSources();
-    for (DataSource source : sources) {
-      configureSource(planetiler, sourcesDir, source);
+    Map<String, DataSource> sources = config.getSources();
+    for (var source : sources.entrySet()) {
+      configureSource(planetiler, sourcesDir, source.getKey(), source.getValue());
     }
 
     planetiler.overwriteOutput("mbtiles", Path.of("data", "output.mbtiles"))
       .run();
   }
 
-  private static void configureSource(Planetiler planetiler, Path sourcesDir, DataSource source)
+  private static void configureSource(Planetiler planetiler, Path sourcesDir, String sourceName, DataSource source)
     throws Exception {
 
     DataSourceType sourceType = source.getType();
-    String sourceName = source.getName();
 
     switch (sourceType) {
       case osm:

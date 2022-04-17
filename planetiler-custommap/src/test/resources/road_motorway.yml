@@ -3,12 +3,12 @@ schemaDescription: Simple vector tile schema
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
-- name: water_polygons
-  type: shapefile
-  url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
-- name: osm
-  type: osm
-  url: geofabrik:rhode-island
+  water_polygons:
+    type: shapefile
+    url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
 dataTypes:
   BOOLEAN:
   - bridge

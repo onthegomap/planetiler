@@ -11,13 +11,12 @@ The root of the schema has the following attributes:
 * `schemaName` - A descriptive name for the schema
 * `schemaDescription` - A longer description of the schema
 * `attribution` - An attribution statement, which may include HTML such as links
-* `sources` - A list of data sources for the schema.  See [Data Sources](#data-sources)
+* `sources` - A map of data sources for the schema.  Each data source is defined under a key, which is the name of this source that is referenced in other parts of the schema.  See [Data Sources](#data-sources)
 * `layers` - A list of vector tile layers and their definitions.  See [Layers](#layers)
 
 ### Data Sources
 
 A data source contains geospatial objects with tags that are consumed by planetiler.  The configured data sources in the schema provide complete information on how to access those data sources.
-* `name` - Name of this data source, which is referenced in other parts of the schema
 * `type` - Either `shapefile` or `osm`
 * `url` - Location to download the shapefile from.  For geofabrik named areas, use `geofabrik:` prefixes, for example `geofabrik:rhode-island`
 
