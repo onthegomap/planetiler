@@ -39,7 +39,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - run: "echo ${{ github.event.workflow_run.event }}"
+      - name: Wait for SonarCloud API to update...
+        run: "sleep 10"
       - name: Upload annotations on PRs
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/github-script@v6
@@ -50,6 +51,7 @@ jobs:
             const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
             const response = await github.request(url);
+            console.log("Got " + JSON.stringify(response.data));
             response.data.issues.forEach(issue => {
               const textRange = issue.textRange;
               const rule = encodeURIComponent(issue.rule);
@@ -69,46 +71,8 @@ jobs:
                   endColumn: textRange.endOffset
                 };
                 core.warning(message, args);
+                console.log(args);
               } catch (e) {
                 core.error(`Unable to parse sonar issue: ${JSON.stringify(issue)}`);
               }
             });
-
-# old logic
-#      - run: 'echo ::add-matcher::.github/sonar-matcher.json'
-#      - name: Create annotations from sonar issues
-#        run: |
-#          curl -s 'https://sonarcloud.io/api/issues/search?pullRequest=${{ github.event.pull_request.number }}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all' | \
-#          jq -r '.issues[] | .component + "__SEPARATOR__warning__SEPARATOR__" + (.line | tostring) + "__SEPARATOR__[" + .severity + " " + .type + "] " + .message + " (" + .rule + ")"'
-
-# example issue:
-#     {
-#      "key": "AYAswQPyvZr84gBKqiD-",
-#      "rule": "java:S2095",
-#      "severity": "BLOCKER",
-#      "component": "onthegomap_planetiler:planetiler-core/src/main/java/com/onthegomap/planetiler/FeatureCollector.java",
-#      "project": "onthegomap_planetiler",
-#      "line": 54,
-#      "hash": "67abb92be3909f708846bdc09c6f03f4",
-#      "textRange": {
-#        "startLine": 54,
-#        "endLine": 54,
-#        "startOffset": 19,
-#        "endOffset": 63
-#      },
-#      "flows": [],
-#      "status": "OPEN",
-#      "message": "Use try-with-resources or close this \"BufferedWriter\" in a \"finally\" clause.",
-#      "effort": "5min",
-#      "debt": "5min",
-#      "assignee": "msbarry@github",
-#      "tags": [],
-#      "transitions": [],
-#      "actions": [],
-#      "comments": [],
-#      "creationDate": "2022-04-15T12:23:53+0200",
-#      "updateDate": "2022-04-15T12:23:53+0200",
-#      "type": "BUG",
-#      "organization": "onthegomap",
-#      "pullRequest": "177"
-#    },
