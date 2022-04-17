@@ -11,7 +11,8 @@ The root of the schema has the following attributes:
 * `schemaName` - A descriptive name for the schema
 * `schemaDescription` - A longer description of the schema
 * `attribution` - An attribution statement, which may include HTML such as links
-* `sources` - A map of data sources for the schema.  Each data source is defined under a key, which is the name of this source that is referenced in other parts of the schema.  See [Data Sources](#data-sources)
+* `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
+* `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Data Types](#data-types).
 * `layers` - A list of vector tile layers and their definitions.  See [Layers](#layers)
 
 ### Data Sources
@@ -29,8 +30,6 @@ A layer contains a thematically-related set of features.
 ### Features
 
 A feature is a defined set of objects that meet specified filter criteria.
-* `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
-* `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Data Types](#data-types).
 * `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
 * `geometry` - Include objects of a certain geometry type.  Options are `POLYGON`, `LINE`, or `POINT`.
 * `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".

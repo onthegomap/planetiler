@@ -2,22 +2,21 @@ package com.onthegomap.planetiler.custommap;
 
 import com.onthegomap.planetiler.custommap.configschema.TagValueDataType;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
 
 public class TagValueProducer {
 
-  private Map<String, TagValueDataType> typeMap = new HashMap<>();
+  private final Map<String, TagValueDataType> typeMap;
 
-  public TagValueProducer(Map<TagValueDataType, Collection<String>> map) {
+  public TagValueProducer(Map<String, TagValueDataType> map) {
     if (map == null) {
+      typeMap = Collections.emptyMap();
       return;
     }
 
-    //Unpack YML representation into key->type pairs
-    map.entrySet().forEach(entry -> entry.getValue().forEach(value -> typeMap.put(value, entry.getKey())));
+    typeMap = map;
   }
 
   public Function<SourceFeature, Object> getValueProducer(String key) {

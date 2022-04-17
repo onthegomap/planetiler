@@ -10,12 +10,10 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 dataTypes:
-  BOOLEAN:
-  - intermittent
-  - bridge
-  - tunnel
-  LONG:
-  - layer
+  bridge: BOOLEAN
+  intermittent: BOOLEAN
+  layer: LONG
+  tunnel: BOOLEAN
 layers:
 - name: water
   features:

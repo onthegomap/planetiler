@@ -10,11 +10,9 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 dataTypes:
-  BOOLEAN:
-  - bridge
-  - tunnel
-  LONG:
-  - layer
+  bridge: BOOLEAN
+  layer: LONG
+  tunnel: BOOLEAN
 layers:
 - name: road
   features:
