@@ -10,9 +10,6 @@ layers:
   features:
   - sources:
     - osm
-    zoom:
-      minZoom: 0
-      minZoom: 14
     geometry: POLYGON
     includeWhen:
       natural: water

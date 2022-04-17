@@ -19,16 +19,12 @@ layers:
   features:
   - sources:
     - osm
-    zoom:
-      minZoom: 0
-      maxZoom: 14
     geometry: POLYGON
     includeWhen:
       natural: water
     attributes:
     - key: natural
       constantValue: water
-      minZoom: 0
     - key: intermittent
       tagValue: intermittent
       includeWhen:
@@ -46,20 +42,15 @@ layers:
           - stream
   - sources:
     - water_polygons
-    zoom:
-      minZoom: 0
-      minZoom: 14
     geometry: POLYGON
     includeWhen:
     attributes:
     - key: natural
       constantValue: water
-      minZoom: 0
   - sources:
     - osm
     zoom:
       minZoom: 7
-      maxZoom: 14
     geometry: LINE
     includeWhen:
       tag:
@@ -102,7 +93,6 @@ layers:
       - track
     zoom:
       minZoom: 4
-      maxZoom: 14
       zoomFilter:
       - tag:
           highway: trunk

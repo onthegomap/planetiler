@@ -7,6 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
@@ -16,14 +26,6 @@ import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.Yaml;
 
 public class ConfiguredSingleFeatureTest {
 
@@ -136,6 +138,17 @@ public class ConfiguredSingleFeatureTest {
       assertEquals(1L, attr.get("layer"), "Extract layer as LONG");
       assertEquals(true, attr.get("bridge"), "Extract bridge as tagValue BOOLEAN");
       assertEquals(true, attr.get("tunnel"), "Extract tunnel as constantValue BOOLEAN");
+    });
+  }
+
+  @Test
+  public void testZoomFilterTest() throws Exception {
+    testLinestring("road_motorway.yml", motorwayTags, f -> {
+      var attr = f.getAttrsAtZoom(14);
+      assertTrue(attr.containsKey("bridge"), "Produce attribute bridge at z14");
+
+      attr = f.getAttrsAtZoom(10);
+      assertFalse(attr.containsKey("bridge"), "Don't produce attribute bridge at z10");
     });
   }
 

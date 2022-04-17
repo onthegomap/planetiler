@@ -1,5 +1,14 @@
 package com.onthegomap.planetiler.custommap;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
@@ -10,14 +19,6 @@ import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * A map feature, configured from a YML configuration file
@@ -32,6 +33,8 @@ public class ConfiguredFeature {
   private final TagValueProducer tagValueProducer;
 
   private static final double LOG4 = Math.log(4);
+  private static final BiConsumer<SourceFeature, Feature> ALLOW_ALL_ZOOMS = (sf, f) -> {
+  };
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
@@ -74,12 +77,16 @@ public class ConfiguredFeature {
    */
   private BiConsumer<SourceFeature, Feature> zoomFilter(ZoomConfig zoomConfig) {
 
+    if (zoomConfig == null) {
+      return ALLOW_ALL_ZOOMS;
+    }
+
     Collection<ZoomFilter> zfList = zoomConfig.getZoomFilter();
+    if (zfList == null || zfList.isEmpty()) {
+      return ALLOW_ALL_ZOOMS;
+    }
 
     return (sf, f) -> {
-      if (zfList == null) {
-        return;
-      }
       Optional<ZoomFilter> zoomFilterMatch = zfList
         .stream()
         .filter(zf -> zf.getTag().matcher(tagValueProducer).test(sf))

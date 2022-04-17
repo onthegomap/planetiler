@@ -20,7 +20,6 @@ layers:
     - osm
     zoom:
       minZoom: 4
-      maxZoom: 14
     geometry: LINE
     includeWhen:
       highway: motorway
@@ -43,4 +42,3 @@ layers:
     - key: layer
       tagValue: layer
       minZoom: 13
-      

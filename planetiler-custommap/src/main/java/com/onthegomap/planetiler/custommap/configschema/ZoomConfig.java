@@ -3,23 +3,23 @@ package com.onthegomap.planetiler.custommap.configschema;
 import java.util.Collection;
 
 public class ZoomConfig {
-  private byte minZoom;
-  private byte maxZoom;
+  private Byte minZoom;
+  private Byte maxZoom;
   private Collection<ZoomFilter> zoomFilter;
 
-  public byte getMinZoom() {
+  public Byte getMinZoom() {
     return minZoom;
   }
 
-  public void setMinZoom(byte minZoom) {
+  public void setMinZoom(Byte minZoom) {
     this.minZoom = minZoom;
   }
 
-  public byte getMaxZoom() {
+  public Byte getMaxZoom() {
     return maxZoom;
   }
 
-  public void setMaxZoom(byte maxZoom) {
+  public void setMaxZoom(Byte maxZoom) {
     this.maxZoom = maxZoom;
   }
 

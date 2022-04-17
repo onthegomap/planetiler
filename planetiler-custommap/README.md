@@ -30,7 +30,7 @@ A layer contains a thematically-related set of features.
 ### Features
 
 A feature is a defined set of objects that meet specified filter criteria.
-* `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
+* `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#feature-zoom-specification).
 * `geometry` - Include objects of a certain geometry type.  Options are `POLYGON`, `LINE`, or `POINT`.
 * `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
 * `includeWhen` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
@@ -43,14 +43,14 @@ Specifies that certain tag key should have their values treated as being a certa
 * `<data type>` - One of BOOLEAN, STRING, DIRECTION, LONG
 * `<list of values>` - A list of strings corresponding to keys that are treated as this data type.
 
-### Zoom Specification
+### Feature Zoom Specification
 
 Specifies the zoom inclusion rules for this feature.
 * `minZoom` - Minimum zoom to render this feature
 * `maxZoom` - Maximum zoom to render this feature
-* `zoomFilter` - A list of tag-specific zoom filter overrides.  The first matching filter will apply.  See [Zoom Tag Specification](#zoom-tag-specification)
+* `zoomFilter` - A list of tag-specific zoom filter overrides.  The first matching filter will apply.  See [Zoom Filter Specification](#zoom-filter-specification)
 
-### Zoom Tag Specification
+### Zoom Filter Specification
 
 Specifies tag-based rules for setting the zoom range for a feature.
 * `tag` - A filter specification which determines to which features this zoom limit applies.  See [Tag Filters](#tag-filters)
