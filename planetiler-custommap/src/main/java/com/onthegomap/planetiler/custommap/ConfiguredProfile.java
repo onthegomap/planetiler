@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.custommap;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -33,14 +32,12 @@ public class ConfiguredProfile implements Profile {
 
     TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getDataTypes());
 
-    layers.stream().forEach(layer -> {
+    for (var layer : layers) {
       String layerName = layer.getName();
-      Collection<FeatureItem> featureDefs = layer.getFeatures();
-
-      featureDefs.forEach(feature -> {
+      for (var feature : layer.getFeatures()) {
         features.add(new ConfiguredFeature(layerName, tagValueProducer, feature));
-      });
-    });
+      }
+    }
   }
 
   @Override
