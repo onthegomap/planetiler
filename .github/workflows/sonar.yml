@@ -53,9 +53,10 @@ jobs:
             const response = await github.request(url);
             console.log("Got " + JSON.stringify(response.data));
             response.data.issues.forEach(issue => {
-              const textRange = issue.textRange;
-              const rule = encodeURIComponent(issue.rule);
               try {
+                if (issue.severity === 'INFO') return;
+                const textRange = issue.textRange;
+                const rule = encodeURIComponent(issue.rule);
                 const message = [
                   issue.message,
                   '',
