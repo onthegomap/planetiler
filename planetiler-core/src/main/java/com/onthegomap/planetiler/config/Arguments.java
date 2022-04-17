@@ -221,6 +221,26 @@ public class Arguments {
     return path;
   }
 
+  /**
+   * Returns a {@link Path} parsed from {@code key} argument which must exist for the program to function.
+   *
+   * @throws IllegalArgumentException if the file is not specified
+   */
+  public Path inputFile(String key, String description) {
+
+    String value = getArg(key);
+    if (value == null) {
+      throw new IllegalArgumentException(key + " is required");
+    }
+    Path file = Path.of(value);
+    logArgValue(key, description, file);
+
+    if (!Files.exists(file)) {
+      throw new IllegalArgumentException(key + " does not exist");
+    }
+    return file;
+  }
+
   /** Returns a boolean parsed from {@code key} argument where {@code "true"} is true and anything else is false. */
   public boolean getBoolean(String key, String description, boolean defaultValue) {
     boolean value = "true".equalsIgnoreCase(getArg(key, Boolean.toString(defaultValue)));

@@ -5,12 +5,10 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.DataSource;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
-import java.io.File;
-import java.io.FileInputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
 public class ConfiguredMapMain {
@@ -23,26 +21,20 @@ public class ConfiguredMapMain {
   }
 
   private static void run(Arguments args) throws Exception {
-    Path dataDir = Path.of("data");
-    Path sourcesDir = dataDir.resolve("sources");
+    var dataDir = Path.of("data");
+    var sourcesDir = dataDir.resolve("sources");
 
-    String schemaFile = args.getString(
+    var schemaFile = args.inputFile(
       "schema",
-      "Location of YML-format schema definition file",
-      "");
+      "Location of YML-format schema definition file");
 
-    if (schemaFile.isEmpty()) {
-      System.out.println("Schema not specified; use --schema=schema_file_name.yml");
-      return;
-    }
+    var config = new Yaml()
+      .loadAs(Files.newInputStream(schemaFile), SchemaConfig.class);
 
-    Yaml yml = new Yaml();
-    SchemaConfig config = yml.loadAs(new FileInputStream(new File(schemaFile)), SchemaConfig.class);
-
-    Planetiler planetiler = Planetiler.create(args)
+    var planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
 
-    Map<String, DataSource> sources = config.getSources();
+    var sources = config.getSources();
     for (var source : sources.entrySet()) {
       configureSource(planetiler, sourcesDir, source.getKey(), source.getValue());
     }
