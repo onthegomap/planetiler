@@ -1,5 +1,8 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -67,13 +70,15 @@ public class ConfiguredSingleFeatureTest {
 
   private static void testPolygon(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
     throws Exception {
-    SourceFeature sf = new TestAreaSourceFeature(tags, "osm", "testLayer");
+    SourceFeature sf =
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::polygonFeatureCollector, test);
   }
 
   private static void testLinestring(String profileConfig, Map<String, Object> tags, Consumer<Feature> test)
     throws Exception {
-    SourceFeature sf = new TestLinestringSourceFeature(tags, "osm", "testLayer");
+    SourceFeature sf =
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(profileConfig, sf, ConfiguredSingleFeatureTest::linestringFeatureCollector, test);
   }
 
