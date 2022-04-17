@@ -3,12 +3,12 @@ package com.onthegomap.planetiler.custommap;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
-import com.onthegomap.planetiler.custommap.configschema.FeatureGeometryType;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
 import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
 import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +38,7 @@ public class ConfiguredFeature {
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = feature.getSources();
 
-    FeatureGeometryType geometryType = feature.getGeometry();
+    GeometryType geometryType = feature.getGeometry();
 
     //Test to determine whether this type of geometry is included
     geometryTest = geometryTest(geometryType);
@@ -181,13 +181,13 @@ public class ConfiguredFeature {
    * @param type      - type of geometry
    * @return geometry factory method
    */
-  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, FeatureGeometryType type) {
+  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, GeometryType type) {
     switch (type) {
-      case polygon:
+      case POLYGON:
         return fc -> fc.polygon(layerName);
-      case linestring:
+      case LINE:
         return fc -> fc.line(layerName);
-      case point:
+      case POINT:
         return fc -> fc.point(layerName);
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);
@@ -200,13 +200,13 @@ public class ConfiguredFeature {
    * @param type type of geometry
    * @return geometry test method
    */
-  private static Predicate<SourceFeature> geometryTest(FeatureGeometryType type) {
+  private static Predicate<SourceFeature> geometryTest(GeometryType type) {
     switch (type) {
-      case polygon:
+      case POLYGON:
         return sf -> sf.canBePolygon();
-      case linestring:
+      case LINE:
         return sf -> sf.canBeLine();
-      case point:
+      case POINT:
         return sf -> sf.isPoint();
       default:
         throw new IllegalArgumentException("Unhandled geometry type " + type);

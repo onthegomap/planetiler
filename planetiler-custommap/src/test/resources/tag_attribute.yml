@@ -13,7 +13,7 @@ layers:
     zoom:
       minZoom: 0
       minZoom: 14
-    geometry: polygon
+    geometry: POLYGON
     includeWhen:
       natural: water
     attributes:

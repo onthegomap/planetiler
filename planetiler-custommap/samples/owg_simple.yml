@@ -24,7 +24,7 @@ layers:
     zoom:
       minZoom: 0
       maxZoom: 14
-    geometry: polygon
+    geometry: POLYGON
     includeWhen:
       natural: water
     attributes:
@@ -51,7 +51,7 @@ layers:
     zoom:
       minZoom: 0
       minZoom: 14
-    geometry: polygon
+    geometry: POLYGON
     includeWhen:
     attributes:
     - key: natural
@@ -62,7 +62,7 @@ layers:
     zoom:
       minZoom: 7
       maxZoom: 14
-    geometry: linestring
+    geometry: LINE
     includeWhen:
       tag:
         key: waterway
@@ -84,7 +84,7 @@ layers:
   features:
   - sources:
     - osm
-    geometry: linestring
+    geometry: LINE
     includeWhen:
       highway:
       - motorway

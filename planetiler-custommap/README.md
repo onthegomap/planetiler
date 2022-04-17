@@ -32,7 +32,7 @@ A feature is a defined set of objects that meet specified filter criteria.
 * `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
 * `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Data Types](#data-types).
 * `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#zoom-specification).
-* `geometry` - Include objects of a certain geometry type.  Options are `polygon`, `linestring`, or `point`.
+* `geometry` - Include objects of a certain geometry type.  Options are `POLYGON`, `LINE`, or `POINT`.
 * `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
 * `includeWhen` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
 * `excludeWhen` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)

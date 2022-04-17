@@ -23,7 +23,7 @@ layers:
     zoom:
       minZoom: 4
       maxZoom: 14
-    geometry: linestring
+    geometry: LINE
     includeWhen:
       highway: motorway
     attributes:

@@ -1,11 +1,12 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
+import com.onthegomap.planetiler.geo.GeometryType;
 import java.util.Collection;
 
 public class FeatureItem {
   private Collection<String> sources;
   private ZoomConfig zoom;
-  private FeatureGeometryType geometry;
+  private GeometryType geometry;
   private TagCriteria includeWhen;
   private TagCriteria excludeWhen;
 
@@ -27,11 +28,11 @@ public class FeatureItem {
     this.zoom = zoom;
   }
 
-  public FeatureGeometryType getGeometry() {
+  public GeometryType getGeometry() {
     return geometry;
   }
 
-  public void setGeometry(FeatureGeometryType geometry) {
+  public void setGeometry(GeometryType geometry) {
     this.geometry = geometry;
   }
 
