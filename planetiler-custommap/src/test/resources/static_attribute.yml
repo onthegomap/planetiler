@@ -4,7 +4,7 @@ attribution: Test attribution
 sources:
 - name: osm
   type: osm
-  area: geofabrik:rhode-island
+  url: geofabrik:rhode-island
 layers:
 - name: testLayer
   features:
