@@ -10,16 +10,16 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 dataTypes:
-  bridge: BOOLEAN
-  intermittent: BOOLEAN
-  layer: LONG
-  tunnel: BOOLEAN
+  bridge: boolean
+  intermittent: boolean
+  layer: long
+  tunnel: boolean
 layers:
 - name: water
   features:
   - sources:
     - osm
-    geometry: POLYGON
+    geometry: polygon
     includeWhen:
       natural: water
     attributes:
@@ -42,7 +42,7 @@ layers:
           - stream
   - sources:
     - water_polygons
-    geometry: POLYGON
+    geometry: polygon
     includeWhen:
     attributes:
     - key: natural
@@ -51,7 +51,7 @@ layers:
     - osm
     zoom:
       minZoom: 7
-    geometry: LINE
+    geometry: line
     includeWhen:
       tag:
         key: waterway
@@ -73,7 +73,7 @@ layers:
   features:
   - sources:
     - osm
-    geometry: LINE
+    geometry: line
     includeWhen:
       highway:
       - motorway

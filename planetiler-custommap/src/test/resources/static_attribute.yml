@@ -10,7 +10,7 @@ layers:
   features:
   - sources:
     - osm
-    geometry: POLYGON
+    geometry: polygon
     includeWhen:
       natural: water
     attributes:

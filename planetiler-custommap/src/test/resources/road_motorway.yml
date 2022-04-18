@@ -10,9 +10,9 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 dataTypes:
-  bridge: BOOLEAN
-  layer: LONG
-  tunnel: BOOLEAN
+  bridge: boolean
+  layer: long
+  tunnel: boolean
 layers:
 - name: road
   features:
@@ -20,7 +20,7 @@ layers:
     - osm
     zoom:
       minZoom: 4
-    geometry: LINE
+    geometry: line
     includeWhen:
       highway: motorway
     attributes:
