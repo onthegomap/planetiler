@@ -172,11 +172,20 @@ public class ConfiguredFeature {
       attributeZoomProducer = sf -> minZoom;
     }
 
+    if (minZoom > 0) {
+      return (sf, f) -> {
+        if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
+          f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
+        }
+      };
+    }
+
     return (sf, f) -> {
       if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
-        f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
+        f.setAttr(tagKey, attributeValueProducer.apply(sf));
       }
     };
+
   }
 
   /**
