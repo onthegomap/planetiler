@@ -10,6 +10,8 @@ layers:
   features:
   - sources:
     - osm
+    zoom:
+      minZoom: 10
     geometry: polygon
     includeWhen:
       natural: water
@@ -22,3 +24,6 @@ layers:
       constantValue: bad
       includeWhen:
         natural: mud
+    - key: test_zoom_tag
+      tagValue: test_zoom_tag
+      minZoom: 12

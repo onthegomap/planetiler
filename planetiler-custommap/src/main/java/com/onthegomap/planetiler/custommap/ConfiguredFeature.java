@@ -94,8 +94,10 @@ public class ConfiguredFeature {
       if (zoomFilterMatch.isPresent()) {
         ZoomFilter zf = zoomFilterMatch.get();
         f.setMinZoom(zf.minZoom());
+        f.setMaxZoom(zoomConfig.maxZoom());
       } else {
         f.setMinZoom(zoomConfig.minZoom());
+        f.setMaxZoom(zoomConfig.maxZoom());
       }
     };
   }

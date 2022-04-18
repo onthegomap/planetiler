@@ -1,12 +1,5 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPolygon;
-import static java.util.Collections.emptyList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
@@ -21,6 +14,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
+
+import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static java.util.Collections.emptyList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ConfiguredSingleFeatureTest {
 
@@ -78,7 +79,8 @@ public class ConfiguredSingleFeatureTest {
   private static final Map<String, Object> waterTags = Map.of(
     "natural", "water",
     "water", "pond",
-    "name", "Little Pond"
+    "name", "Little Pond",
+    "test_zoom_tag", "test_zoom_value"
   );
 
   private static Map<String, Object> motorwayTags = Map.of(
@@ -110,6 +112,20 @@ public class ConfiguredSingleFeatureTest {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
       assertFalse(attr.containsKey("test_exclude"));
+    });
+  }
+
+  @Test
+  public void testZoomAttributeTest() throws Exception {
+    testPolygon("tag_include.yml", waterTags, f -> {
+      var attr = f.getAttrsAtZoom(14);
+      assertEquals("test_zoom_value", attr.get("test_zoom_tag"));
+
+      attr = f.getAttrsAtZoom(11);
+      assertNotEquals("test_zoom_value", attr.get("test_zoom_tag"));
+
+      attr = f.getAttrsAtZoom(9);
+      assertNotEquals("test_zoom_value", attr.get("test_zoom_tag"));
     });
   }
 
