@@ -33,8 +33,8 @@ public class ConfiguredProfile implements Profile {
     TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getDataTypes());
 
     for (var layer : layers) {
-      String layerName = layer.getName();
-      for (var feature : layer.getFeatures()) {
+      String layerName = layer.name();
+      for (var feature : layer.features()) {
         features.add(new ConfiguredFeature(layerName, tagValueProducer, feature));
       }
     }

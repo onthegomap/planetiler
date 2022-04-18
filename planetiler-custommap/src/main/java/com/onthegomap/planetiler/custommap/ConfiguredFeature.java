@@ -38,9 +38,9 @@ public class ConfiguredFeature {
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
-    sources = feature.getSources();
+    sources = feature.sources();
 
-    GeometryType geometryType = feature.getGeometry();
+    GeometryType geometryType = feature.geometry();
 
     //Test to determine whether this type of geometry is included
     geometryTest = geometryTest(geometryType);
@@ -49,19 +49,19 @@ public class ConfiguredFeature {
     this.tagValueProducer = tagValueProducer;
 
     //Test to determine whether this feature is included based on tagging
-    tagTest = Optional.ofNullable(feature.getIncludeWhen())
+    tagTest = Optional.ofNullable(feature.includeWhen())
       .filter(Objects::nonNull)
       .map(tc -> tc.matcher(tagValueProducer))
       .orElse(sf -> true);
 
     //Test to determine at which zooms to include this feature based on tagging
-    zoomConfig = zoomFilter(feature.getZoom());
+    zoomConfig = zoomFilter(feature.zoom());
 
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
     //Configure logic for each attribute in the output tile
-    feature.getAttributes().forEach(attribute -> {
+    feature.attributes().forEach(attribute -> {
       attributeProcessors.add(attributeProcessor(attribute));
     });
   }
@@ -80,7 +80,7 @@ public class ConfiguredFeature {
       return ALLOW_ALL_ZOOMS;
     }
 
-    Collection<ZoomFilter> zfList = zoomConfig.getZoomFilter();
+    Collection<ZoomFilter> zfList = zoomConfig.zoomFilter();
     if (zfList == null || zfList.isEmpty()) {
       return ALLOW_ALL_ZOOMS;
     }
@@ -88,14 +88,14 @@ public class ConfiguredFeature {
     return (sf, f) -> {
       Optional<ZoomFilter> zoomFilterMatch = zfList
         .stream()
-        .filter(zf -> zf.getTag().matcher(tagValueProducer).test(sf))
+        .filter(zf -> zf.tag().matcher(tagValueProducer).test(sf))
         .findFirst();
 
       if (zoomFilterMatch.isPresent()) {
         ZoomFilter zf = zoomFilterMatch.get();
-        f.setMinZoom(zf.getMinZoom());
+        f.setMinZoom(zf.minZoom());
       } else {
-        f.setMinZoom(zoomConfig.getMinZoom());
+        f.setMinZoom(zoomConfig.minZoom());
       }
     };
   }
@@ -111,12 +111,12 @@ public class ConfiguredFeature {
    */
   private Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {
 
-    Object constVal = attribute.getConstantValue();
+    Object constVal = attribute.constantValue();
     if (constVal != null) {
       return sf -> constVal;
     }
 
-    String tagVal = attribute.getTagValue();
+    String tagVal = attribute.tagValue();
     if (tagVal != null) {
       return tagValueProducer.getValueProducer(tagVal);
     }
@@ -148,21 +148,21 @@ public class ConfiguredFeature {
    * @return processing logic
    */
   private BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
-    String tagKey = attribute.getKey();
-    Integer configuredMinZoom = attribute.getMinZoom();
+    String tagKey = attribute.key();
+    Integer configuredMinZoom = attribute.minZoom();
 
     int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
     Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(attribute);
 
-    TagCriteria attrIncludeWhen = attribute.getIncludeWhen();
-    TagCriteria attrExcludeWhen = attribute.getExcludeWhen();
+    TagCriteria attrIncludeWhen = attribute.includeWhen();
+    TagCriteria attrExcludeWhen = attribute.excludeWhen();
 
     Predicate<SourceFeature> attributeTest =
       attrIncludeWhen == null ? sf -> true : attrIncludeWhen.matcher(tagValueProducer);
     Predicate<SourceFeature> attributeExcludeTest =
       attrExcludeWhen == null ? sf -> true : attrExcludeWhen.matcher(tagValueProducer).negate();
 
-    Double minTileCoverage = attrIncludeWhen == null ? null : attribute.getMinTileCoverSize();
+    Double minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
 
     Function<SourceFeature, Integer> attributeZoomProducer;
 

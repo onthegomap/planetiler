@@ -8,72 +8,17 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class AttributeDefinition {
-  private String key;
-  private Object constantValue;
-  private String tagValue;
-  private TagCriteria includeWhen;
-  private TagCriteria excludeWhen;
-  private int minZoom;
-  private Double minTileCoverSize;
+public record AttributeDefinition(
+  String key,
+  Object constantValue,
+  String tagValue,
+  TagCriteria includeWhen,
+  TagCriteria excludeWhen,
+  int minZoom,
+  Double minTileCoverSize
+) {
 
-  private BiFunction<SourceFeature, String, Object> tagDataSupplier = (feature, key) -> feature.getTag(key);
-
-  public String getKey() {
-    return key;
-  }
-
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-  public Object getConstantValue() {
-    return constantValue;
-  }
-
-  public void setConstantValue(Object constantValue) {
-    this.constantValue = constantValue;
-  }
-
-  public String getTagValue() {
-    return tagValue;
-  }
-
-  public void setTagValue(String tagValue) {
-    this.tagValue = tagValue;
-  }
-
-  public TagCriteria getIncludeWhen() {
-    return includeWhen;
-  }
-
-  public void setIncludeWhen(TagCriteria includeWhen) {
-    this.includeWhen = includeWhen;
-  }
-
-  public TagCriteria getExcludeWhen() {
-    return excludeWhen;
-  }
-
-  public void setExcludeWhen(TagCriteria excludeWhen) {
-    this.excludeWhen = excludeWhen;
-  }
-
-  public int getMinZoom() {
-    return minZoom;
-  }
-
-  public void setMinZoom(int minZoom) {
-    this.minZoom = minZoom;
-  }
-
-  public Double getMinTileCoverSize() {
-    return minTileCoverSize;
-  }
-
-  public void setMinTileCoverSize(Double minTileCoverSize) {
-    this.minTileCoverSize = minTileCoverSize;
-  }
+  private static BiFunction<SourceFeature, String, Object> tagDataSupplier = (feature, key) -> feature.getTag(key);
 
   /**
    * Returns a function that determines whether a source feature matches any of the entries in this specification

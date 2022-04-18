@@ -1,29 +1,26 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPolygon;
-import static java.util.Collections.emptyList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.Yaml;
+
+import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPolygon;
+import static java.util.Collections.emptyList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ConfiguredSingleFeatureTest {
 
@@ -41,7 +38,7 @@ public class ConfiguredSingleFeatureTest {
 
   private static Profile configureProfile(String filename) throws Exception {
     var staticAttributeConfig = TestConfigurableUtils.pathToResource(filename);
-    var schema = new Yaml().loadAs(Files.newInputStream(staticAttributeConfig), SchemaConfig.class);
+    var schema = ConfiguredMapMain.loadConfig(staticAttributeConfig);
     return new ConfiguredProfile(schema);
   }
 
