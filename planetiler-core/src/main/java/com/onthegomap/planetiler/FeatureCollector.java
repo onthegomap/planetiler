@@ -10,9 +10,6 @@ import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CacheByZoom;
 import com.onthegomap.planetiler.util.ZoomFunction;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -37,7 +34,6 @@ import org.locationtech.jts.geom.Geometry;
  * </pre>
  */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
-  private int unused = 1;
 
   private static final Geometry EMPTY_GEOM = GeoUtils.JTS_FACTORY.createGeometryCollection();
 
@@ -50,16 +46,6 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     this.source = source;
     this.config = config;
     this.stats = stats;
-  }
-
-  @Deprecated
-  public void badMethod() {
-    // TODO todo
-    try {
-      var writer = Files.newBufferedWriter(Path.of("fasfadsf"));
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
   }
 
   @Override
