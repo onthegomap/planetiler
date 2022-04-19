@@ -42,6 +42,8 @@ import static com.onthegomap.planetiler.basemap.util.Utils.*;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.carrotsearch.hppc.LongByteMap;
+import com.carrotsearch.hppc.LongHashSet;
+import com.carrotsearch.hppc.LongSet;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.ForwardingProfile;
@@ -124,6 +126,7 @@ public class TransportationName implements
   private final boolean minorRefs;
   private Transportation transportation;
   private final LongByteMap motorwayJunctionHighwayClasses = Hppc.newLongByteHashMap();
+  private final LongSet motorwayJunctionNodes = new LongHashSet();
 
   public TransportationName(Translations translations, PlanetilerConfig config, Stats stats) {
     this.config = config;
@@ -157,8 +160,8 @@ public class TransportationName implements
   @Override
   public void preprocessOsmNode(OsmElement.Node node) {
     if (node.hasTag("highway", "motorway_junction")) {
-      synchronized (motorwayJunctionHighwayClasses) {
-        motorwayJunctionHighwayClasses.put(node.id(), HighwayClass.UNKNOWN.value);
+      synchronized (motorwayJunctionNodes) {
+        motorwayJunctionNodes.add(node.id());
       }
     }
   }
@@ -170,11 +173,11 @@ public class TransportationName implements
       HighwayClass cls = HighwayClass.from(highway);
       if (cls != HighwayClass.UNKNOWN) {
         LongArrayList nodes = way.nodes();
-        synchronized (motorwayJunctionHighwayClasses) {
-          for (int i = 0; i < nodes.size(); i++) {
-            long node = nodes.get(i);
-            if (motorwayJunctionHighwayClasses.containsKey(node)) {
-              byte oldValue = motorwayJunctionHighwayClasses.get(node);
+        for (int i = 0; i < nodes.size(); i++) {
+          long node = nodes.get(i);
+          if (motorwayJunctionNodes.contains(node)) {
+            synchronized (motorwayJunctionHighwayClasses) {
+              byte oldValue = motorwayJunctionHighwayClasses.getOrDefault(node, HighwayClass.UNKNOWN.value);
               byte newValue = cls.value;
               if (newValue > oldValue) {
                 motorwayJunctionHighwayClasses.put(node, newValue);
