@@ -81,3 +81,4 @@ Learn more about using VSCode with Java [here](https://code.visualstudio.com/doc
     - `New...` and `*`
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run As -> JUnit Test`
+
