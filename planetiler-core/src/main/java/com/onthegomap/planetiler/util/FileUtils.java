@@ -51,8 +51,8 @@ public class FileUtils {
 
   /** Returns the directory usage of all files until {@code path} or 0 if missing/inaccessible. */
   public static long directorySize(Path path) {
-    try {
-      return Files.walk(path)
+    try (var walker = Files.walk(path)) {
+      return walker
         .filter(Files::isRegularFile)
         .mapToLong(FileUtils::fileSize)
         .sum();
@@ -77,8 +77,8 @@ public class FileUtils {
 
   /** Deletes all files under a directory and fails silently if it doesn't exist. */
   public static void deleteDirectory(Path path) {
-    try {
-      Files.walk(path)
+    try (var walker = Files.walk(path)) {
+      walker
         .sorted(Comparator.reverseOrder())
         .forEach(FileUtils::deleteFile);
     } catch (NoSuchFileException e) {
