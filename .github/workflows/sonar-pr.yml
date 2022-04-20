@@ -1,11 +1,13 @@
-# This workflow will build a Java project with Maven
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+# Pull requests don't have access to SONAR_TOKEN secret, so instead run sonarqube in a local docker
+# container
 
-name: Analyze
+name: Analyze PR
+
+env:
+  SONARQUBE_LOGIN: admin
+  SONARQUBE_PASSWORD: admin
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -14,6 +16,11 @@ jobs:
     name: Analyze with Sonar
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      sonar:
+        image: sonarqube:latest
+        ports:
+          - 9000:9000
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,22 +40,22 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
       - name: Analyze with SonarCloud
         run: |
-          mvn -Dspotless.apply.skip -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          mvn -Dspotless.apply.skip \
+              -Dsonar.host.url=http://localhost:9000 \
+              -Dsonar.login=admin -Dsonar.password=admin \
+              -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
         env:
           # Needed to get some information about the pull request, if any
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       - name: Wait for SonarCloud API to update...
         run: "sleep 10"
       - name: Upload annotations on PRs
-        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ github.token }}
           script: |
             const pr = context.payload.pull_request.number;
-            const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
+            const url = `https://localhost:9000/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
             const response = await github.request(url);
             console.log("Got " + JSON.stringify(response.data));
