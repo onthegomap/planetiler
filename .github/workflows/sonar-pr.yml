@@ -57,9 +57,9 @@ jobs:
             const pr = context.payload.pull_request.number;
             const url = `http://localhost:9000/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
-            const response = await github.request(url);
-            console.log("Got " + JSON.stringify(response.data));
-            response.data.issues.forEach(issue => {
+            const response = await (await fetch(url)).json();
+            console.log("Got " + JSON.stringify(response));
+            response.issues.forEach(issue => {
               try {
                 if (issue.severity === 'INFO') return;
                 const textRange = issue.textRange;
