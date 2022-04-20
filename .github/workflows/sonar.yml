@@ -13,6 +13,7 @@ jobs:
   sonar:
     name: Analyze with Sonar
     runs-on: ubuntu-latest
+    environment: sonar
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v3
