@@ -38,17 +38,17 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: Analyze with SonarCloud
-        run: |
-          mvn -Dspotless.apply.skip \
-              -Dsonar.host.url=http://localhost:9000 \
-              -Dsonar.login=admin -Dsonar.password=admin \
-              -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-        env:
-          # Needed to get some information about the pull request, if any
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Wait for SonarCloud API to update...
-        run: "sleep 10"
+      #      - name: Analyze with SonarCloud
+      #        run: |
+      #          mvn -Dspotless.apply.skip \
+      #              -Dsonar.host.url=http://localhost:9000 \
+      #              -Dsonar.login=admin -Dsonar.password=admin \
+      #              -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+      #        env:
+      #          # Needed to get some information about the pull request, if any
+      #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #      - name: Wait for SonarCloud API to update...
+      #        run: "sleep 10"
       - name: Upload annotations on PRs
         uses: actions/github-script@v6
         with:
