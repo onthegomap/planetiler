@@ -55,7 +55,7 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const pr = context.payload.pull_request.number;
-            const url = `https://localhost:9000/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
+            const url = `http://localhost:9000/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
             console.log("Fetching " + url);
             const response = await github.request(url);
             console.log("Got " + JSON.stringify(response.data));
