@@ -41,6 +41,10 @@ jobs:
           mvn -Dspotless.apply.skip \
               -Dsonar.host.url=http://localhost:9000 \
               -Dsonar.login=admin -Dsonar.password=admin \
+              -Dsonar.pullrequest.branch=$GITHUB_HEAD_REF \
+              -Dsonar.pullrequest.base=$GITHUB_BASE_REF \
+              -Dsonar.pullrequest.key=${{ github.event.number }} \
+              -Dsonar.pullrequest.provider=github \
               -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
         env:
           # Needed to get some information about the pull request, if any
