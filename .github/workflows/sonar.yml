@@ -26,7 +26,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - name: Cache SonarCloud packages
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
