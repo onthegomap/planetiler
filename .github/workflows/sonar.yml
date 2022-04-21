@@ -37,8 +37,8 @@ jobs:
         env:
           # Needed to get some information about the pull request, if any
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # SonarCloud access token should be generated from https://sonarcloud.io/account/security/
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # Read-only user, use this token to link SonarLint to SonarCloud as well
+          SONAR_TOKEN: c2cfe8bd7368ced07e84a620b7c2487846e220eb
       - name: Wait for SonarCloud API to update...
         run: "sleep 10"
       - name: Upload annotations on PRs
