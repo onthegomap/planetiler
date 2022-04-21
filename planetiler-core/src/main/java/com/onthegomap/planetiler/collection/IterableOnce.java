@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 /**
@@ -33,6 +34,9 @@ public interface IterableOnce<T> extends Iterable<T>, Supplier<T> {
       @Override
       public T next() {
         advance();
+        if (next == null) {
+          throw new NoSuchElementException();
+        }
         stale = true;
         return next;
       }
