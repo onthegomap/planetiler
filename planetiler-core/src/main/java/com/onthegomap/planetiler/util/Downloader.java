@@ -80,7 +80,7 @@ public class Downloader {
     this.chunkSizeBytes = chunkSizeBytes;
     this.config = config;
     this.stats = stats;
-    this.executor = Executors.newSingleThreadExecutor((runnable) -> {
+    this.executor = Executors.newSingleThreadExecutor(runnable -> {
       Thread thread = new Thread(() -> {
         LogUtil.setStage("download");
         runnable.run();
@@ -173,7 +173,10 @@ public class Downloader {
       try {
         long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
         loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Error getting size of " + toDownload.url, e);
+      } catch (ExecutionException | TimeoutException e) {
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
       }
     }
@@ -182,7 +185,7 @@ public class Downloader {
     executor.shutdown();
   }
 
-  CompletableFuture<?> downloadIfNecessary(ResourceToDownload resourceToDownload) {
+  CompletableFuture<Void> downloadIfNecessary(ResourceToDownload resourceToDownload) {
     long existingSize = FileUtils.size(resourceToDownload.output);
 
     return httpHeadFollowRedirects(resourceToDownload.url, 0)
@@ -195,12 +198,12 @@ public class Downloader {
       })
       .thenComposeAsync(metadata -> {
         if (metadata.size == existingSize) {
-          LOGGER.info("Skipping " + resourceToDownload.id + ": " + resourceToDownload.output + " already up-to-date");
+          LOGGER.info("Skipping {}: {} already up-to-date", resourceToDownload.id, resourceToDownload.output);
           return CompletableFuture.completedFuture(null);
         } else {
           String redirectInfo = metadata.canonicalUrl.equals(resourceToDownload.url) ? "" :
             " (redirected to " + metadata.canonicalUrl + ")";
-          LOGGER.info("Downloading " + resourceToDownload.url + redirectInfo + " to " + resourceToDownload.output);
+          LOGGER.info("Downloading {}{} to {}", resourceToDownload.url, redirectInfo, resourceToDownload.output);
           FileUtils.delete(resourceToDownload.output);
           FileUtils.createParentDirectories(resourceToDownload.output);
           Path tmpPath = resourceToDownload.tmpPath();
@@ -212,16 +215,16 @@ public class Downloader {
             .thenCompose(result -> {
               try {
                 Files.move(tmpPath, resourceToDownload.output);
-                return CompletableFuture.completedFuture(result);
+                return CompletableFuture.completedFuture(null);
               } catch (IOException e) {
-                return CompletableFuture.failedFuture(e);
+                return CompletableFuture.<Void>failedFuture(e);
               }
             })
             .whenCompleteAsync((result, error) -> {
               if (error != null) {
-                LOGGER.error("Error downloading " + resourceToDownload.url + " to " + resourceToDownload.output, error);
+                LOGGER.error("Error downloading {} to {}", resourceToDownload.url, resourceToDownload.output, error);
               } else {
-                LOGGER.info("Finished downloading " + resourceToDownload.url + " to " + resourceToDownload.output);
+                LOGGER.info("Finished downloading {} to {}", resourceToDownload.url, resourceToDownload.output);
               }
               FileUtils.delete(tmpPath);
             }, executor);

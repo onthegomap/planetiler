@@ -83,7 +83,7 @@ abstract class AppendStoreMmap implements AppendStore {
         try {
           ByteBufferUtil.free(segments);
         } catch (IOException e) {
-          LOGGER.info("Unable to unmap " + path + " " + e);
+          LOGGER.info("Unable to unmap {} {}", path, e);
         }
         Arrays.fill(segments, null);
       }

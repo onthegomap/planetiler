@@ -1,10 +1,10 @@
 package com.onthegomap.planetiler.worker;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.LogUtil;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,7 +25,7 @@ public class Worker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Worker.class);
   private final String prefix;
-  private final CompletableFuture<?> done;
+  private final CompletableFuture<Void> done;
   private static final AtomicBoolean firstWorkerDied = new AtomicBoolean(false);
 
   /**
@@ -36,6 +36,7 @@ public class Worker {
    * @param threads number of parallel threads to run {@code task} in
    * @param task    the work to do in each thread
    */
+  @SuppressWarnings("java:S1181")
   public Worker(String prefix, Stats stats, int threads, RunnableThatThrows task) {
     this.prefix = prefix;
     stats.gauge(prefix + "_threads", threads);
@@ -57,7 +58,7 @@ public class Worker {
           if (firstWorkerDied.compareAndSet(false, true)) {
             e.printStackTrace();
           }
-          throwRuntimeException(e);
+          throwFatalException(e);
         } finally {
           LOGGER.trace("Finished worker");
         }
@@ -71,7 +72,7 @@ public class Worker {
    * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
    * one fails.
    */
-  public static CompletableFuture<?> joinFutures(CompletableFuture<?>... futures) {
+  public static CompletableFuture<Void> joinFutures(CompletableFuture<?>... futures) {
     return joinFutures(List.of(futures));
   }
 
@@ -79,7 +80,7 @@ public class Worker {
    * Returns a future that completes successfully when all {@code futures} complete, or fails immediately when the first
    * one fails.
    */
-  public static CompletableFuture<?> joinFutures(Collection<CompletableFuture<?>> futures) {
+  public static CompletableFuture<Void> joinFutures(Collection<CompletableFuture<?>> futures) {
     CompletableFuture<Void> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     // fail fast on exceptions
     for (CompletableFuture<?> f : futures) {
@@ -93,24 +94,11 @@ public class Worker {
     return result;
   }
 
-  private static void throwRuntimeException(Throwable exception) {
-    if (exception instanceof RuntimeException runtimeException) {
-      throw runtimeException;
-    } else if (exception instanceof IOException ioe) {
-      throw new UncheckedIOException(ioe);
-    } else if (exception instanceof Error error) {
-      throw error;
-    } else if (exception instanceof InterruptedException) {
-      Thread.currentThread().interrupt();
-    }
-    throw new RuntimeException(exception);
-  }
-
   public String getPrefix() {
     return prefix;
   }
 
-  public CompletableFuture<?> done() {
+  public CompletableFuture<Void> done() {
     return done;
   }
 
@@ -133,7 +121,7 @@ public class Worker {
     try {
       done().get();
     } catch (ExecutionException | InterruptedException e) {
-      throw new RuntimeException(e);
+      throwFatalException(e);
     }
   }
 

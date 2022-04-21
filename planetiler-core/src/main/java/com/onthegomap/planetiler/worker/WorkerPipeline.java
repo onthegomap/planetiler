@@ -38,7 +38,7 @@ public record WorkerPipeline<T> (
   WorkerPipeline<?> previous,
   WorkQueue<T> inputQueue,
   Worker worker,
-  CompletableFuture<?> done
+  CompletableFuture<Void> done
 ) {
   /*
    * Empty/Bufferable/Builder are used to provide a fluent API for building a model of the steps to run (and keep
@@ -252,7 +252,8 @@ public record WorkerPipeline<T> (
 
     private WorkerPipeline<?> build() {
       var previousPipeline = previous == null || previous.worker == null ? null : previous.build();
-      var doneFuture = worker != null ? worker.done() : CompletableFuture.completedFuture(true);
+      CompletableFuture<Void> doneFuture =
+        worker != null ? worker.done() : CompletableFuture.completedFuture(null);
       if (previousPipeline != null) {
         doneFuture = joinFutures(doneFuture, previousPipeline.done);
       }

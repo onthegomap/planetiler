@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -46,7 +47,7 @@ public class Geofabrik {
     return searchIndexForDownloadUrl(searchQuery, index);
   }
 
-  private synchronized static IndexJson getAndCacheIndex(PlanetilerConfig config) {
+  private static synchronized IndexJson getAndCacheIndex(PlanetilerConfig config) {
     if (index == null) {
       try (
         InputStream inputStream = Downloader.openStream("https://download.geofabrik.de/index-v1-nogeom.json",
@@ -106,5 +107,6 @@ public class Geofabrik {
 
   record FeatureJson(PropertiesJson properties) {}
 
+  @Immutable
   record IndexJson(List<FeatureJson> features) {}
 }

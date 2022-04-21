@@ -196,7 +196,7 @@ public class GeoUtils {
    * {@link #encodeFlatLocation(double, double)}.
    */
   public static double decodeWorldY(long encoded) {
-    return (((double) (encoded & LOWER_32_BIT_MASK)) / HALF_QUANTIZED_WORLD_SIZE) - 1;
+    return ((encoded & LOWER_32_BIT_MASK) / HALF_QUANTIZED_WORLD_SIZE) - 1;
   }
 
   /**
@@ -204,7 +204,7 @@ public class GeoUtils {
    * {@link #encodeFlatLocation(double, double)}.
    */
   public static double decodeWorldX(long encoded) {
-    return (((double) (encoded >>> 32)) / HALF_QUANTIZED_WORLD_SIZE) - 1;
+    return ((encoded >>> 32) / HALF_QUANTIZED_WORLD_SIZE) - 1;
   }
 
   /**
@@ -227,7 +227,7 @@ public class GeoUtils {
 
   /** Returns the width in meters of a single pixel of a 256x256 px tile at the given {@code zoom} level. */
   public static double metersPerPixelAtEquator(int zoom) {
-    return WORLD_CIRCUMFERENCE_METERS / Math.pow(2, zoom + 8);
+    return WORLD_CIRCUMFERENCE_METERS / Math.pow(2d, zoom + 8d);
   }
 
   /** Returns the length in pixels for a given number of meters on a 256x256 px tile at the given {@code zoom} level. */
@@ -321,7 +321,7 @@ public class GeoUtils {
 
 
   private static long longPair(int a, int b) {
-    return (((long) a) << 32L) | (((long) b) & LOWER_32_BIT_MASK);
+    return (((long) a) << 32L) | (b & LOWER_32_BIT_MASK);
   }
 
   /**
@@ -356,7 +356,7 @@ public class GeoUtils {
   public static Geometry polygonToLineString(Geometry geom) throws GeometryException {
     List<LineString> lineStrings = new ArrayList<>();
     getLineStrings(geom, lineStrings);
-    if (lineStrings.size() == 0) {
+    if (lineStrings.isEmpty()) {
       throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
       return lineStrings.get(0);
