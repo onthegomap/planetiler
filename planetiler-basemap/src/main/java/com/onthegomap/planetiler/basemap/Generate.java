@@ -52,8 +52,6 @@ import org.yaml.snakeyaml.Yaml;
  */
 public class Generate {
 
-  private final long unused = 0;
-
   private static final Logger LOGGER = LoggerFactory.getLogger(Generate.class);
   private static final ObjectMapper mapper = new ObjectMapper();
   private static final Yaml yaml;
