@@ -3,10 +3,6 @@
 
 name: Analyze PR
 
-env:
-  SONARQUBE_LOGIN: admin
-  SONARQUBE_PASSWORD: admin
-
 on:
   pull_request:
     branches: [ main ]
@@ -21,6 +17,8 @@ jobs:
         image: sonarqube:latest
         ports:
           - 9000:9000
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: true
     steps:
       - uses: actions/checkout@v3
         with:
@@ -50,8 +48,8 @@ jobs:
       - name: Fetch issues from API...
         run: |
           sleep 10
-          curl "http://localhost:9000/api/components/search_projects?boostNewProjects=true&ps=50&facets=reliability_rating%2Csecurity_rating%2Csqale_rating%2Ccoverage%2Cduplicated_lines_density%2Cncloc%2Calert_status%2Clanguages%2Ctags&f=analysisDate%2CleakPeriodDate&filter=isFavorite"
-          curl -v -o issues.json "http://localhost:9000/api/issues/search?pullRequest=${{ github.event.number }}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all"
+          curl -v "http://admin:admin@localhost:9000/api/components/search_projects?ps=50&facets=reliability_rating%2Csecurity_rating%2Csecurity_review_rating%2Csqale_rating%2Ccoverage%2Cduplicated_lines_density%2Cncloc%2Calert_status%2Clanguages%2Ctags%2Cqualifier&f=analysisDate%2CleakPeriodDate"
+          curl -v -o issues.json "http://admin:admin@localhost:9000/api/issues/search?pullRequest=${{ github.event.number }}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all"
           cat issues.json
       - name: Upload annotations on PRs
         uses: actions/github-script@v6
