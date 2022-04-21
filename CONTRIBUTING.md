@@ -35,8 +35,6 @@ easier though.
 - [Install IntelliJ IDEA](https://www.jetbrains.com/help/idea/installation-guide.html)
 - Install
   the [Adapter for Eclipse Code Formatter plugin](https://plugins.jetbrains.com/plugin/6546-adapter-for-eclipse-code-formatter)
-- Install the [SonarLint plugin](https://plugins.jetbrains.com/plugin/7973-sonarlint) (recommended) to see static
-  analysis results while editing code.
 - In IntelliJ, click `Open`, navigate to the the `pom.xml` file in the local copy of this repo, and `Open`
   then `Open as Project`
   - If IntelliJ asks (and you trust the code) then click `Trust Project`
@@ -55,8 +53,6 @@ Troubleshooting:
 ### Visual Studio Code
 
 - Install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
-- Install the [SonarLint plugin](https://marketplace.visualstudio.com/items?itemName=SonarSource.sonarlint-vscode)
-  (recommended) to see static analysis results while editing code.
 - In VSCode, click `File -> Open` and navigate to Planetiler directory
   - If VSCode asks (and you trust the code) then click `Yes I trust the authors`
 - To verify everything works correctly, go to the `Testing` tab and click `Run Tests`
@@ -67,8 +63,6 @@ Learn more about using VSCode with Java [here](https://code.visualstudio.com/doc
 
 - In [Eclipse for Java Developers](https://www.eclipse.org/downloads/packages/), click `File -> Import ...`
   then `Maven -> Existing Maven Projects`, navigate to Planetiler directory, and click `Finish`
-- Install the [SonarLint plugin](https://marketplace.eclipse.org/content/sonarlint)
-  (recommended) to see static analysis results while editing code.
 - Under `Eclipse -> Preferences...`:
   - Under `Java -> Code Style -> Formatter` and choose `Import...`
     choose [`eclipse-formatter.xml`](eclipse-formatter.xml) from the root of this project. Then choose `Planetiler` as
@@ -81,4 +75,14 @@ Learn more about using VSCode with Java [here](https://code.visualstudio.com/doc
     - `New...` and `*`
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run As -> JUnit Test`
+
+## SonarLint Plugin Setup (optional, but recommended)
+
+Planetiler uses [SonarCloud](https://sonarcloud.io/project/overview?id=onthegomap_planetiler) to statically analyze pull
+requests to catch common bugs and security vulnerabilities. To preview Sonar warnings in VS Code, IntelliJ, or Eclipse:
+
+- Follow the directions on [sonarlint.org](https://www.sonarlint.org/) to install the plugin for your IDE
+- Then to synchronize your local configuration with the one used in SonarCloud,
+  enable [Connected Mode](https://www.sonarlint.org/bring-your-team-on-board) for your IDE using "SonarCloud"
+  connection type and the shared read-only API token used in GitHub CI: `c2cfe8bd7368ced07e84a620b7c2487846e220eb`
 
