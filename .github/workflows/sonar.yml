@@ -33,7 +33,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
       - name: Analyze with SonarCloud
         run: |
-          mvn -Dspotless.apply.skip -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          mvn -Dspotless.check.skip -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
         env:
           # Needed to get some information about the pull request, if any
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
