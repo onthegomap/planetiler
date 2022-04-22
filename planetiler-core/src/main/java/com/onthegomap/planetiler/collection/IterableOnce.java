@@ -33,8 +33,7 @@ public interface IterableOnce<T> extends Iterable<T>, Supplier<T> {
 
       @Override
       public T next() {
-        advance();
-        if (next == null) {
+        if (!hasNext()) {
           throw new NoSuchElementException();
         }
         stale = true;
