@@ -447,12 +447,15 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         // introduce artificial intersections between endpoints to confuse line merging,
         // so we have to reduce the precision here, now that line merging is done.
         unscale(features);
-      } catch (Exception e) {
+      } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
         // failures in tile post-processing happen very late so err on the side of caution and
         // log failures, only throwing when it's a fatal error
         if (e instanceof GeometryException geoe) {
           geoe.log(stats, "postprocess_layer",
             "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
+        } else if (e instanceof Error err) {
+          LOGGER.error("Caught fatal error postprocessing features {} {}", layer, tileCoord, e);
+          throw err;
         } else {
           LOGGER.error("Caught error postprocessing features {} {}", layer, tileCoord, e);
         }

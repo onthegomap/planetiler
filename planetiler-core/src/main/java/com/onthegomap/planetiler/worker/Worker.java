@@ -120,7 +120,10 @@ public class Worker {
   public void await() {
     try {
       done().get();
-    } catch (ExecutionException | InterruptedException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
+    } catch (ExecutionException e) {
       throwFatalException(e);
     }
   }

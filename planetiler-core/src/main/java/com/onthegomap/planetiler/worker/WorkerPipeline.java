@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.worker;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.collection.IterableOnce;
@@ -69,8 +70,11 @@ public record WorkerPipeline<T> (
   public void await() {
     try {
       done.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
+    } catch (ExecutionException e) {
+      throwFatalException(e);
     }
   }
 

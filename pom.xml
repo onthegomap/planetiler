@@ -26,6 +26,7 @@
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
+    <sonar.exclusions>planetiler-benchmarks/**/*</sonar.exclusions>
   </properties>
 
   <scm>
