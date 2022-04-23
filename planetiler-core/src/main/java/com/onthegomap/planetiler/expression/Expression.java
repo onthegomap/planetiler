@@ -38,7 +38,7 @@ public interface Expression {
   String DIRECTION_DATATYPE = "direction";
   String LONG_DATATYPE = "long";
 
-  Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter = Map.of(
+  static Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter = Map.of(
     STRING_DATATYPE, SourceFeature::getString,
     BOOLEAN_DATATYPE, SourceFeature::getBoolean,
     DIRECTION_DATATYPE, SourceFeature::getDirection,
