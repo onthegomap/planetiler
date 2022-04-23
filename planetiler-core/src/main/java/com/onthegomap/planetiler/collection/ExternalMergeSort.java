@@ -384,7 +384,7 @@ class ExternalMergeSort implements FeatureSort {
     @Override
     public SortableFeature next() {
       SortableFeature current = next;
-      if (next == null) {
+      if (current == null) {
         throw new NoSuchElementException();
       }
       if ((next = readNextFeature()) == null) {
