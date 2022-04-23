@@ -10,14 +10,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class PoiTest extends AbstractLayerTest {
+class PoiTest extends AbstractLayerTest {
 
   private SourceFeature feature(boolean area, Map<String, Object> tags) {
     return area ? polygonFeature(tags) : pointFeature(tags);
   }
 
   @Test
-  public void testFenwayPark() {
+  void testFenwayPark() {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "stadium",
@@ -34,7 +34,7 @@ public class PoiTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testFunicularHalt(boolean area) {
+  void testFunicularHalt(boolean area) {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "railway",
@@ -50,7 +50,7 @@ public class PoiTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testSubway(boolean area) {
+  void testSubway(boolean area) {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "railway",
@@ -66,7 +66,7 @@ public class PoiTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testPlaceOfWorshipFromReligionTag(boolean area) {
+  void testPlaceOfWorshipFromReligionTag(boolean area) {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "place_of_worship",
@@ -81,7 +81,7 @@ public class PoiTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPitchFromSportTag() {
+  void testPitchFromSportTag() {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "pitch",
@@ -96,7 +96,7 @@ public class PoiTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testInformation(boolean area) {
+  void testInformation(boolean area) {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "information",
@@ -117,7 +117,7 @@ public class PoiTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testFerryTerminal(boolean area) {
+  void testFerryTerminal(boolean area) {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "ferry_terminal",
@@ -135,7 +135,7 @@ public class PoiTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testGridRank() throws GeometryException {
+  void testGridRank() throws GeometryException {
     var layerName = Poi.LAYER_NAME;
     assertEquals(List.of(), profile.postProcessLayerFeatures(layerName, 13, List.of()));
 
@@ -183,7 +183,7 @@ public class PoiTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testEmbassy() {
+  void testEmbassy() {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "diplomatic",
@@ -196,7 +196,7 @@ public class PoiTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testLocksmith() {
+  void testLocksmith() {
     assertFeatures(7, List.of(Map.of(
       "_layer", "poi",
       "class", "shop",

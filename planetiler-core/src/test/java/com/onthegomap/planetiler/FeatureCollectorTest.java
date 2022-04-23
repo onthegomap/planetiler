@@ -21,7 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 
-public class FeatureCollectorTest {
+class FeatureCollectorTest {
 
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
   private final FeatureCollector.Factory factory = new FeatureCollector.Factory(config, Stats.inMemory());
@@ -39,7 +39,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of(
       "key", "val"
     )));
@@ -47,7 +47,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testPoint() {
+  void testPoint() {
     var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of(
       "key", "val"
     )));
@@ -81,7 +81,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testAttrWithMinzoom() {
+  void testAttrWithMinzoom() {
     var collector = factory.get(newReaderFeature(newPoint(0, 0), Map.of(
       "key", "val"
     )));
@@ -103,7 +103,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testLine() {
+  void testLine() {
     var collector = factory.get(newReaderFeature(newLineString(
       0, 0,
       1, 1
@@ -130,7 +130,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testPolygon() {
+  void testPolygon() {
     var collector = factory.get(newReaderFeature(newPolygon(
       0, 0,
       1, 0,
@@ -166,7 +166,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testMinSizeAtMaxZoomDefaultsToTileResolution() {
+  void testMinSizeAtMaxZoomDefaultsToTileResolution() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setMinPixelSize(1)
@@ -177,7 +177,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetMinSizeAtMaxZoom() {
+  void testSetMinSizeAtMaxZoom() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setMinPixelSize(1)
@@ -189,7 +189,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetMinSizeAtAllZooms() {
+  void testSetMinSizeAtAllZooms() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setMinPixelSizeAtAllZooms(2)
@@ -200,7 +200,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testDefaultMinPixelSize() {
+  void testDefaultMinPixelSize() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername");
     assertEquals(1, poly.getMinPixelSizeAtZoom(12));
@@ -209,7 +209,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testToleranceDefault() {
+  void testToleranceDefault() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername");
     assertEquals(0.1, poly.getPixelToleranceAtZoom(12));
@@ -218,7 +218,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetTolerance() {
+  void testSetTolerance() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelTolerance(1);
@@ -228,7 +228,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetToleranceAtAllZooms() {
+  void testSetToleranceAtAllZooms() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelToleranceAtAllZooms(1);
@@ -238,7 +238,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetMaxZoom() {
+  void testSetMaxZoom() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelToleranceAtMaxZoom(2);
@@ -248,7 +248,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testSetAllZoomMethods() {
+  void testSetAllZoomMethods() {
     var collector = factory.get(newReaderFeature(rectangle(10, 20), Map.of()));
     var poly = collector.polygon("layername")
       .setPixelTolerance(1)
@@ -263,7 +263,7 @@ public class FeatureCollectorTest {
    * SHAPE COERCION TESTS
    */
   @Test
-  public void testPointReaderFeatureCoercion() throws GeometryException {
+  void testPointReaderFeatureCoercion() throws GeometryException {
     var pointSourceFeature = newReaderFeature(newPoint(0, 0), Map.of());
     assertEquals(0, pointSourceFeature.area());
     assertEquals(0, pointSourceFeature.length());
@@ -288,7 +288,7 @@ public class FeatureCollectorTest {
 
   @ParameterizedTest
   @ValueSource(ints = {2, 3, 4})
-  public void testLineWithSamePointsReaderFeatureCoercion(int nPoints) throws GeometryException {
+  void testLineWithSamePointsReaderFeatureCoercion(int nPoints) throws GeometryException {
     double[] coords = new double[nPoints * 2];
     Arrays.fill(coords, 0d);
     double[] worldCoords = new double[nPoints * 2];
@@ -331,7 +331,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testNonZeroLineStringReaderFeatureCoercion() throws GeometryException {
+  void testNonZeroLineStringReaderFeatureCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newLineString(worldToLatLon(
       0.2, 0.2,
       0.75, 0.75,
@@ -372,7 +372,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testPolygonReaderFeatureCoercion() throws GeometryException {
+  void testPolygonReaderFeatureCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newPolygon(worldToLatLon(
       0.25, 0.25,
       0.75, 0.75,
@@ -413,7 +413,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testPolygonWithHoleCoercion() throws GeometryException {
+  void testPolygonWithHoleCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newPolygon(newCoordinateList(worldToLatLon(
       0, 0,
       1, 0,
@@ -459,7 +459,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testPointOnSurface() {
+  void testPointOnSurface() {
     var sourceLine = newReaderFeature(newPolygon(worldToLatLon(
       0, 0,
       1, 0,
@@ -489,7 +489,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testMultiPolygonCoercion() throws GeometryException {
+  void testMultiPolygonCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newMultiPolygon(
       newPolygon(worldToLatLon(
         0, 0,
@@ -537,7 +537,7 @@ public class FeatureCollectorTest {
   }
 
   @Test
-  public void testMultiLineStringCoercion() throws GeometryException {
+  void testMultiLineStringCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newMultiLineString(
       newLineString(worldToLatLon(
         0, 0,

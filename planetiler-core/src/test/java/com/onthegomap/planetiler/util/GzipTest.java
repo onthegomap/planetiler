@@ -8,10 +8,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
-public class GzipTest {
+class GzipTest {
 
   @Test
-  public void testRoundTrip() throws IOException {
+  void testRoundTrip() throws IOException {
     String string = "abcdef";
     byte[] small = Gzip.gzip(string.getBytes(UTF_8));
     byte[] big = Gzip.gunzip(small);

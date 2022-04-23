@@ -20,7 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-public class DownloaderTest {
+class DownloaderTest {
 
   @TempDir
   Path path;
@@ -77,7 +77,7 @@ public class DownloaderTest {
     "false,100,2",
     "true,2,4",
   })
-  public void testDownload(boolean range, int maxLength, int redirects) throws Exception {
+  void testDownload(boolean range, int maxLength, int redirects) throws Exception {
     Path dest = path.resolve("out");
     String string = "0123456789";
     String url = "http://url";
@@ -122,7 +122,7 @@ public class DownloaderTest {
   }
 
   @Test
-  public void testDownloadFailsIfTooBig() {
+  void testDownloadFailsIfTooBig() {
     var downloader = new Downloader(config, stats, 2L) {
 
       @Override

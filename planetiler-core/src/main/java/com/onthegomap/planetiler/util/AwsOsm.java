@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
 import java.util.List;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * A utility to download {@code planet.osm.pbf} files from <a href="https://registry.opendata.aws/osm/">AWS Open Data
@@ -75,6 +76,7 @@ public class AwsOsm {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
+  @Immutable
   record IndexXml(
     @JacksonXmlProperty(localName = "Contents")
     @JacksonXmlElementWrapper(useWrapping = false) List<ContentXml> contents

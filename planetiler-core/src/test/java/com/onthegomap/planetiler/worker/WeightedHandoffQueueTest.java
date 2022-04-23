@@ -6,11 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class WeightedHandoffQueueTest {
+class WeightedHandoffQueueTest {
 
   @Test
   @Timeout(10)
-  public void testEmpty() {
+  void testEmpty() {
     WeightedHandoffQueue<String> q = new WeightedHandoffQueue<>(1, 1);
     q.close();
     assertNull(q.get());
@@ -18,7 +18,7 @@ public class WeightedHandoffQueueTest {
 
   @Test
   @Timeout(10)
-  public void testOneItem() {
+  void testOneItem() {
     WeightedHandoffQueue<String> q = new WeightedHandoffQueue<>(1, 1);
     q.accept("a", 1);
     assertEquals("a", q.get());
@@ -28,7 +28,7 @@ public class WeightedHandoffQueueTest {
 
   @Test
   @Timeout(10)
-  public void testOneItemCloseFirst() {
+  void testOneItemCloseFirst() {
     WeightedHandoffQueue<String> q = new WeightedHandoffQueue<>(2, 1);
     q.accept("a", 1);
     q.close();
@@ -38,7 +38,7 @@ public class WeightedHandoffQueueTest {
 
   @Test
   @Timeout(10)
-  public void testMoreItemsThanBatchSize() {
+  void testMoreItemsThanBatchSize() {
     WeightedHandoffQueue<String> q = new WeightedHandoffQueue<>(3, 2);
     q.accept("a", 1);
     q.accept("b", 1);
@@ -52,7 +52,7 @@ public class WeightedHandoffQueueTest {
 
   @Test
   @Timeout(10)
-  public void testManyItems() {
+  void testManyItems() {
     WeightedHandoffQueue<Integer> q = new WeightedHandoffQueue<>(100, 100);
     for (int i = 0; i < 950; i++) {
       q.accept(i, 1);

@@ -5,7 +5,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class AerodromeLabelTest extends AbstractLayerTest {
+class AerodromeLabelTest extends AbstractLayerTest {
 
   @BeforeEach
   public void setupWikidataTranslation() {
@@ -13,7 +13,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIntlWithIata() {
+  void testIntlWithIata() {
     assertFeatures(14, List.of(Map.of(
       "class", "international",
       "ele", 100,
@@ -38,7 +38,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testInternational() {
+  void testInternational() {
     assertFeatures(14, List.of(Map.of(
       "class", "international",
       "_layer", "aerodrome_label",
@@ -50,7 +50,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPublic() {
+  void testPublic() {
     assertFeatures(14, List.of(Map.of(
       "class", "public",
       "_layer", "aerodrome_label",
@@ -69,7 +69,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMilitary() {
+  void testMilitary() {
     assertFeatures(14, List.of(Map.of(
       "class", "military",
       "_layer", "aerodrome_label",
@@ -88,7 +88,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPrivate() {
+  void testPrivate() {
     assertFeatures(14, List.of(Map.of(
       "class", "private",
       "_layer", "aerodrome_label",
@@ -107,7 +107,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOther() {
+  void testOther() {
     assertFeatures(14, List.of(Map.of(
       "class", "other",
       "_layer", "aerodrome_label",
@@ -118,7 +118,7 @@ public class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoreNonPoints() {
+  void testIgnoreNonPoints() {
     assertFeatures(14, List.of(), process(lineFeature(Map.of(
       "aeroway", "aerodrome"
     ))));

@@ -105,7 +105,7 @@ public class Generate {
   }
 
   private static <T> T loadAndParseYaml(String url, PlanetilerConfig config, Class<T> clazz) throws IOException {
-    LOGGER.info("reading " + url);
+    LOGGER.info("reading {}", url);
     try (var stream = Downloader.openStream(url, config)) {
       // Jackson yaml parsing does not handle anchors and references, so first parse the input
       // using SnakeYAML, then parse SnakeYAML's output using Jackson to get it into our records.
@@ -150,7 +150,7 @@ public class Generate {
           String mappingPath = Path.of(layerFile).resolveSibling(datasource.mapping_file).normalize().toString();
           imposm3MappingFiles.add(base + mappingPath);
         } else {
-          LOGGER.warn("Unknown datasource type: " + datasource.type);
+          LOGGER.warn("Unknown datasource type: {}", datasource.type);
         }
       }
     }
@@ -675,7 +675,7 @@ public class Generate {
     return Stream.of(markdown.strip().split("[\r\n][\r\n]+"))
       .map(p -> parser.parse(p.strip()))
       .map(node -> escapeJavadoc(renderer.render(node)))
-      .map(p -> p.replaceAll("(^<p>|</p>$)", "").strip())
+      .map(p -> p.replaceAll("((^<p>)|(</p>$))", "").strip())
       .collect(joining(LINE_SEPARATOR + "<p>" + LINE_SEPARATOR));
   }
 

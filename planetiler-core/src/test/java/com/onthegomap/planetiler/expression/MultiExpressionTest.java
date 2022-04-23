@@ -1,13 +1,5 @@
 package com.onthegomap.planetiler.expression;
 
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPoint;
-import static com.onthegomap.planetiler.TestUtils.rectangle;
-import static com.onthegomap.planetiler.expression.Expression.*;
-import static com.onthegomap.planetiler.expression.MultiExpression.entry;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -17,7 +9,15 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class MultiExpressionTest {
+import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
+import static com.onthegomap.planetiler.expression.Expression.*;
+import static com.onthegomap.planetiler.expression.MultiExpression.entry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class MultiExpressionTest {
 
   private static SourceFeature featureWithTags(String... tags) {
     Map<String, Object> map = new HashMap<>();
@@ -28,14 +28,14 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     var index = MultiExpression.<String>of(List.of()).index();
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value")));
   }
 
   @Test
-  public void testSingleElement() {
+  void testSingleElement() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "value"))
     )).index();
@@ -48,7 +48,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testSingleElementBooleanTrue() {
+  void testSingleElementBooleanTrue() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAnyTyped("key", BOOLEAN_DATATYPE, true))
     )).index();
@@ -63,7 +63,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testSingleElementBooleanFalse() {
+  void testSingleElementBooleanFalse() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAnyTyped("key", BOOLEAN_DATATYPE, false))
     )).index();
@@ -78,7 +78,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testSingleElementLong() {
+  void testSingleElementLong() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAnyTyped("key", LONG_DATATYPE, 42))
     )).index();
@@ -91,7 +91,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testSingleElementDirection() {
+  void testSingleElementDirection() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAnyTyped("key", DIRECTION_DATATYPE, 1))
     )).index();
@@ -104,7 +104,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testBlankStringTreatedAsNotMatch() {
+  void testBlankStringTreatedAsNotMatch() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "value", ""))
     )).index();
@@ -118,7 +118,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testSingleMatchField() {
+  void testSingleMatchField() {
     var index = MultiExpression.of(List.of(
       entry("a", matchField("key"))
     )).index();
@@ -132,7 +132,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testWildcard() {
+  void testWildcard() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "%value%"))
     )).index();
@@ -148,7 +148,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testMultipleWildcardsMixedWithExacts() {
+  void testMultipleWildcardsMixedWithExacts() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "%value%", "other"))
     )).index();
@@ -163,7 +163,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testAnd() {
+  void testAnd() {
     var index = MultiExpression.of(List.of(
       entry("a", and(
         matchAny("key1", "val1"),
@@ -180,7 +180,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testOr() {
+  void testOr() {
     var index = MultiExpression.of(List.of(
       entry("a", or(
         matchAny("key1", "val1"),
@@ -198,7 +198,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testNot() {
+  void testNot() {
     var index = MultiExpression.of(List.of(
       entry("a", and(
         matchAny("key1", "val1"),
@@ -215,7 +215,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testMatchesMultiple() {
+  void testMatchesMultiple() {
     var index = MultiExpression.of(List.of(
       entry("a", or(
         matchAny("key1", "val1"),
@@ -235,7 +235,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testTracksMatchingKey() {
+  void testTracksMatchingKey() {
     var index = MultiExpression.of(List.of(
       entry("a", or(
         matchAny("key1", "val1"),
@@ -260,7 +260,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testTracksMatchingKeyFromCorrectPath() {
+  void testTracksMatchingKeyFromCorrectPath() {
     var index = MultiExpression.of(List.of(
       entry("a", or(
         and(
@@ -279,7 +279,7 @@ public class MultiExpressionTest {
   }
 
   @Test
-  public void testMatchDifferentTypes() {
+  void testMatchDifferentTypes() {
     Expression polygonExpression = and(matchType("polygon"), matchField("field"));
     Expression linestringExpression = and(matchType("linestring"), matchField("field"));
     Expression pointExpression = and(matchType("point"), matchField("field"));

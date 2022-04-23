@@ -21,11 +21,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Envelope;
 
-public class MbtilesTest {
+class MbtilesTest {
 
   private static final int BATCH = 999 / 4;
 
-  public void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize)
+  void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize)
     throws IOException, SQLException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTables();
@@ -67,22 +67,22 @@ public class MbtilesTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 1, BATCH, BATCH + 1, 2 * BATCH, 2 * BATCH + 1})
-  public void testWriteTilesDifferentSize(int howMany) throws IOException, SQLException {
+  void testWriteTilesDifferentSize(int howMany) throws IOException, SQLException {
     testWriteTiles(howMany, false, false);
   }
 
   @Test
-  public void testDeferIndexCreation() throws IOException, SQLException {
+  void testDeferIndexCreation() throws IOException, SQLException {
     testWriteTiles(10, true, false);
   }
 
   @Test
-  public void testVacuumAnalyze() throws IOException, SQLException {
+  void testVacuumAnalyze() throws IOException, SQLException {
     testWriteTiles(10, false, true);
   }
 
   @Test
-  public void testAddMetadata() throws IOException {
+  void testAddMetadata() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       var metadata = db.createTables().metadata();
@@ -119,7 +119,7 @@ public class MbtilesTest {
   }
 
   @Test
-  public void testAddMetadataWorldBounds() throws IOException {
+  void testAddMetadataWorldBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       var metadata = db.createTables().metadata();
@@ -132,7 +132,7 @@ public class MbtilesTest {
   }
 
   @Test
-  public void testAddMetadataSmallBounds() throws IOException {
+  void testAddMetadataSmallBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       var metadata = db.createTables().metadata();
@@ -154,7 +154,7 @@ public class MbtilesTest {
   }
 
   @Test
-  public void testMetadataJsonNoLayers() throws IOException {
+  void testMetadataJsonNoLayers() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(), """
       {
         "vector_layers": []
@@ -163,7 +163,7 @@ public class MbtilesTest {
   }
 
   @Test
-  public void testFullMetadataJson() throws IOException {
+  void testFullMetadataJson() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(
       new Mbtiles.MetadataJson.VectorLayer(
         "full",

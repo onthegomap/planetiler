@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 
-public class ForwardingProfileTests {
+class ForwardingProfileTests {
 
   private final ForwardingProfile profile = new ForwardingProfile() {
     @Override
@@ -27,7 +27,7 @@ public class ForwardingProfileTests {
   };
 
   @Test
-  public void testPreprocessOsmNode() {
+  void testPreprocessOsmNode() {
     var node1 = new OsmElement.Node(1, 2, 3);
     var node2 = new OsmElement.Node(2, 3, 4);
     List<OsmElement.Node> calledWith = new ArrayList<>();
@@ -43,7 +43,7 @@ public class ForwardingProfileTests {
   }
 
   @Test
-  public void testPreprocessOsmWay() {
+  void testPreprocessOsmWay() {
     var way1 = new OsmElement.Way(1);
     var way2 = new OsmElement.Way(2);
     List<OsmElement.Way> calledWith = new ArrayList<>();
@@ -59,7 +59,7 @@ public class ForwardingProfileTests {
   }
 
   @Test
-  public void testPreprocessOsmRelation() {
+  void testPreprocessOsmRelation() {
     record RelA(@Override long id) implements OsmRelationInfo {}
     record RelB(@Override long id) implements OsmRelationInfo {}
     assertNull(profile.preprocessOsmRelation(new OsmElement.Relation(1)));
@@ -79,7 +79,7 @@ public class ForwardingProfileTests {
   }
 
   @Test
-  public void testProcessFeature() {
+  void testProcessFeature() {
     SourceFeature a = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srca", null, 1);
     SourceFeature b = SimpleFeature.create(GeoUtils.EMPTY_POINT, Map.of(), "srcb", null, 1);
     testFeatures(List.of(), a);
@@ -111,7 +111,7 @@ public class ForwardingProfileTests {
   }
 
   @Test
-  public void testFinishHandler() {
+  void testFinishHandler() {
     Set<String> finished = new TreeSet<>();
     profile.finish("source", null, null);
     assertEquals(Set.of(), finished);
@@ -130,7 +130,7 @@ public class ForwardingProfileTests {
   }
 
   @Test
-  public void testFeaturePostProcessor() throws GeometryException {
+  void testFeaturePostProcessor() throws GeometryException {
     VectorTile.Feature feature = new VectorTile.Feature(
       "layer",
       1,

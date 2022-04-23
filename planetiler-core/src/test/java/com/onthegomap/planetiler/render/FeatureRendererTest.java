@@ -39,7 +39,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
-public class FeatureRendererTest {
+class FeatureRendererTest {
 
   private PlanetilerConfig config = PlanetilerConfig.defaults();
   private final Stats stats = Stats.inMemory();
@@ -76,7 +76,7 @@ public class FeatureRendererTest {
   private static final double Z13_PX = Z13_WIDTH / 256;
 
   @Test
-  public void testEmptyGeometry() {
+  void testEmptyGeometry() {
     var feature = collector(emptyGeometry()).point("layer");
     assertSameNormalizedFeatures(Map.of(), renderGeometry(feature));
   }
@@ -86,7 +86,7 @@ public class FeatureRendererTest {
    */
 
   @Test
-  public void testSinglePoint() {
+  void testSinglePoint() {
     var feature = pointFeature(newPoint(0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2))
       .setZoomRange(14, 14);
     assertSameNormalizedFeatures(Map.of(
@@ -97,7 +97,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testRepeatSinglePointNeighboringTiles() {
+  void testRepeatSinglePointNeighboringTiles() {
     var feature = pointFeature(newPoint(0.5 + 1d / 512, 0.5 + 1d / 512))
       .setZoomRange(0, 1)
       .setBufferPixels(2);
@@ -111,7 +111,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testRepeatSinglePointNeighboringTilesBuffer0() {
+  void testRepeatSinglePointNeighboringTilesBuffer0() {
     var feature = pointFeature(newPoint(0.5, 0.5))
       .setZoomRange(1, 1)
       .setBufferPixels(0);
@@ -124,7 +124,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testEmitPointsRespectExtents() {
+  void testEmitPointsRespectExtents() {
     config = PlanetilerConfig.from(Arguments.of(
       "bounds", "0,-80,180,0"
     ));
@@ -138,7 +138,7 @@ public class FeatureRendererTest {
   }
 
   @TestFactory
-  public List<DynamicTest> testProcessPointsNearInternationalDateLineAndPoles() {
+  List<DynamicTest> testProcessPointsNearInternationalDateLineAndPoles() {
     double d = 1d / 512;
     record X(double x, double wrapped, double z1x0, double z1x1) {}
     record Y(double y, int z1ty, double tyoff) {}
@@ -178,7 +178,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testZ0FullTileBuffer() {
+  void testZ0FullTileBuffer() {
     var feature = pointFeature(newPoint(0.25, 0.25))
       .setZoomRange(0, 1)
       .setBufferPixels(256);
@@ -202,7 +202,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testMultipointNoLabelGrid() {
+  void testMultipointNoLabelGrid() {
     var feature = pointFeature(newMultiPoint(
       newPoint(0.25, 0.25),
       newPoint(0.25 + 1d / 256, 0.25 + 1d / 256)
@@ -222,7 +222,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testMultipointWithLabelGridSplits() {
+  void testMultipointWithLabelGridSplits() {
     var feature = pointFeature(newMultiPoint(
       newPoint(0.25, 0.25),
       newPoint(0.25 + 1d / 256, 0.25 + 1d / 256)
@@ -243,7 +243,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLabelGridRequiresBufferPixelsGreaterThanGridSize() {
+  void testLabelGridRequiresBufferPixelsGreaterThanGridSize() {
     assertThrows(AssertionError.class, () -> renderFeatures(pointFeature(newPoint(0.75, 0.75))
       .setPointLabelGridSizeAndLimit(10, 10, 2)
       .setBufferPixels(9)));
@@ -254,7 +254,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLabelGrid() {
+  void testLabelGrid() {
     var feature = pointFeature(newPoint(0.75, 0.75))
       .setPointLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
@@ -267,7 +267,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testWrapLabelGrid() {
+  void testWrapLabelGrid() {
     var feature = pointFeature(newPoint(1.1, -0.1))
       .setPointLabelGridSizeAndLimit(10, 256, 2)
       .setZoomRange(0, 1)
@@ -292,7 +292,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSplitLineFeatureSingleTile() {
+  void testSplitLineFeatureSingleTile() {
     double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
     var feature = lineFeature(newLineString(
       0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
@@ -308,7 +308,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSimplifyLine() {
+  void testSimplifyLine() {
     double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
     var feature = lineFeature(newLineString(
       0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
@@ -325,7 +325,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSplitLineFeatureTouchingNeighboringTile() {
+  void testSplitLineFeatureTouchingNeighboringTile() {
     double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
     var feature = lineFeature(newLineString(
       0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
@@ -342,7 +342,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSplitLineFeatureEnteringNeighboringTileBoudary() {
+  void testSplitLineFeatureEnteringNeighboringTileBoudary() {
     double z14hypot = Math.sqrt(Z14_WIDTH * Z14_WIDTH);
     var feature = lineFeature(newLineString(
       0.5 + z14hypot / 4, 0.5 + z14hypot / 4,
@@ -367,7 +367,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void test3PointLine() {
+  void test3PointLine() {
     var feature = lineFeature(newLineString(
       0.5 + Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
       0.5 + 3 * Z14_WIDTH / 2, 0.5 + Z14_WIDTH / 2,
@@ -389,7 +389,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLimitSingleLineStringLength() {
+  void testLimitSingleLineStringLength() {
     var eps = Z13_WIDTH / 4096;
     var pixel = Z13_WIDTH / 256;
     var featureBelow = lineFeature(newMultiLineString(
@@ -415,7 +415,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLimitMultiLineStringLength() {
+  void testLimitMultiLineStringLength() {
     var eps = Z13_WIDTH / 4096;
     var pixel = Z13_WIDTH / 256;
     var feature = lineFeature(newMultiLineString(
@@ -435,7 +435,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testDuplicatePointsRemovedAfterRounding() {
+  void testDuplicatePointsRemovedAfterRounding() {
     var eps = Z14_WIDTH / 4096;
     var pixel = Z14_WIDTH / 256;
     var feature = lineFeature(newLineString(
@@ -458,7 +458,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLineStringCollapsesToPointWithRounding() {
+  void testLineStringCollapsesToPointWithRounding() {
     var eps = Z14_WIDTH / 4096;
     var pixel = Z14_WIDTH / 256;
     var feature = lineFeature(newLineString(
@@ -473,7 +473,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSelfIntersectingLineStringOK() {
+  void testSelfIntersectingLineStringOK() {
     var feature = lineFeature(newLineString(z14WorldCoords(
       10, 10,
       20, 20,
@@ -495,7 +495,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testLineWrap() {
+  void testLineWrap() {
     var feature = lineFeature(newLineString(
       -1d / 256, -1d / 256,
       257d / 256, 257d / 256
@@ -557,7 +557,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSimpleTriangleCCW() {
+  void testSimpleTriangleCCW() {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
@@ -582,7 +582,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSimpleTriangleCW() {
+  void testSimpleTriangleCW() {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
@@ -607,7 +607,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testTriangleTouchingNeighboringTileDoesNotEmit() {
+  void testTriangleTouchingNeighboringTileDoesNotEmit() {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
@@ -632,7 +632,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testTriangleTouchingNeighboringTileBelowDoesNotEmit() {
+  void testTriangleTouchingNeighboringTileBelowDoesNotEmit() {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
@@ -676,7 +676,7 @@ public class FeatureRendererTest {
     "0,10, 0,256", // left all
     "0,10, 240,250", // left partial
   })
-  public void testRectangleTouchingNeighboringTilesDoesNotEmit(int x1, int x2, int y1, int y2) {
+  void testRectangleTouchingNeighboringTilesDoesNotEmit(int x1, int x2, int y1, int y2) {
     var feature = polygonFeature(
       rectangle(
         0.5 + Z14_PX * x1,
@@ -696,7 +696,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOverlapTileHorizontal() {
+  void testOverlapTileHorizontal() {
     var feature = polygonFeature(
       rectangle(
         0.5 + Z14_PX * 10,
@@ -719,7 +719,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOverlapTileVertical() {
+  void testOverlapTileVertical() {
     var feature = polygonFeature(
       rectangle(
         0.5 + Z14_PX * 10,
@@ -742,7 +742,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOverlapTileCorner() {
+  void testOverlapTileCorner() {
     var feature = polygonFeature(
       rectangle(
         0.5 - Z14_PX * 10,
@@ -771,7 +771,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testFill() {
+  void testFill() {
     var feature = polygonFeature(
       rectangle(
         0.5 - Z14_WIDTH / 2,
@@ -816,7 +816,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testWorldFill() {
+  void testWorldFill() {
     int maxZoom = 8;
     var feature = polygonFeature(rectangle(Z14_WIDTH / 2, 1 - Z14_WIDTH / 2))
       .setMinPixelSize(1)
@@ -829,7 +829,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testComplexPolygon() {
+  void testComplexPolygon() {
     var feature = polygonFeature(
       newPolygon(
         rectangleCoordList(0.5 + Z14_PX * 1, 0.5 + Z14_PX * 255),
@@ -850,7 +850,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testComplexPolygonHoleInfersOuterFill() {
+  void testComplexPolygonHoleInfersOuterFill() {
     var feature = polygonFeature(
       newPolygon(
         rectangleCoordList(0.5 - Z14_WIDTH / 2, 0.5 + 3 * Z14_WIDTH / 2),
@@ -896,7 +896,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testComplexPolygonHoleBlocksFill() {
+  void testComplexPolygonHoleBlocksFill() {
     var feature = polygonFeature(
       newPolygon(
         rectangleCoordList(0.5 - Z14_WIDTH / 2, 0.5 + 3 * Z14_WIDTH / 2),
@@ -934,7 +934,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testMultipolygon() {
+  void testMultipolygon() {
     var feature = polygonFeature(
       newMultiPolygon(
         rectangle(0.5 + Z14_PX * 10, 0.5 + Z14_PX * 20),
@@ -955,7 +955,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testFixInvalidInputGeometry() {
+  void testFixInvalidInputGeometry() {
     var feature = polygonFeature(
       // bow tie
       newPolygon(
@@ -983,7 +983,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOmitsPolygonUnderMinSize() {
+  void testOmitsPolygonUnderMinSize() {
     var feature = polygonFeature(rectangle(0.5 + Z13_PX * 10, 0.5 + Z13_PX * 11.9))
       .setMinPixelSize(2)
       .setZoomRange(13, 13)
@@ -997,7 +997,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testIncludesPolygonUnderMinTolerance() {
+  void testIncludesPolygonUnderMinTolerance() {
     var feature = polygonFeature(rectangle(0.5 + Z13_PX * 10, 0.5 + Z13_PX * 11.9))
       .setMinPixelSize(1)
       .setPixelTolerance(2)
@@ -1007,7 +1007,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testUses1pxMinAreaAtMaxZoom() {
+  void testUses1pxMinAreaAtMaxZoom() {
     double base = 0.5 + Z14_WIDTH / 2;
     var feature = polygonFeature(rectangle(base, base + Z14_WIDTH / 4096 / 2))
       .setMinPixelSize(4)
@@ -1022,7 +1022,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testRoundingCollapsesPolygonToLine() {
+  void testRoundingCollapsesPolygonToLine() {
     var feature = polygonFeature(
       newPolygon(
         0.5 + Z14_PX * 10, 0.5 + Z14_PX * 10,
@@ -1044,7 +1044,7 @@ public class FeatureRendererTest {
   private static final double TILE_RESOLUTION_PX = 256d / 4096;
 
   @Test
-  public void testRoundingMakesOutputInvalid() {
+  void testRoundingMakesOutputInvalid() {
     var feature = polygonFeature(
       newPolygon(z14WorldCoords(
         10, 10,
@@ -1071,7 +1071,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testSimplifyMakesOutputInvalid() {
+  void testSimplifyMakesOutputInvalid() {
     var feature = polygonFeature(
       newPolygon(z14WorldCoords(
         10, 10,
@@ -1107,7 +1107,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testNestedMultipolygon() {
+  void testNestedMultipolygon() {
     var feature = polygonFeature(
       newMultiPolygon(
         newPolygon(rectangleCoordList(
@@ -1137,7 +1137,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testNestedMultipolygonFill() {
+  void testNestedMultipolygonFill() {
     var feature = polygonFeature(
       newMultiPolygon(
         newPolygon(rectangleCoordList(
@@ -1161,7 +1161,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testNestedMultipolygonInfersOuterFill() {
+  void testNestedMultipolygonInfersOuterFill() {
     var feature = polygonFeature(
       newMultiPolygon(
         newPolygon(rectangleCoordList(
@@ -1194,7 +1194,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testNestedMultipolygonCancelsOutInnerFill() {
+  void testNestedMultipolygonCancelsOutInnerFill() {
     var feature = polygonFeature(
       newMultiPolygon(
         newPolygon(rectangleCoordList(
@@ -1221,7 +1221,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOverlappingMultipolygon() {
+  void testOverlappingMultipolygon() {
     var feature = polygonFeature(newMultiPolygon(
       rectangle(10d / 256, 10d / 256, 30d / 256, 30d / 256),
       rectangle(20d / 256, 20d / 256, 40d / 256, 40d / 256)
@@ -1245,7 +1245,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testOverlappingMultipolygonSideBySide() {
+  void testOverlappingMultipolygonSideBySide() {
     var feature = polygonFeature(newMultiPolygon(
       rectangle(10d / 256, 10d / 256, 20d / 256, 20d / 256),
       rectangle(15d / 256, 10d / 256, 25d / 256, 20d / 256)
@@ -1262,7 +1262,7 @@ public class FeatureRendererTest {
   }
 
   @Test
-  public void testPolygonWrap() {
+  void testPolygonWrap() {
     var feature = polygonFeature(rectangle(
       -1d / 256, -1d / 256, 257d / 256, 1d / 256
     ))
@@ -1314,7 +1314,7 @@ public class FeatureRendererTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 90, 180, -90})
-  public void testBackAndForthsOutsideTile(int rotation) {
+  void testBackAndForthsOutsideTile(int rotation) {
     testClipWithRotation(rotation, newPolygon(
       300, -10,
       310, 300,
@@ -1330,7 +1330,7 @@ public class FeatureRendererTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 90, 180, -90})
-  public void testReplayEdgesOuterPoly(int rotation) {
+  void testReplayEdgesOuterPoly(int rotation) {
     testClipWithRotation(rotation, newPolygon(
       130, -10,
       270, -10,
@@ -1346,7 +1346,7 @@ public class FeatureRendererTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 90, 180, -90})
-  public void testReplayEdgesInnerPoly(int rotation) {
+  void testReplayEdgesInnerPoly(int rotation) {
     var innerShape = newCoordinateList(
       130, -10,
       270, -10,
@@ -1377,7 +1377,7 @@ public class FeatureRendererTest {
     "0, -0.5",
     "0.5, -0.5"
   })
-  public void testSpiral(double dx, double dy) {
+  void testSpiral(double dx, double dy) {
     // generate spirals at different offsets and make sure that tile clipping
     // returns the same result as JTS intersection with the tile's boundary
     List<Coordinate> coords = new ArrayList<>();

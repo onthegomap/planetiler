@@ -11,7 +11,7 @@ import com.onthegomap.planetiler.util.Wikidata;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-public class BasemapProfileTest {
+class BasemapProfileTest {
 
   private final Wikidata.WikidataTranslations wikidataTranslations = new Wikidata.WikidataTranslations();
   private final Translations translations = Translations.defaultProvider(List.of("en", "es", "de"))
@@ -20,7 +20,7 @@ public class BasemapProfileTest {
     Stats.inMemory());
 
   @Test
-  public void testCaresAboutWikidata() {
+  void testCaresAboutWikidata() {
     var node = new OsmElement.Node(1, 1, 1);
     node.setTag("aeroway", "gate");
     assertTrue(profile.caresAboutWikidataTranslation(node));
@@ -30,7 +30,7 @@ public class BasemapProfileTest {
   }
 
   @Test
-  public void testDoesntCareAboutWikidataForRoads() {
+  void testDoesntCareAboutWikidataForRoads() {
     var way = new OsmElement.Way(1);
     way.setTag("highway", "footway");
     assertFalse(profile.caresAboutWikidataTranslation(way));

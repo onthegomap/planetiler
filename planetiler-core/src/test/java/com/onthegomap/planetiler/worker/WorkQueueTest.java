@@ -10,11 +10,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class WorkQueueTest {
+class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testEmpty() {
+  void testEmpty() {
     WorkQueue<String> q = newQueue(1);
     q.close();
     assertNull(q.get());
@@ -22,7 +22,7 @@ public class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testOneItem() {
+  void testOneItem() {
     WorkQueue<String> q = newQueue(1);
     q.accept("a");
     q.close();
@@ -32,7 +32,7 @@ public class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testMoreItemsThanBatchSize() {
+  void testMoreItemsThanBatchSize() {
     WorkQueue<String> q = newQueue(2);
     q.accept("a");
     q.accept("b");
@@ -46,7 +46,7 @@ public class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testManyItems() {
+  void testManyItems() {
     WorkQueue<Integer> q = newQueue(100);
     for (int i = 0; i < 950; i++) {
       q.accept(i);
@@ -60,7 +60,7 @@ public class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testTwoWriters() {
+  void testTwoWriters() {
     WorkQueue<Integer> q = newQueue(2);
     AtomicInteger ni = new AtomicInteger(0);
     new Worker("worker", stats, 2, () -> {
@@ -80,7 +80,7 @@ public class WorkQueueTest {
 
   @Test
   @Timeout(10)
-  public void testTwoWritersManyElements() {
+  void testTwoWritersManyElements() {
     WorkQueue<Integer> q = newQueue(2);
     AtomicInteger ni = new AtomicInteger(0);
     new Worker("worker", stats, 2, () -> {

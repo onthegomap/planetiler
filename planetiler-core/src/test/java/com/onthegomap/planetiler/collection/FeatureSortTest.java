@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class FeatureSortTest {
+class FeatureSortTest {
 
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
 
@@ -30,14 +30,14 @@ public class FeatureSortTest {
   }
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     FeatureSort sorter = newSorter(1, 100, false);
     sorter.sort();
     assertEquals(List.of(), sorter.toList());
   }
 
   @Test
-  public void testSingle() {
+  void testSingle() {
     FeatureSort sorter = newSorter(1, 100, false);
     sorter.add(newEntry(1));
     sorter.sort();
@@ -45,7 +45,7 @@ public class FeatureSortTest {
   }
 
   @Test
-  public void testTwoItemsOneChunk() {
+  void testTwoItemsOneChunk() {
     FeatureSort sorter = newSorter(1, 100, false);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
@@ -54,7 +54,7 @@ public class FeatureSortTest {
   }
 
   @Test
-  public void testTwoItemsTwoChunks() {
+  void testTwoItemsTwoChunks() {
     FeatureSort sorter = newSorter(1, 0, false);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
@@ -63,7 +63,7 @@ public class FeatureSortTest {
   }
 
   @Test
-  public void testTwoWorkers() {
+  void testTwoWorkers() {
     FeatureSort sorter = newSorter(2, 0, false);
     sorter.add(newEntry(4));
     sorter.add(newEntry(3));
@@ -75,7 +75,7 @@ public class FeatureSortTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testManyItems(boolean gzip) {
+  void testManyItems(boolean gzip) {
     List<SortableFeature> sorted = new ArrayList<>();
     List<SortableFeature> shuffled = new ArrayList<>();
     for (int i = 0; i < 10_000; i++) {

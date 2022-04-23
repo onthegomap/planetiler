@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public class Timers {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Stats.InMemory.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(Timers.class);
   private static final Format FORMAT = Format.defaultInstance();
   private final Map<String, Stage> timers = Collections.synchronizedMap(new LinkedHashMap<>());
   private final AtomicReference<Stage> currentStage = new AtomicReference<>();

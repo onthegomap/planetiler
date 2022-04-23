@@ -8,11 +8,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class WorkerTest {
+class WorkerTest {
 
   @Test
   @Timeout(10)
-  public void testExceptionHandled() {
+  void testExceptionHandled() {
     AtomicInteger counter = new AtomicInteger(0);
     var worker = new Worker("prefix", Stats.inMemory(), 4, () -> {
       if (counter.incrementAndGet() == 1) {

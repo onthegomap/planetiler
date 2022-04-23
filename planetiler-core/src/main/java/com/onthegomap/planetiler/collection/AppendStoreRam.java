@@ -33,7 +33,7 @@ abstract class AppendStoreRam implements AppendStore {
       throw new IllegalStateException("Segment size must be a multiple of 8: " + segmentSizeBytes);
     }
     this.slabSize = (1 << slabBits);
-    this.slabMask = slabSize - 1;
+    this.slabMask = slabSize - 1L;
     this.arrays = new ArrayList<>();
   }
 
@@ -56,10 +56,6 @@ abstract class AppendStoreRam implements AppendStore {
   }
 
   static class Ints extends AppendStoreRam implements AppendStore.Ints {
-
-    Ints(boolean direct, Storage.Params params) {
-      this(direct);
-    }
 
     Ints(boolean direct) {
       this(direct, 1 << 20); // 1MB

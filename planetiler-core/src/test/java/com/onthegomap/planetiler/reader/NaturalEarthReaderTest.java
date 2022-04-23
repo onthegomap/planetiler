@@ -19,12 +19,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 
-public class NaturalEarthReaderTest {
+class NaturalEarthReaderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"natural_earth_vector.sqlite", "natural_earth_vector.sqlite.zip"})
   @Timeout(30)
-  public void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
+  void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
     var path = TestUtils.pathToResource(filename);
     try (var reader = new NaturalEarthReader("test", path, tempDir, new Profile.NullProfile(), Stats.inMemory())) {
       for (int i = 1; i <= 2; i++) {

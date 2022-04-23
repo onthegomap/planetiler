@@ -62,7 +62,7 @@ public class SparseArrayLongLongMap implements LongLongMap, LongLongMap.Sequenti
     }
 
     long lo = offsets.getLong(chunk);
-    long hi = Math.min(values.size(), chunk >= offsets.size() - 1 ? values.size() : offsets.getLong(chunk + 1)) - 1;
+    long hi = Math.min(values.size(), chunk >= offsets.size() - 1 ? values.size() : offsets.getLong(chunk + 1L)) - 1;
     int startPad = offsetStartPad.get(chunk) & 255;
 
     long index = lo + offset - startPad;

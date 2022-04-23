@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import static com.google.common.net.HttpHeaders.ACCEPT;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
 import com.carrotsearch.hppc.LongHashSet;
 import com.carrotsearch.hppc.LongObjectMap;
@@ -253,10 +254,13 @@ public class Wikidata {
       Timer timer = Timer.start();
       LongObjectMap<Map<String, String>> results = queryWikidata(qidsToFetch);
       batches.inc();
-      LOGGER.info("Fetched batch " + batches.get() + " (" + qidsToFetch.size() + " qids) " + timer.stop());
+      LOGGER.info("Fetched batch {} ({} qids) {}", batches.get(), qidsToFetch.size(), timer.stop());
       writeTranslations(results);
-    } catch (IOException | InterruptedException e) {
-      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
+    } catch (IOException e) {
+      throwFatalException(e);
     }
     wikidatas.incBy(qidsToFetch.size());
     qidsToFetch.clear();

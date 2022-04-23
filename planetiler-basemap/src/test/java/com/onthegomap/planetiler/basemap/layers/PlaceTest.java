@@ -17,10 +17,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class PlaceTest extends AbstractLayerTest {
+class PlaceTest extends AbstractLayerTest {
 
   @Test
-  public void testContinent() {
+  void testContinent() {
     wikidataTranslations.put(49, "es", "América del Norte y América Central");
     assertFeatures(0, List.of(Map.of(
       "_layer", "place",
@@ -44,7 +44,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCountry() {
+  void testCountry() {
     wikidataTranslations.put(30, "es", "Estados Unidos");
     process(SimpleFeature.create(
       rectangle(0, 0.25),
@@ -112,7 +112,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testState() {
+  void testState() {
     wikidataTranslations.put(771, "es", "Massachusetts es");
     process(SimpleFeature.create(
       rectangle(0, 0.25),
@@ -195,7 +195,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testProvince() {
+  void testProvince() {
     wikidataTranslations.put(95027, "es", "provincia de Lugo");
     process(SimpleFeature.create(
       rectangle(0, 0.25),
@@ -233,7 +233,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIslandPoint() {
+  void testIslandPoint() {
     assertFeatures(0, List.of(Map.of(
       "_layer", "place",
       "class", "island",
@@ -253,7 +253,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIslandPolygon() {
+  void testIslandPolygon() {
     assertFeatures(0, List.of(Map.of(
       "_layer", "place",
       "class", "island",
@@ -290,7 +290,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPlaceSortKeyRanking() {
+  void testPlaceSortKeyRanking() {
     int[] sortKeys = new int[]{
       // max
       getSortKey(0, Place.PlaceType.CITY, 1_000_000_000, "name"),
@@ -324,7 +324,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCountryCapital() {
+  void testCountryCapital() {
     process(SimpleFeature.create(
       newPoint(0, 0),
       Map.of(
@@ -358,7 +358,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testStateCapital() {
+  void testStateCapital() {
     process(SimpleFeature.create(
       newPoint(0, 0),
       Map.of(
@@ -434,7 +434,7 @@ public class PlaceTest extends AbstractLayerTest {
 
 
   @Test
-  public void testCityWithoutNaturalEarthMatch() {
+  void testCityWithoutNaturalEarthMatch() {
     assertFeatures(7, List.of(Map.of(
       "_layer", "place",
       "class", "city",
@@ -474,7 +474,7 @@ public class PlaceTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCitySetRankFromGridrank() throws GeometryException {
+  void testCitySetRankFromGridrank() throws GeometryException {
     var layerName = Place.LAYER_NAME;
     assertEquals(List.of(), profile.postProcessLayerFeatures(layerName, 13, List.of()));
 

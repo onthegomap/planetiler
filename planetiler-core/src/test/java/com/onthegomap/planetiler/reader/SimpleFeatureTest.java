@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.MultiPolygon;
 
-public class SimpleFeatureTest {
+class SimpleFeatureTest {
 
   @Test
-  public void testFixesMultipolygonOrdering() {
+  void testFixesMultipolygonOrdering() {
     List<Coordinate> outerPoints1 = worldRectangle(0.1, 0.9);
     List<Coordinate> innerPoints1 = worldRectangle(0.2, 0.8);
     List<Coordinate> outerPoints2 = worldRectangle(0.3, 0.7);
@@ -38,7 +38,7 @@ public class SimpleFeatureTest {
   }
 
   @Test
-  public void testFromWorldGeom() {
+  void testFromWorldGeom() {
     var worldGeom = newLineString(
       0.5, 0.5,
       0.6, 0.7
@@ -49,7 +49,7 @@ public class SimpleFeatureTest {
   }
 
   @Test
-  public void testIsLine() {
+  void testIsLine() {
     var world = SimpleFeature.fromWorldGeometry(newLineString(0, 0, 1, 1));
     var latLon = SimpleFeature.fromLatLonGeometry(newLineString(0, 0, 1, 1));
     assertTrue(world.canBeLine());
@@ -63,7 +63,7 @@ public class SimpleFeatureTest {
   }
 
   @Test
-  public void testIsPolygon() {
+  void testIsPolygon() {
     var world = SimpleFeature.fromWorldGeometry(newPolygon(0, 0, 1, 1, 1, 0, 0, 0));
     var latLon = SimpleFeature.fromLatLonGeometry(newPolygon(0, 0, 1, 1, 1, 0, 0, 0));
     assertFalse(world.canBeLine());
@@ -77,7 +77,7 @@ public class SimpleFeatureTest {
   }
 
   @Test
-  public void testIsPoint() {
+  void testIsPoint() {
     var world = SimpleFeature.fromWorldGeometry(newPoint(0, 0));
     var latLon = SimpleFeature.fromLatLonGeometry(newPoint(0, 0));
     assertFalse(world.canBeLine());

@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class ZoomFunctionTest {
+class ZoomFunctionTest {
 
   private static <T> void assertValueInRange(ZoomFunction<?> fn, int min, int max, T value) {
     for (int i = min; i <= max; i++) {
@@ -15,21 +15,21 @@ public class ZoomFunctionTest {
   }
 
   @Test
-  public void testNullBelowZoom() {
+  void testNullBelowZoom() {
     var fn = ZoomFunction.minZoom(10, "value");
     assertValueInRange(fn, 0, 9, null);
     assertValueInRange(fn, 10, 14, "value");
   }
 
   @Test
-  public void testNullAboveZoom() {
+  void testNullAboveZoom() {
     var fn = ZoomFunction.maxZoom(10, "value");
     assertValueInRange(fn, 0, 10, "value");
     assertValueInRange(fn, 11, 14, null);
   }
 
   @Test
-  public void testValueInRange() {
+  void testValueInRange() {
     var fn = ZoomFunction.zoomRange(10, 12, "value");
     assertValueInRange(fn, 0, 9, null);
     assertValueInRange(fn, 10, 12, "value");
@@ -37,7 +37,7 @@ public class ZoomFunctionTest {
   }
 
   @Test
-  public void testMultipleThresholds() {
+  void testMultipleThresholds() {
     var fn = ZoomFunction.fromMaxZoomThresholds(Map.of(
       3, "3",
       5, "5"
@@ -48,7 +48,7 @@ public class ZoomFunctionTest {
   }
 
   @Test
-  public void testConvertMetersToPixels() {
+  void testConvertMetersToPixels() {
     var fn = ZoomFunction.meterThresholds()
       .put(7, 20_000)
       .put(8, 14_000)
