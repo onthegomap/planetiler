@@ -1,5 +1,13 @@
 package com.onthegomap.planetiler.expression;
 
+import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.TestUtils.rectangle;
+import static com.onthegomap.planetiler.expression.Expression.*;
+import static com.onthegomap.planetiler.expression.MultiExpression.entry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -8,14 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-
-import static com.onthegomap.planetiler.TestUtils.newLineString;
-import static com.onthegomap.planetiler.TestUtils.newPoint;
-import static com.onthegomap.planetiler.TestUtils.rectangle;
-import static com.onthegomap.planetiler.expression.Expression.*;
-import static com.onthegomap.planetiler.expression.MultiExpression.entry;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MultiExpressionTest {
 
