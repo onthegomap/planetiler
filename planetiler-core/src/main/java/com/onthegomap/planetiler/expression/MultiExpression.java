@@ -1,5 +1,10 @@
 package com.onthegomap.planetiler.expression;
 
+import static com.onthegomap.planetiler.expression.Expression.FALSE;
+import static com.onthegomap.planetiler.expression.Expression.TRUE;
+import static com.onthegomap.planetiler.expression.Expression.matchType;
+import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
+
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -12,11 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import static com.onthegomap.planetiler.expression.Expression.FALSE;
-import static com.onthegomap.planetiler.expression.Expression.TRUE;
-import static com.onthegomap.planetiler.expression.Expression.matchType;
-import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 
 /**
  * A list of {@link Expression Expressions} to evaluate on input elements.
