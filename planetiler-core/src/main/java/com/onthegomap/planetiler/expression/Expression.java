@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.expression;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +39,13 @@ public interface Expression {
   String DIRECTION_DATATYPE = "direction";
   String LONG_DATATYPE = "long";
 
-  static Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter = Map.of(
-    STRING_DATATYPE, SourceFeature::getString,
-    BOOLEAN_DATATYPE, SourceFeature::getBoolean,
-    DIRECTION_DATATYPE, SourceFeature::getDirection,
-    LONG_DATATYPE, SourceFeature::getLong
-  );
+  static final Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter =
+    Collections.unmodifiableMap(Map.of(
+      STRING_DATATYPE, SourceFeature::getString,
+      BOOLEAN_DATATYPE, SourceFeature::getBoolean,
+      DIRECTION_DATATYPE, SourceFeature::getDirection,
+      LONG_DATATYPE, SourceFeature::getLong
+    ));
 
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
   Expression TRUE = new Expression() {
@@ -276,7 +278,7 @@ public interface Expression {
 
     @Override
     public String toString() {
-      return "and(" + Expression.listToString(children) + ")";
+      return "and(" + listToString(children) + ")";
     }
 
     @Override
@@ -295,7 +297,7 @@ public interface Expression {
 
     @Override
     public String toString() {
-      return "or(" + Expression.listToString(children) + ")";
+      return "or(" + listToString(children) + ")";
     }
 
     @Override
