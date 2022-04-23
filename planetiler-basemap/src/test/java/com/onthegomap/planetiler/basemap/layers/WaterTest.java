@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.basemap.layers;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import static com.onthegomap.planetiler.TestUtils.rectangle;
@@ -165,7 +164,6 @@ class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  @RepeatedTest(3) //TODO debug this
   void testRiver() {
     assertFeatures(11, List.of(Map.of(
       "class", "river",
