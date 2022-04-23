@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class LanduseTest extends AbstractLayerTest {
+class LanduseTest extends AbstractLayerTest {
 
   @Test
-  public void testNaturalEarthUrbanAreas() {
+  void testNaturalEarthUrbanAreas() {
     assertFeatures(0, List.of(Map.of(
       "_layer", "landuse",
       "class", "residential",
@@ -34,7 +34,7 @@ public class LanduseTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmLanduse() {
+  void testOsmLanduse() {
     assertFeatures(13, List.of(
       Map.of("_layer", "poi"),
       Map.of(
@@ -59,7 +59,7 @@ public class LanduseTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testGraveYardBecomesCemetery() {
+  void testGraveYardBecomesCemetery() {
     assertFeatures(14, List.of(
       Map.of("_layer", "poi"),
       Map.of(
@@ -71,7 +71,7 @@ public class LanduseTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmLanduseLowerZoom() {
+  void testOsmLanduseLowerZoom() {
     assertFeatures(6, List.of(Map.of(
       "_layer", "landuse",
       "class", "suburb",

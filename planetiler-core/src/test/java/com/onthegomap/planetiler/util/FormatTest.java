@@ -8,7 +8,7 @@ import java.util.Locale;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-public class FormatTest {
+class FormatTest {
 
   @ParameterizedTest
   @CsvSource({
@@ -24,7 +24,7 @@ public class FormatTest {
     "5.5e12,5.5T,en",
     "5.5e12,'5,5T',fr",
   })
-  public void testFormatNumeric(Double number, String expected, Locale locale) {
+  void testFormatNumeric(Double number, String expected, Locale locale) {
     assertEquals(expected, Format.forLocale(locale).numeric(number, false));
   }
 
@@ -36,7 +36,7 @@ public class FormatTest {
     "5.5e9,5.5G,en",
     "5.5e9,'5,5G',fr",
   })
-  public void testFormatStorage(Double number, String expected, Locale locale) {
+  void testFormatStorage(Double number, String expected, Locale locale) {
     assertEquals(expected, Format.forLocale(locale).storage(number, false));
   }
 
@@ -47,7 +47,7 @@ public class FormatTest {
     "0.11111,11%,en",
     "0.11111,11 %,fr",
   })
-  public void testFormatPercent(Double number, String formatted, Locale locale) {
+  void testFormatPercent(Double number, String formatted, Locale locale) {
     assertEquals(formatted, Format.forLocale(locale).percent(number));
   }
 
@@ -60,7 +60,7 @@ public class FormatTest {
     "ab,3,' ab'",
     "abc,3,'abc'",
   })
-  public void testPad(String in, Integer size, String out) {
+  void testPad(String in, Integer size, String out) {
     assertEquals(out, Format.padLeft(in, size));
   }
 
@@ -72,7 +72,7 @@ public class FormatTest {
     "1111.11,'1,111.1',en",
     "1111.11,'1.111,1',it",
   })
-  public void testFormatDecimal(Double in, String out, Locale locale) {
+  void testFormatDecimal(Double in, String out, Locale locale) {
     assertEquals(out, Format.forLocale(locale).decimal(in));
   }
 
@@ -90,7 +90,7 @@ public class FormatTest {
     "3600,1h,en",
     "3601,1h1s,en",
   })
-  public void testFormatDuration(double seconds, String out, Locale locale) {
+  void testFormatDuration(double seconds, String out, Locale locale) {
     assertEquals(out, Format.forLocale(locale).duration(Duration.ofNanos((long) (seconds * NANOSECONDS_PER_SECOND))));
   }
 }

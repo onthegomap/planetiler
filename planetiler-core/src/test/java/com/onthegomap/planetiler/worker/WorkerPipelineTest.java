@@ -15,13 +15,13 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class WorkerPipelineTest {
+class WorkerPipelineTest {
 
   final Stats stats = Stats.inMemory();
 
   @Test
   @Timeout(10)
-  public void testSimplePipeline() {
+  void testSimplePipeline() {
     Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
@@ -43,7 +43,7 @@ public class WorkerPipelineTest {
 
   @Test
   @Timeout(10)
-  public void testPipelineFromQueue() {
+  void testPipelineFromQueue() {
     var queue = new WorkQueue<Integer>("readerqueue", 10, 1, stats);
     Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
@@ -70,7 +70,7 @@ public class WorkerPipelineTest {
 
   @Test
   @Timeout(10)
-  public void testPipelineFromIterator() {
+  void testPipelineFromIterator() {
     Set<Integer> result = new ConcurrentSkipListSet<>();
     var pipeline = WorkerPipeline.start("test", stats)
       .readFrom("reader", List.of(0, 1))
@@ -91,7 +91,7 @@ public class WorkerPipelineTest {
   @ParameterizedTest
   @Timeout(10)
   @ValueSource(ints = {1, 2, 3})
-  public void testThrowingExceptionInPipelineHandledGracefully(int failureStage) {
+  void testThrowingExceptionInPipelineHandledGracefully(int failureStage) {
     var pipeline = WorkerPipeline.start("test", stats)
       .<Integer>fromGenerator("reader", (next) -> {
         if (failureStage == 1) {

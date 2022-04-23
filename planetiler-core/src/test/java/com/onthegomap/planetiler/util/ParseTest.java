@@ -12,7 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class ParseTest {
+class ParseTest {
 
   @ParameterizedTest
   @CsvSource({
@@ -23,7 +23,7 @@ public class ParseTest {
     "true, true, 1",
     "ok, true, 1",
   })
-  public void testBoolean(String in, boolean out, int boolint) {
+  void testBoolean(String in, boolean out, int boolint) {
     assertEquals(out, Parse.bool(in));
     assertEquals(boolint, Parse.boolInt(in));
   }
@@ -34,7 +34,7 @@ public class ParseTest {
     "false, 0, null",
     "123, 123, 123"
   }, nullValues = {"null"})
-  public void testLong(String in, long out, Long obj) {
+  void testLong(String in, long out, Long obj) {
     assertEquals(out, Parse.parseLong(in));
     assertEquals(obj, Parse.parseLongOrNull(in));
   }
@@ -48,7 +48,7 @@ public class ParseTest {
     "2, 0",
     "0, 0"
   })
-  public void testDirection(String in, int out) {
+  void testDirection(String in, int out) {
     assertEquals(out, Parse.direction(in));
   }
 
@@ -63,12 +63,12 @@ public class ParseTest {
     "one meter, null",
     "null, null"
   }, nullValues = {"null"})
-  public void testIntSubstring(String in, Integer out) {
+  void testIntSubstring(String in, Integer out) {
     assertEquals(out, Parse.parseIntSubstring(in));
   }
 
   @TestFactory
-  public Stream<DynamicTest> testWayzorder() {
+  Stream<DynamicTest> testWayzorder() {
     return Stream.<Map.Entry<Map<String, Object>, Integer>>of(
       Map.entry(Map.of(), 0),
       Map.entry(Map.of("layer", 1), 10),
@@ -90,13 +90,13 @@ public class ParseTest {
     "4M, 4194304",
     "8G, 8589934592"
   })
-  public void testParseJvmSize(String input, long expectedOutput) {
+  void testParseJvmSize(String input, long expectedOutput) {
     assertEquals(expectedOutput, Parse.jvmMemoryStringToBytes(input));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"123p", "123gk", "garbage"})
-  public void testParseInvalidJvmSize(String input) {
+  void testParseInvalidJvmSize(String input) {
     assertThrows(IllegalArgumentException.class, () -> Parse.jvmMemoryStringToBytes(input));
   }
 }

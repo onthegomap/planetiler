@@ -5,15 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 
-public class ResourceUsageTest {
+class ResourceUsageTest {
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     new ResourceUsage("testing it out").checkAgainstLimits(true, false);
   }
 
   @Test
-  public void testFakeResource() {
+  void testFakeResource() {
     var resource = new ResourceUsage.Global("testing resource", "get more", () -> OptionalLong.of(10L));
     var check = new ResourceUsage("testing it out")
       .add(resource, 9, "description");
@@ -25,7 +25,7 @@ public class ResourceUsageTest {
   }
 
   @Test
-  public void testTooMuchRam() {
+  void testTooMuchRam() {
     var check = new ResourceUsage("testing it out")
       .addMemory(Runtime.getRuntime().maxMemory() - 1, "test");
 

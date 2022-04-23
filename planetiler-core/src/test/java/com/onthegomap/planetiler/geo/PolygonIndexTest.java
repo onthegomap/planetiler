@@ -7,18 +7,18 @@ import static com.onthegomap.planetiler.TestUtils.rectangle;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-public class PolygonIndexTest {
+class PolygonIndexTest {
 
   private final PolygonIndex<Integer> index = PolygonIndex.create();
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     assertListsContainSameElements(List.of(), index.getContaining(newPoint(0.5, 0.5)));
     assertListsContainSameElements(List.of(), index.getContainingOrNearest(newPoint(0.5, 0.5)));
   }
 
   @Test
-  public void testSingle() {
+  void testSingle() {
     index.put(rectangle(0, 1), 1);
     assertListsContainSameElements(List.of(1), index.getContaining(newPoint(0.5, 0.5)));
     assertListsContainSameElements(List.of(1), index.getContainingOrNearest(newPoint(0.5, 0.5)));
@@ -28,7 +28,7 @@ public class PolygonIndexTest {
   }
 
   @Test
-  public void testMultipleIdentical() {
+  void testMultipleIdentical() {
     index.put(rectangle(0, 1), 1);
     index.put(rectangle(0, 1), 2);
     assertListsContainSameElements(List.of(1, 2), index.getContaining(newPoint(0.5, 0.5)));
@@ -36,7 +36,7 @@ public class PolygonIndexTest {
   }
 
   @Test
-  public void testMultipleDifferent() {
+  void testMultipleDifferent() {
     index.put(rectangle(0.25, 1), 1);
     index.put(rectangle(0, 1).difference(rectangle(0, 0.5)), 2);
 

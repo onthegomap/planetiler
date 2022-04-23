@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
-public class GeofabrikTest {
+class GeofabrikTest {
 
   private static final byte[] response =
     """
@@ -38,14 +38,14 @@ public class GeofabrikTest {
       .getBytes(StandardCharsets.UTF_8);
 
   @Test
-  public void testFound() throws IOException {
+  void testFound() throws IOException {
     var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
     String url = Geofabrik.searchIndexForDownloadUrl("afghanistan", index);
     assertEquals("https://download.geofabrik.de/asia/afghanistan-latest.osm.pbf", url);
   }
 
   @Test
-  public void testNotFound() throws IOException {
+  void testNotFound() throws IOException {
     var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
     assertThrows(IllegalArgumentException.class,
       () -> Geofabrik.searchIndexForDownloadUrl("monaco", index));

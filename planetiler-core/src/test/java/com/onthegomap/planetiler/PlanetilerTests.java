@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 /**
  * In-memory tests with fake data and profiles to ensure all features work end-to-end.
  */
-public class PlanetilerTests {
+class PlanetilerTests {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlanetilerTests.class);
 
@@ -209,7 +209,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMetadataButNoPoints() throws Exception {
+  void testMetadataButNoPoints() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(),
@@ -241,7 +241,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOverrideMetadata() throws Exception {
+  void testOverrideMetadata() throws Exception {
     var results = runWithReaderFeatures(
       Map.of(
         "mbtiles_name", "mbtiles_name",
@@ -265,7 +265,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testSinglePoint() throws Exception {
+  void testSinglePoint() throws Exception {
     double x = 0.5 + Z14_WIDTH / 2;
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
@@ -311,7 +311,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMultiPoint() throws Exception {
+  void testMultiPoint() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z13_WIDTH / 256d;
@@ -360,7 +360,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testLabelGridLimit() throws Exception {
+  void testLabelGridLimit() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -399,7 +399,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testLineString() throws Exception {
+  void testLineString() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -435,7 +435,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testNumPointsAttr() throws Exception {
+  void testNumPointsAttr() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2 - Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -472,7 +472,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMultiLineString() throws Exception {
+  void testMultiLineString() throws Exception {
     double x1 = 0.5 + Z14_WIDTH / 2;
     double y1 = 0.5 + Z14_WIDTH / 2;
     double x2 = x1 + Z14_WIDTH;
@@ -533,7 +533,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
+  void testPolygonWithHoleSpanningMultipleTiles() throws Exception {
     List<Coordinate> outerPoints = z14CoordinateList(
       0.5, 0.5,
       3.5, 0.5,
@@ -642,7 +642,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testFullWorldPolygon() throws Exception {
+  void testFullWorldPolygon() throws Exception {
     List<Coordinate> outerPoints = worldCoordinateList(
       Z14_WIDTH / 2, Z14_WIDTH / 2,
       1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
@@ -677,7 +677,7 @@ public class PlanetilerTests {
     "mdshore.wkb,    19904",
     "njshore.wkb,    10571"
   })
-  public void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
+  void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
     throws Exception {
     LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
     MultiPolygon geometry = (MultiPolygon) new WKBReader()
@@ -699,7 +699,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testReorderNestedMultipolygons() throws Exception {
+  void testReorderNestedMultipolygons() throws Exception {
     List<Coordinate> outerPoints1 = worldRectangle(10d / 256, 240d / 256);
     List<Coordinate> innerPoints1 = worldRectangle(20d / 256, 230d / 256);
     List<Coordinate> outerPoints2 = worldRectangle(30d / 256, 220d / 256);
@@ -735,7 +735,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmPoint() throws Exception {
+  void testOsmPoint() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -762,7 +762,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmPointSkipPass1() throws Exception {
+  void testOsmPointSkipPass1() throws Exception {
     var results = run(
       Map.of("threads", "1"),
       (featureGroup, profile, config) -> {
@@ -806,7 +806,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testExceptionWhileProcessingOsm() {
+  void testExceptionWhileProcessingOsm() {
     assertThrows(RuntimeException.class, () -> runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -819,7 +819,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmLine() throws Exception {
+  void testOsmLine() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -851,7 +851,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmLineOrPolygon() throws Exception {
+  void testOsmLineOrPolygon() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(
@@ -902,7 +902,7 @@ public class PlanetilerTests {
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
-  public void testOsmMultipolygon(String relationType) throws Exception {
+  void testOsmMultipolygon(String relationType) throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
@@ -976,7 +976,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmLineInRelation() throws Exception {
+  void testOsmLineInRelation() throws Exception {
     record TestRelationInfo(long id, String name) implements OsmRelationInfo {}
     var results = runWithOsmElements(
       Map.of("threads", "1"),
@@ -1031,7 +1031,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPreprocessOsmNodesAndWays() throws Exception {
+  void testPreprocessOsmNodesAndWays() throws Exception {
     Set<Long> nodes1 = new HashSet<>();
     Set<Long> nodes2 = new HashSet<>();
     var profile = new Profile.NullProfile() {
@@ -1080,7 +1080,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPostProcessNodeUseLabelGridRank() throws Exception {
+  void testPostProcessNodeUseLabelGridRank() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1134,7 +1134,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMergeLineStrings() throws Exception {
+  void testMergeLineStrings() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1184,7 +1184,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMergeLineStringsIgnoresRoundingIntersections() throws Exception {
+  void testMergeLineStringsIgnoresRoundingIntersections() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
     double lat2a = GeoUtils.getWorldLat(y + Z14_WIDTH * 0.5 / 4096);
@@ -1235,7 +1235,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testMergePolygons() throws Exception {
+  void testMergePolygons() throws Exception {
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(
@@ -1284,7 +1284,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testReaderProfileFinish() throws Exception {
+  void testReaderProfileFinish() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1338,7 +1338,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmProfileFinish() throws Exception {
+  void testOsmProfileFinish() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1392,7 +1392,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testOsmProfileFinishForwardingProfile() throws Exception {
+  void testOsmProfileFinishForwardingProfile() throws Exception {
     double y = 0.5 + Z14_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
@@ -1523,7 +1523,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testBadRelation() throws Exception {
+  void testBadRelation() throws Exception {
     // this threw an exception in OsmMultipolygon.build
     OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
     List<OsmElement> elements = new ArrayList<>();
@@ -1572,7 +1572,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPlanetilerRunner(@TempDir Path tempDir) throws Exception {
+  void testPlanetilerRunner(@TempDir Path tempDir) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
@@ -1624,7 +1624,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
+  void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {
@@ -1649,7 +1649,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
+  void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
     runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {
@@ -1671,7 +1671,7 @@ public class PlanetilerTests {
   }
 
   @Test
-  public void testHandleProfileException() throws Exception {
+  void testHandleProfileException() throws Exception {
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       List.of(

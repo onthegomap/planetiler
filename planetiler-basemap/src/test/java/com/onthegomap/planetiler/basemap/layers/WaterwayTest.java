@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class WaterwayTest extends AbstractLayerTest {
+class WaterwayTest extends AbstractLayerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void testOsmWaterwayRelation(boolean isLongEnough) throws GeometryException {
+  void testOsmWaterwayRelation(boolean isLongEnough) throws GeometryException {
     var rel = new OsmElement.Relation(1);
     rel.setTag("name", "River Relation");
     rel.setTag("name:es", "ES name");
@@ -83,7 +83,7 @@ public class WaterwayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterwayImportantRiverProcess() {
+  void testWaterwayImportantRiverProcess() {
     var charlesRiver = process(lineFeature(Map.of(
       "waterway", "river",
       "name", "charles river",
@@ -119,7 +119,7 @@ public class WaterwayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterwayImportantRiverPostProcess() throws GeometryException {
+  void testWaterwayImportantRiverPostProcess() throws GeometryException {
     var line1 = new VectorTile.Feature(
       Waterway.LAYER_NAME,
       1,
@@ -157,7 +157,7 @@ public class WaterwayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterwaySmaller() {
+  void testWaterwaySmaller() {
     // river with no name is not important
     assertFeatures(14, List.of(Map.of(
       "class", "river",
@@ -193,7 +193,7 @@ public class WaterwayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterwayNaturalEarth() {
+  void testWaterwayNaturalEarth() {
     assertFeatures(3, List.of(Map.of(
       "class", "river",
       "name", "<null>",

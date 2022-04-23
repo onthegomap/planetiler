@@ -52,7 +52,7 @@ import vector_tile.VectorTileProto;
  * https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
  * and modified based on the changes in VectorTileEncoder, and adapted to junit 5.
  */
-public class VectorTileTest {
+class VectorTileTest {
   // Tests adapted from https://github.com/ElectronicChartCentre/java-vector-tile/blob/master/src/test/java/no/ecc/vectortile/VectorTileEncoderTest.java
 
   private static List<Integer> getCommands(Geometry geom) {
@@ -60,14 +60,14 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testToGeomType() {
+  void testToGeomType() {
     Geometry geometry = JTS_FACTORY.createLineString(new Coordinate[]{new CoordinateXY(1, 2), new CoordinateXY(3, 4)});
     assertEquals((byte) VectorTileProto.Tile.GeomType.LINESTRING.getNumber(),
       VectorTile.encodeGeometry(geometry).geomType().asByte());
   }
 
   @Test
-  public void testCommands() {
+  void testCommands() {
     assertEquals(List.of(9, 6, 12, 18, 10, 12, 24, 44, 15), getCommands(newPolygon(
       3, 6,
       8, 12,
@@ -77,7 +77,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testCommandsFilter() {
+  void testCommandsFilter() {
     assertEquals(List.of(9, 6, 12, 18, 10, 12, 24, 44, 15), getCommands(newPolygon(
       3, 6,
       8, 12,
@@ -88,14 +88,14 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testPoint() {
+  void testPoint() {
     assertEquals(List.of(9, 6, 12), getCommands(newMultiPoint(
       newPoint(3, 6)
     )));
   }
 
   @Test
-  public void testMultiPoint() {
+  void testMultiPoint() {
     assertEquals(List.of(17, 10, 14, 3, 9), getCommands(newMultiPoint(
       newPoint(5, 7),
       newPoint(3, 2)
@@ -108,7 +108,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testNullAttributeValue() {
+  void testNullAttributeValue() {
     VectorTile vtm = new VectorTile();
     Map<String, Object> attrs = new HashMap<>();
     attrs.put("key1", "value1");
@@ -132,7 +132,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testAttributeTypes() {
+  void testAttributeTypes() {
     VectorTile vtm = new VectorTile();
 
     Map<String, Object> attrs = Map.of(
@@ -165,7 +165,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testMultiPolygonCommands() {
+  void testMultiPolygonCommands() {
     // see https://github.com/mapbox/vector-tile-spec/blob/master/2.1/README.md
     assertEquals(List.of(
       9, 0, 0, 26, 20, 0, 0, 20, 19, 0, 15,
@@ -196,7 +196,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testMultiPolygon() {
+  void testMultiPolygon() {
     MultiPolygon mp = newMultiPolygon(
       (Polygon) newPoint(13, 16).buffer(3),
       (Polygon) newPoint(24, 25).buffer(5)
@@ -218,7 +218,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testGeometryCollectionSilentlyIgnored() {
+  void testGeometryCollectionSilentlyIgnored() {
     GeometryCollection gc = newGeometryCollection(
       newPoint(13, 16).buffer(3),
       newPoint(24, 25)
@@ -237,12 +237,12 @@ public class VectorTileTest {
   // New tests added:
 
   @Test
-  public void testRoundTripPoint() {
+  void testRoundTripPoint() {
     testRoundTripGeometry(JTS_FACTORY.createPoint(new CoordinateXY(1, 2)));
   }
 
   @Test
-  public void testRoundTripMultipoint() {
+  void testRoundTripMultipoint() {
     testRoundTripGeometry(JTS_FACTORY.createMultiPointFromCoords(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
@@ -250,7 +250,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testRoundTripLineString() {
+  void testRoundTripLineString() {
     testRoundTripGeometry(JTS_FACTORY.createLineString(new Coordinate[]{
       new CoordinateXY(1, 2),
       new CoordinateXY(3, 4)
@@ -258,7 +258,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testRoundTripPolygon() {
+  void testRoundTripPolygon() {
     testRoundTripGeometry(JTS_FACTORY.createPolygon(
       JTS_FACTORY.createLinearRing(new Coordinate[]{
         new CoordinateXY(0, 0),
@@ -280,7 +280,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testRoundTripMultiPolygon() {
+  void testRoundTripMultiPolygon() {
     testRoundTripGeometry(JTS_FACTORY.createMultiPolygon(new Polygon[]{
       JTS_FACTORY.createPolygon(new Coordinate[]{
         new CoordinateXY(0, 0),
@@ -300,7 +300,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testRoundTripAttributes() {
+  void testRoundTripAttributes() {
     testRoundTripAttrs(Map.of(
       "string", "string",
       "long", 1L,
@@ -311,7 +311,7 @@ public class VectorTileTest {
   }
 
   @Test
-  public void testMultipleFeaturesMultipleLayer() {
+  void testMultipleFeaturesMultipleLayer() {
     Point point = JTS_FACTORY.createPoint(new CoordinateXY(0, 0));
     Map<String, Object> attrs1 = Map.of("a", 1L, "b", 2L);
     Map<String, Object> attrs2 = Map.of("b", 3L, "c", 2L);
@@ -362,7 +362,7 @@ public class VectorTileTest {
   }
 
   @TestFactory
-  public Stream<DynamicTest> testScaleUnscale() throws NoninvertibleTransformationException {
+  Stream<DynamicTest> testScaleUnscale() throws NoninvertibleTransformationException {
     var scales = List.of(0, 1, 2, 16);
     var scaleUp = AffineTransformation.scaleInstance(256d / 4096, 256d / 4096);
     var scaleDown = scaleUp.getInverse();

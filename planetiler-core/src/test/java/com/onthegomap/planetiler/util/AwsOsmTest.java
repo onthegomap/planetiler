@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
-public class AwsOsmTest {
+class AwsOsmTest {
 
   private static final byte[] response = """
     <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -164,7 +164,7 @@ public class AwsOsmTest {
     """.getBytes(StandardCharsets.UTF_8);
 
   @Test
-  public void testFound() throws IOException {
+  void testFound() throws IOException {
     var index = AwsOsm.parseIndexXml(new ByteArrayInputStream(response));
     assertEquals("https://osm-pds.s3.amazonaws.com/2021/planet-210906.osm.pbf",
       AwsOsm.searchIndexForDownloadUrl("210906", index));
@@ -173,14 +173,14 @@ public class AwsOsmTest {
   }
 
   @Test
-  public void testLatest() throws IOException {
+  void testLatest() throws IOException {
     var index = AwsOsm.parseIndexXml(new ByteArrayInputStream(response));
     String url = AwsOsm.searchIndexForDownloadUrl("latest", index);
     assertEquals("https://osm-pds.s3.amazonaws.com/2021/planet-210906.osm.pbf", url);
   }
 
   @Test
-  public void testNotFound() throws IOException {
+  void testNotFound() throws IOException {
     var index = AwsOsm.parseIndexXml(new ByteArrayInputStream(response));
     assertThrows(IllegalArgumentException.class,
       () -> AwsOsm.searchIndexForDownloadUrl("1231", index));

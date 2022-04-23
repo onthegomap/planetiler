@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
-public class CommonStringEncoderTest {
+class CommonStringEncoderTest {
 
   private final CommonStringEncoder commonStringEncoder = new CommonStringEncoder();
 
   @Test
-  public void testRoundTrip() {
+  void testRoundTrip() {
     byte a = commonStringEncoder.encode("a");
     byte b = commonStringEncoder.encode("b");
     assertEquals("a", commonStringEncoder.decode(a));
@@ -20,7 +20,7 @@ public class CommonStringEncoderTest {
   }
 
   @Test
-  public void testLimitsTo250() {
+  void testLimitsTo250() {
     for (int i = 0; i <= 250; i++) {
       String string = Integer.toString(i);
       byte encoded = commonStringEncoder.encode(Integer.toString(i));

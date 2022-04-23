@@ -15,7 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class VerifyTest {
+class VerifyTest {
 
   private Mbtiles mbtiles;
 
@@ -30,18 +30,18 @@ public class VerifyTest {
   }
 
   @Test
-  public void testEmptyFileInvalid() {
+  void testEmptyFileInvalid() {
     assertInvalid(mbtiles);
   }
 
   @Test
-  public void testEmptyTablesInvalid() {
+  void testEmptyTablesInvalid() {
     mbtiles.createTables().addTileIndex();
     assertInvalid(mbtiles);
   }
 
   @Test
-  public void testValidWithNameAndOneTile() throws IOException {
+  void testValidWithNameAndOneTile() throws IOException {
     mbtiles.createTables().addTileIndex();
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {
@@ -58,7 +58,7 @@ public class VerifyTest {
   }
 
   @Test
-  public void testInvalidGeometry() throws IOException {
+  void testInvalidGeometry() throws IOException {
     mbtiles.createTables().addTileIndex();
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {

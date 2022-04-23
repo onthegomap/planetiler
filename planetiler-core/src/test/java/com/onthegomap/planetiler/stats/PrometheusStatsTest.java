@@ -17,10 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.io.TempDir;
 
-public class PrometheusStatsTest {
+class PrometheusStatsTest {
 
   @TestFactory
-  public Stream<DynamicTest> testInitialStat() {
+  Stream<DynamicTest> testInitialStat() {
     PrometheusStats stats = new PrometheusStats("job");
     String metrics = stats.getMetricsAsString();
     return testContains(metrics,
@@ -32,7 +32,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testTimer() {
+  void testTimer() {
     PrometheusStats stats = new PrometheusStats("job");
     var timer = stats.startStage("task1");
     assertContainsStat("^planetiler_task1_running 1", stats);
@@ -48,7 +48,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testGauge() {
+  void testGauge() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.gauge("gauge1", 1);
     stats.gauge("gauge2", () -> 2);
@@ -57,7 +57,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testProcessedElement() {
+  void testProcessedElement() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.processedElement("type1", "layer1");
     stats.processedElement("type1", "layer1");
@@ -67,7 +67,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testDataError() {
+  void testDataError() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.dataError("err1");
     stats.dataError("err1");
@@ -77,7 +77,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testEmittedFeatures() {
+  void testEmittedFeatures() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.emittedFeatures(0, "layer1", 2);
     stats.emittedFeatures(0, "layer1", 2);
@@ -87,7 +87,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testWroteTile() {
+  void testWroteTile() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.wroteTile(0, 10);
     stats.wroteTile(0, 10_000);
@@ -96,7 +96,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testMonitorFile(@TempDir Path path) throws IOException {
+  void testMonitorFile(@TempDir Path path) throws IOException {
     PrometheusStats stats = new PrometheusStats("job");
     stats.monitorFile("test", path);
     assertContainsStat("^planetiler_file_test_size_bytes 0", stats);
@@ -106,7 +106,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testMonitorInMemoryObject() {
+  void testMonitorInMemoryObject() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.monitorInMemoryObject("test", () -> 10);
     assertContainsStat("^planetiler_heap_object_test_size_bytes 10", stats);
@@ -119,7 +119,7 @@ public class PrometheusStatsTest {
   }
 
   @Test
-  public void testCounter() {
+  void testCounter() {
     PrometheusStats stats = new PrometheusStats("job");
     stats.counter("counter1", () -> 1);
     stats.counter("counter2", "label", () -> Map.of(

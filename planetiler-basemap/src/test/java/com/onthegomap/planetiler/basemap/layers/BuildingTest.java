@@ -14,10 +14,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class BuildingTest extends AbstractLayerTest {
+class BuildingTest extends AbstractLayerTest {
 
   @Test
-  public void testBuilding() {
+  void testBuilding() {
     assertFeatures(13, List.of(Map.of(
       "colour", "<null>",
       "hide_3d", "<null>",
@@ -42,7 +42,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoreUndergroundBuilding() {
+  void testIgnoreUndergroundBuilding() {
     assertFeatures(14, List.of(), process(polygonFeature(Map.of(
       "building", "yes",
       "location", "underground"
@@ -50,7 +50,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testAirportBuildings() {
+  void testAirportBuildings() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "building",
       "_type", "polygon"
@@ -66,7 +66,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRenderHeights() {
+  void testRenderHeights() {
     assertFeatures(13, List.of(Map.of(
       "render_height", "<null>",
       "render_min_height", "<null>"
@@ -103,7 +103,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOutlineHides3d() {
+  void testOutlineHides3d() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "building");
 
@@ -126,7 +126,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMergePolygonsZ13() throws GeometryException {
+  void testMergePolygonsZ13() throws GeometryException {
     var poly1 = new VectorTile.Feature(
       Building.LAYER_NAME,
       1,
@@ -153,7 +153,7 @@ public class BuildingTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testColor() {
+  void testColor() {
     assertFeatures(14, List.of(Map.of(
       "colour", "#ff0000"
     )), process(polygonFeature(Map.of(
