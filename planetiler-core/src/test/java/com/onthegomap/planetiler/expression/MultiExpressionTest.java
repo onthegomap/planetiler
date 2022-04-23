@@ -48,6 +48,62 @@ public class MultiExpressionTest {
   }
 
   @Test
+  public void testSingleElementBooleanTrue() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAnyTyped("key", BOOLEAN_DATATYPE, true))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "true")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "true", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "true", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "false")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  public void testSingleElementBooleanFalse() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAnyTyped("key", BOOLEAN_DATATYPE, false))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "false")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "0")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "false", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "false", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "true")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  public void testSingleElementLong() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAnyTyped("key", LONG_DATATYPE, 42))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "42", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "99")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  public void testSingleElementDirection() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAnyTyped("key", DIRECTION_DATATYPE, 1))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "1", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "99")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
   public void testBlankStringTreatedAsNotMatch() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "value", ""))

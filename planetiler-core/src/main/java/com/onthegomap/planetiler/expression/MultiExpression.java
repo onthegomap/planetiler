@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.expression.Expression.TRUE;
 import static com.onthegomap.planetiler.expression.Expression.matchType;
 import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 
+import com.onthegomap.planetiler.expression.MultiExpression.Entry;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       for (EntryWithId<T> expressionValue : expressions) {
         if (!visited[expressionValue.id]) {
           visited[expressionValue.id] = true;
-          List<String> matchKeys = new ArrayList<>();
+          List<Object> matchKeys = new ArrayList<>();
           if (expressionValue.expression().evaluate(input, matchKeys)) {
             result.add(new Match<>(expressionValue.result, matchKeys));
           }
@@ -316,5 +317,5 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   public record Entry<T> (T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T> (T match, List<String> keys) {}
+  public record Match<T> (T match, List<Object> keys) {}
 }
