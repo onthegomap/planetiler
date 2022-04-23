@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class OsmReaderTest {
+class OsmReaderTest {
 
   public final OsmBlockSource osmSource = next -> {
   };
@@ -36,7 +36,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testPoint() throws GeometryException {
+  void testPoint() throws GeometryException {
     OsmReader reader = newOsmReader();
     var node = new OsmElement.Node(1, 0, 0);
     node.setTag("key", "value");
@@ -60,7 +60,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testLine() throws GeometryException {
+  void testLine() throws GeometryException {
     OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = new OsmElement.Node(1, 0, 0);
@@ -98,7 +98,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testPolygonAreaNotSpecified() throws GeometryException {
+  void testPolygonAreaNotSpecified() throws GeometryException {
     OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
@@ -137,7 +137,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testPolygonAreaYes() throws GeometryException {
+  void testPolygonAreaYes() throws GeometryException {
     OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
@@ -173,7 +173,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testPolygonAreaNo() throws GeometryException {
+  void testPolygonAreaNo() throws GeometryException {
     OsmReader reader = newOsmReader();
     var nodeCache = reader.newNodeLocationProvider();
     var node1 = node(1, 0.5, 0.5);
@@ -209,7 +209,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testLineWithTooFewPoints() throws GeometryException {
+  void testLineWithTooFewPoints() throws GeometryException {
     OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var way = new OsmElement.Way(3);
@@ -233,7 +233,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testPolygonWithTooFewPoints() throws GeometryException {
+  void testPolygonWithTooFewPoints() throws GeometryException {
     OsmReader reader = newOsmReader();
     var node1 = node(1, 0.5, 0.5);
     var node2 = node(2, 0.5, 0.75);
@@ -268,7 +268,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testInvalidPolygon() throws GeometryException {
+  void testInvalidPolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
 
     processPass1Block(reader, List.of(
@@ -314,7 +314,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testLineReferencingNonexistentNode() {
+  void testLineReferencingNonexistentNode() {
     OsmReader reader = newOsmReader();
     var way = new OsmElement.Way(321);
     way.nodes().add(123, 2222, 333, 444, 123);
@@ -345,7 +345,7 @@ public class OsmReaderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"multipolygon", "boundary", "land_area"})
-  public void testMultiPolygon(String relationType) throws GeometryException {
+  void testMultiPolygon(String relationType) throws GeometryException {
     OsmReader reader = newOsmReader();
     var outerway = new OsmElement.Way(9);
     outerway.nodes().add(1, 2, 3, 4, 1);
@@ -407,7 +407,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testMultipolygonInfersCorrectParent() throws GeometryException {
+  void testMultipolygonInfersCorrectParent() throws GeometryException {
     OsmReader reader = newOsmReader();
     var outerway = new OsmElement.Way(13);
     outerway.nodes().add(1, 2, 3, 4, 1);
@@ -473,7 +473,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testInvalidMultipolygon() throws GeometryException {
+  void testInvalidMultipolygon() throws GeometryException {
     OsmReader reader = newOsmReader();
     var outerway = new OsmElement.Way(13);
     outerway.nodes().add(1, 2, 3, 4, 1);
@@ -543,7 +543,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testMultiPolygonRefersToNonexistentNode() {
+  void testMultiPolygonRefersToNonexistentNode() {
     OsmReader reader = newOsmReader();
     var outerway = new OsmElement.Way(5);
     outerway.nodes().add(1, 2, 3, 4, 1);
@@ -576,7 +576,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testMultiPolygonRefersToNonexistentWay() {
+  void testMultiPolygonRefersToNonexistentWay() {
     OsmReader reader = newOsmReader();
 
     var relation = new OsmElement.Relation(6);
@@ -607,7 +607,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testWayInRelation() {
+  void testWayInRelation() {
     record OtherRelInfo(long id) implements OsmRelationInfo {}
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
@@ -635,7 +635,7 @@ public class OsmReaderTest {
   }
 
   @Test
-  public void testNodeOrWayRelationInRelationDoesntTriggerWay() {
+  void testNodeOrWayRelationInRelationDoesntTriggerWay() {
     record TestRelInfo(long id, String name) implements OsmRelationInfo {}
     OsmReader reader = new OsmReader("osm", () -> osmSource, nodeMap, multipolygons, new Profile.NullProfile() {
       @Override

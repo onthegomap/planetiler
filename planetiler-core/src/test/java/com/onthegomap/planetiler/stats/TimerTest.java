@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-public class TimerTest {
+class TimerTest {
 
   @Test
-  public void testTimer() {
+  void testTimer() {
     Timer timer = Timer.start();
     ProcessTime elapsed1 = timer.elapsed();
     ProcessTime elapsed2 = timer.stop().elapsed();

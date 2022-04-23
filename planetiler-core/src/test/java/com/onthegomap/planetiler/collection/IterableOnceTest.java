@@ -15,10 +15,10 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class IterableOnceTest {
+class IterableOnceTest {
 
   @Test
-  public void testIterableOnceEmpty() {
+  void testIterableOnceEmpty() {
     IterableOnce<Integer> empty = () -> null;
     var iter = empty.iterator();
     assertFalse(iter.hasNext());
@@ -28,7 +28,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testSingleItem() {
+  void testSingleItem() {
     Queue<Integer> queue = new LinkedList<>(List.of(1));
     IterableOnce<Integer> iterable = queue::poll;
     var iter = iterable.iterator();
@@ -39,7 +39,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testMultipleItems() {
+  void testMultipleItems() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2));
     IterableOnce<Integer> iterable = queue::poll;
     var iter = iterable.iterator();
@@ -52,7 +52,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testMultipleIterators() {
+  void testMultipleIterators() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2));
     IterableOnce<Integer> iterable = queue::poll;
     var iter1 = iterable.iterator();
@@ -68,7 +68,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testForeach() {
+  void testForeach() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2, 3, 4));
     IterableOnce<Integer> iterable = queue::poll;
     Set<Integer> result = new HashSet<>();
@@ -79,7 +79,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testForeachWithSupplierAccess() {
+  void testForeachWithSupplierAccess() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2, 3, 4));
     IterableOnce<Integer> iterable = queue::poll;
     List<Integer> result = new ArrayList<>();
@@ -97,7 +97,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testWaitsToCallNext() {
+  void testWaitsToCallNext() {
     var iter = Stream.of(1, 2).peek(i -> {
       if (i == 2) {
         throw new Error();

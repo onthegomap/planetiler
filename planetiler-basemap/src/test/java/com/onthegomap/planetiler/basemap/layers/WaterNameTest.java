@@ -15,10 +15,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 
-public class WaterNameTest extends AbstractLayerTest {
+class WaterNameTest extends AbstractLayerTest {
 
   @Test
-  public void testWaterNamePoint() {
+  void testWaterNamePoint() {
     assertFeatures(11, List.of(Map.of(
       "_layer", "water"
     ), Map.of(
@@ -54,7 +54,7 @@ public class WaterNameTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterNameLakeline() {
+  void testWaterNameLakeline() {
     assertFeatures(11, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(
@@ -91,7 +91,7 @@ public class WaterNameTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterNameMultipleLakelines() {
+  void testWaterNameMultipleLakelines() {
     assertFeatures(11, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(
@@ -141,7 +141,7 @@ public class WaterNameTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMarinePoint() {
+  void testMarinePoint() {
     assertFeatures(11, List.of(), process(SimpleFeature.create(
       newLineString(0, 0, 1, 1),
       new HashMap<>(Map.<String, Object>of(

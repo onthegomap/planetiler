@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.util.function.ToIntBiFunction;
 import org.junit.jupiter.api.Test;
 
-public class SortKeyTest {
+class SortKeyTest {
 
   private void assertLessThan(int a, int b) {
     if (a >= b) {
@@ -17,7 +17,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testSingleLevel() {
+  void testSingleLevel() {
     assertLessThan(
       SortKey.orderByInt(1, 0, 10).get(),
       SortKey.orderByInt(2, 0, 10).get()
@@ -38,7 +38,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testTwoLevel() {
+  void testTwoLevel() {
     ToIntBiFunction<Integer, Integer> key = (a, b) -> SortKey
       .orderByInt(a, 0, 10)
       .thenByInt(b, 0, 10)
@@ -58,7 +58,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testDescending() {
+  void testDescending() {
     // order by a ASC b DESC
     ToIntBiFunction<Integer, Integer> key = (a, b) -> SortKey
       .orderByInt(a, 0, 10)
@@ -79,7 +79,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testDouble() {
+  void testDouble() {
     ToIntBiFunction<Double, Double> key = (a, b) -> SortKey
       .orderByDouble(a, 0, 10, 10)
       .thenByDouble(b, 10, 0, 10)
@@ -99,7 +99,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testBoolean() {
+  void testBoolean() {
     ToIntBiFunction<Boolean, Boolean> key = (a, b) -> SortKey
       .orderByTruesFirst(a)
       .thenByTruesLast(b)
@@ -123,7 +123,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testLog() {
+  void testLog() {
     ToIntBiFunction<Double, Double> key = (a, b) -> SortKey
       .orderByLog(a, 1, 1000, 3)
       .thenByLog(b, 1000, 1, 3)
@@ -170,7 +170,7 @@ public class SortKeyTest {
   }
 
   @Test
-  public void testTooMuchResolution() {
+  void testTooMuchResolution() {
     int max = (1 << SORT_KEY_BITS) - 1;
     int belowHalfMax = (1 << (SORT_KEY_BITS / 2)) - 1;
     int aboveHalfMax = belowHalfMax * 2;

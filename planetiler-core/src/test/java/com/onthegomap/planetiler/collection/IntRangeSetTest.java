@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class IntRangeSetTest {
+class IntRangeSetTest {
 
   private static List<Integer> getInts(IntRangeSet range) {
     List<Integer> result = new ArrayList<>();
@@ -18,27 +18,27 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testEmptyIntRange() {
+  void testEmptyIntRange() {
     IntRangeSet range = new IntRangeSet();
     assertEquals(List.of(), getInts(range));
   }
 
   @Test
-  public void testSingleIntRange() {
+  void testSingleIntRange() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 1);
     assertEquals(List.of(1), getInts(range));
   }
 
   @Test
-  public void testLongerIntRange() {
+  void testLongerIntRange() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 3);
     assertEquals(List.of(1, 2, 3), getInts(range));
   }
 
   @Test
-  public void testTwoIntRanges() {
+  void testTwoIntRanges() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 3);
     range.add(5, 7);
@@ -46,7 +46,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testTwoOverlappingIntRanges() {
+  void testTwoOverlappingIntRanges() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     range.add(4, 7);
@@ -54,7 +54,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testRemoveSingle() {
+  void testRemoveSingle() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     range.remove(3);
@@ -62,7 +62,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testRemoveOtherRange() {
+  void testRemoveOtherRange() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();
@@ -72,7 +72,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testAddOtherRange() {
+  void testAddOtherRange() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();
@@ -82,7 +82,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testContains() {
+  void testContains() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();
@@ -108,7 +108,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testNoIntersection() {
+  void testNoIntersection() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();
@@ -118,7 +118,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testSingleIntersection() {
+  void testSingleIntersection() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();
@@ -128,7 +128,7 @@ public class IntRangeSetTest {
   }
 
   @Test
-  public void testMultipleIntersection() {
+  void testMultipleIntersection() {
     IntRangeSet range = new IntRangeSet();
     range.add(1, 5);
     IntRangeSet range2 = new IntRangeSet();

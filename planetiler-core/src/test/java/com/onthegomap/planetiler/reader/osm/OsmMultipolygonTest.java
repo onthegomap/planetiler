@@ -39,7 +39,7 @@ import org.locationtech.jts.geom.Geometry;
 /**
  * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon_test.go
  */
-public class OsmMultipolygonTest {
+class OsmMultipolygonTest {
 
   private static LongArrayList longs(long... input) {
     return LongArrayList.from(input);
@@ -55,13 +55,13 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testConnectUtils() {
+  void testConnectUtils() {
     assertEquals(longs(1, 2, 3, 4), appendToSkipFirst(longs(1, 2), longs(2, 3, 4)));
     assertEquals(longs(1, 2, 3, 4), prependToSkipLast(longs(3, 4), longs(1, 2, 3)));
   }
 
   @TestFactory
-  public List<DynamicNode> testConnectPolygonSegments() {
+  List<DynamicNode> testConnectPolygonSegments() {
     return List.of(
       testConnect(List.of(), List.of()),
       testConnect(List.of(longs(1)), List.of()),
@@ -124,7 +124,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testConnectSimplePolygon() throws GeometryException {
+  void testConnectSimplePolygon() throws GeometryException {
     var node1 = node(0.5, 0.5);
     var node2 = node(0.75, 0.5);
     var node3 = node(0.75, 0.75);
@@ -144,7 +144,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testConnectAlmostClosed() throws GeometryException {
+  void testConnectAlmostClosed() throws GeometryException {
     var node1 = node(0.5, 0.5);
     var node1a = node(0.5 + 1e-10, 0.5);
     var node2 = node(0.75, 0.5);
@@ -165,7 +165,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testBuildMultipolygonFromGeometries() throws GeometryException {
+  void testBuildMultipolygonFromGeometries() throws GeometryException {
     Geometry actual = OsmMultipolygon.build(List.of(
       newLineString(0.2, 0.2, 0.4, 0.2, 0.4, 0.4).getCoordinateSequence(),
       newLineString(0.4, 0.4, 0.2, 0.4, 0.2, 0.2).getCoordinateSequence()
@@ -174,7 +174,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testThrowWhenNoClosed() {
+  void testThrowWhenNoClosed() {
     var node1 = node(0.5, 0.5);
     var node1a = node(0.5 + 1e-1, 0.5);
     var node2 = node(0.75, 0.5);
@@ -191,7 +191,7 @@ public class OsmMultipolygonTest {
 
 
   @Test
-  public void testIgnoreSingleNotClosed() throws GeometryException {
+  void testIgnoreSingleNotClosed() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(0, 10),
@@ -209,7 +209,7 @@ public class OsmMultipolygonTest {
   // tests from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon_test.go below
 
   @Test
-  public void testSimplePolygonWithHole() throws GeometryException {
+  void testSimplePolygonWithHole() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(0, 10),
@@ -223,7 +223,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testSimplePolygonWithMultipleHoles() throws GeometryException {
+  void testSimplePolygonWithMultipleHoles() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(0, 10),
@@ -247,7 +247,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testMultiPolygonWithNestedHoles() throws GeometryException {
+  void testMultiPolygonWithNestedHoles() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(0, 10),
@@ -275,7 +275,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testTouchingPolygonsWithHole() throws GeometryException {
+  void testTouchingPolygonsWithHole() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(0, 10),
@@ -295,7 +295,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testBrokenPolygonSelfIntersect1() throws GeometryException {
+  void testBrokenPolygonSelfIntersect1() throws GeometryException {
     Node startEnd = node(0, 0);
     testBuildMultipolygon(
       List.of(
@@ -332,7 +332,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testBrokenPolygonSelfIntersect2() throws GeometryException {
+  void testBrokenPolygonSelfIntersect2() throws GeometryException {
     Node startEnd = node(10, 0);
     testBuildMultipolygon(
       List.of(
@@ -373,7 +373,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testBrokenPolygonSelfIntersectTriangleSmallOverlap() throws GeometryException {
+  void testBrokenPolygonSelfIntersectTriangleSmallOverlap() throws GeometryException {
     Node startEnd = node(0, 0);
     testBuildMultipolygon(
       List.of(
@@ -402,7 +402,7 @@ public class OsmMultipolygonTest {
   }
 
   @Test
-  public void testBrokenPolygonSelfIntersectTriangleLargeOverlap() throws GeometryException {
+  void testBrokenPolygonSelfIntersectTriangleLargeOverlap() throws GeometryException {
     Node startEnd = node(0, 0);
     testBuildMultipolygon(
       List.of(

@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Envelope;
 
-public class TileExtentsTest {
+class TileExtentsTest {
 
   private static final double eps = Math.pow(2, -30);
 
   @Test
-  public void testFullWorld() {
+  void testFullWorld() {
     TileExtents extents = TileExtents.computeFromWorldBounds(14, GeoUtils.WORLD_BOUNDS);
     for (int z = 0; z <= 14; z++) {
       int max = 1 << z;
@@ -22,7 +22,7 @@ public class TileExtentsTest {
   }
 
   @Test
-  public void topLeft() {
+  void topLeft() {
     TileExtents extents = TileExtents
       .computeFromWorldBounds(14, new Envelope(0, eps, 0, eps));
     for (int z = 0; z <= 14; z++) {
@@ -34,7 +34,7 @@ public class TileExtentsTest {
   }
 
   @Test
-  public void topRight() {
+  void topRight() {
     TileExtents extents = TileExtents
       .computeFromWorldBounds(14, new Envelope(1 - eps, 1, 0, eps));
     for (int z = 0; z <= 14; z++) {
@@ -46,7 +46,7 @@ public class TileExtentsTest {
   }
 
   @Test
-  public void testBottomLeft() {
+  void testBottomLeft() {
     TileExtents extents = TileExtents
       .computeFromWorldBounds(14, new Envelope(0, eps, 1 - eps, 1));
     for (int z = 0; z <= 14; z++) {

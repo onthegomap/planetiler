@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-public class TileCoordTest {
+class TileCoordTest {
 
   @ParameterizedTest
   @CsvSource({
@@ -18,7 +18,7 @@ public class TileCoordTest {
     "1,1,1",
     "100,100,14",
   })
-  public void testTileCoord(int x, int y, int z) {
+  void testTileCoord(int x, int y, int z) {
     TileCoord coord1 = TileCoord.ofXYZ(x, y, z);
     TileCoord coord2 = TileCoord.decode(coord1.encoded());
     assertEquals(coord1.x(), coord2.x(), "x");
@@ -28,7 +28,7 @@ public class TileCoordTest {
   }
 
   @Test
-  public void testTileSortOrderRespectZ() {
+  void testTileSortOrderRespectZ() {
     int last = Integer.MIN_VALUE;
     for (int z = 0; z <= 14; z++) {
       int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
@@ -40,7 +40,7 @@ public class TileCoordTest {
   }
 
   @Test
-  public void testTileSortOrderFlipY() {
+  void testTileSortOrderFlipY() {
     for (int z = 1; z <= 14; z++) {
       int encoded1 = TileCoord.ofXYZ(0, 1, z).encoded();
       int encoded2 = TileCoord.ofXYZ(0, 0, z).encoded();
@@ -51,7 +51,7 @@ public class TileCoordTest {
   }
 
   @Test
-  public void testThrowsPastZ14() {
+  void testThrowsPastZ14() {
     assertThrows(AssertionError.class, () -> TileCoord.ofXYZ(0, 0, 15));
   }
 }

@@ -5,10 +5,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class ParkTest extends AbstractLayerTest {
+class ParkTest extends AbstractLayerTest {
 
   @Test
-  public void testNationalPark() {
+  void testNationalPark() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "park",
       "_type", "polygon",
@@ -46,7 +46,7 @@ public class ParkTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSmallerPark() {
+  void testSmallerPark() {
     double z11area = Math.pow((GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d), 2) * Math.pow(2, 20 - 11);
     assertFeatures(13, List.of(Map.of(
       "_layer", "park",
@@ -85,7 +85,7 @@ public class ParkTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSortKeys() {
+  void testSortKeys() {
     assertAscending(
       getLabelSortKey(1, Map.of(
         "boundary", "national_park",

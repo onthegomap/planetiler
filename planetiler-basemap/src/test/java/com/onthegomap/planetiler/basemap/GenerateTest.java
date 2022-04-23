@@ -16,10 +16,10 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
-public class GenerateTest {
+class GenerateTest {
 
   @Test
-  public void testParseSimple() {
+  void testParseSimple() {
     MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         key: value
@@ -36,7 +36,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testParseAnd() {
+  void testParseAnd() {
     MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         __AND__:
@@ -52,7 +52,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testParseAndWithOthers() {
+  void testParseAndWithOthers() {
     MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         - key0: val0
@@ -72,7 +72,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testParseAndContainingOthers() {
+  void testParseAndContainingOthers() {
     MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         __AND__:
@@ -93,7 +93,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testParseContainsKey() {
+  void testParseContainsKey() {
     MultiExpression<String> parsed = Generate.generateFieldMapping(parseYaml("""
       output:
         key1: val1
@@ -108,7 +108,7 @@ public class GenerateTest {
   }
 
   @TestFactory
-  public Stream<DynamicTest> testParseImposm3Mapping() {
+  Stream<DynamicTest> testParseImposm3Mapping() {
     record TestCase(String name, String mapping, String require, String reject, Expression expected) {
 
       TestCase(String mapping, Expression expected) {
@@ -184,7 +184,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testTypeMappingTopLevelType() {
+  void testTypeMappingTopLevelType() {
     Expression parsed = Generate
       .parseImposm3MappingExpression("point", parseYaml("""
         key: val
@@ -196,7 +196,7 @@ public class GenerateTest {
   }
 
   @Test
-  public void testTypeMappings() {
+  void testTypeMappings() {
     Map<String, JsonNode> props = new LinkedHashMap<>();
     props.put("points", parseYaml("""
       key: val

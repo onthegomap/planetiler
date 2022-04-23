@@ -10,13 +10,13 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public class FileUtilsTest {
+class FileUtilsTest {
 
   @TempDir
   Path tmpDir;
 
   @Test
-  public void testCreateAndDeleteFileInNestedDirectory() throws IOException {
+  void testCreateAndDeleteFileInNestedDirectory() throws IOException {
     Path parent = tmpDir.resolve(Path.of("a", "b", "c"));
     Path file = parent.resolve("file.txt");
     FileUtils.createDirectory(parent);
@@ -36,7 +36,7 @@ public class FileUtilsTest {
   }
 
   @Test
-  public void testGetFileStore() throws IOException {
+  void testGetFileStore() throws IOException {
     var filestore = Files.getFileStore(tmpDir);
     assertEquals(filestore, FileUtils.getFileStore(tmpDir.resolve("nonexistant_file")));
     assertEquals(filestore, FileUtils.getFileStore(tmpDir.resolve("subdir").resolve("nonexistant_file")));

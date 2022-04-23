@@ -35,7 +35,7 @@ import org.locationtech.jts.geom.Polygon;
  * Generates an entire map for the smallest openstreetmap extract available (Monaco) and asserts that expected output
  * features exist
  */
-public class BasemapTest {
+class BasemapTest {
 
   @TempDir
   static Path tmpDir;
@@ -67,7 +67,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testMetadata() {
+  void testMetadata() {
     Map<String, String> metadata = mbtiles.metadata().getAll();
     assertEquals("OpenMapTiles", metadata.get("name"));
     assertEquals("0", metadata.get("minzoom"));
@@ -82,7 +82,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void ensureValidGeometries() throws Exception {
+  void ensureValidGeometries() throws Exception {
     Set<Mbtiles.TileEntry> parsedTiles = TestUtils.getAllTiles(mbtiles);
     for (var tileEntry : parsedTiles) {
       var decoded = VectorTile.decode(gunzip(tileEntry.bytes()));
@@ -93,14 +93,14 @@ public class BasemapTest {
   }
 
   @Test
-  public void testContainsOceanPolyons() {
+  void testContainsOceanPolyons() {
     assertFeatureNear(mbtiles, "water", Map.of(
       "class", "ocean"
     ), 7.4484, 43.70783, 0, 14);
   }
 
   @Test
-  public void testContainsCountryName() {
+  void testContainsCountryName() {
     assertFeatureNear(mbtiles, "place", Map.of(
       "class", "country",
       "iso_a2", "MC",
@@ -109,7 +109,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testContainsSuburb() {
+  void testContainsSuburb() {
     assertFeatureNear(mbtiles, "place", Map.of(
       "name", "Les Moneghetti",
       "class", "suburb"
@@ -117,14 +117,14 @@ public class BasemapTest {
   }
 
   @Test
-  public void testContainsBuildings() {
+  void testContainsBuildings() {
     assertFeatureNear(mbtiles, "building", Map.of(), 7.41919, 43.73401, 13, 14);
     assertNumFeatures("building", Map.of(), 14, 1316, Polygon.class);
     assertNumFeatures("building", Map.of(), 13, 196, Polygon.class);
   }
 
   @Test
-  public void testContainsHousenumber() {
+  void testContainsHousenumber() {
     assertFeatureNear(mbtiles, "housenumber", Map.of(
       "housenumber", "27"
     ), 7.42117, 43.73652, 14, 14);
@@ -132,7 +132,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testBoundary() {
+  void testBoundary() {
     assertFeatureNear(mbtiles, "boundary", Map.of(
       "admin_level", 2L,
       "maritime", 1L,
@@ -141,7 +141,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testAeroway() {
+  void testAeroway() {
     assertNumFeatures("aeroway", Map.of(
       "class", "heliport"
     ), 14, 1, Polygon.class);
@@ -151,7 +151,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testLandcover() {
+  void testLandcover() {
     assertNumFeatures("landcover", Map.of(
       "class", "grass",
       "subclass", "park"
@@ -163,7 +163,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testPoi() {
+  void testPoi() {
     assertNumFeatures("poi", Map.of(
       "class", "restaurant",
       "subclass", "restaurant"
@@ -175,7 +175,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testLanduse() {
+  void testLanduse() {
     assertNumFeatures("landuse", Map.of(
       "class", "residential"
     ), 14, 8, Polygon.class);
@@ -185,7 +185,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testTransportation() {
+  void testTransportation() {
     assertNumFeatures("transportation", Map.of(
       "class", "path",
       "subclass", "footway"
@@ -196,7 +196,7 @@ public class BasemapTest {
   }
 
   @Test
-  public void testTransportationName() {
+  void testTransportationName() {
     assertNumFeatures("transportation_name", Map.of(
       "name", "Boulevard du Larvotto",
       "class", "primary"
@@ -204,14 +204,14 @@ public class BasemapTest {
   }
 
   @Test
-  public void testWaterway() {
+  void testWaterway() {
     assertNumFeatures("waterway", Map.of(
       "class", "stream"
     ), 14, 6, LineString.class);
   }
 
   @TestFactory
-  public Stream<DynamicTest> testVerifyChecks() {
+  Stream<DynamicTest> testVerifyChecks() {
     return VerifyMonaco.verify(mbtiles).results().stream()
       .map(check -> dynamicTest(check.name(), () -> {
         check.error().ifPresent(Assertions::fail);

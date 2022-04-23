@@ -16,7 +16,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class MountainPeakTest extends AbstractLayerTest {
+class MountainPeakTest extends AbstractLayerTest {
 
   @BeforeEach
   public void setupWikidataTranslation() {
@@ -24,7 +24,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testHappyPath() {
+  void testHappyPath() {
     var peak = process(pointFeature(Map.of(
       "natural", "peak",
       "name", "test",
@@ -51,7 +51,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testLabelGrid() {
+  void testLabelGrid() {
     var peak = process(pointFeature(Map.of(
       "natural", "peak",
       "ele", "100"
@@ -66,7 +66,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testVolcano() {
+  void testVolcano() {
     assertFeatures(14, List.of(Map.of(
       "class", "volcano"
     )), process(pointFeature(Map.of(
@@ -76,7 +76,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSaddle() {
+  void testSaddle() {
     assertFeatures(14, List.of(Map.of(
       "class", "saddle"
     )), process(pointFeature(Map.of(
@@ -87,14 +87,14 @@ public class MountainPeakTest extends AbstractLayerTest {
 
 
   @Test
-  public void testNoElevation() {
+  void testNoElevation() {
     assertFeatures(14, List.of(), process(pointFeature(Map.of(
       "natural", "volcano"
     ))));
   }
 
   @Test
-  public void testBogusElevation() {
+  void testBogusElevation() {
     assertFeatures(14, List.of(), process(pointFeature(Map.of(
       "natural", "volcano",
       "ele", "11000"
@@ -102,7 +102,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnorePeakLines() {
+  void testIgnorePeakLines() {
     assertFeatures(14, List.of(), process(lineFeature(Map.of(
       "natural", "peak",
       "name", "name",
@@ -111,7 +111,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMountainLinestring() {
+  void testMountainLinestring() {
     assertFeatures(14, List.of(Map.of(
       "class", "ridge",
       "name", "Ridge",
@@ -128,7 +128,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCustomaryFt() {
+  void testCustomaryFt() {
     process(SimpleFeature.create(
       rectangle(0, 0.1),
       Map.of("iso_a2", "US"),
@@ -180,7 +180,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSortKey() {
+  void testSortKey() {
     assertAscending(
       getSortKey(Map.of(
         "natural", "peak",
@@ -201,7 +201,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMountainPeakPostProcessing() throws GeometryException {
+  void testMountainPeakPostProcessing() throws GeometryException {
     assertEquals(List.of(), profile.postProcessLayerFeatures(MountainPeak.LAYER_NAME, 13, List.of()));
 
     assertEquals(List.of(pointFeature(
@@ -248,7 +248,7 @@ public class MountainPeakTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMountainPeakPostProcessingLimitsFeaturesOutsideZoom() throws GeometryException {
+  void testMountainPeakPostProcessingLimitsFeaturesOutsideZoom() throws GeometryException {
     assertEquals(Lists.newArrayList(
       new VectorTile.Feature(
         MountainPeak.LAYER_NAME,

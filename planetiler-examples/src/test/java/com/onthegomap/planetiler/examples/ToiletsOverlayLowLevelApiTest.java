@@ -13,10 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Point;
 
-public class ToiletsOverlayLowLevelApiTest {
+class ToiletsOverlayLowLevelApiTest {
 
   @Test
-  public void integrationTest(@TempDir Path tmpDir) throws IOException {
+  void integrationTest(@TempDir Path tmpDir) throws IOException {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ToiletsOverlayLowLevelApi.run(
       // Override input source locations

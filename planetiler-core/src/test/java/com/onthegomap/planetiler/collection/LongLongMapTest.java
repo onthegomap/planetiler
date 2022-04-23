@@ -120,10 +120,10 @@ public abstract class LongLongMapTest {
     }
   }
 
-  public static class AllTest {
+  static class AllTest {
 
     @Test
-    public void testAllImplementations(@TempDir Path path) {
+    void testAllImplementations(@TempDir Path path) {
       for (Storage storage : Storage.values()) {
         for (LongLongMap.Type type : LongLongMap.Type.values()) {
           var variant = storage + "-" + type;

@@ -13,7 +13,7 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
-public class GeoUtilsTest {
+class GeoUtilsTest {
 
   @ParameterizedTest
   @CsvSource({
@@ -26,7 +26,7 @@ public class GeoUtilsTest {
     "86, -198, -0.05, -0.03391287",
     "-86, 198, 1.05, 1.03391287",
   })
-  public void testWorldCoords(double lat, double lon, double worldX, double worldY) {
+  void testWorldCoords(double lat, double lon, double worldX, double worldY) {
     assertEquals(worldY, getWorldY(lat), 1e-5);
     assertEquals(worldX, getWorldX(lon), 1e-5);
     long encoded = encodeFlatLocation(lon, lat);
@@ -43,7 +43,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testPolygonToLineString() throws GeometryException {
+  void testPolygonToLineString() throws GeometryException {
     assertEquals(newLineString(
       0, 0,
       1, 0,
@@ -56,7 +56,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testMultiPolygonToLineString() throws GeometryException {
+  void testMultiPolygonToLineString() throws GeometryException {
     assertEquals(newLineString(
       0, 0,
       1, 0,
@@ -69,7 +69,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testLineRingToLineString() throws GeometryException {
+  void testLineRingToLineString() throws GeometryException {
     assertEquals(newLineString(
       0, 0,
       1, 0,
@@ -82,7 +82,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testComplexPolygonToLineString() throws GeometryException {
+  void testComplexPolygonToLineString() throws GeometryException {
     assertEquals(newMultiLineString(
       newLineString(
         0, 0,
@@ -111,12 +111,12 @@ public class GeoUtilsTest {
     "8, 611",
     "14, 9",
   })
-  public void testMetersPerPixel(int zoom, double meters) {
+  void testMetersPerPixel(int zoom, double meters) {
     assertEquals(meters, metersPerPixelAtEquator(zoom), 1);
   }
 
   @Test
-  public void testIsConvexTriangle() {
+  void testIsConvexTriangle() {
     assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
@@ -126,7 +126,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testIsConvexRectangle() {
+  void testIsConvexRectangle() {
     assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
@@ -137,7 +137,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testBarelyConvexRectangle() {
+  void testBarelyConvexRectangle() {
     assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
@@ -162,7 +162,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testConcaveRectangleDoublePoints() {
+  void testConcaveRectangleDoublePoints() {
     assertConvex(true, newLinearRing(
       0, 0,
       0, 0,
@@ -206,7 +206,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testBarelyConcaveRectangle() {
+  void testBarelyConcaveRectangle() {
     assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
@@ -217,7 +217,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void test5PointsConcave() {
+  void test5PointsConcave() {
     assertConvex(false, newLinearRing(
       0, 0,
       0.5, 0.1,
@@ -253,7 +253,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void test5PointsColinear() {
+  void test5PointsColinear() {
     assertConvex(true, newLinearRing(
       0, 0,
       0.5, 0,
@@ -302,17 +302,17 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testCombineEmpty() {
+  void testCombineEmpty() {
     assertEquals(EMPTY_GEOMETRY, GeoUtils.combine());
   }
 
   @Test
-  public void testCombineOne() {
+  void testCombineOne() {
     assertEquals(newLineString(0, 0, 1, 1), GeoUtils.combine(newLineString(0, 0, 1, 1)));
   }
 
   @Test
-  public void testCombineTwo() {
+  void testCombineTwo() {
     assertEquals(GeoUtils.JTS_FACTORY.createGeometryCollection(new Geometry[]{
       newLineString(0, 0, 1, 1),
       newLineString(2, 2, 3, 3)
@@ -323,7 +323,7 @@ public class GeoUtilsTest {
   }
 
   @Test
-  public void testCombineNested() {
+  void testCombineNested() {
     assertEquals(GeoUtils.JTS_FACTORY.createGeometryCollection(new Geometry[]{
       newLineString(0, 0, 1, 1),
       newLineString(2, 2, 3, 3),

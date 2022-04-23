@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.locationtech.jts.geom.Geometry;
 
-public class ShapefileReaderTest {
+class ShapefileReaderTest {
 
   private final ShapefileReader reader = new ShapefileReader(
     "test",
@@ -31,14 +31,14 @@ public class ShapefileReaderTest {
   }
 
   @Test
-  public void testCount() {
+  void testCount() {
     assertEquals(86, reader.getCount());
     assertEquals(86, reader.getCount());
   }
 
   @Test
   @Timeout(30)
-  public void testReadShapefile() {
+  void testReadShapefile() {
     for (int i = 1; i <= 2; i++) {
       List<Geometry> points = new ArrayList<>();
       List<String> names = new ArrayList<>();

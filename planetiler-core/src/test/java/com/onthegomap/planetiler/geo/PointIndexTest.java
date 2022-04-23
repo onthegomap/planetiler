@@ -8,12 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-public class PointIndexTest {
+class PointIndexTest {
 
   private final PointIndex<Integer> index = PointIndex.create();
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     assertListsContainSameElements(
       List.of(),
       index.getWithin(newPoint(0.5, 0.5), 1)
@@ -24,7 +24,7 @@ public class PointIndexTest {
   }
 
   @Test
-  public void testSingle() {
+  void testSingle() {
     index.put(newPoint(0.5, 1), 1);
     assertListsContainSameElements(
       List.of(1),
@@ -39,7 +39,7 @@ public class PointIndexTest {
   }
 
   @Test
-  public void testMultipleIdentical() {
+  void testMultipleIdentical() {
     index.put(newPoint(1, 1), 1);
     index.put(newPoint(1, 1), 2);
     assertListsContainSameElements(
@@ -53,7 +53,7 @@ public class PointIndexTest {
   }
 
   @Test
-  public void testMultipleDifferent() {
+  void testMultipleDifferent() {
     index.put(newPoint(0, 1), 1);
     index.put(newPoint(1, 1), 2);
     assertListsContainSameElements(

@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class AerowayTest extends AbstractLayerTest {
+class AerowayTest extends AbstractLayerTest {
 
   @Test
-  public void aerowayGate() {
+  void aerowayGate() {
     assertFeatures(14, List.of(Map.of(
       "class", "gate",
       "ref", "123",
@@ -30,7 +30,7 @@ public class AerowayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void aerowayLine() {
+  void aerowayLine() {
     assertFeatures(14, List.of(Map.of(
       "class", "runway",
       "ref", "123",
@@ -50,7 +50,7 @@ public class AerowayTest extends AbstractLayerTest {
   }
 
   @Test
-  public void aerowayPolygon() {
+  void aerowayPolygon() {
     assertFeatures(14, List.of(Map.of(
       "class", "runway",
       "ref", "123",

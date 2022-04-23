@@ -20,7 +20,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FeatureMergeTest {
+class FeatureMergeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMergeTest.class);
 
@@ -34,7 +34,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMergeZeroLineStrings() {
+  void mergeMergeZeroLineStrings() {
     assertEquals(
       List.of(),
       FeatureMerge.mergeLineStrings(
@@ -47,7 +47,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMergeOneLineStrings() {
+  void mergeMergeOneLineStrings() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 20, 20), Map.of())
@@ -64,7 +64,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeDisconnectedLineStrings() {
+  void dontMergeDisconnectedLineStrings() {
     assertEquals(
       List.of(
         feature(1, newMultiLineString(
@@ -85,7 +85,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeConnectedLineStringsDifferentAttr() {
+  void dontMergeConnectedLineStringsDifferentAttr() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 20, 20), Map.of("a", 1)),
@@ -104,7 +104,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeConnectedLineStringsSameAttrs() {
+  void mergeConnectedLineStringsSameAttrs() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 30, 30), Map.of("a", 1))
@@ -122,7 +122,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMultiLineString() {
+  void mergeMultiLineString() {
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 40, 40), Map.of("a", 1))
@@ -143,7 +143,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringIgnoreNonLineString() {
+  void mergeLineStringIgnoreNonLineString() {
     assertEquals(
       List.of(
         feature(3, newPoint(5, 5), Map.of("a", 1)),
@@ -165,7 +165,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringRemoveDetailOutsideTile() {
+  void mergeLineStringRemoveDetailOutsideTile() {
     assertEquals(
       List.of(
         feature(1, newMultiLineString(
@@ -208,7 +208,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeLineStringMinLength() {
+  void mergeLineStringMinLength() {
     assertEquals(
       List.of(
         feature(2, newLineString(20, 20, 20, 25), Map.of("a", 1))
@@ -238,7 +238,7 @@ public class FeatureMergeTest {
    */
 
   @Test
-  public void mergePolygonEmptyList() throws GeometryException {
+  void mergePolygonEmptyList() throws GeometryException {
     assertEquivalentFeatures(
       List.of(),
       FeatureMerge.mergeNearbyPolygons(
@@ -252,7 +252,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeDisconnectedPolygons() throws GeometryException {
+  void dontMergeDisconnectedPolygons() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, newMultiPolygon(
@@ -274,7 +274,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergeConnectedPolygonsWithDifferentAttrs() throws GeometryException {
+  void dontMergeConnectedPolygonsWithDifferentAttrs() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, rectangle(10, 20), Map.of("a", 1)),
@@ -294,7 +294,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeConnectedPolygonsWithSameAttrs() throws GeometryException {
+  void mergeConnectedPolygonsWithSameAttrs() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
@@ -313,7 +313,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMultiPolygons() throws GeometryException {
+  void mergeMultiPolygons() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, rectangle(10, 10, 40, 20), Map.of("a", 1))
@@ -335,7 +335,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergePolygonsIgnoreNonPolygons() throws GeometryException {
+  void mergePolygonsIgnoreNonPolygons() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(2, newLineString(20, 10, 30, 20), Map.of("a", 1)),
@@ -355,7 +355,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergePolygonsWithinMinDist() throws GeometryException {
+  void mergePolygonsWithinMinDist() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, rectangle(10, 10, 30, 20), Map.of("a", 1))
@@ -374,7 +374,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergePolygonsInsideEachother() throws GeometryException {
+  void mergePolygonsInsideEachother() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, rectangle(10, 40), Map.of("a", 1))
@@ -393,7 +393,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void dontMergePolygonsAboveMinDist() throws GeometryException {
+  void dontMergePolygonsAboveMinDist() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, newMultiPolygon(
@@ -415,7 +415,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void removePolygonsBelowMinSize() throws GeometryException {
+  void removePolygonsBelowMinSize() throws GeometryException {
     assertEquivalentFeatures(
       List.of(),
       FeatureMerge.mergeNearbyPolygons(
@@ -433,7 +433,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void allowPolygonsAboveMinSize() throws GeometryException {
+  void allowPolygonsAboveMinSize() throws GeometryException {
     assertEquivalentFeatures(
       List.of(
         feature(1, newMultiPolygon(
@@ -526,14 +526,14 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void testExtractConnectedComponentsEmpty() {
+  void testExtractConnectedComponentsEmpty() {
     assertEquals(
       List.of(), FeatureMerge.extractConnectedComponents(Hppc.newIntObjectHashMap(), 0)
     );
   }
 
   @Test
-  public void testExtractConnectedComponentsOne() {
+  void testExtractConnectedComponentsOne() {
     assertEquals(
       List.of(
         IntArrayList.from(0)
@@ -542,7 +542,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void testExtractConnectedComponentsTwoDisconnected() {
+  void testExtractConnectedComponentsTwoDisconnected() {
     assertEquals(
       List.of(
         IntArrayList.from(0),
@@ -552,7 +552,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void testExtractConnectedComponentsTwoConnected() {
+  void testExtractConnectedComponentsTwoConnected() {
     assertEquals(
       List.of(
         IntArrayList.from(0, 1)
@@ -563,7 +563,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void testExtractConnectedComponents() {
+  void testExtractConnectedComponents() {
     assertEquals(
       List.of(
         IntArrayList.from(0, 1, 2, 3),
@@ -584,7 +584,7 @@ public class FeatureMergeTest {
     "bostonbuildings.mbtiles, 2479, 3028, 13, 1074",
     "jakartabuildings.mbtiles, 6527, 4240, 13, 410"
   })
-  public void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
+  void testMergeManyPolygons__TAKES_A_MINUTE_OR_TWO(String file, int x, int y, int z, int expected)
     throws IOException, GeometryException {
     LOGGER.warn("Testing complex polygon merging for " + file + " " + z + "/" + x + "/" + y + " ...");
     try (var db = Mbtiles.newReadOnlyDatabase(TestUtils.pathToResource(file))) {
@@ -609,7 +609,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMultiPolygon() throws GeometryException {
+  void mergeMultiPolygon() throws GeometryException {
     var innerRing = rectangleCoordList(12, 18);
     Collections.reverse(innerRing);
     assertTopologicallyEquivalentFeatures(
@@ -631,7 +631,7 @@ public class FeatureMergeTest {
   }
 
   @Test
-  public void mergeMultiPolygonExcludeSmallInnerRings() throws GeometryException {
+  void mergeMultiPolygonExcludeSmallInnerRings() throws GeometryException {
     var innerRing = rectangleCoordList(12, 12.99);
     Collections.reverse(innerRing);
     assertTopologicallyEquivalentFeatures(
