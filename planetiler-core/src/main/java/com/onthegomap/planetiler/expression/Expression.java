@@ -53,7 +53,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return true;
     }
   };
@@ -63,7 +63,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return false;
     }
   };
@@ -266,7 +266,7 @@ public interface Expression {
    * @param matchKeys list that this method call will add any key to that was responsible for triggering the match
    * @return true if this expression matches the input element
    */
-  boolean evaluate(SourceFeature input, List<Object> matchKeys);
+  boolean evaluate(SourceFeature input, List<String> matchKeys);
 
   record And(List<Expression> children) implements Expression {
 
@@ -276,7 +276,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       for (Expression child : children) {
         if (!child.evaluate(input, matchKeys)) {
           matchKeys.clear();
@@ -295,7 +295,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       int size = children.size();
       // Optimization: this method consumes the most time when matching against input elements, and
       // iterating through this list by index is slightly faster than an enhanced for loop
@@ -336,7 +336,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
   }
@@ -373,7 +373,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
       if (value == null) {
         return matchWhenMissing;
@@ -409,7 +409,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       if (input.hasTag(field)) {
         matchKeys.add(field);
         return true;
@@ -429,7 +429,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<Object> matchKeys) {
+    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return switch (type) {
         case LINESTRING_TYPE -> input.canBeLine();
         case POLYGON_TYPE -> input.canBePolygon();

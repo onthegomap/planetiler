@@ -50,7 +50,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       for (EntryWithId<T> expressionValue : expressions) {
         if (!visited[expressionValue.id]) {
           visited[expressionValue.id] = true;
-          List<Object> matchKeys = new ArrayList<>();
+          List<String> matchKeys = new ArrayList<>();
           if (expressionValue.expression().evaluate(input, matchKeys)) {
             result.add(new Match<>(expressionValue.result, matchKeys));
           }
@@ -317,5 +317,5 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   public record Entry<T> (T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T> (T match, List<Object> keys) {}
+  public record Match<T> (T match, List<String> keys) {}
 }
