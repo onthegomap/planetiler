@@ -106,7 +106,7 @@ public class WaterName implements
     // TODO pull lake centerline computation into planetiler?
     long osmId = Math.abs(feature.getLong("OSM_ID"));
     if (osmId == 0L) {
-      LOGGER.warn("Bad lake centerline. Tags: " + feature.tags());
+      LOGGER.warn("Bad lake centerline. Tags: {}", feature.tags());
     } else {
       try {
         // multiple threads call this concurrently
@@ -179,7 +179,7 @@ public class WaterName implements
         if (centerlineGeometry != null) {
           // prefer lake centerline if it exists
           feature = features.geometry(LAYER_NAME, centerlineGeometry)
-            .setMinPixelSizeBelowZoom(13, 6 * element.name().length());
+            .setMinPixelSizeBelowZoom(13, 6d * element.name().length());
         } else {
           // otherwise just use a label point inside the lake
           feature = features.pointOnSurface(LAYER_NAME);

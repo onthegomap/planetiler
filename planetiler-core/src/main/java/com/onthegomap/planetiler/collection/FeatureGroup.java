@@ -225,52 +225,6 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     return packer.toByteArray();
   }
 
-  private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
-    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
-      long group;
-      if (extractHasGroupFromKey(entry.key())) {
-        group = unpacker.unpackLong();
-        unpacker.unpackInt(); // groupLimit - features over the limit were already discarded
-      } else {
-        group = VectorTile.Feature.NO_GROUP;
-      }
-      long id = unpacker.unpackLong();
-      byte geomTypeAndScale = unpacker.unpackByte();
-      GeometryType geomType = decodeGeomType(geomTypeAndScale);
-      int scale = decodeScale(geomTypeAndScale);
-      int mapSize = unpacker.unpackMapHeader();
-      Map<String, Object> attrs = new HashMap<>(mapSize);
-      for (int i = 0; i < mapSize; i++) {
-        String key = commonStrings.decode(unpacker.unpackByte());
-        Value v = unpacker.unpackValue();
-        if (v.isStringValue()) {
-          attrs.put(key, v.asStringValue().asString());
-        } else if (v.isIntegerValue()) {
-          attrs.put(key, v.asIntegerValue().toLong());
-        } else if (v.isFloatValue()) {
-          attrs.put(key, v.asFloatValue().toDouble());
-        } else if (v.isBooleanValue()) {
-          attrs.put(key, v.asBooleanValue().getBoolean());
-        }
-      }
-      int commandSize = unpacker.unpackArrayHeader();
-      int[] commands = new int[commandSize];
-      for (int i = 0; i < commandSize; i++) {
-        commands[i] = unpacker.unpackInt();
-      }
-      String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
-      return new VectorTile.Feature(
-        layer,
-        id,
-        new VectorTile.VectorGeometry(commands, geomType, scale),
-        attrs,
-        group
-      );
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
   static GeometryType decodeGeomType(byte geomTypeAndScale) {
     return GeometryType.valueOf((byte) (geomTypeAndScale & 0b111));
   }
@@ -282,7 +236,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   static byte encodeGeomTypeAndScale(VectorTile.VectorGeometry geometry) {
     assert geometry.geomType().asByte() >= 0 && geometry.geomType().asByte() <= 8;
     assert geometry.scale() >= 0 && geometry.scale() < (1 << 5);
-    return (byte) (geometry.geomType().asByte() | (geometry.scale() << 3));
+    return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
   }
 
   /** Writes a serialized binary feature to intermediate storage. */
@@ -361,7 +315,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     private final List<SortableFeature> entries = new ArrayList<>();
     private final AtomicLong numFeaturesProcessed = new AtomicLong(0);
     private LongLongHashMap counts = null;
-    private byte layer = Byte.MAX_VALUE;
+    private byte lastLayer = Byte.MAX_VALUE;
 
     private TileFeatures(int tileCoord) {
       this.tileCoord = TileCoord.decode(tileCoord);
@@ -401,6 +355,52 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         }
       }
       return true;
+    }
+
+    private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
+      try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
+        long group;
+        if (extractHasGroupFromKey(entry.key())) {
+          group = unpacker.unpackLong();
+          unpacker.unpackInt(); // groupLimit - features over the limit were already discarded
+        } else {
+          group = VectorTile.Feature.NO_GROUP;
+        }
+        long id = unpacker.unpackLong();
+        byte geomTypeAndScale = unpacker.unpackByte();
+        GeometryType geomType = decodeGeomType(geomTypeAndScale);
+        int scale = decodeScale(geomTypeAndScale);
+        int mapSize = unpacker.unpackMapHeader();
+        Map<String, Object> attrs = new HashMap<>(mapSize);
+        for (int i = 0; i < mapSize; i++) {
+          String key = commonStrings.decode(unpacker.unpackByte());
+          Value v = unpacker.unpackValue();
+          if (v.isStringValue()) {
+            attrs.put(key, v.asStringValue().asString());
+          } else if (v.isIntegerValue()) {
+            attrs.put(key, v.asIntegerValue().toLong());
+          } else if (v.isFloatValue()) {
+            attrs.put(key, v.asFloatValue().toDouble());
+          } else if (v.isBooleanValue()) {
+            attrs.put(key, v.asBooleanValue().getBoolean());
+          }
+        }
+        int commandSize = unpacker.unpackArrayHeader();
+        int[] commands = new int[commandSize];
+        for (int i = 0; i < commandSize; i++) {
+          commands[i] = unpacker.unpackInt();
+        }
+        String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
+        return new VectorTile.Feature(
+          layer,
+          id,
+          new VectorTile.VectorGeometry(commands, geomType, scale),
+          attrs,
+          group
+        );
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
     }
 
     public VectorTile getVectorTileEncoder() {
@@ -447,19 +447,17 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         // introduce artificial intersections between endpoints to confuse line merging,
         // so we have to reduce the precision here, now that line merging is done.
         unscale(features);
-      } catch (Throwable e) {
+      } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
         // failures in tile post-processing happen very late so err on the side of caution and
         // log failures, only throwing when it's a fatal error
         if (e instanceof GeometryException geoe) {
           geoe.log(stats, "postprocess_layer",
             "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
-        } else if (e instanceof Exception) {
-          LOGGER.error("Caught error postprocessing features " + layer + " " + tileCoord, e);
-        } else {
-          LOGGER.error("Fatal error postprocessing features " + layer + " " + tileCoord, e);
-        }
-        if (e instanceof Error err) {
+        } else if (e instanceof Error err) {
+          LOGGER.error("Caught fatal error postprocessing features {} {}", layer, tileCoord, e);
           throw err;
+        } else {
+          LOGGER.error("Caught error postprocessing features {} {}", layer, tileCoord, e);
         }
       }
       encoder.addLayerFeatures(layer, features);
@@ -472,9 +470,9 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         byte thisLayer = extractLayerIdFromKey(key);
         if (counts == null) {
           counts = Hppc.newLongLongHashMap();
-          layer = thisLayer;
-        } else if (thisLayer != layer) {
-          layer = thisLayer;
+          lastLayer = thisLayer;
+        } else if (thisLayer != lastLayer) {
+          lastLayer = thisLayer;
           counts.clear();
         }
         var groupInfo = peekAtGroupInfo(entry.value());

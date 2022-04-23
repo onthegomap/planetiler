@@ -3,6 +3,7 @@
 
 package vector_tile;
 
+@javax.annotation.Generated(value = "protoc", comments = "annotations:VectorTileProto.java.pb.meta")
 public final class VectorTileProto {
   private VectorTileProto() {}
 

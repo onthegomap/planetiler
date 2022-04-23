@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.stats;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static com.onthegomap.planetiler.util.Format.padLeft;
 import static com.onthegomap.planetiler.util.Format.padRight;
 
@@ -100,7 +101,7 @@ public class ProgressLoggers {
       long now = System.nanoTime();
       long valueNow = getValue.getAsLong();
       double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
-      double valueDiff = valueNow - last.get();
+      long valueDiff = valueNow - last.get();
       if (valueDiff < 0) {
         valueDiff = valueNow;
       }
@@ -160,7 +161,7 @@ public class ProgressLoggers {
       long now = System.nanoTime();
       long valueNow = getValue.getAsLong();
       double timeDiff = (now - lastTime.get()) * 1d / (1d * TimeUnit.SECONDS.toNanos(1));
-      double valueDiff = valueNow - last.get();
+      long valueDiff = valueNow - last.get();
       if (valueDiff < 0) {
         valueDiff = valueNow;
       }
@@ -321,7 +322,7 @@ public class ProgressLoggers {
         lastThreads.putAll(newThreads);
         return (first ? " " : " -> ") + name + percents;
       }));
-    } catch (Throwable ignored) {
+    } catch (Exception ignored) {
       // can't get CPU stats per-thread
     }
     return this;
@@ -381,8 +382,11 @@ public class ProgressLoggers {
     try {
       future.get(duration.toNanos(), TimeUnit.NANOSECONDS);
       return true;
-    } catch (InterruptedException | ExecutionException e) {
-      throw new IllegalStateException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return throwFatalException(e);
+    } catch (ExecutionException e) {
+      return throwFatalException(e);
     } catch (TimeoutException e) {
       return false;
     }

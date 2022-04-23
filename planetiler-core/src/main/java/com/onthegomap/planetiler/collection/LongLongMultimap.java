@@ -101,7 +101,9 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
   class Noop implements Replaceable, Appendable {
 
     @Override
-    public void put(long key, long value) {}
+    public void put(long key, long value) {
+      // do nothing on update
+    }
 
     @Override
     public LongArrayList get(long key) {
@@ -114,10 +116,14 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
     }
 
     @Override
-    public void close() {}
+    public void close() {
+      // nothing to close
+    }
 
     @Override
-    public void replaceValues(long key, LongArrayList values) {}
+    public void replaceValues(long key, LongArrayList values) {
+      // do nothing on update
+    }
   }
 
   /**
@@ -191,7 +197,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
       }
       keys.buffer = sortedKeys;
       values.buffer = sortedValues;
-      LOGGER.debug("Sorted long long multimap " + timer.stop());
+      LOGGER.debug("Sorted long long multimap {}", timer.stop());
     }
 
     @Override
@@ -266,7 +272,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
         LongArrayList result = new LongArrayList();
         int num = (int) values.getLong(index);
         for (int i = 0; i < num; i++) {
-          result.add(values.getLong(i + index + 1));
+          result.add(values.getLong(i + index + 1L));
         }
         return result;
       } else {

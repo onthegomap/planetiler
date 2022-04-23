@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.worker;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 import com.onthegomap.planetiler.collection.IterableOnce;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -17,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
 
-  private final Queue<T> DONE = new ArrayDeque<>(0);
+  private final Queue<T> doneSentinel = new ArrayDeque<>(0);
   private final BlockingQueue<Queue<T>> itemQueue;
   private final int writeLimit;
   private boolean done = false;
@@ -38,9 +40,12 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
   public void close() {
     try {
       flushWrites();
-      itemQueue.put(DONE);
+      itemQueue.put(doneSentinel);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throwFatalException(e);
     }
   }
 
@@ -64,8 +69,9 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
         writeBatch = null;
         writeCost = 0;
         itemQueue.put(oldWriteBatch);
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throwFatalException(e);
       }
     }
   }
@@ -85,7 +91,7 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
           try {
             itemBatch = itemQueue.poll(100, TimeUnit.MILLISECONDS);
             if (itemBatch != null) {
-              if (itemBatch == DONE) {
+              if (itemBatch == doneSentinel) {
                 done = true;
               }
               break;
@@ -94,7 +100,7 @@ public class WeightedHandoffQueue<T> implements AutoCloseable, IterableOnce<T> {
             Thread.currentThread().interrupt();
             break;// signal EOF
           }
-        } else if (itemBatch == DONE) {
+        } else if (itemBatch == doneSentinel) {
           done = true;
         }
       } while (itemBatch == null);

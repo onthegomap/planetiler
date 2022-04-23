@@ -197,7 +197,7 @@ public class MbtilesWriter {
     for (var feature : features) {
       int z = feature.tileCoord().z();
       if (z != currentZoom) {
-        LOGGER.trace("Starting z" + z);
+        LOGGER.trace("Starting z{}", z);
         currentZoom = z;
       }
       long thisTileFeatures = feature.getNumFeaturesToEmit();
@@ -251,11 +251,13 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           if (encoded.length > 1_000_000) {
-            LOGGER.warn(tileFeatures.tileCoord() + " " + (encoded.length / 1024) + "kb uncompressed");
+            LOGGER.warn("{} {}kb uncompressed",
+              tileFeatures.tileCoord(),
+              encoded.length / 1024);
           }
         }
         int zoom = tileFeatures.tileCoord().z();
-        int encodedLength = encoded.length;
+        int encodedLength = encoded == null ? 0 : encoded.length;
         totalTileSizesByZoom[zoom].incBy(encodedLength);
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         result.add(new Mbtiles.TileEntry(tileFeatures.tileCoord(), bytes));
@@ -271,7 +273,7 @@ public class MbtilesWriter {
     if (!config.deferIndexCreation()) {
       db.addTileIndex();
     } else {
-      LOGGER.info("Deferring index creation. Add later by executing: " + Mbtiles.ADD_TILE_INDEX_SQL);
+      LOGGER.info("Deferring index creation. Add later by executing: {}", Mbtiles.ADD_TILE_INDEX_SQL);
     }
 
     db.metadata()
@@ -301,9 +303,9 @@ public class MbtilesWriter {
           int z = tileCoord.z();
           if (z != currentZ) {
             if (time == null) {
-              LOGGER.info("Starting z" + z);
+              LOGGER.info("Starting z{}", z);
             } else {
-              LOGGER.info("Finished z" + currentZ + " in " + time.stop() + ", now starting z" + z);
+              LOGGER.info("Finished z{} in {}, now starting z{}", currentZ, time.stop(), z);
             }
             time = Timer.start();
             currentZ = z;
@@ -317,7 +319,7 @@ public class MbtilesWriter {
     }
 
     if (time != null) {
-      LOGGER.info("Finished z" + currentZ + " in " + time.stop());
+      LOGGER.info("Finished z{} in {}", currentZ, time.stop());
     }
 
     if (config.optimizeDb()) {
@@ -337,15 +339,16 @@ public class MbtilesWriter {
       sumSize += totalSize;
       sumCount += totalCount;
       long maxSize = maxTileSizesByZoom[z].get();
-      LOGGER.debug("z" + z +
-        " avg:" + format.storage(totalSize / Math.max(totalCount, 1), false) +
-        " max:" + format.storage(maxSize, false));
+      LOGGER.debug("z{} avg:{} max:{}",
+        z,
+        format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
+        format.storage(maxSize, false));
     }
-    LOGGER.debug("all" +
-      " avg:" + format.storage(sumSize / Math.max(sumCount, 1), false) +
-      " max:" + format.storage(maxMax, false));
-    LOGGER.debug(" # features: " + format.integer(featuresProcessed.get()));
-    LOGGER.debug("    # tiles: " + format.integer(this.tilesEmitted()));
+    LOGGER.debug("all avg:{} max:{}",
+      format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
+      format.storage(maxMax, false));
+    LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
+    LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
   }
 
   private long tilesEmitted() {

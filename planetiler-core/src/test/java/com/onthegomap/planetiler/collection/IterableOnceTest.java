@@ -1,11 +1,15 @@
 package com.onthegomap.planetiler.collection;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -18,9 +22,9 @@ public class IterableOnceTest {
     IterableOnce<Integer> empty = () -> null;
     var iter = empty.iterator();
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
@@ -31,7 +35,7 @@ public class IterableOnceTest {
     assertTrue(iter.hasNext());
     assertEquals(1, iter.next());
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
@@ -44,7 +48,7 @@ public class IterableOnceTest {
     assertTrue(iter.hasNext());
     assertEquals(2, iter.next());
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test

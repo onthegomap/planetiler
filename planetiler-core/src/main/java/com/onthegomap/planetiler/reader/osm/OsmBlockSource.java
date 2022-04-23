@@ -37,9 +37,5 @@ public interface OsmBlockSource extends Closeable {
     default Iterator<OsmElement> iterator() {
       return decodeElements().iterator();
     }
-
-    default int id() {
-      return -1;
-    }
   }
 }
