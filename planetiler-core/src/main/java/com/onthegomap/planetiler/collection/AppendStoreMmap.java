@@ -30,8 +30,8 @@ abstract class AppendStoreMmap implements AppendStore {
   private final Path path;
   private final boolean madvise;
   long outIdx = 0;
-  private volatile MappedByteBuffer[] segments;
-  private volatile FileChannel channel;
+  private volatile MappedByteBuffer[] segments; // NOSONAR - array is not thread-safe, but it's immutable after creation
+  private volatile FileChannel channel; // NOSONAR - channel is not thread-safe, but we only map over it once then close
 
   AppendStoreMmap(Path path, boolean madvise) {
     this(path, 1 << 30, madvise); // 1GB

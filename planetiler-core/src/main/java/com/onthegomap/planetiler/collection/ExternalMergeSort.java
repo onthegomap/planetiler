@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,7 +48,7 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 class ExternalMergeSort implements FeatureSort {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FeatureSort.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExternalMergeSort.class);
   private static final long MAX_CHUNK_SIZE = 1_000_000_000; // 1GB
   private final Path dir;
   private final Stats stats;
@@ -88,7 +91,7 @@ class ExternalMergeSort implements FeatureSort {
     this.workers = workers;
     this.readerLimit = Math.max(1, config.sortMaxReaders());
     this.writerLimit = Math.max(1, config.sortMaxWriters());
-    LOGGER.info("Using merge sort feature map, chunk size=" + (chunkSizeLimit / 1_000_000) + "mb workers=" + workers);
+    LOGGER.info("Using merge sort feature map, chunk size={}mb workers={}", chunkSizeLimit / 1_000_000, workers);
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
@@ -181,7 +184,8 @@ class ExternalMergeSort implements FeatureSort {
 
           doneCounter.incrementAndGet();
         } catch (InterruptedException e) {
-          throw new RuntimeException(e);
+          Thread.currentThread().interrupt();
+          throwFatalException(e);
         }
       });
 
@@ -197,9 +201,10 @@ class ExternalMergeSort implements FeatureSort {
 
     sorted = true;
     timer.stop();
-    LOGGER.info("read:" + Duration.ofNanos(reading.get()).toSeconds() +
-      "s write:" + Duration.ofNanos(writing.get()).toSeconds() +
-      "s sort:" + Duration.ofNanos(sorting.get()).toSeconds() + "s");
+    LOGGER.info("read:{}s write:{}s sort:{}s",
+      Duration.ofNanos(reading.get()).toSeconds(),
+      Duration.ofNanos(writing.get()).toSeconds(),
+      Duration.ofNanos(sorting.get()).toSeconds());
   }
 
   @Override
@@ -379,6 +384,9 @@ class ExternalMergeSort implements FeatureSort {
     @Override
     public SortableFeature next() {
       SortableFeature current = next;
+      if (next == null) {
+        throw new NoSuchElementException();
+      }
       if ((next = readNextFeature()) == null) {
         close();
       }

@@ -56,7 +56,7 @@ public class Worker {
           System.err.println("Worker " + id + " died");
           // when one worker dies it may close resources causing others to die as well, so only log the first
           if (firstWorkerDied.compareAndSet(false, true)) {
-            e.printStackTrace();
+            e.printStackTrace(); // NOSONAR
           }
           throwFatalException(e);
         } finally {
