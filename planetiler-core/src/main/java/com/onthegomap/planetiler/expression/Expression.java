@@ -107,7 +107,7 @@ public interface Expression {
       values.stream()
         //Ensure that we can handle List<String>, List<Long>, etc
         .map(Object.class::cast)
-        .collect(Collectors.toList()));
+        .toList());
   }
 
   /**
