@@ -1,14 +1,14 @@
 package com.onthegomap.planetiler.basemap.layers;
 
-import static com.onthegomap.planetiler.TestUtils.rectangle;
-import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
-import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
-import static com.onthegomap.planetiler.basemap.BasemapProfile.WATER_POLYGON_SOURCE;
-
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+
+import static com.onthegomap.planetiler.TestUtils.rectangle;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOURCE;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
+import static com.onthegomap.planetiler.basemap.BasemapProfile.WATER_POLYGON_SOURCE;
 
 public class WaterTest extends AbstractLayerTest {
 
@@ -164,7 +164,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRiverk() {
+  public void testRiver() {
     assertFeatures(11, List.of(Map.of(
       "class", "river",
       "_layer", "water",
