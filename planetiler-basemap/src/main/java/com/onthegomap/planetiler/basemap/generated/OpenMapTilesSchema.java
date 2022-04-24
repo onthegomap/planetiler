@@ -168,8 +168,8 @@ public class OpenMapTilesSchema {
         MultiExpression.of(List.of(
           MultiExpression.entry("dock", matchAny("waterway", "dock")),
           MultiExpression.entry("river", or(matchAny("water", "river"), matchAny("waterway", "riverbank"))),
-          // MultiExpression.entry("lake", matchAny("waterway", "")),
-          MultiExpression.entry("ocean", FALSE)));
+          MultiExpression.entry("lake", matchAny("natural", "water"))
+        ));
     }
   }
   /**
