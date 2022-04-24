@@ -10,11 +10,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class OsmPhaserTest {
+class OsmPhaserTest {
 
   @Test
   @Timeout(1)
-  public void testAdvanceSingleThread() {
+  void testAdvanceSingleThread() {
     var phaser = new OsmPhaser(0);
     var forWorker = phaser.forWorker();
     assertEquals(OsmPhaser.Phase.BEGIN, phaser.getPhase());
@@ -42,7 +42,7 @@ public class OsmPhaserTest {
 
   @Test
   @Timeout(1)
-  public void testAdvanceAndSkipPhases() {
+  void testAdvanceAndSkipPhases() {
     var phaser = new OsmPhaser(1);
     var forWorker = phaser.forWorker();
     assertEquals(OsmPhaser.Phase.BEGIN, phaser.getPhase());
@@ -65,7 +65,7 @@ public class OsmPhaserTest {
 
   @Test
   @Timeout(1)
-  public void testWorkerAdvanceSideEffect() {
+  void testWorkerAdvanceSideEffect() {
     var nodesCalled = new AtomicBoolean(false);
     var waysCalled = new AtomicBoolean(false);
     var phaser = new OsmPhaser(0);
@@ -88,7 +88,7 @@ public class OsmPhaserTest {
 
   @Test
   @Timeout(1)
-  public void testCantGoBackwards() {
+  void testCantGoBackwards() {
     var phaser = new OsmPhaser(1);
     var forWorker = phaser.forWorker();
     forWorker.arrive(OsmPhaser.Phase.WAYS);
@@ -99,7 +99,7 @@ public class OsmPhaserTest {
 
   @Test
   @Timeout(1)
-  public void testWaitToAdvance() throws InterruptedException {
+  void testWaitToAdvance() throws InterruptedException {
     var phaser = new OsmPhaser(2);
     var latch1 = new CountDownLatch(1);
     var latch2 = new CountDownLatch(1);

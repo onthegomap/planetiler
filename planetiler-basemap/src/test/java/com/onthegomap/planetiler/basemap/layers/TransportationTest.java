@@ -20,10 +20,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class TransportationTest extends AbstractLayerTest {
+class TransportationTest extends AbstractLayerTest {
 
   @Test
-  public void testNamedFootway() {
+  void testNamedFootway() {
     FeatureCollector result = process(lineFeature(Map.of(
       "name", "Lagoon Path",
       "surface", "asphalt",
@@ -78,7 +78,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testImportantPath() {
+  void testImportantPath() {
     var rel = new OsmElement.Relation(1);
 
     rel.setTag("colour", "white");
@@ -128,7 +128,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testUnnamedPath() {
+  void testUnnamedPath() {
     assertFeatures(14, List.of(Map.of(
       "_layer", "transportation",
       "class", "path",
@@ -143,7 +143,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPrivatePath() {
+  void testPrivatePath() {
     assertFeatures(9, List.of(Map.of(
       "_layer", "transportation",
       "class", "path",
@@ -171,7 +171,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testExpressway() {
+  void testExpressway() {
     assertFeatures(8, List.of(Map.of(
       "_layer", "transportation",
       "class", "motorway",
@@ -199,7 +199,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testToll() {
+  void testToll() {
     assertFeatures(9, List.of(Map.of(
       "_layer", "transportation",
       "class", "motorway",
@@ -226,7 +226,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIndoorTunnelSteps() {
+  void testIndoorTunnelSteps() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "path",
@@ -244,7 +244,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testInterstateMotorway() {
+  void testInterstateMotorway() {
     var rel = new OsmElement.Relation(1);
     rel.setTag("type", "route");
     rel.setTag("route", "road");
@@ -340,7 +340,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRouteWithoutNetworkType() {
+  void testRouteWithoutNetworkType() {
     var rel1 = new OsmElement.Relation(1);
     rel1.setTag("type", "route");
     rel1.setTag("route", "road");
@@ -383,7 +383,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMinorRouteRef() {
+  void testMinorRouteRef() {
     var rel1 = new OsmElement.Relation(1);
     rel1.setTag("type", "route");
     rel1.setTag("route", "road");
@@ -423,7 +423,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPolishHighwayIssue165() {
+  void testPolishHighwayIssue165() {
     var rel1 = new OsmElement.Relation(1);
     rel1.setTag("type", "route");
     rel1.setTag("route", "road");
@@ -463,7 +463,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMotorwayJunction() {
+  void testMotorwayJunction() {
     var otherNode1 = new OsmElement.Node(1, 1, 1);
     var junctionNode = new OsmElement.Node(2, 1, 2);
     var otherNode2 = new OsmElement.Node(3, 1, 3);
@@ -512,7 +512,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testInterstateMotorwayWithoutWayInfo() {
+  void testInterstateMotorwayWithoutWayInfo() {
     var rel = new OsmElement.Relation(1);
     rel.setTag("type", "route");
     rel.setTag("route", "road");
@@ -543,7 +543,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPrimaryRoadConstruction() {
+  void testPrimaryRoadConstruction() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "primary_construction",
@@ -568,7 +568,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testBridgeConstruction() {
+  void testBridgeConstruction() {
     assertFeatures(14, List.of(), process(lineFeature(Map.of(
       "highway", "construction",
       "construction", "bridge",
@@ -589,7 +589,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoreManMadeWhenNotBridgeOrPier() {
+  void testIgnoreManMadeWhenNotBridgeOrPier() {
     // https://github.com/onthegomap/planetiler/issues/69
     assertFeatures(14, List.of(), process(lineFeature(Map.of(
       "man_made", "storage_tank",
@@ -607,7 +607,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRaceway() {
+  void testRaceway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "raceway",
@@ -628,7 +628,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testDriveway() {
+  void testDriveway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "service",
@@ -641,7 +641,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMountainBikeTrail() {
+  void testMountainBikeTrail() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "path",
@@ -666,7 +666,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testNamedTrack() {
+  void testNamedTrack() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "track",
@@ -687,7 +687,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testUnnamedTrack() {
+  void testUnnamedTrack() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "track",
@@ -702,7 +702,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testBusway() {
+  void testBusway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "busway",
@@ -743,7 +743,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testUSAndStateHighway() {
+  void testUSAndStateHighway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "primary",
@@ -803,7 +803,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testUsStateHighway() {
+  void testUsStateHighway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "primary"
@@ -827,7 +827,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCompoundRef() {
+  void testCompoundRef() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "primary",
@@ -851,7 +851,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testTransCanadaHighway() {
+  void testTransCanadaHighway() {
     var rel = new OsmElement.Relation(1);
     rel.setTag("type", "route");
     rel.setTag("route", "road");
@@ -887,7 +887,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testGreatBritainHighway() {
+  void testGreatBritainHighway() {
     process(SimpleFeature.create(
       rectangle(0, 0.1),
       Map.of("iso_a2", "GB"),
@@ -950,17 +950,17 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMergesDisconnectedRoadFeatures() throws GeometryException {
+  void testMergesDisconnectedRoadFeatures() throws GeometryException {
     testMergesLinestrings(Map.of("class", "motorway"), Transportation.LAYER_NAME, 10, 14);
   }
 
   @Test
-  public void testMergesDisconnectedRoadNameFeatures() throws GeometryException {
+  void testMergesDisconnectedRoadNameFeatures() throws GeometryException {
     testMergesLinestrings(Map.of("class", "motorway"), TransportationName.LAYER_NAME, 10, 14);
   }
 
   @Test
-  public void testLightRail() {
+  void testLightRail() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "transit",
@@ -982,7 +982,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSubway() {
+  void testSubway() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "transportation",
       "class", "transit",
@@ -1005,7 +1005,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRail() {
+  void testRail() {
     assertFeatures(8, List.of(Map.of(
       "_layer", "transportation",
       "class", "rail",
@@ -1047,7 +1047,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testNarrowGauge() {
+  void testNarrowGauge() {
     assertFeatures(10, List.of(Map.of(
       "_layer", "transportation",
       "class", "rail",
@@ -1062,7 +1062,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testAerialway() {
+  void testAerialway() {
     assertFeatures(12, List.of(Map.of(
       "_layer", "transportation",
       "class", "aerialway",
@@ -1092,7 +1092,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testFerry() {
+  void testFerry() {
     assertFeatures(10, List.of(Map.of(
       "_layer", "transportation",
       "class", "ferry",
@@ -1126,7 +1126,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPiers() {
+  void testPiers() {
     // area
     assertFeatures(10, List.of(Map.of(
       "_layer", "transportation",
@@ -1151,7 +1151,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testPedestrianArea() {
+  void testPedestrianArea() {
     Map<String, Object> pedestrianArea = Map.of(
       "_layer", "transportation",
       "class", "path",
@@ -1204,7 +1204,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSortKeys() {
+  void testSortKeys() {
     assertDescending(
       getWaySortKey(Map.of("highway", "footway", "layer", "2")),
       getWaySortKey(Map.of("highway", "motorway", "bridge", "yes")),
@@ -1224,7 +1224,7 @@ public class TransportationTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testTransportationNameLayerRequiresTransportationLayer() {
+  void testTransportationNameLayerRequiresTransportationLayer() {
     var profile = new BasemapProfile(translations, PlanetilerConfig.from(Arguments.of(
       "only_layers", "transportation_name"
     )), Stats.inMemory());

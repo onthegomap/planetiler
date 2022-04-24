@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.worker;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.Stats;
@@ -76,8 +78,11 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
         }
       }
       hasIncomingData = false;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throwFatalException(e);
     }
   }
 
@@ -169,7 +174,8 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
             enqueueBlockTimeNanos.incBy(System.nanoTime() - start);
           }
         } catch (InterruptedException ex) {
-          throw new RuntimeException(ex);
+          Thread.currentThread().interrupt();
+          throwFatalException(ex);
         }
       }
     }

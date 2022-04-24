@@ -251,7 +251,8 @@ public class Arguments {
   /** Returns a {@link List} parsed from {@code key} argument where values are separated by commas. */
   public List<String> getList(String key, String description, List<String> defaultValue) {
     String value = getArg(key, String.join(",", defaultValue));
-    List<String> results = Stream.of(value.split("\\s*,[,\\s]*"))
+    List<String> results = Stream.of(value.split(","))
+      .map(String::trim)
       .filter(c -> !c.isBlank()).toList();
     logArgValue(key, description, value);
     return results;

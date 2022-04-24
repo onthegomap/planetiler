@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
-public class DouglasPeuckerSimplifierTest {
+class DouglasPeuckerSimplifierTest {
 
   final int[] rotations = new int[]{0, 45, 90, 180, 270};
 
@@ -24,7 +24,7 @@ public class DouglasPeuckerSimplifierTest {
   }
 
   @Test
-  public void testSimplify2Points() {
+  void testSimplify2Points() {
     testSimplify(newLineString(
       0, 0,
       10, 10
@@ -35,7 +35,7 @@ public class DouglasPeuckerSimplifierTest {
   }
 
   @Test
-  public void testRemoveAPoint() {
+  void testRemoveAPoint() {
     testSimplify(newLineString(
       0, 0,
       5, 0.9,
@@ -47,7 +47,7 @@ public class DouglasPeuckerSimplifierTest {
   }
 
   @Test
-  public void testKeepAPoint() {
+  void testKeepAPoint() {
     testSimplify(newLineString(
       0, 0,
       5, 1.1,
@@ -60,7 +60,7 @@ public class DouglasPeuckerSimplifierTest {
   }
 
   @Test
-  public void testPolygonLeaveAPoint() {
+  void testPolygonLeaveAPoint() {
     testSimplify(
       rectangle(0, 10),
       newPolygon(

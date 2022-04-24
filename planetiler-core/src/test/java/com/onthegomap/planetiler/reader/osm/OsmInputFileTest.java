@@ -18,7 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Envelope;
 
-public class OsmInputFileTest {
+class OsmInputFileTest {
 
   private final Path path = TestUtils.pathToResource("monaco-latest.osm.pbf");
   private final OsmElement.Node expectedNode = new OsmElement.Node(1737114566L, Map.of(
@@ -55,12 +55,12 @@ public class OsmInputFileTest {
   private final Envelope expectedBounds = new Envelope(7.409205, 7.448637, 43.72335, 43.75169);
 
   @Test
-  public void testGetBounds() {
+  void testGetBounds() {
     assertEquals(expectedBounds, new OsmInputFile(path).getLatLonBounds());
   }
 
   @Test
-  public void testGetHeader() {
+  void testGetHeader() {
     assertEquals(new OsmHeader(
       expectedBounds,
       List.of("OsmSchema-V0.6", "DenseNodes"),
@@ -78,7 +78,7 @@ public class OsmInputFileTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   @Timeout(30)
-  public void testReadMonacoTwice(boolean lazy) {
+  void testReadMonacoTwice(boolean lazy) {
     for (int i = 1; i <= 2; i++) {
       AtomicInteger nodes = new AtomicInteger(0);
       AtomicInteger ways = new AtomicInteger(0);

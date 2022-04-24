@@ -4,10 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-public class CounterTest {
+class CounterTest {
 
   @Test
-  public void testSingleThreadedCounter() {
+  void testSingleThreadedCounter() {
     var counter = Counter.newSingleThreadCounter();
     assertEquals(0, counter.get());
 
@@ -20,7 +20,7 @@ public class CounterTest {
   }
 
   @Test
-  public void testMultiThreadedCounter() throws InterruptedException {
+  void testMultiThreadedCounter() throws InterruptedException {
     var counter = Counter.newMultiThreadCounter();
     Thread t1 = new Thread(() -> {
       counter.incBy(1);
@@ -35,7 +35,7 @@ public class CounterTest {
   }
 
   @Test
-  public void testMultiThreadedSubCounter() throws InterruptedException {
+  void testMultiThreadedSubCounter() throws InterruptedException {
     var counter = Counter.newMultiThreadCounter();
     Thread t1 = new Thread(() -> {
       var subCounter = counter.counterForThread();

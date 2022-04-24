@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class LandcoverTest extends AbstractLayerTest {
+class LandcoverTest extends AbstractLayerTest {
 
   @Test
-  public void testNaturalEarthGlaciers() {
+  void testNaturalEarthGlaciers() {
     var glacier1 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
@@ -64,7 +64,7 @@ public class LandcoverTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testNaturalEarthAntarcticIceShelves() {
+  void testNaturalEarthAntarcticIceShelves() {
     var ice1 = process(SimpleFeature.create(
       GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
       Map.of(),
@@ -98,14 +98,14 @@ public class LandcoverTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmLandcover() {
+  void testOsmLandcover() {
     assertFeatures(13, List.of(Map.of(
       "_layer", "landcover",
       "subclass", "wood",
       "class", "wood",
       "_minpixelsize", 8d,
       "_numpointsattr", "_numpoints",
-      "_minzoom", 9,
+      "_minzoom", 7,
       "_maxzoom", 14
     )), process(polygonFeature(Map.of(
       "natural", "wood"
@@ -115,7 +115,7 @@ public class LandcoverTest extends AbstractLayerTest {
       "subclass", "forest",
       "class", "wood",
       "_minpixelsize", 8d,
-      "_minzoom", 9,
+      "_minzoom", 7,
       "_maxzoom", 14
     )), process(polygonFeature(Map.of(
       "landuse", "forest"
@@ -136,7 +136,7 @@ public class LandcoverTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMergeForestsBuNumPointsZ9to13() throws GeometryException {
+  void testMergeForestsBuNumPointsZ9to13() throws GeometryException {
     Map<String, Object> map = Map.of("subclass", "wood");
 
     assertMerges(List.of(map, map, map, map, map, map), List.of(
@@ -171,7 +171,7 @@ public class LandcoverTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMergeNonForestsBelowZ9() throws GeometryException {
+  void testMergeNonForestsBelowZ9() throws GeometryException {
     Map<String, Object> map = Map.of("subclass", "dune");
 
     assertMerges(List.of(map, map), List.of(

@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class WaterTest extends AbstractLayerTest {
+class WaterTest extends AbstractLayerTest {
 
 
   @Test
-  public void testWaterNaturalEarth() {
+  void testWaterNaturalEarth() {
     assertFeatures(0, List.of(Map.of(
       "class", "lake",
       "intermittent", "<null>",
@@ -71,7 +71,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWaterOsmWaterPolygon() {
+  void testWaterOsmWaterPolygon() {
     assertFeatures(0, List.of(Map.of(
       "class", "ocean",
       "intermittent", "<null>",
@@ -89,7 +89,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testWater() {
+  void testWater() {
     assertFeatures(14, List.of(Map.of(
       "class", "lake",
       "_layer", "water",
@@ -153,7 +153,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRiverbank() {
+  void testRiverbank() {
     assertFeatures(11, List.of(Map.of(
       "class", "river",
       "_layer", "water",
@@ -164,7 +164,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testRiverk() {
+  void testRiver() {
     assertFeatures(11, List.of(Map.of(
       "class", "river",
       "_layer", "water",
@@ -175,7 +175,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testSpring() {
+  void testSpring() {
     assertFeatures(11, List.of(Map.of(
       "class", "lake",
       "_layer", "water",
@@ -186,7 +186,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOceanZoomLevels() {
+  void testOceanZoomLevels() {
     assertCoversZoomRange(0, 14, "water",
       process(SimpleFeature.create(
         rectangle(0, 10),
@@ -220,7 +220,7 @@ public class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testLakeZoomLevels() {
+  void testLakeZoomLevels() {
     assertCoversZoomRange(0, 14, "water",
       process(SimpleFeature.create(
         rectangle(0, 10),

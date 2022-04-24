@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-public class HousenumberTest extends AbstractLayerTest {
+class HousenumberTest extends AbstractLayerTest {
 
   @Test
-  public void testHousenumber() {
+  void testHousenumber() {
     assertFeatures(14, List.of(Map.of(
       "_layer", "housenumber",
       "_type", "point",

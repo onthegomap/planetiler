@@ -4,6 +4,7 @@ package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.Iterators;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Instant;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.function.IntUnaryOperator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -50,14 +52,14 @@ public class PbfDecoder implements Iterable<OsmElement> {
       try {
         inflater.inflate(blobData);
       } catch (DataFormatException e) {
-        throw new RuntimeException("Unable to decompress PBF blob.", e);
+        throw new FileFormatException("Unable to decompress PBF blob.", e);
       }
       if (!inflater.finished()) {
-        throw new RuntimeException("PBF blob contains incomplete compressed data.");
+        throw new FileFormatException("PBF blob contains incomplete compressed data.");
       }
       inflater.end();
     } else {
-      throw new RuntimeException("PBF blob uses unsupported compression, only raw or zlib may be used.");
+      throw new FileFormatException("PBF blob uses unsupported compression, only raw or zlib may be used.");
     }
 
     return blobData;
@@ -139,6 +141,9 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     @Override
     public OsmElement.Node next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
       var node = nodes.get(i++);
       return new OsmElement.Node(
         node.getId(),
@@ -166,23 +171,26 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     @Override
     public OsmElement.Relation next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
       var relation = relations.get(i++);
       int num = relation.getMemidsCount();
 
       List<OsmElement.Relation.Member> members = new ArrayList<>(num);
 
       long memberId = 0;
-      for (int i = 0; i < num; i++) {
-        memberId += relation.getMemids(i);
-        var memberType = switch (relation.getTypes(i)) {
-          case WAY -> OsmElement.Relation.Type.WAY;
-          case NODE -> OsmElement.Relation.Type.NODE;
-          case RELATION -> OsmElement.Relation.Type.RELATION;
+      for (int j = 0; j < num; j++) {
+        memberId += relation.getMemids(j);
+        var memberType = switch (relation.getTypes(j)) {
+          case WAY -> OsmElement.Type.WAY;
+          case NODE -> OsmElement.Type.NODE;
+          case RELATION -> OsmElement.Type.RELATION;
         };
         members.add(new OsmElement.Relation.Member(
           memberType,
           memberId,
-          fieldDecoder.decodeString(relation.getRolesSid(i))
+          fieldDecoder.decodeString(relation.getRolesSid(j))
         ));
       }
 
@@ -212,6 +220,9 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     @Override
     public OsmElement.Way next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
       var way = ways.get(i++);
       // Build up the list of way nodes for the way. The node ids are
       // delta encoded meaning that each id is stored as a delta against
@@ -221,10 +232,10 @@ public class PbfDecoder implements Iterable<OsmElement> {
       LongArrayList wayNodesList = new LongArrayList(numNodes);
       wayNodesList.elementsCount = numNodes;
       long[] wayNodes = wayNodesList.buffer;
-      for (int i = 0; i < numNodes; i++) {
-        long nodeIdOffset = way.getRefs(i);
+      for (int j = 0; j < numNodes; j++) {
+        long nodeIdOffset = way.getRefs(j);
         nodeId += nodeIdOffset;
-        wayNodes[i] = nodeId;
+        wayNodes[j] = nodeId;
       }
 
       return new OsmElement.Way(
@@ -261,6 +272,9 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     @Override
     public OsmElement.Node next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
       // Delta decode node fields.
       nodeId += nodes.getId(i);
       latitude += nodes.getLat(i);

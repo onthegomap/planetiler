@@ -16,12 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Point;
 
-public class ToiletsProfileTest {
+class ToiletsProfileTest {
 
   private final ToiletsOverlay profile = new ToiletsOverlay();
 
   @Test
-  public void testSourceFeatureProcessing() {
+  void testSourceFeatureProcessing() {
     var node = SimpleFeature.create(
       TestUtils.newPoint(1, 2),
       Map.of("amenity", "toilets")
@@ -50,7 +50,7 @@ public class ToiletsProfileTest {
   }
 
   @Test
-  public void integrationTest(@TempDir Path tmpDir) throws Exception {
+  void integrationTest(@TempDir Path tmpDir) throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ToiletsOverlay.run(Arguments.of(
       // Override input source locations

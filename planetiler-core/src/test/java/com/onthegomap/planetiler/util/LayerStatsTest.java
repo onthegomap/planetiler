@@ -11,17 +11,17 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-public class LayerStatsTest {
+class LayerStatsTest {
 
   final LayerStats layerStats = new LayerStats();
 
   @Test
-  public void testEmptyLayerStats() {
+  void testEmptyLayerStats() {
     assertEquals(new Mbtiles.MetadataJson(), layerStats.getTileStats());
   }
 
   @Test
-  public void testEmptyLayerStatsOneLayer() {
+  void testEmptyLayerStatsOneLayer() {
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 3),
       new VectorTile.Feature(
@@ -43,7 +43,7 @@ public class LayerStatsTest {
   }
 
   @Test
-  public void testEmptyLayerStatsTwoLayers() {
+  void testEmptyLayerStatsTwoLayers() {
     layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 3),
       new VectorTile.Feature(
@@ -89,7 +89,7 @@ public class LayerStatsTest {
   }
 
   @Test
-  public void testMergeFromMultipleThreads() throws InterruptedException {
+  void testMergeFromMultipleThreads() throws InterruptedException {
     Thread t1 = new Thread(() -> layerStats.accept(new RenderedFeature(
       TileCoord.ofXYZ(1, 2, 3),
       new VectorTile.Feature(

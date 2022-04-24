@@ -39,8 +39,8 @@ interface AppendStore extends Closeable, MemoryEstimator.HasEstimate, DiskBacked
 
     static Ints create(Storage storage, Storage.Params params) {
       return switch (storage) {
-        case DIRECT -> new AppendStoreRam.Ints(true, params);
-        case RAM -> new AppendStoreRam.Ints(false, params);
+        case DIRECT -> new AppendStoreRam.Ints(true);
+        case RAM -> new AppendStoreRam.Ints(false);
         case MMAP -> new AppendStoreMmap.Ints(params);
       };
     }

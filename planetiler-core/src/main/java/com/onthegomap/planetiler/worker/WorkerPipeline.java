@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.worker;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.collection.IterableOnce;
@@ -38,7 +39,7 @@ public record WorkerPipeline<T> (
   WorkerPipeline<?> previous,
   WorkQueue<T> inputQueue,
   Worker worker,
-  CompletableFuture<?> done
+  CompletableFuture<Void> done
 ) {
   /*
    * Empty/Bufferable/Builder are used to provide a fluent API for building a model of the steps to run (and keep
@@ -69,8 +70,11 @@ public record WorkerPipeline<T> (
   public void await() {
     try {
       done.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throwFatalException(e);
+    } catch (ExecutionException e) {
+      throwFatalException(e);
     }
   }
 
@@ -252,7 +256,8 @@ public record WorkerPipeline<T> (
 
     private WorkerPipeline<?> build() {
       var previousPipeline = previous == null || previous.worker == null ? null : previous.build();
-      var doneFuture = worker != null ? worker.done() : CompletableFuture.completedFuture(true);
+      CompletableFuture<Void> doneFuture =
+        worker != null ? worker.done() : CompletableFuture.completedFuture(null);
       if (previousPipeline != null) {
         doneFuture = joinFutures(doneFuture, previousPipeline.done);
       }

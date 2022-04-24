@@ -7,45 +7,45 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
-public class ProcessInfoTest {
+class ProcessInfoTest {
 
   @Test
-  public void testGC() {
+  void testGC() {
     assertTrue(ProcessInfo.getGcTime().toNanos() >= 0);
   }
 
   @Test
-  public void testGetDirectUsedMemoryBytes() {
+  void testGetDirectUsedMemoryBytes() {
     assertTrue(ProcessInfo.getDirectUsedMemoryBytes() >= 0);
   }
 
   @Test
-  public void testGetDirectUsedMemoryLimit() {
+  void testGetDirectUsedMemoryLimit() {
     assertTrue(ProcessInfo.getDirectUsedMemoryLimit() >= 0);
   }
 
   @Test
-  public void testGetOnHeapUsedMemoryBytes() {
+  void testGetOnHeapUsedMemoryBytes() {
     assertTrue(ProcessInfo.getOnHeapUsedMemoryBytes() >= 0);
   }
 
   @Test
-  public void testGetSystemUsedMemoryBytes() {
+  void testGetSystemUsedMemoryBytes() {
     assertTrue(ProcessInfo.getSystemMemoryBytes().getAsLong() >= 0);
   }
 
   @Test
-  public void testCPU() {
+  void testCPU() {
     assertFalse(ProcessInfo.getProcessCpuTime().isEmpty());
   }
 
   @Test
-  public void testThreads() {
+  void testThreads() {
     assertFalse(ProcessInfo.getThreadStats().isEmpty());
   }
 
   @Test
-  public void testAdd() {
+  void testAdd() {
     var a = new ProcessInfo.ThreadState("", Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3),
       Duration.ofSeconds(4), -1);
     var b = new ProcessInfo.ThreadState("", Duration.ofSeconds(5), Duration.ofSeconds(6), Duration.ofSeconds(7),

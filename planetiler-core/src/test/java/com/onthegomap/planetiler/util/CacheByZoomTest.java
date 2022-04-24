@@ -8,10 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-public class CacheByZoomTest {
+class CacheByZoomTest {
 
   @Test
-  public void testCacheZoom() {
+  void testCacheZoom() {
     List<Integer> calls = new ArrayList<>();
     CacheByZoom<Integer> cached = CacheByZoom.create(PlanetilerConfig.from(Arguments.of(
       "minzoom", "1",

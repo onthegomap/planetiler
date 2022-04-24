@@ -9,11 +9,11 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class DistributorTest {
+class DistributorTest {
 
   @Test
   @Timeout(10)
-  public void testEmpty() {
+  void testEmpty() {
     List<Integer> processed = new CopyOnWriteArrayList<>();
     Distributor<Integer> distributor = Distributor.createWithCapacity(1);
 
@@ -28,7 +28,7 @@ public class DistributorTest {
 
   @Test
   @Timeout(10)
-  public void testDistributor1Thread() {
+  void testDistributor1Thread() {
     List<Integer> processed = new CopyOnWriteArrayList<>();
     Distributor<Integer> distributor = Distributor.createWithCapacity(1);
 
@@ -48,7 +48,7 @@ public class DistributorTest {
 
   @Test
   @Timeout(10)
-  public void testDistributor2Threads() throws InterruptedException {
+  void testDistributor2Threads() throws InterruptedException {
     List<Integer> processed = new CopyOnWriteArrayList<>();
     Distributor<Integer> distributor = Distributor.createWithCapacity(1);
 

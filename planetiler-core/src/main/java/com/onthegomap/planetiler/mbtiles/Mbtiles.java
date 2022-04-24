@@ -370,15 +370,21 @@ public final class Mbtiles implements Closeable {
       batchStatement = createBatchStatement(batchLimit);
     }
 
+    @SuppressWarnings("java:S2077")
     private PreparedStatement createBatchStatement(int size) {
       List<String> groups = new ArrayList<>();
       for (int i = 0; i < size; i++) {
         groups.add("(?,?,?,?)");
       }
       try {
-        return connection.prepareStatement(
-          "INSERT INTO " + TILES_TABLE + " (" + TILES_COL_Z + "," + TILES_COL_X + "," + TILES_COL_Y + "," +
-            TILES_COL_DATA + ") VALUES " + String.join(", ", groups) + ";");
+        return connection.prepareStatement("""
+          INSERT INTO %s (%s, %s, %s, %s) VALUES %s;
+          """.formatted(
+          TILES_TABLE,
+          TILES_COL_Z, TILES_COL_X, TILES_COL_Y,
+          TILES_COL_DATA,
+          String.join(", ", groups)
+        ));
       } catch (SQLException throwables) {
         throw new IllegalStateException("Could not create prepared statement", throwables);
       }

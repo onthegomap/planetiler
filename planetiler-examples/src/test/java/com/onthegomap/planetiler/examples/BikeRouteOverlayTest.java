@@ -20,12 +20,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.LineString;
 
-public class BikeRouteOverlayTest {
+class BikeRouteOverlayTest {
 
   private final BikeRouteOverlay profile = new BikeRouteOverlay();
 
   @Test
-  public void testSourceFeatureProcessing() {
+  void testSourceFeatureProcessing() {
     // step 1) preprocess an example OSM relation
     var relationResult = profile.preprocessOsmRelation(new OsmElement.Relation(1, Map.of(
       "type", "route",
@@ -60,7 +60,7 @@ public class BikeRouteOverlayTest {
   }
 
   @Test
-  public void testTilePostProcessingMergesConnectedLines() {
+  void testTilePostProcessingMergesConnectedLines() {
     String layer = "bicycle-route-local";
     Map<String, Object> attrs = Map.of(
       "name", "rail trail",
@@ -90,7 +90,7 @@ public class BikeRouteOverlayTest {
   }
 
   @Test
-  public void integrationTest(@TempDir Path tmpDir) throws Exception {
+  void integrationTest(@TempDir Path tmpDir) throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     BikeRouteOverlay.run(Arguments.of(
       // Override input source locations

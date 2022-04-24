@@ -76,4 +76,13 @@ Learn more about using VSCode with Java [here](https://code.visualstudio.com/doc
 - To verify everything works correctly, right click on `planetiler-core/src/test/java` folder and
   click `Run As -> JUnit Test`
 
-TODO: Set up checkstyle
+## SonarLint Plugin Setup (optional, but recommended)
+
+Planetiler uses [SonarCloud](https://sonarcloud.io/project/overview?id=onthegomap_planetiler) to statically analyze pull
+requests to catch common bugs and security vulnerabilities. To preview Sonar warnings in VS Code, IntelliJ, or Eclipse:
+
+- Follow the directions on [sonarlint.org](https://www.sonarlint.org/) to install the plugin for your IDE
+- Then to synchronize your local configuration with the one used in SonarCloud,
+  enable [Connected Mode](https://www.sonarlint.org/bring-your-team-on-board) for your IDE using "SonarCloud"
+  connection type and the shared read-only API token used in GitHub CI: `c2cfe8bd7368ced07e84a620b7c2487846e220eb`
+

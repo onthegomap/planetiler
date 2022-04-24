@@ -235,7 +235,7 @@ public class Place implements
         rank = country.rank;
       }
 
-      rank = Math.min(6, Math.max(1, rank));
+      rank = Math.max(1, Math.min(6, rank));
 
       features.point(LAYER_NAME).setBufferPixels(BUFFER_SIZE)
         .putAttrs(names)

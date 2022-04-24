@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.onthegomap.planetiler.config.Bounds;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -82,7 +83,7 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
       .filter(feature -> !(feature.equals("OsmSchema-V0.6") || feature.equals("DenseNodes")))
       .toList();
     if (!unsupportedFeatures.isEmpty()) {
-      throw new RuntimeException("PBF file contains unsupported features " + unsupportedFeatures);
+      throw new FileFormatException("PBF file contains unsupported features " + unsupportedFeatures);
     }
   }
 
@@ -146,7 +147,6 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
 
     @Override
     public void forEachBlock(Consumer<Block> consumer) {
-      int blockId = 0;
       try (FileChannel channel = openChannel()) {
         final long size = channel.size();
         while (channel.position() < size) {
@@ -154,11 +154,11 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
           byte[] blockBytes = readBytes(channel, header.getDatasize());
           String headerType = header.getType();
           if ("OSMData".equals(headerType)) {
-            consumer.accept(new EagerBlock(blockId++, blockBytes));
+            consumer.accept(new EagerBlock(blockBytes));
           } else if ("OSMHeader".equals(headerType)) {
             validateHeader(blockBytes);
           } else {
-            LOGGER.warn("Unrecognized OSM PBF blob header type: " + headerType);
+            LOGGER.warn("Unrecognized OSM PBF blob header type: {}", headerType);
           }
         }
       } catch (IOException e) {
@@ -166,7 +166,13 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
       }
     }
 
-    private record EagerBlock(@Override int id, byte[] bytes) implements Block {
+    private static final class EagerBlock implements Block {
+      // not a record since would need to override equals/hashcode for byte array anyway
+      private final byte[] bytes;
+
+      private EagerBlock(byte[] bytes) {
+        this.bytes = bytes;
+      }
 
       public Iterable<OsmElement> decodeElements() {
         return PbfDecoder.decode(bytes);
@@ -186,7 +192,6 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
 
     @Override
     public void forEachBlock(Consumer<Block> consumer) {
-      int blockId = 0;
       try (FileChannel channel = openChannel()) {
         final long size = channel.size();
         while (channel.position() < size) {
@@ -195,11 +200,11 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
           String headerType = header.getType();
           long blockStartPosition = channel.position();
           if ("OSMData".equals(headerType)) {
-            consumer.accept(new LazyBlock(blockId++, blockStartPosition, blockSize, lazyReadChannel));
+            consumer.accept(new LazyBlock(blockStartPosition, blockSize, lazyReadChannel));
           } else if ("OSMHeader".equals(headerType)) {
             validateHeader(readBytes(channel, blockStartPosition, blockSize));
           } else {
-            LOGGER.warn("Unrecognized OSM PBF blob header type: " + headerType);
+            LOGGER.warn("Unrecognized OSM PBF blob header type: {}", headerType);
           }
           channel.position(blockStartPosition + blockSize);
         }
@@ -217,7 +222,7 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
       }
     }
 
-    private record LazyBlock(@Override int id, long offset, int length, FileChannel channel) implements Block {
+    private record LazyBlock(long offset, int length, FileChannel channel) implements Block {
 
       public Iterable<OsmElement> decodeElements() {
         try {

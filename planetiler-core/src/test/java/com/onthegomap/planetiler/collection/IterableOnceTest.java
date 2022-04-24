@@ -1,41 +1,45 @@
 package com.onthegomap.planetiler.collection;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class IterableOnceTest {
+class IterableOnceTest {
 
   @Test
-  public void testIterableOnceEmpty() {
+  void testIterableOnceEmpty() {
     IterableOnce<Integer> empty = () -> null;
     var iter = empty.iterator();
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
-  public void testSingleItem() {
+  void testSingleItem() {
     Queue<Integer> queue = new LinkedList<>(List.of(1));
     IterableOnce<Integer> iterable = queue::poll;
     var iter = iterable.iterator();
     assertTrue(iter.hasNext());
     assertEquals(1, iter.next());
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
-  public void testMultipleItems() {
+  void testMultipleItems() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2));
     IterableOnce<Integer> iterable = queue::poll;
     var iter = iterable.iterator();
@@ -44,11 +48,11 @@ public class IterableOnceTest {
     assertTrue(iter.hasNext());
     assertEquals(2, iter.next());
     assertFalse(iter.hasNext());
-    assertNull(iter.next());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 
   @Test
-  public void testMultipleIterators() {
+  void testMultipleIterators() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2));
     IterableOnce<Integer> iterable = queue::poll;
     var iter1 = iterable.iterator();
@@ -64,7 +68,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testForeach() {
+  void testForeach() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2, 3, 4));
     IterableOnce<Integer> iterable = queue::poll;
     Set<Integer> result = new HashSet<>();
@@ -75,7 +79,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testForeachWithSupplierAccess() {
+  void testForeachWithSupplierAccess() {
     Queue<Integer> queue = new LinkedList<>(List.of(1, 2, 3, 4));
     IterableOnce<Integer> iterable = queue::poll;
     List<Integer> result = new ArrayList<>();
@@ -93,7 +97,7 @@ public class IterableOnceTest {
   }
 
   @Test
-  public void testWaitsToCallNext() {
+  void testWaitsToCallNext() {
     var iter = Stream.of(1, 2).peek(i -> {
       if (i == 2) {
         throw new Error();

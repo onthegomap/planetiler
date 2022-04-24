@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-public class TimersTest {
+class TimersTest {
 
   @Test
-  public void testTimers() {
+  void testTimers() {
     Timers timers = new Timers();
     assertTrue(timers.all().isEmpty());
     timers.printSummary();

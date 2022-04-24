@@ -19,7 +19,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
   @Test
   @Timeout(10)
-  public void testWaitForBothWritersToClose() throws InterruptedException {
+  void testWaitForBothWritersToClose() throws InterruptedException {
     var writer1 = parallel.newWriter();
     var writer2 = parallel.newWriter();
     writer1.put(0, 1);
@@ -32,7 +32,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
   @Test
   @Timeout(10)
-  public void testInterleavedWritesFromParallelThreads() throws InterruptedException {
+  void testInterleavedWritesFromParallelThreads() throws InterruptedException {
     int limit = 1000;
     var ready = new CyclicBarrier(2);
     Thread thread1 = new Thread(() -> {
@@ -68,7 +68,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
   @Test
   @Timeout(10)
-  public void testAdjacentBlocksFromParallelThreads() throws InterruptedException {
+  void testAdjacentBlocksFromParallelThreads() throws InterruptedException {
     int limit = 1000;
     var ready = new CyclicBarrier(2);
     Thread thread1 = new Thread(() -> {

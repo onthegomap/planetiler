@@ -82,7 +82,7 @@ public class MountainPeak implements
    * label density by only taking the top 5 most important mountain peaks within each 100x100px
    * square.
    */
-  private static final Logger LOGGER = LoggerFactory.getLogger(TransportationName.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MountainPeak.class);
 
   private final Translations translations;
   private final Stats stats;

@@ -4,12 +4,13 @@ import com.onthegomap.planetiler.util.Format;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * A utility for measuring the wall and CPU time that this JVM consumes between snapshots.
  * <p>
  * For example:
- * 
+ *
  * <pre>
  * {@code
  * var start = ProcessTime.now();
@@ -19,6 +20,7 @@ import java.util.Optional;
  * }
  * </pre>
  */
+@Immutable
 public record ProcessTime(Duration wall, Optional<Duration> cpu, Duration gc) {
 
   /** Takes a snapshot of current wall and CPU time of this JVM. */

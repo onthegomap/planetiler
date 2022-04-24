@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.reader;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -21,6 +23,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NaturalEarthReader extends SimpleReader {
 
+  private static final Pattern VALID_TABLE_NAME = Pattern.compile("ne_[a-z0-9_]+", Pattern.CASE_INSENSITIVE);
   private static final Logger LOGGER = LoggerFactory.getLogger(NaturalEarthReader.class);
   private final Connection conn;
   private Path extracted;
@@ -80,19 +84,18 @@ public class NaturalEarthReader extends SimpleReader {
   private Connection open(Path path, Path tmpLocation) throws IOException, SQLException {
     String uri = "jdbc:sqlite:" + path.toAbsolutePath();
     if (FileUtils.hasExtension(path, "zip")) {
-      Path toOpen = tmpLocation == null ? Files.createTempFile("sqlite", "natearth") : tmpLocation;
-      extracted = toOpen;
+      extracted = tmpLocation;
       try (var zipFs = FileSystems.newFileSystem(path)) {
         var zipEntry = FileUtils.walkFileSystem(zipFs)
           .filter(Files::isRegularFile)
           .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
           .findFirst()
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));
-        LOGGER.info("unzipping " + path.toAbsolutePath() + " to " + extracted);
+        LOGGER.info("unzipping {} to {}", path.toAbsolutePath(), extracted);
         Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
         extracted.toFile().deleteOnExit();
       }
-      uri = "jdbc:sqlite:" + toOpen.toAbsolutePath();
+      uri = "jdbc:sqlite:" + tmpLocation.toAbsolutePath();
     }
     return DriverManager.getConnection(uri);
   }
@@ -102,10 +105,12 @@ public class NaturalEarthReader extends SimpleReader {
     try (ResultSet rs = conn.getMetaData().getTables(null, null, null, null)) {
       while (rs.next()) {
         String table = rs.getString("TABLE_NAME");
-        result.add(table);
+        if (VALID_TABLE_NAME.matcher(table).matches()) {
+          result.add(table);
+        }
       }
     } catch (SQLException e) {
-      throw new RuntimeException(e);
+      throwFatalException(e);
     }
     return result;
   }
@@ -116,7 +121,8 @@ public class NaturalEarthReader extends SimpleReader {
     for (String table : tableNames()) {
       try (
         var stmt = conn.createStatement();
-        var result = stmt.executeQuery("select count(*) from " + table + " where GEOMETRY is not null;")
+        @SuppressWarnings("java:S2077") // table name checked against a regex
+        var result = stmt.executeQuery("SELECT COUNT(*) FROM %S WHERE GEOMETRY IS NOT NULL;".formatted(table))
       ) {
         count += result.getLong(1);
       } catch (SQLException e) {
@@ -134,10 +140,11 @@ public class NaturalEarthReader extends SimpleReader {
       var tables = tableNames();
       for (int i = 0; i < tables.size(); i++) {
         String table = tables.get(i);
-        LOGGER.trace("Naturalearth loading " + i + "/" + tables.size() + ": " + table);
+        LOGGER.trace("Naturalearth loading {}/{}: {}", i, tables.size(), table);
 
         try (Statement statement = conn.createStatement()) {
-          ResultSet rs = statement.executeQuery("select * from " + table + ";");
+          @SuppressWarnings("java:S2077") // table name checked against a regex
+          ResultSet rs = statement.executeQuery("SELECT * FROM %s;".formatted(table));
           String[] column = new String[rs.getMetaData().getColumnCount()];
           int geometryColumn = -1;
           for (int c = 0; c < column.length; c++) {

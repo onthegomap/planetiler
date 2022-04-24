@@ -31,7 +31,7 @@ import org.junit.jupiter.api.TestFactory;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class WikidataTest {
+class WikidataTest {
 
   final PlanetilerConfig config = PlanetilerConfig.from(Arguments.fromArgs("--http-retries=1"));
   final Profile profile = new Profile.NullProfile();
@@ -77,7 +77,7 @@ public class WikidataTest {
     """;
 
   @Test
-  public void testWikidataTranslations() {
+  void testWikidataTranslations() {
     var expected = Map.of("en", "en value", "es", "es value");
     Wikidata.WikidataTranslations translations = new Wikidata.WikidataTranslations();
     assertNull(translations.get(1));
@@ -93,7 +93,7 @@ public class WikidataTest {
   }
 
   @TestFactory
-  public List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
+  List<DynamicTest> testFetchWikidata() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
     Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
     Wikidata fixture = new Wikidata(writer, client, 2, profile, config);
@@ -139,7 +139,7 @@ public class WikidataTest {
   }
 
   @Test
-  public void testRetryFailedRequestOnce() throws IOException, InterruptedException {
+  void testRetryFailedRequestOnce() throws IOException, InterruptedException {
     StringWriter writer = new StringWriter();
     Wikidata.Client client = Mockito.mock(Wikidata.Client.class, Mockito.RETURNS_SMART_NULLS);
     Wikidata fixture = new Wikidata(writer, client, 1, profile, config);

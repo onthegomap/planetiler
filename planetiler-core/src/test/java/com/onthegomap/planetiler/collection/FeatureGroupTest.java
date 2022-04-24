@@ -26,13 +26,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
 
-public class FeatureGroupTest {
+class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
   private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), Stats.inMemory());
 
   @Test
-  public void testEmpty() {
+  void testEmpty() {
     sorter.sort();
     assertFalse(features.iterator().hasNext());
   }
@@ -83,7 +83,7 @@ public class FeatureGroupTest {
   private record Feature(Map<String, Object> attrs, Geometry geom) {}
 
   @Test
-  public void testPutPoints() {
+  void testPutPoints() {
     put(3, "layer3", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
     put(3, "layer4", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
     put(2, "layer", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
@@ -113,7 +113,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testPutPointsWithSortKey() {
+  void testPutPointsWithSortKey() {
     putWithSortKey(
       1, "layer", Map.of("id", 1), newPoint(1, 2), 2
     );
@@ -132,7 +132,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testLimitPoints() {
+  void testLimitPoints() {
     int x = 5, y = 6;
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(x, y), 2, 1, 2
@@ -156,7 +156,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testLimitPointsInDifferentGroups() {
+  void testLimitPointsInDifferentGroups() {
     int x = 5, y = 6;
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(x, y), 0, 2, 2
@@ -180,7 +180,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testDontLimitPointsWithGroup() {
+  void testDontLimitPointsWithGroup() {
     int x = 5, y = 6;
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(x, y), 0, 1, 0
@@ -204,7 +204,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testProfileChangesGeometry() {
+  void testProfileChangesGeometry() {
     features = new FeatureGroup(sorter, new Profile.NullProfile() {
       @Override
       public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
@@ -233,7 +233,7 @@ public class FeatureGroupTest {
   }
 
   @TestFactory
-  public List<DynamicTest> testEncodeLongKey() {
+  List<DynamicTest> testEncodeLongKey() {
     List<TileCoord> tiles = List.of(
       TileCoord.ofXYZ(0, 0, 14),
       TileCoord.ofXYZ((1 << 14) - 1, (1 << 14) - 1, 14),
@@ -274,7 +274,7 @@ public class FeatureGroupTest {
     "-1,0,-1,false, -1,0,-1,true",
     "1,0,1,false,   1,0,1,true"
   })
-  public void testEncodeLongKeyOrdering(
+  void testEncodeLongKeyOrdering(
     int tileA, byte layerA, int sortKeyA, boolean hasGroupA,
     int tileB, byte layerB, int sortKeyB, boolean hasGroupB
   ) {
@@ -285,7 +285,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testHasSameFeatures() {
+  void testHasSameFeatures() {
     // should be the "same" even though sort-key is different
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
@@ -299,7 +299,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
+  void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -312,7 +312,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testDoesNotHaveSameFeaturesWhenAttrsChange() {
+  void testDoesNotHaveSameFeaturesWhenAttrsChange() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -325,7 +325,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testDoesNotHaveSameFeaturesWhenLayerChanges() {
+  void testDoesNotHaveSameFeaturesWhenLayerChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -338,7 +338,7 @@ public class FeatureGroupTest {
   }
 
   @Test
-  public void testDoesNotHaveSameFeaturesWhenIdChanges() {
+  void testDoesNotHaveSameFeaturesWhenIdChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -357,7 +357,7 @@ public class FeatureGroupTest {
     "POLYGON,15",
     "POINT,14"
   })
-  public void testEncodeDecodeGeometryMetadata(String geomTypeString, int scale) {
+  void testEncodeDecodeGeometryMetadata(String geomTypeString, int scale) {
     GeometryType geomType = GeometryType.valueOf(geomTypeString);
     byte encoded = FeatureGroup.encodeGeomTypeAndScale(new VectorTile.VectorGeometry(new int[0], geomType, scale));
     assertEquals(geomType, FeatureGroup.decodeGeomType(encoded));

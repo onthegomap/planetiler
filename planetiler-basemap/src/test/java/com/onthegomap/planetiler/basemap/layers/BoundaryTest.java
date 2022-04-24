@@ -19,10 +19,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-public class BoundaryTest extends AbstractLayerTest {
+class BoundaryTest extends AbstractLayerTest {
 
   @Test
-  public void testNaturalEarthCountryBoundaries() {
+  void testNaturalEarthCountryBoundaries() {
     assertCoversZoomRange(
       0, 4, "boundary",
       process(SimpleFeature.create(
@@ -124,7 +124,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testNaturalEarthStateBoundaries() {
+  void testNaturalEarthStateBoundaries() {
     assertFeatures(0, List.of(Map.of(
       "_layer", "boundary",
       "_type", "line",
@@ -184,13 +184,13 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testMergesDisconnectedLineFeatures() throws GeometryException {
+  void testMergesDisconnectedLineFeatures() throws GeometryException {
     testMergesLinestrings(Map.of("admin_level", 2), Boundary.LAYER_NAME, 10, 13);
     testMergesLinestrings(Map.of("admin_level", 2), Boundary.LAYER_NAME, 10, 14);
   }
 
   @Test
-  public void testOsmTownBoundary() {
+  void testOsmTownBoundary() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "10");
@@ -213,7 +213,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmBoundaryLevelTwoAndAHalf() {
+  void testOsmBoundaryLevelTwoAndAHalf() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "2.5");
@@ -236,7 +236,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmBoundaryTakesMinAdminLevel() {
+  void testOsmBoundaryTakesMinAdminLevel() {
     var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
@@ -263,7 +263,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmBoundarySetsMaritimeFromWay() {
+  void testOsmBoundarySetsMaritimeFromWay() {
     var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
@@ -296,7 +296,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoresProtectedAreas() {
+  void testIgnoresProtectedAreas() {
     var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "10");
@@ -306,7 +306,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoresProtectedAdminLevelOver10() {
+  void testIgnoresProtectedAdminLevelOver10() {
     var relation1 = new OsmElement.Relation(1);
     relation1.setTag("type", "boundary");
     relation1.setTag("admin_level", "11");
@@ -316,7 +316,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmBoundaryDisputed() {
+  void testOsmBoundaryDisputed() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "5");
@@ -340,7 +340,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testOsmBoundaryDisputedFromWay() {
+  void testOsmBoundaryDisputedFromWay() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "5");
@@ -380,7 +380,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCountryBoundaryEmittedIfNoName() {
+  void testCountryBoundaryEmittedIfNoName() {
     var relation = new OsmElement.Relation(1);
     relation.setTag("type", "boundary");
     relation.setTag("admin_level", "2");
@@ -400,7 +400,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCountryLeftRightName() {
+  void testCountryLeftRightName() {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
@@ -504,7 +504,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testCountryBoundaryNotClosed() {
+  void testCountryBoundaryNotClosed() {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
@@ -536,7 +536,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testNestedCountry() throws GeometryException {
+  void testNestedCountry() throws GeometryException {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
@@ -574,7 +574,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testDontLabelBadPolygon() {
+  void testDontLabelBadPolygon() {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");
@@ -600,7 +600,7 @@ public class BoundaryTest extends AbstractLayerTest {
   }
 
   @Test
-  public void testIgnoreBadPolygonAndLabelGoodPart() throws GeometryException {
+  void testIgnoreBadPolygonAndLabelGoodPart() throws GeometryException {
     var country1 = new OsmElement.Relation(1);
     country1.setTag("type", "boundary");
     country1.setTag("admin_level", "2");

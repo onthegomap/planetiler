@@ -10,11 +10,11 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-public class ProgressLoggersTest {
+class ProgressLoggersTest {
 
   @Test
   @Timeout(10)
-  public void testLogWorkerPipeline() throws InterruptedException {
+  void testLogWorkerPipeline() throws InterruptedException {
     var continueLatch = new CountDownLatch(1);
     var readyLatch = new CountDownLatch(5);
     var pipeline = WorkerPipeline.start("pipeline", Stats.inMemory())
