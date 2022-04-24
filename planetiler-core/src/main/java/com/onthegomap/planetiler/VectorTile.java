@@ -186,10 +186,11 @@ public class VectorTile {
     return ((n >> 1) ^ (-(n & 1)));
   }
 
-  private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scale) throws GeometryException {
+  private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scalePower)
+    throws GeometryException {
     try {
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
-      double SCALE = (EXTENT << scale) / SIZE;
+      double scaleFactor = (EXTENT << scalePower) / SIZE;
       int x = 0;
       int y = 0;
 
@@ -236,7 +237,7 @@ public class VectorTile {
           x = x + dx;
           y = y + dy;
 
-          currentCoordSeq.forceAddPoint(x / SCALE, y / SCALE);
+          currentCoordSeq.forceAddPoint(x / scaleFactor, y / scaleFactor);
         }
 
       }
@@ -278,7 +279,7 @@ public class VectorTile {
           boolean first = true;
           for (MutableCoordinateSequence coordSeq : allCoordSeqs) {
             // skip hole with too few coordinates
-            if (ringsForCurrentPolygon.size() > 0 && coordSeq.size() < 2) {
+            if (!ringsForCurrentPolygon.isEmpty() && coordSeq.size() < 2) {
               continue;
             }
             LinearRing ring = gf.createLinearRing(coordSeq);
@@ -644,13 +645,13 @@ public class VectorTile {
   private static class CommandEncoder {
 
     final IntArrayList result = new IntArrayList();
-    private final double SCALE;
+    private final double scaleMultiplier;
     // Initial points use absolute locations, then subsequent points in a geometry use offsets so
     // need to keep track of previous x/y location during the encoding.
     int x = 0, y = 0;
 
     CommandEncoder(int scale) {
-      this.SCALE = (EXTENT << scale) / SIZE;
+      this.scaleMultiplier = (EXTENT << scale) / SIZE;
     }
 
     static boolean shouldClosePath(Geometry geometry) {
@@ -715,11 +716,11 @@ public class VectorTile {
           result.add(commandAndLength(Command.MOVE_TO, multiPoint ? cs.size() : 1));
         }
 
-        int _x = (int) Math.round(cx * SCALE);
-        int _y = (int) Math.round(cy * SCALE);
+        int nextX = (int) Math.round(cx * scaleMultiplier);
+        int nextY = (int) Math.round(cy * scaleMultiplier);
 
         // prevent point equal to the previous
-        if (i > 0 && _x == x && _y == y && !multiPoint) {
+        if (i > 0 && nextX == x && nextY == y && !multiPoint) {
           lineToLength--;
           continue;
         }
@@ -731,12 +732,12 @@ public class VectorTile {
         }
 
         // delta, then zigzag
-        result.add(zigZagEncode(_x - x));
-        result.add(zigZagEncode(_y - y));
+        result.add(zigZagEncode(nextX - x));
+        result.add(zigZagEncode(nextY - y));
         numPoints++;
 
-        x = _x;
-        y = _y;
+        x = nextX;
+        y = nextY;
 
         if (i == 0 && cs.size() > 1 && !multiPoint) {
           // can length be too long?
