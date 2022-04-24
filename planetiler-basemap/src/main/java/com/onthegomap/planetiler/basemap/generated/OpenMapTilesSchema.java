@@ -165,9 +165,11 @@ public class OpenMapTilesSchema {
     /** Complex mappings to generate attribute values from OSM element tags in the water layer. */
     final class FieldMappings {
       public static final MultiExpression<String> Class =
-        MultiExpression.of(List.of(MultiExpression.entry("dock", matchAny("waterway", "dock")),
+        MultiExpression.of(List.of(
+          MultiExpression.entry("dock", matchAny("waterway", "dock")),
           MultiExpression.entry("river", or(matchAny("water", "river"), matchAny("waterway", "riverbank"))),
-          MultiExpression.entry("lake", matchAny("waterway", "")), MultiExpression.entry("ocean", FALSE)));
+          // MultiExpression.entry("lake", matchAny("waterway", "")),
+          MultiExpression.entry("ocean", FALSE)));
     }
   }
   /**
