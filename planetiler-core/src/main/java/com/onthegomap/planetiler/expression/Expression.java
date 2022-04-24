@@ -374,7 +374,7 @@ public interface Expression {
           return matcher.group(1);
         }).toList(),
         values.contains(""),
-        valueGetter == null ? SourceFeature::getTag : valueGetter
+        valueGetter
       );
     }
 
