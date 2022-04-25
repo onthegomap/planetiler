@@ -18,6 +18,8 @@ import com.onthegomap.planetiler.util.Format;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -174,6 +176,12 @@ public class Generate {
     LOGGER.info("Done!");
   }
 
+  private static final String GENERATED_ANNOTATION =
+    "@javax.annotation.processing.Generated(value = %s, date = %s)".formatted(
+      Format.quote(Generate.class.getName()),
+      Format.quote(Instant.now().truncatedTo(ChronoUnit.SECONDS).toString())
+    );
+
   /** Generates {@code OpenMapTilesSchema.java} */
   private static void emitLayerSchemaDefinitions(OpenmaptilesTileSet info, List<LayerConfig> layers, String packageName,
     Path output, String tag)
@@ -198,7 +206,7 @@ public class Generate {
          * All vector tile layer definitions, attributes, and allowed values generated from the
          * <a href="https://github.com/openmaptiles/openmaptiles/blob/%s/openmaptiles.yaml">OpenMapTiles vector tile schema %s</a>.
          */
-        @SuppressWarnings("unused")
+        %s
         public class OpenMapTilesSchema {
           public static final String NAME = %s;
           public static final String DESCRIPTION = %s;
@@ -218,6 +226,7 @@ public class Generate {
           packageName,
           escapeJavadoc(tag),
           escapeJavadoc(tag),
+          GENERATED_ANNOTATION,
           Format.quote(info.name),
           Format.quote(info.description),
           Format.quote(info.version),
@@ -277,7 +286,7 @@ public class Generate {
         iterToList(valuesNode.elements()).stream().filter(JsonNode::isTextual).map(JsonNode::textValue)
           .map(t -> t.replaceAll(" .*", "")).toList() :
         iterToList(valuesNode.fieldNames());
-      if (values.size() > 0) {
+      if (!values.isEmpty()) {
         fieldValues.append(values.stream()
           .map(v -> "public static final String %s = %s;"
             .formatted(name.toUpperCase(Locale.ROOT) + "_" + v.toUpperCase(Locale.ROOT).replace('-', '_'),
@@ -373,7 +382,7 @@ public class Generate {
          * "table" but implementing the table's {@code Handler} interface and use the element's typed API to access
          * attributes.
          */
-        @SuppressWarnings("unused")
+        %s
         public class Tables {
             /** A parsed OSM element that would appear in a "row" of the imposm3 table. */
             public interface Row {
@@ -409,7 +418,7 @@ public class Generate {
               RowHandler<T> handler
             ) {}
         """
-        .formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag)));
+        .formatted(GENERATED_FILE_HEADER, packageName, escapeJavadoc(tag), GENERATED_ANNOTATION));
 
     List<String> classNames = new ArrayList<>();
     Map<String, String> fieldNameToType = new TreeMap<>();
@@ -681,7 +690,7 @@ public class Generate {
 
   /** Returns {@code comment} text safe to insert in generated javadoc. */
   private static String escapeJavadoc(String comment) {
-    return comment.strip().replaceAll("[\n\r*\\s]+", " ");
+    return comment.strip().replaceAll("\\s+", " ");
   }
 
   private static String getFieldDescription(JsonNode value) {

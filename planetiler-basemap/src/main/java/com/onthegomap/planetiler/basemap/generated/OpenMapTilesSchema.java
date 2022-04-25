@@ -52,7 +52,8 @@ import java.util.Set;
  * <a href="https://github.com/openmaptiles/openmaptiles/blob/v3.13/openmaptiles.yaml">OpenMapTiles vector tile schema
  * v3.13</a>.
  */
-@SuppressWarnings("unused")
+@javax.annotation.processing.Generated(value = "com.onthegomap.planetiler.basemap.Generate",
+  date = "2022-04-25T10:45:22Z")
 public class OpenMapTilesSchema {
   public static final String NAME = "OpenMapTiles";
   public static final String DESCRIPTION = "A tileset showcasing all layers in OpenMapTiles. https://openmaptiles.org";
@@ -886,9 +887,9 @@ public class OpenMapTilesSchema {
       /**
        * The network type derived mainly from
        * <a href="http://wiki.openstreetmap.org/wiki/Key:network"><code>network</code></a> tag of the road. See more
-       * info about <a href="http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States"><code>us- </code></a>,
+       * info about <a href="http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States"><code>us-*</code></a>,
        * <a href="https://en.wikipedia.org/wiki/Trans-Canada_Highway"><code>ca-transcanada</code></a>, or
-       * <a href="http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads"><code>gb- </code></a>.
+       * <a href="http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads"><code>gb-*</code></a>.
        */
       public static final String NETWORK = "network";
 
@@ -1138,7 +1139,7 @@ public class OpenMapTilesSchema {
   }
   /**
    * All <a href="http://wiki.openstreetmap.org/wiki/Buildings">OSM Buildings</a>. All building tags are imported
-   * (<a href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building= </code></a>). The buildings are not yet
+   * (<a href="http://wiki.openstreetmap.org/wiki/Key:building"><code>building=*</code></a>). The buildings are not yet
    * ready for 3D rendering support and any help to improve this is welcomed.
    *
    * Generated from
@@ -1244,7 +1245,7 @@ public class OpenMapTilesSchema {
     }
   }
   /**
-   * This is the layer for labelling the highways. Only highways that are named <code>name= </code> and are long enough
+   * This is the layer for labelling the highways. Only highways that are named <code>name=*</code> and are long enough
    * to place text upon appear. The OSM roads are stitched together if they contain the same name to have better label
    * placement than having many small linestrings. For motorways you should use the <code>ref</code> field to label them
    * while for other roads you should use <code>name</code>.
@@ -1283,9 +1284,9 @@ public class OpenMapTilesSchema {
       /**
        * The network type derived mainly from
        * <a href="http://wiki.openstreetmap.org/wiki/Key:network"><code>network</code></a> tag of the road. See more
-       * info about <a href="http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States"><code>us- </code></a>,
+       * info about <a href="http://wiki.openstreetmap.org/wiki/Road_signs_in_the_United_States"><code>us-*</code></a>,
        * <a href="https://en.wikipedia.org/wiki/Trans-Canada_Highway"><code>ca-transcanada</code></a>, or
-       * <a href="http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads"><code>gb- </code></a>.
+       * <a href="http://wiki.openstreetmap.org/wiki/United_Kingdom_Tagging_Guidelines#UK_roads"><code>gb-*</code></a>.
        * <p>
        * allowed values:
        * <ul>

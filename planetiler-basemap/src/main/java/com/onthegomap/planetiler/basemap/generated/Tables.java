@@ -57,7 +57,8 @@ import java.util.Map;
  * in the tables that imposm3 would generate. Layer implementations can "subscribe" to elements from each "table" but
  * implementing the table's {@code Handler} interface and use the element's typed API to access attributes.
  */
-@SuppressWarnings("unused")
+@javax.annotation.processing.Generated(value = "com.onthegomap.planetiler.basemap.Generate",
+  date = "2022-04-25T10:45:22Z")
 public class Tables {
   /** A parsed OSM element that would appear in a "row" of the imposm3 table. */
   public interface Row {
