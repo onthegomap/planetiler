@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.expression.Expression.MatchAny;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
