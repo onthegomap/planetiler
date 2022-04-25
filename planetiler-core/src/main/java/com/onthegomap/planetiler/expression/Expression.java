@@ -3,10 +3,8 @@ package com.onthegomap.planetiler.expression;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -33,19 +31,6 @@ public interface Expression {
   String POINT_TYPE = "point";
   String POLYGON_TYPE = "polygon";
   String RELATION_MEMBER_TYPE = "relation_member";
-
-  String STRING_DATATYPE = "string";
-  String BOOLEAN_DATATYPE = "boolean";
-  String DIRECTION_DATATYPE = "direction";
-  String LONG_DATATYPE = "long";
-
-  static final Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter =
-    Collections.unmodifiableMap(Map.of(
-      STRING_DATATYPE, SourceFeature::getString,
-      BOOLEAN_DATATYPE, SourceFeature::getBoolean,
-      DIRECTION_DATATYPE, SourceFeature::getDirection,
-      LONG_DATATYPE, SourceFeature::getLong
-    ));
 
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
   Expression TRUE = new Expression() {
@@ -118,8 +103,8 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, String type, Object... values) {
-    return matchAnyTyped(field, type, List.of(values));
+  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter, Object... values) {
+    return matchAnyTyped(field, typeGetter, List.of(values));
   }
 
   /**
@@ -128,8 +113,9 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, String type, List<Object> values) {
-    return new MatchAny(field, dataTypeGetter.get(type), values);
+  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter,
+    List<?> values) {
+    return new MatchAny(field, typeGetter, values);
   }
 
   /** Returns an expression that evaluates to true if the element has any value for tag {@code field}. */
@@ -357,13 +343,13 @@ public interface Expression {
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
-    String field, List<Object> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
+    String field, List<?> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
     BiFunction<SourceFeature, String, Object> valueGetter
   ) implements Expression {
 
     private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
 
-    MatchAny(String field, BiFunction<SourceFeature, String, Object> valueGetter, List<Object> values) {
+    MatchAny(String field, BiFunction<SourceFeature, String, Object> valueGetter, List<?> values) {
       this(field, values,
         values.stream().map(Object::toString).filter(v -> !v.contains("%")).collect(Collectors.toSet()),
         values.stream().map(Object::toString).filter(v -> v.contains("%")).map(val -> {
