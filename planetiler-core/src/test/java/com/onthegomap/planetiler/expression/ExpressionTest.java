@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -100,5 +101,14 @@ class ExpressionTest {
     assertTrue(or(not(matchCD)).contains(e -> e.equals(matchCD)));
     assertFalse(matchCD.contains(e -> e.equals(matchAB)));
     assertFalse(or(not(matchCD)).contains(e -> e.equals(matchAB)));
+  }
+
+  @Test
+  void testStringifyExpression() {
+    //Ensure Expression.toString() returns valid Java code
+    assertEquals("matchAny(\"key\", true)", matchAnyTyped("key", SourceFeature::getBoolean, true).toString());
+    assertEquals("matchAny(\"key\", \"foo\")", matchAnyTyped("key", SourceFeature::getString, "foo").toString());
+    assertEquals("matchAny(\"key\", 1)", matchAnyTyped("key", SourceFeature::getLong, 1).toString());
+    assertEquals("matchAny(\"key\", 1)", matchAnyTyped("key", SourceFeature::getDirection, 1).toString());
   }
 }
