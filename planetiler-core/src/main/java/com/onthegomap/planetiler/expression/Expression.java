@@ -387,9 +387,16 @@ public interface Expression {
 
     @Override
     public String toString() {
-      return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Object::toString).map(Format::quote)
+      return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Expression::stringifyTypedObject)
         .collect(Collectors.joining(", ")) + ")";
     }
+  }
+
+  private static String stringifyTypedObject(Object o) {
+    if (o instanceof String) {
+      return Format.quote(o.toString());
+    }
+    return o.toString();
   }
 
   /** Evaluates to true if an input element contains any value for {@code field} tag. */
