@@ -8,15 +8,16 @@ import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 /**
  * A list of {@link Expression Expressions} to evaluate on input elements.
@@ -30,6 +31,8 @@ import java.util.function.Predicate;
  * @param <T> type of data value associated with each expression
  */
 public record MultiExpression<T> (List<Entry<T>> expressions) {
+
+  private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
     return new MultiExpression<>(expressions);
@@ -51,7 +54,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           visited[expressionValue.id] = true;
           List<String> matchKeys = new ArrayList<>();
           if (expressionValue.expression().evaluate(input, matchKeys)) {
-            result.add(new Match<>(expressionValue.result, matchKeys));
+            result.add(new Match<>(expressionValue.result, matchKeys, expressionValue.id));
           }
         }
       }
@@ -100,7 +103,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
-  public MultiExpression<T> map(Function<Expression, Expression> mapper) {
+  public MultiExpression<T> map(UnaryOperator<Expression> mapper) {
     return new MultiExpression<>(
       expressions.stream()
         .map(entry -> entry(entry.result, mapper.apply(entry.expression).simplify()))
@@ -159,7 +162,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     /** Returns all data values associated with expressions that match an input element. */
     default List<T> getMatches(SourceFeature input) {
       List<Match<T>> matches = getMatchesWithTriggers(input);
-      return matches.stream().map(d -> d.match).toList();
+      return matches.stream().sorted(BY_ID).map(d -> d.match).toList();
     }
 
     /**
@@ -189,6 +192,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     }
   }
 
+  private interface WithId {
+    int id();
+  }
+
   private static class EmptyIndex<T> implements Index<T> {
 
     @Override
@@ -216,13 +223,13 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     private final List<Map.Entry<String, List<EntryWithId<T>>>> missingKeyToExpressionList;
 
     private KeyIndex(MultiExpression<T> expressions) {
-      AtomicInteger ids = new AtomicInteger();
+      int id = 1;
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
       Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
-        EntryWithId<T> expressionValue = new EntryWithId<>(entry.result, expression, ids.incrementAndGet());
+        EntryWithId<T> expressionValue = new EntryWithId<>(entry.result, expression, id++);
         getRelevantKeys(expression,
           key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
         getRelevantMissingKeys(expression,
@@ -233,7 +240,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       keyToExpressionsList = keyToExpressionsMap.entrySet().stream().toList();
       missingKeyToExpressionList = missingKeyToExpressions.entrySet().stream()
         .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList())).toList();
-      numExpressions = ids.incrementAndGet();
+      numExpressions = id;
     }
 
     /** Lookup matches in this index for expressions that match a certain type. */
@@ -308,7 +315,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /** An expression/value pair with unique ID to store whether we evaluated it yet. */
-  private record EntryWithId<T> (T result, Expression expression, int id) {}
+  private record EntryWithId<T> (T result, Expression expression, @Override int id) implements WithId {}
 
   /**
    * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
@@ -316,5 +323,5 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   public record Entry<T> (T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T> (T match, List<String> keys) {}
+  public record Match<T> (T match, List<String> keys, @Override int id) implements WithId {}
 }

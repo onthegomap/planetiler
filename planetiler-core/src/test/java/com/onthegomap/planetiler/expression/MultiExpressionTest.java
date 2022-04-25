@@ -148,6 +148,23 @@ class MultiExpressionTest {
   }
 
   @Test
+  void testMultipleMatches() {
+    var feature = featureWithTags("a", "b", "c", "d");
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("a", "b")),
+      entry("b", matchAny("c", "d"))
+    )).index();
+    var index2 = MultiExpression.of(List.of(
+      entry("b", matchAny("c", "d")),
+      entry("a", matchAny("a", "b"))
+    )).index();
+    assertSameElements(List.of("a", "b"), index.getMatches(feature));
+    assertSameElements(List.of("b", "a"), index2.getMatches(feature));
+    assertEquals("a", index.getOrElse(feature, "miss"));
+    assertEquals("b", index2.getOrElse(feature, "miss"));
+  }
+
+  @Test
   void testMultipleWildcardsMixedWithExacts() {
     var index = MultiExpression.of(List.of(
       entry("a", matchAny("key", "%value%", "other"))
@@ -247,15 +264,15 @@ class MultiExpressionTest {
       ))
     )).index();
     assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key1")
+      "a", List.of("key1"), 1
     )), index.getMatchesWithTriggers(featureWithTags("key1", "val1")));
     assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key2")
+      "a", List.of("key2"), 1
     ), new MultiExpression.Match<>(
-      "b", List.of("key2")
+      "b", List.of("key2"), 2
     )), index.getMatchesWithTriggers(featureWithTags("key2", "val2")));
     assertSameElements(List.of(new MultiExpression.Match<>(
-      "b", List.of("key3")
+      "b", List.of("key3"), 2
     )), index.getMatchesWithTriggers(featureWithTags("key3", "val3")));
   }
 
@@ -274,7 +291,7 @@ class MultiExpressionTest {
       ))
     )).index();
     assertSameElements(List.of(new MultiExpression.Match<>(
-      "a", List.of("key1", "key3")
+      "a", List.of("key1", "key3"), 1
     )), index.getMatchesWithTriggers(featureWithTags("key1", "val1", "key3", "val3")));
   }
 
