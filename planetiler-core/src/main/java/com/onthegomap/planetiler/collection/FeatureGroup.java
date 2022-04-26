@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerStats;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -132,15 +133,16 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     return sorter.numFeaturesWritten();
   }
 
-  /** Returns a function for a single thread to use to serialize rendered features. */
-  public Function<RenderedFeature, SortableFeature> newRenderedFeatureEncoder() {
-    // This method gets called billions of times when generating the planet, so these optimizations make a big difference:
-    // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
-    var packer = MessagePack.newDefaultBufferPacker();
-    // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
-    var threadLocalLayerStats = layerStats.handlerForThread();
+  public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
-    return new Function<>() {
+  /** Returns a function for a single thread to use to serialize rendered features. */
+  public RenderedFeatureEncoder newRenderedFeatureEncoder() {
+    return new RenderedFeatureEncoder() {
+      // This method gets called billions of times when generating the planet, so these optimizations make a big difference:
+      // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
+      private final MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+      // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
+      private final Consumer<RenderedFeature> threadLocalLayerStats = layerStats.handlerForThread();
       // 3) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
       // FeatureRenderer ensures that a separate VectorTileEncoder.Feature is used for each zoom level
       private VectorTile.Feature lastFeature = null;
@@ -162,6 +164,11 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
         }
 
         return new SortableFeature(encodeKey(feature), encodedValue);
+      }
+
+      @Override
+      public void close() throws IOException {
+        packer.close();
       }
     };
   }

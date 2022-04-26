@@ -328,44 +328,44 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         Counter blocks = blocksProcessed.counterForThread();
         Counter rels = relationsProcessed.counterForThread();
 
-        var phaser = pass2Phaser.forWorker();
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         final NodeLocationProvider nodeLocations = newNodeLocationProvider();
-        FeatureRenderer renderer = createFeatureRenderer(writer, config, next);
-        var relationHandler = relationDistributor.forThread(relation -> {
-          var feature = processRelationPass2(relation, nodeLocations);
-          if (feature != null) {
-            render(featureCollectors, renderer, relation, feature);
-          }
-          rels.inc();
-        });
-
-        for (var block : prev) {
-          for (var element : block.decodeElements()) {
-            SourceFeature feature = null;
-            if (element instanceof OsmElement.Node node) {
-              phaser.arrive(OsmPhaser.Phase.NODES);
-              feature = processNodePass2(node);
-            } else if (element instanceof OsmElement.Way way) {
-              phaser.arrive(OsmPhaser.Phase.WAYS);
-              feature = processWayPass2(way, nodeLocations);
-            } else if (element instanceof OsmElement.Relation relation) {
-              phaser.arriveAndWaitForOthers(OsmPhaser.Phase.RELATIONS);
-              relationHandler.accept(relation);
-            }
-            // render features specified by profile and hand them off to next step that will
-            // write them intermediate storage
+        try (var renderer = createFeatureRenderer(writer, config, next)) {
+          var phaser = pass2Phaser.forWorker();
+          var relationHandler = relationDistributor.forThread(relation -> {
+            var feature = processRelationPass2(relation, nodeLocations);
             if (feature != null) {
-              render(featureCollectors, renderer, element, feature);
+              render(featureCollectors, renderer, relation, feature);
             }
+            rels.inc();
+          });
+          for (var block : prev) {
+            for (var element : block.decodeElements()) {
+              SourceFeature feature = null;
+              if (element instanceof OsmElement.Node node) {
+                phaser.arrive(OsmPhaser.Phase.NODES);
+                feature = processNodePass2(node);
+              } else if (element instanceof OsmElement.Way way) {
+                phaser.arrive(OsmPhaser.Phase.WAYS);
+                feature = processWayPass2(way, nodeLocations);
+              } else if (element instanceof OsmElement.Relation relation) {
+                phaser.arriveAndWaitForOthers(OsmPhaser.Phase.RELATIONS);
+                relationHandler.accept(relation);
+              }
+              // render features specified by profile and hand them off to next step that will
+              // write them intermediate storage
+              if (feature != null) {
+                render(featureCollectors, renderer, element, feature);
+              }
+            }
+            blocks.inc();
           }
-          blocks.inc();
+
+          phaser.close();
+
+          // do work for other threads that are still processing blocks of relations
+          relationHandler.close();
         }
-
-        phaser.close();
-
-        // do work for other threads that are still processing blocks of relations
-        relationHandler.close();
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
       .sinkToConsumer("write", 1, writer);
@@ -392,10 +392,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     timer.stop();
 
-    try {
-      profile.finish(name,
-        new FeatureCollector.Factory(config, stats),
-        createFeatureRenderer(writer, config, writer));
+    try (var renderer = createFeatureRenderer(writer, config, writer)) {
+      profile.finish(name, new FeatureCollector.Factory(config, stats), renderer);
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);
     }
@@ -468,11 +466,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   private FeatureRenderer createFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
     Consumer<SortableFeature> next) {
+    @SuppressWarnings("java:S2095") // closed by FeatureRenderer
     var encoder = writer.newRenderedFeatureEncoder();
     return new FeatureRenderer(
       config,
       rendered -> next.accept(encoder.apply(rendered)),
-      stats
+      stats,
+      encoder
     );
   }
 
