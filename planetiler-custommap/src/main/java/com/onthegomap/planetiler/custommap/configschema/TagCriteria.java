@@ -1,12 +1,12 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
 import com.onthegomap.planetiler.custommap.TagValueProducer;
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.expression.Expression;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class TagCriteria extends HashMap<String, Object> {
 
@@ -18,9 +18,9 @@ public class TagCriteria extends HashMap<String, Object> {
    * @param sf source feature
    * @return a predicate which returns true if this criteria matches
    */
-  public Predicate<SourceFeature> matcher(TagValueProducer tagValueProducer) {
+  public Expression matcher(TagValueProducer tagValueProducer) {
 
-    List<Predicate<SourceFeature>> tagTests = new ArrayList<>();
+    List<Expression> tagExpressions = new ArrayList<>();
 
     entrySet()
       .stream()
@@ -28,26 +28,17 @@ public class TagCriteria extends HashMap<String, Object> {
         entry -> {
           if (entry.getValue() instanceof Collection) {
             Collection<?> values =
-              (Collection<?>) entry.getValue();
-            tagTests
-              .add((Predicate<SourceFeature>) sf -> values
-                .contains(tagValueProducer.getValueProducer(entry.getKey()).apply(sf)));
+              (Collection<?>) entry.getValue();;
+            tagExpressions.add(
+              Expression.matchAny(entry.getKey(), values.stream().map(Object::toString).collect(Collectors.toList())));
           } else {
-            tagTests
-              .add((Predicate<SourceFeature>) sf -> entry.getValue()
-                .equals(tagValueProducer.getValueProducer(entry.getKey()).apply(sf)));
+            System.out.println("Compare " + entry.getKey() + "=" + entry.getValue().toString());
+            tagExpressions.add(
+              Expression.matchAny(entry.getKey(), entry.getValue().toString()));
           }
         });
 
-    if (tagTests.isEmpty()) {
-      return sf -> true;
-    }
 
-    Predicate<SourceFeature> test = tagTests.remove(0);
-    while (!tagTests.isEmpty()) {
-      test = test.or(tagTests.remove(0));
-    }
-
-    return test;
+    return Expression.or(tagExpressions);
   }
 }

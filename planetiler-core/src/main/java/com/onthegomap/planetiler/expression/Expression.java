@@ -43,6 +43,11 @@ public interface Expression {
     public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return true;
     }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      return true;
+    }
   };
   Expression FALSE = new Expression() {
     public String toString() {
@@ -51,6 +56,11 @@ public interface Expression {
 
     @Override
     public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+      return false;
+    }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
       return false;
     }
   };
@@ -260,6 +270,14 @@ public interface Expression {
    */
   boolean evaluate(SourceFeature input, List<String> matchKeys);
 
+  /**
+   * Returns true if this expression matches an input element.
+   *
+   * @param input the input element
+   * @return true if this expression matches the input element
+   */
+  boolean evaluate(SourceFeature input);
+
   record And(List<Expression> children) implements Expression {
 
     @Override
@@ -276,6 +294,14 @@ public interface Expression {
         }
       }
       return true;
+    }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      return children.stream()
+        .map(child -> !child.evaluate(input))
+        .findFirst()
+        .isPresent();
     }
   }
 
@@ -295,6 +321,21 @@ public interface Expression {
       for (int i = 0; i < size; i++) {
         Expression child = children.get(i);
         if (child.evaluate(input, matchKeys)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      int size = children.size();
+      // Optimization: this method consumes the most time when matching against input elements, and
+      // iterating through this list by index is slightly faster than an enhanced for loop
+      // noinspection ForLoopReplaceableByForEach - for intellij
+      for (int i = 0; i < size; i++) {
+        Expression child = children.get(i);
+        if (child.evaluate(input)) {
           return true;
         }
       }
@@ -331,6 +372,12 @@ public interface Expression {
     public boolean evaluate(SourceFeature input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      return evaluate(input, null);
+    }
+
   }
 
   /**
@@ -386,6 +433,25 @@ public interface Expression {
     }
 
     @Override
+    public boolean evaluate(SourceFeature input) {
+      Object value = valueGetter.apply(input, field);
+      if (value == null) {
+        return matchWhenMissing;
+      } else {
+        String str = value.toString();
+        if (exactMatches.contains(str)) {
+          return true;
+        }
+        for (String target : wildcards) {
+          if (str.contains(target)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+
+    @Override
     public String toString() {
       return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Expression::stringifyTypedObject)
         .collect(Collectors.joining(", ")) + ")";
@@ -415,6 +481,11 @@ public interface Expression {
       }
       return false;
     }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      return input.hasTag(field);
+    }
   }
 
   /**
@@ -436,6 +507,11 @@ public interface Expression {
         case RELATION_MEMBER_TYPE -> input.hasRelationInfo();
         default -> false;
       };
+    }
+
+    @Override
+    public boolean evaluate(SourceFeature input) {
+      return evaluate(input, null);
     }
   }
 }

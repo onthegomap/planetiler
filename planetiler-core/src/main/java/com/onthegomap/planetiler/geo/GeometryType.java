@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.geo;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -9,11 +9,11 @@ import vector_tile.VectorTileProto;
 
 public enum GeometryType {
   UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN, 0),
-  @JsonProperty("point")
+  @JsonAlias("point")
   POINT(VectorTileProto.Tile.GeomType.POINT, 1),
-  @JsonProperty("line")
+  @JsonAlias("line")
   LINE(VectorTileProto.Tile.GeomType.LINESTRING, 2),
-  @JsonProperty("polygon")
+  @JsonAlias("polygon")
   POLYGON(VectorTileProto.Tile.GeomType.POLYGON, 4);
 
   private final VectorTileProto.Tile.GeomType protobufType;

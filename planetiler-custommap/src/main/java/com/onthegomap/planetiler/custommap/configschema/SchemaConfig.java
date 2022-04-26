@@ -12,7 +12,7 @@ public class SchemaConfig {
   private String attribution =
     "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>";
   private Map<String, DataSource> sources;
-  private Map<String, TagValueDataType> dataTypes;
+  private Map<String, String> dataTypes;
   private Collection<FeatureLayer> layers;
 
   public String getSchemaName() {
@@ -55,11 +55,11 @@ public class SchemaConfig {
     this.layers = layers;
   }
 
-  public Map<String, TagValueDataType> getDataTypes() {
+  public Map<String, String> getDataTypes() {
     return dataTypes;
   }
 
-  public void setDataTypes(Map<String, TagValueDataType> dataTypes) {
+  public void setDataTypes(Map<String, String> dataTypes) {
     this.dataTypes = dataTypes;
   }
 }

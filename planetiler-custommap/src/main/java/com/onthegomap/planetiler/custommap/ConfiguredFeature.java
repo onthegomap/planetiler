@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
 import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
 import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
+import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -27,7 +28,7 @@ public class ConfiguredFeature {
   private final Collection<String> sources;
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
-  private final Predicate<SourceFeature> tagTest;
+  private final Expression tagTest;
   private final BiConsumer<SourceFeature, Feature> zoomConfig;
   private final TagValueProducer tagValueProducer;
 
@@ -52,7 +53,7 @@ public class ConfiguredFeature {
     tagTest = Optional.ofNullable(feature.includeWhen())
       .filter(Objects::nonNull)
       .map(tc -> tc.matcher(tagValueProducer))
-      .orElse(sf -> true);
+      .orElse(Expression.TRUE);
 
     //Test to determine at which zooms to include this feature based on tagging
     zoomConfig = zoomFilter(feature.zoom());
@@ -88,7 +89,7 @@ public class ConfiguredFeature {
     return (sf, f) -> {
       Optional<ZoomFilter> zoomFilterMatch = zfList
         .stream()
-        .filter(zf -> zf.tag().matcher(tagValueProducer).test(sf))
+        .filter(zf -> zf.tag().matcher(tagValueProducer).evaluate(sf))
         .findFirst();
 
       if (zoomFilterMatch.isPresent()) {
@@ -159,13 +160,17 @@ public class ConfiguredFeature {
     TagCriteria attrIncludeWhen = attribute.includeWhen();
     TagCriteria attrExcludeWhen = attribute.excludeWhen();
 
-    Predicate<SourceFeature> attributeTest =
-      attrIncludeWhen == null ? sf -> true : attrIncludeWhen.matcher(tagValueProducer);
-    Predicate<SourceFeature> attributeExcludeTest =
-      attrExcludeWhen == null ? sf -> true : attrExcludeWhen.matcher(tagValueProducer).negate();
+    Expression attributeIncludeTest =
+      attrIncludeWhen == null ? Expression.TRUE : attrIncludeWhen.matcher(tagValueProducer);
+    Expression attributeExcludeTest =
+      attrExcludeWhen == null ? Expression.TRUE : Expression.not(attrExcludeWhen.matcher(tagValueProducer));
+
+    Expression attributeTest = Expression
+      .and(attributeIncludeTest, attributeExcludeTest);
+
+    System.out.println(attributeTest);
 
     Double minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
-
     Function<SourceFeature, Integer> attributeZoomProducer;
 
     if (minTileCoverage != null && minTileCoverage > 0.0) {
@@ -176,14 +181,14 @@ public class ConfiguredFeature {
 
     if (minZoom > 0) {
       return (sf, f) -> {
-        if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
+        if (attributeTest.evaluate(sf)) {
           f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
         }
       };
     }
 
     return (sf, f) -> {
-      if (attributeTest.test(sf) && attributeExcludeTest.test(sf)) {
+      if (attributeTest.evaluate(sf)) {
         f.setAttr(tagKey, attributeValueProducer.apply(sf));
       }
     };
@@ -248,7 +253,7 @@ public class ConfiguredFeature {
     }
 
     //Check for matching tags
-    return tagTest.test(sourceFeature);
+    return tagTest.evaluate(sourceFeature);
   }
 
   /**
