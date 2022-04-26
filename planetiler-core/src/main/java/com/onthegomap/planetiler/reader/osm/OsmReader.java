@@ -330,9 +330,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         final NodeLocationProvider nodeLocations = newNodeLocationProvider();
-        try (
+        try (var renderer = createFeatureRenderer(writer, config, next)) {
           var phaser = pass2Phaser.forWorker();
-          var renderer = createFeatureRenderer(writer, config, next);
           var relationHandler = relationDistributor.forThread(relation -> {
             var feature = processRelationPass2(relation, nodeLocations);
             if (feature != null) {
@@ -340,7 +339,6 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             }
             rels.inc();
           });
-        ) {
           for (var block : prev) {
             for (var element : block.decodeElements()) {
               SourceFeature feature = null;
@@ -362,6 +360,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
             }
             blocks.inc();
           }
+
+          phaser.close();
+
+          // do work for other threads that are still processing blocks of relations
+          relationHandler.close();
         }
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
