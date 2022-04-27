@@ -79,6 +79,9 @@ public interface Counter {
     // keep track of all counters that have been handed out to threads so far
     // and on read, add up the counts from each
     private final List<SingleThreadCounter> all = new CopyOnWriteArrayList<>();
+    // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+    // values when a task is finished and are not re-used.
+    @SuppressWarnings("java:S5164")
     private final ThreadLocal<SingleThreadCounter> thread = ThreadLocal.withInitial(() -> {
       SingleThreadCounter counter = new SingleThreadCounter();
       all.add(counter);

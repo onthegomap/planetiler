@@ -188,9 +188,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
       var parsedBatches = new WorkQueue<WeightedHandoffQueue<OsmElement>>("elements", pendingBlocks, 1, stats);
       var readBranch = pipeline
         .<BlockWithResult>fromGenerator("read", next -> {
+          var parsedBatchEnqueuer = parsedBatches.threadLocalWriter();
           osmBlockSource.forEachBlock((block) -> {
             WeightedHandoffQueue<OsmElement> result = new WeightedHandoffQueue<>(handoffQueueBatches, 10_000);
-            parsedBatches.accept(result);
+            parsedBatchEnqueuer.accept(result);
             next.accept(new BlockWithResult(block, result));
           });
           parsedBatches.close();
