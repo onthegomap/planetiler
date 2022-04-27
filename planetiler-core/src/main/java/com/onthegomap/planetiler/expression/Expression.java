@@ -91,11 +91,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, WithTags::getTag,
-      values.stream()
-        //Ensure that we can handle List<String>, List<Long>, etc
-        .map(Object.class::cast)
-        .toList());
+    return new MatchAny(field, WithTags::getTag, values);
   }
 
   /**
