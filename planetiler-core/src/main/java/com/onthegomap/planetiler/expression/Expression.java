@@ -430,8 +430,7 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input instanceof SourceFeature) {
-        SourceFeature sf = (SourceFeature) input;
+      if (input instanceof SourceFeature sf) {
         return switch (type) {
           case LINESTRING_TYPE -> sf.canBeLine();
           case POLYGON_TYPE -> sf.canBePolygon();
