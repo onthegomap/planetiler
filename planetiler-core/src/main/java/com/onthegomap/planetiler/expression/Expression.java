@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.expression;
 
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,7 +41,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       return true;
     }
   };
@@ -50,7 +51,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       return false;
     }
   };
@@ -90,7 +91,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, SourceFeature::getTag,
+    return new MatchAny(field, WithTags::getTag,
       values.stream()
         //Ensure that we can handle List<String>, List<Long>, etc
         .map(Object.class::cast)
@@ -103,7 +104,7 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter, Object... values) {
+  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter, Object... values) {
     return matchAnyTyped(field, typeGetter, List.of(values));
   }
 
@@ -113,7 +114,7 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter,
+  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter,
     List<?> values) {
     return new MatchAny(field, typeGetter, values);
   }
@@ -258,7 +259,7 @@ public interface Expression {
    * @param matchKeys list that this method call will add any key to that was responsible for triggering the match
    * @return true if this expression matches the input element
    */
-  boolean evaluate(SourceFeature input, List<String> matchKeys);
+  boolean evaluate(WithTags input, List<String> matchKeys);
 
   record And(List<Expression> children) implements Expression {
 
@@ -268,7 +269,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       for (Expression child : children) {
         if (!child.evaluate(input, matchKeys)) {
           matchKeys.clear();
@@ -287,7 +288,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       int size = children.size();
       // Optimization: this method consumes the most time when matching against input elements, and
       // iterating through this list by index is slightly faster than an enhanced for loop
@@ -328,7 +329,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
   }
@@ -344,12 +345,12 @@ public interface Expression {
    */
   record MatchAny(
     String field, List<?> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
-    BiFunction<SourceFeature, String, Object> valueGetter
+    BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
     private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
 
-    MatchAny(String field, BiFunction<SourceFeature, String, Object> valueGetter, List<?> values) {
+    MatchAny(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
       this(field, values,
         values.stream().map(Object::toString).filter(v -> !v.contains("%")).collect(Collectors.toSet()),
         values.stream().map(Object::toString).filter(v -> v.contains("%")).map(val -> {
@@ -365,7 +366,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
       if (value == null) {
         return matchWhenMissing;
@@ -408,7 +409,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       if (input.hasTag(field)) {
         matchKeys.add(field);
         return true;
@@ -428,14 +429,18 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return switch (type) {
-        case LINESTRING_TYPE -> input.canBeLine();
-        case POLYGON_TYPE -> input.canBePolygon();
-        case POINT_TYPE -> input.isPoint();
-        case RELATION_MEMBER_TYPE -> input.hasRelationInfo();
-        default -> false;
-      };
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      if (input instanceof SourceFeature) {
+        SourceFeature sf = (SourceFeature) input;
+        return switch (type) {
+          case LINESTRING_TYPE -> sf.canBeLine();
+          case POLYGON_TYPE -> sf.canBePolygon();
+          case POINT_TYPE -> sf.isPoint();
+          case RELATION_MEMBER_TYPE -> sf.hasRelationInfo();
+          default -> false;
+        };
+      }
+      throw new IllegalArgumentException("MatchType not valid on " + input.getClass().getCanonicalName());
     }
   }
 }

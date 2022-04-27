@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -50,7 +51,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementBooleanTrue() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getBoolean, true))
+      entry("a", matchAnyTyped("key", WithTags::getBoolean, true))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "true")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
@@ -65,7 +66,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementBooleanFalse() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getBoolean, false))
+      entry("a", matchAnyTyped("key", WithTags::getBoolean, false))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "false")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "no")));
@@ -80,7 +81,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementLong() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getLong, 42))
+      entry("a", matchAnyTyped("key", WithTags::getLong, 42))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42", "otherkey", "othervalue")));
@@ -93,7 +94,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementDirection() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getDirection, 1))
+      entry("a", matchAnyTyped("key", WithTags::getDirection, 1))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1", "otherkey", "othervalue")));
