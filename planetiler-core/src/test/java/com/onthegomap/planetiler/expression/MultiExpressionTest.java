@@ -6,6 +6,7 @@ import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static com.onthegomap.planetiler.expression.MultiExpression.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -130,6 +131,23 @@ class MultiExpressionTest {
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testStaticBooleanMatch() {
+    var index = MultiExpression.of(List.of(entry("t", TRUE))).index();
+    assertTrue(index.matches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(entry("f", FALSE))).index();
+    assertFalse(index.matches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(
+      entry("a", matchField("key")),
+      entry("t", TRUE),
+      entry("f", FALSE)
+    )).index();
+
+    assertSameElements(List.of("a", "t"), index.getMatches(featureWithTags("key", "value")));
   }
 
   @Test
