@@ -261,6 +261,11 @@ public interface Expression {
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return value;
     }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      return value;
+    }
   }
 
   record And(List<Expression> children) implements Expression {
@@ -282,7 +287,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       return children.stream()
         .map(child -> !child.evaluate(input))
         .findFirst()
@@ -313,7 +318,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       int size = children.size();
       // Optimization: this method consumes the most time when matching against input elements, and
       // iterating through this list by index is slightly faster than an enhanced for loop
@@ -359,7 +364,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       return evaluate(input, null);
     }
 
@@ -481,7 +486,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       return input.hasTag(field);
     }
   }
@@ -512,7 +517,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       return evaluate(input, null);
     }
   }
