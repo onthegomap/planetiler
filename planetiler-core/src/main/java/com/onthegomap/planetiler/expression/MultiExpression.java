@@ -276,7 +276,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       constantTrueExpressionEntryList
         .stream()
         .forEach(matchKey -> result.add(
-          new Match<T>(matchKey, List.of(), 1)));
+          new Match<>(matchKey, List.of(), 1)));
       return result;
     }
   }
