@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.expression.Expression.TRUE;
 import static com.onthegomap.planetiler.expression.Expression.matchType;
 import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 
+import com.onthegomap.planetiler.expression.Expression.Constant;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -221,12 +222,16 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     private final List<Map.Entry<String, List<EntryWithId<T>>>> keyToExpressionsList;
     // expressions that should match when certain tags are *not* present on an input element
     private final List<Map.Entry<String, List<EntryWithId<T>>>> missingKeyToExpressionList;
+    // expressions that match a constant true input element
+    private final List<T> constantTrueExpressionEntryList;
 
     private KeyIndex(MultiExpression<T> expressions) {
       int id = 1;
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
       Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
+      constantTrueExpressionEntryList = new ArrayList<>();
+
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
         EntryWithId<T> expressionValue = new EntryWithId<>(entry.result, expression, id++);
@@ -234,6 +239,9 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
         getRelevantMissingKeys(expression,
           key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
+        if (expression instanceof Constant constant && constant.value()) {
+          constantTrueExpressionEntryList.add(entry.result);
+        }
       }
       keyToExpressionsMap = new HashMap<>();
       keyToExpressions.forEach((key, value) -> keyToExpressionsMap.put(key, value.stream().toList()));
@@ -265,6 +273,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           }
         }
       }
+      constantTrueExpressionEntryList
+        .stream()
+        .forEach(matchKey -> result.add(
+          new Match<T>(matchKey, List.of(), 1)));
       return result;
     }
   }
