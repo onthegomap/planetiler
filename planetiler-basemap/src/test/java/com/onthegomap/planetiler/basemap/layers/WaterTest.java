@@ -164,7 +164,7 @@ class WaterTest extends AbstractLayerTest {
   }
 
   @Test
-  void testRiverk() {
+  void testRiver() {
     assertFeatures(11, List.of(Map.of(
       "class", "river",
       "_layer", "water",

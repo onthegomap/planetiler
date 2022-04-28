@@ -5,6 +5,7 @@ import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
+import static com.onthegomap.planetiler.basemap.util.Utils.coalesce;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -23,6 +24,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,10 +43,15 @@ public abstract class AbstractLayerTest {
   final FeatureCollector.Factory featureCollectorFactory = new FeatureCollector.Factory(params, stats);
 
   static void assertFeatures(int zoom, List<Map<String, Object>> expected, Iterable<FeatureCollector.Feature> actual) {
-    List<FeatureCollector.Feature> actualList = StreamSupport.stream(actual.spliterator(), false).toList();
-    assertEquals(expected.size(), actualList.size(), () -> "size: " + actualList);
-    for (int i = 0; i < expected.size(); i++) {
-      assertSubmap(expected.get(i), TestUtils.toMap(actualList.get(i), zoom));
+    // ensure both are sorted by layer
+    var expectedList =
+      expected.stream().sorted(Comparator.comparing(d -> coalesce(d.get("_layer"), "").toString())).toList();
+    var actualList = StreamSupport.stream(actual.spliterator(), false)
+      .sorted(Comparator.comparing(FeatureCollector.Feature::getLayer))
+      .toList();
+    assertEquals(expectedList.size(), actualList.size(), () -> "size: " + actualList);
+    for (int i = 0; i < expectedList.size(); i++) {
+      assertSubmap(expectedList.get(i), TestUtils.toMap(actualList.get(i), zoom));
     }
   }
 

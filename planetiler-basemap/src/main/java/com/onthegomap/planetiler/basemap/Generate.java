@@ -431,7 +431,7 @@ public class Generate {
         /** Imposm3 "mapping" to filter OSM elements that should appear in this "table". */
         public static final Expression MAPPING = %s;
         """.formatted(
-        mappingExpression
+        mappingExpression.generateJavaCode()
       );
       String tableName = "osm_" + key;
       String className = lowerUnderscoreToUpperCamel(tableName);
@@ -652,7 +652,7 @@ public class Generate {
   /** Returns java code that will recreate an {@link MultiExpression} identical to {@code mapping}. */
   private static String generateJavaCode(MultiExpression<String> mapping) {
     return "MultiExpression.of(List.of(" + mapping.expressions().stream()
-      .map(s -> "MultiExpression.entry(%s, %s)".formatted(Format.quote(s.result()), s.expression()))
+      .map(s -> "MultiExpression.entry(%s, %s)".formatted(Format.quote(s.result()), s.expression().generateJavaCode()))
       .collect(joining(", ")) + "))";
   }
 

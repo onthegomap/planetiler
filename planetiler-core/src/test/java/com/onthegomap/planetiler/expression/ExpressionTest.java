@@ -3,8 +3,10 @@ package com.onthegomap.planetiler.expression;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -100,5 +102,14 @@ class ExpressionTest {
     assertTrue(or(not(matchCD)).contains(e -> e.equals(matchCD)));
     assertFalse(matchCD.contains(e -> e.equals(matchAB)));
     assertFalse(or(not(matchCD)).contains(e -> e.equals(matchAB)));
+  }
+
+  @Test
+  void testStringifyExpression() {
+    //Ensure Expression.toString() returns valid Java code
+    assertEquals("matchAny(\"key\", \"true\")", matchAny("key", "true").generateJavaCode());
+    assertEquals("matchAny(\"key\", \"foo\")", matchAny("key", "foo").generateJavaCode());
+    var expression = matchAnyTyped("key", WithTags::getDirection, 1);
+    assertThrows(UnsupportedOperationException.class, expression::generateJavaCode);
   }
 }
