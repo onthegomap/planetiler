@@ -30,6 +30,9 @@ import java.util.function.Consumer;
  *
  * @param <T> the type of elements held in this queue
  */
+// Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+// values when a task is finished and are not re-used.
+@SuppressWarnings("java:S5164")
 public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T> {
 
   private final BlockingQueue<Queue<T>> itemQueue;

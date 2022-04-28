@@ -123,9 +123,10 @@ public class MbtilesWriter {
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
         .<TileBatch>fromGenerator("read", next -> {
+          var writerEnqueuer = writerQueue.threadLocalWriter();
           writer.readFeaturesAndBatch(batch -> {
             next.accept(batch);
-            writerQueue.accept(batch); // also send immediately to writer
+            writerEnqueuer.accept(batch); // also send immediately to writer
           });
           writerQueue.close();
           // use only 1 thread since readFeaturesAndBatch needs to be single-threaded

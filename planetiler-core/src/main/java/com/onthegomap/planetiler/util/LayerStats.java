@@ -30,6 +30,9 @@ public class LayerStats implements Consumer<RenderedFeature> {
    */
 
   private final List<ThreadLocalHandler> threadLocals = new CopyOnWriteArrayList<>();
+  // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+  // values when a task is finished and are not re-used.
+  @SuppressWarnings("java:S5164")
   private final ThreadLocal<ThreadLocalHandler> layerStats = ThreadLocal
     .withInitial(ThreadLocalHandler::new);
 
