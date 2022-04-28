@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * <p>
  * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
  * original expression, assuming that the generated code includes:
- * 
+ *
  * <pre>
  * {@code
  * import static com.onthegomap.planetiler.expression.Expression.*;
@@ -34,27 +34,9 @@ public interface Expression {
   String RELATION_MEMBER_TYPE = "relation_member";
 
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
-  Expression TRUE = new Expression() {
-    @Override
-    public String toString() {
-      return "TRUE";
-    }
-
-    @Override
-    public boolean evaluate(WithTags input, List<String> matchKeys) {
-      return true;
-    }
-  };
-  Expression FALSE = new Expression() {
-    public String toString() {
-      return "FALSE";
-    }
-
-    @Override
-    public boolean evaluate(WithTags input, List<String> matchKeys) {
-      return false;
-    }
-  };
+  Expression TRUE = new Constant(true, "TRUE");
+  Expression FALSE = new Constant(false, "FALSE");
+  BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
   static And and(Expression... children) {
     return and(List.of(children));
@@ -91,7 +73,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, WithTags::getTag, values);
+    return new MatchAny(field, GET_TAG, values);
   }
 
   /**
@@ -138,8 +120,8 @@ public interface Expression {
     return new MatchType(type);
   }
 
-  private static String listToString(List<?> items) {
-    return items.stream().map(Object::toString).collect(Collectors.joining(", "));
+  private static String generateJavaCodeList(List<Expression> items) {
+    return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
   }
 
   private static Expression simplify(Expression initial) {
@@ -257,11 +239,27 @@ public interface Expression {
    */
   boolean evaluate(WithTags input, List<String> matchKeys);
 
+  /** Returns Java code that can be used to reconstruct this expression. */
+  String generateJavaCode();
+
+  /** A constant boolean value. */
+  record Constant(boolean value, @Override String generateJavaCode) implements Expression {
+    @Override
+    public String toString() {
+      return generateJavaCode;
+    }
+
+    @Override
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return value;
+    }
+  }
+
   record And(List<Expression> children) implements Expression {
 
     @Override
-    public String toString() {
-      return "and(" + listToString(children) + ")";
+    public String generateJavaCode() {
+      return "and(" + generateJavaCodeList(children) + ")";
     }
 
     @Override
@@ -279,8 +277,8 @@ public interface Expression {
   record Or(List<Expression> children) implements Expression {
 
     @Override
-    public String toString() {
-      return "or(" + listToString(children) + ")";
+    public String generateJavaCode() {
+      return "or(" + generateJavaCodeList(children) + ")";
     }
 
     @Override
@@ -320,8 +318,8 @@ public interface Expression {
   record Not(Expression child) implements Expression {
 
     @Override
-    public String toString() {
-      return "not(" + child + ")";
+    public String generateJavaCode() {
+      return "not(" + child.generateJavaCode() + ")";
     }
 
     @Override
@@ -383,24 +381,31 @@ public interface Expression {
     }
 
     @Override
-    public String toString() {
-      return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Expression::stringifyTypedObject)
-        .collect(Collectors.joining(", ")) + ")";
-    }
-  }
+    public String generateJavaCode() {
+      // java code generation only needed for the simple cases used by openmaptiles schema generation
+      List<String> valueStrings = new ArrayList<>();
 
-  private static String stringifyTypedObject(Object o) {
-    if (o instanceof String) {
-      return Format.quote(o.toString());
+      if (GET_TAG != valueGetter) {
+        throw new UnsupportedOperationException("Code generation only supported for default getTag");
+      }
+
+      for (var value : values) {
+        if (value instanceof String string) {
+          valueStrings.add(Format.quote(string));
+        } else {
+          throw new UnsupportedOperationException("Code generation only supported for string values, found: " +
+            value.getClass().getCanonicalName() + " " + value);
+        }
+      }
+      return "matchAny(" + Format.quote(field) + ", " + String.join(", ", valueStrings) + ")";
     }
-    return o.toString();
   }
 
   /** Evaluates to true if an input element contains any value for {@code field} tag. */
   record MatchField(String field) implements Expression {
 
     @Override
-    public String toString() {
+    public String generateJavaCode() {
       return "matchField(" + Format.quote(field) + ")";
     }
 
@@ -420,22 +425,23 @@ public interface Expression {
   record MatchType(String type) implements Expression {
 
     @Override
-    public String toString() {
+    public String generateJavaCode() {
       return "matchType(" + Format.quote(type) + ")";
     }
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input instanceof SourceFeature sf) {
+      if (input instanceof SourceFeature sourceFeature) {
         return switch (type) {
-          case LINESTRING_TYPE -> sf.canBeLine();
-          case POLYGON_TYPE -> sf.canBePolygon();
-          case POINT_TYPE -> sf.isPoint();
-          case RELATION_MEMBER_TYPE -> sf.hasRelationInfo();
+          case LINESTRING_TYPE -> sourceFeature.canBeLine();
+          case POLYGON_TYPE -> sourceFeature.canBePolygon();
+          case POINT_TYPE -> sourceFeature.isPoint();
+          case RELATION_MEMBER_TYPE -> sourceFeature.hasRelationInfo();
           default -> false;
         };
+      } else {
+        return false;
       }
-      throw new IllegalArgumentException("MatchType not valid on " + input.getClass().getCanonicalName());
     }
   }
 }
