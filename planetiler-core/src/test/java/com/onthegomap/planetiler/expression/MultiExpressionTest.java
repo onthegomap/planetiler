@@ -160,6 +160,15 @@ class MultiExpressionTest {
     )).index();
 
     assertSameElements(List.of("a", "t1", "t2", "t3"), index.getMatches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(
+      entry("t3", TRUE),
+      entry("t2", TRUE),
+      entry("t1", TRUE),
+      entry("a", matchField("key"))
+    )).index();
+
+    assertSameElements(List.of("t3", "t2", "t1", "a"), index.getMatches(featureWithTags("key", "value")));
   }
 
   @Test

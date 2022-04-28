@@ -5,7 +5,6 @@ import static com.onthegomap.planetiler.expression.Expression.TRUE;
 import static com.onthegomap.planetiler.expression.Expression.matchType;
 import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 
-import com.onthegomap.planetiler.expression.Expression.Constant;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
@@ -223,14 +222,14 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     // expressions that should match when certain tags are *not* present on an input element
     private final List<Map.Entry<String, List<EntryWithId<T>>>> missingKeyToExpressionList;
     // expressions that match a constant true input element
-    private final List<T> constantTrueExpressionEntryList;
+    private final List<EntryWithId<T>> constantTrueExpressionList;
 
     private KeyIndex(MultiExpression<T> expressions) {
       int id = 1;
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
       Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
-      constantTrueExpressionEntryList = new ArrayList<>();
+      constantTrueExpressionList = new ArrayList<>();
 
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
@@ -239,8 +238,8 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
         getRelevantMissingKeys(expression,
           key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
-        if (expression instanceof Constant constant && constant.value()) {
-          constantTrueExpressionEntryList.add(entry.result);
+        if (expression.equals(TRUE)) {
+          constantTrueExpressionList.add(expressionValue);
         }
       }
       keyToExpressionsMap = new HashMap<>();
@@ -256,6 +255,9 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
       List<Match<T>> result = new ArrayList<>();
       boolean[] visited = new boolean[numExpressions];
+      for (var entry : constantTrueExpressionList) {
+        result.add(new Match<>(entry.result, List.of(), entry.id));
+      }
       for (var entry : missingKeyToExpressionList) {
         if (!input.hasTag(entry.getKey())) {
           visitExpressions(input, result, visited, entry.getValue());
@@ -273,10 +275,6 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           }
         }
       }
-      constantTrueExpressionEntryList
-        .stream()
-        .forEach(matchKey -> result.add(
-          new Match<>(matchKey, List.of(), 1)));
       return result;
     }
   }
