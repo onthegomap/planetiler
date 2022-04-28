@@ -461,13 +461,6 @@ public interface Expression {
     }
   }
 
-  private static String stringifyTypedObject(Object o) {
-    if (o instanceof String) {
-      return Format.quote(o.toString());
-    }
-    return o.toString();
-  }
-
   /** Evaluates to true if an input element contains any value for {@code field} tag. */
   record MatchField(String field) implements Expression {
 
