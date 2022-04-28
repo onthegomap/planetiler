@@ -3,9 +3,10 @@ package com.onthegomap.planetiler.expression;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -106,9 +107,9 @@ class ExpressionTest {
   @Test
   void testStringifyExpression() {
     //Ensure Expression.toString() returns valid Java code
-    assertEquals("matchAny(\"key\", true)", matchAnyTyped("key", SourceFeature::getBoolean, true).toString());
-    assertEquals("matchAny(\"key\", \"foo\")", matchAnyTyped("key", SourceFeature::getString, "foo").toString());
-    assertEquals("matchAny(\"key\", 1)", matchAnyTyped("key", SourceFeature::getLong, 1).toString());
-    assertEquals("matchAny(\"key\", 1)", matchAnyTyped("key", SourceFeature::getDirection, 1).toString());
+    assertEquals("matchAny(\"key\", \"true\")", matchAny("key", "true").generateJavaCode());
+    assertEquals("matchAny(\"key\", \"foo\")", matchAny("key", "foo").generateJavaCode());
+    var expression = matchAnyTyped("key", WithTags::getDirection, 1);
+    assertThrows(UnsupportedOperationException.class, expression::generateJavaCode);
   }
 }

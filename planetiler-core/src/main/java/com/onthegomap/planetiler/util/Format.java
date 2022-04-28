@@ -149,11 +149,11 @@ public class Format {
   }
 
   /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
-  public static String quote(String string) {
+  public static String quote(Object string) {
     if (string == null) {
       return "null";
     }
-    return '"' + StringEscapeUtils.escapeJava(string) + '"';
+    return '"' + StringEscapeUtils.escapeJava(string.toString()) + '"';
   }
 
   /** Returns an openstreetmap.org map link for a lat/lon */

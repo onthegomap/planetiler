@@ -111,6 +111,7 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   private DataInputStream newInputStream(Path path) throws IOException {
+    @SuppressWarnings("java:S2095") // DataInputStream closes inputStream
     InputStream inputStream = new BufferedInputStream(Files.newInputStream(path), 50_000);
     if (gzip) {
       inputStream = new GZIPInputStream(inputStream);
@@ -119,6 +120,7 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   private DataOutputStream newOutputStream(Path path) throws IOException {
+    @SuppressWarnings("java:S2095") // DataInputStream closes inputStream
     OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path), 50_000);
     if (gzip) {
       outputStream = new FastGzipOutputStream(outputStream);

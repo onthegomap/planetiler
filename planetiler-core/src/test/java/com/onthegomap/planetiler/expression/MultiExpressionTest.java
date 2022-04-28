@@ -6,10 +6,12 @@ import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static com.onthegomap.planetiler.expression.MultiExpression.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -50,7 +52,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementBooleanTrue() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getBoolean, true))
+      entry("a", matchAnyTyped("key", WithTags::getBoolean, true))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "true")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
@@ -65,7 +67,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementBooleanFalse() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getBoolean, false))
+      entry("a", matchAnyTyped("key", WithTags::getBoolean, false))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "false")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "no")));
@@ -80,7 +82,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementLong() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getLong, 42))
+      entry("a", matchAnyTyped("key", WithTags::getLong, 42))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "42", "otherkey", "othervalue")));
@@ -93,7 +95,7 @@ class MultiExpressionTest {
   @Test
   void testSingleElementDirection() {
     var index = MultiExpression.of(List.of(
-      entry("a", matchAnyTyped("key", SourceFeature::getDirection, 1))
+      entry("a", matchAnyTyped("key", WithTags::getDirection, 1))
     )).index();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "yes")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1", "otherkey", "othervalue")));
@@ -129,6 +131,44 @@ class MultiExpressionTest {
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testStaticBooleanMatch() {
+    var index = MultiExpression.of(List.of(entry("t", TRUE))).index();
+    assertTrue(index.matches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(entry("f", FALSE))).index();
+    assertFalse(index.matches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(
+      entry("a", matchField("key")),
+      entry("t", TRUE),
+      entry("f", FALSE)
+    )).index();
+
+    assertSameElements(List.of("a", "t"), index.getMatches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(
+      entry("a", matchField("key")),
+      entry("t1", TRUE),
+      entry("t2", TRUE),
+      entry("t3", TRUE),
+      entry("f1", FALSE),
+      entry("f2", FALSE),
+      entry("f3", FALSE)
+    )).index();
+
+    assertSameElements(List.of("a", "t1", "t2", "t3"), index.getMatches(featureWithTags("key", "value")));
+
+    index = MultiExpression.of(List.of(
+      entry("t3", TRUE),
+      entry("t2", TRUE),
+      entry("t1", TRUE),
+      entry("a", matchField("key"))
+    )).index();
+
+    assertSameElements(List.of("t3", "t2", "t1", "a"), index.getMatches(featureWithTags("key", "value")));
   }
 
   @Test

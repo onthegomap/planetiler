@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.expression;
 
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,7 +19,7 @@ import java.util.stream.Stream;
  * <p>
  * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
  * original expression, assuming that the generated code includes:
- * 
+ *
  * <pre>
  * {@code
  * import static com.onthegomap.planetiler.expression.Expression.*;
@@ -33,37 +34,9 @@ public interface Expression {
   String RELATION_MEMBER_TYPE = "relation_member";
 
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
-  Expression TRUE = new Expression() {
-    @Override
-    public String toString() {
-      return "TRUE";
-    }
-
-    @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return true;
-    }
-
-    @Override
-    public boolean evaluate(SourceFeature input) {
-      return true;
-    }
-  };
-  Expression FALSE = new Expression() {
-    public String toString() {
-      return "FALSE";
-    }
-
-    @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return false;
-    }
-
-    @Override
-    public boolean evaluate(SourceFeature input) {
-      return false;
-    }
-  };
+  Expression TRUE = new Constant(true, "TRUE");
+  Expression FALSE = new Constant(false, "FALSE");
+  BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
   static And and(Expression... children) {
     return and(List.of(children));
@@ -100,11 +73,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, SourceFeature::getTag,
-      values.stream()
-        //Ensure that we can handle List<String>, List<Long>, etc
-        .map(Object.class::cast)
-        .toList());
+    return new MatchAny(field, GET_TAG, values);
   }
 
   /**
@@ -113,7 +82,7 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter, Object... values) {
+  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter, Object... values) {
     return matchAnyTyped(field, typeGetter, List.of(values));
   }
 
@@ -123,7 +92,7 @@ public interface Expression {
    * <p>
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
-  static MatchAny matchAnyTyped(String field, BiFunction<SourceFeature, String, Object> typeGetter,
+  static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter,
     List<?> values) {
     return new MatchAny(field, typeGetter, values);
   }
@@ -151,8 +120,8 @@ public interface Expression {
     return new MatchType(type);
   }
 
-  private static String listToString(List<?> items) {
-    return items.stream().map(Object::toString).collect(Collectors.joining(", "));
+  private static String generateJavaCodeList(List<Expression> items) {
+    return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
   }
 
   private static Expression simplify(Expression initial) {
@@ -268,7 +237,7 @@ public interface Expression {
    * @param matchKeys list that this method call will add any key to that was responsible for triggering the match
    * @return true if this expression matches the input element
    */
-  boolean evaluate(SourceFeature input, List<String> matchKeys);
+  boolean evaluate(WithTags input, List<String> matchKeys);
 
   /**
    * Returns true if this expression matches an input element.
@@ -276,17 +245,33 @@ public interface Expression {
    * @param input the input element
    * @return true if this expression matches the input element
    */
-  boolean evaluate(SourceFeature input);
+  boolean evaluate(WithTags input);
+
+  /** Returns Java code that can be used to reconstruct this expression. */
+  String generateJavaCode();
+
+  /** A constant boolean value. */
+  record Constant(boolean value, @Override String generateJavaCode) implements Expression {
+    @Override
+    public String toString() {
+      return generateJavaCode;
+    }
+
+    @Override
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return value;
+    }
+  }
 
   record And(List<Expression> children) implements Expression {
 
     @Override
-    public String toString() {
-      return "and(" + listToString(children) + ")";
+    public String generateJavaCode() {
+      return "and(" + generateJavaCodeList(children) + ")";
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       for (Expression child : children) {
         if (!child.evaluate(input, matchKeys)) {
           matchKeys.clear();
@@ -308,12 +293,12 @@ public interface Expression {
   record Or(List<Expression> children) implements Expression {
 
     @Override
-    public String toString() {
-      return "or(" + listToString(children) + ")";
+    public String generateJavaCode() {
+      return "or(" + generateJavaCodeList(children) + ")";
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       int size = children.size();
       // Optimization: this method consumes the most time when matching against input elements, and
       // iterating through this list by index is slightly faster than an enhanced for loop
@@ -364,12 +349,12 @@ public interface Expression {
   record Not(Expression child) implements Expression {
 
     @Override
-    public String toString() {
-      return "not(" + child + ")";
+    public String generateJavaCode() {
+      return "not(" + child.generateJavaCode() + ")";
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
 
@@ -391,12 +376,12 @@ public interface Expression {
    */
   record MatchAny(
     String field, List<?> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
-    BiFunction<SourceFeature, String, Object> valueGetter
+    BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
     private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
 
-    MatchAny(String field, BiFunction<SourceFeature, String, Object> valueGetter, List<?> values) {
+    MatchAny(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
       this(field, values,
         values.stream().map(Object::toString).filter(v -> !v.contains("%")).collect(Collectors.toSet()),
         values.stream().map(Object::toString).filter(v -> v.contains("%")).map(val -> {
@@ -412,7 +397,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
       if (value == null) {
         return matchWhenMissing;
@@ -433,7 +418,7 @@ public interface Expression {
     }
 
     @Override
-    public boolean evaluate(SourceFeature input) {
+    public boolean evaluate(WithTags input) {
       Object value = valueGetter.apply(input, field);
       if (value == null) {
         return matchWhenMissing;
@@ -451,10 +436,23 @@ public interface Expression {
       }
     }
 
-    @Override
-    public String toString() {
-      return "matchAny(" + Format.quote(field) + ", " + values.stream().map(Expression::stringifyTypedObject)
-        .collect(Collectors.joining(", ")) + ")";
+    public String generateJavaCode() {
+      // java code generation only needed for the simple cases used by openmaptiles schema generation
+      List<String> valueStrings = new ArrayList<>();
+
+      if (GET_TAG != valueGetter) {
+        throw new UnsupportedOperationException("Code generation only supported for default getTag");
+      }
+
+      for (var value : values) {
+        if (value instanceof String string) {
+          valueStrings.add(Format.quote(string));
+        } else {
+          throw new UnsupportedOperationException("Code generation only supported for string values, found: " +
+            value.getClass().getCanonicalName() + " " + value);
+        }
+      }
+      return "matchAny(" + Format.quote(field) + ", " + String.join(", ", valueStrings) + ")";
     }
   }
 
@@ -469,12 +467,12 @@ public interface Expression {
   record MatchField(String field) implements Expression {
 
     @Override
-    public String toString() {
+    public String generateJavaCode() {
       return "matchField(" + Format.quote(field) + ")";
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
       if (input.hasTag(field)) {
         matchKeys.add(field);
         return true;
@@ -494,19 +492,23 @@ public interface Expression {
   record MatchType(String type) implements Expression {
 
     @Override
-    public String toString() {
+    public String generateJavaCode() {
       return "matchType(" + Format.quote(type) + ")";
     }
 
     @Override
-    public boolean evaluate(SourceFeature input, List<String> matchKeys) {
-      return switch (type) {
-        case LINESTRING_TYPE -> input.canBeLine();
-        case POLYGON_TYPE -> input.canBePolygon();
-        case POINT_TYPE -> input.isPoint();
-        case RELATION_MEMBER_TYPE -> input.hasRelationInfo();
-        default -> false;
-      };
+    public boolean evaluate(WithTags input, List<String> matchKeys) {
+      if (input instanceof SourceFeature sourceFeature) {
+        return switch (type) {
+          case LINESTRING_TYPE -> sourceFeature.canBeLine();
+          case POLYGON_TYPE -> sourceFeature.canBePolygon();
+          case POINT_TYPE -> sourceFeature.isPoint();
+          case RELATION_MEMBER_TYPE -> sourceFeature.hasRelationInfo();
+          default -> false;
+        };
+      } else {
+        return false;
+      }
     }
 
     @Override

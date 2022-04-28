@@ -9,6 +9,9 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.stats.Stats;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * Converts source features geometries to encoded vector tile features according to settings configured in the map
  * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
  */
-public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
+public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
 
   // generate globally-unique IDs shared by all vector tile features representing the same source feature
   private static final AtomicLong idGenerator = new AtomicLong(0);
@@ -51,12 +54,19 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
   private final PlanetilerConfig config;
   private final Consumer<RenderedFeature> consumer;
   private final Stats stats;
+  private final Closeable closeable;
 
   /** Constructs a new feature render that will send rendered features to {@code consumer}. */
-  public FeatureRenderer(PlanetilerConfig config, Consumer<RenderedFeature> consumer, Stats stats) {
+  public FeatureRenderer(PlanetilerConfig config, Consumer<RenderedFeature> consumer, Stats stats,
+    Closeable closeable) {
     this.config = config;
     this.consumer = consumer;
     this.stats = stats;
+    this.closeable = closeable;
+  }
+
+  public FeatureRenderer(PlanetilerConfig config, Consumer<RenderedFeature> consumer, Stats stats) {
+    this(config, consumer, stats, null);
   }
 
   @Override
@@ -66,7 +76,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
 
   private void renderGeometry(Geometry geom, FeatureCollector.Feature feature) {
     if (geom.isEmpty()) {
-      LOGGER.warn("Empty geometry " + feature);
+      LOGGER.warn("Empty geometry {}", feature);
     } else if (geom instanceof Point point) {
       renderPoint(feature, point.getCoordinates());
     } else if (geom instanceof MultiPoint points) {
@@ -79,8 +89,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
         renderGeometry(collection.getGeometryN(i), feature);
       }
     } else {
-      LOGGER.warn(
-        "Unrecognized JTS geometry type for " + feature.getClass().getSimpleName() + ": " + geom.getGeometryType());
+      LOGGER.warn("Unrecognized JTS geometry type for {}: {}", feature.getClass().getSimpleName(),
+        geom.getGeometryType());
     }
   }
 
@@ -268,5 +278,16 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature> {
       emitted++;
     }
     return emitted;
+  }
+
+  @Override
+  public void close() {
+    if (closeable != null) {
+      try {
+        closeable.close();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
   }
 }

@@ -58,18 +58,19 @@ public abstract class SimpleReader implements Closeable {
       .addBuffer("read_queue", 1000)
       .<SortableFeature>addWorker("process", threads, (prev, next) -> {
         var featureCollectors = new FeatureCollector.Factory(config, stats);
-        FeatureRenderer renderer = newFeatureRenderer(writer, config, next);
-        for (SourceFeature sourceFeature : prev) {
-          featuresRead.incrementAndGet();
-          FeatureCollector features = featureCollectors.get(sourceFeature);
-          if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
-            try {
-              profile.processFeature(sourceFeature, features);
-              for (FeatureCollector.Feature renderable : features) {
-                renderer.accept(renderable);
+        try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
+          for (SourceFeature sourceFeature : prev) {
+            featuresRead.incrementAndGet();
+            FeatureCollector features = featureCollectors.get(sourceFeature);
+            if (sourceFeature.latLonGeometry().getEnvelopeInternal().intersects(latLonBounds)) {
+              try {
+                profile.processFeature(sourceFeature, features);
+                for (FeatureCollector.Feature renderable : features) {
+                  renderer.accept(renderable);
+                }
+              } catch (Exception e) {
+                LOGGER.error("Error processing " + sourceFeature, e);
               }
-            } catch (Exception e) {
-              LOGGER.error("Error processing " + sourceFeature, e);
             }
           }
         }
@@ -77,7 +78,7 @@ public abstract class SimpleReader implements Closeable {
       // output large batches since each input may map to many tiny output features (i.e. slicing ocean tiles)
       // which turns enqueueing into the bottleneck
       .addBuffer("write_queue", 50_000, 1_000)
-      .sinkToConsumer("write", 1, (item) -> {
+      .sinkToConsumer("write", 1, item -> {
         featuresWritten.incrementAndGet();
         writer.accept(item);
       });
@@ -94,21 +95,21 @@ public abstract class SimpleReader implements Closeable {
     pipeline.awaitAndLog(loggers, config.logInterval());
 
     // hook for profile to do any post-processing after this source is read
-    profile.finish(sourceName,
-      new FeatureCollector.Factory(config, stats),
-      newFeatureRenderer(writer, config, writer)
-    );
+    try (var featureRenderer = newFeatureRenderer(writer, config, writer)) {
+      profile.finish(sourceName, new FeatureCollector.Factory(config, stats), featureRenderer);
+    }
     timer.stop();
   }
 
-
   private FeatureRenderer newFeatureRenderer(FeatureGroup writer, PlanetilerConfig config,
     Consumer<SortableFeature> next) {
+    @SuppressWarnings("java:S2095") // closed by FeatureRenderer
     var encoder = writer.newRenderedFeatureEncoder();
     return new FeatureRenderer(
       config,
       rendered -> next.accept(encoder.apply(rendered)),
-      stats
+      stats,
+      encoder
     );
   }
 
