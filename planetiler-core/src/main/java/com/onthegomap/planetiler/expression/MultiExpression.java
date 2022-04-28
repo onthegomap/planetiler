@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 /**
  * A list of {@link Expression Expressions} to evaluate on input elements.
@@ -82,9 +83,9 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
    */
   private static void getRelevantMissingKeys(Expression exp, Consumer<String> acceptKey) {
     if (exp instanceof Expression.And and) {
-      and.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      and.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
     } else if (exp instanceof Expression.Or or) {
-      or.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      or.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
     } else if (exp instanceof Expression.Not) {
       // ignore anything that's purely used as a filter
     } else if (exp instanceof Expression.MatchAny any && any.matchWhenMissing()) {
@@ -229,7 +230,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
       Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
-      constantTrueExpressionList = new ArrayList<>();
+      List<EntryWithId<T>> constants = new ArrayList<>();
 
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
@@ -239,12 +240,16 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
         getRelevantMissingKeys(expression,
           key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
         if (expression.equals(TRUE)) {
-          constantTrueExpressionList.add(expressionValue);
+          constants.add(expressionValue);
         }
       }
-      keyToExpressionsMap = new HashMap<>();
-      keyToExpressions.forEach((key, value) -> keyToExpressionsMap.put(key, value.stream().toList()));
-      keyToExpressionsList = keyToExpressionsMap.entrySet().stream().toList();
+      // create immutable copies for fast iteration at matching time
+      constantTrueExpressionList = List.copyOf(constants);
+      keyToExpressionsMap = keyToExpressions.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+        Map.Entry::getKey,
+        entry -> entry.getValue().stream().toList()
+      ));
+      keyToExpressionsList = List.copyOf(keyToExpressionsMap.entrySet());
       missingKeyToExpressionList = missingKeyToExpressions.entrySet().stream()
         .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList())).toList();
       numExpressions = id;

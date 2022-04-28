@@ -22,7 +22,7 @@ import org.locationtech.jts.geom.Geometry;
  */
 public class BasemapMapping {
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     var profile = new BasemapProfile(Translations.nullProvider(List.of()), PlanetilerConfig.defaults(),
       Stats.inMemory());
     var random = new Random(0);
