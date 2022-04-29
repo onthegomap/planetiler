@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 class ExternalMergeSort implements FeatureSort {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExternalMergeSort.class);
-  private static final long MAX_CHUNK_SIZE = 1_000_000_000; // 1GB
+  private static final long MAX_CHUNK_SIZE = 2_000_000_000; // 2GB
   private final Path dir;
   private final Stats stats;
   private final int chunkSizeLimit;
@@ -69,7 +69,7 @@ class ExternalMergeSort implements FeatureSort {
       config.threads(),
       (int) Math.min(
         MAX_CHUNK_SIZE,
-        (ProcessInfo.getMaxMemoryBytes() / 2) / config.threads()
+        ProcessInfo.getMaxMemoryBytes() / 3
       ),
       config.gzipTempStorage(),
       config,
@@ -83,15 +83,15 @@ class ExternalMergeSort implements FeatureSort {
     this.stats = stats;
     this.chunkSizeLimit = chunkSizeLimit;
     this.gzip = gzip;
-    long memory = ProcessInfo.getMaxMemoryBytes();
-    if (chunkSizeLimit > memory / 2) {
-      throw new IllegalStateException(
-        "Not enough memory to use chunk size " + chunkSizeLimit + " only have " + memory);
+    long memLimit = ProcessInfo.getMaxMemoryBytes() / 2;
+    if (chunkSizeLimit > memLimit) {
+      throw new IllegalStateException("Not enough memory for chunkSize=" + chunkSizeLimit + " limit=" + memLimit);
     }
-    this.workers = workers;
+    int maxWorkersBasedOnMemory = Math.max(1, (int) (memLimit / Math.max(1, chunkSizeLimit)));
+    this.workers = Math.min(workers, maxWorkersBasedOnMemory);
     this.readerLimit = Math.max(1, config.sortMaxReaders());
     this.writerLimit = Math.max(1, config.sortMaxWriters());
-    LOGGER.info("Using merge sort feature map, chunk size={}mb workers={}", chunkSizeLimit / 1_000_000, workers);
+    LOGGER.info("Using merge sort feature map, chunk size={}mb max workers={}", chunkSizeLimit / 1_000_000, workers);
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
@@ -339,7 +339,7 @@ class ExternalMergeSort implements FeatureSort {
       }
 
       public SortableChunk sort() {
-        Arrays.sort(featuresToSort);
+        Arrays.parallelSort(featuresToSort);
         return this;
       }
 
