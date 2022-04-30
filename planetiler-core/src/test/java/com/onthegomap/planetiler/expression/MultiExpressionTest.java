@@ -137,7 +137,7 @@ class MultiExpressionTest {
   @Test
   void testInverseMatchField() {
     var index = MultiExpression.of(List.of(
-      entry("a", Expression.not(matchField("key")))
+      entry("a", not(matchField("key")))
     )).index();
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
