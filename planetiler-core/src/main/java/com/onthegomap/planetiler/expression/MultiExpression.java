@@ -102,7 +102,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     }
     boolean caresAboutGeometryType =
       expressions.stream().anyMatch(entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
-    return caresAboutGeometryType ? new GeometryTypeIndex<>(simplify()) : new KeyIndex<>(simplify());
+    return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(simplify());
   }
 
   /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
