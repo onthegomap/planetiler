@@ -249,112 +249,24 @@ class ExternalMergeSort implements FeatureSort {
     chunks.add(currentChunk = new Chunk(chunkPath));
   }
 
+  private interface Writer extends Closeable {
+
+    void writeLong(long value) throws IOException;
+
+    void writeInt(int value) throws IOException;
+
+    void write(byte[] value) throws IOException;
+  }
+
+  private interface ChunkIterator<T extends ChunkIterator<?>>
+    extends Closeable, Iterator<SortableFeature>, Comparable<T> {}
+
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
   private static class FastGzipOutputStream extends GZIPOutputStream {
 
     public FastGzipOutputStream(OutputStream out) throws IOException {
       super(out);
       def.setLevel(Deflater.BEST_SPEED);
-    }
-  }
-
-  /**
-   * An output segment that can be sorted in ~1GB RAM.
-   */
-  private class Chunk implements Closeable {
-
-    private final Path path;
-    private final Writer writer;
-    // estimate how much RAM it would take to sort this chunk
-    private int bytesInMemory = 0;
-    private int itemCount = 0;
-
-    private Chunk(Path path) throws IOException {
-      this.path = path;
-      this.writer = newWriter(path);
-    }
-
-    public void add(SortableFeature entry) throws IOException {
-      write(writer, entry);
-      bytesInMemory +=
-        // pointer to feature
-        8 +
-          // Feature class overhead
-          16 +
-          // long sort member of feature
-          8 +
-          // byte array pointer
-          8 +
-          // byte array size
-          24 + entry.value().length;
-      itemCount++;
-    }
-
-    private SortableChunk readAll() {
-      try (var iterator = newReader()) {
-        SortableFeature[] featuresToSort = new SortableFeature[itemCount];
-        int i = 0;
-        while (iterator.hasNext()) {
-          featuresToSort[i] = iterator.next();
-          i++;
-        }
-        if (i != itemCount) {
-          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
-        }
-        return new SortableChunk(featuresToSort);
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
-
-    private Writer newWriter(Path path) {
-      return mmapIO ? new WriterMmap(path) : new WriterBuffered(path, gzip);
-    }
-
-    private ChunkIterator<?> newReader() {
-      return mmapIO ? new ReaderMmap(path, itemCount) : new ReaderBuffered(path, itemCount, gzip);
-    }
-
-    private static void write(Writer out, SortableFeature entry) throws IOException {
-      // feature header
-      out.writeLong(entry.key());
-      out.writeInt(entry.value().length);
-      // value
-      out.write(entry.value());
-    }
-
-    @Override
-    public void close() throws IOException {
-      writer.close();
-    }
-
-    /**
-     * A container for all features in a chunk read into memory for sorting.
-     */
-    private class SortableChunk {
-
-      private SortableFeature[] featuresToSort;
-
-      private SortableChunk(SortableFeature[] featuresToSort) {
-        this.featuresToSort = featuresToSort;
-      }
-
-      public SortableChunk sort() {
-        Arrays.parallelSort(featuresToSort);
-        return this;
-      }
-
-      public SortableChunk flush() {
-        try (Writer out = newWriter(path)) {
-          for (SortableFeature feature : featuresToSort) {
-            write(out, feature);
-          }
-          featuresToSort = null;
-          return this;
-        } catch (IOException e) {
-          throw new UncheckedIOException(e);
-        }
-      }
     }
   }
 
@@ -429,83 +341,6 @@ class ExternalMergeSort implements FeatureSort {
     public int compareTo(ReaderBuffered o) {
       return next.compareTo(o.next);
     }
-  }
-
-  /**
-   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
-   * merge using a {@link PriorityQueue}.
-   */
-  private class ReaderMmap implements ChunkIterator<ReaderMmap> {
-    private final int count;
-    private final FileChannel channel;
-    private final MappedByteBuffer input;
-    private int read = 0;
-    private SortableFeature next;
-
-    ReaderMmap(Path path, int count) {
-      this.count = count;
-      try {
-        channel = FileChannel.open(path, StandardOpenOption.READ);
-        input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-        ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
-        next = readNextFeature();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
-
-    @Override
-    public boolean hasNext() {
-      return next != null;
-    }
-
-    @Override
-    public SortableFeature next() {
-      SortableFeature current = next;
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      if ((next = readNextFeature()) == null) {
-        close();
-      }
-      return current;
-    }
-
-    private SortableFeature readNextFeature() {
-      if (read < count) {
-        long nextSort = input.getLong();
-        int length = input.getInt();
-        byte[] bytes = new byte[length];
-        input.get(bytes);
-        read++;
-        return new SortableFeature(nextSort, bytes);
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public void close() {
-      try {
-        channel.close();
-      } catch (IOException e) {
-        LOGGER.warn("Error closing chunk", e);
-      }
-    }
-
-    @Override
-    public int compareTo(ReaderMmap o) {
-      return next.compareTo(o.next);
-    }
-  }
-
-  private interface Writer extends Closeable {
-
-    void writeLong(long value) throws IOException;
-
-    void writeInt(int value) throws IOException;
-
-    void write(byte[] value) throws IOException;
   }
 
   private static class WriterBuffered implements Writer {
@@ -583,6 +418,171 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  private interface ChunkIterator<T extends ChunkIterator<?>>
-    extends Closeable, Iterator<SortableFeature>, Comparable<T> {}
+  /**
+   * An output segment that can be sorted in ~1GB RAM.
+   */
+  private class Chunk implements Closeable {
+
+    private final Path path;
+    private final Writer writer;
+    // estimate how much RAM it would take to sort this chunk
+    private int bytesInMemory = 0;
+    private int itemCount = 0;
+
+    private Chunk(Path path) {
+      this.path = path;
+      this.writer = newWriter(path);
+    }
+
+    private static void write(Writer out, SortableFeature entry) throws IOException {
+      // feature header
+      out.writeLong(entry.key());
+      out.writeInt(entry.value().length);
+      // value
+      out.write(entry.value());
+    }
+
+    public void add(SortableFeature entry) throws IOException {
+      write(writer, entry);
+      bytesInMemory +=
+        // pointer to feature
+        8 +
+          // Feature class overhead
+          16 +
+          // long sort member of feature
+          8 +
+          // byte array pointer
+          8 +
+          // byte array size
+          24 + entry.value().length;
+      itemCount++;
+    }
+
+    private SortableChunk readAll() {
+      try (var iterator = newReader()) {
+        SortableFeature[] featuresToSort = new SortableFeature[itemCount];
+        int i = 0;
+        while (iterator.hasNext()) {
+          featuresToSort[i] = iterator.next();
+          i++;
+        }
+        if (i != itemCount) {
+          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
+        }
+        return new SortableChunk(featuresToSort);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    private Writer newWriter(Path path) {
+      return mmapIO ? new WriterMmap(path) : new WriterBuffered(path, gzip);
+    }
+
+    private ChunkIterator<?> newReader() {
+      return mmapIO ? new ReaderMmap(path, itemCount) : new ReaderBuffered(path, itemCount, gzip);
+    }
+
+    @Override
+    public void close() throws IOException {
+      writer.close();
+    }
+
+    /**
+     * A container for all features in a chunk read into memory for sorting.
+     */
+    private class SortableChunk {
+
+      private SortableFeature[] featuresToSort;
+
+      private SortableChunk(SortableFeature[] featuresToSort) {
+        this.featuresToSort = featuresToSort;
+      }
+
+      public SortableChunk sort() {
+        Arrays.parallelSort(featuresToSort);
+        return this;
+      }
+
+      public SortableChunk flush() {
+        try (Writer out = newWriter(path)) {
+          for (SortableFeature feature : featuresToSort) {
+            write(out, feature);
+          }
+          featuresToSort = null;
+          return this;
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+    }
+  }
+
+  /**
+   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
+   * merge using a {@link PriorityQueue}.
+   */
+  private static class ReaderMmap implements ChunkIterator<ReaderMmap> {
+    private final int count;
+    private final FileChannel channel;
+    private final MappedByteBuffer input;
+    private int read = 0;
+    private SortableFeature next;
+
+    ReaderMmap(Path path, int count) {
+      this.count = count;
+      try {
+        channel = FileChannel.open(path, StandardOpenOption.READ);
+        input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+        ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
+        next = readNextFeature();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    @Override
+    public boolean hasNext() {
+      return next != null;
+    }
+
+    @Override
+    public SortableFeature next() {
+      SortableFeature current = next;
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      if ((next = readNextFeature()) == null) {
+        close();
+      }
+      return current;
+    }
+
+    private SortableFeature readNextFeature() {
+      if (read < count) {
+        long nextSort = input.getLong();
+        int length = input.getInt();
+        byte[] bytes = new byte[length];
+        input.get(bytes);
+        read++;
+        return new SortableFeature(nextSort, bytes);
+      } else {
+        return null;
+      }
+    }
+
+    @Override
+    public void close() {
+      try {
+        channel.close();
+      } catch (IOException e) {
+        LOGGER.warn("Error closing chunk", e);
+      }
+    }
+
+    @Override
+    public int compareTo(ReaderMmap o) {
+      return next.compareTo(o.next);
+    }
+  }
 }
