@@ -208,6 +208,17 @@ public class Arguments {
     return file;
   }
 
+  /** Returns a {@link Path} parsed from {@code key} argument which may or may not exist. */
+  public Path file(String key, String description) {
+    String value = getArg(key);
+    if (value == null) {
+      throw new IllegalArgumentException("Missing required parameter: " + key + " (" + description + ")");
+    }
+    Path file = Path.of(value);
+    logArgValue(key, description, file);
+    return file;
+  }
+
   /**
    * Returns a {@link Path} parsed from {@code key} argument which must exist for the program to function.
    *
@@ -215,6 +226,19 @@ public class Arguments {
    */
   public Path inputFile(String key, String description, Path defaultValue) {
     Path path = file(key, description, defaultValue);
+    if (!Files.exists(path)) {
+      throw new IllegalArgumentException(path + " does not exist");
+    }
+    return path;
+  }
+
+  /**
+   * Returns a {@link Path} parsed from a required {@code key} argument which must exist for the program to function.
+   *
+   * @throws IllegalArgumentException if the file does not exist or if the parameter is not provided.
+   */
+  public Path inputFile(String key, String description) {
+    Path path = file(key, description);
     if (!Files.exists(path)) {
       throw new IllegalArgumentException(path + " does not exist");
     }

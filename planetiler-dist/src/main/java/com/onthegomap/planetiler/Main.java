@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.basemap.BasemapMain;
 import com.onthegomap.planetiler.basemap.util.VerifyMonaco;
 import com.onthegomap.planetiler.benchmarks.BasemapMapping;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
+import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
@@ -21,6 +22,7 @@ public class Main {
   private static final EntryPoint DEFAULT_TASK = BasemapMain::main;
   private static final Map<String, EntryPoint> ENTRY_POINTS = Map.of(
     "generate-basemap", BasemapMain::main,
+    "generate-custom", ConfiguredMapMain::main,
     "basemap", BasemapMain::main,
     "example-bikeroutes", BikeRouteOverlay::main,
     "example-toilets", ToiletsOverlay::main,

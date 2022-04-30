@@ -84,6 +84,7 @@
   <modules>
     <module>planetiler-core</module>
     <module>planetiler-basemap</module>
+    <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>

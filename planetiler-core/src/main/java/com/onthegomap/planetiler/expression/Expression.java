@@ -239,6 +239,14 @@ public interface Expression {
    */
   boolean evaluate(WithTags input, List<String> matchKeys);
 
+  /**
+   * Returns true if this expression matches an input element.
+   *
+   * @param input the input element
+   * @return true if this expression matches the input element
+   */
+  boolean evaluate(WithTags input);
+
   /** Returns Java code that can be used to reconstruct this expression. */
   String generateJavaCode();
 
@@ -251,6 +259,11 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return value;
+    }
+
+    @Override
+    public boolean evaluate(WithTags input) {
       return value;
     }
   }
@@ -272,6 +285,14 @@ public interface Expression {
       }
       return true;
     }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      return children.stream()
+        .map(child -> !child.evaluate(input))
+        .findFirst()
+        .isPresent();
+    }
   }
 
   record Or(List<Expression> children) implements Expression {
@@ -290,6 +311,21 @@ public interface Expression {
       for (int i = 0; i < size; i++) {
         Expression child = children.get(i);
         if (child.evaluate(input, matchKeys)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      int size = children.size();
+      // Optimization: this method consumes the most time when matching against input elements, and
+      // iterating through this list by index is slightly faster than an enhanced for loop
+      // noinspection ForLoopReplaceableByForEach - for intellij
+      for (int i = 0; i < size; i++) {
+        Expression child = children.get(i);
+        if (child.evaluate(input)) {
           return true;
         }
       }
@@ -326,6 +362,12 @@ public interface Expression {
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      return evaluate(input, null);
+    }
+
   }
 
   /**
@@ -381,6 +423,24 @@ public interface Expression {
     }
 
     @Override
+    public boolean evaluate(WithTags input) {
+      Object value = valueGetter.apply(input, field);
+      if (value == null) {
+        return matchWhenMissing;
+      } else {
+        String str = value.toString();
+        if (exactMatches.contains(str)) {
+          return true;
+        }
+        for (String target : wildcards) {
+          if (str.contains(target)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+
     public String generateJavaCode() {
       // java code generation only needed for the simple cases used by openmaptiles schema generation
       List<String> valueStrings = new ArrayList<>();
@@ -417,6 +477,11 @@ public interface Expression {
       }
       return false;
     }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      return input.hasTag(field);
+    }
   }
 
   /**
@@ -442,6 +507,11 @@ public interface Expression {
       } else {
         return false;
       }
+    }
+
+    @Override
+    public boolean evaluate(WithTags input) {
+      return evaluate(input, null);
     }
   }
 }
