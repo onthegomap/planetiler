@@ -4,7 +4,6 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
-import com.onthegomap.planetiler.custommap.configschema.TagCriteria;
 import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
 import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.expression.Expression;
@@ -151,26 +150,22 @@ public class ConfiguredFeature {
    * @return processing logic
    */
   private BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
-    String tagKey = attribute.key();
+    var tagKey = attribute.key();
     Integer configuredMinZoom = attribute.minZoom();
 
-    int minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
-    Function<SourceFeature, Object> attributeValueProducer = attributeValueProducer(attribute);
+    var minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
+    var attributeValueProducer = attributeValueProducer(attribute);
 
-    TagCriteria attrIncludeWhen = attribute.includeWhen();
-    TagCriteria attrExcludeWhen = attribute.excludeWhen();
+    var attrIncludeWhen = attribute.includeWhen();
+    var attrExcludeWhen = attribute.excludeWhen();
 
-    Expression attributeIncludeTest =
-      attrIncludeWhen == null ? Expression.TRUE : attrIncludeWhen.matcher(tagValueProducer);
-    Expression attributeExcludeTest =
-      attrExcludeWhen == null ? Expression.TRUE : Expression.not(attrExcludeWhen.matcher(tagValueProducer));
+    var attributeTest =
+      Expression.and(
+        attrIncludeWhen == null ? Expression.TRUE : attrIncludeWhen.matcher(tagValueProducer),
+        attrExcludeWhen == null ? Expression.TRUE : Expression.not(attrExcludeWhen.matcher(tagValueProducer))
+      );
 
-    Expression attributeTest = Expression
-      .and(attributeIncludeTest, attributeExcludeTest);
-
-    System.out.println(attributeTest);
-
-    Double minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
+    var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
     Function<SourceFeature, Integer> attributeZoomProducer;
 
     if (minTileCoverage != null && minTileCoverage > 0.0) {
