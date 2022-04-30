@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
@@ -124,6 +125,18 @@ class MultiExpressionTest {
     var index = MultiExpression.of(List.of(
       entry("a", matchField("key"))
     )).index();
+    matchFieldCheck(index);
+  }
+
+  @Test
+  void testDoubleInverseMatchField() {
+    var index = MultiExpression.of(List.of(
+      entry("a", not(not(matchField("key"))))
+    )).index();
+    matchFieldCheck(index);
+  }
+
+  private void matchFieldCheck(Index<String> index) {
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
@@ -132,7 +145,6 @@ class MultiExpressionTest {
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
   }
-
 
   @Test
   void testInverseMatchField() {
