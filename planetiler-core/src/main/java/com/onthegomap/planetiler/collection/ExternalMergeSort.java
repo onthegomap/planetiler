@@ -110,7 +110,7 @@ class ExternalMergeSort implements FeatureSort {
       Files.createDirectories(dir);
       newChunk();
     } catch (IOException e) {
-      throw new IllegalStateException(e);
+      throw new UncheckedIOException(e);
     }
   }
 
@@ -133,7 +133,7 @@ class ExternalMergeSort implements FeatureSort {
         newChunk();
       }
     } catch (IOException e) {
-      throw new IllegalStateException(e);
+      throw new UncheckedIOException(e);
     }
   }
 
@@ -352,7 +352,7 @@ class ExternalMergeSort implements FeatureSort {
           featuresToSort = null;
           return this;
         } catch (IOException e) {
-          throw new IllegalStateException(e);
+          throw new UncheckedIOException(e);
         }
       }
     }
@@ -379,7 +379,7 @@ class ExternalMergeSort implements FeatureSort {
         input = new DataInputStream(inputStream);
         next = readNextFeature();
       } catch (IOException e) {
-        throw new IllegalStateException(e);
+        throw new UncheckedIOException(e);
       }
     }
 
@@ -409,7 +409,7 @@ class ExternalMergeSort implements FeatureSort {
           read++;
           return new SortableFeature(nextSort, bytes);
         } catch (IOException e) {
-          throw new IllegalStateException(e);
+          throw new UncheckedIOException(e);
         }
       } else {
         return null;
@@ -450,30 +450,52 @@ class ExternalMergeSort implements FeatureSort {
         ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
         next = readNextFeature();
       } catch (IOException e) {
-        throw new IllegalStateException(e);
+        throw new UncheckedIOException(e);
       }
     }
 
     @Override
     public boolean hasNext() {
-      return false;
+      return next != null;
     }
 
     @Override
     public SortableFeature next() {
-      return null;
+      SortableFeature current = next;
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      if ((next = readNextFeature()) == null) {
+        close();
+      }
+      return current;
     }
 
     private SortableFeature readNextFeature() {
-      return null;
+      if (read < count) {
+        long nextSort = input.getLong();
+        int length = input.getInt();
+        byte[] bytes = new byte[length];
+        input.get(bytes);
+        read++;
+        return new SortableFeature(nextSort, bytes);
+      } else {
+        return null;
+      }
     }
 
     @Override
-    public void close() {}
+    public void close() {
+      try {
+        channel.close();
+      } catch (IOException e) {
+        LOGGER.warn("Error closing chunk", e);
+      }
+    }
 
     @Override
     public int compareTo(ReaderMmap o) {
-      return 0;
+      return next.compareTo(o.next);
     }
   }
 
@@ -524,46 +546,40 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   private static class WriterMmap implements Writer {
-    private final int count;
     private final FileChannel channel;
-    private final MappedByteBuffer input;
-    private int read = 0;
-    private SortableFeature next;
+    private final MappedByteBuffer buffer;
 
     WriterMmap(Path path) {
-      this.count = count;
       try {
-        channel = FileChannel.open(path, StandardOpenOption.READ);
-        input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-        ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
-        next = readNextFeature();
+        this.channel =
+          FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ);
+        this.buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_CHUNK_SIZE);
+        ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
       } catch (IOException e) {
-        throw new IllegalStateException(e);
+        throw new UncheckedIOException(e);
       }
     }
 
     @Override
     public void close() throws IOException {
-      // TODO
-      out.close();
+      buffer.force();
+      channel.truncate(buffer.position());
+      channel.close();
     }
 
     @Override
-    public void writeLong(long value) throws IOException {
-      // TODO
-      out.writeLong(value);
+    public void writeLong(long value) {
+      buffer.putLong(value);
     }
 
     @Override
-    public void writeInt(int value) throws IOException {
-      // TODO
-      out.writeInt(value);
+    public void writeInt(int value) {
+      buffer.putInt(value);
     }
 
     @Override
-    public void write(byte[] value) throws IOException {
-      // TODO
-      out.write(value);
+    public void write(byte[] value) {
+      buffer.put(value);
     }
   }
 
