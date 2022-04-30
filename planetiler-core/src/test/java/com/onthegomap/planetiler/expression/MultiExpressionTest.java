@@ -133,6 +133,21 @@ class MultiExpressionTest {
     assertSameElements(List.of(), index.getMatches(featureWithTags()));
   }
 
+
+  @Test
+  void testInverseMatchField() {
+    var index = MultiExpression.of(List.of(
+      entry("a", Expression.not(matchField("key")))
+    )).index();
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "no")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags()));
+  }
+
   @Test
   void testStaticBooleanMatch() {
     var index = MultiExpression.of(List.of(entry("t", TRUE))).index();
