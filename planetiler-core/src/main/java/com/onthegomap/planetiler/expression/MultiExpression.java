@@ -68,8 +68,8 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       and.children().forEach(child -> getRelevantKeys(child, acceptKey));
     } else if (exp instanceof Expression.Or or) {
       or.children().forEach(child -> getRelevantKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Not) {
-      // ignore anything that's purely used as a filter
+    } else if (exp instanceof Expression.Not not) {
+      getRelevantMissingKeys(not.child(), acceptKey);
     } else if (exp instanceof Expression.MatchField field) {
       acceptKey.accept(field.field());
     } else if (exp instanceof Expression.MatchAny any) {
@@ -86,8 +86,8 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       and.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
     } else if (exp instanceof Expression.Or or) {
       or.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Not) {
-      // ignore anything that's purely used as a filter
+    } else if (exp instanceof Expression.Not not) {
+      getRelevantKeys(not.child(), acceptKey);
     } else if (exp instanceof Expression.MatchAny any && any.matchWhenMissing()) {
       acceptKey.accept(any.field());
     }
@@ -100,7 +100,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     }
     boolean caresAboutGeometryType =
       expressions.stream().anyMatch(entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
-    return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(this);
+    return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(simplify());
   }
 
   /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
