@@ -69,6 +69,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     } else if (exp instanceof Expression.Or or) {
       or.children().forEach(child -> getRelevantKeys(child, acceptKey));
     } else if (exp instanceof Expression.Not not) {
+      getRelevantKeys(not.child(), acceptKey);
       getRelevantMissingKeys(not.child(), acceptKey);
     } else if (exp instanceof Expression.MatchField field) {
       acceptKey.accept(field.field());
@@ -88,6 +89,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       or.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
     } else if (exp instanceof Expression.Not not) {
       getRelevantKeys(not.child(), acceptKey);
+      getRelevantMissingKeys(not.child(), acceptKey);
     } else if (exp instanceof Expression.MatchAny any && any.matchWhenMissing()) {
       acceptKey.accept(any.field());
     }
