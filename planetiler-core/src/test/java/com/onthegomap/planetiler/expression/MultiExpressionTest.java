@@ -299,6 +299,41 @@ class MultiExpressionTest {
   }
 
   @Test
+  void testNor() {
+    var index = MultiExpression.of(List.of(
+      entry("a", not(or(
+        matchAny("key1", "val1"),
+        matchAny("key2", "val2")
+      )))
+    )).index();
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "val2")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags()));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "no", "key2", "no")));
+  }
+
+  @Test
+  void testNand() {
+    var index = MultiExpression.of(List.of(
+      entry("a", not(and(
+        matchAny("key1", "val1"),
+        matchAny("key2", "val2")
+      )))
+    )).index();
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key1", "val1", "key2", "val2", "key3", "val3")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags()));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "val2")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
+  }
+
+  @Test
   void testXor() {
     var index = MultiExpression.of(List.of(
       entry("a",
