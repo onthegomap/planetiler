@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * Only supports single-threaded writes and reads.
  */
 @NotThreadSafe
-class ExternalMergeSort implements FeatureSort {
+public class ExternalMergeSort implements FeatureSort {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExternalMergeSort.class);
   private static final long MAX_CHUNK_SIZE = 2_000_000_000; // 2GB
@@ -66,6 +66,8 @@ class ExternalMergeSort implements FeatureSort {
   private final int readerLimit;
   private final int writerLimit;
   private final boolean mmapIO;
+  private final boolean parallelSort;
+  private final boolean madvise;
   private Chunk currentChunk;
   private volatile boolean sorted = false;
 
@@ -79,16 +81,20 @@ class ExternalMergeSort implements FeatureSort {
       ),
       config.gzipTempStorage(),
       config.mmapTempStorage(),
+      true,
+      true,
       config,
       stats
     );
   }
 
-  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, boolean mmap, PlanetilerConfig config,
-    Stats stats) {
+  ExternalMergeSort(Path dir, int workers, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
+    boolean madvise, PlanetilerConfig config, Stats stats) {
     this.config = config;
+    this.madvise = madvise;
     this.dir = dir;
     this.stats = stats;
+    this.parallelSort = parallelSort;
     this.chunkSizeLimit = chunkSizeLimit;
     if (gzip && mmap) {
       LOGGER.warn("--gzip-temp option not supported with --mmap-temp, falling back to --gzip-temp=false");
@@ -249,6 +255,10 @@ class ExternalMergeSort implements FeatureSort {
     chunks.add(currentChunk = new Chunk(chunkPath));
   }
 
+  public int chunks() {
+    return chunks.size();
+  }
+
   private interface Writer extends Closeable {
 
     void writeLong(long value) throws IOException;
@@ -380,7 +390,7 @@ class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  private static class WriterMmap implements Writer {
+  private class WriterMmap implements Writer {
     private final FileChannel channel;
     private final MappedByteBuffer buffer;
 
@@ -388,8 +398,10 @@ class ExternalMergeSort implements FeatureSort {
       try {
         this.channel =
           FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ);
-        this.buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_CHUNK_SIZE);
-        ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
+        this.buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, chunkSizeLimit);
+        if (madvise) {
+          ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
+        }
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
@@ -397,7 +409,7 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     public void close() throws IOException {
-      buffer.force();
+      //      buffer.force();
       channel.truncate(buffer.position());
       channel.close();
     }
@@ -500,7 +512,11 @@ class ExternalMergeSort implements FeatureSort {
       }
 
       public SortableChunk sort() {
-        Arrays.parallelSort(featuresToSort);
+        if (parallelSort) {
+          Arrays.parallelSort(featuresToSort);
+        } else {
+          Arrays.sort(featuresToSort);
+        }
         return this;
       }
 
@@ -522,7 +538,7 @@ class ExternalMergeSort implements FeatureSort {
    * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
    * merge using a {@link PriorityQueue}.
    */
-  private static class ReaderMmap implements ChunkIterator<ReaderMmap> {
+  private class ReaderMmap implements ChunkIterator<ReaderMmap> {
     private final int count;
     private final FileChannel channel;
     private final MappedByteBuffer input;
@@ -534,7 +550,9 @@ class ExternalMergeSort implements FeatureSort {
       try {
         channel = FileChannel.open(path, StandardOpenOption.READ);
         input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-        ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
+        if (madvise) {
+          ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
+        }
         next = readNextFeature();
       } catch (IOException e) {
         throw new UncheckedIOException(e);

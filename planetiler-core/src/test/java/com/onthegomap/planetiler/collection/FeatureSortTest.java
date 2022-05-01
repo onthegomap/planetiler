@@ -26,7 +26,8 @@ class FeatureSortTest {
   }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip, boolean mmap) {
-    return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, config, Stats.inMemory());
+    return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, true, true, config,
+      Stats.inMemory());
   }
 
   @Test
