@@ -65,20 +65,36 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     }
   }
 
+  private static boolean mustAlwaysEvaluate(Expression expression) {
+    if (expression instanceof Expression.Or or) {
+      return or.children().stream().anyMatch(MultiExpression::mustAlwaysEvaluate);
+    } else if (expression instanceof Expression.And and) {
+      return and.children().stream().allMatch(MultiExpression::mustAlwaysEvaluate);
+    } else if (expression instanceof Expression.Not not) {
+      return !mustAlwaysEvaluate(not.child());
+    } else if (expression instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+      return true;
+    } else {
+      return TRUE.equals(expression);
+    }
+  }
+
   /** Calls {@code acceptKey} for every tag that could possibly cause {@code exp} to match an input element. */
   private static void getRelevantKeys(Expression exp, Consumer<String> acceptKey) {
-    if (exp instanceof Expression.And and) {
-      and.children().forEach(child -> getRelevantKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Or or) {
-      or.children().forEach(child -> getRelevantKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Not not) {
-      if (not.child()instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+    if (!mustAlwaysEvaluate(exp)) {
+      if (exp instanceof Expression.And and) {
+        and.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      } else if (exp instanceof Expression.Or or) {
+        or.children().forEach(child -> getRelevantKeys(child, acceptKey));
+      } else if (exp instanceof Expression.Not not) {
+        if (not.child()instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+          acceptKey.accept(any.field());
+        }
+      } else if (exp instanceof Expression.MatchField field) {
+        acceptKey.accept(field.field());
+      } else if (exp instanceof Expression.MatchAny any && !any.matchWhenMissing()) {
         acceptKey.accept(any.field());
       }
-    } else if (exp instanceof Expression.MatchField field) {
-      acceptKey.accept(field.field());
-    } else if (exp instanceof Expression.MatchAny any && !any.matchWhenMissing()) {
-      acceptKey.accept(any.field());
     }
   }
 
@@ -242,20 +258,6 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       ));
       keyToExpressionsList = List.copyOf(keyToExpressionsMap.entrySet());
       numExpressions = id;
-    }
-
-    private boolean mustAlwaysEvaluate(Expression expression) {
-      if (expression instanceof Expression.Or or) {
-        return or.children().stream().anyMatch(this::mustAlwaysEvaluate);
-      } else if (expression instanceof Expression.And and) {
-        return and.children().stream().allMatch(this::mustAlwaysEvaluate);
-      } else if (expression instanceof Expression.Not not) {
-        return !mustAlwaysEvaluate(not.child());
-      } else if (expression instanceof Expression.MatchAny any && any.matchWhenMissing()) {
-        return true;
-      } else {
-        return TRUE.equals(expression);
-      }
     }
 
     /** Lookup matches in this index for expressions that match a certain type. */
