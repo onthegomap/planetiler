@@ -19,6 +19,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A list of {@link Expression Expressions} to evaluate on input elements.
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
  */
 public record MultiExpression<T> (List<Entry<T>> expressions) {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
@@ -69,28 +72,12 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     } else if (exp instanceof Expression.Or or) {
       or.children().forEach(child -> getRelevantKeys(child, acceptKey));
     } else if (exp instanceof Expression.Not not) {
-      getRelevantKeys(not.child(), acceptKey);
-      getRelevantMissingKeys(not.child(), acceptKey);
+      if (not.child()instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+        acceptKey.accept(any.field());
+      }
     } else if (exp instanceof Expression.MatchField field) {
       acceptKey.accept(field.field());
-    } else if (exp instanceof Expression.MatchAny any) {
-      acceptKey.accept(any.field());
-    }
-  }
-
-  /**
-   * Calls {@code acceptKey} for every tag that, when missing, could possibly cause {@code exp} to match an input
-   * element.
-   */
-  private static void getRelevantMissingKeys(Expression exp, Consumer<String> acceptKey) {
-    if (exp instanceof Expression.And and) {
-      and.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Or or) {
-      or.children().forEach(child -> getRelevantMissingKeys(child, acceptKey));
-    } else if (exp instanceof Expression.Not not) {
-      getRelevantKeys(not.child(), acceptKey);
-      getRelevantMissingKeys(not.child(), acceptKey);
-    } else if (exp instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+    } else if (exp instanceof Expression.MatchAny any && !any.matchWhenMissing()) {
       acceptKey.accept(any.field());
     }
   }
@@ -222,39 +209,53 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     private final Map<String, List<EntryWithId<T>>> keyToExpressionsMap;
     // same as keyToExpressionsMap but as a list (optimized for iteration when # source feature keys > # tags we care about)
     private final List<Map.Entry<String, List<EntryWithId<T>>>> keyToExpressionsList;
-    // expressions that should match when certain tags are *not* present on an input element
-    private final List<Map.Entry<String, List<EntryWithId<T>>>> missingKeyToExpressionList;
-    // expressions that match a constant true input element
-    private final List<EntryWithId<T>> constantTrueExpressionList;
+    // expressions that must always be evaluated on each input element
+    private final List<EntryWithId<T>> alwaysEvaluateExpressionList;
 
     private KeyIndex(MultiExpression<T> expressions) {
       int id = 1;
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
-      Map<String, Set<EntryWithId<T>>> missingKeyToExpressions = new HashMap<>();
-      List<EntryWithId<T>> constants = new ArrayList<>();
+      List<EntryWithId<T>> always = new ArrayList<>();
 
       for (var entry : expressions.expressions) {
         Expression expression = entry.expression;
         EntryWithId<T> expressionValue = new EntryWithId<>(entry.result, expression, id++);
-        getRelevantKeys(expression,
-          key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
-        getRelevantMissingKeys(expression,
-          key -> missingKeyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
-        if (expression.equals(TRUE)) {
-          constants.add(expressionValue);
+        if (mustAlwaysEvaluate(expression)) {
+          always.add(expressionValue);
+        } else {
+          getRelevantKeys(expression,
+            key -> keyToExpressions.computeIfAbsent(key, k -> new HashSet<>()).add(expressionValue));
         }
       }
       // create immutable copies for fast iteration at matching time
-      constantTrueExpressionList = List.copyOf(constants);
+      if (!always.isEmpty()) {
+        LOGGER.warn("{} expressions will be evaluated for every element:", always.size());
+        for (var expression : always) {
+          LOGGER.warn("    {}", expression.expression.generateJavaCode());
+        }
+      }
+      alwaysEvaluateExpressionList = List.copyOf(always);
       keyToExpressionsMap = keyToExpressions.entrySet().stream().collect(Collectors.toUnmodifiableMap(
         Map.Entry::getKey,
         entry -> entry.getValue().stream().toList()
       ));
       keyToExpressionsList = List.copyOf(keyToExpressionsMap.entrySet());
-      missingKeyToExpressionList = missingKeyToExpressions.entrySet().stream()
-        .map(entry -> Map.entry(entry.getKey(), entry.getValue().stream().toList())).toList();
       numExpressions = id;
+    }
+
+    private boolean mustAlwaysEvaluate(Expression expression) {
+      if (expression instanceof Expression.Or or) {
+        return or.children().stream().anyMatch(this::mustAlwaysEvaluate);
+      } else if (expression instanceof Expression.And and) {
+        return and.children().stream().allMatch(this::mustAlwaysEvaluate);
+      } else if (expression instanceof Expression.Not not) {
+        return !mustAlwaysEvaluate(not.child());
+      } else if (expression instanceof Expression.MatchAny any && any.matchWhenMissing()) {
+        return true;
+      } else {
+        return TRUE.equals(expression);
+      }
     }
 
     /** Lookup matches in this index for expressions that match a certain type. */
@@ -262,14 +263,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
       List<Match<T>> result = new ArrayList<>();
       boolean[] visited = new boolean[numExpressions];
-      for (var entry : constantTrueExpressionList) {
-        result.add(new Match<>(entry.result, List.of(), entry.id));
-      }
-      for (var entry : missingKeyToExpressionList) {
-        if (!input.hasTag(entry.getKey())) {
-          visitExpressions(input, result, visited, entry.getValue());
-        }
-      }
+      visitExpressions(input, result, visited, alwaysEvaluateExpressionList);
       Map<String, Object> tags = input.tags();
       if (tags.size() < keyToExpressionsMap.size()) {
         for (String inputKey : tags.keySet()) {
