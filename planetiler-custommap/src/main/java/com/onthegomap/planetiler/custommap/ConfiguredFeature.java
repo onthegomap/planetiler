@@ -164,7 +164,7 @@ public class ConfiguredFeature {
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE : attrIncludeWhen.matcher(tagValueProducer),
         attrExcludeWhen == null ? Expression.TRUE : Expression.not(attrExcludeWhen.matcher(tagValueProducer))
-      );
+      ).simplify(); //TODO figure out why this makes it work
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
     Function<SourceFeature, Integer> attributeZoomProducer;
