@@ -20,6 +20,10 @@ public class TagCriteria extends HashMap<String, Object> {
    */
   public Expression matcher(TagValueProducer tagValueProducer) {
 
+    if (isEmpty()) {
+      return Expression.TRUE;
+    }
+
     List<Expression> tagExpressions = new ArrayList<>();
 
     entrySet()
@@ -37,7 +41,6 @@ public class TagCriteria extends HashMap<String, Object> {
               Expression.matchAny(entry.getKey(), entry.getValue().toString()));
           }
         });
-
 
     return Expression.or(tagExpressions);
   }
