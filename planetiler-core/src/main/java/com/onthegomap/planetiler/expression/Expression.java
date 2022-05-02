@@ -151,6 +151,8 @@ public interface Expression {
         return FALSE;
       } else if (not.child == FALSE) {
         return TRUE;
+      } else if (not.child instanceof MatchAny any && any.values.equals(List.of(""))) {
+        return matchField(any.field);
       }
       return not;
     } else if (expression instanceof Or or) {
