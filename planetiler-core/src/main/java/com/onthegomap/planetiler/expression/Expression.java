@@ -306,17 +306,7 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      int size = children.size();
-      // Optimization: this method consumes the most time when matching against input elements, and
-      // iterating through this list by index is slightly faster than an enhanced for loop
-      // noinspection ForLoopReplaceableByForEach - for intellij
-      for (int i = 0; i < size; i++) {
-        Expression child = children.get(i);
-        if (child.evaluate(input, matchKeys)) {
-          return true;
-        }
-      }
-      return false;
+      return evaluate(input);
     }
 
     @Override
@@ -362,12 +352,12 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      return !child.evaluate(input, new ArrayList<>());
+      return evaluate(input);
     }
 
     @Override
     public boolean evaluate(WithTags input) {
-      return evaluate(input, null);
+      return !child.evaluate(input);
     }
 
   }
@@ -498,6 +488,11 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
+      return evaluate(input);
+    }
+
+    @Override
+    public boolean evaluate(WithTags input) {
       if (input instanceof SourceFeature sourceFeature) {
         return switch (type) {
           case LINESTRING_TYPE -> sourceFeature.canBeLine();
@@ -509,11 +504,6 @@ public interface Expression {
       } else {
         return false;
       }
-    }
-
-    @Override
-    public boolean evaluate(WithTags input) {
-      return evaluate(input, null);
     }
   }
 }
