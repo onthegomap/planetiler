@@ -36,7 +36,6 @@ public class TagCriteria extends HashMap<String, Object> {
             tagExpressions.add(
               Expression.matchAny(entry.getKey(), values.stream().map(Object::toString).collect(Collectors.toList())));
           } else {
-            System.out.println("Compare " + entry.getKey() + "=" + entry.getValue().toString());
             tagExpressions.add(
               Expression.matchAny(entry.getKey(), entry.getValue().toString()));
           }
