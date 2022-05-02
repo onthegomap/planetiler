@@ -179,7 +179,7 @@ public interface Expression {
         .map(Expression::simplifyOnce).toList());
     } else if (expression instanceof And and) {
       if (and.children.isEmpty()) {
-        return FALSE;
+        return TRUE;
       }
       if (and.children.size() == 1) {
         return simplifyOnce(and.children.get(0));
@@ -187,15 +187,10 @@ public interface Expression {
       if (and.children.contains(FALSE)) {
         return FALSE;
       }
-      if (and.children.contains(TRUE)) {
-        // since and() == FALSE but and(TRUE) == and(TRUE, TRUE) == TRUE, don't remove the last TRUE
-        var filteredChildren = and.children.stream().filter(child -> child != TRUE).toList();
-        return filteredChildren.isEmpty() ? TRUE : and(filteredChildren);
-      }
       return and(and.children.stream()
         // hoist children
         .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
-        // and() == FALSE but and(TRUE) == TRUE so can't remove TRUEs here
+        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
         .map(Expression::simplifyOnce).toList());
     } else {
       return expression;

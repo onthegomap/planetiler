@@ -104,12 +104,24 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
 
   /** Returns an optimized index for matching {@link #expressions()} against each input element. */
   public Index<T> index() {
+    return index(false);
+  }
+
+  /**
+   * Same as {@link #index()} but logs a warning when there are degenerate expressions that must be evaluated on every
+   * input.
+   */
+  public Index<T> indexAndWarn() {
+    return index(true);
+  }
+
+  private Index<T> index(boolean warn) {
     if (expressions.isEmpty()) {
       return new EmptyIndex<>();
     }
     boolean caresAboutGeometryType =
       expressions.stream().anyMatch(entry -> entry.expression.contains(exp -> exp instanceof Expression.MatchType));
-    return caresAboutGeometryType ? new GeometryTypeIndex<>(this) : new KeyIndex<>(simplify());
+    return caresAboutGeometryType ? new GeometryTypeIndex<>(this, warn) : new KeyIndex<>(simplify(), warn);
   }
 
   /** Returns a copy of this multi-expression that replaces every expression using {@code mapper}. */
@@ -232,7 +244,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     // expressions that must always be evaluated on each input element
     private final List<EntryWithId<T>> alwaysEvaluateExpressionList;
 
-    private KeyIndex(MultiExpression<T> expressions) {
+    private KeyIndex(MultiExpression<T> expressions, boolean warn) {
       int id = 1;
       // build the indexes
       Map<String, Set<EntryWithId<T>>> keyToExpressions = new HashMap<>();
@@ -249,10 +261,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
         }
       }
       // create immutable copies for fast iteration at matching time
-      if (!always.isEmpty()) {
+      if (warn && !always.isEmpty()) {
         LOGGER.warn("{} expressions will be evaluated for every element:", always.size());
         for (var expression : always) {
-          LOGGER.warn("    {}", expression.expression.generateJavaCode());
+          LOGGER.warn("    {}: {}", expression.result, expression.expression);
         }
       }
       alwaysEvaluateExpressionList = List.copyOf(always);
@@ -293,19 +305,22 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     private final KeyIndex<T> lineIndex;
     private final KeyIndex<T> polygonIndex;
 
-    private GeometryTypeIndex(MultiExpression<T> expressions) {
+    private GeometryTypeIndex(MultiExpression<T> expressions, boolean warn) {
       // build an index per type then search in each of those indexes based on the geometry type of each input element
       // this narrows the search space substantially, improving matching performance
-      pointIndex = indexForType(expressions, Expression.POINT_TYPE);
-      lineIndex = indexForType(expressions, Expression.LINESTRING_TYPE);
-      polygonIndex = indexForType(expressions, Expression.POLYGON_TYPE);
+      pointIndex = indexForType(expressions, Expression.POINT_TYPE, warn);
+      lineIndex = indexForType(expressions, Expression.LINESTRING_TYPE, warn);
+      polygonIndex = indexForType(expressions, Expression.POLYGON_TYPE, warn);
     }
 
-    private KeyIndex<T> indexForType(MultiExpression<T> expressions, String type) {
-      return new KeyIndex<>(expressions
-        .replace(matchType(type), TRUE)
-        .replace(e -> e instanceof Expression.MatchType, FALSE)
-        .simplify());
+    private KeyIndex<T> indexForType(MultiExpression<T> expressions, String type, boolean warn) {
+      return new KeyIndex<>(
+        expressions
+          .replace(matchType(type), TRUE)
+          .replace(e -> e instanceof Expression.MatchType, FALSE)
+          .simplify(),
+        warn
+      );
     }
 
     /**
