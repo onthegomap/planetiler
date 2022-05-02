@@ -65,6 +65,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     }
   }
 
+  /**
+   * Returns true if {@code expression} only contains "not filter" so we can't limit evaluating this expression to only
+   * when a particular key is present on the input.
+   */
   private static boolean mustAlwaysEvaluate(Expression expression) {
     if (expression instanceof Expression.Or or) {
       return or.children().stream().anyMatch(MultiExpression::mustAlwaysEvaluate);
