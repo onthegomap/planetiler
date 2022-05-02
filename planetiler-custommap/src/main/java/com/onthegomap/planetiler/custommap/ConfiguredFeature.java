@@ -61,9 +61,10 @@ public class ConfiguredFeature {
     geometryFactory = geometryMapFeature(layerName, geometryType);
 
     //Configure logic for each attribute in the output tile
-    feature.attributes().forEach(attribute -> {
-      attributeProcessors.add(attributeProcessor(attribute));
-    });
+    feature.attributes()
+      .stream()
+      .map(this::attributeProcessor)
+      .forEach(attributeProcessors::add);
   }
 
   /**
