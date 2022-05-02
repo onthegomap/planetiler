@@ -573,6 +573,40 @@ class MultiExpressionTest {
     });
   }
 
+  void testAndOrMatch() {
+    var expr = and(
+      or(
+        matchAny("key", "val")
+      ),
+      TRUE
+    );
+    var index = MultiExpression.of(List.of(entry("a", expr))).index();
+
+    //Ensure MultiExpression and regular Expression work the same
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "val")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "val", "otherkey", "otherval")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("otherkey", "otherval")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "otherval")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+
+    var list = new ArrayList<String>();
+
+    assertTrue(expr.evaluate(featureWithTags("key", "val"), list));
+    assertTrue(expr.evaluate(featureWithTags("key", "val", "otherkey", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags("otherkey", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags("key", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags(), list));
+
+    expr.simplify();
+
+    //Ensure Expression works the same after a simplify
+    assertTrue(expr.evaluate(featureWithTags("key", "val"), list));
+    assertTrue(expr.evaluate(featureWithTags("key", "val", "otherkey", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags("otherkey", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags("key", "otherval"), list));
+    assertFalse(expr.evaluate(featureWithTags(), list));
+  }
+
   private static <T> void assertSameElements(List<T> a, List<T> b) {
     assertEquals(
       a.stream().sorted(Comparator.comparing(Object::toString)).toList(),
