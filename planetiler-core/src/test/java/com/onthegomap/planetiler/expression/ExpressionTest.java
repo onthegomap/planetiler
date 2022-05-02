@@ -81,6 +81,24 @@ class ExpressionTest {
   }
 
   @Test
+  void testSimplifyAndCases() {
+    assertEquals(TRUE, and(TRUE).simplify());
+    assertEquals(TRUE, and(TRUE, TRUE).simplify());
+    assertEquals(TRUE, and(and(TRUE)).simplify());
+    assertEquals(TRUE, and(and(TRUE), TRUE).simplify());
+    assertEquals(TRUE, and(TRUE, and(TRUE), TRUE).simplify());
+    assertEquals(matchAB, and(TRUE, and(TRUE), matchAB).simplify());
+  }
+
+  @Test
+  void testSimplifyOrCases() {
+    assertEquals(FALSE, or(or(FALSE)).simplify());
+    assertEquals(FALSE, or(or(FALSE), FALSE).simplify());
+    assertEquals(FALSE, or(FALSE, or(FALSE), FALSE).simplify());
+    assertEquals(matchAB, or(FALSE, or(FALSE), matchAB).simplify());
+  }
+
+  @Test
   void testReplace() {
     assertEquals(
       or(not(matchCD), matchCD, and(matchCD, matchBC)),
