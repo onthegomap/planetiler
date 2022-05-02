@@ -552,6 +552,27 @@ class MultiExpressionTest {
     });
   }
 
+  @Test
+  void testMatchNotMissing() {
+    //Test logic: match if key1 is present (not missing)
+    var index1 = MultiExpression.of(List.of(
+      entry("a", matchField("key1"))
+    )).index();
+
+    var index2 = MultiExpression.of(List.of(
+      entry("a", not(
+        matchAny("key1", "")
+      ))
+    )).index();
+
+    List.of(index1, index2).forEach(index -> {
+      assertSameElements(List.of(), index.getMatches(featureWithTags()));
+      assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "value1")));
+      assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value2")));
+      assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "value1", "key2", "value2")));
+    });
+  }
+
   private static <T> void assertSameElements(List<T> a, List<T> b) {
     assertEquals(
       a.stream().sorted(Comparator.comparing(Object::toString)).toList(),
