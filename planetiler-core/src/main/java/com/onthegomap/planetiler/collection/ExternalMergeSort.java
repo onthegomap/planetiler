@@ -598,6 +598,11 @@ public class ExternalMergeSort implements FeatureSort {
       } catch (IOException e) {
         LOGGER.warn("Error closing chunk", e);
       }
+      try {
+        ByteBufferUtil.free(input);
+      } catch (IOException e) {
+        LOGGER.info("Unable to unmap chunk", e);
+      }
     }
   }
 }
