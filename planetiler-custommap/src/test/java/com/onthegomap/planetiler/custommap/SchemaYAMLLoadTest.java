@@ -18,7 +18,7 @@ class SchemaYAMLLoadTest {
   @Test
   void testSchemaLoad() throws IOException {
     testSchemasInFolder(Paths.get("src", "main", "resources", "samples"));
-    testSchemasInFolder(Paths.get("src", "test", "resources"));
+    testSchemasInFolder(Paths.get("src", "test", "resources", "validSchema"));
   }
 
   private void testSchemasInFolder(Path path) throws IOException {

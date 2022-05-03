@@ -24,13 +24,10 @@ layers:
       natural: water
     attributes:
     - key: natural
-      constantValue: water
     - key: intermittent
-      tagValue: intermittent
       includeWhen:
         intermittent: true
     - key: name
-      tagValue: name
       minTileCoverSize: 0.01
       includeWhen:
       excludeWhen:
@@ -61,13 +58,10 @@ layers:
         - canal
     attributes:
     - key: waterway
-      tagValue: waterway
     - key: intermittent
-      tagValue: intermittent
       includeWhen:
         intermittent: true
     - key: name
-      tagValue: name
       minZoom: 12
 - name: road
   features:
@@ -126,25 +120,19 @@ layers:
         minZoom: 13
     attributes:
     - key: highway
-      tagValue: highway
     - key: bridge
-      constantValue: true
       includeWhen:
         bridge: true
       minZoom: 11
     - key: tunnel
-      constantValue: true
       includeWhen:
         bridge: true
       minZoom: 11
     - key: service
-      tagValue: service
       includeWhen:
         highway: service
       minZoom: 13
     - key: name
-      tagValue: name
       minZoom: 12
     - key: layer
-      tagValue: layer
       minZoom: 13

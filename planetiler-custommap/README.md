@@ -60,7 +60,7 @@ Specifies tag-based rules for setting the zoom range for a feature.
 
 * `key` - Name of this attribute in the tile.
 * `constantValue` - Value of the attribute in the tile, as a constant
-* `tagValue` - Value of the attribute in the tile, as copied from the value of the specified tag key.
+* `tagValue` - Value of the attribute in the tile, as copied from the value of the specified tag key.  If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)
 * `includeWhen` - A filter specification which determines whether to include this attribute.  If unspecified, the attribute will be included unless excluded by `excludeWhen`.  See [Tag Filters](#tag-filters)
 * `excludeWhen` - A filter specification which determines whether to exclude this attribute.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `minZoom` - The minimum zoom at which to render this attribute.

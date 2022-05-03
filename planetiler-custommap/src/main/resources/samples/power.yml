@@ -19,13 +19,9 @@ layers:
       - pole
     attributes:
     - key: power
-      constantValue: pole
     - key: ref
-      tagValue: ref
     - key: height
-      tagValue: height
     - key: operator
-      tagValue: operator
   - sources:
     - osm
     geometry: line
@@ -36,10 +32,6 @@ layers:
       - line
     attributes:
     - key: power
-      tagValue: line
     - key: voltage
-      tagValue: voltage
     - key: cables
-      tagValue: cables
     - key: operator
-      tagValue: operator

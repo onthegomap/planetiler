@@ -23,11 +23,8 @@ layers:
     - key: highway
       tagValue: area:highway
     - key: layer
-      tagValue: layer
     - key: surface
-      tagValue: surface
     - key: bridge
-      tagValue: bridge
   - sources:
     - osm
     geometry: polygon
@@ -39,6 +36,4 @@ layers:
     - key: man_made
       constantValue: bridge
     - key: layer
-      tagValue: layer
     - key: surface
-      tagValue: surface

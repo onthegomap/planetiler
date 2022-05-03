@@ -124,7 +124,9 @@ public class ConfiguredFeature {
     if (tagVal != null) {
       return tagValueProducer.getValueProducer(tagVal);
     }
-    throw new IllegalArgumentException("No value producer specified");
+
+    //Default to producing a tag identical to the input
+    return tagValueProducer.getValueProducer(attribute.key());
   }
 
   /**

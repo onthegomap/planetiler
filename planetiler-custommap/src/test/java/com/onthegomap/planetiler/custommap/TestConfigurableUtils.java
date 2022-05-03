@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 class TestConfigurableUtils {
   static Path pathToTestResource(String resource) {
-    return resolve(Path.of("planetiler-custommap", "src", "test", "resources", resource));
+    return resolve(Path.of("planetiler-custommap", "src", "test", "resources", "validSchema", resource));
   }
 
   static Path pathToTestInvalidResource(String resource) {

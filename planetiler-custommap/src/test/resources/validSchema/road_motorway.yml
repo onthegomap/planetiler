@@ -25,9 +25,7 @@ layers:
       highway: motorway
     attributes:
     - key: highway
-      tagValue: highway
     - key: bridge
-      tagValue: bridge
       includeWhen:
         bridge: true
       minZoom: 11
@@ -37,8 +35,6 @@ layers:
         tunnel: true
       minZoom: 11
     - key: name
-      tagValue: name
       minZoom: 12
     - key: layer
-      tagValue: layer
       minZoom: 13
