@@ -1,0 +1,45 @@
+schemaName: Power features
+schemaDescription: Features that represent electrical power grid
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
+  OpenStreetMap contributors</a>
+sources:
+  osm:
+    type: osm
+    url: geofabrik:new-jersey
+layers:
+- name: power
+  features:
+  - sources:
+    - osm
+    geometry: point
+    zoom:
+      minZoom: 13
+    includeWhen:
+      power:
+      - pole
+    attributes:
+    - key: power
+      constantValue: pole
+    - key: ref
+      tagValue: ref
+    - key: height
+      tagValue: height
+    - key: operator
+      tagValue: operator
+  - sources:
+    - osm
+    geometry: line
+    zoom:
+      minZoom: 12
+    includeWhen:
+      power:
+      - line
+    attributes:
+    - key: power
+      tagValue: line
+    - key: voltage
+      tagValue: voltage
+    - key: cables
+      tagValue: cables
+    - key: operator
+      tagValue: operator
