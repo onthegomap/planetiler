@@ -201,16 +201,12 @@ public class ConfiguredFeature {
    * @return geometry factory method
    */
   private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, GeometryType type) {
-    switch (type) {
-      case POLYGON:
-        return fc -> fc.polygon(layerName);
-      case LINE:
-        return fc -> fc.line(layerName);
-      case POINT:
-        return fc -> fc.point(layerName);
-      default:
-        throw new IllegalArgumentException("Unhandled geometry type " + type);
-    }
+    return switch (type) {
+      case POLYGON -> fc -> fc.polygon(layerName);
+      case LINE -> fc -> fc.line(layerName);
+      case POINT -> fc -> fc.point(layerName);
+      default -> throw new IllegalArgumentException("Unhandled geometry type " + type);
+    };
   }
 
   /**
