@@ -143,7 +143,7 @@ public class ConfiguredFeature {
         return 14;
       }
     };
-  };
+  }
 
   /**
    * Generates a function which produces a fully-configured attribute for a feature.
