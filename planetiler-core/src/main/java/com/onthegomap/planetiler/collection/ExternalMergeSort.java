@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.Deflater;
@@ -69,6 +71,7 @@ public class ExternalMergeSort implements FeatureSort {
   private final boolean mmapIO;
   private final boolean parallelSort;
   private final boolean madvise;
+  private final AtomicBoolean madviseFailed = new AtomicBoolean(false);
   private Chunk currentChunk;
   private volatile boolean sorted = false;
 
@@ -260,6 +263,16 @@ public class ExternalMergeSort implements FeatureSort {
     return chunks.size();
   }
 
+  private void tryMadviseSequential(ByteBuffer buffer) {
+    try {
+      ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
+    } catch (IOException e) {
+      if (madviseFailed.compareAndSet(false, true)) { // log once
+        LOGGER.info("madvise not available on this system to speed up temporary feature IO.");
+      }
+    }
+  }
+
   private interface Writer extends Closeable {
 
     void writeLong(long value) throws IOException;
@@ -371,6 +384,35 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  /** Common functionality between {@link ReaderMmap} and {@link ReaderBuffered}. */
+  private abstract static class BaseReader<T extends BaseReader<?>> implements Reader<T> {
+    SortableFeature next;
+
+    @Override
+    public final boolean hasNext() {
+      return next != null;
+    }
+
+    @Override
+    public final SortableFeature next() {
+      SortableFeature current = next;
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      if ((next = readNextFeature()) == null) {
+        close();
+      }
+      return current;
+    }
+
+    @Override
+    public final int compareTo(T o) {
+      return next.compareTo(o.next);
+    }
+
+    abstract SortableFeature readNextFeature();
+  }
+
   /** Write features to the chunk file through a memory-mapped file. */
   private class WriterMmap implements Writer {
     private final FileChannel channel;
@@ -382,7 +424,7 @@ public class ExternalMergeSort implements FeatureSort {
           FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ);
         this.buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, chunkSizeLimit);
         if (madvise) {
-          ByteBufferUtil.posixMadvise(buffer, ByteBufferUtil.Madvice.SEQUENTIAL);
+          tryMadviseSequential(buffer);
         }
       } catch (IOException e) {
         throw new UncheckedIOException(e);
@@ -513,35 +555,6 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  /** Common functionality between {@link ReaderMmap} and {@link ReaderBuffered}. */
-  private abstract static class BaseReader<T extends BaseReader<?>> implements Reader<T> {
-    SortableFeature next;
-
-    @Override
-    public final boolean hasNext() {
-      return next != null;
-    }
-
-    @Override
-    public final SortableFeature next() {
-      SortableFeature current = next;
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      if ((next = readNextFeature()) == null) {
-        close();
-      }
-      return current;
-    }
-
-    @Override
-    public final int compareTo(T o) {
-      return next.compareTo(o.next);
-    }
-
-    abstract SortableFeature readNextFeature();
-  }
-
   /** Memory-map the chunk file, then iterate through all features in it. */
   private class ReaderMmap extends BaseReader<ReaderMmap> {
     private final int count;
@@ -556,7 +569,7 @@ public class ExternalMergeSort implements FeatureSort {
         input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
         if (madvise) {
           // give the OS a hint that pages will be read sequentially so it can read-ahead and drop as soon as we're done
-          ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
+          tryMadviseSequential(input);
         }
         next = readNextFeature();
       } catch (IOException e) {
