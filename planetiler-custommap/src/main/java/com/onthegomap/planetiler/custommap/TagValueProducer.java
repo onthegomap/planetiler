@@ -38,19 +38,12 @@ public class TagValueProducer {
   }
 
   public Function<WithTags, Object> getValueProducer(String key) {
-    if (typeMap.containsKey(key)) {
-      String dataType = typeMap.get(key);
-      switch (dataType) {
-        case BOOLEAN_DATATYPE:
-          return sf -> sf.getBoolean(key);
-        case DIRECTION_DATATYPE:
-          return sf -> sf.getDirection(key);
-        case LONG_DATATYPE:
-          return sf -> sf.getLong(key);
-        case STRING_DATATYPE:
-          return sf -> sf.getString(key);
-      }
-    }
-    return sf -> sf.getTag(key);
+    return switch (typeMap.get(key)) {
+      case BOOLEAN_DATATYPE -> sf -> sf.getBoolean(key);
+      case DIRECTION_DATATYPE -> sf -> sf.getDirection(key);
+      case LONG_DATATYPE -> sf -> sf.getLong(key);
+      case STRING_DATATYPE -> sf -> sf.getString(key);
+      default -> sf -> sf.getTag(key);
+    };
   }
 }
