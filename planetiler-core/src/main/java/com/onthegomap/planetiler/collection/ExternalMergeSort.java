@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * Only supports single-threaded writes and reads.
  */
 @NotThreadSafe
-public class ExternalMergeSort implements FeatureSort {
+class ExternalMergeSort implements FeatureSort {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExternalMergeSort.class);
   private static final long MAX_CHUNK_SIZE = 2_000_000_000; // 2GB
@@ -274,12 +274,7 @@ public class ExternalMergeSort implements FeatureSort {
   }
 
   private interface Writer extends Closeable {
-
-    void writeLong(long value) throws IOException;
-
-    void writeInt(int value) throws IOException;
-
-    void write(byte[] value) throws IOException;
+    void write(SortableFeature feature) throws IOException;
   }
 
   private interface Reader<T extends Reader<?>>
@@ -369,18 +364,10 @@ public class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public void writeLong(long value) throws IOException {
-      out.writeLong(value);
-    }
-
-    @Override
-    public void writeInt(int value) throws IOException {
-      out.writeInt(value);
-    }
-
-    @Override
-    public void write(byte[] value) throws IOException {
-      out.write(value);
+    public void write(SortableFeature feature) throws IOException {
+      out.writeLong(feature.key());
+      out.writeInt(feature.value().length);
+      out.write(feature.value());
     }
   }
 
@@ -439,19 +426,12 @@ public class ExternalMergeSort implements FeatureSort {
       channel.close();
     }
 
-    @Override
-    public void writeLong(long value) {
-      buffer.putLong(value);
-    }
 
     @Override
-    public void writeInt(int value) {
-      buffer.putInt(value);
-    }
-
-    @Override
-    public void write(byte[] value) {
-      buffer.put(value);
+    public void write(SortableFeature feature) throws IOException {
+      buffer.putLong(feature.key());
+      buffer.putInt(feature.value().length);
+      buffer.put(feature.value());
     }
   }
 
@@ -471,16 +451,8 @@ public class ExternalMergeSort implements FeatureSort {
       this.writer = newWriter(path);
     }
 
-    private static void write(Writer out, SortableFeature entry) throws IOException {
-      // feature header
-      out.writeLong(entry.key());
-      out.writeInt(entry.value().length);
-      // value
-      out.write(entry.value());
-    }
-
     public void add(SortableFeature entry) throws IOException {
-      write(writer, entry);
+      writer.write(entry);
       bytesInMemory +=
         // pointer to feature
         8 +
@@ -546,7 +518,7 @@ public class ExternalMergeSort implements FeatureSort {
       public SortableChunk flush() {
         try (Writer out = newWriter(path)) {
           for (SortableFeature feature : featuresToSort) {
-            write(out, feature);
+            out.write(feature);
           }
           featuresToSort = null;
           return this;
@@ -596,14 +568,14 @@ public class ExternalMergeSort implements FeatureSort {
     @Override
     public void close() {
       try {
-        channel.close();
-      } catch (IOException e) {
-        LOGGER.warn("Error closing chunk", e);
-      }
-      try {
         ByteBufferUtil.free(buffer);
       } catch (IOException e) {
         LOGGER.info("Unable to unmap chunk", e);
+      }
+      try {
+        channel.close();
+      } catch (IOException e) {
+        LOGGER.warn("Error closing chunk", e);
       }
     }
   }
