@@ -288,10 +288,12 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input) {
-      return children.stream()
-        .filter(child -> !child.evaluate(input))
-        .findFirst()
-        .isEmpty();
+      for (Expression child : children) {
+        if (!child.evaluate(input)) {
+          return false;
+        }
+      }
+      return true;
     }
   }
 
