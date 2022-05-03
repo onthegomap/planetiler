@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -13,12 +13,12 @@ public class TagValueProducer {
   static final String DIRECTION_DATATYPE = "direction";
   static final String LONG_DATATYPE = "long";
 
-  static final Map<String, BiFunction<SourceFeature, String, Object>> dataTypeGetter =
+  static final Map<String, BiFunction<WithTags, String, Object>> dataTypeGetter =
     Collections.unmodifiableMap(Map.of(
-      STRING_DATATYPE, SourceFeature::getString,
-      BOOLEAN_DATATYPE, SourceFeature::getBoolean,
-      DIRECTION_DATATYPE, SourceFeature::getDirection,
-      LONG_DATATYPE, SourceFeature::getLong
+      STRING_DATATYPE, WithTags::getString,
+      BOOLEAN_DATATYPE, WithTags::getBoolean,
+      DIRECTION_DATATYPE, WithTags::getDirection,
+      LONG_DATATYPE, WithTags::getLong
     ));
 
   private final Map<String, String> typeMap;
@@ -32,7 +32,12 @@ public class TagValueProducer {
     typeMap = map;
   }
 
-  public Function<SourceFeature, Object> getValueProducer(String key) {
+  public BiFunction<WithTags, String, Object> getValueGetter(String key) {
+    var dataType = typeMap.get(key);
+    return dataTypeGetter.get(dataType == null ? "string" : dataType);
+  }
+
+  public Function<WithTags, Object> getValueProducer(String key) {
     if (typeMap.containsKey(key)) {
       String dataType = typeMap.get(key);
       switch (dataType) {

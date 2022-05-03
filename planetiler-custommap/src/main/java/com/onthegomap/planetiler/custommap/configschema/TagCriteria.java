@@ -34,10 +34,16 @@ public class TagCriteria extends HashMap<String, Object> {
             Collection<?> values =
               (Collection<?>) entry.getValue();;
             tagExpressions.add(
-              Expression.matchAny(entry.getKey(), values.stream().map(Object::toString).collect(Collectors.toList())));
+              Expression.matchAnyTyped(
+                entry.getKey(),
+                tagValueProducer.getValueGetter(entry.getKey()),
+                values.stream().map(Object::toString).collect(Collectors.toList())));
           } else {
             tagExpressions.add(
-              Expression.matchAny(entry.getKey(), entry.getValue().toString()));
+              Expression.matchAnyTyped(
+                entry.getKey(),
+                tagValueProducer.getValueGetter(entry.getKey()),
+                entry.getValue().toString()));
           }
         });
 

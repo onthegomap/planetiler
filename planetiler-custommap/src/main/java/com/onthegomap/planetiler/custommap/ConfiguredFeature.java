@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -112,7 +113,7 @@ public class ConfiguredFeature {
    * @return a function that generates an attribute value from a {@link SourceFeature} based on an attribute
    *         configuration.
    */
-  private Function<SourceFeature, Object> attributeValueProducer(AttributeDefinition attribute) {
+  private Function<WithTags, Object> attributeValueProducer(AttributeDefinition attribute) {
 
     Object constVal = attribute.constantValue();
     if (constVal != null) {
