@@ -3,10 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
 import static java.util.Collections.emptyList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
@@ -30,6 +27,7 @@ class ConfiguredFeatureTest {
 
   private static final Function<String, Path> TEST_RESOURCE = TestConfigurableUtils::pathToTestResource;
   private static final Function<String, Path> SAMPLE_RESOURCE = TestConfigurableUtils::pathToSample;
+  private static final Function<String, Path> TEST_INVALID_RESOURCE = TestConfigurableUtils::pathToTestInvalidResource;
 
   private static final Map<String, Object> waterTags = Map.of(
     "natural", "water",
@@ -215,6 +213,13 @@ class ConfiguredFeatureTest {
     testFeature(SAMPLE_RESOURCE, "highway_areas.yml", sf,
       ConfiguredFeatureTest::linestringFeatureCollector, f -> {
       }, 0);
+  }
+
+  @Test
+  void testMissingProducer() throws Exception {
+    //Validate that a schema only matches on the specified data source
+    assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, "missing_tag_producer.yml"),
+      "Proifile loaded with no producer specified");
   }
 
 }
