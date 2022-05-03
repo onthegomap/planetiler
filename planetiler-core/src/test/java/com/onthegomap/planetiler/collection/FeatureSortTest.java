@@ -12,7 +12,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class FeatureSortTest {
 
@@ -25,20 +25,21 @@ class FeatureSortTest {
     return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
-  private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip) {
-    return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, config, Stats.inMemory());
+  private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip, boolean mmap) {
+    return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, true, true, config,
+      Stats.inMemory());
   }
 
   @Test
   void testEmpty() {
-    FeatureSort sorter = newSorter(1, 100, false);
+    FeatureSort sorter = newSorter(1, 100, false, false);
     sorter.sort();
     assertEquals(List.of(), sorter.toList());
   }
 
   @Test
   void testSingle() {
-    FeatureSort sorter = newSorter(1, 100, false);
+    FeatureSort sorter = newSorter(1, 100, false, false);
     sorter.add(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1)), sorter.toList());
@@ -46,7 +47,7 @@ class FeatureSortTest {
 
   @Test
   void testTwoItemsOneChunk() {
-    FeatureSort sorter = newSorter(1, 100, false);
+    FeatureSort sorter = newSorter(1, 100, false, false);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
     sorter.sort();
@@ -55,7 +56,7 @@ class FeatureSortTest {
 
   @Test
   void testTwoItemsTwoChunks() {
-    FeatureSort sorter = newSorter(1, 0, false);
+    FeatureSort sorter = newSorter(1, 0, false, false);
     sorter.add(newEntry(2));
     sorter.add(newEntry(1));
     sorter.sort();
@@ -64,7 +65,7 @@ class FeatureSortTest {
 
   @Test
   void testTwoWorkers() {
-    FeatureSort sorter = newSorter(2, 0, false);
+    FeatureSort sorter = newSorter(2, 0, false, false);
     sorter.add(newEntry(4));
     sorter.add(newEntry(3));
     sorter.add(newEntry(2));
@@ -74,8 +75,13 @@ class FeatureSortTest {
   }
 
   @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testManyItems(boolean gzip) {
+  @CsvSource({
+    "false,false",
+    "false,true",
+    "true,false",
+    "true,true",
+  })
+  void testManyItems(boolean gzip, boolean mmap) {
     List<SortableFeature> sorted = new ArrayList<>();
     List<SortableFeature> shuffled = new ArrayList<>();
     for (int i = 0; i < 10_000; i++) {
@@ -83,7 +89,7 @@ class FeatureSortTest {
       sorted.add(newEntry(i));
     }
     Collections.shuffle(shuffled, new Random(0));
-    FeatureSort sorter = newSorter(2, 20_000, gzip);
+    FeatureSort sorter = newSorter(2, 20_000, gzip, mmap);
     shuffled.forEach(sorter::add);
     sorter.sort();
     assertEquals(sorted, sorter.toList());
