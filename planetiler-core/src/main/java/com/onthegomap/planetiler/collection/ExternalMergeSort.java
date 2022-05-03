@@ -115,6 +115,7 @@ public class ExternalMergeSort implements FeatureSort {
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
+      newChunk();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
