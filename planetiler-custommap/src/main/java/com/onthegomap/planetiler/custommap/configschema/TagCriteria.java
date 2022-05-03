@@ -1,5 +1,8 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
+import static com.onthegomap.planetiler.expression.Expression.matchAnyTyped;
+import static com.onthegomap.planetiler.expression.Expression.matchField;
+
 import com.onthegomap.planetiler.custommap.TagValueProducer;
 import com.onthegomap.planetiler.expression.Expression;
 import java.util.ArrayList;
@@ -29,17 +32,23 @@ public class TagCriteria extends HashMap<String, Object> {
       .stream()
       .forEach(
         entry -> {
-          if (entry.getValue() instanceof Collection) {
+          if (entry.getValue() == null) {
+            //If only a key is provided, with no value, match any object tagged with that key.
+            tagExpressions.add(
+              matchField(entry.getKey()));
+          } else if (entry.getValue() instanceof Collection) {
             Collection<?> values =
               (Collection<?>) entry.getValue();
             tagExpressions.add(
-              Expression.matchAnyTyped(
+              matchAnyTyped(
                 entry.getKey(),
                 tagValueProducer.getValueGetter(entry.getKey()),
-                values.stream().map(Object::toString).toList()));
+                values.stream()
+                  .map(Object::toString)
+                  .toList()));
           } else {
             tagExpressions.add(
-              Expression.matchAnyTyped(
+              matchAnyTyped(
                 entry.getKey(),
                 tagValueProducer.getValueGetter(entry.getKey()),
                 entry.getValue().toString()));
