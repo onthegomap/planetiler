@@ -60,14 +60,14 @@ public class ConfiguredMapMain {
     DataSourceType sourceType = source.type();
 
     switch (sourceType) {
-      case osm:
+      case OSM:
         String area = source.url();
         String[] areaParts = area.split("[:/]");
         String areaFilename = areaParts[areaParts.length - 1];
         String areaName = areaFilename.replaceAll("\\..*$", "");
         planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
         return;
-      case shapefile:
+      case SHAPEFILE:
         String url = source.url();
         String filename = Paths.get(new URI(url).getPath()).getFileName().toString();
         planetiler.addShapefileSource(sourceName, sourcesDir.resolve(filename), url);
