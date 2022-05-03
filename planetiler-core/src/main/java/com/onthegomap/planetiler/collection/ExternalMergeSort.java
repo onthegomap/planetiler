@@ -270,7 +270,11 @@ public class ExternalMergeSort implements FeatureSort {
   }
 
   private interface Reader<T extends Reader<?>>
-    extends Closeable, Iterator<SortableFeature>, Comparable<T> {}
+    extends Closeable, Iterator<SortableFeature>, Comparable<T> {
+
+    @Override
+    void close();
+  }
 
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
   private static class FastGzipOutputStream extends GZIPOutputStream {
@@ -282,12 +286,11 @@ public class ExternalMergeSort implements FeatureSort {
   }
 
   /** Read all features from a chunk file using a {@link BufferedInputStream}. */
-  private static class ReaderBuffered implements Reader<ReaderBuffered> {
+  private static class ReaderBuffered extends BaseReader<ReaderBuffered> {
 
     private final int count;
     private final DataInputStream input;
     private int read = 0;
-    private SortableFeature next;
 
     ReaderBuffered(Path path, int count, boolean gzip) {
       this.count = count;
@@ -304,23 +307,7 @@ public class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public boolean hasNext() {
-      return next != null;
-    }
-
-    @Override
-    public SortableFeature next() {
-      SortableFeature current = next;
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      if ((next = readNextFeature()) == null) {
-        close();
-      }
-      return current;
-    }
-
-    private SortableFeature readNextFeature() {
+    SortableFeature readNextFeature() {
       if (read < count) {
         try {
           long nextSort = input.readLong();
@@ -343,11 +330,6 @@ public class ExternalMergeSort implements FeatureSort {
       } catch (IOException e) {
         LOGGER.warn("Error closing chunk", e);
       }
-    }
-
-    @Override
-    public int compareTo(ReaderBuffered o) {
-      return next.compareTo(o.next);
     }
   }
 
@@ -481,8 +463,6 @@ public class ExternalMergeSort implements FeatureSort {
           throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
         }
         return new SortableChunk(featuresToSort);
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
       }
     }
 
@@ -533,13 +513,41 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  /** Common functionality between {@link ReaderMmap} and {@link ReaderBuffered}. */
+  private abstract static class BaseReader<T extends BaseReader<?>> implements Reader<T> {
+    SortableFeature next;
+
+    @Override
+    public final boolean hasNext() {
+      return next != null;
+    }
+
+    @Override
+    public final SortableFeature next() {
+      SortableFeature current = next;
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      if ((next = readNextFeature()) == null) {
+        close();
+      }
+      return current;
+    }
+
+    @Override
+    public final int compareTo(T o) {
+      return next.compareTo(o.next);
+    }
+
+    abstract SortableFeature readNextFeature();
+  }
+
   /** Memory-map the chunk file, then iterate through all features in it. */
-  private class ReaderMmap implements Reader<ReaderMmap> {
+  private class ReaderMmap extends BaseReader<ReaderMmap> {
     private final int count;
     private final FileChannel channel;
     private final MappedByteBuffer input;
     private int read = 0;
-    private SortableFeature next;
 
     ReaderMmap(Path path, int count) {
       this.count = count;
@@ -557,23 +565,7 @@ public class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public boolean hasNext() {
-      return next != null;
-    }
-
-    @Override
-    public SortableFeature next() {
-      SortableFeature current = next;
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      if ((next = readNextFeature()) == null) {
-        close();
-      }
-      return current;
-    }
-
-    private SortableFeature readNextFeature() {
+    SortableFeature readNextFeature() {
       if (read < count) {
         long nextSort = input.getLong();
         int length = input.getInt();
@@ -593,11 +585,6 @@ public class ExternalMergeSort implements FeatureSort {
       } catch (IOException e) {
         LOGGER.warn("Error closing chunk", e);
       }
-    }
-
-    @Override
-    public int compareTo(ReaderMmap o) {
-      return next.compareTo(o.next);
     }
   }
 }
