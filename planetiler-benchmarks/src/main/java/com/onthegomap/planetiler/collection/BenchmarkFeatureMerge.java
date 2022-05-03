@@ -18,13 +18,15 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class BenchmarkFeatureMerge {
   private static final Format FORMAT = Format.defaultInstance();
-  private static final byte[] TEST_DATA = new byte[76 - Long.BYTES - Integer.BYTES];
+  private static final int ITEM_SIZE_BYTES = 76;
+  private static final byte[] TEST_DATA = new byte[ITEM_SIZE_BYTES - Long.BYTES - Integer.BYTES];
   static {
     ThreadLocalRandom.current().nextBytes(TEST_DATA);
   }
 
   public static void main(String[] args) {
-    long number = Long.parseLong(args[0]);
+    long gb = args.length == 0 ? 1 : Long.parseLong(args[0]);
+    long number = gb * 1_000_000_000 / ITEM_SIZE_BYTES;
     Path path = Path.of("./featuretest");
     FileUtils.delete(path);
     FileUtils.deleteOnExit(path);
@@ -32,10 +34,8 @@ public class BenchmarkFeatureMerge {
     try {
       List<Results> results = new ArrayList<>();
       for (int limit : List.of(500_000_000, 2_000_000_000)) {
-        //        results.add(run(path, number, limit, false, false, false, true, config));
-        //        results.add(run(path, number, limit, false, true, false, true, config));
-        results.add(run(path, number, limit, false, false, true, true, config));
-        results.add(run(path, number, limit, false, true, true, true, config));
+        results.add(run(path, number, limit, false, true, true, config));
+        results.add(run(path, number, limit, true, true, true, config));
       }
       for (var result : results) {
         System.err.println(result);
@@ -52,8 +52,9 @@ public class BenchmarkFeatureMerge {
     boolean madvise
   ) {}
 
-  private static Results run(Path tmpDir, long items, int chunkSizeLimit, boolean gzip, boolean mmap,
-    boolean parallelSort, boolean madvise, PlanetilerConfig config) {
+  private static Results run(Path tmpDir, long items, int chunkSizeLimit, boolean mmap, boolean parallelSort,
+    boolean madvise, PlanetilerConfig config) {
+    boolean gzip = false;
     int writeWorkers = 1;
     int sortWorkers = Runtime.getRuntime().availableProcessors();
     int readWorkers = 1;

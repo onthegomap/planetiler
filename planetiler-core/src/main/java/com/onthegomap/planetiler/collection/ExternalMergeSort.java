@@ -409,7 +409,6 @@ public class ExternalMergeSort implements FeatureSort {
 
     @Override
     public void close() throws IOException {
-      //      buffer.force();
       channel.truncate(buffer.position());
       channel.close();
     }
