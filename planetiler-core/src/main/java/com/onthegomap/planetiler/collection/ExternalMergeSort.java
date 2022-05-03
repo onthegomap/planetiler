@@ -433,9 +433,10 @@ public class ExternalMergeSort implements FeatureSort {
 
     @Override
     public void close() throws IOException {
+      // on windows, truncating throws an exception if the file is still mapped
+      ByteBufferUtil.free(buffer);
       channel.truncate(buffer.position());
       channel.close();
-      ByteBufferUtil.free(buffer);
     }
 
     @Override
