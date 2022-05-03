@@ -16,7 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class BenchmarkFeatureMerge {
+/**
+ * Performance tests for {@link ExternalMergeSort}. Times how long it takes to write temp features, sort, then read them
+ * back with different parameters.
+ * <p>
+ * Usage: {@code BenchmarkExternalMergeSort &lt;number of GB of features to write&gt;}
+ */
+public class BenchmarkExternalMergeSort {
   private static final Format FORMAT = Format.defaultInstance();
   private static final int ITEM_SIZE_BYTES = 76;
   private static final byte[] TEST_DATA = new byte[ITEM_SIZE_BYTES - Long.BYTES - Integer.BYTES];
@@ -25,8 +31,8 @@ public class BenchmarkFeatureMerge {
   }
 
   public static void main(String[] args) {
-    long gb = args.length == 0 ? 1 : Long.parseLong(args[0]);
-    long number = gb * 1_000_000_000 / ITEM_SIZE_BYTES;
+    double gb = args.length == 0 ? 1 : Double.parseDouble(args[0]);
+    long number = (long) (gb * 1_000_000_000 / ITEM_SIZE_BYTES);
     Path path = Path.of("./featuretest");
     FileUtils.delete(path);
     FileUtils.deleteOnExit(path);
