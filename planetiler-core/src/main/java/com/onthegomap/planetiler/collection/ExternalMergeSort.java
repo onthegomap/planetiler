@@ -435,6 +435,7 @@ public class ExternalMergeSort implements FeatureSort {
     public void close() throws IOException {
       channel.truncate(buffer.position());
       channel.close();
+      ByteBufferUtil.free(buffer);
     }
 
     @Override
@@ -559,17 +560,17 @@ public class ExternalMergeSort implements FeatureSort {
   private class ReaderMmap extends BaseReader<ReaderMmap> {
     private final int count;
     private final FileChannel channel;
-    private final MappedByteBuffer input;
+    private final MappedByteBuffer buffer;
     private int read = 0;
 
     ReaderMmap(Path path, int count) {
       this.count = count;
       try {
         channel = FileChannel.open(path, StandardOpenOption.READ);
-        input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+        buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
         if (madvise) {
           // give the OS a hint that pages will be read sequentially so it can read-ahead and drop as soon as we're done
-          tryMadviseSequential(input);
+          tryMadviseSequential(buffer);
         }
         next = readNextFeature();
       } catch (IOException e) {
@@ -580,10 +581,10 @@ public class ExternalMergeSort implements FeatureSort {
     @Override
     SortableFeature readNextFeature() {
       if (read < count) {
-        long nextSort = input.getLong();
-        int length = input.getInt();
+        long nextSort = buffer.getLong();
+        int length = buffer.getInt();
         byte[] bytes = new byte[length];
-        input.get(bytes);
+        buffer.get(bytes);
         read++;
         return new SortableFeature(nextSort, bytes);
       } else {
@@ -599,7 +600,7 @@ public class ExternalMergeSort implements FeatureSort {
         LOGGER.warn("Error closing chunk", e);
       }
       try {
-        ByteBufferUtil.free(input);
+        ByteBufferUtil.free(buffer);
       } catch (IOException e) {
         LOGGER.info("Unable to unmap chunk", e);
       }
