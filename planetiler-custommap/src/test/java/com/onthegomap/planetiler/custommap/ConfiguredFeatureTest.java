@@ -216,10 +216,11 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testMissingProducer() throws Exception {
-    //Validate that a schema only matches on the specified data source
+  void testInvalidSchemas() throws Exception {
     assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, "missing_tag_producer.yml"),
       "Proifile loaded with no producer specified");
+    assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, "bad_geometry_type.yml"),
+      "Proifile loaded with invalid geometry type");
   }
 
 }
