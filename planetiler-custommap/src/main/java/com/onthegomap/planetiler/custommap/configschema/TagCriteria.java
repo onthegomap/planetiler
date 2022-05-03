@@ -37,7 +37,7 @@ public class TagCriteria extends HashMap<String, Object> {
               Expression.matchAnyTyped(
                 entry.getKey(),
                 tagValueProducer.getValueGetter(entry.getKey()),
-                values.stream().map(Object::toString).collect(Collectors.toList())));
+                values.stream().map(Object::toString).toList()));
           } else {
             tagExpressions.add(
               Expression.matchAnyTyped(

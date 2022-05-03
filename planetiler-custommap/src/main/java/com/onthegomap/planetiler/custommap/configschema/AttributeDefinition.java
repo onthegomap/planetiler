@@ -72,6 +72,6 @@ public record AttributeDefinition(
             .equals(tagDataSupplier.apply(sf, entry.getKey()));
         }
       })
-      .collect(Collectors.toList());
+      .toList();
   }
 }
