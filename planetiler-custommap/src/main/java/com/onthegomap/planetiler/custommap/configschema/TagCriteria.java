@@ -31,7 +31,7 @@ public class TagCriteria extends HashMap<String, Object> {
         entry -> {
           if (entry.getValue() instanceof Collection) {
             Collection<?> values =
-              (Collection<?>) entry.getValue();;
+              (Collection<?>) entry.getValue();
             tagExpressions.add(
               Expression.matchAnyTyped(
                 entry.getKey(),
