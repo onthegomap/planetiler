@@ -239,6 +239,12 @@ public interface Expression {
    */
   boolean evaluate(WithTags input, List<String> matchKeys);
 
+  /**
+   * Returns true if this expression matches an input element.
+   *
+   * @param input the input element
+   * @return true if this expression matches the input element
+   */
   boolean evaluate(WithTags input);
 
   /** Returns Java code that can be used to reconstruct this expression. */
