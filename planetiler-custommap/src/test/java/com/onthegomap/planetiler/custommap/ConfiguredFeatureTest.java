@@ -26,7 +26,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
-class ConfiguredSingleFeatureTest {
+class ConfiguredFeatureTest {
 
   private static final Function<String, Path> TEST_RESOURCE = TestConfigurableUtils::pathToTestResource;
   private static final Function<String, Path> SAMPLE_RESOURCE = TestConfigurableUtils::pathToSample;
@@ -72,7 +72,7 @@ class ConfiguredSingleFeatureTest {
 
   private static void testFeature(Function<String, Path> pathFunction, String schemaFilename, SourceFeature sf,
     Supplier<FeatureCollector> fcFactory,
-    Consumer<Feature> test)
+    Consumer<Feature> test, int expectedMatchCount)
     throws Exception {
 
     var profile = loadConfig(pathFunction, schemaFilename);
@@ -87,25 +87,25 @@ class ConfiguredSingleFeatureTest {
       length.incrementAndGet();
     });
 
-    assertEquals(1, length.get(), "Feature definition did not match object tags");
+    assertEquals(expectedMatchCount, length.get(), "Wrong number of features generated");
   }
 
   private static void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
-    Consumer<Feature> test)
+    Consumer<Feature> test, int expectedMatchCount)
     throws Exception {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf,
-      ConfiguredSingleFeatureTest::polygonFeatureCollector, test);
+      ConfiguredFeatureTest::polygonFeatureCollector, test, expectedMatchCount);
   }
 
   private static void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
-    Map<String, Object> tags, Consumer<Feature> test)
+    Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount)
     throws Exception {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf,
-      ConfiguredSingleFeatureTest::linestringFeatureCollector, test);
+      ConfiguredFeatureTest::linestringFeatureCollector, test, expectedMatchCount);
   }
 
   @Test
@@ -113,7 +113,7 @@ class ConfiguredSingleFeatureTest {
     testPolygon(TEST_RESOURCE, "static_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("aTestConstantValue", attr.get("natural"));
-    });
+    }, 1);
   }
 
   @Test
@@ -121,7 +121,7 @@ class ConfiguredSingleFeatureTest {
     testPolygon(TEST_RESOURCE, "tag_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("water", attr.get("natural"));
-    });
+    }, 1);
   }
 
   @Test
@@ -130,7 +130,7 @@ class ConfiguredSingleFeatureTest {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
       assertFalse(attr.containsKey("test_exclude"));
-    });
+    }, 1);
   }
 
   @Test
@@ -144,7 +144,7 @@ class ConfiguredSingleFeatureTest {
 
       attr = f.getAttrsAtZoom(9);
       assertNotEquals("test_zoom_value", attr.get("test_zoom_tag"));
-    });
+    }, 1);
   }
 
   @Test
@@ -152,7 +152,7 @@ class ConfiguredSingleFeatureTest {
     testLinestring(TEST_RESOURCE, "road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("motorway", attr.get("highway"));
-    });
+    }, 1);
   }
 
   @Test
@@ -167,7 +167,7 @@ class ConfiguredSingleFeatureTest {
       assertEquals(1L, attr.get("layer"), "Extract layer as LONG");
       assertEquals(true, attr.get("bridge"), "Extract bridge as tagValue BOOLEAN");
       assertEquals(true, attr.get("tunnel"), "Extract tunnel as constantValue BOOLEAN");
-    });
+    }, 1);
   }
 
   @Test
@@ -178,7 +178,7 @@ class ConfiguredSingleFeatureTest {
 
       attr = f.getAttrsAtZoom(10);
       assertFalse(attr.containsKey("bridge"), "Don't produce attribute bridge at z10");
-    });
+    }, 1);
   }
 
   @Test
@@ -190,7 +190,19 @@ class ConfiguredSingleFeatureTest {
       assertEquals("motorway", attr.get("highway"), "Produce highway area attribute");
       assertEquals("asphalt", attr.get("surface"), "Produce surface attribute");
       assertEquals(1L, attr.get("layer"), "Produce layer attribute");
-    });
+    }, 1);
+  }
+
+  @Test
+  void testGeometryTypeMismatch() throws Exception {
+    //Validate that a schema that filters on lines does not match on a polygon feature
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), highwayAreaTags, "osm", null, 1,
+        emptyList());
+
+    testFeature(TEST_RESOURCE, "road_motorway.yml", sf,
+      ConfiguredFeatureTest::linestringFeatureCollector, f -> {
+      }, 0);
   }
 
 }
