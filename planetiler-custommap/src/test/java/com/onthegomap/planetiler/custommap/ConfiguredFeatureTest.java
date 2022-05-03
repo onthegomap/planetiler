@@ -197,10 +197,22 @@ class ConfiguredFeatureTest {
   void testGeometryTypeMismatch() throws Exception {
     //Validate that a schema that filters on lines does not match on a polygon feature
     var sf =
-      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), highwayAreaTags, "osm", null, 1,
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), motorwayTags, "osm", null, 1,
         emptyList());
 
     testFeature(TEST_RESOURCE, "road_motorway.yml", sf,
+      ConfiguredFeatureTest::linestringFeatureCollector, f -> {
+      }, 0);
+  }
+
+  @Test
+  void testSourceTypeMismatch() throws Exception {
+    //Validate that a schema only matches on the specified data source
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1, 0, 0), highwayAreaTags, "not_osm", null, 1,
+        emptyList());
+
+    testFeature(SAMPLE_RESOURCE, "highway_areas.yml", sf,
       ConfiguredFeatureTest::linestringFeatureCollector, f -> {
       }, 0);
   }
