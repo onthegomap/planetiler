@@ -8,7 +8,7 @@ import java.nio.file.Paths;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
-public class SchemaYAMLLoadTest {
+class SchemaYAMLLoadTest {
 
   /**
    * Test to ensure that all schemas in the schema folder load to POJOs.
@@ -16,7 +16,7 @@ public class SchemaYAMLLoadTest {
    * @throws Exception
    */
   @Test
-  public void testSchemaLoad() throws Exception {
+  void testSchemaLoad() throws Exception {
     var schemaDir =
       Paths.get("samples");
 

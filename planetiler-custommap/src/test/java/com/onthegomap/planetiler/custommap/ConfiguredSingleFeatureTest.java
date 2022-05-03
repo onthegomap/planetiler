@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
-public class ConfiguredSingleFeatureTest {
+class ConfiguredSingleFeatureTest {
 
   private static FeatureCollector polygonFeatureCollector() {
     var config = PlanetilerConfig.defaults();
@@ -91,7 +91,7 @@ public class ConfiguredSingleFeatureTest {
   );
 
   @Test
-  public void testStaticAttributeTest() throws Exception {
+  void testStaticAttributeTest() throws Exception {
     testPolygon("static_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("aTestConstantValue", attr.get("natural"));
@@ -99,7 +99,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testTagValueAttributeTest() throws Exception {
+  void testTagValueAttributeTest() throws Exception {
     testPolygon("tag_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("water", attr.get("natural"));
@@ -107,7 +107,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testTagIncludeAttributeTest() throws Exception {
+  void testTagIncludeAttributeTest() throws Exception {
     testPolygon("tag_include.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
@@ -116,7 +116,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testZoomAttributeTest() throws Exception {
+  void testZoomAttributeTest() throws Exception {
     testPolygon("tag_include.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("test_zoom_value", attr.get("test_zoom_tag"));
@@ -130,7 +130,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testTagHighwayLinestringTest() throws Exception {
+  void testTagHighwayLinestringTest() throws Exception {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("motorway", attr.get("highway"));
@@ -138,7 +138,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testTagTypeConversionTest() throws Exception {
+  void testTagTypeConversionTest() throws Exception {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
 
@@ -153,7 +153,7 @@ public class ConfiguredSingleFeatureTest {
   }
 
   @Test
-  public void testZoomFilterTest() throws Exception {
+  void testZoomFilterTest() throws Exception {
     testLinestring("road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertTrue(attr.containsKey("bridge"), "Produce attribute bridge at z14");
