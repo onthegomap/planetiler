@@ -220,16 +220,12 @@ public class ConfiguredFeature {
    * @return geometry test method
    */
   private static Predicate<SourceFeature> geometryTest(GeometryType type) {
-    switch (type) {
-      case POLYGON:
-        return sf -> sf.canBePolygon();
-      case LINE:
-        return sf -> sf.canBeLine();
-      case POINT:
-        return sf -> sf.isPoint();
-      default:
-        throw new IllegalArgumentException("Unhandled geometry type " + type);
-    }
+    return switch (type) {
+      case POLYGON -> SourceFeature::canBePolygon;
+      case LINE -> SourceFeature::canBeLine;
+      case POINT -> SourceFeature::isPoint;
+      default -> throw new IllegalArgumentException("Unhandled geometry type " + type);
+    };
   }
 
   /**
