@@ -27,7 +27,9 @@ class SchemaYAMLLoadTest {
       .toList();
 
     for (Path schemaFile : schemaFiles) {
-      assertNotNull(ConfiguredMapMain.loadConfig(schemaFile), () -> "Failed to load " + schemaFile.toString());
+      var schemaConfig = ConfiguredMapMain.loadConfig(schemaFile);
+      assertNotNull(schemaConfig, () -> "Failed to unmarshall " + schemaFile.toString());
+      assertNotNull(new ConfiguredProfile(schemaConfig), () -> "Failed to load profile from " + schemaFile.toString());
     }
   }
 }
