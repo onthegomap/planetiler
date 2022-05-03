@@ -69,4 +69,4 @@ Specifies tag-based rules for setting the zoom range for a feature.
 
 A tag filter matches an object based on its tagging.  Multiple key entries may be specified:
 * `<key>:` - Match objects that contain this key.
-* `  <value>` - A single value or a list of values.  Match objects in the specified key that contains one of these values.
+* `  <value>` - A single value or a list of values.  Match objects in the specified key that contains one of these values.  If no values are specified, this will match any value tagged with the specified key.
