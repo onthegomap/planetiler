@@ -34,7 +34,7 @@ public class TagValueProducer {
 
   public BiFunction<WithTags, String, Object> getValueGetter(String key) {
     var dataType = typeMap.get(key);
-    return dataTypeGetter.get(dataType == null ? "string" : dataType);
+    return dataTypeGetter.get(dataType == null ? STRING_DATATYPE : dataType);
   }
 
   public Function<WithTags, Object> getValueProducer(String key) {
