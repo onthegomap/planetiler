@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -44,9 +45,9 @@ import org.slf4j.LoggerFactory;
  * A utility that writes {@link SortableFeature SortableFeatures} to disk and uses merge sort to efficiently sort much
  * more data than fits in RAM.
  * <p>
- * Writes append features to a "chunk" file that can be sorted with 1GB or RAM until it is full, then starts writing to
- * a new chunk. The sort process sorts the chunks, limiting the number of parallel threads by CPU cores and available
- * RAM. Reads do a k-way merge of the sorted chunks using a priority queue of minimum values from each.
+ * Writes append features to a "chunk" file that can be sorted with a fixed amount of RAM, then starts writing to a new
+ * chunk. The sort process sorts the chunks, limiting the number of parallel threads by CPU cores and available RAM.
+ * Reads do a k-way merge of the sorted chunks using a priority queue of minimum values from each.
  * <p>
  * Only supports single-threaded writes and reads.
  */
@@ -114,18 +115,17 @@ public class ExternalMergeSort implements FeatureSort {
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
-      newChunk();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
   }
 
-  private static <T> T time(AtomicLong timer, Supplier<T> func) {
-    long start = System.nanoTime();
+  private static <T> T time(AtomicLong total, Supplier<T> func) {
+    var timer = Timer.start();
     try {
       return func.get();
     } finally {
-      timer.addAndGet(System.nanoTime() - start);
+      total.addAndGet(timer.stop().elapsed().wall().toNanos());
     }
   }
 
@@ -220,7 +220,7 @@ public class ExternalMergeSort implements FeatureSort {
     assert sorted;
 
     // k-way merge to interleave all the sorted chunks
-    PriorityQueue<ChunkIterator<?>> queue = new PriorityQueue<>(chunks.size());
+    PriorityQueue<Reader<?>> queue = new PriorityQueue<>(chunks.size());
     for (Chunk chunk : chunks) {
       if (chunk.itemCount > 0) {
         queue.add(chunk.newReader());
@@ -235,7 +235,7 @@ public class ExternalMergeSort implements FeatureSort {
 
       @Override
       public SortableFeature next() {
-        ChunkIterator<?> iterator = queue.poll();
+        Reader<?> iterator = queue.poll();
         assert iterator != null;
         SortableFeature next = iterator.next();
         if (iterator.hasNext()) {
@@ -268,7 +268,7 @@ public class ExternalMergeSort implements FeatureSort {
     void write(byte[] value) throws IOException;
   }
 
-  private interface ChunkIterator<T extends ChunkIterator<?>>
+  private interface Reader<T extends Reader<?>>
     extends Closeable, Iterator<SortableFeature>, Comparable<T> {}
 
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
@@ -280,11 +280,8 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  /**
-   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
-   * merge using a {@link PriorityQueue}.
-   */
-  private static class ReaderBuffered implements ChunkIterator<ReaderBuffered> {
+  /** Read all features from a chunk file using a {@link BufferedInputStream}. */
+  private static class ReaderBuffered implements Reader<ReaderBuffered> {
 
     private final int count;
     private final DataInputStream input;
@@ -353,6 +350,7 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  /** Write features to the chunk file using a {@link BufferedOutputStream}. */
   private static class WriterBuffered implements Writer {
 
     private final DataOutputStream out;
@@ -390,6 +388,7 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
+  /** Write features to the chunk file through a memory-mapped file. */
   private class WriterMmap implements Writer {
     private final FileChannel channel;
     private final MappedByteBuffer buffer;
@@ -430,7 +429,7 @@ public class ExternalMergeSort implements FeatureSort {
   }
 
   /**
-   * An output segment that can be sorted in ~1GB RAM.
+   * An output segment that can be sorted with a fixed amount of RAM.
    */
   private class Chunk implements Closeable {
 
@@ -490,7 +489,7 @@ public class ExternalMergeSort implements FeatureSort {
       return mmapIO ? new WriterMmap(path) : new WriterBuffered(path, gzip);
     }
 
-    private ChunkIterator<?> newReader() {
+    private Reader<?> newReader() {
       return mmapIO ? new ReaderMmap(path, itemCount) : new ReaderBuffered(path, itemCount, gzip);
     }
 
@@ -533,11 +532,8 @@ public class ExternalMergeSort implements FeatureSort {
     }
   }
 
-  /**
-   * Iterator through all features of a sorted chunk that peeks at the next item before returning it to support k-way
-   * merge using a {@link PriorityQueue}.
-   */
-  private class ReaderMmap implements ChunkIterator<ReaderMmap> {
+  /** Memory-map the chunk file, then iterate through all features in it. */
+  private class ReaderMmap implements Reader<ReaderMmap> {
     private final int count;
     private final FileChannel channel;
     private final MappedByteBuffer input;
@@ -550,6 +546,7 @@ public class ExternalMergeSort implements FeatureSort {
         channel = FileChannel.open(path, StandardOpenOption.READ);
         input = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
         if (madvise) {
+          // give the OS a hint that pages will be read sequentially so it can read-ahead and drop as soon as we're done
           ByteBufferUtil.posixMadvise(input, ByteBufferUtil.Madvice.SEQUENTIAL);
         }
         next = readNextFeature();
