@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class SchemaYAMLLoadTest {
@@ -18,16 +17,14 @@ class SchemaYAMLLoadTest {
   @Test
   void testSchemaLoad() throws Exception {
     var schemaDir =
-      Paths.get("samples");
+      Paths.get("src", "main", "resources", "samples");
 
     var schemaFiles = Files.walk(schemaDir)
       .filter(p -> p.getFileName().toString().endsWith(".yml"))
-      .collect(Collectors.toList());
+      .toList();
 
     for (Path schemaFile : schemaFiles) {
-      assertNotNull(ConfiguredMapMain.loadConfig(schemaFile));
+      assertNotNull(ConfiguredMapMain.loadConfig(schemaFile), () -> "Failed to load " + schemaFile.toString());
     }
   }
-
-
 }
