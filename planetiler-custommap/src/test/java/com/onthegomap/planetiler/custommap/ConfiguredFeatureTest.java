@@ -58,6 +58,13 @@ class ConfiguredFeatureTest {
     "surface", "asphalt"
   );
 
+  private static Map<String, Object> dataTypeTags = Map.of(
+    "s_type", "string_val",
+    "l_type", "1",
+    "b_type", "yes",
+    "d_type", "yes"
+  );
+
   private static FeatureCollector polygonFeatureCollector() {
     var config = PlanetilerConfig.defaults();
     var factory = new FeatureCollector.Factory(config, Stats.inMemory());
@@ -220,6 +227,18 @@ class ConfiguredFeatureTest {
       assertEquals("motorway", attr.get("highway"), "Produce highway area attribute");
       assertEquals("asphalt", attr.get("surface"), "Produce surface attribute");
       assertEquals(1L, attr.get("layer"), "Produce layer attribute");
+    }, 1);
+  }
+
+  @Test
+  void testDataTypeMapping() throws Exception {
+    //Show that a key in includeWhen with no values matches all values
+    testLinestring(TEST_RESOURCE, "data_type_attributes.yml", dataTypeTags, f -> {
+      var attr = f.getAttrsAtZoom(14);
+      assertEquals(true, attr.get("b_type"), "Produce boolean");
+      assertEquals("string_val", attr.get("s_type"), "Produce string");
+      assertEquals(1, attr.get("d_type"), "Produce direction");
+      assertEquals(1L, attr.get("l_type"), "Produce long");
     }, 1);
   }
 
