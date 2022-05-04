@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CloseableConusmer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
   private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), Stats.inMemory());
+  private CloseableConusmer<SortableFeature> featureWriter = features.writerForThread();
 
   @Test
   void testEmpty() {
@@ -65,7 +67,7 @@ class FeatureGroupTest {
       sortKey,
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
-    features.accept(features.newRenderedFeatureEncoder().apply(feature));
+    featureWriter.accept(features.newRenderedFeatureEncoder().apply(feature));
   }
 
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
@@ -212,6 +214,7 @@ class FeatureGroupTest {
         return items;
       }
     }, Stats.inMemory());
+    featureWriter = features.writerForThread();
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(5, 6), 2, 1, 2
     );

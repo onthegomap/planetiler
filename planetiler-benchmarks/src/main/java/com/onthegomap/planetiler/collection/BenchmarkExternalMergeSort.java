@@ -116,12 +116,14 @@ public class BenchmarkExternalMergeSort {
   private static void doWrites(int writeWorkers, long items, ExternalMergeSort sorter) {
     var counters = Counter.newMultiThreadCounter();
     var writer = new Worker("write", Stats.inMemory(), writeWorkers, () -> {
-      var counter = counters.counterForThread();
-      var random = ThreadLocalRandom.current();
-      long toWrite = items / writeWorkers;
-      for (long i = 0; i < toWrite; i++) {
-        sorter.add(new SortableFeature(random.nextLong(), TEST_DATA));
-        counter.inc();
+      try (var writerForThread = sorter.writerForThread()) {
+        var counter = counters.counterForThread();
+        var random = ThreadLocalRandom.current();
+        long toWrite = items / writeWorkers;
+        for (long i = 0; i < toWrite; i++) {
+          writerForThread.accept(new SortableFeature(random.nextLong(), TEST_DATA));
+          counter.inc();
+        }
       }
     });
     ProgressLoggers loggers = ProgressLoggers.create()

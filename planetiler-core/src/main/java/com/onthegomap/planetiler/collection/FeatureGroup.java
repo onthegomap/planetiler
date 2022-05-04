@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerStats;
@@ -44,8 +45,7 @@ import org.slf4j.LoggerFactory;
  * supported (see {@link CommonStringEncoder})
  */
 @NotThreadSafe
-public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<FeatureGroup.TileFeatures>,
-  DiskBacked {
+public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, DiskBacked {
 
   public static final int SORT_KEY_BITS = 23;
   public static final int SORT_KEY_MAX = (1 << (SORT_KEY_BITS - 1)) - 1;
@@ -246,10 +246,9 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
   }
 
-  /** Writes a serialized binary feature to intermediate storage. */
-  @Override
-  public void accept(SortableFeature entry) {
-    sorter.add(entry);
+  /** Returns a new feature writer that can be used for a single thread. */
+  public CloseableConusmer<SortableFeature> writerForThread() {
+    return sorter.writerForThread();
   }
 
   private volatile boolean prepared = false;

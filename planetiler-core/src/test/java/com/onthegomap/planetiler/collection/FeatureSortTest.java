@@ -25,6 +25,7 @@ class FeatureSortTest {
     return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
+
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip, boolean mmap) {
     return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, true, true, config,
       Stats.inMemory());
@@ -32,7 +33,7 @@ class FeatureSortTest {
 
   @Test
   void testEmpty() {
-    FeatureSort sorter = newSorter(1, 100, false, false);
+    var sorter = newSorter(1, 100, false, false);
     sorter.sort();
     assertEquals(List.of(), sorter.toList());
   }
@@ -40,7 +41,8 @@ class FeatureSortTest {
   @Test
   void testSingle() {
     FeatureSort sorter = newSorter(1, 100, false, false);
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1)), sorter.toList());
   }
@@ -48,8 +50,9 @@ class FeatureSortTest {
   @Test
   void testTwoItemsOneChunk() {
     FeatureSort sorter = newSorter(1, 100, false, false);
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2)), sorter.toList());
   }
@@ -57,8 +60,9 @@ class FeatureSortTest {
   @Test
   void testTwoItemsTwoChunks() {
     FeatureSort sorter = newSorter(1, 0, false, false);
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2)), sorter.toList());
   }
@@ -66,10 +70,11 @@ class FeatureSortTest {
   @Test
   void testTwoWorkers() {
     FeatureSort sorter = newSorter(2, 0, false, false);
-    sorter.add(newEntry(4));
-    sorter.add(newEntry(3));
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(4));
+    writer.accept(newEntry(3));
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
   }
@@ -90,7 +95,8 @@ class FeatureSortTest {
     }
     Collections.shuffle(shuffled, new Random(0));
     FeatureSort sorter = newSorter(2, 20_000, gzip, mmap);
-    shuffled.forEach(sorter::add);
+    var writer = sorter.writerForThread();
+    shuffled.forEach(writer);
     sorter.sort();
     assertEquals(sorted, sorter.toList());
   }

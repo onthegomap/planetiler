@@ -369,7 +369,13 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
-      .sinkToConsumer("write", 1, writer);
+      .sinkTo("write", 1, prev -> {
+        try (var writerForThread = writer.writerForThread()) {
+          for (var item : prev) {
+            writerForThread.accept(item);
+          }
+        }
+      });
 
     var logger = ProgressLoggers.create()
       .addRatePercentCounter("nodes", pass1Phaser.nodes(), pass2Phaser::nodes, true)
@@ -393,7 +399,10 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     timer.stop();
 
-    try (var renderer = createFeatureRenderer(writer, config, writer)) {
+    try (
+      var writerForThread = writer.writerForThread();
+      var renderer = createFeatureRenderer(writer, config, writerForThread)
+    ) {
       profile.finish(name, new FeatureCollector.Factory(config, stats), renderer);
     } catch (Exception e) {
       LOGGER.error("Error calling profile.finish", e);

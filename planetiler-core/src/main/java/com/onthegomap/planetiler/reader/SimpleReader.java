@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Envelope;
@@ -78,9 +79,13 @@ public abstract class SimpleReader implements Closeable {
       // output large batches since each input may map to many tiny output features (i.e. slicing ocean tiles)
       // which turns enqueueing into the bottleneck
       .addBuffer("write_queue", 50_000, 1_000)
-      .sinkToConsumer("write", 1, item -> {
-        featuresWritten.incrementAndGet();
-        writer.accept(item);
+      .sinkTo("write", 1, prev -> {
+        try (var threadLocalWriter = writer.writerForThread()) {
+          for (var item : prev) {
+            featuresWritten.incrementAndGet();
+            threadLocalWriter.accept(item);
+          }
+        }
       });
 
     var loggers = ProgressLoggers.create()
@@ -95,8 +100,13 @@ public abstract class SimpleReader implements Closeable {
     pipeline.awaitAndLog(loggers, config.logInterval());
 
     // hook for profile to do any post-processing after this source is read
-    try (var featureRenderer = newFeatureRenderer(writer, config, writer)) {
+    try (
+      var threadLocalWriter = writer.writerForThread();
+      var featureRenderer = newFeatureRenderer(writer, config, threadLocalWriter)
+    ) {
       profile.finish(sourceName, new FeatureCollector.Factory(config, stats), featureRenderer);
+    } catch (IOException e) {
+      LOGGER.warn("Error closing writer", e);
     }
     timer.stop();
   }

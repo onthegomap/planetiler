@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.collection;
 
+import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +28,7 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
 
   /** Returns a feature sorter that sorts all features in memory. Suitable for toy examples (unit tests). */
   static FeatureSort newInMemory() {
-    List<SortableFeature> list = new ArrayList<>();
+    List<SortableFeature> list = Collections.synchronizedList(new ArrayList<>());
     return new FeatureSort() {
       @Override
       public void sort() {
@@ -39,8 +41,8 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
       }
 
       @Override
-      public void add(SortableFeature newEntry) {
-        list.add(newEntry);
+      public CloseableConusmer<SortableFeature> writerForThread() {
+        return list::add;
       }
 
       @Override
@@ -74,6 +76,6 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
     return list;
   }
 
-  void add(SortableFeature newEntry);
-
+  /** Returns a new writer that can be used for a single thread. */
+  CloseableConusmer<SortableFeature> writerForThread();
 }

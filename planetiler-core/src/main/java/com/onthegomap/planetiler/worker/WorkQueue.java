@@ -56,7 +56,7 @@ public class WorkQueue<T> implements AutoCloseable, IterableOnce<T>, Consumer<T>
    * @param stats    stats to monitor this with
    */
   public WorkQueue(String name, int capacity, int maxBatch, Stats stats) {
-    this.pendingBatchesCapacity = capacity / maxBatch;
+    this.pendingBatchesCapacity = Math.max(1, capacity / maxBatch);
     this.batchSize = maxBatch;
     itemQueue = new ArrayBlockingQueue<>(pendingBatchesCapacity);
 
