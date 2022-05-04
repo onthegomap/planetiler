@@ -93,14 +93,13 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
         and.children().forEach(child -> getRelevantKeys(child, acceptKey));
       } else if (exp instanceof Expression.Or or) {
         or.children().forEach(child -> getRelevantKeys(child, acceptKey));
-      } else if (exp instanceof Expression.Not) {
-        // not(matchAny("field", "")) should track "field" as a relevant key, but that gets simplified to matchField("field")
-        // so don't need to handle that here
       } else if (exp instanceof Expression.MatchField field) {
         acceptKey.accept(field.field());
       } else if (exp instanceof Expression.MatchAny any && !any.matchWhenMissing()) {
         acceptKey.accept(any.field());
       }
+      // ignore not case since not(matchAny("field", "")) should track "field" as a relevant key, but that gets
+      // simplified to matchField("field") so don't need to handle that here
     }
   }
 
