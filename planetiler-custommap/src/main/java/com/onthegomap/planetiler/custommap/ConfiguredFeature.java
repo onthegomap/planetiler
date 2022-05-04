@@ -135,12 +135,10 @@ public class ConfiguredFeature {
       return null;
     }
 
-    return sf -> {
-      int tileSizeMinZoom = minZoomFromTilePercent(sf, minTilePercent);
-      int zoomConfigMinZoom = minZoomFromFeatureTagging(sf, zoomConfig);
-      return Math.max(minZoom,
-        Math.max(tileSizeMinZoom, zoomConfigMinZoom));
-    };
+    return sf -> Math.max(minZoom,
+      Math.max(
+        minZoomFromTilePercent(sf, minTilePercent),
+        minZoomFromFeatureTagging(sf, zoomConfig)));
   }
 
   private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig) {
