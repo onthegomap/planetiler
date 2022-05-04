@@ -139,8 +139,7 @@ public interface Expression {
         return simplified;
       }
       if (seen.size() > 1000) {
-        LOGGER.warn("Infinite loop while simplifying expression {}", initial);
-        return simplified;
+        throw new IllegalStateException("Infinite loop while simplifying expression " + initial);
       }
       seen.add(simplified);
     }
@@ -292,12 +291,7 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      int size = children.size();
-      // Optimization: this method consumes the most time when matching against input elements, and
-      // iterating through this list by index is slightly faster than an enhanced for loop
-      // noinspection ForLoopReplaceableByForEach - for intellij
-      for (int i = 0; i < size; i++) {
-        Expression child = children.get(i);
+      for (Expression child : children) {
         if (child.evaluate(input, matchKeys)) {
           return true;
         }

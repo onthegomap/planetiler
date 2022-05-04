@@ -85,6 +85,9 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
 
   /** Calls {@code acceptKey} for every tag that could possibly cause {@code exp} to match an input element. */
   private static void getRelevantKeys(Expression exp, Consumer<String> acceptKey) {
+    // if a sub-expression must always be evaluated, then either the whole expression must always be evaluated
+    // or there is another part of the expression that limits the elements on which it must be evaluated, so we can
+    // ignore keys from this sub-expression.
     if (!mustAlwaysEvaluate(exp)) {
       if (exp instanceof Expression.And and) {
         and.children().forEach(child -> getRelevantKeys(child, acceptKey));
