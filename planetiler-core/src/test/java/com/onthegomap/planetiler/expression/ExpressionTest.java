@@ -114,6 +114,12 @@ class ExpressionTest {
   }
 
   @Test
+  void testSimplifyNotCases() {
+    assertEquals(FALSE, not(TRUE).simplify());
+    assertEquals(TRUE, not(FALSE).simplify());
+  }
+
+  @Test
   void testEvaluateEmptyAnd() {
     assertEquals(
       and().evaluate(featureWithTags(), new ArrayList<>()),
