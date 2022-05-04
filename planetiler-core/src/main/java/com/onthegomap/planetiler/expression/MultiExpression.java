@@ -38,6 +38,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
 
+  public static <T> MultiExpression<T> empty() {
+    return new MultiExpression<>(List.of());
+  }
+
   public static <T> MultiExpression<T> of(List<Entry<T>> expressions) {
     return new MultiExpression<>(expressions);
   }

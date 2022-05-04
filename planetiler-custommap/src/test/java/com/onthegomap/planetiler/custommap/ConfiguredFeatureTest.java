@@ -43,6 +43,14 @@ class ConfiguredFeatureTest {
     "tunnel", "yes"
   );
 
+  private static Map<String, Object> trunkTags = Map.of(
+    "highway", "trunk"
+  );
+
+  private static Map<String, Object> primaryTags = Map.of(
+    "highway", "primary"
+  );
+
   private static Map<String, Object> highwayAreaTags = Map.of(
     "area:highway", "motorway",
     "layer", "1",
@@ -169,13 +177,37 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testZoomFilterTest() throws Exception {
+  void testZoomFilterAttributeTest() throws Exception {
     testLinestring(TEST_RESOURCE, "road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertTrue(attr.containsKey("bridge"), "Produce attribute bridge at z14");
 
       attr = f.getAttrsAtZoom(10);
       assertFalse(attr.containsKey("bridge"), "Don't produce attribute bridge at z10");
+    }, 1);
+  }
+
+  @Test
+  void testZoomFilterConditionalTest() throws Exception {
+    testLinestring(TEST_RESOURCE, "zoom_filter.yml", motorwayTags, f -> {
+      var attr = f.getAttrsAtZoom(4);
+      assertEquals("motorway", attr.get("highway"), "Produce attribute highway at z4");
+    }, 1);
+
+    testLinestring(TEST_RESOURCE, "zoom_filter.yml", trunkTags, f -> {
+      var attr = f.getAttrsAtZoom(4);
+      assertFalse(attr.containsKey("highway"), "Don't produce highway=trunk at z4");
+
+      attr = f.getAttrsAtZoom(5);
+      assertEquals("trunk", attr.get("highway"), "Produce highway=trunk at z5");
+    }, 1);
+
+    testLinestring(TEST_RESOURCE, "zoom_filter.yml", primaryTags, f -> {
+      var attr = f.getAttrsAtZoom(6);
+      assertFalse(attr.containsKey("highway"), "Don't produce highway=primary at z6");
+
+      attr = f.getAttrsAtZoom(7);
+      assertEquals("primary", attr.get("highway"), "Produce highway=primary at z7");
     }, 1);
   }
 

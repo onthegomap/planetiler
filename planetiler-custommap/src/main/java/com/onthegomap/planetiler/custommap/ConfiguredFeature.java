@@ -7,12 +7,15 @@ import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
 import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,12 +32,10 @@ public class ConfiguredFeature {
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  private final BiConsumer<SourceFeature, Feature> zoomConfig;
+  private final Index<Byte> zoomConfig;
   private final TagValueProducer tagValueProducer;
 
   private static final double LOG4 = Math.log(4);
-  private static final BiConsumer<SourceFeature, Feature> ALLOW_ALL_ZOOMS = (sf, f) -> {
-  };
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
@@ -74,34 +75,24 @@ public class ConfiguredFeature {
    * invoking the appropriate methods in {@link Feature}.
    * 
    * @param zoomConfig zoom configuration
-   * @return processing logic
+   * @return index of zoom levels, or null if unrestricted
    */
-  private BiConsumer<SourceFeature, Feature> zoomFilter(ZoomConfig zoomConfig) {
+  private Index<Byte> zoomFilter(ZoomConfig zoomConfig) {
 
     if (zoomConfig == null) {
-      return ALLOW_ALL_ZOOMS;
+      return null;
     }
 
     Collection<ZoomFilter> zfList = zoomConfig.zoomFilter();
     if (zfList == null || zfList.isEmpty()) {
-      return ALLOW_ALL_ZOOMS;
+      return null;
     }
 
-    return (sf, f) -> {
-      Optional<ZoomFilter> zoomFilterMatch = zfList
-        .stream()
-        .filter(zf -> zf.tag().matcher(tagValueProducer).evaluate(sf))
-        .findFirst();
-
-      if (zoomFilterMatch.isPresent()) {
-        ZoomFilter zf = zoomFilterMatch.get();
-        f.setMinZoom(zf.minZoom());
-        f.setMaxZoom(zoomConfig.maxZoom());
-      } else {
-        f.setMinZoom(zoomConfig.minZoom());
-        f.setMaxZoom(zoomConfig.maxZoom());
-      }
-    };
+    return MultiExpression.of(zfList
+      .stream()
+      .map(zf -> MultiExpression.entry(zf.minZoom(), zf.tag().matcher(tagValueProducer)))
+      .toList())
+      .index();
   }
 
   /**
@@ -134,17 +125,44 @@ public class ConfiguredFeature {
    * 
    * @param minTilePercent - minimum percentage of a tile that a feature must cover to be shown
    * @param minZoom        - global minimum zoom for this feature
+   * @param zoomConfig
    * @return minimum zoom function
    */
-  private static Function<SourceFeature, Integer> attributeZoomThreshold(double minTilePercent, int minZoom) {
+  private static Function<SourceFeature, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom,
+    Index<Byte> zoomConfig) {
+
+    if (minZoom == 0 && zoomConfig == null) {
+      return null;
+    }
+
     return sf -> {
-      try {
-        int zoom = (int) (Math.log(minTilePercent / sf.area()) / LOG4);
-        return Math.max(minZoom, Math.min(zoom, 14));
-      } catch (GeometryException e) {
-        return 14;
-      }
+      int tileSizeMinZoom = minZoomFromTilePercent(sf, minTilePercent);
+      int zoomConfigMinZoom = minZoomFromFeatureTagging(sf, zoomConfig);
+      return Math.max(minZoom,
+        Math.max(tileSizeMinZoom, zoomConfigMinZoom));
     };
+  }
+
+  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig) {
+    if (zoomConfig == null) {
+      return 0;
+    }
+    var zoomMatches = zoomConfig.getMatches(sf);
+    if (zoomMatches.isEmpty()) {
+      return 0;
+    }
+    return Collections.min(zoomMatches);
+  }
+
+  private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
+    if (minTilePercent == null) {
+      return 0;
+    }
+    try {
+      return (int) (Math.log(minTilePercent / sf.area()) / LOG4);
+    } catch (GeometryException e) {
+      return 14;
+    }
   }
 
   /**
@@ -157,7 +175,7 @@ public class ConfiguredFeature {
     var tagKey = attribute.key();
     Integer configuredMinZoom = attribute.minZoom();
 
-    var minZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
+    var layerMinZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
     var attributeValueProducer = attributeValueProducer(attribute);
 
     var attrIncludeWhen = attribute.includeWhen();
@@ -172,13 +190,9 @@ public class ConfiguredFeature {
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
     Function<SourceFeature, Integer> attributeZoomProducer;
 
-    if (minTileCoverage != null && minTileCoverage > 0.0) {
-      attributeZoomProducer = attributeZoomThreshold(minTileCoverage, minZoom);
-    } else {
-      attributeZoomProducer = sf -> minZoom;
-    }
+    attributeZoomProducer = attributeZoomThreshold(minTileCoverage, layerMinZoom, zoomConfig);
 
-    if (minZoom > 0) {
+    if (attributeZoomProducer != null) {
       return (sf, f) -> {
         if (attributeTest.evaluate(sf)) {
           f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
@@ -191,7 +205,6 @@ public class ConfiguredFeature {
         f.setAttr(tagKey, attributeValueProducer.apply(sf));
       }
     };
-
   }
 
   /**
@@ -255,7 +268,6 @@ public class ConfiguredFeature {
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     Feature f = geometryFactory.apply(features);
-    zoomConfig.accept(sourceFeature, f);
     attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
   }
 }

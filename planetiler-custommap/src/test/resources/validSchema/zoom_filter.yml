@@ -1,0 +1,26 @@
+schemaName: Test Case Schema
+schemaDescription: Test case tile schema
+attribution: Test attribution
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+layers:
+- name: testLayer
+  features:
+  - sources:
+    - osm
+    geometry: line
+    includeWhen:
+      highway:
+    zoom:
+      minZoom: 4
+      zoomFilter:
+      - tag:
+          highway: trunk
+        minZoom: 5
+      - tag:
+          highway: primary
+        minZoom: 7
+    attributes:
+    - key: highway
