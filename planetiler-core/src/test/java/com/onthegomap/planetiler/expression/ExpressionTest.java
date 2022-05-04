@@ -134,8 +134,14 @@ class ExpressionTest {
     assertFalse(not(matchAny("key1", "value1")).evaluate(feature));
     assertTrue(not(matchAny("key1", "wrong")).evaluate(feature));
 
+    //MatchField
+    assertTrue(matchField("key1").evaluate(feature));
+    assertFalse(matchField("wrong").evaluate(feature));
+    assertTrue(not(matchAny("key1", "")).evaluate(feature));
+    assertTrue(matchAny("wrong", "").evaluate(feature));
+
     //Constants
     assertTrue(TRUE.evaluate(feature));
-    assertTrue(FALSE.evaluate(feature));
+    assertFalse(FALSE.evaluate(feature));
   }
 }
