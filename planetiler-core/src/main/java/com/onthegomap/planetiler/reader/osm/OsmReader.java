@@ -304,8 +304,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    */
   public void pass2(FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage("osm_pass2");
-    int threads = config.threads();
-    int writers = config.featureWriteThreads();
+    int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
     Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
     // track relation count separately because they get enqueued onto the distributor near the end
@@ -324,7 +323,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     var pipeline = WorkerPipeline.start("osm_pass2", stats)
       .fromGenerator("read", osmBlockSource::forEachBlock)
-      .addBuffer("pbf_blocks", Math.max(10, threads / 2))
+      .addBuffer("pbf_blocks", Math.max(10, processThreads / 2))
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         // avoid contention trying to get the thread-local counters by getting them once when thread starts
         Counter blocks = blocksProcessed.counterForThread();
@@ -370,7 +369,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
-      .sinkTo("write", writers, prev -> {
+      .sinkTo("write", writeThreads, prev -> {
         try (var writerForThread = writer.writerForThread()) {
           for (var item : prev) {
             writerForThread.accept(item);

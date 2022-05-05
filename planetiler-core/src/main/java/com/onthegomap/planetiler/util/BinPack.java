@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.function.ToLongFunction;
 
 /**
- * {@link #pack(Collection, long, ToLongFunction)} implements a best-effort 1-D bin packing using the "best-fit
- * decreasing" algorithm.
+ * Implements a best-effort 1-D bin packing using the
+ * <a href="https://en.wikipedia.org/wiki/First-fit-decreasing_bin_packing#Other_variants">best-fit decreasing</a>
+ * algorithm.
  */
 public class BinPack {
   private BinPack() {}

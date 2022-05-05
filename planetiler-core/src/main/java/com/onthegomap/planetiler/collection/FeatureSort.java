@@ -76,6 +76,9 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
     return list;
   }
 
-  /** Returns a new writer that can be used for a single thread. */
+  /**
+   * Returns a new writer that can be used to write features from a single thread independent of writers used from other
+   * threads.
+   */
   CloseableConusmer<SortableFeature> writerForThread();
 }

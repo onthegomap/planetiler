@@ -49,7 +49,7 @@ public abstract class SimpleReader implements Closeable {
   public final void process(FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage(sourceName);
     long featureCount = getCount();
-    int writers = config.featureWriteThreads();
+    int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
     Envelope latLonBounds = config.bounds().latLon();
     AtomicLong featuresRead = new AtomicLong(0);
@@ -80,7 +80,7 @@ public abstract class SimpleReader implements Closeable {
       // output large batches since each input may map to many tiny output features (i.e. slicing ocean tiles)
       // which turns enqueueing into the bottleneck
       .addBuffer("write_queue", 50_000, 1_000)
-      .sinkTo("write", writers, prev -> {
+      .sinkTo("write", writeThreads, prev -> {
         try (var threadLocalWriter = writer.writerForThread()) {
           for (var item : prev) {
             featuresWritten.incrementAndGet();

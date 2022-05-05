@@ -410,6 +410,8 @@ class ExternalMergeSort implements FeatureSort {
     abstract SortableFeature readNextFeature();
   }
 
+  /** Writer that a single thread can use to write features independent of writers used in other threads. */
+  @NotThreadSafe
   private class ThreadLocalWriter implements CloseableConusmer<SortableFeature> {
     private Chunk currentChunk;
 
