@@ -1,12 +1,18 @@
 package com.onthegomap.planetiler.expression;
 
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.reader.SimpleFeature;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +21,14 @@ class ExpressionTest {
   public static final Expression.MatchAny matchAB = matchAny("a", "b");
   public static final Expression.MatchAny matchCD = matchAny("c", "d");
   public static final Expression.MatchAny matchBC = matchAny("b", "c");
+
+  static SourceFeature featureWithTags(String... tags) {
+    Map<String, Object> map = new HashMap<>();
+    for (int i = 0; i < tags.length; i += 2) {
+      map.put(tags[i], tags[i + 1]);
+    }
+    return SimpleFeature.create(newPoint(0, 0), map);
+  }
 
   @Test
   void testSimplify() {
@@ -78,6 +92,39 @@ class ExpressionTest {
     assertEquals(TRUE, and(TRUE).simplify());
     assertEquals(matchAB, and(TRUE, matchAB).simplify());
     assertEquals(TRUE, or(TRUE, matchAB).simplify());
+  }
+
+  @Test
+  void testSimplifyAndCases() {
+    assertEquals(TRUE, and(TRUE).simplify());
+    assertEquals(TRUE, and(TRUE, TRUE).simplify());
+    assertEquals(TRUE, and(TRUE, and()).simplify());
+    assertEquals(TRUE, and(and(TRUE)).simplify());
+    assertEquals(TRUE, and(and(TRUE), TRUE).simplify());
+    assertEquals(TRUE, and(TRUE, and(TRUE), TRUE).simplify());
+    assertEquals(matchAB, and(TRUE, and(TRUE), matchAB).simplify());
+  }
+
+  @Test
+  void testSimplifyOrCases() {
+    assertEquals(FALSE, or(or(FALSE)).simplify());
+    assertEquals(FALSE, or(or(FALSE), FALSE).simplify());
+    assertEquals(FALSE, or(FALSE, or(FALSE), FALSE).simplify());
+    assertEquals(matchAB, or(FALSE, or(FALSE), matchAB).simplify());
+  }
+
+  @Test
+  void testSimplifyNotCases() {
+    assertEquals(FALSE, not(TRUE).simplify());
+    assertEquals(TRUE, not(FALSE).simplify());
+  }
+
+  @Test
+  void testEvaluateEmptyAnd() {
+    assertEquals(
+      and().evaluate(featureWithTags(), new ArrayList<>()),
+      and().simplify().evaluate(featureWithTags(), new ArrayList<>())
+    );
   }
 
   @Test

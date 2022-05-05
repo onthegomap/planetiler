@@ -116,7 +116,7 @@ public class BasemapProfile extends ForwardingProfile {
           })
           .toList();
         return new RowDispatch(constructor.create(), handlers);
-      }).simplify().index();
+      }).simplify().indexAndWarn();
     wikidataMappings = Tables.MAPPINGS
       .mapResults(constructor -> handlerMap.getOrDefault(constructor.rowClass(), List.of()).stream()
         .anyMatch(handler -> !IgnoreWikidata.class.isAssignableFrom(handler.handlerClass()))
