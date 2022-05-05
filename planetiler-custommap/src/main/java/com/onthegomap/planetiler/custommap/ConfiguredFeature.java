@@ -32,7 +32,9 @@ public class ConfiguredFeature {
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  private final Index<Byte> zoomConfig;
+  private final Index<Byte> zoomTagConfig;
+  private final Byte featureMinZoom;
+  private final Byte featureMaxZoom;
   private final TagValueProducer tagValueProducer;
 
   private static final double LOG4 = Math.log(4);
@@ -57,7 +59,14 @@ public class ConfiguredFeature {
       .orElse(Expression.TRUE);
 
     //Test to determine at which zooms to include this feature based on tagging
-    zoomConfig = zoomFilter(feature.zoom());
+    zoomTagConfig = zoomFilter(feature.zoom());
+    if (feature.zoom() != null) {
+      featureMinZoom = feature.zoom().minZoom();
+      featureMaxZoom = feature.zoom().maxZoom();
+    } else {
+      featureMinZoom = 0;
+      featureMaxZoom = null;
+    }
 
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryMapFeature(layerName, geometryType);
@@ -125,23 +134,20 @@ public class ConfiguredFeature {
    * 
    * @param minTilePercent - minimum percentage of a tile that a feature must cover to be shown
    * @param minZoom        - global minimum zoom for this feature
-   * @param zoomConfig
+   * @param zoomTagConfig
    * @return minimum zoom function
    */
-  private static Function<SourceFeature, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom,
-    Index<Byte> zoomConfig) {
+  private static Function<SourceFeature, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom) {
 
-    if (minZoom == 0 && zoomConfig == null) {
+    if (minZoom == 0) {
       return null;
     }
 
     return sf -> Math.max(minZoom,
-      Math.max(
-        minZoomFromTilePercent(sf, minTilePercent),
-        minZoomFromFeatureTagging(sf, zoomConfig)));
+      minZoomFromTilePercent(sf, minTilePercent));
   }
 
-  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig) {
+  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig, Byte layerMinZoom) {
     if (zoomConfig == null) {
       return 0;
     }
@@ -149,7 +155,7 @@ public class ConfiguredFeature {
     if (zoomMatches.isEmpty()) {
       return 0;
     }
-    return Collections.min(zoomMatches);
+    return Math.max(layerMinZoom, Collections.min(zoomMatches));
   }
 
   private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
@@ -173,7 +179,7 @@ public class ConfiguredFeature {
     var tagKey = attribute.key();
     Integer configuredMinZoom = attribute.minZoom();
 
-    var layerMinZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
+    var attributeMinZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
     var attributeValueProducer = attributeValueProducer(attribute);
 
     var attrIncludeWhen = attribute.includeWhen();
@@ -188,7 +194,7 @@ public class ConfiguredFeature {
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
     Function<SourceFeature, Integer> attributeZoomProducer;
 
-    attributeZoomProducer = attributeZoomThreshold(minTileCoverage, layerMinZoom, zoomConfig);
+    attributeZoomProducer = attributeZoomThreshold(minTileCoverage, attributeMinZoom);
 
     if (attributeZoomProducer != null) {
       return (sf, f) -> {
@@ -213,7 +219,7 @@ public class ConfiguredFeature {
    * @param type      - type of geometry
    * @return geometry factory method
    */
-  private static Function<FeatureCollector, Feature> geometryMapFeature(String layerName, GeometryType type) {
+  private Function<FeatureCollector, Feature> geometryMapFeature(String layerName, GeometryType type) {
     return switch (type) {
       case POLYGON -> fc -> fc.polygon(layerName);
       case LINE -> fc -> fc.line(layerName);
@@ -265,7 +271,11 @@ public class ConfiguredFeature {
    * @param features      - output rendered feature collector
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    Feature f = geometryFactory.apply(features);
+    Feature f = geometryFactory.apply(features)
+      .setMinZoom(minZoomFromFeatureTagging(sourceFeature, zoomTagConfig, featureMinZoom));
+    if (featureMaxZoom != null) {
+      f.setMaxZoom(featureMaxZoom);
+    }
     attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
   }
 }
