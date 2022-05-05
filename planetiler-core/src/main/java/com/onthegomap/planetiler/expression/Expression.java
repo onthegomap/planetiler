@@ -13,6 +13,8 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A framework for defining and manipulating boolean expressions that match on input element.
@@ -27,6 +29,7 @@ import java.util.stream.Stream;
  * </pre>
  */
 public interface Expression {
+  Logger LOGGER = LoggerFactory.getLogger(Expression.class);
 
   String LINESTRING_TYPE = "linestring";
   String POINT_TYPE = "point";
@@ -132,8 +135,11 @@ public interface Expression {
     seen.add(simplified);
     while (true) {
       simplified = simplifyOnce(simplified);
-      if (seen.contains(simplified) || seen.size() > 100) {
+      if (seen.contains(simplified)) {
         return simplified;
+      }
+      if (seen.size() > 1000) {
+        throw new IllegalStateException("Infinite loop while simplifying expression " + initial);
       }
       seen.add(simplified);
     }
@@ -151,6 +157,8 @@ public interface Expression {
         return FALSE;
       } else if (not.child == FALSE) {
         return TRUE;
+      } else if (not.child instanceof MatchAny any && any.values.equals(List.of(""))) {
+        return matchField(any.field);
       }
       return not;
     } else if (expression instanceof Or or) {
@@ -166,11 +174,11 @@ public interface Expression {
       return or(or.children.stream()
         // hoist children
         .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
-        .filter(child -> child != FALSE)
+        .filter(child -> child != FALSE) // or() == or(FALSE) == or(FALSE, FALSE) == FALSE, so safe to remove all here
         .map(Expression::simplifyOnce).toList());
     } else if (expression instanceof And and) {
       if (and.children.isEmpty()) {
-        return FALSE;
+        return TRUE;
       }
       if (and.children.size() == 1) {
         return simplifyOnce(and.children.get(0));
@@ -181,7 +189,7 @@ public interface Expression {
       return and(and.children.stream()
         // hoist children
         .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
-        .filter(child -> child != TRUE)
+        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
         .map(Expression::simplifyOnce).toList());
     } else {
       return expression;
@@ -306,12 +314,7 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      int size = children.size();
-      // Optimization: this method consumes the most time when matching against input elements, and
-      // iterating through this list by index is slightly faster than an enhanced for loop
-      // noinspection ForLoopReplaceableByForEach - for intellij
-      for (int i = 0; i < size; i++) {
-        Expression child = children.get(i);
+      for (Expression child : children) {
         if (child.evaluate(input, matchKeys)) {
           return true;
         }
