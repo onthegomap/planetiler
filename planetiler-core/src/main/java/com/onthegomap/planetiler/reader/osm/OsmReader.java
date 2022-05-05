@@ -305,7 +305,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   public void pass2(FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage("osm_pass2");
     int threads = config.threads();
-    int processThreads = Math.max(threads < 4 ? threads : (threads - 1), 1);
+    int writers = config.featureWriteThreads();
+    int processThreads = config.featureProcessThreads();
     Counter.MultiThreadCounter blocksProcessed = Counter.newMultiThreadCounter();
     // track relation count separately because they get enqueued onto the distributor near the end
     Counter.MultiThreadCounter relationsProcessed = Counter.newMultiThreadCounter();
@@ -369,7 +370,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
         }
       }).addBuffer("feature_queue", 50_000, 1_000)
       // FeatureGroup writes need to be single-threaded
-      .sinkTo("write", 1, prev -> {
+      .sinkTo("write", writers, prev -> {
         try (var writerForThread = writer.writerForThread()) {
           for (var item : prev) {
             writerForThread.accept(item);
@@ -749,7 +750,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
     @Override
     protected Geometry computeWorldGeometry() throws GeometryException {
-      return canBePolygon() ? polygon() : line();
+      return super.canBePolygon() ? polygon() : line();
     }
 
     @Override

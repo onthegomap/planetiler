@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
+import com.onthegomap.planetiler.util.BinPack;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -168,14 +170,32 @@ class ExternalMergeSort implements FeatureSort {
     AtomicLong sorting = new AtomicLong(0);
     AtomicLong doneCounter = new AtomicLong(0);
 
-    // TODO bin pack
+    // we may end up with many small chunks because each thread-local writer starts a new one
+    // so group together smaller chunks that can be sorted together in-memory to minimize the
+    // number of chunks that the reader needs to deal with
+    List<List<ExternalMergeSort.Chunk>> groups = BinPack.pack(
+      chunks,
+      chunkSizeLimit,
+      chunk -> chunk.bytesInMemory
+    );
+
+    LOGGER.info("Grouped {} chunks into {}", chunks.size(), groups.size());
 
     var pipeline = WorkerPipeline.start("sort", stats)
-      .readFromTiny("item_queue", chunks)
-      .sinkToConsumer("worker", workers, chunk -> {
+      .readFromTiny("item_queue", groups)
+      .sinkToConsumer("worker", workers, group -> {
         try {
           readSemaphore.acquire();
-          var toSort = time(reading, chunk::readAll);
+          var chunk = group.get(0);
+          var others = group.stream().skip(1).toList();
+          var toSort = time(reading, () -> {
+            // merge all chunks into first one, and remove the others
+            var result = chunk.readAllAndMergeIn(others);
+            for (var other : others) {
+              other.remove();
+            }
+            return result;
+          });
           readSemaphore.release();
 
           time(sorting, toSort::sort);
@@ -499,19 +519,34 @@ class ExternalMergeSort implements FeatureSort {
       itemCount++;
     }
 
-    private SortableChunk readAll() {
-      try (var iterator = newReader()) {
-        SortableFeature[] featuresToSort = new SortableFeature[itemCount];
-        int i = 0;
-        while (iterator.hasNext()) {
-          featuresToSort[i] = iterator.next();
-          i++;
+    private SortableChunk readAllAndMergeIn(Collection<Chunk> others) {
+      // first, grow this chunk
+      int newItems = itemCount;
+      int newBytes = bytesInMemory;
+      for (var other : others) {
+        if (Integer.MAX_VALUE - newItems < other.itemCount) {
+          throw new IllegalStateException("Too many items in merged chunk: " + itemCount + "+" +
+            others.stream().map(c -> c.itemCount).toList());
         }
-        if (i != itemCount) {
-          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
+        if (Integer.MAX_VALUE - newBytes < other.bytesInMemory) {
+          throw new IllegalStateException("Too big merged chunk: " + bytesInMemory + "+" +
+            others.stream().map(c -> c.bytesInMemory).toList());
         }
-        return new SortableChunk(featuresToSort);
+        newItems += other.itemCount;
+        newBytes += other.bytesInMemory;
       }
+      // then read items from all chunks into memory
+      SortableChunk result = new SortableChunk(newItems);
+      result.readAll(this);
+      itemCount = newItems;
+      bytesInMemory = newBytes;
+      for (var other : others) {
+        result.readAll(other);
+      }
+      if (result.i != itemCount) {
+        throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + result.i);
+      }
+      return result;
     }
 
     private Writer newWriter(Path path) {
@@ -527,15 +562,21 @@ class ExternalMergeSort implements FeatureSort {
       writer.close();
     }
 
+    public void remove() {
+      chunks.remove(this);
+      FileUtils.delete(path);
+    }
+
     /**
      * A container for all features in a chunk read into memory for sorting.
      */
     private class SortableChunk {
 
       private SortableFeature[] featuresToSort;
+      private int i = 0;
 
-      private SortableChunk(SortableFeature[] featuresToSort) {
-        this.featuresToSort = featuresToSort;
+      private SortableChunk(int itemCount) {
+        this.featuresToSort = new SortableFeature[itemCount];
       }
 
       public SortableChunk sort() {
@@ -556,6 +597,14 @@ class ExternalMergeSort implements FeatureSort {
           return this;
         } catch (IOException e) {
           throw new UncheckedIOException(e);
+        }
+      }
+
+      private void readAll(Chunk chunk) {
+        try (var iterator = chunk.newReader()) {
+          while (iterator.hasNext()) {
+            featuresToSort[i++] = iterator.next();
+          }
         }
       }
     }

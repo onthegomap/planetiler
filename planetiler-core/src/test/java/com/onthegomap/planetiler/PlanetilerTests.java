@@ -1579,7 +1579,11 @@ class PlanetilerTests {
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
       "--tmpdir", tempDir.toString(),
-      "--free-osm-after-read"
+      "--free-osm-after-read",
+      // ensure we exercise the multi-threaded code
+      "--write-threads=2",
+      "--process-threads=2",
+      "--threads=4"
     ))
       .setProfile(new Profile.NullProfile() {
         @Override

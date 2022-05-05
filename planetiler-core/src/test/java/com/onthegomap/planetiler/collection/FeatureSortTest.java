@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,7 +22,7 @@ class FeatureSortTest {
   @TempDir
   Path tmpDir;
 
-  private static SortableFeature newEntry(int i) {
+  private SortableFeature newEntry(int i) {
     return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
@@ -77,6 +78,36 @@ class FeatureSortTest {
     writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testTwoWriters() {
+    FeatureSort sorter = newSorter(2, 0, false, false);
+    var writer1 = sorter.writerForThread();
+    var writer2 = sorter.writerForThread();
+    writer1.accept(newEntry(4));
+    writer1.accept(newEntry(3));
+    writer2.accept(newEntry(2));
+    writer2.accept(newEntry(1));
+    sorter.sort();
+    assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testMultipleWritersThatGetCombined() {
+    FeatureSort sorter = newSorter(2, 2_000_000, false, false);
+    var writer1 = sorter.writerForThread();
+    var writer2 = sorter.writerForThread();
+    var writer3 = sorter.writerForThread();
+    writer1.accept(newEntry(4));
+    writer1.accept(newEntry(3));
+    writer2.accept(newEntry(2));
+    writer2.accept(newEntry(1));
+    writer3.accept(newEntry(5));
+    writer3.accept(newEntry(6));
+    sorter.sort();
+    assertEquals(Stream.of(1, 2, 3, 4, 5, 6).map(this::newEntry).toList(),
+      sorter.toList());
   }
 
   @ParameterizedTest
