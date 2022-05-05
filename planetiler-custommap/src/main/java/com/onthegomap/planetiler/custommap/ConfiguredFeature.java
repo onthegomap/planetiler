@@ -147,17 +147,6 @@ public class ConfiguredFeature {
       minZoomFromTilePercent(sf, minTilePercent));
   }
 
-  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig, Byte layerMinZoom) {
-    if (zoomConfig == null) {
-      return 0;
-    }
-    var zoomMatches = zoomConfig.getMatches(sf);
-    if (zoomMatches.isEmpty()) {
-      return 0;
-    }
-    return Math.max(layerMinZoom, Collections.min(zoomMatches));
-  }
-
   private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
     if (minTilePercent == null) {
       return 0;
@@ -167,6 +156,25 @@ public class ConfiguredFeature {
     } catch (GeometryException e) {
       return 14;
     }
+  }
+
+  /**
+   * Determine the minimum zoom of a feature, based on its tagging.
+   * 
+   * @param sf           the source feature
+   * @param zoomConfig   tag-based zoom configuration index from JSON
+   * @param layerMinZoom overall minimum zoom for this type of feature
+   * @return minimum zoom level for this feature
+   */
+  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig, Byte layerMinZoom) {
+    if (zoomConfig == null) {
+      return 0;
+    }
+    var zoomMatches = zoomConfig.getMatches(sf);
+    if (zoomMatches.isEmpty()) {
+      return 0;
+    }
+    return Math.max(layerMinZoom, Collections.min(zoomMatches));
   }
 
   /**
