@@ -202,18 +202,14 @@ class ConfiguredFeatureTest {
     }, 1);
 
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", trunkTags, f -> {
-      var attr = f.getAttrsAtZoom(4);
-      assertFalse(attr.containsKey("highway"), "Don't produce highway=trunk at z4");
-
-      attr = f.getAttrsAtZoom(5);
+      assertEquals(5, f.getMinZoom());
+      var attr = f.getAttrsAtZoom(5);
       assertEquals("trunk", attr.get("highway"), "Produce highway=trunk at z5");
     }, 1);
 
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", primaryTags, f -> {
-      var attr = f.getAttrsAtZoom(6);
-      assertFalse(attr.containsKey("highway"), "Don't produce highway=primary at z6");
-
-      attr = f.getAttrsAtZoom(7);
+      assertEquals(7, f.getMinZoom());
+      var attr = f.getAttrsAtZoom(7);
       assertEquals("primary", attr.get("highway"), "Produce highway=primary at z7");
     }, 1);
   }
