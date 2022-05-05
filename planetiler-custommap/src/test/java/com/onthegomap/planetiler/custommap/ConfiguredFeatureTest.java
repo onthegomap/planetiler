@@ -268,8 +268,11 @@ class ConfiguredFeatureTest {
 
   @Test
   void testInvalidSchemas() throws Exception {
-    assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, "bad_geometry_type.yml"),
-      "Proifile loaded with invalid geometry type");
+    testInvalidSchema("bad_geometry_type.yml", "Profile defined with invalid geometry type");
+    testInvalidSchema("no_layers.yml", "Profile defined with no layers");
   }
 
+  private void testInvalidSchema(String filename, String message) {
+    assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, filename), message);
+  }
 }

@@ -27,7 +27,7 @@ public class ConfiguredProfile implements Profile {
 
     Collection<FeatureLayer> layers = schemaConfig.getLayers();
     if (layers == null) {
-      return;
+      throw new IllegalArgumentException("No layers defined");
     }
 
     TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getDataTypes());
