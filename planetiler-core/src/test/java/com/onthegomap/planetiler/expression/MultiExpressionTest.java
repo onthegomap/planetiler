@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -303,13 +304,30 @@ class MultiExpressionTest {
   }
 
   @Test
+  void testMapResult() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchField("key"))
+    )).mapResults(result -> result.toUpperCase(Locale.ROOT)).index();
+    assertSameElements(List.of("A"), index.getMatches(featureWithTags("key", "value")));
+  }
+
+  @Test
+  void testFilterResults() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchField("key")),
+      entry("b", matchField("key"))
+    )).filterResults(result -> !result.equals("b")).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+  }
+
+  @Test
   void testOrConstant() {
     var index = MultiExpression.of(List.of(
       entry("a", or(
         Expression.TRUE,
         matchAny("key1", "val1")
       ))
-    )).index();
+    )).indexAndWarn();
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "val2")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "no", "key2", "val2")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key1", "val1", "key2", "no")));
@@ -521,7 +539,7 @@ class MultiExpressionTest {
 
   @Test
   void testMatchMissing() {
-    //Test logic: match if either key1 or key2 is missing
+    // Test logic: match if either key1 or key2 is missing
     var index1 = MultiExpression.of(List.of(
       entry("a", or(
         matchAny("key1", ""),
