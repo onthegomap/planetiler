@@ -12,6 +12,8 @@ public record PlanetilerConfig(
   Arguments arguments,
   Bounds bounds,
   int threads,
+  int featureWriteThreads,
+  int featureProcessThreads,
   Duration logInterval,
   int minzoom,
   int maxzoom,
@@ -75,10 +77,20 @@ public record PlanetilerConfig(
       "default storage type for temporary data, one of " + Stream.of(Storage.values()).map(
         Storage::id).toList(),
       fallbackTempStorage);
+    int threads = arguments.threads();
+    int featureWriteThreads =
+      arguments.getInteger("write_threads", "number of threads to use when writing temp features",
+        // defaults: <48 cpus=1 writer, 48-80=2 writers, 80-112=3 writers, 112-144=4 writers, ...
+        Math.max(1, (threads - 16) / 32 + 1));
+    int featureProcessThreads =
+      arguments.getInteger("process_threads", "number of threads to use when processing input features",
+        Math.max(threads < 4 ? threads : (threads - featureWriteThreads), 1));
     return new PlanetilerConfig(
       arguments,
       new Bounds(arguments.bounds("bounds", "bounds")),
-      arguments.threads(),
+      threads,
+      featureWriteThreads,
+      featureProcessThreads,
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),

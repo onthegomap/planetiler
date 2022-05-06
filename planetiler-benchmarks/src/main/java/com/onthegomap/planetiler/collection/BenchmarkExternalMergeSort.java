@@ -39,9 +39,10 @@ public class BenchmarkExternalMergeSort {
     var config = PlanetilerConfig.defaults();
     try {
       List<Results> results = new ArrayList<>();
-      for (int limit : List.of(500_000_000, 2_000_000_000)) {
-        results.add(run(path, number, limit, false, true, true, config));
-        results.add(run(path, number, limit, true, true, true, config));
+      int limit = 2_000_000_000;
+      for (int writers : List.of(1, 2, 4)) {
+        results.add(run(path, writers, number, limit, false, true, true, config));
+        results.add(run(path, writers, number, limit, true, true, true, config));
       }
       for (var result : results) {
         System.err.println(result);
@@ -51,17 +52,18 @@ public class BenchmarkExternalMergeSort {
     }
   }
 
-
   private record Results(
     String write, String read, String sort,
-    int chunks, long items, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
+    int chunks,
+    int writeWorkers, int readWorkers,
+    long items, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
     boolean madvise
   ) {}
 
-  private static Results run(Path tmpDir, long items, int chunkSizeLimit, boolean mmap, boolean parallelSort,
+  private static Results run(Path tmpDir, int writeWorkers, long items, int chunkSizeLimit, boolean mmap,
+    boolean parallelSort,
     boolean madvise, PlanetilerConfig config) {
     boolean gzip = false;
-    int writeWorkers = 1;
     int sortWorkers = Runtime.getRuntime().availableProcessors();
     int readWorkers = 1;
     FileUtils.delete(tmpDir);
@@ -86,6 +88,8 @@ public class BenchmarkExternalMergeSort {
       FORMAT.numeric(items * NANOSECONDS_PER_SECOND / readTimer.elapsed().wall().toNanos()) + "/s",
       FORMAT.duration(sortTimer.elapsed().wall()),
       sorter.chunks(),
+      writeWorkers,
+      readWorkers,
       items,
       chunkSizeLimit,
       gzip,
@@ -116,12 +120,14 @@ public class BenchmarkExternalMergeSort {
   private static void doWrites(int writeWorkers, long items, ExternalMergeSort sorter) {
     var counters = Counter.newMultiThreadCounter();
     var writer = new Worker("write", Stats.inMemory(), writeWorkers, () -> {
-      var counter = counters.counterForThread();
-      var random = ThreadLocalRandom.current();
-      long toWrite = items / writeWorkers;
-      for (long i = 0; i < toWrite; i++) {
-        sorter.add(new SortableFeature(random.nextLong(), TEST_DATA));
-        counter.inc();
+      try (var writerForThread = sorter.writerForThread()) {
+        var counter = counters.counterForThread();
+        var random = ThreadLocalRandom.current();
+        long toWrite = items / writeWorkers;
+        for (long i = 0; i < toWrite; i++) {
+          writerForThread.accept(new SortableFeature(random.nextLong(), TEST_DATA));
+          counter.inc();
+        }
       }
     });
     ProgressLoggers loggers = ProgressLoggers.create()

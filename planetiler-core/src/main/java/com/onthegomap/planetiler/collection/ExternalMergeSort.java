@@ -7,7 +7,9 @@ import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
+import com.onthegomap.planetiler.util.BinPack;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
+import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
@@ -26,14 +28,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.zip.Deflater;
@@ -63,7 +68,8 @@ class ExternalMergeSort implements FeatureSort {
   private final int chunkSizeLimit;
   private final int workers;
   private final AtomicLong features = new AtomicLong(0);
-  private final List<Chunk> chunks = new ArrayList<>();
+  private final List<Chunk> chunks = new CopyOnWriteArrayList<>();
+  private final AtomicInteger chunkNum = new AtomicInteger(0);
   private final boolean gzip;
   private final PlanetilerConfig config;
   private final int readerLimit;
@@ -72,7 +78,6 @@ class ExternalMergeSort implements FeatureSort {
   private final boolean parallelSort;
   private final boolean madvise;
   private final AtomicBoolean madviseFailed = new AtomicBoolean(false);
-  private Chunk currentChunk;
   private volatile boolean sorted = false;
 
   ExternalMergeSort(Path tempDir, PlanetilerConfig config, Stats stats) {
@@ -118,7 +123,6 @@ class ExternalMergeSort implements FeatureSort {
     try {
       FileUtils.deleteDirectory(dir);
       Files.createDirectories(dir);
-      newChunk();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -134,17 +138,8 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public void add(SortableFeature item) {
-    try {
-      assert !sorted;
-      features.incrementAndGet();
-      currentChunk.add(item);
-      if (currentChunk.bytesInMemory > chunkSizeLimit) {
-        newChunk();
-      }
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+  public CloseableConusmer<SortableFeature> writerForThread() {
+    return new ThreadLocalWriter();
   }
 
   @Override
@@ -160,9 +155,9 @@ class ExternalMergeSort implements FeatureSort {
   @Override
   public void sort() {
     assert !sorted;
-    if (currentChunk != null) {
+    for (var chunk : chunks) {
       try {
-        currentChunk.close();
+        chunk.close();
       } catch (IOException e) {
         // ok
       }
@@ -175,12 +170,32 @@ class ExternalMergeSort implements FeatureSort {
     AtomicLong sorting = new AtomicLong(0);
     AtomicLong doneCounter = new AtomicLong(0);
 
+    // we may end up with many small chunks because each thread-local writer starts a new one
+    // so group together smaller chunks that can be sorted together in-memory to minimize the
+    // number of chunks that the reader needs to deal with
+    List<List<ExternalMergeSort.Chunk>> groups = BinPack.pack(
+      chunks,
+      chunkSizeLimit,
+      chunk -> chunk.bytesInMemory
+    );
+
+    LOGGER.info("Grouped {} chunks into {}", chunks.size(), groups.size());
+
     var pipeline = WorkerPipeline.start("sort", stats)
-      .readFromTiny("item_queue", chunks)
-      .sinkToConsumer("worker", workers, chunk -> {
+      .readFromTiny("item_queue", groups)
+      .sinkToConsumer("worker", workers, group -> {
         try {
           readSemaphore.acquire();
-          var toSort = time(reading, chunk::readAll);
+          var chunk = group.get(0);
+          var others = group.stream().skip(1).toList();
+          var toSort = time(reading, () -> {
+            // merge all chunks into first one, and remove the others
+            var result = chunk.readAllAndMergeIn(others);
+            for (var other : others) {
+              other.remove();
+            }
+            return result;
+          });
           readSemaphore.release();
 
           time(sorting, toSort::sort);
@@ -223,6 +238,10 @@ class ExternalMergeSort implements FeatureSort {
   public Iterator<SortableFeature> iterator() {
     assert sorted;
 
+    if (chunks.isEmpty()) {
+      return Collections.emptyIterator();
+    }
+
     // k-way merge to interleave all the sorted chunks
     PriorityQueue<Reader<?>> queue = new PriorityQueue<>(chunks.size());
     for (Chunk chunk : chunks) {
@@ -248,15 +267,6 @@ class ExternalMergeSort implements FeatureSort {
         return next;
       }
     };
-  }
-
-  private void newChunk() throws IOException {
-    Path chunkPath = dir.resolve("chunk" + (chunks.size() + 1));
-    chunkPath.toFile().deleteOnExit();
-    if (currentChunk != null) {
-      currentChunk.close();
-    }
-    chunks.add(currentChunk = new Chunk(chunkPath));
   }
 
   public int chunks() {
@@ -400,6 +410,50 @@ class ExternalMergeSort implements FeatureSort {
     abstract SortableFeature readNextFeature();
   }
 
+  /** Writer that a single thread can use to write features independent of writers used in other threads. */
+  @NotThreadSafe
+  private class ThreadLocalWriter implements CloseableConusmer<SortableFeature> {
+    private Chunk currentChunk;
+
+    private ThreadLocalWriter() {
+      try {
+        newChunk();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    @Override
+    public void accept(SortableFeature item) {
+      assert !sorted;
+      try {
+        features.incrementAndGet();
+        currentChunk.add(item);
+        if (currentChunk.bytesInMemory > chunkSizeLimit) {
+          newChunk();
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    private void newChunk() throws IOException {
+      Path chunkPath = dir.resolve("chunk" + chunkNum.incrementAndGet());
+      FileUtils.deleteOnExit(chunkPath);
+      if (currentChunk != null) {
+        currentChunk.close();
+      }
+      chunks.add(currentChunk = new Chunk(chunkPath));
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (currentChunk != null) {
+        currentChunk.close();
+      }
+    }
+  }
+
   /** Write features to the chunk file through a memory-mapped file. */
   private class WriterMmap implements Writer {
     private final FileChannel channel;
@@ -467,19 +521,34 @@ class ExternalMergeSort implements FeatureSort {
       itemCount++;
     }
 
-    private SortableChunk readAll() {
-      try (var iterator = newReader()) {
-        SortableFeature[] featuresToSort = new SortableFeature[itemCount];
-        int i = 0;
-        while (iterator.hasNext()) {
-          featuresToSort[i] = iterator.next();
-          i++;
+    private SortableChunk readAllAndMergeIn(Collection<Chunk> others) {
+      // first, grow this chunk
+      int newItems = itemCount;
+      int newBytes = bytesInMemory;
+      for (var other : others) {
+        if (Integer.MAX_VALUE - newItems < other.itemCount) {
+          throw new IllegalStateException("Too many items in merged chunk: " + itemCount + "+" +
+            others.stream().map(c -> c.itemCount).toList());
         }
-        if (i != itemCount) {
-          throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + i);
+        if (Integer.MAX_VALUE - newBytes < other.bytesInMemory) {
+          throw new IllegalStateException("Too big merged chunk: " + bytesInMemory + "+" +
+            others.stream().map(c -> c.bytesInMemory).toList());
         }
-        return new SortableChunk(featuresToSort);
+        newItems += other.itemCount;
+        newBytes += other.bytesInMemory;
       }
+      // then read items from all chunks into memory
+      SortableChunk result = new SortableChunk(newItems);
+      result.readAll(this);
+      itemCount = newItems;
+      bytesInMemory = newBytes;
+      for (var other : others) {
+        result.readAll(other);
+      }
+      if (result.i != itemCount) {
+        throw new IllegalStateException("Expected " + itemCount + " features in " + path + " got " + result.i);
+      }
+      return result;
     }
 
     private Writer newWriter(Path path) {
@@ -495,15 +564,21 @@ class ExternalMergeSort implements FeatureSort {
       writer.close();
     }
 
+    public void remove() {
+      chunks.remove(this);
+      FileUtils.delete(path);
+    }
+
     /**
      * A container for all features in a chunk read into memory for sorting.
      */
     private class SortableChunk {
 
       private SortableFeature[] featuresToSort;
+      private int i = 0;
 
-      private SortableChunk(SortableFeature[] featuresToSort) {
-        this.featuresToSort = featuresToSort;
+      private SortableChunk(int itemCount) {
+        this.featuresToSort = new SortableFeature[itemCount];
       }
 
       public SortableChunk sort() {
@@ -524,6 +599,14 @@ class ExternalMergeSort implements FeatureSort {
           return this;
         } catch (IOException e) {
           throw new UncheckedIOException(e);
+        }
+      }
+
+      private void readAll(Chunk chunk) {
+        try (var iterator = chunk.newReader()) {
+          while (iterator.hasNext()) {
+            featuresToSort[i++] = iterator.next();
+          }
         }
       }
     }
