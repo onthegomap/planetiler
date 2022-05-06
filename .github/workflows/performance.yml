@@ -72,14 +72,14 @@ jobs:
 
       - name: 'Run branch'
         run: |
-          rm -f data/out.mbtiles data/tmp
+          rm -rf data/out.mbtiles data/tmp
           cp branch/planetiler-dist/target/*with-deps.jar run.jar
           java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --mbtiles=data/out.mbtiles 2>&1 | tee log
           ls -alh run.jar | tee -a log
           cat log | strip-ansi > build-info/branchlogs.txt
       - name: 'Run base'
         run: |
-          rm -f data/out.mbtiles data/tmp
+          rm -rf data/out.mbtiles data/tmp
           cp base/planetiler-dist/target/*with-deps.jar run.jar
           java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --mbtiles=data/out.mbtiles 2>&1 | tee log
           ls -alh run.jar | tee -a log
