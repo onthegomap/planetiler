@@ -6,7 +6,11 @@ public record SortableFeature(long key, byte[] value) implements Comparable<Sort
 
   @Override
   public int compareTo(SortableFeature o) {
-    return Long.compare(key, o.key);
+    int result = Long.compare(key, o.key);
+    if (result == 0) {
+      result = Arrays.compare(value, o.value);
+    }
+    return result;
   }
 
   @Override
