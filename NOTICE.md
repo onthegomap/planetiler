@@ -32,7 +32,8 @@ The `planetiler-core` module includes the following software:
   - `Imposm3Parsers` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
   - `PbfDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
   - `PbfFieldDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
-  - `NativeUtil` from [uppend](https://github.com/upserve/uppend/) (MIT License)
+  - `Madvise` from [uppend](https://github.com/upserve/uppend/) (MIT License)
+  - `LongMinHeap` implementations from [graphhopper](https://github.com/graphhopper/graphhopper) (Apache license)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 
