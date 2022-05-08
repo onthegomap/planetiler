@@ -37,17 +37,12 @@ import org.junit.jupiter.api.Test;
  * and modified to use long instead of float values, use stable random seed for reproducibility, and to use new
  * implementations.
  */
-abstract class LongMinHeapTest {
+class LongMinHeapTest {
 
   protected LongMinHeap heap;
 
-  abstract void create(int capacity);
-
-  public static class ArrayMinHeapTest extends LongMinHeapTest {
-    @Override
-    void create(int capacity) {
-      heap = LongMinHeap.newArrayHeap(capacity);
-    }
+  void create(int capacity) {
+    heap = LongMinHeap.newArrayHeap(capacity);
   }
 
   @Test
