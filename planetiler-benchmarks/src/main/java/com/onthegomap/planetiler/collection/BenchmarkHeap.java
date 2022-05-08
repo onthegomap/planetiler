@@ -20,7 +20,7 @@ public class BenchmarkHeap {
       testMinHeap("binary", LongMinHeap::newBinaryArrayHeap);
       testMinHeap("quaternary", LongMinHeap::newQuaternaryArrayHeap);
       System.err.println(String.join("\t",
-        "priorityqueue\t",
+        "priorityqueue",
         Long.toString(testPriorityQueue(10).toMillis()),
         Long.toString(testPriorityQueue(100).toMillis()),
         Long.toString(testPriorityQueue(1_000).toMillis()),
@@ -29,18 +29,12 @@ public class BenchmarkHeap {
   }
 
   private static void testMinHeap(String name, IntFunction<LongMinHeap> constructor) {
-    testMinHeap(name, false, constructor);
-    testMinHeap(name, true, constructor);
-  }
-
-  private static void testMinHeap(String name, boolean remove, IntFunction<LongMinHeap> constructor) {
     System.err.println(String.join("\t",
       name,
-      Boolean.toString(remove),
-      Long.toString(testUpdates(10, remove, constructor).toMillis()),
-      Long.toString(testUpdates(100, remove, constructor).toMillis()),
-      Long.toString(testUpdates(1_000, remove, constructor).toMillis()),
-      Long.toString(testUpdates(10_000, remove, constructor).toMillis())));
+      Long.toString(testUpdates(10, constructor).toMillis()),
+      Long.toString(testUpdates(100, constructor).toMillis()),
+      Long.toString(testUpdates(1_000, constructor).toMillis()),
+      Long.toString(testUpdates(10_000, constructor).toMillis())));
   }
 
   private static final Map<Integer, long[][]> cache = new HashMap<>();
@@ -59,7 +53,7 @@ public class BenchmarkHeap {
     });
   }
 
-  private static Duration testUpdates(int size, boolean remove, IntFunction<LongMinHeap> heapFn) {
+  private static Duration testUpdates(int size, IntFunction<LongMinHeap> heapFn) {
     int[] indexes = new int[size];
     long[][] vals = getVals(size);
     var heap = heapFn.apply(size);
@@ -68,16 +62,12 @@ public class BenchmarkHeap {
     }
     var start = System.nanoTime();
     while (!heap.isEmpty()) {
-      int id = remove ? heap.poll() : heap.peekId();
+      int id = heap.peekId();
       int index = indexes[id]++;
       long[] valList = vals[id];
       if (index < valList.length) {
-        if (remove) {
-          heap.push(id, valList[index]);
-        } else {
-          heap.updateHead(valList[index]);
-        }
-      } else if (!remove) {
+        heap.updateHead(valList[index]);
+      } else {
         heap.poll();
       }
     }
