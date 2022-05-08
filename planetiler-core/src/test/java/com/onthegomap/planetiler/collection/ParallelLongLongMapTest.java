@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -20,7 +19,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
   @Test
   @Timeout(10)
-  void testWaitForBothWritersToClose() {
+  void testWaitForBothWritersToClose() throws InterruptedException {
     var writer1 = parallel.newWriter();
     var writer2 = parallel.newWriter();
     writer1.put(0, 1);
@@ -106,11 +105,6 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
   @BeforeEach
   public void setupParallelWriter(@TempDir Path path) {
     this.parallel = create(path);
-  }
-
-  @AfterEach
-  public void closeParallelWriter() throws IOException {
-    this.parallel.close();
   }
 
   @Override
