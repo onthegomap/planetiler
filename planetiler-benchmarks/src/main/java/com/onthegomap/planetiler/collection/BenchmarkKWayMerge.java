@@ -41,7 +41,7 @@ public class BenchmarkKWayMerge {
     int num = 10_000_000;
     return IntStream.range(0, size)
       .mapToObj(i -> random
-        .longs(0, 1_000_000)
+        .longs(0, 1_000_000_000)
         .limit(num / size)
         .sorted()
         .toArray()
