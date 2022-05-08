@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.collection;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -227,9 +228,9 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         return result.get();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        return throwFatalException(e);
       } catch (ExecutionException e) {
-        throw new RuntimeException(e);
+        return throwFatalException(e);
       }
     }
 
@@ -239,7 +240,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         activeSegments.acquire();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throwFatalException(e);
       }
       synchronized (usedSegments) {
         usedSegments.set(id);
@@ -255,11 +256,11 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
         activeSegments.release();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throwFatalException(e);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       } catch (ExecutionException e) {
-        throw new RuntimeException(e);
+        throwFatalException(e);
       }
     }
   }
