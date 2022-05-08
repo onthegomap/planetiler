@@ -29,8 +29,7 @@ public interface LongMinHeap {
   /**
    * Returns a new min-heap where each element has 4 children backed by elements in an array.
    * <p>
-   * Likely to have slightly better performance characteristics than a standard binary min heap due to a shallower heap,
-   * and a more cache-friendly memory layout.
+   * This is slightly faster than a traditional binary min heap due to a shallower, more cache-friendly memory layout.
    */
   static LongMinHeap newArrayHeap(int elements) {
     return new ArrayLongMinHeap(elements);
