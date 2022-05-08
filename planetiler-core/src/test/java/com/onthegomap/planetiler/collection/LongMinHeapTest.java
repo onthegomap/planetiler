@@ -196,14 +196,51 @@ abstract class LongMinHeapTest {
   @Test
   void poll() {
     create(10);
+    assertTrue(heap.isEmpty());
+    assertEquals(0, heap.size());
+
+    heap.push(9, 36L);
+    assertFalse(heap.isEmpty());
+    assertEquals(1, heap.size());
+
+    heap.push(5, 21L);
+    assertFalse(heap.isEmpty());
+    assertEquals(2, heap.size());
+
+    heap.push(3, 23L);
+    assertFalse(heap.isEmpty());
+    assertEquals(3, heap.size());
+
+    heap.push(8, 57L);
+    assertFalse(heap.isEmpty());
+    assertEquals(4, heap.size());
+
+    assertEquals(5, heap.poll());
+    assertFalse(heap.isEmpty());
+    assertEquals(3, heap.size());
+
+    assertEquals(3, heap.poll());
+    assertFalse(heap.isEmpty());
+    assertEquals(2, heap.size());
+
+    assertEquals(9, heap.poll());
+    assertFalse(heap.isEmpty());
+    assertEquals(1, heap.size());
+
+    assertEquals(8, heap.poll());
+    assertTrue(heap.isEmpty());
+    assertEquals(0, heap.size());
+  }
+
+  @Test
+  void clear() {
+    create(10);
     heap.push(9, 36L);
     heap.push(5, 21L);
     heap.push(3, 23L);
-    heap.push(8, 57L);
-    assertEquals(5, heap.poll());
-    assertEquals(3, heap.poll());
-    assertEquals(9, heap.poll());
-    assertEquals(8, heap.poll());
+    heap.clear();
+    assertTrue(heap.isEmpty());
+    assertEquals(0, heap.size());
   }
 
   @Test
@@ -246,6 +283,25 @@ abstract class LongMinHeapTest {
       polled.add(heap.poll());
     }
     assertEquals(IntArrayList.from(9, 5, 3), polled);
+  }
+
+  @Test
+  void updateHead() {
+    create(10);
+    heap.push(1, 1);
+    heap.push(2, 2);
+    heap.push(3, 3);
+    heap.push(4, 4);
+    heap.push(5, 5);
+    heap.updateHead(6);
+    heap.updateHead(7);
+    heap.updateHead(8);
+
+    IntArrayList polled = new IntArrayList();
+    while (!heap.isEmpty()) {
+      polled.add(heap.poll());
+    }
+    assertEquals(IntArrayList.from(4, 5, 1, 2, 3), polled);
   }
 
   @Test
