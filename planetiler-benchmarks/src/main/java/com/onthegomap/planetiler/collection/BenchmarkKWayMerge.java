@@ -1,8 +1,6 @@
 package com.onthegomap.planetiler.collection;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Random;
 import java.util.function.IntFunction;
@@ -13,9 +11,9 @@ import java.util.stream.IntStream;
  *
  * Times how long it takes to merge N sorted lists of random elements.
  */
-public class BenchmarkHeap {
+public class BenchmarkKWayMerge {
   public static void main(String[] args) {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
       System.err.println();
       testMinHeap("binary", LongMinHeap::newBinaryArrayHeap);
       testMinHeap("quaternary", LongMinHeap::newQuaternaryArrayHeap);
@@ -37,20 +35,17 @@ public class BenchmarkHeap {
       Long.toString(testUpdates(10_000, constructor).toMillis())));
   }
 
-  private static final Map<Integer, long[][]> cache = new HashMap<>();
+  private static final Random random = new Random();
 
   private static long[][] getVals(int size) {
-    return cache.computeIfAbsent(size, s -> {
-      int num = 50_000_000;
-      var random = new Random(0);
-      return IntStream.range(0, size)
-        .mapToObj(i -> random
-          .longs(0, 1_000_000_000)
-          .limit(num / size)
-          .sorted()
-          .toArray()
-        ).toArray(long[][]::new);
-    });
+    int num = 10_000_000;
+    return IntStream.range(0, size)
+      .mapToObj(i -> random
+        .longs(0, 1_000_000)
+        .limit(num / size)
+        .sorted()
+        .toArray()
+      ).toArray(long[][]::new);
   }
 
   private static Duration testUpdates(int size, IntFunction<LongMinHeap> heapFn) {

@@ -146,7 +146,27 @@ abstract class LongMinHeapArray implements LongMinHeap {
     size = 0;
   }
 
-  protected abstract void percolateUp(int index);
+  private void percolateUp(int index) {
+    assert index != 0;
+    if (index == 1) {
+      return;
+    }
+    final int el = tree[index];
+    final long val = vals[index];
+    // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
+    int parent;
+    while (val < vals[parent = parent(index)]) {
+      tree[index] = tree[parent];
+      vals[index] = vals[parent];
+      positions[tree[index]] = index;
+      index = parent;
+    }
+    tree[index] = el;
+    vals[index] = val;
+    positions[tree[index]] = index;
+  }
+
+  protected abstract int parent(int index);
 
   protected abstract void percolateDown(int index);
 
@@ -163,24 +183,8 @@ abstract class LongMinHeapArray implements LongMinHeap {
     }
 
     @Override
-    protected void percolateUp(int index) {
-      assert index != 0;
-      if (index == 1) {
-        return;
-      }
-      final int el = tree[index];
-      final long val = vals[index];
-      // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
-      int parent;
-      while (val < vals[parent = index >> 1]) {
-        tree[index] = tree[parent];
-        vals[index] = vals[parent];
-        positions[tree[index]] = index;
-        index = parent;
-      }
-      tree[index] = el;
-      vals[index] = val;
-      positions[tree[index]] = index;
+    protected int parent(int index) {
+      return index >> 1;
     }
 
     @Override
@@ -226,34 +230,13 @@ abstract class LongMinHeapArray implements LongMinHeap {
       super(elements);
     }
 
-    private static int parent(int index) {
-      return (index + 2) >> 2;
-    }
-
     private static int firstChild(int index) {
       return (index << 2) - 2;
     }
 
-
     @Override
-    protected void percolateUp(int index) {
-      assert index != 0;
-      if (index == 1) {
-        return;
-      }
-      final int el = tree[index];
-      final long val = vals[index];
-      // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
-      int parent;
-      while (val < vals[parent = parent(index)]) {
-        tree[index] = tree[parent];
-        vals[index] = vals[parent];
-        positions[tree[index]] = index;
-        index = parent;
-      }
-      tree[index] = el;
-      vals[index] = val;
-      positions[tree[index]] = index;
+    protected int parent(int index) {
+      return (index + 2) >> 2;
     }
 
     @Override
@@ -265,34 +248,34 @@ abstract class LongMinHeapArray implements LongMinHeap {
       assert index <= size;
       final int el = tree[index];
       final long val = vals[index];
-      int cn;
-      while ((cn = firstChild(index)) <= size) {
+      int child;
+      while ((child = firstChild(index)) <= size) {
         // optimization: this is a very hot code path for performance of k-way merging,
         // so manually-unroll the loop over the 4 child elements to find the minimum value
-        int child = cn;
-        long value = vals[cn], vn;
-        if (++cn <= size) {
-          if ((vn = vals[cn]) < value) {
-            child = cn;
-            value = vn;
+        int minChild = child;
+        long minValue = vals[child], value;
+        if (++child <= size) {
+          if ((value = vals[child]) < minValue) {
+            minChild = child;
+            minValue = value;
           }
-          if (++cn <= size) {
-            if ((vn = vals[cn]) < value) {
-              child = cn;
-              value = vn;
+          if (++child <= size) {
+            if ((value = vals[child]) < minValue) {
+              minChild = child;
+              minValue = value;
             }
-            if (++cn <= size && (vn = vals[cn]) < value) {
-              child = cn;
-              value = vn;
+            if (++child <= size && (value = vals[child]) < minValue) {
+              minChild = child;
+              minValue = value;
             }
           }
         }
-        if (value >= val) {
+        if (minValue >= val) {
           break;
         }
-        vals[index] = value;
-        positions[tree[index] = tree[child]] = index;
-        index = child;
+        vals[index] = minValue;
+        positions[tree[index] = tree[minChild]] = index;
+        index = minChild;
       }
       tree[index] = el;
       vals[index] = val;

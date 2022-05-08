@@ -57,7 +57,6 @@ abstract class LongMinHeapTest {
     }
   }
 
-
   @Test
   void outOfRange() {
     create(4);
