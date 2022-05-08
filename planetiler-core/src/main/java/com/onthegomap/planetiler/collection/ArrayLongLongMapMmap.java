@@ -161,6 +161,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
 
   @Override
   public void close() throws IOException {
+    ByteBufferUtil.free(segmentsArray);
     if (readChannel != null) {
       readChannel.close();
       readChannel = null;

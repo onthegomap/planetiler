@@ -19,7 +19,7 @@ public abstract class ParallelLongLongMapTest extends LongLongMapTest {
 
   @Test
   @Timeout(10)
-  void testWaitForBothWritersToClose() throws InterruptedException {
+  void testWaitForBothWritersToClose() {
     var writer1 = parallel.newWriter();
     var writer2 = parallel.newWriter();
     writer1.put(0, 1);
