@@ -249,7 +249,7 @@ class ExternalMergeSort implements FeatureSort {
         iterators.add(chunk.newReader());
       }
     }
-    LongMinHeap heap = LongMinHeap.newQuaternaryArrayHeap(iterators.size());
+    LongMinHeap heap = LongMinHeap.newArrayHeap(iterators.size());
     for (int i = 0; i < iterators.size(); i++) {
       heap.push(i, iterators.get(i).nextKey());
     }

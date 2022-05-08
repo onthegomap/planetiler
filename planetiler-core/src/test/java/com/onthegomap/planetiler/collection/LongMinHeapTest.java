@@ -43,17 +43,10 @@ abstract class LongMinHeapTest {
 
   abstract void create(int capacity);
 
-  public static class BinaryTest extends LongMinHeapTest {
+  public static class ArrayMinHeapTest extends LongMinHeapTest {
     @Override
     void create(int capacity) {
-      heap = LongMinHeap.newBinaryArrayHeap(capacity);
-    }
-  }
-
-  public static class QuaternaryTest extends LongMinHeapTest {
-    @Override
-    void create(int capacity) {
-      heap = LongMinHeap.newQuaternaryArrayHeap(capacity);
+      heap = LongMinHeap.newArrayHeap(capacity);
     }
   }
 

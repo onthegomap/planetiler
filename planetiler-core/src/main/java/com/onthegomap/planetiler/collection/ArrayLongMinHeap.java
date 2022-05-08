@@ -20,24 +20,23 @@ package com.onthegomap.planetiler.collection;
 import java.util.Arrays;
 
 /**
- * Generalization of a D-ary heap stored in an array where each element has D children.
- *
- * {@link Binary} is a standard binary min heap, and {@link Quaternary} is a min heap where each element has 4 children,
- * which has slightly better performance characteristics.
- *
+ * A min-heap stored in an array where each element has 4 children.
+ * <p>
+ * This is about 5-10% faster than the standard binary min-heap for the case of merging sorted lists.
+ * <p>
  * Ported from <a href=
  * "https://github.com/graphhopper/graphhopper/blob/master/core/src/main/java/com/graphhopper/coll/MinHeapWithUpdate.java">GraphHopper</a>
  * and:
  * <ul>
  * <li>modified to use {@code long} values instead of {@code float}</li>
  * <li>extracted a common interface for subclass implementations</li>
- * <li>modified logic to add a quaternary implementation in addition to binary one</li>
+ * <li>modified so that each element has 4 children instead of 2 (improves performance by 5-10%)</li>
  * <li>performance improvements to minimize array lookups</li>
  * </ul>
  *
  * @see <a href="https://en.wikipedia.org/wiki/D-ary_heap">d-ary heap (wikipedia)</a>
  */
-abstract class LongMinHeapArray implements LongMinHeap {
+class ArrayLongMinHeap implements LongMinHeap {
   protected static final int NOT_PRESENT = -1;
   protected final int[] tree;
   protected final int[] positions;
@@ -49,7 +48,7 @@ abstract class LongMinHeapArray implements LongMinHeap {
    * @param elements the number of elements that can be stored in this heap. Currently the heap cannot be resized or
    *                 shrunk/trimmed after initial creation. elements-1 is the maximum id that can be stored in this heap
    */
-  LongMinHeapArray(int elements) {
+  ArrayLongMinHeap(int elements) {
     // we use an offset of one to make the arithmetic a bit simpler/more efficient, the 0th elements are not used!
     tree = new int[elements + 1];
     positions = new int[elements + 1];
@@ -59,11 +58,18 @@ abstract class LongMinHeapArray implements LongMinHeap {
     this.max = elements;
   }
 
+  private static int firstChild(int index) {
+    return (index << 2) - 2;
+  }
+
+  private static int parent(int index) {
+    return (index + 2) >> 2;
+  }
+
   @Override
   public int size() {
     return size;
   }
-
 
   @Override
   public boolean isEmpty() {
@@ -155,10 +161,10 @@ abstract class LongMinHeapArray implements LongMinHeap {
     final long val = vals[index];
     // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
     int parent;
-    while (val < vals[parent = parent(index)]) {
-      tree[index] = tree[parent];
-      vals[index] = vals[parent];
-      positions[tree[index]] = index;
+    long parentValue;
+    while (val < (parentValue = vals[parent = parent(index)])) {
+      vals[index] = parentValue;
+      positions[tree[index] = tree[parent]] = index;
       index = parent;
     }
     tree[index] = el;
@@ -166,120 +172,51 @@ abstract class LongMinHeapArray implements LongMinHeap {
     positions[tree[index]] = index;
   }
 
-  protected abstract int parent(int index);
-
-  protected abstract void percolateDown(int index);
-
   private void checkIdInRange(int id) {
     if (id < 0 || id >= max) {
       throw new IllegalArgumentException("Illegal id: " + id + ", legal range: [0, " + max + "[");
     }
   }
 
-  /** A 2-ary min-heap where each element has 2 children, backed by an array. */
-  static class Binary extends LongMinHeapArray {
-    Binary(int elements) {
-      super(elements);
+  private void percolateDown(int index) {
+    if (size == 0) {
+      return;
     }
-
-    @Override
-    protected int parent(int index) {
-      return index >> 1;
-    }
-
-    @Override
-    protected void percolateDown(int index) {
-      if (size == 0) {
-        return;
-      }
-      assert index > 0;
-      assert index <= size;
-      final int el = tree[index];
-      final long val = vals[index];
-      int cn;
-      while ((cn = index << 1) <= size) {
-        // optimization: this is a very hot code path for performance of k-way merging,
-        // so manually-unroll the loop over the 4 child elements to find the minimum value
-        int child = cn;
-        long value = vals[cn], vn;
-        if (++cn <= size && (vn = vals[cn]) < value) {
-          child = cn;
-          value = vn;
+    assert index > 0;
+    assert index <= size;
+    final int el = tree[index];
+    final long val = vals[index];
+    int child;
+    while ((child = firstChild(index)) <= size) {
+      // optimization: this is a very hot code path for performance of k-way merging,
+      // so manually-unroll the loop over the 4 child elements to find the minimum value
+      int minChild = child;
+      long minValue = vals[child], value;
+      if (++child <= size) {
+        if ((value = vals[child]) < minValue) {
+          minChild = child;
+          minValue = value;
         }
-        if (value >= val) {
-          break;
-        }
-        vals[index] = value;
-        positions[tree[index] = tree[child]] = index;
-        index = child;
-      }
-      tree[index] = el;
-      vals[index] = val;
-      positions[el] = index;
-    }
-  }
-
-  /**
-   * A 4-ary min-heap where each element has 4 children, backed by an array.
-   * <p>
-   * Likely to have better performance characteristics due to being shallower and cache-friendly memory layout than a
-   * binary heap.
-   */
-  static class Quaternary extends LongMinHeapArray {
-    Quaternary(int elements) {
-      super(elements);
-    }
-
-    private static int firstChild(int index) {
-      return (index << 2) - 2;
-    }
-
-    @Override
-    protected int parent(int index) {
-      return (index + 2) >> 2;
-    }
-
-    @Override
-    protected void percolateDown(int index) {
-      if (size == 0) {
-        return;
-      }
-      assert index > 0;
-      assert index <= size;
-      final int el = tree[index];
-      final long val = vals[index];
-      int child;
-      while ((child = firstChild(index)) <= size) {
-        // optimization: this is a very hot code path for performance of k-way merging,
-        // so manually-unroll the loop over the 4 child elements to find the minimum value
-        int minChild = child;
-        long minValue = vals[child], value;
         if (++child <= size) {
           if ((value = vals[child]) < minValue) {
             minChild = child;
             minValue = value;
           }
-          if (++child <= size) {
-            if ((value = vals[child]) < minValue) {
-              minChild = child;
-              minValue = value;
-            }
-            if (++child <= size && (value = vals[child]) < minValue) {
-              minChild = child;
-              minValue = value;
-            }
+          if (++child <= size && (value = vals[child]) < minValue) {
+            minChild = child;
+            minValue = value;
           }
         }
-        if (minValue >= val) {
-          break;
-        }
-        vals[index] = minValue;
-        positions[tree[index] = tree[minChild]] = index;
-        index = minChild;
       }
-      tree[index] = el;
-      vals[index] = val;
-      positions[el] = index;
+      if (minValue >= val) {
+        break;
+      }
+      vals[index] = minValue;
+      positions[tree[index] = tree[minChild]] = index;
+      index = minChild;
     }
+    tree[index] = el;
+    vals[index] = val;
+    positions[el] = index;
   }
 }

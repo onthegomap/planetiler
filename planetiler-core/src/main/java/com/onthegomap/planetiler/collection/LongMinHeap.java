@@ -21,24 +21,19 @@ package com.onthegomap.planetiler.collection;
  * API for min-heaps that keeps track of {@code int} keys in a range from {@code [0, size)} ordered by {@code long}
  * values.
  * <p>
- * Ported from <a href= "https://github.com/graphhopper/graphhopper/blob/master/core/src/main/java/com/graphhopper/coll/MinHeapWithUpdate.java">GraphHopper</a>
+ * Ported from <a href=
+ * "https://github.com/graphhopper/graphhopper/blob/master/core/src/main/java/com/graphhopper/coll/MinHeapWithUpdate.java">GraphHopper</a>
  * and modified to extract a common interface for subclass implementations.
  */
 public interface LongMinHeap {
-
-  /** Returns a new binary min-heap backed by elements in an array. */
-  static LongMinHeap newBinaryArrayHeap(int elements) {
-    return new LongMinHeapArray.Binary(elements);
-  }
-
   /**
    * Returns a new min-heap where each element has 4 children backed by elements in an array.
    * <p>
    * Likely to have slightly better performance characteristics than a standard binary min heap due to a shallower heap,
    * and a more cache-friendly memory layout.
    */
-  static LongMinHeap newQuaternaryArrayHeap(int elements) {
-    return new LongMinHeapArray.Quaternary(elements);
+  static LongMinHeap newArrayHeap(int elements) {
+    return new ArrayLongMinHeap(elements);
   }
 
   int size();
