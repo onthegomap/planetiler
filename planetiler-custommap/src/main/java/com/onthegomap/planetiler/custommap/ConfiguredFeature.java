@@ -273,7 +273,7 @@ public class ConfiguredFeature {
   }
 
   /**
-   * Generate a tile feature based on a source feature
+   * Generates a tile feature based on a source feature.
    * 
    * @param sourceFeature - input source feature
    * @param features      - output rendered feature collector
