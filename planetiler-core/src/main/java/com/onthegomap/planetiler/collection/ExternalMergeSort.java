@@ -28,13 +28,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -212,7 +212,7 @@ class ExternalMergeSort implements FeatureSort {
       });
 
     ProgressLoggers loggers = ProgressLoggers.create()
-      .addPercentCounter("chunks", chunks.size(), doneCounter)
+      .addPercentCounter("chunks", groups.size(), doneCounter)
       .addFileSize(this)
       .newLine()
       .addProcessStats()
@@ -243,26 +243,33 @@ class ExternalMergeSort implements FeatureSort {
     }
 
     // k-way merge to interleave all the sorted chunks
-    PriorityQueue<Reader<?>> queue = new PriorityQueue<>(chunks.size());
+    List<Reader> iterators = new ArrayList<>();
     for (Chunk chunk : chunks) {
       if (chunk.itemCount > 0) {
-        queue.add(chunk.newReader());
+        iterators.add(chunk.newReader());
       }
+    }
+    LongMinHeap heap = LongMinHeap.newArrayHeap(iterators.size());
+    for (int i = 0; i < iterators.size(); i++) {
+      heap.push(i, iterators.get(i).nextKey());
     }
 
     return new Iterator<>() {
       @Override
       public boolean hasNext() {
-        return !queue.isEmpty();
+        return !heap.isEmpty();
       }
 
       @Override
       public SortableFeature next() {
-        Reader<?> iterator = queue.poll();
+        int i = heap.peekId();
+        Reader iterator = iterators.get(i);
         assert iterator != null;
         SortableFeature next = iterator.next();
         if (iterator.hasNext()) {
-          queue.add(iterator);
+          heap.updateHead(iterator.nextKey());
+        } else {
+          heap.poll();
         }
         return next;
       }
@@ -284,14 +291,16 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   private interface Writer extends Closeable {
+
     void write(SortableFeature feature) throws IOException;
   }
 
-  private interface Reader<T extends Reader<?>>
-    extends Closeable, Iterator<SortableFeature>, Comparable<T> {
+  private interface Reader extends Closeable, Iterator<SortableFeature> {
 
     @Override
     void close();
+
+    long nextKey();
   }
 
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
@@ -304,7 +313,7 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   /** Read all features from a chunk file using a {@link BufferedInputStream}. */
-  private static class ReaderBuffered extends BaseReader<ReaderBuffered> {
+  private static class ReaderBuffered extends BaseReader {
 
     private final int count;
     private final DataInputStream input;
@@ -382,7 +391,8 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   /** Common functionality between {@link ReaderMmap} and {@link ReaderBuffered}. */
-  private abstract static class BaseReader<T extends BaseReader<?>> implements Reader<T> {
+  private abstract static class BaseReader implements Reader {
+
     SortableFeature next;
 
     @Override
@@ -403,8 +413,8 @@ class ExternalMergeSort implements FeatureSort {
     }
 
     @Override
-    public final int compareTo(T o) {
-      return next.compareTo(o.next);
+    public final long nextKey() {
+      return next.key();
     }
 
     abstract SortableFeature readNextFeature();
@@ -413,6 +423,7 @@ class ExternalMergeSort implements FeatureSort {
   /** Writer that a single thread can use to write features independent of writers used in other threads. */
   @NotThreadSafe
   private class ThreadLocalWriter implements CloseableConusmer<SortableFeature> {
+
     private Chunk currentChunk;
 
     private ThreadLocalWriter() {
@@ -456,6 +467,7 @@ class ExternalMergeSort implements FeatureSort {
 
   /** Write features to the chunk file through a memory-mapped file. */
   private class WriterMmap implements Writer {
+
     private final FileChannel channel;
     private final MappedByteBuffer buffer;
 
@@ -555,7 +567,7 @@ class ExternalMergeSort implements FeatureSort {
       return mmapIO ? new WriterMmap(path) : new WriterBuffered(path, gzip);
     }
 
-    private Reader<?> newReader() {
+    private Reader newReader() {
       return mmapIO ? new ReaderMmap(path, itemCount) : new ReaderBuffered(path, itemCount, gzip);
     }
 
@@ -613,7 +625,8 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   /** Memory-map the chunk file, then iterate through all features in it. */
-  private class ReaderMmap extends BaseReader<ReaderMmap> {
+  private class ReaderMmap extends BaseReader {
+
     private final int count;
     private final FileChannel channel;
     private final MappedByteBuffer buffer;
