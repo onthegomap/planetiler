@@ -51,7 +51,7 @@ class VerifyMonacoTest {
         VectorTile.encodeGeometry(point(0, 0)),
         Map.of()
       )));
-      writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()));
+      writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), 1);
     }
     assertInvalid(mbtiles);
   }

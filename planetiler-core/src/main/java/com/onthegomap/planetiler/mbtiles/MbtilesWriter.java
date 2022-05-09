@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.mbtiles;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.google.common.collect.Maps;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
@@ -20,21 +21,28 @@ import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +67,18 @@ public class MbtilesWriter {
   private final FeatureGroup features;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
+  private final AtomicLong tileDataIdGenerator = new AtomicLong(1);
+  //  private final LoadingCache<ByteBuffer, Long> tileDataIdByHash = CacheBuilder.newBuilder()
+  //    .maximumSize(10_000)
+  //    .build(
+  //      new CacheLoader<>() {
+  //
+  //        @Override
+  //        public Long load(ByteBuffer key) throws Exception {
+  //          return tileDataIdGenerator.getAndIncrement();
+  //        }
+  //      }
+  //    );
 
   private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
     Stats stats, LayerStats layerStats) {
@@ -89,7 +109,7 @@ public class MbtilesWriter {
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code outputPath}. */
   public static void writeOutput(FeatureGroup features, Path outputPath, MbtilesMetadata mbtilesMetadata,
     PlanetilerConfig config, Stats stats) {
-    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
+    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath, config.compactDb())) {
       writeOutput(features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + outputPath, e);
@@ -231,37 +251,49 @@ public class MbtilesWriter {
      * recomputing if the input hasn't changed.
      */
     byte[] lastBytes = null, lastEncoded = null;
+    MessageDigest md = getSha1MessageDigest();
+    Map<ByteBuffer, Long> tileDataIdByHash = Maps.newHashMapWithExpectedSize((int) MAX_TILES_PER_BATCH);
+    boolean compactDb = config.compactDb();
 
     for (TileBatch batch : prev) {
-      Queue<Mbtiles.TileEntry> result = new ArrayDeque<>(batch.size());
-      FeatureGroup.TileFeatures last = null;
+      Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
+      ByteBuffer lastTileDataHash = null;
       // each batch contains tile ordered by z asc, x asc, y desc
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
-        if (tileFeatures.hasSameContents(last)) {
-          bytes = lastBytes;
-          encoded = lastEncoded;
+        md.reset();
+        ByteBuffer tileDataHash = ByteBuffer.wrap(tileFeatures.generateContentHash(md));
+        Long existingTileDataId = tileDataIdByHash.get(tileDataHash);
+        LongSupplier tileDataIdSupplier =
+          () -> tileDataIdByHash.computeIfAbsent(tileDataHash, k -> tileDataIdGenerator.getAndIncrement());
+
+        if (tileDataHash.equals(lastTileDataHash)) {
+          bytes = compactDb ? null : lastBytes;
+          encoded = compactDb ? null : lastEncoded;
+          memoizedTiles.inc();
+        } else if (compactDb && existingTileDataId != null) {
+          bytes = null;
+          encoded = null;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
           encoded = en.encode();
-          bytes = gzip(encoded);
-          last = tileFeatures;
           lastEncoded = encoded;
-          lastBytes = bytes;
+          bytes = lastBytes = gzip(encoded);
+          lastTileDataHash = tileDataHash;
           if (encoded.length > 1_000_000) {
-            LOGGER.warn("{} {}kb uncompressed",
-              tileFeatures.tileCoord(),
-              encoded.length / 1024);
+            LOGGER.warn("{} {}kb uncompressed", tileFeatures.tileCoord(), encoded.length / 1024);
           }
         }
         int zoom = tileFeatures.tileCoord().z();
         int encodedLength = encoded == null ? 0 : encoded.length;
         totalTileSizesByZoom[zoom].incBy(encodedLength);
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
-        result.add(new Mbtiles.TileEntry(tileFeatures.tileCoord(), bytes));
+        result.add(
+          new TileEncodingResult(tileFeatures.tileCoord(), bytes, compactDb ? tileDataIdSupplier.getAsLong() : -1)
+        );
       }
       // hand result off to writer
       batch.out.complete(result);
@@ -292,15 +324,15 @@ public class MbtilesWriter {
     TileCoord lastTile = null;
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
-    try (var batchedWriter = db.newBatchedTileWriter()) {
+    try (var batchedTileWriter = db.newBatchedTileWriter()) {
       for (TileBatch batch : tileBatches) {
-        Queue<Mbtiles.TileEntry> tiles = batch.out.get();
-        Mbtiles.TileEntry tile;
-        while ((tile = tiles.poll()) != null) {
-          TileCoord tileCoord = tile.tile();
+        Queue<TileEncodingResult> encodedTiles = batch.out.get();
+        TileEncodingResult encodedTile;
+        while ((encodedTile = encodedTiles.poll()) != null) {
+          TileCoord tileCoord = encodedTile.coord();
           assert lastTile == null || lastTile.compareTo(tileCoord) < 0 : "Tiles out of order %s before %s"
             .formatted(lastTile, tileCoord);
-          lastTile = tile.tile();
+          lastTile = encodedTile.coord();
           int z = tileCoord.z();
           if (z != currentZ) {
             if (time == null) {
@@ -311,8 +343,9 @@ public class MbtilesWriter {
             time = Timer.start();
             currentZ = z;
           }
-          batchedWriter.write(tile.tile(), tile.bytes());
-          stats.wroteTile(z, tile.bytes().length);
+          batchedTileWriter.write(encodedTile.coord(), encodedTile.tileData(), encodedTile.tileDataId());
+
+          stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
           tilesByZoom[z].inc();
         }
         lastTileWritten.set(lastTile);
@@ -356,6 +389,15 @@ public class MbtilesWriter {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
   }
 
+  private static MessageDigest getSha1MessageDigest() {
+    try {
+      @SuppressWarnings("java:S4790") MessageDigest md = MessageDigest.getInstance("SHA-1");
+      return md;
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /**
    * Container for a batch of tiles to be processed together in the encoder and writer threads.
    * <p>
@@ -368,7 +410,7 @@ public class MbtilesWriter {
    */
   private record TileBatch(
     List<FeatureGroup.TileFeatures> in,
-    CompletableFuture<Queue<Mbtiles.TileEntry>> out
+    CompletableFuture<Queue<TileEncodingResult>> out
   ) {
 
     TileBatch() {
@@ -381,6 +423,42 @@ public class MbtilesWriter {
 
     public boolean isEmpty() {
       return in.isEmpty();
+    }
+  }
+
+  private record TileEncodingResult(
+    TileCoord coord,
+    /** might be null in compact mode */
+    @Nullable byte[] tileData,
+    long tileDataId
+  ) {
+
+    @Override
+    public String toString() {
+      return "TileEncodingResult [coord=" + coord + ", tileData=" + Arrays.toString(tileData) + ", tileDataId=" +
+        tileDataId + "]";
+    }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + Arrays.hashCode(tileData);
+      result = prime * result + Objects.hash(coord, tileDataId);
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (!(obj instanceof TileEncodingResult)) {
+        return false;
+      }
+      TileEncodingResult other = (TileEncodingResult) obj;
+      return Objects.equals(coord, other.coord) && Arrays.equals(tileData, other.tileData) &&
+        tileDataId == other.tileDataId;
     }
   }
 }

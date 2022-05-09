@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import com.carrotsearch.hppc.LongLongHashMap;
+import com.google.common.primitives.Longs;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -16,8 +17,8 @@ import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -342,25 +343,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     /**
-     * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
-     * even if the tiles have separate coordinates.
+     * Generates a hash of the features. The coordinates are <b>not</b> used for the generation of the hash.
      * <p>
-     * Used as an optimization to avoid re-encoding the same ocean tiles over and over again.
+     * Used as an optimization to avoid re-encoding and writing the same (ocean) tiles over and over again.
      */
-    public boolean hasSameContents(TileFeatures other) {
-      if (other == null || other.entries.size() != entries.size()) {
-        return false;
+    public byte[] generateContentHash(MessageDigest md) {
+      for (var feature : entries) {
+        long layerId = extractLayerIdFromKey(feature.key());
+        md.update(Longs.toByteArray(layerId));
+        md.update(feature.value());
+        md.update((byte) (extractHasGroupFromKey(feature.key()) ? 1 : 0));
       }
-      for (int i = 0; i < entries.size(); i++) {
-        SortableFeature a = entries.get(i);
-        SortableFeature b = other.entries.get(i);
-        long layerA = extractLayerIdFromKey(a.key());
-        long layerB = extractLayerIdFromKey(b.key());
-        if (layerA != layerB || !Arrays.equals(a.value(), b.value())) {
-          return false;
-        }
-      }
-      return true;
+      return md.digest();
     }
 
     private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {

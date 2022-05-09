@@ -230,6 +230,23 @@ public class TestUtils {
     return result;
   }
 
+  public static int getTilesDataCount(Mbtiles db) throws SQLException {
+    String tableToCountFrom = isCompactDb(db) ? "tiles_data" : "tiles";
+    try (Statement statement = db.connection().createStatement()) {
+      ResultSet rs = statement.executeQuery("select count(*) from %s".formatted(tableToCountFrom));
+      rs.next();
+      return rs.getInt(1);
+    }
+  }
+
+  public static boolean isCompactDb(Mbtiles db) throws SQLException {
+    try (Statement statement = db.connection().createStatement()) {
+      ResultSet rs = statement.executeQuery("select count(*) from sqlite_master where type='view' and name='tiles'");
+      rs.next();
+      return rs.getInt(1) > 0;
+    }
+  }
+
   public static <K extends Comparable<? super K>> void assertSubmap(Map<K, ?> expectedSubmap, Map<K, ?> actual) {
     assertSubmap(expectedSubmap, actual, "");
   }

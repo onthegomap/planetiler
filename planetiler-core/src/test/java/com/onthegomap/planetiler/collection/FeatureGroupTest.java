@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.collection;
 
 import static com.onthegomap.planetiler.TestUtils.decodeSilently;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,7 +15,10 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -288,7 +292,7 @@ class FeatureGroupTest {
   }
 
   @Test
-  void testHasSameFeatures() {
+  void testHasSameContentHash() {
     // should be the "same" even though sort-key is different
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
@@ -298,11 +302,14 @@ class FeatureGroupTest {
     );
     sorter.sort();
     var iter = features.iterator();
-    assertTrue(iter.next().hasSameContents(iter.next()));
+    assertArrayEquals(
+      iter.next().generateContentHash(getMessageDigest()),
+      iter.next().generateContentHash(getMessageDigest())
+    );
   }
 
   @Test
-  void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
+  void testDoesNotHaveSameContentHashWhenGeometryChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -311,11 +318,14 @@ class FeatureGroupTest {
     );
     sorter.sort();
     var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
+    assertArrayNotEquals(
+      iter.next().generateContentHash(getMessageDigest()),
+      iter.next().generateContentHash(getMessageDigest())
+    );
   }
 
   @Test
-  void testDoesNotHaveSameFeaturesWhenAttrsChange() {
+  void testDoesNotHaveSameContentHashWhenAttrsChange() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -324,11 +334,14 @@ class FeatureGroupTest {
     );
     sorter.sort();
     var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
+    assertArrayNotEquals(
+      iter.next().generateContentHash(getMessageDigest()),
+      iter.next().generateContentHash(getMessageDigest())
+    );
   }
 
   @Test
-  void testDoesNotHaveSameFeaturesWhenLayerChanges() {
+  void testDoesNotHaveSameContentHashWhenLayerChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -337,11 +350,14 @@ class FeatureGroupTest {
     );
     sorter.sort();
     var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
+    assertArrayNotEquals(
+      iter.next().generateContentHash(getMessageDigest()),
+      iter.next().generateContentHash(getMessageDigest())
+    );
   }
 
   @Test
-  void testDoesNotHaveSameFeaturesWhenIdChanges() {
+  void testDoesNotHaveSameContentHashWhenIdChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -350,7 +366,10 @@ class FeatureGroupTest {
     );
     sorter.sort();
     var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
+    assertArrayNotEquals(
+      iter.next().generateContentHash(getMessageDigest()),
+      iter.next().generateContentHash(getMessageDigest())
+    );
   }
 
   @ParameterizedTest
@@ -365,5 +384,17 @@ class FeatureGroupTest {
     byte encoded = FeatureGroup.encodeGeomTypeAndScale(new VectorTile.VectorGeometry(new int[0], geomType, scale));
     assertEquals(geomType, FeatureGroup.decodeGeomType(encoded));
     assertEquals(scale, FeatureGroup.decodeScale(encoded));
+  }
+
+  private MessageDigest getMessageDigest() {
+    try {
+      return MessageDigest.getInstance("SHA-1");
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-1 message digest not available", e);
+    }
+  }
+
+  private static void assertArrayNotEquals(byte[] expected, byte[] actual) {
+    assertFalse(Arrays.equals(expected, actual));
   }
 }
