@@ -25,30 +25,34 @@ import java.util.concurrent.ThreadLocalRandom;
 public class BenchmarkExternalMergeSort {
   private static final Format FORMAT = Format.defaultInstance();
   private static final int ITEM_SIZE_BYTES = 76;
-  private static final byte[] TEST_DATA = new byte[ITEM_SIZE_BYTES - Long.BYTES - Integer.BYTES];
+  private static final int DISK_OVERHEAD_BYTES = Long.BYTES + Integer.BYTES;
+  private static final int ITEM_DATA_BYTES = ITEM_SIZE_BYTES - DISK_OVERHEAD_BYTES;
+  private static final int MEMORY_OVERHEAD_BYTES = 8 + 16 + 8 + 8 + 24;
+  private static final int ITEM_MEMORY_BYTES = MEMORY_OVERHEAD_BYTES + ITEM_DATA_BYTES;
+  private static final byte[] TEST_DATA = new byte[ITEM_DATA_BYTES];
   static {
     ThreadLocalRandom.current().nextBytes(TEST_DATA);
   }
 
   public static void main(String[] args) {
-    double gb = args.length == 0 ? 1 : Double.parseDouble(args[0]);
+    double gb = args.length < 1 ? 1 : Double.parseDouble(args[0]);
     long number = (long) (gb * 1_000_000_000 / ITEM_SIZE_BYTES);
     Path path = Path.of("./featuretest");
     FileUtils.delete(path);
     FileUtils.deleteOnExit(path);
     var config = PlanetilerConfig.defaults();
-    try {
-      List<Results> results = new ArrayList<>();
-      int limit = 2_000_000_000;
-      for (int writers : List.of(1, 2, 4)) {
-        results.add(run(path, writers, number, limit, false, true, true, config));
-        results.add(run(path, writers, number, limit, true, true, true, config));
+    for (int i = 0; i < 3; i++) {
+      try {
+        List<Results> results = new ArrayList<>();
+        for (int chunks : List.of(1, 10, 100, 1_000, 10_000)) {
+          results.add(run(path, 1, number, chunks, true, true, true, config));
+        }
+        for (var result : results) {
+          System.err.println(result);
+        }
+      } finally {
+        FileUtils.delete(path);
       }
-      for (var result : results) {
-        System.err.println(result);
-      }
-    } finally {
-      FileUtils.delete(path);
     }
   }
 
@@ -60,15 +64,18 @@ public class BenchmarkExternalMergeSort {
     boolean madvise
   ) {}
 
-  private static Results run(Path tmpDir, int writeWorkers, long items, int chunkSizeLimit, boolean mmap,
-    boolean parallelSort,
-    boolean madvise, PlanetilerConfig config) {
+  private static Results run(Path tmpDir, int writeWorkers, long items, int numChunks,
+    boolean mmap, boolean parallelSort, boolean madvise, PlanetilerConfig config) {
+    long chunkSizeLimit = items * ITEM_MEMORY_BYTES / numChunks;
+    if (chunkSizeLimit > Integer.MAX_VALUE) {
+      throw new IllegalStateException("Chunk size too big: " + chunkSizeLimit);
+    }
     boolean gzip = false;
     int sortWorkers = Runtime.getRuntime().availableProcessors();
     int readWorkers = 1;
     FileUtils.delete(tmpDir);
     var sorter =
-      new ExternalMergeSort(tmpDir, sortWorkers, chunkSizeLimit, gzip, mmap, parallelSort, madvise, config,
+      new ExternalMergeSort(tmpDir, sortWorkers, (int) chunkSizeLimit, gzip, mmap, parallelSort, madvise, config,
         Stats.inMemory());
 
     var writeTimer = Timer.start();
@@ -91,7 +98,7 @@ public class BenchmarkExternalMergeSort {
       writeWorkers,
       readWorkers,
       items,
-      chunkSizeLimit,
+      (int) chunkSizeLimit,
       gzip,
       mmap,
       parallelSort,
