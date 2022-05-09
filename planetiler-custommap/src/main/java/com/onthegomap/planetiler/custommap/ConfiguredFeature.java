@@ -237,7 +237,7 @@ public class ConfiguredFeature {
   }
 
   /**
-   * Generate a test for whether a source feature is of the correct geometry to be included in the tile.
+   * Generates a test for whether a source feature is of the correct geometry to be included in the tile.
    * 
    * @param type type of geometry
    * @return geometry test method
