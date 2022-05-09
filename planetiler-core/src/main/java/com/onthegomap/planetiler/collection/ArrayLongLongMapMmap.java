@@ -58,7 +58,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
   private final ConcurrentHashMap<Integer, Segment> writeBuffers = new ConcurrentHashMap<>();
   private final Semaphore activeSegments;
   private final BitSet usedSegments = new BitSet();
-  FileChannel writeChannel;
+  private FileChannel writeChannel;
   private MappedByteBuffer[] segmentsArray;
   private FileChannel readChannel = null;
   private volatile int tail = 0;
@@ -166,11 +166,15 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
       ByteBufferUtil.free(segmentsArray);
       segmentsArray = null;
     }
+    if (writeChannel != null) {
+      writeChannel.close();
+      writeChannel = null;
+    }
     if (readChannel != null) {
       readChannel.close();
       readChannel = null;
-      FileUtils.delete(path);
     }
+    FileUtils.delete(path);
   }
 
   /**
