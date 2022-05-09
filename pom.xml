@@ -201,6 +201,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.0.0-M6</version>
+        <!-- by default surefire excludes tests on nested classes https://github.com/junit-team/junit5/issues/1377 -->
+        <configuration>
+          <excludes>
+            <exclude/>
+          </excludes>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
