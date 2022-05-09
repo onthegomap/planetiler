@@ -200,7 +200,7 @@ public class Arguments {
     return value;
   }
 
-  /** Returns a {@link Path} parsed from {@code key} argument which may or may not exist. */
+  /** Returns a {@link Path} parsed from {@code key} argument, or fall back to a default if the argument is not set. */
   public Path file(String key, String description, Path defaultValue) {
     String value = getArg(key);
     Path file = value == null ? defaultValue : Path.of(value);
