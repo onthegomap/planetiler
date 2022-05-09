@@ -252,7 +252,7 @@ public class ConfiguredFeature {
   }
 
   /**
-   * Test to determine whether to include a source feature in the tiles
+   * Determines whether to include a source feature in the tiles.
    * 
    * @param sourceFeature - source feature
    * @return true if the feature will be rendered
