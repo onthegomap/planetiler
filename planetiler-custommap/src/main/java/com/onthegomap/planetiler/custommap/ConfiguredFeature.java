@@ -134,7 +134,6 @@ public class ConfiguredFeature {
    * 
    * @param minTilePercent - minimum percentage of a tile that a feature must cover to be shown
    * @param minZoom        - global minimum zoom for this feature
-   * @param zoomTagConfig
    * @return minimum zoom function
    */
   private static Function<SourceFeature, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom) {
