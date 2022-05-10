@@ -73,11 +73,12 @@ A tag filter matches an object based on its tagging.  Multiple key entries may b
 
 Example: match all `natural=water`:
 
-    natural: water
+        natural: water
 
 Example: match residential, commercial, and industrial land use:
 
-    landuse:
-    - residential
-    - commercial
-    - industrial
+        landuse:
+        - residential
+        - commercial
+        - industrial
+
