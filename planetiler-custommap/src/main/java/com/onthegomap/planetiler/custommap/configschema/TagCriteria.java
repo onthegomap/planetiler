@@ -17,7 +17,7 @@ public class TagCriteria extends HashMap<String, Object> {
   /**
    * Returns a function that determines whether a source feature matches any of the entries in this specification
    * 
-   * @param sf source feature
+   * @param tagValueProducer a TagValueProducer
    * @return a predicate which returns true if this criteria matches
    */
   public Expression matcher(TagValueProducer tagValueProducer) {
