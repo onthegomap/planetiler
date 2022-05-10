@@ -3,9 +3,9 @@ package com.onthegomap.planetiler.mbtiles;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
-import com.google.common.collect.Maps;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.collection.FeatureGroup.TileFeatures;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -21,13 +21,12 @@ import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -68,17 +68,6 @@ public class MbtilesWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
   private final AtomicLong tileDataIdGenerator = new AtomicLong(1);
-  //  private final LoadingCache<ByteBuffer, Long> tileDataIdByHash = CacheBuilder.newBuilder()
-  //    .maximumSize(10_000)
-  //    .build(
-  //      new CacheLoader<>() {
-  //
-  //        @Override
-  //        public Long load(ByteBuffer key) throws Exception {
-  //          return tileDataIdGenerator.getAndIncrement();
-  //        }
-  //      }
-  //    );
 
   private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
     Stats stats, LayerStats layerStats) {
@@ -245,55 +234,140 @@ public class MbtilesWriter {
     });
   }
 
-  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
+  private interface TileFeaturesEncoder {
+    TileEncodingResult encode(FeatureGroup.TileFeatures tileFeatures) throws IOException;
+  }
+
+  private abstract class TileFeaturesEncoderBase implements TileFeaturesEncoder {
+    protected byte[] encodeVectorTiles(FeatureGroup.TileFeatures tileFeatures) {
+      VectorTile en = tileFeatures.getVectorTileEncoder();
+      byte[] encoded = en.encode();
+      if (encoded.length > 1_000_000) {
+        LOGGER.warn("{} {}kb uncompressed", tileFeatures.tileCoord(), encoded.length / 1024);
+      }
+      writeVectorTilesEncodingStats(tileFeatures, encoded);
+      return encoded;
+    }
+
+    protected void writeVectorTilesEncodingStats(FeatureGroup.TileFeatures tileFeatures, byte[] encoded) {
+      int zoom = tileFeatures.tileCoord().z();
+      int encodedLength = encoded == null ? 0 : encoded.length;
+      totalTileSizesByZoom[zoom].incBy(encodedLength);
+      maxTileSizesByZoom[zoom].accumulate(encodedLength);
+    }
+  }
+
+  private class DefaultTileFeaturesEncoder extends TileFeaturesEncoderBase {
+
     /*
      * To optimize emitting many identical consecutive tiles (like large ocean areas), memoize output to avoid
      * recomputing if the input hasn't changed.
      */
-    byte[] lastBytes = null, lastEncoded = null;
-    MessageDigest md = getSha1MessageDigest();
-    Map<ByteBuffer, Long> tileDataIdByHash = Maps.newHashMapWithExpectedSize((int) MAX_TILES_PER_BATCH);
-    boolean compactDb = config.compactDb();
+    private byte[] lastBytes = null, lastEncoded = null, lastBytesForHasing = null;
+
+    @Override
+    public TileEncodingResult encode(FeatureGroup.TileFeatures tileFeatures) throws IOException {
+
+      byte[] bytes, encoded, currentBytesForHashing;
+
+      currentBytesForHashing = tileFeatures.getBytesRelevantForHashing();
+
+      if (Arrays.equals(lastBytesForHasing, currentBytesForHashing)) {
+        bytes = lastBytes;
+        encoded = lastEncoded;
+        writeVectorTilesEncodingStats(tileFeatures, encoded);
+        memoizedTiles.inc();
+      } else {
+        encoded = lastEncoded = encodeVectorTiles(tileFeatures);
+        bytes = lastBytes = gzip(encoded);
+        lastBytesForHasing = currentBytesForHashing;
+      }
+      return new TileEncodingResult(tileFeatures.tileCoord(), bytes, -1);
+    }
+  }
+
+  private class CompactTileFeaturesEncoder extends TileFeaturesEncoderBase {
+
+    private static final int HASH_LAYER_1_SPACE = 100_000;
+
+    private static final int FNV1_32_INIT = 0x811c9dc5;
+    private static final int FNV1_PRIME_32 = 16777619;
+
+    // for Australia the max duplicate had size 2909
+    private static final int TILE_DATA_SIZE_WORTH_HASHING_THRESHOLD = 3_000;
+
+    private final BitSet layer1DuplicateTracker = new BitSet(HASH_LAYER_1_SPACE);
+    private final Supplier<Long> tileDataIdGenerator;
+    private final Map<Integer, Long> tileDataIdByHash = new HashMap<>((int) MAX_TILES_PER_BATCH);
+
+    private CompactTileFeaturesEncoder(Supplier<Long> tileDataIdGenerator) {
+      this.tileDataIdGenerator = tileDataIdGenerator;
+    }
+
+    @Override
+    public TileEncodingResult encode(TileFeatures tileFeatures) throws IOException {
+
+      byte[] currentBytesForHashing = tileFeatures.getBytesRelevantForHashing();
+
+      long tileDataId;
+      boolean newTileData;
+
+      if (currentBytesForHashing.length < TILE_DATA_SIZE_WORTH_HASHING_THRESHOLD) {
+        int layer1Hash = Math.abs(Arrays.hashCode(currentBytesForHashing)) % HASH_LAYER_1_SPACE;
+        if (layer1DuplicateTracker.get(layer1Hash)) {
+          int layer2Hash = fnv1Bits32(currentBytesForHashing);
+          Long tileDataIdOpt = tileDataIdByHash.get(layer2Hash);
+          if (tileDataIdOpt == null) {
+            tileDataId = tileDataIdGenerator.get();
+            tileDataIdByHash.put(layer2Hash, tileDataId);
+            newTileData = true;
+          } else {
+            tileDataId = tileDataIdOpt;
+            newTileData = false;
+          }
+        } else {
+          layer1DuplicateTracker.set(layer1Hash);
+          tileDataId = tileDataIdGenerator.get();
+          newTileData = true;
+        }
+      } else {
+        tileDataId = tileDataIdGenerator.get();
+        newTileData = true;
+      }
+
+      if (newTileData) {
+        byte[] bytes = gzip(encodeVectorTiles(tileFeatures));
+        return new TileEncodingResult(tileFeatures.tileCoord(), bytes, tileDataId);
+      } else {
+        memoizedTiles.inc();
+        return new TileEncodingResult(tileFeatures.tileCoord(), null, tileDataId);
+      }
+    }
+
+    private int fnv1Bits32(byte[] data) {
+      int hash = FNV1_32_INIT;
+      for (byte datum : data) {
+        hash ^= (datum & 0xff);
+        hash *= FNV1_PRIME_32;
+      }
+      return hash;
+    }
+
+  }
+
+
+  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
+
+    TileFeaturesEncoder tileFeaturesEncoder = config.compactDb() ?
+      new CompactTileFeaturesEncoder(tileDataIdGenerator::getAndIncrement) : new DefaultTileFeaturesEncoder();
 
     for (TileBatch batch : prev) {
       Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
-      ByteBuffer lastTileDataHash = null;
       // each batch contains tile ordered by z asc, x asc, y desc
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
-        byte[] bytes, encoded;
-        md.reset();
-        ByteBuffer tileDataHash = ByteBuffer.wrap(tileFeatures.generateContentHash(md));
-        Long existingTileDataId = tileDataIdByHash.get(tileDataHash);
-        LongSupplier tileDataIdSupplier =
-          () -> tileDataIdByHash.computeIfAbsent(tileDataHash, k -> tileDataIdGenerator.getAndIncrement());
-
-        if (tileDataHash.equals(lastTileDataHash)) {
-          bytes = compactDb ? null : lastBytes;
-          encoded = compactDb ? null : lastEncoded;
-          memoizedTiles.inc();
-        } else if (compactDb && existingTileDataId != null) {
-          bytes = null;
-          encoded = null;
-          memoizedTiles.inc();
-        } else {
-          VectorTile en = tileFeatures.getVectorTileEncoder();
-          encoded = en.encode();
-          lastEncoded = encoded;
-          bytes = lastBytes = gzip(encoded);
-          lastTileDataHash = tileDataHash;
-          if (encoded.length > 1_000_000) {
-            LOGGER.warn("{} {}kb uncompressed", tileFeatures.tileCoord(), encoded.length / 1024);
-          }
-        }
-        int zoom = tileFeatures.tileCoord().z();
-        int encodedLength = encoded == null ? 0 : encoded.length;
-        totalTileSizesByZoom[zoom].incBy(encodedLength);
-        maxTileSizesByZoom[zoom].accumulate(encodedLength);
-        result.add(
-          new TileEncodingResult(tileFeatures.tileCoord(), bytes, compactDb ? tileDataIdSupplier.getAsLong() : -1)
-        );
+        result.add(tileFeaturesEncoder.encode(tileFeatures));
       }
       // hand result off to writer
       batch.out.complete(result);
@@ -387,15 +461,6 @@ public class MbtilesWriter {
 
   private long tilesEmitted() {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
-  }
-
-  private static MessageDigest getSha1MessageDigest() {
-    try {
-      @SuppressWarnings("java:S4790") MessageDigest md = MessageDigest.getInstance("SHA-1");
-      return md;
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
   }
 
   /**

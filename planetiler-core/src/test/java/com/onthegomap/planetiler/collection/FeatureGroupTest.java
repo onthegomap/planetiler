@@ -15,8 +15,6 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -292,7 +290,7 @@ class FeatureGroupTest {
   }
 
   @Test
-  void testHasSameContentHash() {
+  void testHasSameBytesRelevantForHashing() {
     // should be the "same" even though sort-key is different
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
@@ -303,13 +301,13 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertArrayEquals(
-      iter.next().generateContentHash(getMessageDigest()),
-      iter.next().generateContentHash(getMessageDigest())
+      iter.next().getBytesRelevantForHashing(),
+      iter.next().getBytesRelevantForHashing()
     );
   }
 
   @Test
-  void testDoesNotHaveSameContentHashWhenGeometryChanges() {
+  void testDoesNotHaveSameRelevantBytesForHashingWhenGeometryChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -319,13 +317,13 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertArrayNotEquals(
-      iter.next().generateContentHash(getMessageDigest()),
-      iter.next().generateContentHash(getMessageDigest())
+      iter.next().getBytesRelevantForHashing(),
+      iter.next().getBytesRelevantForHashing()
     );
   }
 
   @Test
-  void testDoesNotHaveSameContentHashWhenAttrsChange() {
+  void testDoesNotHaveSameRelevantBytesForHashingWhenAttrsChange() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -335,13 +333,13 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertArrayNotEquals(
-      iter.next().generateContentHash(getMessageDigest()),
-      iter.next().generateContentHash(getMessageDigest())
+      iter.next().getBytesRelevantForHashing(),
+      iter.next().getBytesRelevantForHashing()
     );
   }
 
   @Test
-  void testDoesNotHaveSameContentHashWhenLayerChanges() {
+  void testDoesNotHaveSameRelevantBytesForHashingWhenLayerChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -351,13 +349,13 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertArrayNotEquals(
-      iter.next().generateContentHash(getMessageDigest()),
-      iter.next().generateContentHash(getMessageDigest())
+      iter.next().getBytesRelevantForHashing(),
+      iter.next().getBytesRelevantForHashing()
     );
   }
 
   @Test
-  void testDoesNotHaveSameContentHashWhenIdChanges() {
+  void testDoesNotHaveSameRelevantBytesForHashingWhenIdChanges() {
     putWithIdGroupAndSortKey(
       1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
     );
@@ -367,8 +365,8 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     assertArrayNotEquals(
-      iter.next().generateContentHash(getMessageDigest()),
-      iter.next().generateContentHash(getMessageDigest())
+      iter.next().getBytesRelevantForHashing(),
+      iter.next().getBytesRelevantForHashing()
     );
   }
 
@@ -384,14 +382,6 @@ class FeatureGroupTest {
     byte encoded = FeatureGroup.encodeGeomTypeAndScale(new VectorTile.VectorGeometry(new int[0], geomType, scale));
     assertEquals(geomType, FeatureGroup.decodeGeomType(encoded));
     assertEquals(scale, FeatureGroup.decodeScale(encoded));
-  }
-
-  private MessageDigest getMessageDigest() {
-    try {
-      return MessageDigest.getInstance("SHA-1");
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-1 message digest not available", e);
-    }
   }
 
   private static void assertArrayNotEquals(byte[] expected, byte[] actual) {

@@ -1,7 +1,8 @@
 package com.onthegomap.planetiler.collection;
 
 import com.carrotsearch.hppc.LongLongHashMap;
-import com.google.common.primitives.Longs;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -17,7 +18,6 @@ import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -343,18 +343,19 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     /**
-     * Generates a hash of the features. The coordinates are <b>not</b> used for the generation of the hash.
+     * Extracts a feature's data relevant for hashing. The coordinates are <b>not</b> part of it.
      * <p>
      * Used as an optimization to avoid re-encoding and writing the same (ocean) tiles over and over again.
      */
-    public byte[] generateContentHash(MessageDigest md) {
+    public byte[] getBytesRelevantForHashing() {
+      ByteArrayDataOutput out = ByteStreams.newDataOutput();
       for (var feature : entries) {
         long layerId = extractLayerIdFromKey(feature.key());
-        md.update(Longs.toByteArray(layerId));
-        md.update(feature.value());
-        md.update((byte) (extractHasGroupFromKey(feature.key()) ? 1 : 0));
+        out.writeLong(layerId);
+        out.write(feature.value());
+        out.writeBoolean(extractHasGroupFromKey(feature.key()));
       }
-      return md.digest();
+      return out.toByteArray();
     }
 
     private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
