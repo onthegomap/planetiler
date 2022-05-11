@@ -25,7 +25,6 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -288,15 +287,15 @@ public class MbtilesWriter {
 
   private class CompactTileFeaturesEncoder extends TileFeaturesEncoderBase {
 
-    private static final int HASH_LAYER_1_SPACE = 100_000;
+    /*
+     * to put some context on this number, duplicates in Australia per "NumFeaturesToEmit":
+     * 1=13074826, 2=1359105, 3=397821, 4=13822, 5=73, 7=4, 8=2, 9=2, 18=2
+     */
+    private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
 
     private static final int FNV1_32_INIT = 0x811c9dc5;
     private static final int FNV1_PRIME_32 = 16777619;
 
-    // for Australia the max duplicate had size 2909
-    private static final int TILE_DATA_SIZE_WORTH_HASHING_THRESHOLD = 3_000;
-
-    private final BitSet layer1DuplicateTracker = new BitSet(HASH_LAYER_1_SPACE);
     private final Supplier<Long> tileDataIdGenerator;
     private final Map<Integer, Long> tileDataIdByHash = new HashMap<>((int) MAX_TILES_PER_BATCH);
 
@@ -307,28 +306,19 @@ public class MbtilesWriter {
     @Override
     public TileEncodingResult encode(TileFeatures tileFeatures) throws IOException {
 
-      byte[] currentBytesForHashing = tileFeatures.getBytesRelevantForHashing();
-
       long tileDataId;
       boolean newTileData;
 
-      if (currentBytesForHashing.length < TILE_DATA_SIZE_WORTH_HASHING_THRESHOLD) {
-        int layer1Hash = Math.abs(Arrays.hashCode(currentBytesForHashing)) % HASH_LAYER_1_SPACE;
-        if (layer1DuplicateTracker.get(layer1Hash)) {
-          int layer2Hash = fnv1Bits32(currentBytesForHashing);
-          Long tileDataIdOpt = tileDataIdByHash.get(layer2Hash);
-          if (tileDataIdOpt == null) {
-            tileDataId = tileDataIdGenerator.get();
-            tileDataIdByHash.put(layer2Hash, tileDataId);
-            newTileData = true;
-          } else {
-            tileDataId = tileDataIdOpt;
-            newTileData = false;
-          }
-        } else {
-          layer1DuplicateTracker.set(layer1Hash);
+      if (tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
+        int tileHash = fnv1Bits32(tileFeatures.getBytesRelevantForHashing());
+        Long tileDataIdOpt = tileDataIdByHash.get(tileHash);
+        if (tileDataIdOpt == null) {
           tileDataId = tileDataIdGenerator.get();
+          tileDataIdByHash.put(tileHash, tileDataId);
           newTileData = true;
+        } else {
+          tileDataId = tileDataIdOpt;
+          newTileData = false;
         }
       } else {
         tileDataId = tileDataIdGenerator.get();
