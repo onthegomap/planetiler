@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -253,11 +254,21 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   private volatile boolean prepared = false;
 
-  /** Iterates through features grouped by tile ID. */
+  public record Reader(Worker readThread, Iterable<TileFeatures> result) {}
+
   @Override
   public Iterator<TileFeatures> iterator() {
     prepare();
-    Iterator<SortableFeature> entries = sorter.iterator();
+    return groupIntoTiles(sorter.iterator());
+  }
+
+  public Reader parallelIterator(int threads) {
+    prepare();
+    var parIter = sorter.parallelIterator(stats, threads);
+    return new Reader(parIter.worker(), () -> groupIntoTiles(parIter.iterator()));
+  }
+
+  private Iterator<TileFeatures> groupIntoTiles(Iterator<SortableFeature> entries) {
     if (!entries.hasNext()) {
       return Collections.emptyIterator();
     }

@@ -1,13 +1,18 @@
 package com.onthegomap.planetiler.collection;
 
+import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
+import com.onthegomap.planetiler.worker.Worker;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -55,10 +60,20 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
         return 0;
       }
 
-
       @Override
       public Iterator<SortableFeature> iterator() {
         return list.iterator();
+      }
+
+      @Override
+      public Iterator<SortableFeature> iterator(int shard, int shards) {
+        if (shard < 0 || shard >= shards) {
+          throw new IllegalArgumentException("Bad shard params: shard=%d shards=%d".formatted(shard, shards));
+        }
+        return IntStream.range(0, list.size())
+          .filter(d -> d % shards == shard)
+          .mapToObj(list::get)
+          .iterator();
       }
     };
   }
@@ -81,4 +96,30 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
    * threads.
    */
   CloseableConusmer<SortableFeature> writerForThread();
+
+  @Override
+  default Iterator<SortableFeature> iterator() {
+    return iterator(0, 1);
+  }
+
+  Iterator<SortableFeature> iterator(int shard, int shards);
+
+  record ParallelIterator(Worker worker, Iterator<SortableFeature> iterator) implements Iterable<SortableFeature> {}
+
+  default ParallelIterator parallelIterator(Stats stats, int threads) {
+    AtomicInteger shardCount = new AtomicInteger(0);
+    List<WeightedHandoffQueue<SortableFeature>> queues = IntStream.range(0, threads)
+      .mapToObj(i -> new WeightedHandoffQueue<SortableFeature>(500, 10_000))
+      .toList();
+    Worker reader = new Worker("read", stats, threads, () -> {
+      int shard = shardCount.getAndIncrement();
+      try (var next = queues.get(shard)) {
+        Iterator<SortableFeature> entries = iterator(shard, threads);
+        while (entries.hasNext()) {
+          next.accept(entries.next(), 1);
+        }
+      }
+    });
+    return new ParallelIterator(reader, LongMerger.mergeSuppliers(queues));
+  }
 }

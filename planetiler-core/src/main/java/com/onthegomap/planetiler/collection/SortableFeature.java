@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.collection;
 
 import java.util.Arrays;
 
-public record SortableFeature(long key, byte[] value) implements Comparable<SortableFeature> {
+public record SortableFeature(@Override long key, byte[] value) implements Comparable<SortableFeature>, HasLongSortKey {
 
   @Override
   public int compareTo(SortableFeature o) {
