@@ -30,7 +30,7 @@ public class TagValueProducer {
 
     map.forEach((key, value) -> {
       if (value instanceof String stringType) {
-        valueRetriever.put(key, dataTypeGetter.get(value));
+        valueRetriever.put(key, dataTypeGetter.get(stringType));
       } else if (value instanceof Map<?, ?> renameMap) {
         String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
         BiFunction<WithTags, String, Object> getter =
