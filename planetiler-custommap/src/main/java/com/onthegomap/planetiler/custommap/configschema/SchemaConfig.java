@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collection;
 import java.util.Map;
 
@@ -12,7 +13,9 @@ public class SchemaConfig {
   private String attribution =
     "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>";
   private Map<String, DataSource> sources;
-  private Map<String, String> dataTypes;
+
+  @JsonProperty("tag_mappings")
+  private Map<String, Object> inputMappings;
   private Collection<FeatureLayer> layers;
 
   public String getSchemaName() {
@@ -55,11 +58,11 @@ public class SchemaConfig {
     this.layers = layers;
   }
 
-  public Map<String, String> getDataTypes() {
-    return dataTypes;
+  public Map<String, Object> getInputMappings() {
+    return inputMappings;
   }
 
-  public void setDataTypes(Map<String, String> dataTypes) {
-    this.dataTypes = dataTypes;
+  public void setInputMappings(Map<String, Object> inputMappings) {
+    this.inputMappings = inputMappings;
   }
 }

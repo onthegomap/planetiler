@@ -30,7 +30,7 @@ public class ConfiguredProfile implements Profile {
       throw new IllegalArgumentException("No layers defined");
     }
 
-    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getDataTypes());
+    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getInputMappings());
 
     for (var layer : layers) {
       String layerName = layer.name();

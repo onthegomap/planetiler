@@ -11,8 +11,8 @@ The root of the schema has the following attributes:
 * `schemaName` - A descriptive name for the schema
 * `schemaDescription` - A longer description of the schema
 * `attribution` - An attribution statement, which may include HTML such as links
-* `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Data Sources](#data-sources).
-* `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Data Types](#data-types).
+* `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Tag Mappings](#tag-mappings).
+* `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Tag Mappings](#tag-mappings).
 * `layers` - A list of vector tile layers and their definitions.  See [Layers](#layers)
 
 ### Data Sources
@@ -37,11 +37,16 @@ A feature is a defined set of objects that meet specified filter criteria.
 * `excludeWhen` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
 
-### Data Types
+### Tag Mappings
 
 Specifies that certain tag key should have their values treated as being a certain data type.
-* `<data type>` - One of `boolean`, `string`, `direction`, or `long`
-* `<list of values>` - A list of strings corresponding to keys that are treated as this data type.
+* `<key>: data_type` - A key, along with one of `boolean`, `string`, `direction`, or `long`
+* `<key>: mapping` - A mapping which produces a new attribute by retrieving from a different key.  See [Tag Input and Output Mappings](#tag-input-and-output-mappings)
+
+### Tag Input and Output Mappings
+
+* `type`: One of `boolean`, `string`, `direction`, or `long`
+* `output`: The name of the typed key that will be presented to the attribute logic
 
 ### Feature Zoom Specification
 

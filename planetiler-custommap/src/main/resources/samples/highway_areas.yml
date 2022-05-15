@@ -6,7 +6,7 @@ sources:
   osm:
     type: osm
     url: geofabrik:poland
-dataTypes:
+tag_mappings:
   bridge: boolean
   layer: long
 layers:

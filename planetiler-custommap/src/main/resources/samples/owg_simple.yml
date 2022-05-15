@@ -9,7 +9,7 @@ sources:
   osm:
     type: osm
     url: geofabrik:rhode-island
-dataTypes:
+tag_mappings:
   bridge: boolean
   intermittent: boolean
   layer: long

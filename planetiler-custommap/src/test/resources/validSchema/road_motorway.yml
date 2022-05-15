@@ -9,8 +9,8 @@ sources:
   osm:
     type: osm
     url: geofabrik:rhode-island
-dataTypes:
-  bridge: boolean
+tag_mappings:
+  bridge: boolean # input=bridge, output=bridge, type=boolean
   layer: long
   tunnel: boolean
 layers:

@@ -5,11 +5,16 @@ sources:
   osm:
     type: osm
     url: geofabrik:rhode-island
-dataTypes:
+tag_mappings:
   b_type: boolean
   l_type: long
   d_type: direction
   s_type: string
+  intermittent:
+    output: is_intermittent
+    type: boolean
+  toll:
+    output: is_intermittent
 layers:
 - name: testLayer
   features:
@@ -21,3 +26,4 @@ layers:
     - key: l_type
     - key: d_type
     - key: s_type
+    - key: intermittent
