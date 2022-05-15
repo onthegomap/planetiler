@@ -13,6 +13,8 @@ public class TagValueProducer {
   static final String DIRECTION_DATATYPE = "direction";
   static final String LONG_DATATYPE = "long";
 
+  static final BiFunction<WithTags, String, Object> DEFAULT_GETTER = WithTags::getTag;
+
   final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
 
   static final Map<String, BiFunction<WithTags, String, Object>> dataTypeGetter =
@@ -34,7 +36,7 @@ public class TagValueProducer {
       } else if (value instanceof Map<?, ?> renameMap) {
         String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
         BiFunction<WithTags, String, Object> getter =
-          renameMap.containsKey("type") ? dataTypeGetter.get(renameMap.get("type").toString()) : WithTags::getTag;
+          renameMap.containsKey("type") ? dataTypeGetter.get(renameMap.get("type").toString()) : DEFAULT_GETTER;
         //When requesting the output value, actually retrieve the input key with the desired getter
         valueRetriever.put(output,
           (withTags, requestedKey) -> getter.apply(withTags, key));
@@ -43,7 +45,7 @@ public class TagValueProducer {
   }
 
   public BiFunction<WithTags, String, Object> getValueGetter(String key) {
-    return valueRetriever.getOrDefault(key, WithTags::getTag);
+    return valueRetriever.getOrDefault(key, DEFAULT_GETTER);
   }
 
   public Function<WithTags, Object> getValueProducer(String key) {
