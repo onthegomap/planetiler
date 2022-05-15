@@ -5,6 +5,8 @@ It is possible to customize planetiler's output from configuration files.  This 
 
 The schema file provides information to planetiler about how to construct the tiles and which layers, features, and attributes will be posted to the file.  Schema files are in [YAML](https://yaml.org) format.
 
+For examples, see [samples](src/main/resources/samples) or [test cases](src/test/resources/validSchema).
+
 ## Schema file definition
 
 The root of the schema has the following attributes:
