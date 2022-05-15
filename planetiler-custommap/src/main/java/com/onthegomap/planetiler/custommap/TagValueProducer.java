@@ -13,7 +13,7 @@ public class TagValueProducer {
   static final String DIRECTION_DATATYPE = "direction";
   static final String LONG_DATATYPE = "long";
 
-  static final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
+  final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
 
   static final Map<String, BiFunction<WithTags, String, Object>> dataTypeGetter =
     Map.of(
