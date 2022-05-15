@@ -238,7 +238,7 @@ class ConfiguredFeatureTest {
       assertEquals(1, attr.get("d_type"), "Produce direction");
       assertEquals(1L, attr.get("l_type"), "Produce long");
 
-      assertEquals("yes", attr.get("intermittent"), "Produce and rename raw attribute");
+      assertEquals("yes", attr.get("intermittent"), "Produce raw attribute");
       assertEquals(true, attr.get("is_intermittent"), "Produce and rename boolean");
       assertEquals(true, attr.get("bridge"), "Produce boolean from full structure");
     }, 1);
