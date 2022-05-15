@@ -229,7 +229,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testInputMappingMapping() throws Exception {
+  void testInputMapping() throws Exception {
     //Show that a key in includeWhen with no values matches all values
     testLinestring(TEST_RESOURCE, "data_type_attributes.yml", inputMappingTags, f -> {
       var attr = f.getAttrsAtZoom(14);
