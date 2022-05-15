@@ -32,10 +32,12 @@ public class TagValueProducer {
       if (value instanceof String stringType) {
         valueRetriever.put(key, dataTypeGetter.get(value));
       } else if (value instanceof Map<?, ?> renameMap) {
-        Object output = renameMap.containsKey("output") ? renameMap.get("output") : key;
+        String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
+        BiFunction<WithTags, String, Object> getter =
+          renameMap.containsKey("type") ? dataTypeGetter.get(renameMap.get("type").toString()) : WithTags::getTag;
         //When requesting the output value, actually retrieve the input key with the desired getter
-        valueRetriever.put(output.toString(),
-          (withTags, inputKey) -> getValueGetter(key).apply(withTags, inputKey));
+        valueRetriever.put(output,
+          (withTags, requestedKey) -> getter.apply(withTags, key));
       }
     });
   }

@@ -58,11 +58,13 @@ class ConfiguredFeatureTest {
     "surface", "asphalt"
   );
 
-  private static Map<String, Object> dataTypeTags = Map.of(
+  private static Map<String, Object> inputMappingTags = Map.of(
     "s_type", "string_val",
     "l_type", "1",
     "b_type", "yes",
-    "d_type", "yes"
+    "d_type", "yes",
+    "intermittent", "yes",
+    "bridge", "yes"
   );
 
   private static FeatureCollector polygonFeatureCollector() {
@@ -227,14 +229,18 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testDataTypeMapping() throws Exception {
+  void testInputMappingMapping() throws Exception {
     //Show that a key in includeWhen with no values matches all values
-    testLinestring(TEST_RESOURCE, "data_type_attributes.yml", dataTypeTags, f -> {
+    testLinestring(TEST_RESOURCE, "data_type_attributes.yml", inputMappingTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals(true, attr.get("b_type"), "Produce boolean");
       assertEquals("string_val", attr.get("s_type"), "Produce string");
       assertEquals(1, attr.get("d_type"), "Produce direction");
       assertEquals(1L, attr.get("l_type"), "Produce long");
+
+      assertEquals("yes", attr.get("intermittent"), "Produce and rename raw attribute");
+      assertEquals(true, attr.get("is_intermittent"), "Produce and rename boolean");
+      assertEquals(true, attr.get("bridge"), "Produce boolean from full structure");
     }, 1);
   }
 

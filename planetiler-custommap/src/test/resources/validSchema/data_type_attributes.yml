@@ -13,8 +13,8 @@ tag_mappings:
   intermittent:
     output: is_intermittent
     type: boolean
-  toll:
-    output: is_intermittent
+  bridge:
+    type: boolean
 layers:
 - name: testLayer
   features:
@@ -27,3 +27,5 @@ layers:
     - key: d_type
     - key: s_type
     - key: intermittent
+    - key: is_intermittent
+    - key: bridge
