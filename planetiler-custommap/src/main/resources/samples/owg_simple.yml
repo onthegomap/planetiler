@@ -1,5 +1,5 @@
-schemaName: OWG Simple Schema
-schemaDescription: Simple vector tile schema
+schema_name: OWG Simple Schema
+schema_description: Simple vector tile schema
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
@@ -20,17 +20,17 @@ layers:
   - sources:
     - osm
     geometry: polygon
-    includeWhen:
+    include_when:
       natural: water
     attributes:
     - key: natural
     - key: intermittent
-      includeWhen:
+      include_when:
         intermittent: true
     - key: name
-      minTileCoverSize: 0.01
-      includeWhen:
-      excludeWhen:
+      min_tile_cover_size: 0.01
+      include_when:
+      exclude_when:
         tag:
           key: water
           value:
@@ -40,16 +40,16 @@ layers:
   - sources:
     - water_polygons
     geometry: polygon
-    includeWhen:
+    include_when:
     attributes:
     - key: natural
-      constantValue: water
+      constant_value: water
   - sources:
     - osm
     zoom:
-      minZoom: 7
+      min_zoom: 7
     geometry: line
-    includeWhen:
+    include_when:
       tag:
         key: waterway
         value:
@@ -59,16 +59,16 @@ layers:
     attributes:
     - key: waterway
     - key: intermittent
-      includeWhen:
+      include_when:
         intermittent: true
     - key: name
-      minZoom: 12
+      min_zoom: 12
 - name: road
   features:
   - sources:
     - osm
     geometry: line
-    includeWhen:
+    include_when:
       highway:
       - motorway
       - trunk
@@ -86,17 +86,17 @@ layers:
       - service
       - track
     zoom:
-      minZoom: 4
-      zoomFilter:
+      min_zoom: 4
+      zoom_filter:
       - tag:
           highway: trunk
-        minZoom: 5
+        min_zoom: 5
       - tag:
           highway: primary
-        minZoom: 7
+        min_zoom: 7
       - tag:
           highway: secondary
-        minZoom: 8
+        min_zoom: 8
       - tag:
           highway:
           - tertiary
@@ -105,34 +105,34 @@ layers:
           - primary_link
           - secondary_link
           - tertiary_link
-        minZoom: 9
+        min_zoom: 9
       - tag:
           highway:
           - unclassified
           - residential
           - living_street
-        minZoom: 11
+        min_zoom: 11
       - tag:
           highway: track
-        minZoom: 12
+        min_zoom: 12
       - tag:
           highway: service
-        minZoom: 13
+        min_zoom: 13
     attributes:
     - key: highway
     - key: bridge
-      includeWhen:
+      include_when:
         bridge: true
-      minZoom: 11
+      min_zoom: 11
     - key: tunnel
-      includeWhen:
+      include_when:
         bridge: true
-      minZoom: 11
+      min_zoom: 11
     - key: service
-      includeWhen:
+      include_when:
         highway: service
-      minZoom: 13
+      min_zoom: 13
     - key: name
-      minZoom: 12
+      min_zoom: 12
     - key: layer
-      minZoom: 13
+      min_zoom: 13

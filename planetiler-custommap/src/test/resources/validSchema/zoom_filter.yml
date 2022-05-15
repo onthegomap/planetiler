@@ -1,5 +1,5 @@
-schemaName: Test Case Schema
-schemaDescription: Test case tile schema
+schema_name: Test Case Schema
+schema_description: Test case tile schema
 attribution: Test attribution
 sources:
   osm:
@@ -11,16 +11,16 @@ layers:
   - sources:
     - osm
     geometry: line
-    includeWhen:
+    include_when:
       highway:
     zoom:
-      minZoom: 4
-      zoomFilter:
+      min_zoom: 4
+      zoom_filter:
       - tag:
           highway: trunk
-        minZoom: 5
+        min_zoom: 5
       - tag:
           highway: primary
-        minZoom: 7
+        min_zoom: 7
     attributes:
     - key: highway

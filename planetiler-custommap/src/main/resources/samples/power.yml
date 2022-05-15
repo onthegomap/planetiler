@@ -1,5 +1,5 @@
-schemaName: Power
-schemaDescription: Features that represent electrical power grid
+schema_name: Power
+schema_description: Features that represent electrical power grid
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
@@ -13,8 +13,8 @@ layers:
     - osm
     geometry: point
     zoom:
-      minZoom: 13
-    includeWhen:
+      min_zoom: 13
+    include_when:
       power:
       - pole
     attributes:
@@ -26,8 +26,8 @@ layers:
     - osm
     geometry: line
     zoom:
-      minZoom: 12
-    includeWhen:
+      min_zoom: 12
+    include_when:
       power:
       - line
     attributes:

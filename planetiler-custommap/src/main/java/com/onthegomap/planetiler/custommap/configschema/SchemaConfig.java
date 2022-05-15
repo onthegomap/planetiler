@@ -8,7 +8,10 @@ import java.util.Map;
  * An object representation of a vector tile server schema. This object is mapped to a schema YML file using SnakeYAML.
  */
 public class SchemaConfig {
+  @JsonProperty("schema_name")
   private String schemaName;
+
+  @JsonProperty("schema_description")
   private String schemaDescription;
   private String attribution =
     "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>";

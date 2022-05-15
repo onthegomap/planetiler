@@ -1,5 +1,5 @@
-schemaName: Test Case Schema
-schemaDescription: Test case tile schema
+schema_name: Test Case Schema
+schema_description: Test case tile schema
 attribution: Test attribution
 sources:
   osm:
@@ -11,8 +11,8 @@ layers:
   - sources:
     - osm
     geometry: smurf
-    includeWhen:
+    include_when:
       natural: water
     attributes:
     - key: water
-    - constantValue: wet
+    - constant_value: wet

@@ -1,5 +1,5 @@
-schemaName: Test Case Schema
-schemaDescription: Test case tile schema
+schema_name: Test Case Schema
+schema_description: Test case tile schema
 attribution: Test attribution
 sources:
   osm:

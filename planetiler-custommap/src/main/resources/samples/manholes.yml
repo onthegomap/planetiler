@@ -1,5 +1,5 @@
-schemaName: Manhole covers
-schemaDescription: Manhole covers
+schema_name: Manhole covers
+schema_description: Manhole covers
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
@@ -13,8 +13,8 @@ layers:
     - osm
     geometry: point
     zoom:
-      minZoom: 14
-    includeWhen:
+      min_zoom: 14
+    include_when:
       man_made: manhole
     attributes:
     - key: man_made

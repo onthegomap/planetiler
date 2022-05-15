@@ -1,5 +1,5 @@
-schemaName: OWG Simple Schema
-schemaDescription: Simple vector tile schema
+schema_name: OWG Simple Schema
+schema_description: Simple vector tile schema
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
@@ -19,22 +19,22 @@ layers:
   - sources:
     - osm
     zoom:
-      minZoom: 4
+      min_zoom: 4
     geometry: line
-    includeWhen:
+    include_when:
       highway: motorway
     attributes:
     - key: highway
     - key: bridge
-      includeWhen:
+      include_when:
         bridge: true
-      minZoom: 11
+      min_zoom: 11
     - key: tunnel
-      constantValue: true
-      includeWhen:
+      constant_value: true
+      include_when:
         tunnel: true
-      minZoom: 11
+      min_zoom: 11
     - key: name
-      minZoom: 12
+      min_zoom: 12
     - key: layer
-      minZoom: 13
+      min_zoom: 13

@@ -1,5 +1,5 @@
-schemaName: Highway areas
-schemaDescription: Features that represent the physical area of roads
+schema_name: Highway areas
+schema_description: Features that represent the physical area of roads
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
   OpenStreetMap contributors</a>
 sources:
@@ -16,12 +16,12 @@ layers:
     - osm
     geometry: polygon
     zoom:
-      minZoom: 14
-    includeWhen:
+      min_zoom: 14
+    include_when:
       area:highway:
     attributes:
     - key: highway
-      tagValue: area:highway
+      tag_value: area:highway
     - key: layer
     - key: surface
     - key: bridge
@@ -29,11 +29,11 @@ layers:
     - osm
     geometry: polygon
     zoom:
-      minZoom: 14
-    includeWhen:
+      min_zoom: 14
+    include_when:
       man_made: bridge
     attributes:
     - key: man_made
-      constantValue: bridge
+      constant_value: bridge
     - key: layer
     - key: surface
