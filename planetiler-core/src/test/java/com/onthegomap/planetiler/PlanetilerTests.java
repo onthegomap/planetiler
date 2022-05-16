@@ -71,7 +71,7 @@ class PlanetilerTests {
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
   private static final int Z4_TILES = 1 << 4;
-  private static final Polygon worldPolygon = newPolygon(
+  private static final Polygon WORLD_POLYGON = newPolygon(
     worldCoordinateList(
       Z14_WIDTH / 2, Z14_WIDTH / 2,
       1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
@@ -660,7 +660,7 @@ class PlanetilerTests {
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(
-        newReaderFeature(worldPolygon, Map.of())
+        newReaderFeature(WORLD_POLYGON, Map.of())
       ),
       (in, features) -> features.polygon("layer")
         .setZoomRange(0, 6)
@@ -1705,7 +1705,7 @@ class PlanetilerTests {
     return runWithReaderFeatures(
       Map.of("threads", "1", "compact-db", Boolean.toString(compactDbEnabled)),
       List.of(
-        newReaderFeature(worldPolygon, Map.of())
+        newReaderFeature(WORLD_POLYGON, Map.of())
       ),
       (in, features) -> features.polygon("layer")
         .setZoomRange(0, 2)
