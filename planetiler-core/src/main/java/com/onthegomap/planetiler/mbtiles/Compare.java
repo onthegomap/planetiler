@@ -78,17 +78,12 @@ public class Compare {
             .map(VectorTileFeatureForCmp::fromActualFeature)
             .collect(Collectors.toSet());
 
-          if (features0.size() != features1.size()) {
-            throw new IllegalArgumentException(
-              "feature size differs on coord=%s db0=%d vs db1=%d".formatted(coord, features0.size(), features1.size())
-            );
-          }
-
           if (!features0.equals(features1)) {
             ++tilesWithDiffs;
+            boolean featureCountMatches = features0.size() == features1.size();
             var msg = """
               <<<
-              feature diff on coord %s
+              feature diff on coord %s - featureCountMatches: %b (%d vs %d)
 
               additional in db0
               ---
@@ -99,7 +94,7 @@ public class Compare {
               %s
               >>>
               """.formatted(
-              coord,
+              coord, featureCountMatches, features0.size(), features1.size(),
               getDiffJoined(features0, features1, "\n"),
               getDiffJoined(features1, features0, "\n"));
 
