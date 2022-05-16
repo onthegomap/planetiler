@@ -46,8 +46,7 @@ layers:
       constant_value: water
   - sources:
     - osm
-    zoom:
-      min_zoom: 7
+    min_zoom: 7
     geometry: line
     include_when:
       tag:
@@ -85,41 +84,24 @@ layers:
       - living_street
       - service
       - track
-    zoom:
-      min_zoom: 4
-      zoom_filter:
-      - tag:
-          highway: trunk
-        min_zoom: 5
-      - tag:
-          highway: primary
-        min_zoom: 7
-      - tag:
-          highway: secondary
-        min_zoom: 8
-      - tag:
-          highway:
-          - tertiary
-          - motorway_link
-          - trunk_link
-          - primary_link
-          - secondary_link
-          - tertiary_link
-        min_zoom: 9
-      - tag:
-          highway:
-          - unclassified
-          - residential
-          - living_street
-        min_zoom: 11
-      - tag:
-          highway: track
-        min_zoom: 12
-      - tag:
-          highway: service
-        min_zoom: 13
     attributes:
     - key: highway
+      min_zoom: 4
+      min_zoom_by_value:
+        trunk: 5
+        primary: 7
+        secondary: 8
+        tertiary: 9
+        motorway_link: 9
+        trunk_link: 9
+        primary_link: 9
+        secondary_link: 9
+        tertiary_link: 9
+        unclassified: 11
+        residential: 11
+        living_street: 11
+        track: 12
+        service: 13
     - key: bridge
       include_when:
         bridge: true

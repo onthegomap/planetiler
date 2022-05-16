@@ -18,8 +18,7 @@ layers:
   features:
   - sources:
     - osm
-    zoom:
-      min_zoom: 4
+    min_zoom: 4
     geometry: line
     include_when:
       highway: motorway

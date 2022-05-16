@@ -11,16 +11,13 @@ layers:
   - sources:
     - osm
     geometry: line
+    min_zoom: 4
     include_when:
       highway:
-    zoom:
-      min_zoom: 4
-      zoom_filter:
-      - tag:
-          highway: trunk
-        min_zoom: 5
-      - tag:
-          highway: primary
-        min_zoom: 7
     attributes:
     - key: highway
+      min_zoom_by_value:
+        trunk: 5
+        primary: 7
+    - key: toll
+      min_zoom: 6

@@ -10,8 +10,8 @@ For examples, see [samples](src/main/resources/samples) or [test cases](src/test
 ## Schema file definition
 
 The root of the schema has the following attributes:
-* `schemaName` - A descriptive name for the schema
-* `schemaDescription` - A longer description of the schema
+* `schema_name` - A descriptive name for the schema
+* `schema_description` - A longer description of the schema
 * `attribution` - An attribution statement, which may include HTML such as links
 * `sources` - A list of sources from which features should be extracted, specified as a list of names.  See [Tag Mappings](#tag-mappings).
 * `dataTypes` - A map of tag keys that should be treated as a certain data type, with strings being the default.  See [Tag Mappings](#tag-mappings).
@@ -32,11 +32,11 @@ A layer contains a thematically-related set of features.
 ### Features
 
 A feature is a defined set of objects that meet specified filter criteria.
-* `zoom` - Specifies the zoom inclusion rules for this feature.  See [Zoom Specification](#feature-zoom-specification).
 * `geometry` - Include objects of a certain geometry type.  Options are `polygon`, `line`, or `point`.
-* `minTileCoverSize` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
-* `includeWhen` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
-* `excludeWhen` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
+* `min_tile_cover_size` - include objects of a certain geometry size, where 1.0 means "is the same size as a tile at this zoom".
+* `include_when` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
+* `exclude_when` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
+* `min_zoom` - Minimum zoom to show the feature that matches the filter specifications.
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
 
 ### Tag Mappings
@@ -53,24 +53,18 @@ Specifies that certain tag key should have their values treated as being a certa
 ### Feature Zoom Specification
 
 Specifies the zoom inclusion rules for this feature.
-* `minZoom` - Minimum zoom to render this feature
-* `maxZoom` - Maximum zoom to render this feature
-* `zoomFilter` - A list of tag-specific zoom filter overrides.  The first matching filter will apply.  See [Zoom Filter Specification](#zoom-filter-specification)
-
-### Zoom Filter Specification
-
-Specifies tag-based rules for setting the zoom range for a feature.
-* `tag` - A filter specification which determines to which features this zoom limit applies.  See [Tag Filters](#tag-filters)
-* `minZoom` - Minimum zoom to show the feature that matches the filter specification.
+* `min_zoom` - Minimum zoom to render this feature
+* `max_zoom` - Maximum zoom to render this feature
 
 ### Attributes
 
 * `key` - Name of this attribute in the tile.
-* `constantValue` - Value of the attribute in the tile, as a constant
-* `tagValue` - Value of the attribute in the tile, as copied from the value of the specified tag key.  If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)
-* `includeWhen` - A filter specification which determines whether to include this attribute.  If unspecified, the attribute will be included unless excluded by `excludeWhen`.  See [Tag Filters](#tag-filters)
-* `excludeWhen` - A filter specification which determines whether to exclude this attribute.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
-* `minZoom` - The minimum zoom at which to render this attribute.
+* `constant_value` - Value of the attribute in the tile, as a constant
+* `tag_value` - Value of the attribute in the tile, as copied from the value of the specified tag key.  If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)
+* `include_when` - A filter specification which determines whether to include this attribute.  If unspecified, the attribute will be included unless excluded by `excludeWhen`.  See [Tag Filters](#tag-filters)
+* `exclude_when` - A filter specification which determines whether to exclude this attribute.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
+* `min_zoom` - The minimum zoom at which to render this attribute.
+* `min_zoom_by_value` - Minimum zoom to render this attribute depending on the value.  Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value.
 
 ### Tag Filters
 

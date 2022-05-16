@@ -12,8 +12,7 @@ layers:
   - sources:
     - osm
     geometry: point
-    zoom:
-      min_zoom: 13
+    min_zoom: 13
     include_when:
       power:
       - pole
@@ -25,8 +24,7 @@ layers:
   - sources:
     - osm
     geometry: line
-    zoom:
-      min_zoom: 12
+    min_zoom: 12
     include_when:
       power:
       - line

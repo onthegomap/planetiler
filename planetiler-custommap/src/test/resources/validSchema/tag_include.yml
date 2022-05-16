@@ -10,8 +10,7 @@ layers:
   features:
   - sources:
     - osm
-    zoom:
-      min_zoom: 10
+    min_zoom: 10
     geometry: polygon
     include_when:
       natural: water

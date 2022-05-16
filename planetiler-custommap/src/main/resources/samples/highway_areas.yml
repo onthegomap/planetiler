@@ -15,8 +15,7 @@ layers:
   - sources:
     - osm
     geometry: polygon
-    zoom:
-      min_zoom: 14
+    min_zoom: 14
     include_when:
       area:highway:
     attributes:
@@ -28,8 +27,7 @@ layers:
   - sources:
     - osm
     geometry: polygon
-    zoom:
-      min_zoom: 14
+    min_zoom: 14
     include_when:
       man_made: bridge
     attributes:

@@ -4,22 +4,19 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
-import com.onthegomap.planetiler.custommap.configschema.ZoomConfig;
-import com.onthegomap.planetiler.custommap.configschema.ZoomFilter;
 import com.onthegomap.planetiler.expression.Expression;
-import com.onthegomap.planetiler.expression.MultiExpression;
-import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -32,7 +29,7 @@ public class ConfiguredFeature {
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  private final Index<Byte> zoomTagConfig;
+  //  private final Index<Byte> zoomTagConfig;
   private final Byte featureMinZoom;
   private final Byte featureMaxZoom;
   private final TagValueProducer tagValueProducer;
@@ -59,14 +56,8 @@ public class ConfiguredFeature {
       .orElse(Expression.TRUE);
 
     //Test to determine at which zooms to include this feature based on tagging
-    zoomTagConfig = zoomFilter(feature.zoom());
-    if (feature.zoom() != null) {
-      featureMinZoom = feature.zoom().minZoom();
-      featureMaxZoom = feature.zoom().maxZoom();
-    } else {
-      featureMinZoom = 0;
-      featureMaxZoom = null;
-    }
+    featureMinZoom = feature.minZoom() == null ? 0 : feature.minZoom();
+    featureMaxZoom = feature.maxZoom() == null ? 0 : feature.maxZoom();
 
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryMapFeature(layerName, geometryType);
@@ -76,32 +67,6 @@ public class ConfiguredFeature {
       .stream()
       .map(this::attributeProcessor)
       .forEach(attributeProcessors::add);
-  }
-
-  /**
-   * Generate zoom-based inclusion logic based on tagging and overall zoom limits. Tag-based zoom logic will override
-   * universal zoom logic. The returned lambda will configure zoom limits for a specified {@link SourceFeature} by
-   * invoking the appropriate methods in {@link Feature}.
-   * 
-   * @param zoomConfig zoom configuration
-   * @return index of zoom levels, or null if unrestricted
-   */
-  private Index<Byte> zoomFilter(ZoomConfig zoomConfig) {
-
-    if (zoomConfig == null) {
-      return null;
-    }
-
-    Collection<ZoomFilter> zfList = zoomConfig.zoomFilter();
-    if (zfList == null || zfList.isEmpty()) {
-      return null;
-    }
-
-    return MultiExpression.of(zfList
-      .stream()
-      .map(zf -> MultiExpression.entry(zf.minZoom(), zf.tag().matcher(tagValueProducer)))
-      .toList())
-      .index();
   }
 
   /**
@@ -134,46 +99,37 @@ public class ConfiguredFeature {
    * 
    * @param minTilePercent - minimum percentage of a tile that a feature must cover to be shown
    * @param minZoom        - global minimum zoom for this feature
+   * @param minZoomByValue - map of tag values to zoom level
    * @return minimum zoom function
    */
-  private static Function<SourceFeature, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom) {
+  private static BiFunction<SourceFeature, Object, Byte> attributeZoomThreshold(Double minTilePercent, byte minZoom,
+    Map<Object, Byte> minZoomByValue) {
 
-    if (minZoom == 0) {
+    if (minZoom == 0 && minZoomByValue.isEmpty()) {
       return null;
     }
 
-    return sf -> Math.max(minZoom,
-      minZoomFromTilePercent(sf, minTilePercent));
+    Function<SourceFeature, Byte> staticZooms =
+      sf -> (byte) Math.max(minZoom,
+        minZoomFromTilePercent(sf, minTilePercent));
+
+    if (minZoomByValue.isEmpty()) {
+      return (sf, key) -> staticZooms.apply(sf);
+    }
+
+    //Attribute value-specific zooms override static zooms
+    return (sourceFeature, key) -> minZoomByValue.getOrDefault(key, staticZooms.apply(sourceFeature));
   }
 
-  private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
+  private static byte minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
     if (minTilePercent == null) {
       return 0;
     }
     try {
-      return (int) (Math.log(minTilePercent / sf.area()) / LOG4);
+      return (byte) (Math.log(minTilePercent / sf.area()) / LOG4);
     } catch (GeometryException e) {
       return 14;
     }
-  }
-
-  /**
-   * Determine the minimum zoom of a feature, based on its tagging.
-   * 
-   * @param sf           the source feature
-   * @param zoomConfig   tag-based zoom configuration index from JSON
-   * @param layerMinZoom overall minimum zoom for this type of feature
-   * @return minimum zoom level for this feature
-   */
-  private static int minZoomFromFeatureTagging(SourceFeature sf, Index<Byte> zoomConfig, Byte layerMinZoom) {
-    if (zoomConfig == null) {
-      return 0;
-    }
-    var zoomMatches = zoomConfig.getMatches(sf);
-    if (zoomMatches.isEmpty()) {
-      return 0;
-    }
-    return Math.max(layerMinZoom, Collections.min(zoomMatches));
   }
 
   /**
@@ -184,9 +140,13 @@ public class ConfiguredFeature {
    */
   private BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
     var tagKey = attribute.key();
-    Integer configuredMinZoom = attribute.minZoom();
 
-    var attributeMinZoom = configuredMinZoom == null ? 0 : configuredMinZoom.intValue();
+    var attributeMinZoom = attribute.minZoom();
+    attributeMinZoom = attributeMinZoom == null ? 0 : attributeMinZoom.byteValue();
+
+    var minZoomByValue = attribute.minZoomByValue();
+    minZoomByValue = minZoomByValue == null ? Map.of() : minZoomByValue;
+
     var attributeValueProducer = attributeValueProducer(attribute);
 
     var attrIncludeWhen = attribute.includeWhen();
@@ -199,14 +159,15 @@ public class ConfiguredFeature {
       );
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
-    Function<SourceFeature, Integer> attributeZoomProducer;
 
-    attributeZoomProducer = attributeZoomThreshold(minTileCoverage, attributeMinZoom);
+    BiFunction<SourceFeature, Object, Byte> attributeZoomProducer =
+      attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
     if (attributeZoomProducer != null) {
       return (sf, f) -> {
         if (attributeTest.evaluate(sf)) {
-          f.setAttrWithMinzoom(tagKey, attributeValueProducer.apply(sf), attributeZoomProducer.apply(sf));
+          Object value = attributeValueProducer.apply(sf);
+          f.setAttrWithMinzoom(tagKey, value, attributeZoomProducer.apply(sf, value));
         }
       };
     }
@@ -279,7 +240,7 @@ public class ConfiguredFeature {
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     Feature f = geometryFactory.apply(features)
-      .setMinZoom(minZoomFromFeatureTagging(sourceFeature, zoomTagConfig, featureMinZoom));
+      .setMinZoom(featureMinZoom);
     if (featureMaxZoom != null) {
       f.setMaxZoom(featureMaxZoom);
     }

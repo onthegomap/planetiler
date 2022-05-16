@@ -12,8 +12,7 @@ layers:
   - sources:
     - osm
     geometry: point
-    zoom:
-      min_zoom: 14
+    min_zoom: 14
     include_when:
       man_made: manhole
     attributes:
