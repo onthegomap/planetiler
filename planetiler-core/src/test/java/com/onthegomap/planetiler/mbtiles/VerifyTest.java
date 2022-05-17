@@ -52,7 +52,7 @@ class VerifyTest {
         VectorTile.encodeGeometry(point(0, 0)),
         Map.of()
       )));
-      writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), 1);
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), false, null));
     }
     assertValid(mbtiles);
   }
@@ -76,7 +76,7 @@ class VerifyTest {
         )),
         Map.of()
       )));
-      writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), 1);
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), false, null));
     }
     assertInvalid(mbtiles);
   }

@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.mbtiles;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
 
+import com.carrotsearch.hppc.IntIntHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -439,10 +440,10 @@ public final class Mbtiles implements Closeable {
   }
 
   /** Contents of a row of the tiles_shallow table. */
-  private record TileShallowEntry(TileCoord coord, long tileDataId) {}
+  private record TileShallowEntry(TileCoord coord, int tileDataId) {}
 
   /** Contents of a row of the tiles_data table. */
-  private record TileDataEntry(long tileDataId, byte[] tileData) {
+  private record TileDataEntry(int tileDataId, byte[] tileData) {
     @Override
     public String toString() {
       return "TileDataEntry [tileDataId=" + tileDataId + ", tileData=" + Arrays.toString(tileData) + "]";
@@ -597,7 +598,7 @@ public final class Mbtiles implements Closeable {
       statement.setInt(positionOffset++, x);
       // flip Y
       statement.setInt(positionOffset++, (1 << z) - 1 - y);
-      statement.setLong(positionOffset++, item.tileDataId());
+      statement.setInt(positionOffset++, item.tileDataId());
 
       return positionOffset;
     }
@@ -615,7 +616,7 @@ public final class Mbtiles implements Closeable {
     protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileDataEntry item)
       throws SQLException {
 
-      statement.setLong(positionOffset++, item.tileDataId());
+      statement.setInt(positionOffset++, item.tileDataId());
       statement.setBytes(positionOffset++, item.tileData());
 
       return positionOffset;
@@ -627,7 +628,7 @@ public final class Mbtiles implements Closeable {
    * A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches.
    */
   public interface BatchedTileWriter extends AutoCloseable {
-    void write(TileCoord coord, byte[] tileData, long tileDataId);
+    void write(TileEncodingResult encodingResult);
 
     @Override
     void close();
@@ -638,8 +639,8 @@ public final class Mbtiles implements Closeable {
     private final BatchedTileTableWriter tableWriter = new BatchedTileTableWriter();
 
     @Override
-    public void write(TileCoord coord, byte[] tileData, long tileDataId) {
-      tableWriter.write(new TileEntry(coord, tileData));
+    public void write(TileEncodingResult encodingResult) {
+      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
     }
 
     @Override
@@ -653,13 +654,39 @@ public final class Mbtiles implements Closeable {
 
     private final BatchedTileShallowTableWriter batchedTileShallowTableWriter = new BatchedTileShallowTableWriter();
     private final BatchedTileDataTableWriter batchedTileDataTableWriter = new BatchedTileDataTableWriter();
+    private final IntIntHashMap tileDataIdByHash = new IntIntHashMap(1_000);
+
+    private int tileDataIdCounter = 1;
 
     @Override
-    public void write(TileCoord coord, byte[] tileData, long tileDataId) {
-      if (tileData != null) {
-        batchedTileDataTableWriter.write(new TileDataEntry(tileDataId, tileData));
+    public void write(TileEncodingResult encodingResult) {
+      int tileDataId;
+      boolean writeData;
+      Integer tileDataHash = encodingResult.tileDataHash();
+      /*
+       * decide whether try to de-dupe memoized only, or all with a hash
+       * 
+       * by trying to de-dedupe memoized, only, we miss quite some opportunities
+       * e.g. in case of Australia we can save ~100MB when trying to de-dupe whenever we have a hash
+       * this also means that we have to write less
+       */
+      if (/*memoized && */tileDataHash != null) {
+        if (tileDataIdByHash.containsKey(tileDataHash)) {
+          tileDataId = tileDataIdByHash.get(tileDataHash);
+          writeData = false;
+        } else {
+          tileDataId = tileDataIdCounter++;
+          tileDataIdByHash.put(tileDataHash, tileDataId);
+          writeData = true;
+        }
+      } else {
+        tileDataId = tileDataIdCounter++;
+        writeData = true;
       }
-      batchedTileShallowTableWriter.write(new TileShallowEntry(coord, tileDataId));
+      if (writeData) {
+        batchedTileDataTableWriter.write(new TileDataEntry(tileDataId, encodingResult.tileData()));
+      }
+      batchedTileShallowTableWriter.write(new TileShallowEntry(encodingResult.coord(), tileDataId));
     }
 
     @Override

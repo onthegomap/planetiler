@@ -5,7 +5,6 @@ import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
-import com.onthegomap.planetiler.collection.FeatureGroup.TileFeatures;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -24,24 +23,18 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +47,7 @@ public class MbtilesWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
+  private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final Mbtiles db;
@@ -66,7 +60,6 @@ public class MbtilesWriter {
   private final FeatureGroup features;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
-  private final AtomicLong tileDataIdGenerator = new AtomicLong(1);
 
   private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
     Stats stats, LayerStats layerStats) {
@@ -233,131 +226,58 @@ public class MbtilesWriter {
     });
   }
 
-  private interface TileFeaturesEncoder {
-    TileEncodingResult encode(FeatureGroup.TileFeatures tileFeatures) throws IOException;
-  }
-
-  private abstract class TileFeaturesEncoderBase implements TileFeaturesEncoder {
-    protected byte[] encodeVectorTiles(FeatureGroup.TileFeatures tileFeatures) {
-      VectorTile en = tileFeatures.getVectorTileEncoder();
-      byte[] encoded = en.encode();
-      if (encoded.length > 1_000_000) {
-        LOGGER.warn("{} {}kb uncompressed", tileFeatures.tileCoord(), encoded.length / 1024);
-      }
-      writeVectorTilesEncodingStats(tileFeatures, encoded);
-      return encoded;
-    }
-
-    protected void writeVectorTilesEncodingStats(FeatureGroup.TileFeatures tileFeatures, byte[] encoded) {
-      int zoom = tileFeatures.tileCoord().z();
-      int encodedLength = encoded == null ? 0 : encoded.length;
-      totalTileSizesByZoom[zoom].incBy(encodedLength);
-      maxTileSizesByZoom[zoom].accumulate(encodedLength);
-    }
-  }
-
-  private class DefaultTileFeaturesEncoder extends TileFeaturesEncoderBase {
-
+  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
     /*
      * To optimize emitting many identical consecutive tiles (like large ocean areas), memoize output to avoid
      * recomputing if the input hasn't changed.
      */
-    private byte[] lastBytes = null, lastEncoded = null, lastBytesForHasing = null;
-
-    @Override
-    public TileEncodingResult encode(FeatureGroup.TileFeatures tileFeatures) throws IOException {
-
-      byte[] bytes, encoded, currentBytesForHashing;
-
-      currentBytesForHashing = tileFeatures.getBytesRelevantForHashing();
-
-      if (Arrays.equals(lastBytesForHasing, currentBytesForHashing)) {
-        bytes = lastBytes;
-        encoded = lastEncoded;
-        writeVectorTilesEncodingStats(tileFeatures, encoded);
-        memoizedTiles.inc();
-      } else {
-        encoded = lastEncoded = encodeVectorTiles(tileFeatures);
-        bytes = lastBytes = gzip(encoded);
-        lastBytesForHasing = currentBytesForHashing;
-      }
-      return new TileEncodingResult(tileFeatures.tileCoord(), bytes, -1);
-    }
-  }
-
-  private class CompactTileFeaturesEncoder extends TileFeaturesEncoderBase {
-
-    /*
-     * to put some context on this number, duplicates in Australia per "NumFeaturesToEmit":
-     * 1=13074826, 2=1359105, 3=397821, 4=13822, 5=73, 7=4, 8=2, 9=2, 18=2
-     */
-    private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
-
-    private static final int FNV1_32_INIT = 0x811c9dc5;
-    private static final int FNV1_PRIME_32 = 16777619;
-
-    private final Supplier<Long> tileDataIdGenerator;
-    private final Map<Integer, Long> tileDataIdByHash = new HashMap<>((int) MAX_TILES_PER_BATCH);
-
-    private CompactTileFeaturesEncoder(Supplier<Long> tileDataIdGenerator) {
-      this.tileDataIdGenerator = tileDataIdGenerator;
-    }
-
-    @Override
-    public TileEncodingResult encode(TileFeatures tileFeatures) throws IOException {
-
-      long tileDataId;
-      boolean newTileData;
-
-      if (tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
-        int tileHash = fnv1Bits32(tileFeatures.getBytesRelevantForHashing());
-        Long tileDataIdOpt = tileDataIdByHash.get(tileHash);
-        if (tileDataIdOpt == null) {
-          tileDataId = tileDataIdGenerator.get();
-          tileDataIdByHash.put(tileHash, tileDataId);
-          newTileData = true;
-        } else {
-          tileDataId = tileDataIdOpt;
-          newTileData = false;
-        }
-      } else {
-        tileDataId = tileDataIdGenerator.get();
-        newTileData = true;
-      }
-
-      if (newTileData) {
-        byte[] bytes = gzip(encodeVectorTiles(tileFeatures));
-        return new TileEncodingResult(tileFeatures.tileCoord(), bytes, tileDataId);
-      } else {
-        memoizedTiles.inc();
-        return new TileEncodingResult(tileFeatures.tileCoord(), null, tileDataId);
-      }
-    }
-
-    private int fnv1Bits32(byte[] data) {
-      int hash = FNV1_32_INIT;
-      for (byte datum : data) {
-        hash ^= (datum & 0xff);
-        hash *= FNV1_PRIME_32;
-      }
-      return hash;
-    }
-
-  }
-
-
-  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
-
-    TileFeaturesEncoder tileFeaturesEncoder = config.compactDb() ?
-      new CompactTileFeaturesEncoder(tileDataIdGenerator::getAndIncrement) : new DefaultTileFeaturesEncoder();
+    byte[] lastBytes = null, lastEncoded = null;
+    Integer lastTileDataHash = null;
+    boolean compactDb = config.compactDb();
 
     for (TileBatch batch : prev) {
       Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
+      FeatureGroup.TileFeatures last = null;
       // each batch contains tile ordered by z asc, x asc, y desc
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
-        result.add(tileFeaturesEncoder.encode(tileFeatures));
+        byte[] bytes, encoded;
+        boolean memoized;
+        Integer tileDataHash;
+        if (tileFeatures.hasSameContents(last)) {
+          bytes = lastBytes;
+          encoded = lastEncoded;
+          tileDataHash = lastTileDataHash;
+          memoized = true;
+          memoizedTiles.inc();
+        } else {
+          VectorTile en = tileFeatures.getVectorTileEncoder();
+          encoded = en.encode();
+          bytes = gzip(encoded);
+          last = tileFeatures;
+          lastEncoded = encoded;
+          lastBytes = bytes;
+          if (encoded.length > 1_000_000) {
+            LOGGER.warn("{} {}kb uncompressed",
+              tileFeatures.tileCoord(),
+              encoded.length / 1024);
+          }
+          if (compactDb && tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
+            tileDataHash = tileFeatures.generateContentHash();
+          } else {
+            tileDataHash = null;
+          }
+          lastTileDataHash = tileDataHash;
+          memoized = false;
+        }
+        int zoom = tileFeatures.tileCoord().z();
+        int encodedLength = encoded == null ? 0 : encoded.length;
+        totalTileSizesByZoom[zoom].incBy(encodedLength);
+        maxTileSizesByZoom[zoom].accumulate(encodedLength);
+        result.add(
+          new TileEncodingResult(tileFeatures.tileCoord(), bytes, memoized, tileDataHash)
+        );
       }
       // hand result off to writer
       batch.out.complete(result);
@@ -407,7 +327,7 @@ public class MbtilesWriter {
             time = Timer.start();
             currentZ = z;
           }
-          batchedTileWriter.write(encodedTile.coord(), encodedTile.tileData(), encodedTile.tileDataId());
+          batchedTileWriter.write(encodedTile);
 
           stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
           tilesByZoom[z].inc();
@@ -478,42 +398,6 @@ public class MbtilesWriter {
 
     public boolean isEmpty() {
       return in.isEmpty();
-    }
-  }
-
-  private record TileEncodingResult(
-    TileCoord coord,
-    /** might be null in compact mode */
-    @Nullable byte[] tileData,
-    long tileDataId
-  ) {
-
-    @Override
-    public String toString() {
-      return "TileEncodingResult [coord=" + coord + ", tileData=" + Arrays.toString(tileData) + ", tileDataId=" +
-        tileDataId + "]";
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + Arrays.hashCode(tileData);
-      result = prime * result + Objects.hash(coord, tileDataId);
-      return result;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
-      }
-      if (!(obj instanceof TileEncodingResult)) {
-        return false;
-      }
-      TileEncodingResult other = (TileEncodingResult) obj;
-      return Objects.equals(coord, other.coord) && Arrays.equals(tileData, other.tileData) &&
-        tileDataId == other.tileDataId;
     }
   }
 }

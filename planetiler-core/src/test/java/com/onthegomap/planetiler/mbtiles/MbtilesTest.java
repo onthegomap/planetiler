@@ -44,15 +44,15 @@ class MbtilesTest {
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
-          var dataId = i - (i % 2);
-          var dataBase = howMany + dataId;
+          var dataHash = i - (i % 2);
+          var dataBase = howMany + dataHash;
           var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
             (byte) dataBase,
             (byte) (dataBase >> 8),
             (byte) (dataBase >> 16),
             (byte) (dataBase >> 24)
           });
-          writer.write(entry.tile(), entry.bytes(), dataId);
+          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), true, dataHash));
           expected.add(entry);
         }
       }

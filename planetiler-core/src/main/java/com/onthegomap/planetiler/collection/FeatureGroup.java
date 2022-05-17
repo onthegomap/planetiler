@@ -14,11 +14,13 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -343,11 +345,12 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     /**
-     * Extracts a feature's data relevant for hashing. The coordinates are <b>not</b> part of it.
+     * Generates a hash over the feature's relevant data: layer, geometry, and attributes. The coordinates are
+     * <b>not</b> part of the hash.
      * <p>
-     * Used as an optimization to avoid re-encoding and writing the same (ocean) tiles over and over again.
+     * Used as an optimization to avoid writing the same (ocean) tiles over and over again.
      */
-    public byte[] getBytesRelevantForHashing() {
+    public int generateContentHash() {
       ByteArrayDataOutput out = ByteStreams.newDataOutput();
       for (var feature : entries) {
         long layerId = extractLayerIdFromKey(feature.key());
@@ -355,8 +358,31 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         out.write(feature.value());
         out.writeBoolean(extractHasGroupFromKey(feature.key()));
       }
-      return out.toByteArray();
+      return Hashing.fnv32(out.toByteArray());
     }
+
+    /**
+     * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
+     * even if the tiles have separate coordinates.
+     * <p>
+     * Used as an optimization to avoid re-encoding the same ocean tiles over and over again.
+     */
+    public boolean hasSameContents(TileFeatures other) {
+      if (other == null || other.entries.size() != entries.size()) {
+        return false;
+      }
+      for (int i = 0; i < entries.size(); i++) {
+        SortableFeature a = entries.get(i);
+        SortableFeature b = other.entries.get(i);
+        long layerA = extractLayerIdFromKey(a.key());
+        long layerB = extractLayerIdFromKey(b.key());
+        if (layerA != layerB || !Arrays.equals(a.value(), b.value())) {
+          return false;
+        }
+      }
+      return true;
+    }
+
 
     private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
       try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
