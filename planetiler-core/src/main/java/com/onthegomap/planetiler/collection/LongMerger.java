@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.collection;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -165,20 +164,21 @@ public class LongMerger {
   }
 
   private static class KWayMerge<T extends HasLongSortKey> implements Iterator<T> {
-    private final List<T> items;
-    private final List<Iterator<T>> suppliers;
+    private final T[] items;
+    private final Iterator<T>[] iterators;
     private final LongMinHeap heap;
 
-    KWayMerge(List<? extends Iterator<T>> iterators) {
-      this.suppliers = new ArrayList<>();
-      this.items = new ArrayList<>();
-      this.heap = LongMinHeap.newArrayHeap(iterators.size());
+    @SuppressWarnings("unchecked")
+    KWayMerge(List<? extends Iterator<T>> inputIterators) {
+      this.iterators = new Iterator[inputIterators.size()];
+      this.items = (T[]) new HasLongSortKey[inputIterators.size()];
+      this.heap = LongMinHeap.newArrayHeap(inputIterators.size());
       int outIdx = 0;
-      for (Iterator<T> iter : iterators) {
+      for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {
           var item = iter.next();
-          items.add(item);
-          suppliers.add(iter);
+          items[outIdx] = item;
+          iterators[outIdx] = iter;
           heap.push(outIdx++, item.key());
         }
       }
@@ -195,14 +195,14 @@ public class LongMerger {
         throw new NoSuchElementException();
       }
       int id = heap.peekId();
-      T result = items.get(id);
-      Iterator<T> iterator = suppliers.get(id);
+      T result = items[id];
+      Iterator<T> iterator = iterators[id];
       if (iterator.hasNext()) {
         T next = iterator.next();
-        items.set(id, next);
+        items[id] = next;
         heap.updateHead(next.key());
       } else {
-        items.set(id, null);
+        items[id] = null;
         heap.poll();
       }
       return result;
