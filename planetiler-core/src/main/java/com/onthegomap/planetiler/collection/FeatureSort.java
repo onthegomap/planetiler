@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -102,17 +101,29 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
     return iterator(0, 1);
   }
 
+  /**
+   * Returns an iterator over a subset of the features.
+   *
+   * @param shard  The index of this iterator
+   * @param shards The total number of iterators that will be used
+   * @return An iterator over a subset of features that when combined with all other iterators will iterate over the
+   *         full set.
+   */
   Iterator<SortableFeature> iterator(int shard, int shards);
 
-  record ParallelIterator(Worker worker, Iterator<SortableFeature> iterator) implements Iterable<SortableFeature> {}
-
+  /**
+   * Reads temp features using {@code threads} parallel threads and merges into a sorted list.
+   *
+   * @param stats   Stat tracker
+   * @param threads The number of parallel read threads to spawn
+   * @return a {@link ParallelIterator} with a handle to the new read threads that were spawned, and in {@link Iterable}
+   *         that can be used to iterate over the results.
+   */
   default ParallelIterator parallelIterator(Stats stats, int threads) {
-    AtomicInteger shardCount = new AtomicInteger(0);
     List<WeightedHandoffQueue<SortableFeature>> queues = IntStream.range(0, threads)
       .mapToObj(i -> new WeightedHandoffQueue<SortableFeature>(500, 10_000))
       .toList();
-    Worker reader = new Worker("read", stats, threads, () -> {
-      int shard = shardCount.getAndIncrement();
+    Worker reader = new Worker("read", stats, threads, shard -> {
       try (var next = queues.get(shard)) {
         Iterator<SortableFeature> entries = iterator(shard, threads);
         while (entries.hasNext()) {
@@ -122,4 +133,7 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
     });
     return new ParallelIterator(reader, LongMerger.mergeSuppliers(queues));
   }
+
+  record ParallelIterator(Worker reader, @Override Iterator<SortableFeature> iterator)
+    implements Iterable<SortableFeature> {}
 }

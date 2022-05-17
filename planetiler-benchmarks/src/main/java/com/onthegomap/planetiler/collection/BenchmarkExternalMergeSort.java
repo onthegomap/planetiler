@@ -124,7 +124,7 @@ public class BenchmarkExternalMergeSort {
       .newLine();
     if (q instanceof FeatureSort.ParallelIterator pi) {
       loggers
-        .addThreadPoolStats("read", pi.worker())
+        .addThreadPoolStats("read", pi.reader())
         .addThreadPoolStats("merge", reader);
     } else {
       loggers.addThreadPoolStats("read", reader);
