@@ -11,10 +11,8 @@ import java.util.function.Supplier;
  * A utility for merging sorted lists of items with a {@code long} key to sort by.
  */
 public class LongMerger {
-  // Has specialized implementations for:
-  // 2-way merge using 1 comparison per iteration
-  // 3-way merge using 2 comparisons per iteration
-  // N-way merge using a min heap
+  // Has a general-purpose KWayMerge implementation using a min heap and specialized (faster)
+  // TwoWayMerge/ThreeWayMerge implementations when a small number of lists are being merged.
 
   private LongMerger() {}
 
