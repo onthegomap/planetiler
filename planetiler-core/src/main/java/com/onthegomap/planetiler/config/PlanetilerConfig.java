@@ -93,7 +93,7 @@ public record PlanetilerConfig(
       featureWriteThreads,
       featureProcessThreads,
       arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
-        threads < 32 ? 1 : threads < 64 ? 2 : 3),
+        threads < 32 ? 1 : 2),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
