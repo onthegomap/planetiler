@@ -280,8 +280,6 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     void close();
-
-    long nextKey();
   }
 
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
@@ -391,11 +389,6 @@ class ExternalMergeSort implements FeatureSort {
         close();
       }
       return current;
-    }
-
-    @Override
-    public final long nextKey() {
-      return next.key();
     }
 
     abstract SortableFeature readNextFeature();

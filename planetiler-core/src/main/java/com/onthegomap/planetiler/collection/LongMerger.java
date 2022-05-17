@@ -37,7 +37,7 @@ public class LongMerger {
         ak = a.key();
       }
       if (inputB.hasNext()) {
-        b = inputA.next();
+        b = inputB.next();
         bk = b.key();
       }
     }
@@ -64,11 +64,11 @@ public class LongMerger {
       } else {
         result = b;
         if (inputB.hasNext()) {
-          a = inputB.next();
-          ak = a.key();
+          b = inputB.next();
+          bk = b.key();
         } else {
-          a = null;
-          ak = Long.MAX_VALUE;
+          b = null;
+          bk = Long.MAX_VALUE;
         }
       }
       return result;
@@ -89,11 +89,11 @@ public class LongMerger {
         ak = a.key();
       }
       if (inputB.hasNext()) {
-        b = inputA.next();
+        b = inputB.next();
         bk = b.key();
       }
       if (inputC.hasNext()) {
-        c = inputA.next();
+        c = inputC.next();
         ck = c.key();
       }
     }
@@ -157,15 +157,16 @@ public class LongMerger {
     private final LongMinHeap heap;
 
     KWayMerge(List<? extends Iterator<T>> iterators) {
-      this.suppliers = List.copyOf(iterators);
+      this.suppliers = new ArrayList<>();
       this.items = new ArrayList<>();
       this.heap = LongMinHeap.newArrayHeap(iterators.size());
-      for (int i = 0; i < iterators.size(); i++) {
-        var iter = iterators.get(i);
+      int outIdx = 0;
+      for (Iterator<T> iter : iterators) {
         if (iter.hasNext()) {
           var item = iter.next();
           items.add(item);
-          heap.push(i, item.key());
+          suppliers.add(iter);
+          heap.push(outIdx++, item.key());
         }
       }
     }
