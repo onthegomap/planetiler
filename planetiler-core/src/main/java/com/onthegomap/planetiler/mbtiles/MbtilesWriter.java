@@ -106,6 +106,8 @@ public class MbtilesWriter {
     int threads = config.threads();
     int processThreads = threads < 10 ? threads : threads - readThreads;
 
+    // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
+    // when using 1 read thread we just have: (1 read & merge thread) -> ...
     Worker readWorker = null;
     Iterable<FeatureGroup.TileFeatures> inputTiles;
     String secondStageName;
@@ -116,7 +118,7 @@ public class MbtilesWriter {
       secondStageName = "merge";
       var reader = features.parallelIterator(readThreads);
       inputTiles = reader.result();
-      readWorker = reader.readThread();
+      readWorker = reader.readWorker();
     }
 
     MbtilesWriter writer = new MbtilesWriter(inputTiles, output, config, mbtilesMetadata, stats,

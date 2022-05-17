@@ -7,13 +7,23 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
+/**
+ * A utility for merging sorted lists of items with a {@code long} key to sort by.
+ */
 public class LongMerger {
+  // Has specialized implementations for:
+  // 2-way merge using 1 comparison per iteration
+  // 3-way merge using 2 comparisons per iteration
+  // N-way merge using a min heap
+
   private LongMerger() {}
 
+  /** Merges sorted items from {@link Supplier Suppliers} that return {@code null} when there are no items left. */
   public static <T extends HasLongSortKey> Iterator<T> mergeSuppliers(List<? extends Supplier<T>> suppliers) {
     return mergeIterators(suppliers.stream().map(SupplierIterator::new).toList());
   }
 
+  /** Merges sorted iterators into a combined iterator over all the items. */
   public static <T extends HasLongSortKey> Iterator<T> mergeIterators(List<? extends Iterator<T>> iterators) {
     return switch (iterators.size()) {
       case 0 -> Collections.emptyIterator();
@@ -106,8 +116,10 @@ public class LongMerger {
     @Override
     public T next() {
       T result;
+      // use at most 2 comparisons to get the next item
       if (ak < bk) {
         if (ak < ck) {
+          // ACB / ABC
           result = a;
           if (inputA.hasNext()) {
             a = inputA.next();
@@ -117,6 +129,7 @@ public class LongMerger {
             ak = Long.MAX_VALUE;
           }
         } else {
+          // CBA
           result = c;
           if (inputC.hasNext()) {
             c = inputC.next();
@@ -127,6 +140,7 @@ public class LongMerger {
           }
         }
       } else if (ck < bk) {
+        // CAB
         result = c;
         if (inputC.hasNext()) {
           c = inputC.next();
@@ -138,6 +152,7 @@ public class LongMerger {
       } else if (bk == Long.MAX_VALUE) {
         throw new NoSuchElementException();
       } else {
+        // BAC / BCA
         result = b;
         if (inputB.hasNext()) {
           b = inputB.next();

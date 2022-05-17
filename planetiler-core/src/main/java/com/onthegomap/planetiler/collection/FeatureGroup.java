@@ -330,7 +330,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
-  public record Reader(Worker readThread, Iterable<TileFeatures> result) {}
+  public record Reader(Worker readWorker, Iterable<TileFeatures> result) {}
 
   /** Features contained in a single tile. */
   public class TileFeatures {

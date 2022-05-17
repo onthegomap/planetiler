@@ -47,7 +47,8 @@ public class Worker {
    * @param prefix  string ID to add to logs and stats
    * @param stats   stats collector for this thread pool
    * @param threads number of parallel threads to run {@code task} in
-   * @param task    the work to do in each thread
+   * @param task    the work to do in each thread, called with the ID of this thread, from {@code 0} to
+   *                {@code threads - 1}.
    */
   @SuppressWarnings("java:S1181")
   public Worker(String prefix, Stats stats, int threads, IntConsumerThatThrows task) {
