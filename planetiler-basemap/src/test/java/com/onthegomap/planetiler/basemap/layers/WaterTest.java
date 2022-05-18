@@ -103,7 +103,7 @@ class WaterTest extends AbstractLayerTest {
     assertFeatures(14, List.of(
       Map.of("_layer", "poi"),
       Map.of(
-        "class", "lake",
+        "class", "swimming_pool",
 
         "_layer", "water",
         "_type", "polygon",
