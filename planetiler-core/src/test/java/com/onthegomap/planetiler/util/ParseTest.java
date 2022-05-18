@@ -69,13 +69,17 @@ class ParseTest {
     "1mi,1609.344",
     "1 mi,1609.344",
     "328',99.974",
+    "328ft,99.974",
     "328'11\",100.254",
+    "328ft 11in,100.254",
     "garbage,null",
     "1nmi,1852",
     "1.5 nmi,2778",
     "1..5 nmi,null",
     "36\",0.9144",
     "1'11\",0.584",
+    "1'11m,0.305",
+    "1.5 smoots,null",
   }, nullValues = "null")
   void testLength(String in, Double out) {
     Double result = Parse.meters(in);
