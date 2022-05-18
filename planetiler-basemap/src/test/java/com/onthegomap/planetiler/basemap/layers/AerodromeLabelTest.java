@@ -38,6 +38,36 @@ class AerodromeLabelTest extends AbstractLayerTest {
   }
 
   @Test
+  void testElevationFeet() {
+    assertFeatures(14, List.of(Map.of(
+      "ele", 100,
+      "ele_ft", 328
+    )), process(pointFeature(Map.of(
+      "aeroway", "aerodrome",
+      "name", "osm name",
+      "ele", "328'",
+      "aerodrome", "international",
+      "iata", "123",
+      "icao", "1234"
+    ))));
+  }
+
+  @Test
+  void testElevationFeetInches() {
+    assertFeatures(14, List.of(Map.of(
+      "ele", 100,
+      "ele_ft", 328
+    )), process(pointFeature(Map.of(
+      "aeroway", "aerodrome",
+      "name", "osm name",
+      "ele", "328' 1\"",
+      "aerodrome", "international",
+      "iata", "123",
+      "icao", "1234"
+    ))));
+  }
+
+  @Test
   void testInternational() {
     assertFeatures(14, List.of(Map.of(
       "class", "international",

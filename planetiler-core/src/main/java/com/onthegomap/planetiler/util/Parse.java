@@ -12,6 +12,11 @@ public class Parse {
 
   private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
   private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");
+  // See https://wiki.openstreetmap.org/wiki/Map_features/Units
+  private static final Pattern DISTANCE =
+    Pattern.compile(
+      "(?<value>-?[\\d.]+)\\s*((?<mi>mi)|(?<m>m|$)|(?<km>km|kilom)|(?<ft>ft|')|(?<in>in|\")|(?<nmi>nmi|international nautical mile|nautical))",
+      Pattern.CASE_INSENSITIVE);
 
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
@@ -130,5 +135,50 @@ public class Parse {
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Unable to parse size: " + value);
     }
+  }
+
+  /**
+   * Parses {@code tag} as a measure of distance with unit, converted to a round number of meters or {@code null} if
+   * invalid.
+   *
+   * See <a href="https://wiki.openstreetmap.org/wiki/Map_features/Units">Map features/Units</a> for the list of
+   * supported units.
+   */
+  public static Double meters(Object tag) {
+    if (tag != null) {
+      if (tag instanceof Number num) {
+        return num.doubleValue();
+      }
+      var str = tag.toString();
+      var matcher = DISTANCE.matcher(str);
+      if (matcher.find()) {
+        try {
+          double value = Double.parseDouble(matcher.group("value"));
+          if (matcher.group("m") != null) {
+            // value *= 1;
+          } else if (matcher.group("km") != null) {
+            value *= 1000d;
+          } else if (matcher.group("mi") != null) {
+            value *= 1609.344;
+          } else if (matcher.group("nmi") != null) {
+            value *= 1852d;
+          } else if (matcher.group("ft") != null) {
+            value *= 12 * 0.0254;
+            // handle 15'3"
+            if (matcher.find() && matcher.group("in") != null) {
+              value += Double.parseDouble(matcher.group("value")) * 0.0254;
+            }
+          } else if (matcher.group("in") != null) {
+            value *= 0.0254;
+          } else {
+            return null;
+          }
+          return value;
+        } catch (NumberFormatException e) {
+          return null;
+        }
+      }
+    }
+    return null;
   }
 }
