@@ -207,4 +207,34 @@ class PoiTest extends AbstractLayerTest {
       "name", "The Locksmith"
     ))));
   }
+
+  @Test
+  void testAtm() {
+    List<Map<String, Object>> expected = List.of(Map.of(
+      "_layer", "poi",
+      "class", "atm",
+      "subclass", "atm",
+      "name", "ATM name"
+    ));
+    // prefer name, otherwise fall back to operator, or else network
+    assertFeatures(14, expected, process(pointFeature(Map.of(
+      "amenity", "atm",
+      "name", "ATM name"
+    ))));
+    assertFeatures(14, expected, process(pointFeature(Map.of(
+      "amenity", "atm",
+      "name", "ATM name",
+      "operator", "ATM operator",
+      "network", "ATM network"
+    ))));
+    assertFeatures(14, expected, process(pointFeature(Map.of(
+      "amenity", "atm",
+      "operator", "ATM name",
+      "network", "ATM network"
+    ))));
+    assertFeatures(14, expected, process(pointFeature(Map.of(
+      "amenity", "atm",
+      "network", "ATM name"
+    ))));
+  }
 }

@@ -43,8 +43,8 @@ import static java.util.Map.entry;
 
 import com.carrotsearch.hppc.LongIntMap;
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.ForwardingProfile;
 import com.onthegomap.planetiler.VectorTile;
-import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.LanguageUtils;
@@ -68,7 +68,7 @@ public class Poi implements
   OpenMapTilesSchema.Poi,
   Tables.OsmPoiPoint.Handler,
   Tables.OsmPoiPolygon.Handler,
-  BasemapProfile.FeaturePostProcessor {
+  ForwardingProfile.FeaturePostProcessor {
 
   /*
    * process() creates the raw POI feature from OSM elements and postProcess()
@@ -136,7 +136,7 @@ public class Poi implements
     setupPoiFeature(element, features.centroidIfConvex(LAYER_NAME));
   }
 
-  private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource> void setupPoiFeature(
+  private <T extends Tables.WithSubclass & Tables.WithStation & Tables.WithFunicular & Tables.WithSport & Tables.WithInformation & Tables.WithReligion & Tables.WithMappingKey & Tables.WithName & Tables.WithIndoor & Tables.WithLayer & Tables.WithSource & Tables.WithOperator & Tables.WithNetwork> void setupPoiFeature(
     T element, FeatureCollector.Feature output) {
     String rawSubclass = element.subclass();
     if ("station".equals(rawSubclass) && "subway".equals(element.station())) {
@@ -144,6 +144,16 @@ public class Poi implements
     }
     if ("station".equals(rawSubclass) && "yes".equals(element.funicular())) {
       rawSubclass = "halt";
+    }
+
+    // ATM names fall back to operator, or else network
+    String name = element.name();
+    var tags = element.source().tags();
+    if ("atm".equals(rawSubclass) && nullOrEmpty(name)) {
+      name = coalesce(nullIfEmpty(element.operator()), nullIfEmpty(element.network()));
+      if (name != null) {
+        tags.put("name", name);
+      }
     }
 
     String subclass = switch (rawSubclass) {
@@ -154,7 +164,7 @@ public class Poi implements
     };
     String poiClass = poiClass(rawSubclass, element.mappingKey());
     int poiClassRank = poiClassRank(poiClass);
-    int rankOrder = poiClassRank + ((nullOrEmpty(element.name())) ? 2000 : 0);
+    int rankOrder = poiClassRank + ((nullOrEmpty(name)) ? 2000 : 0);
 
     output.setBufferPixels(BUFFER_SIZE)
       .setAttr(Fields.CLASS, poiClass)
