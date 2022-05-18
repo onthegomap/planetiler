@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TransportationTest extends AbstractLayerTest {
 
@@ -1061,12 +1063,13 @@ class TransportationTest extends AbstractLayerTest {
     ))));
   }
 
-  @Test
-  void testAerialway() {
+  @ParameterizedTest
+  @ValueSource(strings = {"gondola", "chair_lift", "j-bar", "mixed_lift"})
+  void testAerialway(String aerialway) {
     assertFeatures(12, List.of(Map.of(
       "_layer", "transportation",
       "class", "aerialway",
-      "subclass", "gondola",
+      "subclass", aerialway,
 
       "_minzoom", 12,
       "_maxzoom", 14,
@@ -1074,19 +1077,19 @@ class TransportationTest extends AbstractLayerTest {
     ), Map.of(
       "_layer", "transportation_name",
       "class", "aerialway",
-      "subclass", "gondola",
+      "subclass", aerialway,
       "name", "Summit Gondola",
 
       "_minzoom", 12,
       "_maxzoom", 14,
       "_type", "line"
     )), process(lineFeature(Map.of(
-      "aerialway", "gondola",
+      "aerialway", aerialway,
       "name", "Summit Gondola"
     ))));
     assertFeatures(10, List.of(),
       process(polygonFeature(Map.of(
-        "aerialway", "gondola",
+        "aerialway", aerialway,
         "name", "Summit Gondola"
       ))));
   }
