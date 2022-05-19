@@ -28,6 +28,7 @@ public class BenchmarkMbtilesRead {
     Arguments arguments = Arguments.fromArgs(args);
     int repetitions = arguments.getInteger("bench_repetitions", "number of repetitions", 10);
     int nrTileReads = arguments.getInteger("bench_nr_tile_reads", "number of tiles to read", 500_000);
+    int preWarms = arguments.getInteger("bench_pre_warms", "number of pre warm runs", 3);
 
 
     List<String> mbtilesPaths = new ArrayList<>();
@@ -70,6 +71,10 @@ public class BenchmarkMbtilesRead {
       List<ReadResult> results = new LinkedList<>();
 
       LOGGER.info("working on {}", dbPath);
+
+      for (int preWarm = 0; preWarm < preWarms; preWarm++) {
+        readEachTile(randomCoordsToFetchPerRepetition, dbPath);
+      }
 
       for (int rep = 0; rep < repetitions; rep++) {
         results.add(readEachTile(randomCoordsToFetchPerRepetition, dbPath));
