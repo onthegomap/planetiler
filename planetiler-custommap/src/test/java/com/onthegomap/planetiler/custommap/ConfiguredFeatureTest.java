@@ -205,14 +205,16 @@ class ConfiguredFeatureTest {
     }, 1);
 
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", trunkTags, f -> {
-      assertEquals(4, f.getMinZoom());
+      assertEquals(5, f.getMinZoom());
       var attr = f.getAttrsAtZoom(5);
       assertEquals("trunk", attr.get("highway"), "Produce highway=trunk at z5");
       assertNull(attr.get("toll"), "Skip toll at z5");
 
       attr = f.getAttrsAtZoom(6);
       assertEquals("trunk", attr.get("highway"), "Produce highway=trunk at z6");
-      assertEquals("yes", attr.get("toll"), "render toll at z6");
+
+      attr = f.getAttrsAtZoom(8);
+      assertEquals("yes", attr.get("toll"), "render toll at z8");
     }, 1);
 
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", primaryTags, f -> {

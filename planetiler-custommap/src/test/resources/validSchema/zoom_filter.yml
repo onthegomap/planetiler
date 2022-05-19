@@ -5,6 +5,8 @@ sources:
   osm:
     type: osm
     url: geofabrik:rhode-island
+tag_mappings:
+  lanes: long
 layers:
 - name: testLayer
   features:
@@ -12,6 +14,13 @@ layers:
     - osm
     geometry: line
     min_zoom: 4
+    zoom_override:
+    - min: 5
+      tag:
+        highway: trunk
+    - min: 7
+      tag:
+        highway: primary
     include_when:
       highway:
     attributes:
@@ -19,5 +28,10 @@ layers:
       min_zoom_by_value:
         trunk: 5
         primary: 7
+    - key: lanes
+      min_zoom_by_value:
+        4: 9
+        3: 9
+        2: 10
     - key: toll
-      min_zoom: 6
+      min_zoom: 8
