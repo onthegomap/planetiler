@@ -9,6 +9,7 @@ public record FeatureItem(
   @JsonProperty("min_zoom") Byte minZoom,
   @JsonProperty("max_zoom") Byte maxZoom,
   GeometryType geometry,
+  @JsonProperty("zoom_override") Collection<ZoomOverride> zoom,
   @JsonProperty("include_when") TagCriteria includeWhen,
   @JsonProperty("exclude_when") TagCriteria excludeWhen,
   Collection<AttributeDefinition> attributes

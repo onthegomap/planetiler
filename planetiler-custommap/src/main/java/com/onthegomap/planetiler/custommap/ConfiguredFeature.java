@@ -4,13 +4,18 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.configschema.ZoomOverride;
 import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.expression.MultiExpression.Entry;
+import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,12 +34,13 @@ public class ConfiguredFeature {
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  //  private final Index<Byte> zoomTagConfig;
+  private final Index<Byte> zoomOverride;
   private final Byte featureMinZoom;
   private final Byte featureMaxZoom;
   private final TagValueProducer tagValueProducer;
 
   private static final double LOG4 = Math.log(4);
+  private static final Index<Byte> NO_ZOOM_OVERRIDE = MultiExpression.<Byte>of(List.of()).index();
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
@@ -55,6 +61,9 @@ public class ConfiguredFeature {
       .map(tc -> tc.matcher(tagValueProducer))
       .orElse(Expression.TRUE);
 
+    //Index of zoom ranges for a feature based on what tags are present.
+    zoomOverride = zoomOverride(feature.zoom());
+
     //Test to determine at which zooms to include this feature based on tagging
     featureMinZoom = feature.minZoom() == null ? 0 : feature.minZoom();
     featureMaxZoom = feature.maxZoom() == null ? 0 : feature.maxZoom();
@@ -67,6 +76,59 @@ public class ConfiguredFeature {
       .stream()
       .map(this::attributeProcessor)
       .forEach(attributeProcessors::add);
+  }
+
+  /**
+   * Produce an index that matches tags from configuration and returns a minimum zoom level
+   * 
+   * @param zoom the configured zoom overrides
+   * @return an index
+   */
+  private static Index<Byte> zoomOverride(Collection<ZoomOverride> zoom) {
+    if (zoom == null || zoom.isEmpty()) {
+      return NO_ZOOM_OVERRIDE;
+    }
+
+    return MultiExpression.of(
+      zoom.stream()
+        .map(ConfiguredFeature::generateOverrideExpression)
+        .toList())
+      .index();
+  }
+
+  /**
+   * Takes the zoom override configuration for a single zoom level and returns an expression that matches tags for that
+   * level.
+   * 
+   * @param config zoom override for a single level
+   * @return matching expression
+   */
+  private static Entry<Byte> generateOverrideExpression(ZoomOverride config) {
+    return MultiExpression.entry(config.min(),
+      Expression.or(
+        config.tag()
+          .entrySet()
+          .stream()
+          .map(ConfiguredFeature::generateKeyExpression)
+          .toList()));
+  }
+
+  /**
+   * Returns an expression that matches against single key with one or more values
+   * 
+   * @param keyExpression a map containing a key and one or more values
+   * @return a matching expression
+   */
+  private static Expression generateKeyExpression(Map.Entry<String, Object> keyExpression) {
+    // Values are either a single value, or a collection
+    String key = keyExpression.getKey();
+    Object rawVal = keyExpression.getValue();
+
+    if (rawVal instanceof List<?> tagValues) {
+      return Expression.matchAny(key, tagValues);
+    } else {
+      return Expression.matchAny(key, rawVal);
+    }
   }
 
   /**
@@ -239,8 +301,12 @@ public class ConfiguredFeature {
    * @param features      - output rendered feature collector
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+
+    var zoomOverrides = zoomOverride.getMatches(sourceFeature);
+    var minZoom = zoomOverrides.isEmpty() ? featureMinZoom : Collections.min(zoomOverrides);
+
     Feature f = geometryFactory.apply(features)
-      .setMinZoom(featureMinZoom);
+      .setMinZoom(minZoom);
     if (featureMaxZoom != null) {
       f.setMaxZoom(featureMaxZoom);
     }
