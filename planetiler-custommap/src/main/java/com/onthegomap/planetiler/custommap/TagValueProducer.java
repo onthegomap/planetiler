@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public class TagValueProducer {
 
@@ -29,7 +30,7 @@ public class TagValueProducer {
       LONG_DATATYPE, WithTags::getLong
     );
 
-  static final Map<String, Function<Object, Object>> dataTypeParse =
+  static final Map<String, UnaryOperator<Object>> dataTypeParse =
     Map.of(
       STRING_DATATYPE, s -> s,
       BOOLEAN_DATATYPE, Parse::bool,
@@ -69,7 +70,7 @@ public class TagValueProducer {
   }
 
   public <T extends Object> Map<Object, T> remapKeysByType(String key, Map<Object, T> keyedMap) {
-    Map<Object, T> newMap = new LinkedHashMap<Object, T>();
+    Map<Object, T> newMap = new LinkedHashMap<>();
 
     String dataType = keyType.get(key);
 
