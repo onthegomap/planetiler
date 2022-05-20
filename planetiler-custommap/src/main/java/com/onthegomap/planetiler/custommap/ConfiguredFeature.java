@@ -132,7 +132,7 @@ public class ConfiguredFeature {
   }
 
   /**
-   * Produce logic that generates attribute values based on configuration and input data. If both a constantValue
+   * Produces logic that generates attribute values based on configuration and input data. If both a constantValue
    * configuration and a tagValue configuration are set, this is likely a mistake, and the constantValue will take
    * precedence.
    * 
