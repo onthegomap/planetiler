@@ -304,8 +304,7 @@ public class ConfiguredFeature {
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
 
-    var zoomOverrides = zoomOverride.getMatches(sourceFeature);
-    var minZoom = zoomOverrides.isEmpty() ? featureMinZoom : zoomOverrides.get(0);
+    var minZoom = zoomOverride.getOrElse(sourceFeature, featureMinZoom);
 
     Feature f = geometryFactory.apply(features)
       .setMinZoom(minZoom);
