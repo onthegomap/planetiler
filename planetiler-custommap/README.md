@@ -37,7 +37,7 @@ A feature is a defined set of objects that meet specified filter criteria.
 * `include_when` - A tag specification which determines which features to include.  If unspecified, all features from the specified sources are included.  See [Tag Filters](#tag-filters)
 * `exclude_when` - A tag specification which determines which features to exclude.  This rule is applied after `includeWhen`.  If unspecified, no exclusion filter is applied.  See [Tag Filters](#tag-filters)
 * `min_zoom` - Minimum zoom to show the feature that matches the filter specifications.
-* `zoom_override` - List of specifications that overrides the `min_zoom` for this feature if certain tags are present.  See [Feature Zoom Overrides](#feature-zoom-override)
+* `zoom_override` - List of rules that overrides the `min_zoom` for this feature if certain tags are present.  If multiple rules match, the first matching rule will be applied.  See [Feature Zoom Overrides](#feature-zoom-override)
 * `attributes` - Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed.  See [Attributes](#attributes)
 
 ### Tag Mappings
