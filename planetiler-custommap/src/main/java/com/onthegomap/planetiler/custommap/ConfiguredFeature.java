@@ -84,14 +84,14 @@ public class ConfiguredFeature {
    * @param zoom the configured zoom overrides
    * @return an index
    */
-  private static Index<Byte> zoomOverride(Collection<ZoomOverride> zoom) {
+  private Index<Byte> zoomOverride(Collection<ZoomOverride> zoom) {
     if (zoom == null || zoom.isEmpty()) {
       return NO_ZOOM_OVERRIDE;
     }
 
     return MultiExpression.of(
       zoom.stream()
-        .map(ConfiguredFeature::generateOverrideExpression)
+        .map(this::generateOverrideExpression)
         .toList())
       .index();
   }
@@ -103,13 +103,13 @@ public class ConfiguredFeature {
    * @param config zoom override for a single level
    * @return matching expression
    */
-  private static Entry<Byte> generateOverrideExpression(ZoomOverride config) {
+  private Entry<Byte> generateOverrideExpression(ZoomOverride config) {
     return MultiExpression.entry(config.min(),
       Expression.or(
         config.tag()
           .entrySet()
           .stream()
-          .map(ConfiguredFeature::generateKeyExpression)
+          .map(this::generateKeyExpression)
           .toList()));
   }
 
@@ -119,16 +119,16 @@ public class ConfiguredFeature {
    * @param keyExpression a map containing a key and one or more values
    * @return a matching expression
    */
-  private static Expression generateKeyExpression(Map.Entry<String, Object> keyExpression) {
+  private Expression generateKeyExpression(Map.Entry<String, Object> keyExpression) {
     // Values are either a single value, or a collection
     String key = keyExpression.getKey();
     Object rawVal = keyExpression.getValue();
 
     if (rawVal instanceof List<?> tagValues) {
-      return Expression.matchAny(key, tagValues);
-    } else {
-      return Expression.matchAny(key, rawVal);
+      return Expression.matchAnyTyped(key, tagValueProducer.getValueGetter(key), tagValues);
     }
+
+    return Expression.matchAnyTyped(key, tagValueProducer.getValueGetter(key), rawVal);
   }
 
   /**
@@ -208,6 +208,9 @@ public class ConfiguredFeature {
 
     var minZoomByValue = attribute.minZoomByValue();
     minZoomByValue = minZoomByValue == null ? Map.of() : minZoomByValue;
+
+    //Workaround because numeric keys are mapped as String
+    minZoomByValue = tagValueProducer.remapKeysByType(tagKey, minZoomByValue);
 
     var attributeValueProducer = attributeValueProducer(attribute);
 

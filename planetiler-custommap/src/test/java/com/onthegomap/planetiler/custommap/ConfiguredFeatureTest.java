@@ -49,7 +49,9 @@ class ConfiguredFeatureTest {
   );
 
   private static Map<String, Object> primaryTags = Map.of(
-    "highway", "primary"
+    "highway", "primary",
+    "lanes", "2"
+
   );
 
   private static Map<String, Object> highwayAreaTags = Map.of(
@@ -220,8 +222,15 @@ class ConfiguredFeatureTest {
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", primaryTags, f -> {
       var attr = f.getAttrsAtZoom(6);
       assertNull(attr.get("highway"), "Skip highway=primary at z6");
+      assertNull(attr.get("lanes"));
+
       attr = f.getAttrsAtZoom(7);
       assertEquals("primary", attr.get("highway"), "Produce highway=primary at z7");
+      assertNull(attr.get("lanes"));
+
+      attr = f.getAttrsAtZoom(12);
+      assertEquals("primary", attr.get("highway"), "Produce highway=primary at z12");
+      assertEquals(2L, attr.get("lanes"));
     }, 1);
   }
 
