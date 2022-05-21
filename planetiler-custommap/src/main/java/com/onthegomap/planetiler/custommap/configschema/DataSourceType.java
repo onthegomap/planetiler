@@ -1,10 +1,10 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public enum DataSourceType {
-  @JsonAlias("osm")
+  @JsonProperty("osm")
   OSM,
-  @JsonAlias("shapefile")
+  @JsonProperty("shapefile")
   SHAPEFILE
 }
