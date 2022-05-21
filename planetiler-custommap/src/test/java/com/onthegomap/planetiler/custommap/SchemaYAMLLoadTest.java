@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
@@ -25,6 +26,8 @@ class SchemaYAMLLoadTest {
     var schemaFiles = Files.walk(path)
       .filter(p -> p.getFileName().toString().endsWith(".yml"))
       .toList();
+
+    assertFalse(schemaFiles.isEmpty(), "No files found");
 
     for (Path schemaFile : schemaFiles) {
       var schemaConfig = ConfiguredMapMain.loadConfig(schemaFile);
