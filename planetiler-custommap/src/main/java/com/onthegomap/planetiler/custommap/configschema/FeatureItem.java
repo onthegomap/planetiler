@@ -6,8 +6,8 @@ import java.util.Collection;
 
 public record FeatureItem(
   Collection<String> sources,
-  @JsonProperty("min_zoom") Byte minZoom,
-  @JsonProperty("max_zoom") Byte maxZoom,
+  @JsonProperty("min_zoom") Integer minZoom,
+  @JsonProperty("max_zoom") Integer maxZoom,
   GeometryType geometry,
   @JsonProperty("zoom_override") Collection<ZoomOverride> zoom,
   @JsonProperty("include_when") TagCriteria includeWhen,

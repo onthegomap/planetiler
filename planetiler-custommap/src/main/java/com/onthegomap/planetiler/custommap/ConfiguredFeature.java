@@ -33,13 +33,13 @@ public class ConfiguredFeature {
   private final Predicate<SourceFeature> geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  private final Index<Byte> zoomOverride;
-  private final Byte featureMinZoom;
-  private final Byte featureMaxZoom;
+  private final Index<Integer> zoomOverride;
+  private final Integer featureMinZoom;
+  private final Integer featureMaxZoom;
   private final TagValueProducer tagValueProducer;
 
   private static final double LOG4 = Math.log(4);
-  private static final Index<Byte> NO_ZOOM_OVERRIDE = MultiExpression.<Byte>of(List.of()).index();
+  private static final Index<Integer> NO_ZOOM_OVERRIDE = MultiExpression.<Integer>of(List.of()).index();
 
   private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
 
@@ -83,7 +83,7 @@ public class ConfiguredFeature {
    * @param zoom the configured zoom overrides
    * @return an index
    */
-  private Index<Byte> zoomOverride(Collection<ZoomOverride> zoom) {
+  private Index<Integer> zoomOverride(Collection<ZoomOverride> zoom) {
     if (zoom == null || zoom.isEmpty()) {
       return NO_ZOOM_OVERRIDE;
     }
@@ -102,7 +102,7 @@ public class ConfiguredFeature {
    * @param config zoom override for a single level
    * @return matching expression
    */
-  private Entry<Byte> generateOverrideExpression(ZoomOverride config) {
+  private Entry<Integer> generateOverrideExpression(ZoomOverride config) {
     return MultiExpression.entry(config.min(),
       Expression.or(
         config.tag()

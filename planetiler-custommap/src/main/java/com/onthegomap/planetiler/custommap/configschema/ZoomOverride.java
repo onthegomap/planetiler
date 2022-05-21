@@ -7,6 +7,6 @@ import java.util.Map;
  * tag combinations.
  */
 public record ZoomOverride(
-  Byte min,
-  Byte max,
+  Integer min,
+  Integer max,
   Map<String, Object> tag) {}
