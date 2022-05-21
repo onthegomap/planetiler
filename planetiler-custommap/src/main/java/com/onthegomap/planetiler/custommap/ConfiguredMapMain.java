@@ -40,7 +40,7 @@ public class ConfiguredMapMain {
     var planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
 
-    var sources = config.getSources();
+    var sources = config.sources();
     for (var source : sources.entrySet()) {
       configureSource(planetiler, sourcesDir, source.getKey(), source.getValue());
     }

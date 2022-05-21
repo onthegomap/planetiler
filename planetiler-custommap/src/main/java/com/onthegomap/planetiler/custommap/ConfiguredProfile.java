@@ -21,16 +21,16 @@ public class ConfiguredProfile implements Profile {
   private List<ConfiguredFeature> features = new ArrayList<>();
 
   public ConfiguredProfile(SchemaConfig schemaConfig) {
-    schemaName = schemaConfig.getSchemaName();
-    attribution = schemaConfig.getAttribution();
-    description = schemaConfig.getSchemaDescription();
+    schemaName = schemaConfig.schemaName();
+    attribution = schemaConfig.attribution();
+    description = schemaConfig.schemaDescription();
 
-    Collection<FeatureLayer> layers = schemaConfig.getLayers();
+    Collection<FeatureLayer> layers = schemaConfig.layers();
     if (layers == null) {
       throw new IllegalArgumentException("No layers defined");
     }
 
-    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.getInputMappings());
+    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.inputMappings());
 
     for (var layer : layers) {
       String layerName = layer.name();
