@@ -1,6 +1,11 @@
 package com.onthegomap.planetiler.geo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureCollector.Feature;
+import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -53,4 +58,35 @@ public enum GeometryType {
   public int minPoints() {
     return minPoints;
   }
+
+  /**
+   * Generates a factory method which creates a {@link Feature} from a {@link FeatureCollector} of the appropriate
+   * geometry type.
+   * 
+   * @param layerName - name of the layer
+   * @return geometry factory method
+   */
+  public Function<FeatureCollector, Feature> geometryFactory(String layerName) {
+    return switch (this) {
+      case POLYGON -> fc -> fc.polygon(layerName);
+      case LINE -> fc -> fc.line(layerName);
+      case POINT -> fc -> fc.point(layerName);
+      default -> throw new IllegalArgumentException("Unhandled geometry type " + this);
+    };
+  }
+
+  /**
+   * Generates a test for whether a source feature is of the correct geometry to be included in the tile.
+   * 
+   * @return geometry test method
+   */
+  public Predicate<SourceFeature> featureTest() {
+    return switch (this) {
+      case POLYGON -> SourceFeature::canBePolygon;
+      case LINE -> SourceFeature::canBeLine;
+      case POINT -> SourceFeature::isPoint;
+      default -> throw new IllegalArgumentException("Unhandled geometry type " + this);
+    };
+  }
+
 }

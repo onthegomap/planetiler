@@ -16,7 +16,6 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +41,7 @@ public class ConfiguredFeature {
   private static final double LOG4 = Math.log(4);
   private static final Index<Integer> NO_ZOOM_OVERRIDE = MultiExpression.<Integer>of(List.of()).index();
 
-  private List<BiConsumer<SourceFeature, Feature>> attributeProcessors = new ArrayList<>();
+  private final List<BiConsumer<SourceFeature, Feature>> attributeProcessors;
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = feature.sources();
@@ -50,7 +49,7 @@ public class ConfiguredFeature {
     GeometryType geometryType = feature.geometry();
 
     //Test to determine whether this type of geometry is included
-    geometryTest = geometryTest(geometryType);
+    geometryTest = geometryType.featureTest();
 
     //Factory to treat OSM tag values as specific data type values
     this.tagValueProducer = tagValueProducer;
@@ -70,13 +69,13 @@ public class ConfiguredFeature {
     featureMaxZoom = feature.maxZoom() == null ? 0 : feature.maxZoom();
 
     //Factory to generate the right feature type from FeatureCollector
-    geometryFactory = geometryMapFeature(layerName, geometryType);
+    geometryFactory = geometryType.geometryFactory(layerName);
 
     //Configure logic for each attribute in the output tile
-    feature.attributes()
+    attributeProcessors = feature.attributes()
       .stream()
       .map(this::attributeProcessor)
-      .forEach(attributeProcessors::add);
+      .toList();
   }
 
   /**
@@ -242,38 +241,6 @@ public class ConfiguredFeature {
       if (attributeTest.evaluate(sf)) {
         f.setAttr(tagKey, attributeValueProducer.apply(sf));
       }
-    };
-  }
-
-  /**
-   * Generates a factory method which creates a {@link Feature} from a {@link FeatureCollector} of the appropriate
-   * geometry type.
-   * 
-   * @param layerName - name of the layer
-   * @param type      - type of geometry
-   * @return geometry factory method
-   */
-  private Function<FeatureCollector, Feature> geometryMapFeature(String layerName, GeometryType type) {
-    return switch (type) {
-      case POLYGON -> fc -> fc.polygon(layerName);
-      case LINE -> fc -> fc.line(layerName);
-      case POINT -> fc -> fc.point(layerName);
-      default -> throw new IllegalArgumentException("Unhandled geometry type " + type);
-    };
-  }
-
-  /**
-   * Generates a test for whether a source feature is of the correct geometry to be included in the tile.
-   * 
-   * @param type type of geometry
-   * @return geometry test method
-   */
-  private static Predicate<SourceFeature> geometryTest(GeometryType type) {
-    return switch (type) {
-      case POLYGON -> SourceFeature::canBePolygon;
-      case LINE -> SourceFeature::canBeLine;
-      case POINT -> SourceFeature::isPoint;
-      default -> throw new IllegalArgumentException("Unhandled geometry type " + type);
     };
   }
 
