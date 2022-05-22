@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.custommap.configschema.TagCriteria.matcher;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
@@ -17,8 +19,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -55,10 +55,11 @@ public class ConfiguredFeature {
     this.tagValueProducer = tagValueProducer;
 
     //Test to determine whether this feature is included based on tagging
-    tagTest = Optional.ofNullable(feature.includeWhen())
-      .filter(Objects::nonNull)
-      .map(tc -> tc.matcher(tagValueProducer))
-      .orElse(Expression.TRUE);
+    if (feature.includeWhen() == null) {
+      tagTest = Expression.TRUE;
+    } else {
+      tagTest = matcher(feature.includeWhen(), tagValueProducer);
+    }
 
     //Index of zoom ranges for a feature based on what tags are present.
     zoomOverride = zoomOverride(feature.zoom());
@@ -218,8 +219,8 @@ public class ConfiguredFeature {
 
     var attributeTest =
       Expression.and(
-        attrIncludeWhen == null ? Expression.TRUE : attrIncludeWhen.matcher(tagValueProducer),
-        attrExcludeWhen == null ? Expression.TRUE : Expression.not(attrExcludeWhen.matcher(tagValueProducer))
+        attrIncludeWhen == null ? Expression.TRUE : matcher(attrIncludeWhen, tagValueProducer),
+        attrExcludeWhen == null ? Expression.TRUE : Expression.not(matcher(attrExcludeWhen, tagValueProducer))
       );
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
