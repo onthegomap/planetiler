@@ -41,6 +41,8 @@ public interface Expression {
   Expression FALSE = new Constant(false, "FALSE");
   BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
+  List<String> dummyList = new NoopList<>();
+
   static And and(Expression... children) {
     return and(List.of(children));
   }
@@ -256,8 +258,6 @@ public interface Expression {
       return true;
     }
   }
-
-  List<String> dummyList = new NoopList<>();
 
   /**
    * Returns true if this expression matches an input element.
