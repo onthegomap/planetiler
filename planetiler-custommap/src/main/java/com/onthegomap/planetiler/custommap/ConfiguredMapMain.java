@@ -50,8 +50,10 @@ public class ConfiguredMapMain {
   }
 
   static SchemaConfig loadConfig(Path schemaFile) throws IOException {
-    Map<String, Object> parsed = yaml.load(Files.newInputStream(schemaFile));
-    return mapper.convertValue(parsed, SchemaConfig.class);
+    try (var schemaStream = Files.newInputStream(schemaFile)) {
+      Map<String, Object> parsed = yaml.load(schemaStream);
+      return mapper.convertValue(parsed, SchemaConfig.class);
+    }
   }
 
   private static void configureSource(Planetiler planetiler, Path sourcesDir, String sourceName, DataSource source)
