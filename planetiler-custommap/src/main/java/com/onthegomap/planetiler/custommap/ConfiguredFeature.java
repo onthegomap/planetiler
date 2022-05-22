@@ -313,6 +313,8 @@ public class ConfiguredFeature {
     if (featureMaxZoom != null) {
       f.setMaxZoom(featureMaxZoom);
     }
-    attributeProcessors.forEach(p -> p.accept(sourceFeature, f));
+    for (var processor : attributeProcessors) {
+      processor.accept(sourceFeature, f);
+    }
   }
 }
