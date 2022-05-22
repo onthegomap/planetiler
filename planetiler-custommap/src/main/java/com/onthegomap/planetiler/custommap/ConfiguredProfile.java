@@ -14,16 +14,12 @@ import java.util.List;
  */
 public class ConfiguredProfile implements Profile {
 
-  private String schemaName;
-  private String attribution;
-  private String description;
+  private final SchemaConfig schemaConfig;
 
   private List<ConfiguredFeature> features = new ArrayList<>();
 
   public ConfiguredProfile(SchemaConfig schemaConfig) {
-    schemaName = schemaConfig.schemaName();
-    attribution = schemaConfig.attribution();
-    description = schemaConfig.schemaDescription();
+    this.schemaConfig = schemaConfig;
 
     Collection<FeatureLayer> layers = schemaConfig.layers();
     if (layers == null) {
@@ -42,13 +38,12 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public String name() {
-    return schemaName;
+    return schemaConfig.schemaName();
   }
-
 
   @Override
   public String attribution() {
-    return attribution;
+    return schemaConfig.attribution();
   }
 
   @Override
@@ -61,6 +56,6 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public String description() {
-    return description;
+    return schemaConfig.schemaDescription();
   }
 }
