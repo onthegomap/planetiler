@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.custommap.configschema.TagCriteria.matcher;
+import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
@@ -220,7 +221,7 @@ public class ConfiguredFeature {
     var attributeTest =
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE : matcher(attrIncludeWhen, tagValueProducer),
-        attrExcludeWhen == null ? Expression.TRUE : Expression.not(matcher(attrExcludeWhen, tagValueProducer))
+        attrExcludeWhen == null ? Expression.TRUE : not(matcher(attrExcludeWhen, tagValueProducer))
       );
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
