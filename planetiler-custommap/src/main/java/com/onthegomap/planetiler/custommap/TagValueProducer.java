@@ -22,7 +22,7 @@ public class TagValueProducer {
 
   final Map<String, String> keyType = new HashMap<>();
 
-  static final Map<String, BiFunction<WithTags, String, Object>> dataTypeGetter =
+  static final Map<String, BiFunction<WithTags, String, Object>> inputGetter =
     Map.of(
       STRING_DATATYPE, WithTags::getString,
       BOOLEAN_DATATYPE, WithTags::getBoolean,
@@ -30,7 +30,7 @@ public class TagValueProducer {
       LONG_DATATYPE, WithTags::getLong
     );
 
-  static final Map<String, UnaryOperator<Object>> dataTypeParse =
+  static final Map<String, UnaryOperator<Object>> inputParse =
     Map.of(
       STRING_DATATYPE, s -> s,
       BOOLEAN_DATATYPE, Parse::bool,
@@ -45,12 +45,12 @@ public class TagValueProducer {
 
     map.forEach((key, value) -> {
       if (value instanceof String stringType) {
-        valueRetriever.put(key, dataTypeGetter.get(stringType));
+        valueRetriever.put(key, inputGetter.get(stringType));
         keyType.put(key, stringType);
       } else if (value instanceof Map<?, ?> renameMap) {
         String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
         BiFunction<WithTags, String, Object> getter =
-          renameMap.containsKey("type") ? dataTypeGetter.get(renameMap.get("type").toString()) : DEFAULT_GETTER;
+          renameMap.containsKey("type") ? inputGetter.get(renameMap.get("type").toString()) : DEFAULT_GETTER;
         //When requesting the output value, actually retrieve the input key with the desired getter
         valueRetriever.put(output,
           (withTags, requestedKey) -> getter.apply(withTags, key));
@@ -78,7 +78,7 @@ public class TagValueProducer {
       if (dataType == null) {
         newMap.put(mapKey, value);
       } else {
-        var parser = dataTypeParse.get(dataType);
+        var parser = inputParse.get(dataType);
         if (parser == null) {
           newMap.put(mapKey, value);
         } else {
