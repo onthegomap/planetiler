@@ -74,7 +74,7 @@ public class ConfiguredMapMain {
         String filename = Paths.get(new URI(url).getPath()).getFileName().toString();
         planetiler.addShapefileSource(sourceName, sourcesDir.resolve(filename), url);
       }
-      default -> throw new IllegalArgumentException("Uhandled source " + sourceType);
+      default -> throw new IllegalArgumentException("Unhandled source " + sourceType);
     }
   }
 }
