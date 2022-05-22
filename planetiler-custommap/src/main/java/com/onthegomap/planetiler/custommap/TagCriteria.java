@@ -1,9 +1,8 @@
-package com.onthegomap.planetiler.custommap.configschema;
+package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.expression.Expression.matchAnyTyped;
 import static com.onthegomap.planetiler.expression.Expression.matchField;
 
-import com.onthegomap.planetiler.custommap.TagValueProducer;
 import com.onthegomap.planetiler.expression.Expression;
 import java.util.Collection;
 import java.util.Map;
@@ -32,22 +31,18 @@ public class TagCriteria {
       return matchField(key);
 
       //If a collection is provided, match any of these values.
-    } else if (value instanceof Collection) {
-      Collection<?> values =
-        (Collection<?>) value;
+    } else if (value instanceof Collection<?> values) {
       return matchAnyTyped(
         key,
         tagValueProducer.getValueGetter(key),
-        values.stream()
-          .map(Object::toString)
-          .toList());
+        values.stream().toList());
 
       //Otherwise, a key and single value were passed, so match that exact tag
     } else {
       return matchAnyTyped(
         key,
         tagValueProducer.getValueGetter(key),
-        value.toString());
+        value);
     }
   }
 }

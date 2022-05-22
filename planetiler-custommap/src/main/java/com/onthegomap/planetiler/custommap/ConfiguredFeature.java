@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.custommap.configschema.TagCriteria.matcher;
+import static com.onthegomap.planetiler.custommap.TagCriteria.matcher;
 import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
