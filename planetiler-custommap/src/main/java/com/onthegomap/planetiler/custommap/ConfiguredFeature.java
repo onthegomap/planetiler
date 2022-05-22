@@ -222,7 +222,7 @@ public class ConfiguredFeature {
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE : matcher(attrIncludeWhen, tagValueProducer),
         attrExcludeWhen == null ? Expression.TRUE : not(matcher(attrExcludeWhen, tagValueProducer))
-      );
+      ).simplify();
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
 
