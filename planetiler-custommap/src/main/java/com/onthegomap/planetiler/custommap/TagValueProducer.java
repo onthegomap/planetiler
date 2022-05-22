@@ -11,18 +11,18 @@ import java.util.function.UnaryOperator;
 
 public class TagValueProducer {
 
-  static final String STRING_DATATYPE = "string";
-  static final String BOOLEAN_DATATYPE = "boolean";
-  static final String DIRECTION_DATATYPE = "direction";
-  static final String LONG_DATATYPE = "long";
+  private static final String STRING_DATATYPE = "string";
+  private static final String BOOLEAN_DATATYPE = "boolean";
+  private static final String DIRECTION_DATATYPE = "direction";
+  private static final String LONG_DATATYPE = "long";
 
-  static final BiFunction<WithTags, String, Object> DEFAULT_GETTER = WithTags::getTag;
+  private static final BiFunction<WithTags, String, Object> DEFAULT_GETTER = WithTags::getTag;
 
-  final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
+  private final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
 
-  final Map<String, String> keyType = new HashMap<>();
+  private final Map<String, String> keyType = new HashMap<>();
 
-  static final Map<String, BiFunction<WithTags, String, Object>> inputGetter =
+  private static final Map<String, BiFunction<WithTags, String, Object>> inputGetter =
     Map.of(
       STRING_DATATYPE, WithTags::getString,
       BOOLEAN_DATATYPE, WithTags::getBoolean,
@@ -30,7 +30,7 @@ public class TagValueProducer {
       LONG_DATATYPE, WithTags::getLong
     );
 
-  static final Map<String, UnaryOperator<Object>> inputParse =
+  private static final Map<String, UnaryOperator<Object>> inputParse =
     Map.of(
       STRING_DATATYPE, s -> s,
       BOOLEAN_DATATYPE, Parse::bool,
