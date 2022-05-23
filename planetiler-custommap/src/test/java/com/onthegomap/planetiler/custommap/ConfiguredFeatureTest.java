@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;

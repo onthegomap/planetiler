@@ -272,10 +272,9 @@ public class ConfiguredFeature {
    * @param features      - output rendered feature collector
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-
     var minZoom = zoomOverride.getOrElse(sourceFeature, featureMinZoom);
 
-    Feature f = geometryFactory.apply(features)
+    var f = geometryFactory.apply(features)
       .setMinZoom(minZoom);
     if (featureMaxZoom != null) {
       f.setMaxZoom(featureMaxZoom);

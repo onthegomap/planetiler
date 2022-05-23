@@ -1,17 +1,17 @@
-package com.onthegomap.planetiler.custommap;
+package com.onthegomap.planetiler.custommap.util;
 
 import java.nio.file.Path;
 
-class TestConfigurableUtils {
-  static Path pathToTestResource(String resource) {
+public class TestConfigurableUtils {
+  public static Path pathToTestResource(String resource) {
     return resolve(Path.of("planetiler-custommap", "src", "test", "resources", "validSchema", resource));
   }
 
-  static Path pathToTestInvalidResource(String resource) {
+  public static Path pathToTestInvalidResource(String resource) {
     return resolve(Path.of("planetiler-custommap", "src", "test", "resources", "invalidSchema", resource));
   }
 
-  static Path pathToSample(String resource) {
+  public static Path pathToSample(String resource) {
     return resolve(Path.of("planetiler-custommap", "src", "main", "resources", "samples", resource));
   }
 

@@ -23,11 +23,11 @@ public class ConfiguredMapMain {
   /*
    * Main entrypoint
    */
-  public static void main(String[] args) throws Exception {
+  public static void main(String... args) throws Exception {
     run(Arguments.fromArgsOrConfigFile(args));
   }
 
-  private static void run(Arguments args) throws Exception {
+  static void run(Arguments args) throws Exception {
     var dataDir = Path.of("data");
     var sourcesDir = dataDir.resolve("sources");
 

@@ -8,7 +8,7 @@ sources:
     url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
   osm:
     type: osm
-    url: geofabrik:rhode-island
+    url: geofabrik:monaco
 tag_mappings:
   bridge: boolean
   intermittent: boolean
