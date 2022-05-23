@@ -1,6 +1,6 @@
 # Planetiler Basemap Profile
 
-This basemap profile is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) v3.13.
+This basemap profile is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) v3.13.1.
 See [README.md](../README.md) in the parent directory for instructions on how to run.
 
 ## Differences from OpenMapTiles
@@ -11,6 +11,9 @@ See [README.md](../README.md) in the parent directory for instructions on how to
   lines, to revert this behavior set `--transportation-name-brunnel=true`
 - `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
   or wikipedia page or name)
+- `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
+  or wikipedia page or name)
+- `id` field on `water` polygons is only populated for openstreetmap lakes, not natural earth lakes at lower zoom levels
 
 ## Code Layout
 
@@ -41,7 +44,7 @@ To run `Generate.java`, use [scripts/regenerate-openmaptiles.sh](../scripts/rege
 OpenMapTiles release tag:
 
 ```bash
-./scripts/regenerate-openmaptiles.sh v3.13
+./scripts/regenerate-openmaptiles.sh v3.13.1
 ```
 
 Then follow the instructions it prints for reformatting generated code.
@@ -49,7 +52,7 @@ Then follow the instructions it prints for reformatting generated code.
 If you want to regenerate from a different repository than the default openmaptiles, you can specify the url like this:
 
 ```bash
-./scripts/regenerate-openmaptiles.sh v3.13 https://raw.githubusercontent.com/openmaptiles/openmaptiles/
+./scripts/regenerate-openmaptiles.sh v3.13.1 https://raw.githubusercontent.com/openmaptiles/openmaptiles/
 ```
 
 ## License and Attribution
