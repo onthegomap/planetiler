@@ -11,6 +11,9 @@ See [README.md](../README.md) in the parent directory for instructions on how to
   lines, to revert this behavior set `--transportation-name-brunnel=true`
 - `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
   or wikipedia page or name)
+- `rank` field on `mountain_peak` linestrings only has 3 levels (1: has wikipedia page and name, 2: has name, 3: no name
+  or wikipedia page or name)
+- `id` field on `water` polygons is only populated for openstreetmap lakes, not natural earth lakes at lower zoom levels
 
 ## Code Layout
 
