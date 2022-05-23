@@ -11,8 +11,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.DoubleSummaryStatistics;
+import java.util.OptionalInt;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,7 @@ public class BenchmarkMbtilesWriter {
      * select count(distinct(tile_data_id)) * 100.0 / count(*) from tiles_shallow
      * => ~8% (Australia)
      */
-    int noDupeTilesInPercent = arguments.getInteger("bench_no_dupe_tiles", "distinct tiles in percent", 10);
+    int distinctTilesInPercent = arguments.getInteger("bench_distinct_tiles", "distinct tiles in percent", 10);
     /*
      * select avg(length(tile_data)) 
      * from (select tile_data_id from tiles_shallow group by tile_data_id having count(*) = 1) as x 
@@ -74,7 +75,7 @@ public class BenchmarkMbtilesWriter {
 
         try (var writer = mbtiles.newBatchedTileWriter()) {
           Stopwatch sw = Stopwatch.createStarted();
-          writeTiles(writer, tilesToWrite, noDupeTilesInPercent, distinctTileData, dupeTileData, dupeSpreadInPercent);
+          writeTiles(writer, tilesToWrite, distinctTilesInPercent, distinctTileData, dupeTileData, dupeSpreadInPercent);
           sw.stop();
           double secondsFractional = sw.elapsed(TimeUnit.NANOSECONDS) / 1E9;
           double tileWritesPerSecond = tilesToWrite / secondsFractional;
@@ -90,10 +91,10 @@ public class BenchmarkMbtilesWriter {
   }
 
 
-  private static void writeTiles(BatchedTileWriter writer, int tilesToWrite, int noDupeTilesInPercent,
+  private static void writeTiles(BatchedTileWriter writer, int tilesToWrite, int distinctTilesInPercent,
     byte[] distinctTileData, byte[] dupeTileData, int dupeSpreadInPercent) {
 
-    int dupesToWrite = (int) Math.round(tilesToWrite * (100 - noDupeTilesInPercent) / 100.0);
+    int dupesToWrite = (int) Math.round(tilesToWrite * (100 - distinctTilesInPercent) / 100.0);
     int dupeHashMod = (int) Math.round(dupesToWrite * dupeSpreadInPercent / 100.0);
     int tilesWritten = 0;
     int dupeCounter = 0;
@@ -104,12 +105,12 @@ public class BenchmarkMbtilesWriter {
 
           TileCoord coord = TileCoord.ofXYZ(x, y, z);
           TileEncodingResult toWrite;
-          if (tilesWritten % 100 < noDupeTilesInPercent) {
-            toWrite = new TileEncodingResult(coord, distinctTileData, false, null);
+          if (tilesWritten % 100 < distinctTilesInPercent) {
+            toWrite = new TileEncodingResult(coord, distinctTileData, OptionalInt.empty());
           } else {
             ++dupeCounter;
             int hash = dupeHashMod == 0 ? 0 : dupeCounter % dupeHashMod;
-            toWrite = new TileEncodingResult(coord, dupeTileData, true, hash);
+            toWrite = new TileEncodingResult(coord, dupeTileData, OptionalInt.of(hash));
           }
 
           writer.write(toWrite);
@@ -135,7 +136,7 @@ public class BenchmarkMbtilesWriter {
 
   private static byte[] createFilledByteArray(int len) {
     byte[] data = new byte[len];
-    Arrays.fill(data, (byte) 1);
+    new Random(0).nextBytes(data);
     return data;
   }
 }

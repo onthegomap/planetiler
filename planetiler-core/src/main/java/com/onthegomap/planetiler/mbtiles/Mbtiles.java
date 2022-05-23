@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.mbtiles.Mbtiles.MetadataJson.VectorLayer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -662,15 +661,10 @@ public final class Mbtiles implements Closeable {
     public void write(TileEncodingResult encodingResult) {
       int tileDataId;
       boolean writeData;
-      Integer tileDataHash = encodingResult.tileDataHash();
-      /*
-       * decide whether try to de-dupe memoized only, or all with a hash
-       * 
-       * by trying to de-dedupe memoized, only, we miss quite some opportunities
-       * e.g. in case of Australia we can save ~100MB when trying to de-dupe whenever we have a hash
-       * this also means that we have to write less
-       */
-      if (/*memoized && */tileDataHash != null) {
+      OptionalInt tileDataHashOpt = encodingResult.tileDataHash();
+
+      if (tileDataHashOpt.isPresent()) {
+        int tileDataHash = tileDataHashOpt.getAsInt();
         if (tileDataIdByHash.containsKey(tileDataHash)) {
           tileDataId = tileDataIdByHash.get(tileDataHash);
           writeData = false;
@@ -812,7 +806,7 @@ public final class Mbtiles implements Closeable {
           );
         }
       } catch (SQLException throwables) {
-        LOGGER.warn("Error retrieving metadata: ", throwables);
+        LOGGER.warn("Error retrieving metadata: " + throwables);
         LOGGER.trace("Error retrieving metadata details: ", throwables);
       }
       return result;

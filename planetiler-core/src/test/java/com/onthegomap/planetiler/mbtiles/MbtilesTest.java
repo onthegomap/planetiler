@@ -14,6 +14,7 @@ import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -52,7 +53,7 @@ class MbtilesTest {
             (byte) (dataBase >> 16),
             (byte) (dataBase >> 24)
           });
-          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), true, dataHash));
+          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), OptionalInt.of(dataHash)));
           expected.add(entry);
         }
       }

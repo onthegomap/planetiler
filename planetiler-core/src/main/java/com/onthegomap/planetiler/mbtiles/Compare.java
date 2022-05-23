@@ -22,9 +22,10 @@ import org.slf4j.LoggerFactory;
  * A utility to compare two mbtiles files.
  * <p>
  * See {@link VectorTileFeatureForCmp} for comparison rules. The results planetiler produces are not necessarily stable,
- * so sometimes a few feature may be different in one tile. Also POI coordinates may sometimes differ slightly.
+ * so sometimes a few feature may be different in one tile. Also POI coordinates may sometimes differ slightly. This
+ * should get fixed in https://github.com/onthegomap/planetiler/issues/215
  * <p>
- * => The tool helps to see if two mbtiles files are mostly identical.
+ * => The tool helps to see if two mbtiles files are (mostly) identical.
  *
  */
 public class Compare {
@@ -80,28 +81,12 @@ public class Compare {
 
           if (!features0.equals(features1)) {
             ++tilesWithDiffs;
-            boolean featureCountMatches = features0.size() == features1.size();
-            var msg = """
-              <<<
-              feature diff on coord %s - featureCountMatches: %b (%d vs %d)
 
-              additional in db0
-              ---
-              %s
-
-              additional in db1
-              ---
-              %s
-              >>>
-              """.formatted(
-              coord, featureCountMatches, features0.size(), features1.size(),
-              getDiffJoined(features0, features1, "\n"),
-              getDiffJoined(features1, features0, "\n"));
-
+            var tilesDifferException = new TilesDifferException(coord, features0, features1);
             if (failOnFeatureDiff) {
-              throw new RuntimeException(msg);
+              throw tilesDifferException;
             } else {
-              LOGGER.warn(msg);
+              LOGGER.warn(tilesDifferException.getMessage());
             }
           }
         }
@@ -123,10 +108,6 @@ public class Compare {
         return rs.getLong(1);
       }
     }
-  }
-
-  private static <T> String getDiffJoined(Set<T> s0, Set<T> s1, String delimiter) {
-    return Sets.difference(s0, s1).stream().map(Object::toString).collect(Collectors.joining(delimiter));
   }
 
   /**
@@ -152,9 +133,43 @@ public class Compare {
         attrs.remove("rank");
         return new VectorTileFeatureForCmp(f.layer(), f.geometry().decode().norm(), attrs, f.group());
       } catch (GeometryException e) {
-        throw new RuntimeException(e);
+        throw new IllegalStateException(e);
       }
     }
   }
 
+  private static class TilesDifferException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
+    public TilesDifferException(TileCoord coord, Set<VectorTileFeatureForCmp> features0,
+      Set<VectorTileFeatureForCmp> features1) {
+      super(generateMessage(coord, features0, features1));
+    }
+
+    private static String generateMessage(TileCoord coord, Set<VectorTileFeatureForCmp> features0,
+      Set<VectorTileFeatureForCmp> features1) {
+      boolean featureCountMatches = features0.size() == features1.size();
+      return """
+        <<<
+        feature diff on coord %s - featureCountMatches: %b (%d vs %d)
+
+        additional in db0
+        ---
+        %s
+
+        additional in db1
+        ---
+        %s
+        >>>
+        """.formatted(
+        coord, featureCountMatches, features0.size(), features1.size(),
+        getDiffJoined(features0, features1, "\n"),
+        getDiffJoined(features1, features0, "\n"));
+    }
+
+    private static <T> String getDiffJoined(Set<T> s0, Set<T> s1, String delimiter) {
+      return Sets.difference(s0, s1).stream().map(Object::toString).collect(Collectors.joining(delimiter));
+    }
+  }
 }

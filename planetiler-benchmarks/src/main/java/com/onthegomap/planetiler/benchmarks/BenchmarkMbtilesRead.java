@@ -4,11 +4,11 @@ import com.google.common.base.Stopwatch;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,44 +30,39 @@ public class BenchmarkMbtilesRead {
     int nrTileReads = arguments.getInteger("bench_nr_tile_reads", "number of tiles to read", 500_000);
     int preWarms = arguments.getInteger("bench_pre_warms", "number of pre warm runs", 3);
 
+    List<Path> mbtilesPaths = arguments.getList("bench_mbtiles", "the mbtiles file to read from", List.of()).stream()
+      .map(Paths::get).toList();
 
-    List<String> mbtilesPaths = new ArrayList<>();
-    for (int i = 0;; i++) {
-      String mbtilesPathStr = arguments.getString("bench_mbtiles" + i, "the mbtiles file to read from", null);
-      if (mbtilesPathStr == null) {
-        break;
-      }
-      mbtilesPaths.add(mbtilesPathStr);
-    }
 
     if (mbtilesPaths.isEmpty()) {
       throw new IllegalArgumentException("pass one or many paths to the same mbtiles file");
     }
 
-    mbtilesPaths.stream().map(File::new).forEach(f -> {
-      if (!f.exists() || !f.isFile()) {
-        throw new IllegalArgumentException("%s does not exists".formatted(f));
+    mbtilesPaths.stream().forEach(p -> {
+      if (!Files.exists(p) || !Files.isRegularFile(p)) {
+        throw new IllegalArgumentException("%s does not exists".formatted(p));
       }
     });
 
     List<TileCoord> randomCoordsToFetchPerRepetition = new LinkedList<>();
 
-    try (var db = Mbtiles.newReadOnlyDatabase(Path.of(mbtilesPaths.get(0)))) {
-      try (var statement = db.connection().prepareStatement(SELECT_RANDOM_COORDS)) {
-        statement.setInt(1, nrTileReads);
-        var rs = statement.executeQuery();
-        while (rs.next()) {
-          int x = rs.getInt("tile_column");
-          int y = rs.getInt("tile_row");
-          int z = rs.getInt("zoom_level");
-          randomCoordsToFetchPerRepetition.add(TileCoord.ofXYZ(x, (1 << z) - 1 - y, z));
+    do {
+      try (var db = Mbtiles.newReadOnlyDatabase(mbtilesPaths.get(0))) {
+        try (var statement = db.connection().prepareStatement(SELECT_RANDOM_COORDS)) {
+          statement.setInt(1, nrTileReads - randomCoordsToFetchPerRepetition.size());
+          var rs = statement.executeQuery();
+          while (rs.next()) {
+            int x = rs.getInt("tile_column");
+            int y = rs.getInt("tile_row");
+            int z = rs.getInt("zoom_level");
+            randomCoordsToFetchPerRepetition.add(TileCoord.ofXYZ(x, (1 << z) - 1 - y, z));
+          }
         }
       }
-    }
+    } while (randomCoordsToFetchPerRepetition.size() < nrTileReads);
 
-    Map<String, Double> avgReadOperationsPerSecondPerDb = new HashMap<>();
-    for (String dbPathStr : mbtilesPaths) {
-      Path dbPath = Path.of(dbPathStr);
+    Map<Path, Double> avgReadOperationsPerSecondPerDb = new HashMap<>();
+    for (Path dbPath : mbtilesPaths) {
       List<ReadResult> results = new LinkedList<>();
 
       LOGGER.info("working on {}", dbPath);
@@ -83,10 +78,10 @@ public class BenchmarkMbtilesRead {
         results.stream().mapToDouble(ReadResult::readOperationsPerSecond).summaryStatistics();
       LOGGER.info("readOperationsPerSecondStats: {}", readOperationsPerSecondStats);
 
-      avgReadOperationsPerSecondPerDb.put(dbPathStr, readOperationsPerSecondStats.getAverage());
+      avgReadOperationsPerSecondPerDb.put(dbPath, readOperationsPerSecondStats.getAverage());
     }
 
-    List<String> keysSorted = avgReadOperationsPerSecondPerDb.entrySet().stream()
+    List<Path> keysSorted = avgReadOperationsPerSecondPerDb.entrySet().stream()
       .sorted((o1, o2) -> o1.getValue().compareTo(o2.getValue()))
       .map(Map.Entry::getKey)
       .toList();
@@ -94,14 +89,14 @@ public class BenchmarkMbtilesRead {
     LOGGER.info("diffs");
     for (int i = 0; i < keysSorted.size() - 1; i++) {
       for (int j = i + 1; j < keysSorted.size(); j++) {
-        String db0 = keysSorted.get(i);
+        Path db0 = keysSorted.get(i);
         double avg0 = avgReadOperationsPerSecondPerDb.get(db0);
-        String db1 = keysSorted.get(j);
+        Path db1 = keysSorted.get(j);
         double avg1 = avgReadOperationsPerSecondPerDb.get(db1);
 
         double diff = avg1 * 100 / avg0 - 100;
 
-        LOGGER.info("\"{}\" vs \"{}\": avg read operations per second improved by {}%", db0, db1, diff);
+        LOGGER.info("\"{}\" to \"{}\": avg read operations per second improved by {}%", db0, db1, diff);
       }
     }
   }
