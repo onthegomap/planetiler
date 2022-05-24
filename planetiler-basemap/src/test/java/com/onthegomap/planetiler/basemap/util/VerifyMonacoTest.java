@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.mbtiles.TileEncodingResult;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +53,7 @@ class VerifyMonacoTest {
         VectorTile.encodeGeometry(point(0, 0)),
         Map.of()
       )));
-      writer.write(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()));
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), OptionalInt.empty()));
     }
     assertInvalid(mbtiles);
   }

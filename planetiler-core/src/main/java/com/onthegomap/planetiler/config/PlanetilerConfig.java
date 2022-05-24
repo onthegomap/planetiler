@@ -39,7 +39,8 @@ public record PlanetilerConfig(
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
   double simplifyToleranceBelowMaxZoom,
-  boolean osmLazyReads
+  boolean osmLazyReads,
+  boolean compactDb
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -135,6 +136,9 @@ public record PlanetilerConfig(
         0.1d),
       arguments.getBoolean("osm_lazy_reads",
         "Read OSM blocks from disk in worker threads",
+        false),
+      arguments.getBoolean("compact_db",
+        "Reduce the DB size by separating and deduping the tile data",
         false)
     );
   }

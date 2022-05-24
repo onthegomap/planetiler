@@ -5,13 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -23,11 +26,17 @@ import org.locationtech.jts.geom.Envelope;
 
 class MbtilesTest {
 
-  private static final int BATCH = 999 / 4;
+  private static final int MAX_PARAMETERS_IN_PREPARED_STATEMENT = 999;
+  private static final int TILES_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 4;
+  private static final int TILES_SHALLOW_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 4;
+  private static final int TILES_DATA_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 2;
 
-  void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize)
-    throws IOException, SQLException {
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
+
+  private static final
+
+    void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize, boolean compactDb)
+      throws IOException, SQLException {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
       db.createTables();
       if (!deferIndexCreation) {
         db.addTileIndex();
@@ -36,13 +45,15 @@ class MbtilesTest {
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
         for (int i = 0; i < howMany; i++) {
+          var dataHash = i - (i % 2);
+          var dataBase = howMany + dataHash;
           var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
-            (byte) howMany,
-            (byte) (howMany >> 8),
-            (byte) (howMany >> 16),
-            (byte) (howMany >> 24)
+            (byte) dataBase,
+            (byte) (dataBase >> 8),
+            (byte) (dataBase >> 16),
+            (byte) (dataBase >> 24)
           });
-          writer.write(entry.tile(), entry.bytes());
+          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), OptionalInt.of(dataHash)));
           expected.add(entry);
         }
       }
@@ -62,23 +73,34 @@ class MbtilesTest {
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
         assertArrayEquals(expectedEntry.bytes(), data);
       }
+      assertEquals(compactDb, TestUtils.isCompactDb(db));
+      if (compactDb) {
+        assertEquals(IntMath.divide(howMany, 2, RoundingMode.CEILING), TestUtils.getTilesDataCount(db));
+      }
     }
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {0, 1, BATCH, BATCH + 1, 2 * BATCH, 2 * BATCH + 1})
-  void testWriteTilesDifferentSize(int howMany) throws IOException, SQLException {
-    testWriteTiles(howMany, false, false);
+  @ValueSource(ints = {0, 1, TILES_BATCH, TILES_BATCH + 1, 2 * TILES_BATCH, 2 * TILES_BATCH + 1})
+  void testWriteTilesDifferentSizeInNonCompactMode(int howMany) throws IOException, SQLException {
+    testWriteTiles(howMany, false, false, false);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, 1, TILES_DATA_BATCH, TILES_DATA_BATCH + 1, 2 * TILES_DATA_BATCH, 2 * TILES_DATA_BATCH + 1,
+    TILES_SHALLOW_BATCH, TILES_SHALLOW_BATCH + 1, 2 * TILES_SHALLOW_BATCH, 2 * TILES_SHALLOW_BATCH + 1})
+  void testWriteTilesDifferentSizeInCompactMode(int howMany) throws IOException, SQLException {
+    testWriteTiles(howMany, false, false, true);
   }
 
   @Test
   void testDeferIndexCreation() throws IOException, SQLException {
-    testWriteTiles(10, true, false);
+    testWriteTiles(10, true, false, false);
   }
 
   @Test
   void testVacuumAnalyze() throws IOException, SQLException {
-    testWriteTiles(10, false, true);
+    testWriteTiles(10, false, true, false);
   }
 
   @Test
