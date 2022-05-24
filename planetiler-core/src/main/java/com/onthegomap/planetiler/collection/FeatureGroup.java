@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.collection;
 
 import com.carrotsearch.hppc.LongLongHashMap;
-import com.google.common.primitives.Longs;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -352,9 +351,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     public int generateContentHash() {
       int hash = Hashing.FNV1_32_INIT;
       for (var feature : entries) {
-        long layerId = extractLayerIdFromKey(feature.key());
-        hash = Hashing.fnv32(hash, Longs.toByteArray(layerId));
-        hash = Hashing.fnv32(hash, feature.value());
+        byte layerId = extractLayerIdFromKey(feature.key());
+        hash = Hashing.fnv1a32(hash, layerId);
+        hash = Hashing.fnv1a32(hash, feature.value());
       }
       return hash;
     }
