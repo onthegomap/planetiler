@@ -3,9 +3,8 @@ package com.onthegomap.planetiler.geo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.expression.Expression;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygonal;
@@ -80,11 +79,11 @@ public enum GeometryType {
    * 
    * @return geometry test method
    */
-  public Predicate<SourceFeature> featureTest() {
+  public Expression featureTest() {
     return switch (this) {
-      case POLYGON -> SourceFeature::canBePolygon;
-      case LINE -> SourceFeature::canBeLine;
-      case POINT -> SourceFeature::isPoint;
+      case POLYGON -> Expression.matchType("polygon");
+      case LINE -> Expression.matchType("linestring");
+      case POINT -> Expression.matchType("point");
       default -> throw new IllegalArgumentException("Unhandled geometry type " + this);
     };
   }

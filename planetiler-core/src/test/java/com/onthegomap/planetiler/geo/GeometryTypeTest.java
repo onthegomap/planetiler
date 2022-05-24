@@ -22,20 +22,20 @@ class GeometryTypeTest {
       SimpleFeature.createFakeOsmFeature(TestUtils.newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1,
         emptyList());
 
-    Assertions.assertTrue(GeometryType.LINE.featureTest().test(line));
-    Assertions.assertFalse(GeometryType.LINE.featureTest().test(point));
-    Assertions.assertFalse(GeometryType.LINE.featureTest().test(poly));
+    Assertions.assertTrue(GeometryType.LINE.featureTest().evaluate(line));
+    Assertions.assertFalse(GeometryType.LINE.featureTest().evaluate(point));
+    Assertions.assertFalse(GeometryType.LINE.featureTest().evaluate(poly));
 
-    Assertions.assertFalse(GeometryType.POINT.featureTest().test(line));
-    Assertions.assertTrue(GeometryType.POINT.featureTest().test(point));
-    Assertions.assertFalse(GeometryType.POINT.featureTest().test(poly));
+    Assertions.assertFalse(GeometryType.POINT.featureTest().evaluate(line));
+    Assertions.assertTrue(GeometryType.POINT.featureTest().evaluate(point));
+    Assertions.assertFalse(GeometryType.POINT.featureTest().evaluate(poly));
 
-    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(line));
-    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(point));
-    Assertions.assertTrue(GeometryType.POLYGON.featureTest().test(poly));
+    Assertions.assertFalse(GeometryType.POLYGON.featureTest().evaluate(line));
+    Assertions.assertFalse(GeometryType.POLYGON.featureTest().evaluate(point));
+    Assertions.assertTrue(GeometryType.POLYGON.featureTest().evaluate(poly));
 
-    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(point));
-    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(line));
-    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(poly));
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(point));
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(line));
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().evaluate(poly));
   }
 }

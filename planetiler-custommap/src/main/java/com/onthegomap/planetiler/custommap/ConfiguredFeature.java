@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 /**
  * A map feature, configured from a YML configuration file
@@ -30,7 +29,7 @@ import java.util.function.Predicate;
 public class ConfiguredFeature {
 
   private final Collection<String> sources;
-  private final Predicate<SourceFeature> geometryTest;
+  private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
   private final Index<Integer> zoomOverride;
@@ -258,7 +257,7 @@ public class ConfiguredFeature {
     }
 
     //Is this the right type of geometry?
-    if (!geometryTest.test(sourceFeature)) {
+    if (!geometryTest.evaluate(sourceFeature)) {
       return false;
     }
 
