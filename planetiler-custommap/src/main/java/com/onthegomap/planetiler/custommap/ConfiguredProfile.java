@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.expression.MultiExpression.Entry;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
@@ -37,8 +39,7 @@ public class ConfiguredProfile implements Profile {
       for (var feature : layer.features()) {
         var configuredFeature = new ConfiguredFeature(layerName, tagValueProducer, feature);
         configuredFeatureEntries.add(
-          new MultiExpression.Entry<ConfiguredFeature>(
-            configuredFeature, configuredFeature.matchData()));
+          new Entry<>(configuredFeature, configuredFeature.matchData()));
       }
     }
 
