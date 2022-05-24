@@ -1,27 +1,25 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.TestUtils.assertContains;
-import static com.onthegomap.planetiler.TestUtils.assertFeatureNear;
 import static com.onthegomap.planetiler.custommap.util.VerifyMonaco.MONACO_BOUNDS;
 import static com.onthegomap.planetiler.util.Gzip.gunzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
-import com.onthegomap.planetiler.custommap.util.VerifyMonaco;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 
 /**
  * End-to-end tests for custommap generation.
@@ -35,7 +33,7 @@ class ConfiguredMapTest {
   static Path tmpDir;
   private static Mbtiles mbtiles;
 
-  //  @BeforeAll
+  @BeforeAll
   public static void runPlanetiler() throws Exception {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ConfiguredMapMain.main(
@@ -44,21 +42,20 @@ class ConfiguredMapTest {
       "--download",
 
       // Override temp dir location
-      "--tmp", tmpDir.toString(),
+      "--tmp=" + tmpDir.toString(),
 
       // Override output location
       "--mbtiles=" + dbPath.toString()
     );
-    System.err.println(dbPath.toFile());
     mbtiles = Mbtiles.newReadOnlyDatabase(dbPath);
   }
 
-  //  @AfterAll
+  @AfterAll
   public static void close() throws IOException {
     mbtiles.close();
   }
 
-  //  @Test
+  @Test
   void testMetadata() {
     Map<String, String> metadata = mbtiles.metadata().getAll();
     assertEquals("OWG Simple Schema", metadata.get("name"));
@@ -72,7 +69,7 @@ class ConfiguredMapTest {
     assertContains("www.openstreetmap.org/copyright", metadata.get("attribution"));
   }
 
-  //  @Test
+  @Test
   void ensureValidGeometries() throws Exception {
     Set<Mbtiles.TileEntry> parsedTiles = TestUtils.getAllTiles(mbtiles);
     for (var tileEntry : parsedTiles) {
@@ -83,30 +80,22 @@ class ConfiguredMapTest {
     }
   }
 
-  //  @Test
+  //  @Test --TODO FIX
   void testContainsOceanPolyons() {
-    assertFeatureNear(mbtiles, "water", Map.of(
+    assertMinFeatures("water", Map.of(
       "natural", "water"
-    ), 7.4484, 43.70783, 0, 14);
+    ), 0, 1, Polygon.class);
   }
 
-  //  @Test
+  @Test
   void testRoad() {
-    assertNumFeatures("road", Map.of(
+    assertMinFeatures("road", Map.of(
       "highway", "primary"
-    ), 14, 170, LineString.class);
+    ), 14, 200, LineString.class);
   }
 
-  //  @TestFactory
-  Stream<DynamicTest> testVerifyChecks() {
-    return VerifyMonaco.verify(mbtiles).results().stream()
-      .map(check -> dynamicTest(check.name(), () -> {
-        check.error().ifPresent(Assertions::fail);
-      }));
-  }
-
-  private static void assertNumFeatures(String layer, Map<String, Object> attrs, int zoom,
+  private static void assertMinFeatures(String layer, Map<String, Object> attrs, int zoom,
     int expected, Class<? extends Geometry> clazz) {
-    TestUtils.assertNumFeatures(mbtiles, layer, zoom, attrs, MONACO_BOUNDS, expected, clazz);
+    TestUtils.assertMinFeatureCount(mbtiles, layer, zoom, attrs, MONACO_BOUNDS, expected, clazz);
   }
 }

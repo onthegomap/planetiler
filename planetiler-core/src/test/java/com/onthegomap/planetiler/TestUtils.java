@@ -584,6 +584,18 @@ public class TestUtils {
     }
   }
 
+  public static void assertMinFeatureCount(Mbtiles db, String layer, int zoom, Map<String, Object> attrs,
+    Envelope envelope, int expected, Class<? extends Geometry> clazz) {
+    try {
+      int num = Verify.getNumFeatures(db, layer, zoom, attrs, envelope, clazz);
+
+      assertTrue(expected < num,
+        "z%d features in %s, expected at least %d got %d".formatted(zoom, layer, expected, num));
+    } catch (GeometryException e) {
+      fail(e);
+    }
+  }
+
   public static void assertFeatureNear(Mbtiles db, String layer, Map<String, Object> attrs, double lng, double lat,
     int minzoom, int maxzoom) {
     try {
