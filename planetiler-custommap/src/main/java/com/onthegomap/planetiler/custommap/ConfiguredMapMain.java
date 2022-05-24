@@ -67,7 +67,11 @@ public class ConfiguredMapMain {
         String[] areaParts = area.split("[:/]");
         String areaFilename = areaParts[areaParts.length - 1];
         String areaName = areaFilename.replaceAll("\\..*$", "");
-        planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
+        if (source.localPath() != null) {
+          planetiler.addOsmSource(sourceName, source.localPath(), area);
+        } else {
+          planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
+        }
       }
       case SHAPEFILE -> {
         String url = source.url();
