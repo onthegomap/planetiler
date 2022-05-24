@@ -16,7 +16,7 @@
   </parent>
 
   <properties>
-    <geotools.version>26.4</geotools.version>
+    <geotools.version>27.0</geotools.version>
     <log4j.version>2.17.2</log4j.version>
     <prometheus.version>0.15.0</prometheus.version>
   </properties>

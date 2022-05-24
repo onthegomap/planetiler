@@ -5,7 +5,9 @@ import static com.onthegomap.planetiler.basemap.BasemapProfile.NATURAL_EARTH_SOU
 import static com.onthegomap.planetiler.basemap.BasemapProfile.OSM_SOURCE;
 import static com.onthegomap.planetiler.basemap.BasemapProfile.WATER_POLYGON_SOURCE;
 
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -89,6 +91,28 @@ class WaterTest extends AbstractLayerTest {
   }
 
   @Test
+  void testWaterOsmId() {
+    long id = 123;
+    assertFeatures(14, List.of(Map.of(
+      "class", "lake",
+      "id", id,
+      "_layer", "water",
+      "_type", "polygon",
+      "_minzoom", 6,
+      "_maxzoom", 14
+    )), process(SimpleFeature.create(
+      GeoUtils.worldToLatLonCoords(rectangle(0, Math.sqrt(1))),
+      new HashMap<>(Map.<String, Object>of(
+        "natural", "water",
+        "water", "reservoir"
+      )),
+      OSM_SOURCE,
+      null,
+      id
+    )));
+  }
+
+  @Test
   void testWater() {
     assertFeatures(14, List.of(Map.of(
       "class", "lake",
@@ -103,7 +127,7 @@ class WaterTest extends AbstractLayerTest {
     assertFeatures(14, List.of(
       Map.of("_layer", "poi"),
       Map.of(
-        "class", "lake",
+        "class", "swimming_pool",
 
         "_layer", "water",
         "_type", "polygon",

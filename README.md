@@ -169,7 +169,7 @@ download regularly-updated tilesets.
   using [JTS geometry utilities](https://github.com/locationtech/jts)
 - Merge nearby lines or polygons with the same tags before emitting vector tiles
 - Automatically fixes self-intersecting polygons
-- Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13
+- Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13.1
 - Optionally download additional name translations for elements from Wikidata
 - Export real-time stats to a [prometheus push gateway](https://github.com/prometheus/pushgateway) using
   `--pushgateway=http://user:password@ip` argument (and a [grafana dashboard](grafana.json) for viewing)

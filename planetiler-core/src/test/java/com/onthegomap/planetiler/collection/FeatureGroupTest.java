@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.TestUtils.decodeSilently;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
@@ -20,10 +21,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ArgumentsProvider;
+import org.junit.jupiter.params.provider.ArgumentsSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
 
@@ -68,6 +74,11 @@ class FeatureGroupTest {
       hasGroup ? Optional.of(new RenderedFeature.Group(group, limit)) : Optional.empty()
     );
     featureWriter.accept(features.newRenderedFeatureEncoder().apply(feature));
+  }
+
+  private void put(PuTileArgs args) {
+    putWithIdGroupAndSortKey(args.id(), args.tile(), args.layer(), args.attrs(), args.geom(), args.sortKey(),
+      args.hasGroup(), args.group(), args.limit());
   }
 
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
@@ -331,70 +342,32 @@ class FeatureGroupTest {
     );
   }
 
-  @Test
-  void testHasSameFeatures() {
-    // should be the "same" even though sort-key is different
-    putWithIdGroupAndSortKey(
-      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    putWithIdGroupAndSortKey(
-      1, 2, "layer", Map.of("id", 1), newPoint(1, 2), 2, true, 2, 3
-    );
+  @ParameterizedTest(name = "{0}")
+  @ArgumentsSource(SameFeatureGroupTestArgs.class)
+  void testHasSameContents(String testName, boolean expectSame, PuTileArgs args0, PuTileArgs args1) {
+    put(args0);
+    put(args1);
     sorter.sort();
     var iter = features.iterator();
-    assertTrue(iter.next().hasSameContents(iter.next()));
+    var tile0 = iter.next();
+    var tile1 = iter.next();
+    assertEquals(expectSame, tile0.hasSameContents(tile1));
   }
 
-  @Test
-  void testDoesNotHaveSameFeaturesWhenGeometryChanges() {
-    putWithIdGroupAndSortKey(
-      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    putWithIdGroupAndSortKey(
-      1, 2, "layer", Map.of("id", 1), newPoint(1, 3), 1, true, 2, 3
-    );
+  @ParameterizedTest(name = "{0}")
+  @ArgumentsSource(SameFeatureGroupTestArgs.class)
+  void testGenerateContentHash(String testName, boolean expectSame, PuTileArgs args0, PuTileArgs args1) {
+    put(args0);
+    put(args1);
     sorter.sort();
     var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
-  }
-
-  @Test
-  void testDoesNotHaveSameFeaturesWhenAttrsChange() {
-    putWithIdGroupAndSortKey(
-      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    putWithIdGroupAndSortKey(
-      1, 2, "layer", Map.of("id", 2), newPoint(1, 2), 1, true, 2, 3
-    );
-    sorter.sort();
-    var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
-  }
-
-  @Test
-  void testDoesNotHaveSameFeaturesWhenLayerChanges() {
-    putWithIdGroupAndSortKey(
-      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    putWithIdGroupAndSortKey(
-      1, 2, "layer2", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    sorter.sort();
-    var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
-  }
-
-  @Test
-  void testDoesNotHaveSameFeaturesWhenIdChanges() {
-    putWithIdGroupAndSortKey(
-      1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    putWithIdGroupAndSortKey(
-      2, 2, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3
-    );
-    sorter.sort();
-    var iter = features.iterator();
-    assertFalse(iter.next().hasSameContents(iter.next()));
+    var tile0 = iter.next();
+    var tile1 = iter.next();
+    if (expectSame) {
+      assertEquals(tile0.generateContentHash(), tile1.generateContentHash());
+    } else {
+      assertNotEquals(tile0.generateContentHash(), tile1.generateContentHash());
+    }
   }
 
   @ParameterizedTest
@@ -410,4 +383,46 @@ class FeatureGroupTest {
     assertEquals(geomType, FeatureGroup.decodeGeomType(encoded));
     assertEquals(scale, FeatureGroup.decodeScale(encoded));
   }
+
+  private static class SameFeatureGroupTestArgs implements ArgumentsProvider {
+
+    @Override
+    public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
+      return Stream.of(
+        argsOf(
+          "same despite diff sort key", true,
+          new PuTileArgs(1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3),
+          new PuTileArgs(1, 2, "layer", Map.of("id", 1), newPoint(1, 2), 2, true, 2, 3)
+        ),
+        argsOf(
+          "diff when geometry changes", false,
+          new PuTileArgs(1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3),
+          new PuTileArgs(1, 2, "layer", Map.of("id", 1), newPoint(1, 3), 1, true, 2, 3)
+        ),
+        argsOf(
+          "diff when attrs changes", false,
+          new PuTileArgs(1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3),
+          new PuTileArgs(1, 2, "layer", Map.of("id", 2), newPoint(1, 2), 1, true, 2, 3)
+        ),
+        argsOf(
+          "diff when layer changes", false,
+          new PuTileArgs(1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3),
+          new PuTileArgs(1, 2, "layer2", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3)
+        ),
+        argsOf(
+          "diff when id changes", false,
+          new PuTileArgs(1, 1, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3),
+          new PuTileArgs(2, 2, "layer", Map.of("id", 1), newPoint(1, 2), 1, true, 2, 3)
+        )
+      );
+    }
+
+    private static Arguments argsOf(String testName, boolean expectSame, PuTileArgs args0,
+      PuTileArgs args1) {
+      return Arguments.of(testName, expectSame, args0, args1);
+    }
+  }
+
+  private static record PuTileArgs(long id, int tile, String layer, Map<String, Object> attrs, Geometry geom,
+    int sortKey, boolean hasGroup, long group, int limit) {}
 }

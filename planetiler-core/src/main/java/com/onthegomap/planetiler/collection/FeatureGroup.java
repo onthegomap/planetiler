@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
@@ -372,6 +373,22 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     /**
+     * Generates a hash over the feature's relevant data: layer, geometry, and attributes. The coordinates are
+     * <b>not</b> part of the hash.
+     * <p>
+     * Used as an optimization to avoid writing the same (ocean) tiles over and over again.
+     */
+    public int generateContentHash() {
+      int hash = Hashing.FNV1_32_INIT;
+      for (var feature : entries) {
+        byte layerId = extractLayerIdFromKey(feature.key());
+        hash = Hashing.fnv1a32(hash, layerId);
+        hash = Hashing.fnv1a32(hash, feature.value());
+      }
+      return hash;
+    }
+
+    /**
      * Returns true if {@code other} contains features with identical layer, geometry, and attributes, as this tile -
      * even if the tiles have separate coordinates.
      * <p>
@@ -392,6 +409,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
       return true;
     }
+
 
     private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
       try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
