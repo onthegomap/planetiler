@@ -14,28 +14,28 @@ class GeometryTypeTest {
   void testGeometryFactory() throws Exception {
     Map<String, Object> tags = Map.of("key1", "value1");
 
-    var sf =
+    var line =
       SimpleFeature.createFakeOsmFeature(TestUtils.newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
-
-    Assertions.assertTrue(GeometryType.LINE.featureTest().test(sf));
-    Assertions.assertFalse(GeometryType.POINT.featureTest().test(sf));
-    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(sf));
-
-    sf =
+    var point =
       SimpleFeature.createFakeOsmFeature(TestUtils.newPoint(0, 0), tags, "osm", null, 1, emptyList());
-
-    Assertions.assertFalse(GeometryType.LINE.featureTest().test(sf));
-    Assertions.assertTrue(GeometryType.POINT.featureTest().test(sf));
-    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(sf));
-
-    sf =
+    var poly =
       SimpleFeature.createFakeOsmFeature(TestUtils.newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1,
         emptyList());
 
-    Assertions.assertFalse(GeometryType.LINE.featureTest().test(sf));
-    Assertions.assertFalse(GeometryType.POINT.featureTest().test(sf));
-    Assertions.assertTrue(GeometryType.POLYGON.featureTest().test(sf));
+    Assertions.assertTrue(GeometryType.LINE.featureTest().test(line));
+    Assertions.assertFalse(GeometryType.LINE.featureTest().test(point));
+    Assertions.assertFalse(GeometryType.LINE.featureTest().test(poly));
 
+    Assertions.assertFalse(GeometryType.POINT.featureTest().test(line));
+    Assertions.assertTrue(GeometryType.POINT.featureTest().test(point));
+    Assertions.assertFalse(GeometryType.POINT.featureTest().test(poly));
 
+    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(line));
+    Assertions.assertFalse(GeometryType.POLYGON.featureTest().test(point));
+    Assertions.assertTrue(GeometryType.POLYGON.featureTest().test(poly));
+
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(point));
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(line));
+    Assertions.assertThrows(Exception.class, () -> GeometryType.UNKNOWN.featureTest().test(poly));
   }
 }
