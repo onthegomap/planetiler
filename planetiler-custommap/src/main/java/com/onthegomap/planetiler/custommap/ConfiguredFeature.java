@@ -17,8 +17,10 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -28,7 +30,7 @@ import java.util.function.Function;
  */
 public class ConfiguredFeature {
 
-  private final Collection<String> sources;
+  private final Set<String> sources;
   private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
@@ -44,7 +46,7 @@ public class ConfiguredFeature {
   private final List<BiConsumer<SourceFeature, Feature>> attributeProcessors;
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
-    sources = feature.sources();
+    sources = new HashSet<String>(feature.sources());
 
     GeometryType geometryType = feature.geometry();
 
@@ -250,19 +252,8 @@ public class ConfiguredFeature {
    * @param sourceFeature - source feature
    * @return true if the feature will be rendered
    */
-  public boolean includeWhen(SourceFeature sourceFeature) {
-    //Is this from the right source?
-    if (!sources.contains(sourceFeature.getSource())) {
-      return false;
-    }
-
-    //Is this the right type of geometry?
-    if (!geometryTest.evaluate(sourceFeature)) {
-      return false;
-    }
-
-    //Check for matching tags
-    return tagTest.evaluate(sourceFeature);
+  public Expression matchData() {
+    return Expression.and(geometryTest, tagTest);
   }
 
   /**
@@ -272,6 +263,12 @@ public class ConfiguredFeature {
    * @param features      - output rendered feature collector
    */
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+
+    //Ensure that this feature is from the correct source
+    if (!sources.contains(sourceFeature.getSource())) {
+      return;
+    }
+
     var minZoom = zoomOverride.getOrElse(sourceFeature, featureMinZoom);
 
     var f = geometryFactory.apply(features)

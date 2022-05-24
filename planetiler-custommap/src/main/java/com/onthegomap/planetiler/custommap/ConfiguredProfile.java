@@ -4,6 +4,8 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,7 +18,7 @@ public class ConfiguredProfile implements Profile {
 
   private final SchemaConfig schemaConfig;
 
-  private List<ConfiguredFeature> features = new ArrayList<>();
+  private final Index<ConfiguredFeature> featureLayerMatcher;
 
   public ConfiguredProfile(SchemaConfig schemaConfig) {
     this.schemaConfig = schemaConfig;
@@ -28,12 +30,19 @@ public class ConfiguredProfile implements Profile {
 
     TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.inputMappings());
 
+    List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
+
     for (var layer : layers) {
       String layerName = layer.name();
       for (var feature : layer.features()) {
-        features.add(new ConfiguredFeature(layerName, tagValueProducer, feature));
+        var configuredFeature = new ConfiguredFeature(layerName, tagValueProducer, feature);
+        configuredFeatureEntries.add(
+          new MultiExpression.Entry<ConfiguredFeature>(
+            configuredFeature, configuredFeature.matchData()));
       }
     }
+
+    featureLayerMatcher = MultiExpression.of(configuredFeatureEntries).index();
   }
 
   @Override
@@ -48,10 +57,8 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
-    features
-      .stream()
-      .filter(cf -> cf.includeWhen(sourceFeature))
-      .forEach(cf -> cf.processFeature(sourceFeature, featureCollector));
+    featureLayerMatcher.getMatches(sourceFeature)
+      .forEach(configuredFeature -> configuredFeature.processFeature(sourceFeature, featureCollector));
   }
 
   @Override
