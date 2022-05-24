@@ -38,19 +38,34 @@ public class Worker {
    */
   @SuppressWarnings("java:S1181")
   public Worker(String prefix, Stats stats, int threads, RunnableThatThrows task) {
+    this(prefix, stats, threads, i -> task.run());
+  }
+
+  /**
+   * Constructs a new reader and immediately starts {@code threads} thread all running {@code task}.
+   *
+   * @param prefix  string ID to add to logs and stats
+   * @param stats   stats collector for this thread pool
+   * @param threads number of parallel threads to run {@code task} in
+   * @param task    the work to do in each thread, called with the ID of this thread, from {@code 0} to
+   *                {@code threads - 1}.
+   */
+  @SuppressWarnings("java:S1181")
+  public Worker(String prefix, Stats stats, int threads, IntConsumerThatThrows task) {
     this.prefix = prefix;
     stats.gauge(prefix + "_threads", threads);
     var es = Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix));
     String parentStage = LogUtil.getStage();
     List<CompletableFuture<?>> results = new ArrayList<>();
     for (int i = 0; i < threads; i++) {
+      final int threadId = i;
       results.add(CompletableFuture.runAsync(() -> {
         LogUtil.setStage(parentStage, prefix);
         String id = Thread.currentThread().getName();
         LOGGER.trace("Starting worker");
         try {
           long start = System.nanoTime();
-          task.run();
+          task.accept(threadId);
           stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
         } catch (Throwable e) {
           System.err.println("Worker " + id + " died");

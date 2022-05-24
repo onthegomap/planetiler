@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
+// also tests SupplierIterator
 class IterableOnceTest {
 
   @Test

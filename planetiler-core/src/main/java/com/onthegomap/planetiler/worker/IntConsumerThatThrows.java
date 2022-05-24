@@ -3,17 +3,17 @@ package com.onthegomap.planetiler.worker;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 
 /**
- * A function that can throw checked exceptions.
+ * A function that takes an integer can throw checked exceptions.
  */
 @FunctionalInterface
-public interface RunnableThatThrows {
+public interface IntConsumerThatThrows {
 
   @SuppressWarnings("java:S112")
-  void run() throws Exception;
+  void accept(int value) throws Exception;
 
-  default void runAndWrapException() {
+  default void runAndWrapException(int value) {
     try {
-      run();
+      accept(value);
     } catch (Exception e) {
       throwFatalException(e);
     }

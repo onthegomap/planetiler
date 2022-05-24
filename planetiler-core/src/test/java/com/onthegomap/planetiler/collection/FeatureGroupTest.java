@@ -93,6 +93,20 @@ class FeatureGroupTest {
     return map;
   }
 
+
+  private Map<Integer, Map<String, List<Feature>>> getFeaturesParallel() {
+    Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
+    var reader = features.parallelIterator(2);
+    for (FeatureGroup.TileFeatures tile : reader.result()) {
+      for (var feature : VectorTile.decode(tile.getVectorTileEncoder().encode())) {
+        map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
+          .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
+          .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
+      }
+    }
+    return map;
+  }
+
   private record Feature(Map<String, Object> attrs, Geometry geom) {}
 
   @Test
@@ -123,6 +137,36 @@ class FeatureGroupTest {
           new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
         )
       )))), getFeatures());
+  }
+
+  @Test
+  void testShardedRead() {
+    put(3, "layer3", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
+    put(3, "layer4", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
+    put(2, "layer", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
+    put(1, "layer", Map.of("a", 1, "b", 2L), newPoint(1, 2));
+    put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
+    sorter.sort();
+    assertEquals(new TreeMap<>(Map.of(
+      1, new TreeMap<>(Map.of(
+        "layer", List.of(
+          new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
+        ),
+        "layer2", List.of(
+          new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
+        )
+      )), 2, new TreeMap<>(Map.of(
+        "layer", List.of(
+          new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
+        )
+      )), 3, new TreeMap<>(Map.of(
+        "layer3", List.of(
+          new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
+        ),
+        "layer4", List.of(
+          new Feature(Map.of("a", 1.5d, "b", "string"), newPoint(5, 6))
+        )
+      )))), getFeaturesParallel());
   }
 
   @Test

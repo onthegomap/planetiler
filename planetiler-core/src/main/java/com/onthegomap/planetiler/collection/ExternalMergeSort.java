@@ -235,8 +235,11 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public Iterator<SortableFeature> iterator() {
+  public Iterator<SortableFeature> iterator(int shard, int shards) {
     assert sorted;
+    if (shard < 0 || shard >= shards) {
+      throw new IllegalArgumentException("Bad shard params: shard=%d shards=%d".formatted(shard, shards));
+    }
 
     if (chunks.isEmpty()) {
       return Collections.emptyIterator();
@@ -244,36 +247,14 @@ class ExternalMergeSort implements FeatureSort {
 
     // k-way merge to interleave all the sorted chunks
     List<Reader> iterators = new ArrayList<>();
-    for (Chunk chunk : chunks) {
+    for (int i = shard; i < chunks.size(); i += shards) {
+      var chunk = chunks.get(i);
       if (chunk.itemCount > 0) {
         iterators.add(chunk.newReader());
       }
     }
-    LongMinHeap heap = LongMinHeap.newArrayHeap(iterators.size());
-    for (int i = 0; i < iterators.size(); i++) {
-      heap.push(i, iterators.get(i).nextKey());
-    }
 
-    return new Iterator<>() {
-      @Override
-      public boolean hasNext() {
-        return !heap.isEmpty();
-      }
-
-      @Override
-      public SortableFeature next() {
-        int i = heap.peekId();
-        Reader iterator = iterators.get(i);
-        assert iterator != null;
-        SortableFeature next = iterator.next();
-        if (iterator.hasNext()) {
-          heap.updateHead(iterator.nextKey());
-        } else {
-          heap.poll();
-        }
-        return next;
-      }
-    };
+    return LongMerger.mergeIterators(iterators);
   }
 
   public int chunks() {
@@ -299,8 +280,6 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     void close();
-
-    long nextKey();
   }
 
   /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
@@ -410,11 +389,6 @@ class ExternalMergeSort implements FeatureSort {
         close();
       }
       return current;
-    }
-
-    @Override
-    public final long nextKey() {
-      return next.key();
     }
 
     abstract SortableFeature readNextFeature();

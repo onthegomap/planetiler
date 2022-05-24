@@ -1,13 +1,17 @@
 package com.onthegomap.planetiler.collection;
 
+import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
+import com.onthegomap.planetiler.worker.Worker;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.IntStream;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -55,10 +59,20 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
         return 0;
       }
 
-
       @Override
       public Iterator<SortableFeature> iterator() {
         return list.iterator();
+      }
+
+      @Override
+      public Iterator<SortableFeature> iterator(int shard, int shards) {
+        if (shard < 0 || shard >= shards) {
+          throw new IllegalArgumentException("Bad shard params: shard=%d shards=%d".formatted(shard, shards));
+        }
+        return IntStream.range(0, list.size())
+          .filter(d -> d % shards == shard)
+          .mapToObj(list::get)
+          .iterator();
       }
     };
   }
@@ -81,4 +95,45 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
    * threads.
    */
   CloseableConusmer<SortableFeature> writerForThread();
+
+  @Override
+  default Iterator<SortableFeature> iterator() {
+    return iterator(0, 1);
+  }
+
+  /**
+   * Returns an iterator over a subset of the features.
+   *
+   * @param shard  The index of this iterator
+   * @param shards The total number of iterators that will be used
+   * @return An iterator over a subset of features that when combined with all other iterators will iterate over the
+   *         full set.
+   */
+  Iterator<SortableFeature> iterator(int shard, int shards);
+
+  /**
+   * Reads temp features using {@code threads} parallel threads and merges into a sorted list.
+   *
+   * @param stats   Stat tracker
+   * @param threads The number of parallel read threads to spawn
+   * @return a {@link ParallelIterator} with a handle to the new read threads that were spawned, and in {@link Iterable}
+   *         that can be used to iterate over the results.
+   */
+  default ParallelIterator parallelIterator(Stats stats, int threads) {
+    List<WeightedHandoffQueue<SortableFeature>> queues = IntStream.range(0, threads)
+      .mapToObj(i -> new WeightedHandoffQueue<SortableFeature>(500, 10_000))
+      .toList();
+    Worker reader = new Worker("read", stats, threads, shard -> {
+      try (var next = queues.get(shard)) {
+        Iterator<SortableFeature> entries = iterator(shard, threads);
+        while (entries.hasNext()) {
+          next.accept(entries.next(), 1);
+        }
+      }
+    });
+    return new ParallelIterator(reader, LongMerger.mergeSuppliers(queues));
+  }
+
+  record ParallelIterator(Worker reader, @Override Iterator<SortableFeature> iterator)
+    implements Iterable<SortableFeature> {}
 }

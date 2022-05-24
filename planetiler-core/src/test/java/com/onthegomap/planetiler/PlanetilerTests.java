@@ -3,7 +3,6 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.onthegomap.planetiler.TestUtils.OsmXml;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
@@ -83,6 +82,8 @@ class PlanetilerTests {
   );
   private final Stats stats = Stats.inMemory();
 
+  @TempDir
+  Path tempDir;
 
   private static <T extends OsmElement> T with(T elem, Consumer<T> fn) {
     fn.accept(elem);
@@ -1574,19 +1575,20 @@ class PlanetilerTests {
     assertEquals(11, results.tiles.size());
   }
 
-  @Test
-  void testPlanetilerRunner(@TempDir Path tempDir) throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
+    "--emit-tiles-in-order=false",
+    "--free-osm-after-read",
+  })
+  void testPlanetilerRunner(String args) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-      "--tmpdir", tempDir.toString(),
-      "--free-osm-after-read",
-      // ensure we exercise the multi-threaded code
-      "--write-threads=2",
-      "--process-threads=2",
-      "--threads=4"
+      ("--tmpdir" + tempDir + " " + args).split("\\s+")
     ))
       .setProfile(new Profile.NullProfile() {
         @Override
@@ -1603,7 +1605,9 @@ class PlanetilerTests {
       .run();
 
     // make sure it got deleted after write
-    assertFalse(Files.exists(tempOsm));
+    if (args.contains("free-osm-after-read")) {
+      assertFalse(Files.exists(tempOsm));
+    }
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       int features = 0;
@@ -1631,7 +1635,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
+  void testPlanetilerMemoryCheck() {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {
@@ -1656,7 +1660,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
+  void testPlanetilerMemoryCheckForce() throws Exception {
     runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {

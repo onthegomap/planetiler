@@ -41,30 +41,32 @@ public class BenchmarkExternalMergeSort {
     FileUtils.delete(path);
     FileUtils.deleteOnExit(path);
     var config = PlanetilerConfig.defaults();
-    for (int i = 0; i < 3; i++) {
-      try {
-        List<Results> results = new ArrayList<>();
-        for (int chunks : List.of(1, 10, 100, 1_000, 10_000)) {
-          results.add(run(path, 1, number, chunks, true, true, true, config));
+    try {
+      List<Results> results = new ArrayList<>();
+      for (int chunks : List.of(100, 200, 500)) {
+        for (int readThreads : List.of(1, 2, 3, 4)) {
+          for (boolean mmap : List.of(false, true)) {
+            results.add(run(path, 1, readThreads, number, chunks, mmap, true, true, config));
+          }
         }
-        for (var result : results) {
-          System.err.println(result);
-        }
-      } finally {
-        FileUtils.delete(path);
       }
+      for (var result : results) {
+        System.err.println(result.chunks + "\t" + result.readThreads + "\t" + result.mmap + "\t" + result.read);
+      }
+    } finally {
+      FileUtils.delete(path);
     }
   }
 
   private record Results(
     String write, String read, String sort,
     int chunks,
-    int writeWorkers, int readWorkers,
+    int writeWorkers, int readThreads,
     long items, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
     boolean madvise
   ) {}
 
-  private static Results run(Path tmpDir, int writeWorkers, long items, int numChunks,
+  private static Results run(Path tmpDir, int writeWorkers, int readThreads, long items, int numChunks,
     boolean mmap, boolean parallelSort, boolean madvise, PlanetilerConfig config) {
     long chunkSizeLimit = items * ITEM_MEMORY_BYTES / numChunks;
     if (chunkSizeLimit > Integer.MAX_VALUE) {
@@ -72,7 +74,6 @@ public class BenchmarkExternalMergeSort {
     }
     boolean gzip = false;
     int sortWorkers = Runtime.getRuntime().availableProcessors();
-    int readWorkers = 1;
     FileUtils.delete(tmpDir);
     var sorter =
       new ExternalMergeSort(tmpDir, sortWorkers, (int) chunkSizeLimit, gzip, mmap, parallelSort, madvise, config,
@@ -87,7 +88,7 @@ public class BenchmarkExternalMergeSort {
     sortTimer.stop();
 
     var readTimer = Timer.start();
-    doReads(readWorkers, items, sorter);
+    doReads(readThreads, items, sorter);
     readTimer.stop();
 
     return new Results(
@@ -96,7 +97,7 @@ public class BenchmarkExternalMergeSort {
       FORMAT.duration(sortTimer.elapsed().wall()),
       sorter.chunks(),
       writeWorkers,
-      readWorkers,
+      readThreads,
       items,
       (int) chunkSizeLimit,
       gzip,
@@ -106,11 +107,12 @@ public class BenchmarkExternalMergeSort {
     );
   }
 
-  private static void doReads(int readWorkers, long items, ExternalMergeSort sorter) {
+  private static void doReads(int threads, long items, ExternalMergeSort sorter) {
     var counters = Counter.newMultiThreadCounter();
-    var reader = new Worker("read", Stats.inMemory(), readWorkers, () -> {
+    Iterable<SortableFeature> q = threads > 1 ? sorter.parallelIterator(Stats.inMemory(), threads) : sorter;
+    var reader = new Worker("read", Stats.inMemory(), 1, () -> {
       var counter = counters.counterForThread();
-      for (var ignored : sorter) {
+      for (var ignored : q) {
         counter.inc();
       }
     });
@@ -119,8 +121,14 @@ public class BenchmarkExternalMergeSort {
       .addFileSize(sorter)
       .newLine()
       .addProcessStats()
-      .newLine()
-      .addThreadPoolStats("reader", reader);
+      .newLine();
+    if (q instanceof FeatureSort.ParallelIterator pi) {
+      loggers
+        .addThreadPoolStats("read", pi.reader())
+        .addThreadPoolStats("merge", reader);
+    } else {
+      loggers.addThreadPoolStats("read", reader);
+    }
     reader.awaitAndLog(loggers, Duration.ofSeconds(1));
   }
 

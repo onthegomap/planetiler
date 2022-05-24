@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
+import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -58,13 +59,13 @@ public class MbtilesWriter {
   private final Counter.Readable[] tilesByZoom;
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
-  private final FeatureGroup features;
+  private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
 
-  private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
-    Stats stats, LayerStats layerStats) {
-    this.features = features;
+  private MbtilesWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, Mbtiles db, PlanetilerConfig config,
+    MbtilesMetadata mbtilesMetadata, Stats stats, LayerStats layerStats) {
+    this.inputTiles = inputTiles;
     this.db = db;
     this.config = config;
     this.mbtilesMetadata = mbtilesMetadata;
@@ -102,7 +103,27 @@ public class MbtilesWriter {
   public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize,
     MbtilesMetadata mbtilesMetadata, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("mbtiles");
-    MbtilesWriter writer = new MbtilesWriter(features, output, config, mbtilesMetadata, stats,
+
+    int readThreads = config.featureReadThreads();
+    int threads = config.threads();
+    int processThreads = threads < 10 ? threads : threads - readThreads;
+
+    // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
+    // when using 1 read thread we just have: (1 read & merge thread) -> ...
+    Worker readWorker = null;
+    Iterable<FeatureGroup.TileFeatures> inputTiles;
+    String secondStageName;
+    if (readThreads == 1) {
+      secondStageName = "read";
+      inputTiles = features;
+    } else {
+      secondStageName = "merge";
+      var reader = features.parallelIterator(readThreads);
+      inputTiles = reader.result();
+      readWorker = reader.readWorker();
+    }
+
+    MbtilesWriter writer = new MbtilesWriter(inputTiles, output, config, mbtilesMetadata, stats,
       features.layerStats());
 
     var pipeline = WorkerPipeline.start("mbtiles", stats);
@@ -124,7 +145,7 @@ public class MbtilesWriter {
        */
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
-        .<TileBatch>fromGenerator("read", next -> {
+        .<TileBatch>fromGenerator(secondStageName, next -> {
           var writerEnqueuer = writerQueue.threadLocalWriter();
           writer.readFeaturesAndBatch(batch -> {
             next.accept(batch);
@@ -134,7 +155,7 @@ public class MbtilesWriter {
           // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
         }, 1)
         .addBuffer("reader_queue", queueSize)
-        .sinkTo("encode", config.threads(), writer::tileEncoderSink);
+        .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
       writeBranch = pipeline.readFromQueue(writerQueue)
@@ -147,9 +168,9 @@ public class MbtilesWriter {
        */
       encodeBranch = pipeline
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator("read", writer::readFeaturesAndBatch, 1)
+        .fromGenerator(secondStageName, writer::readFeaturesAndBatch, 1)
         .addBuffer("reader_queue", queueSize)
-        .addWorker("encoder", config.threads(), writer::tileEncoder)
+        .addWorker("encoder", processThreads, writer::tileEncoder)
         .addBuffer("writer_queue", queueSize)
         // use only 1 thread since tileWriter needs to be single-threaded
         .sinkTo("write", 1, writer::tileWriter);
@@ -162,8 +183,11 @@ public class MbtilesWriter {
       .addFileSize(fileSize)
       .newLine()
       .addProcessStats()
-      .newLine()
-      .addPipelineStats(encodeBranch)
+      .newLine();
+    if (readWorker != null) {
+      loggers.addThreadPoolStats("read", readWorker);
+    }
+    loggers.addPipelineStats(encodeBranch)
       .addPipelineStats(writeBranch)
       .newLine()
       .add(writer::getLastTileLogDetails);
@@ -197,7 +221,7 @@ public class MbtilesWriter {
     TileBatch batch = new TileBatch();
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
-    for (var feature : features) {
+    for (var feature : inputTiles) {
       int z = feature.tileCoord().z();
       if (z != currentZoom) {
         LOGGER.trace("Starting z{}", z);
