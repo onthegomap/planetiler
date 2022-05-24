@@ -9,6 +9,10 @@ import java.util.Map;
 
 public class TagCriteria {
 
+  private TagCriteria() {
+    //Hide implicit public constructor
+  }
+
   /**
    * Returns a function that determines whether a source feature matches any of the entries in this specification
    * 
