@@ -40,6 +40,7 @@ public class ConfiguredFeature {
 
   private static final double LOG4 = Math.log(4);
   private static final Index<Integer> NO_ZOOM_OVERRIDE = MultiExpression.<Integer>of(List.of()).index();
+  private static final Integer DEFAULT_MAX_ZOOM = 14;
 
   private final List<BiConsumer<SourceFeature, Feature>> attributeProcessors;
 
@@ -66,7 +67,7 @@ public class ConfiguredFeature {
 
     //Test to determine at which zooms to include this feature based on tagging
     featureMinZoom = feature.minZoom() == null ? 0 : feature.minZoom();
-    featureMaxZoom = feature.maxZoom() == null ? 0 : feature.maxZoom();
+    featureMaxZoom = feature.maxZoom() == null ? DEFAULT_MAX_ZOOM : feature.maxZoom();
 
     //Factory to generate the right feature type from FeatureCollector
     geometryFactory = geometryType.geometryFactory(layerName);
@@ -275,10 +276,9 @@ public class ConfiguredFeature {
     var minZoom = zoomOverride.getOrElse(sourceFeature, featureMinZoom);
 
     var f = geometryFactory.apply(features)
-      .setMinZoom(minZoom);
-    if (featureMaxZoom != null) {
-      f.setMaxZoom(featureMaxZoom);
-    }
+      .setMinZoom(minZoom)
+      .setMaxZoom(featureMaxZoom);
+
     for (var processor : attributeProcessors) {
       processor.accept(sourceFeature, f);
     }
