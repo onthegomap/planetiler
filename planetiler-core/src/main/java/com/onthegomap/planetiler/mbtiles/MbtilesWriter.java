@@ -49,7 +49,6 @@ public class MbtilesWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
-  private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final Mbtiles db;
@@ -258,7 +257,9 @@ public class MbtilesWriter {
      */
     byte[] lastBytes = null, lastEncoded = null;
     Integer lastTileDataHash = null;
+    boolean lastIsFill = false;
     boolean compactDb = config.compactDb();
+    boolean skipFilled = config.skipFilledTiles();
 
     for (TileBatch batch : prev) {
       Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
@@ -270,23 +271,30 @@ public class MbtilesWriter {
         byte[] bytes, encoded;
         Integer tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
+          if (skipFilled && lastIsFill) {
+            continue;
+          }
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
-          encoded = en.encode();
-          bytes = gzip(encoded);
+          if (skipFilled) {
+            lastIsFill = en.containsOnlyPolygonFills();
+            if (lastIsFill) {
+              continue;
+            }
+          }
+          lastEncoded = encoded = en.encode();
+          lastBytes = bytes = gzip(encoded);
           last = tileFeatures;
-          lastEncoded = encoded;
-          lastBytes = bytes;
           if (encoded.length > 1_000_000) {
             LOGGER.warn("{} {}kb uncompressed",
               tileFeatures.tileCoord(),
               encoded.length / 1024);
           }
-          if (compactDb && tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
+          if (compactDb && en.containsOnlyPolygonFills()) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
             tileDataHash = null;

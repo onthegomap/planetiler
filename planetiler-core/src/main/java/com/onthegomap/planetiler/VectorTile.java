@@ -76,6 +76,7 @@ public class VectorTile {
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
+  private Boolean isFill = null;
 
   private static int[] getCommands(Geometry input, int scale) {
     var encoder = new CommandEncoder(scale);
@@ -495,6 +496,23 @@ public class VectorTile {
     return tile.build().toByteArray();
   }
 
+  /** Returns true if this tile contains only polygon fills (for example, the middle of the ocean). */
+  public boolean containsOnlyPolygonFills() {
+    if (isFill == null) {
+      boolean empty = true;
+      for (var layer : layers.values()) {
+        for (var feature : layer.encodedFeatures) {
+          empty = false;
+          if (!feature.geometry.isFill()) {
+            return false;
+          }
+        }
+      }
+      isFill = !empty;
+    }
+    return isFill;
+  }
+
   private enum Command {
     MOVE_TO(1),
     LINE_TO(2),
@@ -565,6 +583,79 @@ public class VectorTile {
         "commands=int[" + commands.length +
         "], geomType=" + geomType +
         " (" + geomType.asByte() + ")]";
+    }
+
+    /** Returns true if the encoded geometry is a polygon fill. */
+    public boolean isFill() {
+      if (geomType != GeometryType.POLYGON) {
+        return false;
+      }
+
+      int extent = EXTENT << scale;
+      int firstX = 0;
+      int firstY = 0;
+      int x = 0;
+      int y = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int command = 0;
+      int i = 0;
+      while (i < geometryCount) {
+
+        if (length <= 0) {
+          length = commands[i++];
+          command = length & ((1 << 3) - 1);
+          length = length >> 3;
+        }
+
+        if (length > 0) {
+          if (command == Command.CLOSE_PATH.value) {
+            if (doesSegmentCrossTile(x, y, firstX, firstY, extent)) {
+              return false;
+            }
+            length--;
+            continue;
+          }
+
+          int dx = commands[i++];
+          int dy = commands[i++];
+
+          length--;
+
+          dx = zigZagDecode(dx);
+          dy = zigZagDecode(dy);
+
+          int nextX = x + dx;
+          int nextY = y + dy;
+
+          if (command == Command.MOVE_TO.value) {
+            firstX = nextX;
+            firstY = nextY;
+            if (isInsideTile(firstX, firstY, extent)) {
+              return false;
+            }
+          } else if (doesSegmentCrossTile(x, y, nextX, nextY, extent)) {
+            return false;
+          }
+          y = nextY;
+          x = nextX;
+        }
+
+      }
+
+      return true;
+    }
+
+    private static boolean isInsideTile(int x, int y, int extent) {
+      return x >= 0 && x <= extent && y >= 0 && y <= extent;
+    }
+
+    private static boolean doesSegmentCrossTile(int x1, int y1, int x2, int y2, int extent) {
+      return (y1 >= 0 || y2 >= 0) &&
+        (y1 <= extent || y2 <= extent) &&
+        (x1 >= 0 || x2 >= 0) &&
+        (x1 <= extent || x2 <= extent);
     }
   }
 

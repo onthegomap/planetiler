@@ -21,6 +21,7 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -33,6 +34,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -331,6 +334,54 @@ class VectorTileTest {
 
     assertEquals(attrs1, decoded.get(2).attrs());
     assertEquals("layer2", decoded.get(2).layer());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "true,-1,-1,257,257",
+    "true,-5,-5,260,260",
+    "false,-1,-1,254,254",
+    "false,0,-1,257,257",
+    "false,-1,0,257,257",
+    "false,-1,-1,256,257",
+    "false,-1,-1,257,256",
+
+    "false,0,0,1,1",
+    "false,1,1,2,2",
+    "false,1,1,2,2",
+  })
+  void testIsFill(boolean isFill, double x1, double y1, double x2, double y2) {
+    for (int scale = 0; scale < 4; scale++) {
+      assertEquals(isFill, VectorTile.encodeGeometry(rectangle(x1, y1, x2, y2), scale).isFill(), "scale=" + scale);
+    }
+  }
+
+  @Test
+  void testCrossBoundaryNotFill() {
+    assertFalse(VectorTile.encodeGeometry(newPolygon(
+      -1, -1,
+      257, -1,
+      -1, 257,
+      -1, -1
+    ), 0).isFill());
+    assertFalse(VectorTile.encodeGeometry(newPolygon(
+      257, -1,
+      -1, 257,
+      -1, -1,
+      257, -1
+    ), 0).isFill());
+    assertFalse(VectorTile.encodeGeometry(newPolygon(
+      -1, 257,
+      -1, -1,
+      257, -1,
+      -1, 257
+    ), 0).isFill());
+    assertFalse(VectorTile.encodeGeometry(newPolygon(
+      -1, -1,
+      513, -1,
+      -1, 513,
+      -1, -1
+    ), 1).isFill());
   }
 
   private void testRoundTripAttrs(Map<String, Object> attrs) {
