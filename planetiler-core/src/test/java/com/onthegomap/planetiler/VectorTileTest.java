@@ -349,6 +349,11 @@ class VectorTileTest {
     "false,0,0,1,1",
     "false,1,1,2,2",
     "false,1,1,2,2",
+
+    "false,-10,-10,-5,-5",
+    "false,260,-10,270,5",
+    "false,-10,260,-5,270",
+    "false,260,260,270,270",
   })
   void testIsFill(boolean isFill, double x1, double y1, double x2, double y2) {
     for (int scale = 0; scale < 4; scale++) {

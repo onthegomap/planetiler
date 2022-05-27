@@ -537,10 +537,39 @@ public class VectorTile {
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
 
+    private static final int LEFT = 1;
+    private static final int RIGHT = 1 << 1;
+    private static final int TOP = 1 << 2;
+    private static final int BOTTOM = 1 << 3;
+    private static final int INSIDE = 0;
+    private static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
+
     public VectorGeometry {
       if (scale < 0) {
         throw new IllegalArgumentException("scale can not be less than 0, got: " + scale);
       }
+    }
+
+    private static int getSide(int x, int y, int extent) {
+      int result = INSIDE;
+      if (x < 0) {
+        result |= LEFT;
+      } else if (x > extent) {
+        result |= RIGHT;
+      }
+      if (y < 0) {
+        result |= TOP;
+      } else if (y > extent) {
+        result |= BOTTOM;
+      }
+      return result;
+    }
+
+    private static boolean doesSegmentCrossTile(int x1, int y1, int x2, int y2, int extent) {
+      return (y1 >= 0 || y2 >= 0) &&
+        (y1 <= extent || y2 <= extent) &&
+        (x1 >= 0 || x2 >= 0) &&
+        (x1 <= extent || x2 <= extent);
     }
 
     /** Converts an encoded geometry back to a JTS geometry. */
@@ -592,6 +621,7 @@ public class VectorTile {
       }
 
       int extent = EXTENT << scale;
+      int visited = INSIDE;
       int firstX = 0;
       int firstY = 0;
       int x = 0;
@@ -611,7 +641,7 @@ public class VectorTile {
 
         if (length > 0) {
           if (command == Command.CLOSE_PATH.value) {
-            if (doesSegmentCrossTile(x, y, firstX, firstY, extent)) {
+            if (doesSegmentCrossTile(x, y, firstX, firstY, extent) || visited != ALL) {
               return false;
             }
             length--;
@@ -632,11 +662,14 @@ public class VectorTile {
           if (command == Command.MOVE_TO.value) {
             firstX = nextX;
             firstY = nextY;
-            if (isInsideTile(firstX, firstY, extent)) {
+            if ((visited = getSide(firstX, firstY, extent)) == INSIDE) {
               return false;
             }
-          } else if (doesSegmentCrossTile(x, y, nextX, nextY, extent)) {
-            return false;
+          } else {
+            if (doesSegmentCrossTile(x, y, nextX, nextY, extent)) {
+              return false;
+            }
+            visited |= getSide(nextX, nextY, extent);
           }
           y = nextY;
           x = nextX;
@@ -644,18 +677,7 @@ public class VectorTile {
 
       }
 
-      return true;
-    }
-
-    private static boolean isInsideTile(int x, int y, int extent) {
-      return x >= 0 && x <= extent && y >= 0 && y <= extent;
-    }
-
-    private static boolean doesSegmentCrossTile(int x1, int y1, int x2, int y2, int extent) {
-      return (y1 >= 0 || y2 >= 0) &&
-        (y1 <= extent || y2 <= extent) &&
-        (x1 >= 0 || x2 >= 0) &&
-        (x1 <= extent || x2 <= extent);
+      return visited == ALL;
     }
   }
 
