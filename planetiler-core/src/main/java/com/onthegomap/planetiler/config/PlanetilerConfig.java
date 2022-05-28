@@ -103,7 +103,7 @@ public record PlanetilerConfig(
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
-      arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", false),
+      arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
         6),
       arguments.getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks",
