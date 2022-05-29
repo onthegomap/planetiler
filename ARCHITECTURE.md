@@ -5,7 +5,7 @@
 Planetiler builds a map in 3 phases:
 
 1. [Process Input Files](#1-process-input-files) according to
-   the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) and write rendered tile features
+   the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) and write vector tile features
    to intermediate files on disk
 2. [Sort Features](#2-sort-features) by tile ID
 3. [Emit Vector Tiles](#3-emit-vector-tiles) by iterating through sorted features to group by tile ID, encoding, and
@@ -46,7 +46,7 @@ from each input source:
       then emit a polygon source feature with the reconstructed geometry if successful
 
 Then, for each [SourceFeature](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/SourceFeature.java),
-render vector tile features according to
+generate vector tile features according to
 the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) in a worker thread (default 1 per
 core):
 
