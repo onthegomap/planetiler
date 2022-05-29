@@ -47,6 +47,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.io.InputStreamInStream;
 import org.locationtech.jts.io.WKBReader;
 import org.slf4j.Logger;
@@ -69,7 +70,20 @@ class PlanetilerTests {
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
   private static final int Z4_TILES = 1 << 4;
+  private static final Polygon WORLD_POLYGON = newPolygon(
+    worldCoordinateList(
+      Z14_WIDTH / 2, Z14_WIDTH / 2,
+      1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
+      1 - Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
+      Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
+      Z14_WIDTH / 2, Z14_WIDTH / 2
+    ),
+    List.of()
+  );
   private final Stats stats = Stats.inMemory();
+
+  @TempDir
+  Path tempDir;
 
   private static <T extends OsmElement> T with(T elem, Consumer<T> fn) {
     fn.accept(elem);
@@ -121,12 +135,13 @@ class PlanetilerTests {
     FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {
       MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, new MbtilesMetadata(profile, config.arguments()), config,
         stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
-      return new PlanetilerResults(tileMap, db.metadata().getAll());
+      int tileDataCount = config.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
+      return new PlanetilerResults(tileMap, db.metadata().getAll(), tileDataCount);
     }
   }
 
@@ -643,21 +658,10 @@ class PlanetilerTests {
 
   @Test
   void testFullWorldPolygon() throws Exception {
-    List<Coordinate> outerPoints = worldCoordinateList(
-      Z14_WIDTH / 2, Z14_WIDTH / 2,
-      1 - Z14_WIDTH / 2, Z14_WIDTH / 2,
-      1 - Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
-      Z14_WIDTH / 2, 1 - Z14_WIDTH / 2,
-      Z14_WIDTH / 2, Z14_WIDTH / 2
-    );
-
     var results = runWithReaderFeatures(
       Map.of("threads", "1"),
       List.of(
-        newReaderFeature(newPolygon(
-          outerPoints,
-          List.of()
-        ), Map.of())
+        newReaderFeature(WORLD_POLYGON, Map.of())
       ),
       (in, features) -> features.polygon("layer")
         .setZoomRange(0, 6)
@@ -1470,7 +1474,7 @@ class PlanetilerTests {
   }
 
   private record PlanetilerResults(
-    Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata
+    Map<TileCoord, List<TestUtils.ComparableFeature>> tiles, Map<String, String> metadata, int tileDataCount
   ) {}
 
   private record TestProfile(
@@ -1571,15 +1575,20 @@ class PlanetilerTests {
     assertEquals(11, results.tiles.size());
   }
 
-  @Test
-  void testPlanetilerRunner(@TempDir Path tempDir) throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
+    "--emit-tiles-in-order=false",
+    "--free-osm-after-read",
+  })
+  void testPlanetilerRunner(String args) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-      "--tmpdir", tempDir.toString(),
-      "--free-osm-after-read"
+      ("--tmpdir" + tempDir + " " + args).split("\\s+")
     ))
       .setProfile(new Profile.NullProfile() {
         @Override
@@ -1596,7 +1605,9 @@ class PlanetilerTests {
       .run();
 
     // make sure it got deleted after write
-    assertFalse(Files.exists(tempOsm));
+    if (args.contains("free-osm-after-read")) {
+      assertFalse(Files.exists(tempOsm));
+    }
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
       int features = 0;
@@ -1624,7 +1635,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testPlanetilerMemoryCheck(@TempDir Path tempDir) {
+  void testPlanetilerMemoryCheck() {
     assertThrows(Exception.class, () -> runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {
@@ -1649,7 +1660,7 @@ class PlanetilerTests {
   }
 
   @Test
-  void testPlanetilerMemoryCheckForce(@TempDir Path tempDir) throws Exception {
+  void testPlanetilerMemoryCheckForce() throws Exception {
     runWithProfile(tempDir, new Profile.NullProfile() {
       @Override
       public long estimateIntermediateDiskBytes(long osmSize) {
@@ -1690,5 +1701,34 @@ class PlanetilerTests {
     );
 
     assertSubmap(Map.of(), results.tiles);
+  }
+
+
+  private PlanetilerResults runForCompactTest(boolean compactDbEnabled) throws Exception {
+
+    return runWithReaderFeatures(
+      Map.of("threads", "1", "compact-db", Boolean.toString(compactDbEnabled)),
+      List.of(
+        newReaderFeature(WORLD_POLYGON, Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 2)
+        .setBufferPixels(0)
+    );
+  }
+
+  @Test
+  void testCompactDb() throws Exception {
+
+    var compactResult = runForCompactTest(true);
+    var nonCompactResult = runForCompactTest(false);
+
+    assertEquals(nonCompactResult.tiles, compactResult.tiles);
+    assertTrue(
+      compactResult.tileDataCount() < compactResult.tiles.size(),
+      "tileDataCount=%s should be less than tileCount=%s".formatted(
+        compactResult.tileDataCount(), compactResult.tiles.size()
+      )
+    );
   }
 }

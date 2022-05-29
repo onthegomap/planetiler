@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -62,11 +61,7 @@ class WorkQueueTest {
   @Timeout(10)
   void testTwoWriters() {
     WorkQueue<Integer> q = newQueue(2);
-    AtomicInteger ni = new AtomicInteger(0);
-    new Worker("worker", stats, 2, () -> {
-      int i = ni.getAndIncrement();
-      q.accept(i);
-    }).await();
+    new Worker("worker", stats, 2, q::accept).await();
     q.close();
     assertEquals(2, q.getPending());
     Set<Integer> found = new TreeSet<>();
@@ -82,9 +77,7 @@ class WorkQueueTest {
   @Timeout(10)
   void testTwoWritersManyElements() {
     WorkQueue<Integer> q = newQueue(2);
-    AtomicInteger ni = new AtomicInteger(0);
-    new Worker("worker", stats, 2, () -> {
-      int i = ni.getAndIncrement();
+    new Worker("worker", stats, 2, i -> {
       q.accept(i * 3);
       q.accept(i * 3 + 1);
       q.accept(i * 3 + 2);

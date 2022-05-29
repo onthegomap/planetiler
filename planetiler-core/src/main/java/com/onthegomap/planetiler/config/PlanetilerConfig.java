@@ -12,6 +12,9 @@ public record PlanetilerConfig(
   Arguments arguments,
   Bounds bounds,
   int threads,
+  int featureWriteThreads,
+  int featureProcessThreads,
+  int featureReadThreads,
   Duration logInterval,
   int minzoom,
   int maxzoom,
@@ -37,7 +40,8 @@ public record PlanetilerConfig(
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
   double simplifyToleranceBelowMaxZoom,
-  boolean osmLazyReads
+  boolean osmLazyReads,
+  boolean compactDb
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -75,10 +79,22 @@ public record PlanetilerConfig(
       "default storage type for temporary data, one of " + Stream.of(Storage.values()).map(
         Storage::id).toList(),
       fallbackTempStorage);
+    int threads = arguments.threads();
+    int featureWriteThreads =
+      arguments.getInteger("write_threads", "number of threads to use when writing temp features",
+        // defaults: <48 cpus=1 writer, 48-80=2 writers, 80-112=3 writers, 112-144=4 writers, ...
+        Math.max(1, (threads - 16) / 32 + 1));
+    int featureProcessThreads =
+      arguments.getInteger("process_threads", "number of threads to use when processing input features",
+        Math.max(threads < 4 ? threads : (threads - featureWriteThreads), 1));
     return new PlanetilerConfig(
       arguments,
       new Bounds(arguments.bounds("bounds", "bounds")),
-      arguments.threads(),
+      threads,
+      featureWriteThreads,
+      featureProcessThreads,
+      arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
+        threads < 32 ? 1 : 2),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
@@ -87,7 +103,7 @@ public record PlanetilerConfig(
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
-      arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", false),
+      arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
         6),
       arguments.getInteger("sort_max_writers", "maximum number of concurrent write threads to use when sorting chunks",
@@ -123,6 +139,9 @@ public record PlanetilerConfig(
         0.1d),
       arguments.getBoolean("osm_lazy_reads",
         "Read OSM blocks from disk in worker threads",
+        false),
+      arguments.getBoolean("compact_db",
+        "Reduce the DB size by separating and deduping the tile data",
         false)
     );
   }

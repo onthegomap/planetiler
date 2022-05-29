@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,9 +22,10 @@ class FeatureSortTest {
   @TempDir
   Path tmpDir;
 
-  private static SortableFeature newEntry(int i) {
+  private SortableFeature newEntry(int i) {
     return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
+
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip, boolean mmap) {
     return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, true, true, config,
@@ -32,7 +34,7 @@ class FeatureSortTest {
 
   @Test
   void testEmpty() {
-    FeatureSort sorter = newSorter(1, 100, false, false);
+    var sorter = newSorter(1, 100, false, false);
     sorter.sort();
     assertEquals(List.of(), sorter.toList());
   }
@@ -40,7 +42,8 @@ class FeatureSortTest {
   @Test
   void testSingle() {
     FeatureSort sorter = newSorter(1, 100, false, false);
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1)), sorter.toList());
   }
@@ -48,8 +51,9 @@ class FeatureSortTest {
   @Test
   void testTwoItemsOneChunk() {
     FeatureSort sorter = newSorter(1, 100, false, false);
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2)), sorter.toList());
   }
@@ -57,8 +61,9 @@ class FeatureSortTest {
   @Test
   void testTwoItemsTwoChunks() {
     FeatureSort sorter = newSorter(1, 0, false, false);
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2)), sorter.toList());
   }
@@ -66,12 +71,43 @@ class FeatureSortTest {
   @Test
   void testTwoWorkers() {
     FeatureSort sorter = newSorter(2, 0, false, false);
-    sorter.add(newEntry(4));
-    sorter.add(newEntry(3));
-    sorter.add(newEntry(2));
-    sorter.add(newEntry(1));
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(4));
+    writer.accept(newEntry(3));
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testTwoWriters() {
+    FeatureSort sorter = newSorter(2, 0, false, false);
+    var writer1 = sorter.writerForThread();
+    var writer2 = sorter.writerForThread();
+    writer1.accept(newEntry(4));
+    writer1.accept(newEntry(3));
+    writer2.accept(newEntry(2));
+    writer2.accept(newEntry(1));
+    sorter.sort();
+    assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testMultipleWritersThatGetCombined() {
+    FeatureSort sorter = newSorter(2, 2_000_000, false, false);
+    var writer1 = sorter.writerForThread();
+    var writer2 = sorter.writerForThread();
+    var writer3 = sorter.writerForThread();
+    writer1.accept(newEntry(4));
+    writer1.accept(newEntry(3));
+    writer2.accept(newEntry(2));
+    writer2.accept(newEntry(1));
+    writer3.accept(newEntry(5));
+    writer3.accept(newEntry(6));
+    sorter.sort();
+    assertEquals(Stream.of(1, 2, 3, 4, 5, 6).map(this::newEntry).toList(),
+      sorter.toList());
   }
 
   @ParameterizedTest
@@ -90,7 +126,8 @@ class FeatureSortTest {
     }
     Collections.shuffle(shuffled, new Random(0));
     FeatureSort sorter = newSorter(2, 20_000, gzip, mmap);
-    shuffled.forEach(sorter::add);
+    var writer = sorter.writerForThread();
+    shuffled.forEach(writer);
     sorter.sort();
     assertEquals(sorted, sorter.toList());
   }

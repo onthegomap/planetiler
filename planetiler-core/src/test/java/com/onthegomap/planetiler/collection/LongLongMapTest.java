@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.ResourceUsage;
+import java.io.IOException;
 import java.nio.file.Path;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,6 +23,11 @@ public abstract class LongLongMapTest {
   @BeforeEach
   public void setupSequentialWriter(@TempDir Path path) {
     this.sequential = createSequentialWriter(path);
+  }
+
+  @AfterEach
+  public void closeSequentialWriter() throws IOException {
+    this.sequential.close();
   }
 
   @Test

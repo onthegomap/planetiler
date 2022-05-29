@@ -25,13 +25,17 @@ import java.util.concurrent.ThreadLocalRandom;
 public class BenchmarkExternalMergeSort {
   private static final Format FORMAT = Format.defaultInstance();
   private static final int ITEM_SIZE_BYTES = 76;
-  private static final byte[] TEST_DATA = new byte[ITEM_SIZE_BYTES - Long.BYTES - Integer.BYTES];
+  private static final int DISK_OVERHEAD_BYTES = Long.BYTES + Integer.BYTES;
+  private static final int ITEM_DATA_BYTES = ITEM_SIZE_BYTES - DISK_OVERHEAD_BYTES;
+  private static final int MEMORY_OVERHEAD_BYTES = 8 + 16 + 8 + 8 + 24;
+  private static final int ITEM_MEMORY_BYTES = MEMORY_OVERHEAD_BYTES + ITEM_DATA_BYTES;
+  private static final byte[] TEST_DATA = new byte[ITEM_DATA_BYTES];
   static {
     ThreadLocalRandom.current().nextBytes(TEST_DATA);
   }
 
   public static void main(String[] args) {
-    double gb = args.length == 0 ? 1 : Double.parseDouble(args[0]);
+    double gb = args.length < 1 ? 1 : Double.parseDouble(args[0]);
     long number = (long) (gb * 1_000_000_000 / ITEM_SIZE_BYTES);
     Path path = Path.of("./featuretest");
     FileUtils.delete(path);
@@ -39,34 +43,40 @@ public class BenchmarkExternalMergeSort {
     var config = PlanetilerConfig.defaults();
     try {
       List<Results> results = new ArrayList<>();
-      for (int limit : List.of(500_000_000, 2_000_000_000)) {
-        results.add(run(path, number, limit, false, true, true, config));
-        results.add(run(path, number, limit, true, true, true, config));
+      for (int chunks : List.of(100, 200, 500)) {
+        for (int readThreads : List.of(1, 2, 3, 4)) {
+          for (boolean mmap : List.of(false, true)) {
+            results.add(run(path, 1, readThreads, number, chunks, mmap, true, true, config));
+          }
+        }
       }
       for (var result : results) {
-        System.err.println(result);
+        System.err.println(result.chunks + "\t" + result.readThreads + "\t" + result.mmap + "\t" + result.read);
       }
     } finally {
       FileUtils.delete(path);
     }
   }
 
-
   private record Results(
     String write, String read, String sort,
-    int chunks, long items, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
+    int chunks,
+    int writeWorkers, int readThreads,
+    long items, int chunkSizeLimit, boolean gzip, boolean mmap, boolean parallelSort,
     boolean madvise
   ) {}
 
-  private static Results run(Path tmpDir, long items, int chunkSizeLimit, boolean mmap, boolean parallelSort,
-    boolean madvise, PlanetilerConfig config) {
+  private static Results run(Path tmpDir, int writeWorkers, int readThreads, long items, int numChunks,
+    boolean mmap, boolean parallelSort, boolean madvise, PlanetilerConfig config) {
+    long chunkSizeLimit = items * ITEM_MEMORY_BYTES / numChunks;
+    if (chunkSizeLimit > Integer.MAX_VALUE) {
+      throw new IllegalStateException("Chunk size too big: " + chunkSizeLimit);
+    }
     boolean gzip = false;
-    int writeWorkers = 1;
     int sortWorkers = Runtime.getRuntime().availableProcessors();
-    int readWorkers = 1;
     FileUtils.delete(tmpDir);
     var sorter =
-      new ExternalMergeSort(tmpDir, sortWorkers, chunkSizeLimit, gzip, mmap, parallelSort, madvise, config,
+      new ExternalMergeSort(tmpDir, sortWorkers, (int) chunkSizeLimit, gzip, mmap, parallelSort, madvise, config,
         Stats.inMemory());
 
     var writeTimer = Timer.start();
@@ -78,7 +88,7 @@ public class BenchmarkExternalMergeSort {
     sortTimer.stop();
 
     var readTimer = Timer.start();
-    doReads(readWorkers, items, sorter);
+    doReads(readThreads, items, sorter);
     readTimer.stop();
 
     return new Results(
@@ -86,8 +96,10 @@ public class BenchmarkExternalMergeSort {
       FORMAT.numeric(items * NANOSECONDS_PER_SECOND / readTimer.elapsed().wall().toNanos()) + "/s",
       FORMAT.duration(sortTimer.elapsed().wall()),
       sorter.chunks(),
+      writeWorkers,
+      readThreads,
       items,
-      chunkSizeLimit,
+      (int) chunkSizeLimit,
       gzip,
       mmap,
       parallelSort,
@@ -95,11 +107,12 @@ public class BenchmarkExternalMergeSort {
     );
   }
 
-  private static void doReads(int readWorkers, long items, ExternalMergeSort sorter) {
+  private static void doReads(int threads, long items, ExternalMergeSort sorter) {
     var counters = Counter.newMultiThreadCounter();
-    var reader = new Worker("read", Stats.inMemory(), readWorkers, () -> {
+    Iterable<SortableFeature> q = threads > 1 ? sorter.parallelIterator(Stats.inMemory(), threads) : sorter;
+    var reader = new Worker("read", Stats.inMemory(), 1, () -> {
       var counter = counters.counterForThread();
-      for (var ignored : sorter) {
+      for (var ignored : q) {
         counter.inc();
       }
     });
@@ -108,20 +121,28 @@ public class BenchmarkExternalMergeSort {
       .addFileSize(sorter)
       .newLine()
       .addProcessStats()
-      .newLine()
-      .addThreadPoolStats("reader", reader);
+      .newLine();
+    if (q instanceof FeatureSort.ParallelIterator pi) {
+      loggers
+        .addThreadPoolStats("read", pi.reader())
+        .addThreadPoolStats("merge", reader);
+    } else {
+      loggers.addThreadPoolStats("read", reader);
+    }
     reader.awaitAndLog(loggers, Duration.ofSeconds(1));
   }
 
   private static void doWrites(int writeWorkers, long items, ExternalMergeSort sorter) {
     var counters = Counter.newMultiThreadCounter();
     var writer = new Worker("write", Stats.inMemory(), writeWorkers, () -> {
-      var counter = counters.counterForThread();
-      var random = ThreadLocalRandom.current();
-      long toWrite = items / writeWorkers;
-      for (long i = 0; i < toWrite; i++) {
-        sorter.add(new SortableFeature(random.nextLong(), TEST_DATA));
-        counter.inc();
+      try (var writerForThread = sorter.writerForThread()) {
+        var counter = counters.counterForThread();
+        var random = ThreadLocalRandom.current();
+        long toWrite = items / writeWorkers;
+        for (long i = 0; i < toWrite; i++) {
+          writerForThread.accept(new SortableFeature(random.nextLong(), TEST_DATA));
+          counter.inc();
+        }
       }
     });
     ProgressLoggers loggers = ProgressLoggers.create()

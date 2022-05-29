@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.mbtiles;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
 
+import com.carrotsearch.hppc.IntIntHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,15 +21,18 @@ import java.sql.Statement;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -57,6 +61,23 @@ public final class Mbtiles implements Closeable {
   );
   private static final String TILES_COL_DATA = "tile_data";
 
+  private static final String TILES_DATA_TABLE = "tiles_data";
+  private static final String TILES_DATA_COL_DATA_ID = "tile_data_id";
+  private static final String TILES_DATA_COL_DATA = "tile_data";
+
+  private static final String TILES_SHALLOW_TABLE = "tiles_shallow";
+  private static final String TILES_SHALLOW_COL_X = TILES_COL_X;
+  private static final String TILES_SHALLOW_COL_Y = TILES_COL_Y;
+  private static final String TILES_SHALLOW_COL_Z = TILES_COL_Z;
+  private static final String TILES_SHALLOW_COL_DATA_ID = TILES_DATA_COL_DATA_ID;
+  private static final String ADD_TILES_SHALLOW_INDEX_SQL =
+    "create unique index tiles_shallow_index on %s (%s, %s, %s)".formatted(
+      TILES_SHALLOW_TABLE,
+      TILES_SHALLOW_COL_Z,
+      TILES_SHALLOW_COL_X,
+      TILES_SHALLOW_COL_Y
+    );
+
   private static final String METADATA_TABLE = "metadata";
   private static final String METADATA_COL_NAME = "name";
   private static final String METADATA_COL_VALUE = "value";
@@ -77,24 +98,31 @@ public final class Mbtiles implements Closeable {
 
   private final Connection connection;
   private PreparedStatement getTileStatement = null;
+  private final boolean compactDb;
 
-  public Mbtiles(Connection connection) {
+  private Mbtiles(Connection connection, boolean compactDb) {
     this.connection = connection;
+    this.compactDb = compactDb;
   }
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
-  public static Mbtiles newInMemoryDatabase() {
+  public static Mbtiles newInMemoryDatabase(boolean compactDb) {
     try {
       SQLiteConfig config = new SQLiteConfig();
       config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:", config.toProperties()));
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:", config.toProperties()), compactDb);
     } catch (SQLException throwables) {
       throw new IllegalStateException("Unable to create in-memory database", throwables);
     }
   }
 
+  /** @see {@link #newInMemoryDatabase(boolean)} */
+  public static Mbtiles newInMemoryDatabase() {
+    return newInMemoryDatabase(false);
+  }
+
   /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
-  public static Mbtiles newWriteToFileDatabase(Path path) {
+  public static Mbtiles newWriteToFileDatabase(Path path, boolean compactDb) {
     try {
       SQLiteConfig config = new SQLiteConfig();
       config.setJournalMode(SQLiteConfig.JournalMode.OFF);
@@ -103,7 +131,8 @@ public final class Mbtiles implements Closeable {
       config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
       config.setTempStore(SQLiteConfig.TempStore.MEMORY);
       config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()));
+      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()),
+        compactDb);
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
     }
@@ -121,7 +150,7 @@ public final class Mbtiles implements Closeable {
       // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
       Connection connection = DriverManager
         .getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties());
-      return new Mbtiles(connection);
+      return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
     }
@@ -136,29 +165,81 @@ public final class Mbtiles implements Closeable {
     }
   }
 
-  private Mbtiles execute(String... queries) {
+  private Mbtiles execute(Collection<String> queries) {
     for (String query : queries) {
       try (var statement = connection.createStatement()) {
-        LOGGER.debug("Execute mbtiles: " + query);
+        LOGGER.debug("Execute mbtiles: {}", query);
         statement.execute(query);
       } catch (SQLException throwables) {
-        throw new IllegalStateException("Error executing queries " + Arrays.toString(queries), throwables);
+        throw new IllegalStateException("Error executing queries " + String.join(",", queries), throwables);
       }
     }
     return this;
   }
 
+  private Mbtiles execute(String... queries) {
+    return execute(Arrays.asList(queries));
+  }
+
   public Mbtiles addTileIndex() {
-    return execute(ADD_TILE_INDEX_SQL);
+    if (compactDb) {
+      return execute(ADD_TILES_SHALLOW_INDEX_SQL);
+    } else {
+      return execute(ADD_TILE_INDEX_SQL);
+    }
   }
 
   public Mbtiles createTables() {
-    return execute(
-      "create table " + METADATA_TABLE + " (" + METADATA_COL_NAME + " text, " + METADATA_COL_VALUE + " text);",
-      "create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");",
-      "create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " + TILES_COL_Y +
-        ", " + TILES_COL_DATA + " blob);"
-    );
+
+    List<String> ddlStatements = new ArrayList<>();
+
+    ddlStatements
+      .add("create table " + METADATA_TABLE + " (" + METADATA_COL_NAME + " text, " + METADATA_COL_VALUE + " text);");
+    ddlStatements
+      .add("create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");");
+
+    if (compactDb) {
+      ddlStatements
+        .add("""
+          create table %s (
+            %s integer,
+            %s integer,
+            %s integer,
+            %s integer
+          )
+          """.formatted(TILES_SHALLOW_TABLE,
+          TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y, TILES_SHALLOW_COL_DATA_ID));
+      ddlStatements.add("""
+        create table %s (
+          %s integer primary key,
+          %s blob
+        )
+        """.formatted(TILES_DATA_TABLE, TILES_DATA_COL_DATA_ID, TILES_DATA_COL_DATA));
+      ddlStatements.add("""
+        create view %s AS
+        select
+          %s.%s as %s,
+          %s.%s as %s,
+          %s.%s as %s,
+          %s.%s as %s
+        from %s
+        join %s on %s.%s = %s.%s
+        """.formatted(
+        TILES_TABLE,
+        TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_Z, TILES_COL_Z,
+        TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_X, TILES_COL_X,
+        TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_Y, TILES_COL_Y,
+        TILES_DATA_TABLE, TILES_DATA_COL_DATA, TILES_COL_DATA,
+        TILES_SHALLOW_TABLE,
+        TILES_DATA_TABLE, TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_DATA_ID, TILES_DATA_TABLE, TILES_DATA_COL_DATA_ID
+      ));
+    } else {
+      ddlStatements.add("create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " +
+        TILES_COL_Y + ", " + TILES_COL_DATA + " blob);");
+    }
+
+
+    return execute(ddlStatements);
   }
 
   public Mbtiles vacuumAnalyze() {
@@ -168,9 +249,13 @@ public final class Mbtiles implements Closeable {
     );
   }
 
-  /** Returns a writer that queues up inserts into the tile database into large batches before executing them. */
+  /** Returns a writer that queues up inserts into the tile database(s) into large batches before executing them. */
   public BatchedTileWriter newBatchedTileWriter() {
-    return new BatchedTileWriter();
+    if (compactDb) {
+      return new BatchedCompactTileWriter();
+    } else {
+      return new BatchedNonCompactTileWriter();
+    }
   }
 
   /** Returns the contents of the metadata table. */
@@ -183,10 +268,8 @@ public final class Mbtiles implements Closeable {
       try {
         getTileStatement = connection.prepareStatement("""
           SELECT tile_data FROM %s
-          WHERE tile_column=?
-          AND tile_row=?
-          AND zoom_level=?
-          """.formatted(TILES_TABLE));
+          WHERE %s=? AND %s=? AND %s=?
+          """.formatted(TILES_TABLE, TILES_COL_X, TILES_COL_Y, TILES_COL_Z));
       } catch (SQLException throwables) {
         throw new IllegalStateException(throwables);
       }
@@ -205,7 +288,7 @@ public final class Mbtiles implements Closeable {
       stmt.setInt(2, (1 << z) - 1 - y);
       stmt.setInt(3, z);
       try (ResultSet rs = stmt.executeQuery()) {
-        return rs.next() ? rs.getBytes("tile_data") : null;
+        return rs.next() ? rs.getBytes(TILES_COL_DATA) : null;
       }
     } catch (SQLException throwables) {
       throw new IllegalStateException("Could not get tile", throwables);
@@ -215,11 +298,13 @@ public final class Mbtiles implements Closeable {
   public List<TileCoord> getAllTileCoords() {
     List<TileCoord> result = new ArrayList<>();
     try (Statement statement = connection.createStatement()) {
-      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
+      ResultSet rs = statement.executeQuery(
+        "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
+      );
       while (rs.next()) {
-        int z = rs.getInt("zoom_level");
-        int rawy = rs.getInt("tile_row");
-        int x = rs.getInt("tile_column");
+        int z = rs.getInt(TILES_COL_Z);
+        int rawy = rs.getInt(TILES_COL_Y);
+        int x = rs.getInt(TILES_COL_X);
         result.add(TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z));
       }
     } catch (SQLException throwables) {
@@ -312,7 +397,7 @@ public final class Mbtiles implements Closeable {
     }
   }
 
-  /** Contents of a row of the tiles table. */
+  /** Contents of a row of the tiles table, or in case of compact mode in the tiles view. */
   public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
 
     @Override
@@ -353,64 +438,92 @@ public final class Mbtiles implements Closeable {
     }
   }
 
-  /**
-   * A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches.
-   */
-  public class BatchedTileWriter implements AutoCloseable {
+  /** Contents of a row of the tiles_shallow table. */
+  private record TileShallowEntry(TileCoord coord, int tileDataId) {}
 
-    // max number of parameters in a prepared statements is 999
-    private static final int BATCH_SIZE = 999 / 4;
-    private final List<TileEntry> batch;
-    private final PreparedStatement batchStatement;
-    private final int batchLimit;
-
-    private BatchedTileWriter() {
-      batchLimit = BATCH_SIZE;
-      batch = new ArrayList<>(batchLimit);
-      batchStatement = createBatchStatement(batchLimit);
+  /** Contents of a row of the tiles_data table. */
+  private record TileDataEntry(int tileDataId, byte[] tileData) {
+    @Override
+    public String toString() {
+      return "TileDataEntry [tileDataId=" + tileDataId + ", tileData=" + Arrays.toString(tileData) + "]";
     }
 
-    @SuppressWarnings("java:S2077")
-    private PreparedStatement createBatchStatement(int size) {
-      List<String> groups = new ArrayList<>();
-      for (int i = 0; i < size; i++) {
-        groups.add("(?,?,?,?)");
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + Arrays.hashCode(tileData);
+      result = prime * result + Objects.hash(tileDataId);
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
       }
-      try {
-        return connection.prepareStatement("""
-          INSERT INTO %s (%s, %s, %s, %s) VALUES %s;
-          """.formatted(
-          TILES_TABLE,
-          TILES_COL_Z, TILES_COL_X, TILES_COL_Y,
-          TILES_COL_DATA,
-          String.join(", ", groups)
-        ));
-      } catch (SQLException throwables) {
-        throw new IllegalStateException("Could not create prepared statement", throwables);
+      if (!(obj instanceof TileDataEntry)) {
+        return false;
       }
+      TileDataEntry other = (TileDataEntry) obj;
+      return Arrays.equals(tileData, other.tileData) && tileDataId == other.tileDataId;
+    }
+  }
+
+  private abstract class BatchedTableWriterBase<T> implements AutoCloseable {
+
+    private static final int MAX_PARAMETERS_IN_PREPARED_STATEMENT = 999;
+    private final List<T> batch;
+    private final PreparedStatement batchStatement;
+    private final int batchLimit;
+    private final String insertStmtTableName;
+    private final boolean insertStmtInsertIgnore;
+    private final String insertStmtValuesPlaceHolder;
+    private final String insertStmtColumnsCsv;
+
+
+    protected BatchedTableWriterBase(String tableName, List<String> columns, boolean insertIgnore) {
+      batchLimit = MAX_PARAMETERS_IN_PREPARED_STATEMENT / columns.size();
+      batch = new ArrayList<>(batchLimit);
+      insertStmtTableName = tableName;
+      insertStmtInsertIgnore = insertIgnore;
+      insertStmtValuesPlaceHolder = columns.stream().map(c -> "?").collect(Collectors.joining(",", "(", ")"));
+      insertStmtColumnsCsv = columns.stream().collect(Collectors.joining(","));
+      batchStatement = createBatchInsertPreparedStatement(batchLimit);
     }
 
     /** Queue-up a write or flush to disk if enough are waiting. */
-    public void write(TileCoord tile, byte[] data) {
-      batch.add(new TileEntry(tile, data));
+    void write(T item) {
+      batch.add(item);
       if (batch.size() >= batchLimit) {
         flush(batchStatement);
+      }
+    }
+
+    protected abstract int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, T item)
+      throws SQLException;
+
+    private PreparedStatement createBatchInsertPreparedStatement(int size) {
+
+      final String sql = "INSERT %s INTO %s (%s) VALUES %s;".formatted(
+        insertStmtInsertIgnore ? "OR IGNORE" : "",
+        insertStmtTableName,
+        insertStmtColumnsCsv,
+        IntStream.range(0, size).mapToObj(i -> insertStmtValuesPlaceHolder).collect(Collectors.joining(", "))
+      );
+
+      try {
+        return connection.prepareStatement(sql);
+      } catch (SQLException throwables) {
+        throw new IllegalStateException("Could not create prepared statement", throwables);
       }
     }
 
     private void flush(PreparedStatement statement) {
       try {
         int pos = 1;
-        for (TileEntry tile : batch) {
-          TileCoord coord = tile.tile();
-          int x = coord.x();
-          int y = coord.y();
-          int z = coord.z();
-          statement.setInt(pos++, z);
-          statement.setInt(pos++, x);
-          // flip Y
-          statement.setInt(pos++, (1 << z) - 1 - y);
-          statement.setBytes(pos++, tile.bytes());
+        for (T item : batch) {
+          pos = setParamsInStatementForItem(pos, statement, item);
         }
         statement.execute();
         batch.clear();
@@ -421,16 +534,159 @@ public final class Mbtiles implements Closeable {
 
     @Override
     public void close() {
-      try {
-        if (batch.size() > 0) {
-          try (var lastBatch = createBatchStatement(batch.size())) {
-            flush(lastBatch);
-          }
+      if (!batch.isEmpty()) {
+        try (var lastBatch = createBatchInsertPreparedStatement(batch.size())) {
+          flush(lastBatch);
+        } catch (SQLException throwables) {
+          throw new IllegalStateException("Error flushing batch", throwables);
         }
+      }
+      try {
         batchStatement.close();
       } catch (SQLException throwables) {
         LOGGER.warn("Error closing prepared statement", throwables);
       }
+    }
+
+  }
+
+
+  private class BatchedTileTableWriter extends BatchedTableWriterBase<TileEntry> {
+
+    private static final List<String> COLUMNS = List.of(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA);
+
+    BatchedTileTableWriter() {
+      super(TILES_TABLE, COLUMNS, false);
+    }
+
+    @Override
+    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileEntry tile)
+      throws SQLException {
+
+      TileCoord coord = tile.tile();
+      int x = coord.x();
+      int y = coord.y();
+      int z = coord.z();
+      statement.setInt(positionOffset++, z);
+      statement.setInt(positionOffset++, x);
+      // flip Y
+      statement.setInt(positionOffset++, (1 << z) - 1 - y);
+      statement.setBytes(positionOffset++, tile.bytes());
+      return positionOffset;
+    }
+  }
+
+  private class BatchedTileShallowTableWriter extends BatchedTableWriterBase<TileShallowEntry> {
+
+    private static final List<String> COLUMNS =
+      List.of(TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y, TILES_SHALLOW_COL_DATA_ID);
+
+    BatchedTileShallowTableWriter() {
+      super(TILES_SHALLOW_TABLE, COLUMNS, false);
+    }
+
+    @Override
+    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileShallowEntry item)
+      throws SQLException {
+
+      TileCoord coord = item.coord();
+      int x = coord.x();
+      int y = coord.y();
+      int z = coord.z();
+      statement.setInt(positionOffset++, z);
+      statement.setInt(positionOffset++, x);
+      // flip Y
+      statement.setInt(positionOffset++, (1 << z) - 1 - y);
+      statement.setInt(positionOffset++, item.tileDataId());
+
+      return positionOffset;
+    }
+  }
+
+  private class BatchedTileDataTableWriter extends BatchedTableWriterBase<TileDataEntry> {
+
+    private static final List<String> COLUMNS = List.of(TILES_DATA_COL_DATA_ID, TILES_DATA_COL_DATA);
+
+    BatchedTileDataTableWriter() {
+      super(TILES_DATA_TABLE, COLUMNS, true);
+    }
+
+    @Override
+    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileDataEntry item)
+      throws SQLException {
+
+      statement.setInt(positionOffset++, item.tileDataId());
+      statement.setBytes(positionOffset++, item.tileData());
+
+      return positionOffset;
+    }
+  }
+
+
+  /**
+   * A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches.
+   */
+  public interface BatchedTileWriter extends AutoCloseable {
+    void write(TileEncodingResult encodingResult);
+
+    @Override
+    void close();
+  }
+
+  private class BatchedNonCompactTileWriter implements BatchedTileWriter {
+
+    private final BatchedTileTableWriter tableWriter = new BatchedTileTableWriter();
+
+    @Override
+    public void write(TileEncodingResult encodingResult) {
+      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
+    }
+
+    @Override
+    public void close() {
+      tableWriter.close();
+    }
+
+  }
+
+  private class BatchedCompactTileWriter implements BatchedTileWriter {
+
+    private final BatchedTileShallowTableWriter batchedTileShallowTableWriter = new BatchedTileShallowTableWriter();
+    private final BatchedTileDataTableWriter batchedTileDataTableWriter = new BatchedTileDataTableWriter();
+    private final IntIntHashMap tileDataIdByHash = new IntIntHashMap(1_000);
+
+    private int tileDataIdCounter = 1;
+
+    @Override
+    public void write(TileEncodingResult encodingResult) {
+      int tileDataId;
+      boolean writeData;
+      OptionalInt tileDataHashOpt = encodingResult.tileDataHash();
+
+      if (tileDataHashOpt.isPresent()) {
+        int tileDataHash = tileDataHashOpt.getAsInt();
+        if (tileDataIdByHash.containsKey(tileDataHash)) {
+          tileDataId = tileDataIdByHash.get(tileDataHash);
+          writeData = false;
+        } else {
+          tileDataId = tileDataIdCounter++;
+          tileDataIdByHash.put(tileDataHash, tileDataId);
+          writeData = true;
+        }
+      } else {
+        tileDataId = tileDataIdCounter++;
+        writeData = true;
+      }
+      if (writeData) {
+        batchedTileDataTableWriter.write(new TileDataEntry(tileDataId, encodingResult.tileData()));
+      }
+      batchedTileShallowTableWriter.write(new TileShallowEntry(encodingResult.coord(), tileDataId));
+    }
+
+    @Override
+    public void close() {
+      batchedTileShallowTableWriter.close();
+      batchedTileDataTableWriter.close();
     }
   }
 
@@ -450,7 +706,7 @@ public final class Mbtiles implements Closeable {
 
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
-        LOGGER.debug("Set mbtiles metadata: " + name + "=" + value);
+        LOGGER.debug("Set mbtiles metadata: {}={}", name, value);
         try (
           PreparedStatement statement = connection.prepareStatement(
             "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")

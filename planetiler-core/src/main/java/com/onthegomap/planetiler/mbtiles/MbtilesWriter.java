@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
+import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -47,6 +49,7 @@ public class MbtilesWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
+  private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final Mbtiles db;
@@ -56,13 +59,13 @@ public class MbtilesWriter {
   private final Counter.Readable[] tilesByZoom;
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
-  private final FeatureGroup features;
+  private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final MbtilesMetadata mbtilesMetadata;
 
-  private MbtilesWriter(FeatureGroup features, Mbtiles db, PlanetilerConfig config, MbtilesMetadata mbtilesMetadata,
-    Stats stats, LayerStats layerStats) {
-    this.features = features;
+  private MbtilesWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, Mbtiles db, PlanetilerConfig config,
+    MbtilesMetadata mbtilesMetadata, Stats stats, LayerStats layerStats) {
+    this.inputTiles = inputTiles;
     this.db = db;
     this.config = config;
     this.mbtilesMetadata = mbtilesMetadata;
@@ -89,7 +92,7 @@ public class MbtilesWriter {
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code outputPath}. */
   public static void writeOutput(FeatureGroup features, Path outputPath, MbtilesMetadata mbtilesMetadata,
     PlanetilerConfig config, Stats stats) {
-    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath)) {
+    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath, config.compactDb())) {
       writeOutput(features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + outputPath, e);
@@ -100,7 +103,27 @@ public class MbtilesWriter {
   public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize,
     MbtilesMetadata mbtilesMetadata, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("mbtiles");
-    MbtilesWriter writer = new MbtilesWriter(features, output, config, mbtilesMetadata, stats,
+
+    int readThreads = config.featureReadThreads();
+    int threads = config.threads();
+    int processThreads = threads < 10 ? threads : threads - readThreads;
+
+    // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
+    // when using 1 read thread we just have: (1 read & merge thread) -> ...
+    Worker readWorker = null;
+    Iterable<FeatureGroup.TileFeatures> inputTiles;
+    String secondStageName;
+    if (readThreads == 1) {
+      secondStageName = "read";
+      inputTiles = features;
+    } else {
+      secondStageName = "merge";
+      var reader = features.parallelIterator(readThreads);
+      inputTiles = reader.result();
+      readWorker = reader.readWorker();
+    }
+
+    MbtilesWriter writer = new MbtilesWriter(inputTiles, output, config, mbtilesMetadata, stats,
       features.layerStats());
 
     var pipeline = WorkerPipeline.start("mbtiles", stats);
@@ -122,7 +145,7 @@ public class MbtilesWriter {
        */
       WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
-        .<TileBatch>fromGenerator("read", next -> {
+        .<TileBatch>fromGenerator(secondStageName, next -> {
           var writerEnqueuer = writerQueue.threadLocalWriter();
           writer.readFeaturesAndBatch(batch -> {
             next.accept(batch);
@@ -132,7 +155,7 @@ public class MbtilesWriter {
           // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
         }, 1)
         .addBuffer("reader_queue", queueSize)
-        .sinkTo("encode", config.threads(), writer::tileEncoderSink);
+        .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
       // the tile writer will wait on the result of each batch to ensure tiles are written in order
       writeBranch = pipeline.readFromQueue(writerQueue)
@@ -145,9 +168,9 @@ public class MbtilesWriter {
        */
       encodeBranch = pipeline
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator("read", writer::readFeaturesAndBatch, 1)
+        .fromGenerator(secondStageName, writer::readFeaturesAndBatch, 1)
         .addBuffer("reader_queue", queueSize)
-        .addWorker("encoder", config.threads(), writer::tileEncoder)
+        .addWorker("encoder", processThreads, writer::tileEncoder)
         .addBuffer("writer_queue", queueSize)
         // use only 1 thread since tileWriter needs to be single-threaded
         .sinkTo("write", 1, writer::tileWriter);
@@ -160,8 +183,11 @@ public class MbtilesWriter {
       .addFileSize(fileSize)
       .newLine()
       .addProcessStats()
-      .newLine()
-      .addPipelineStats(encodeBranch)
+      .newLine();
+    if (readWorker != null) {
+      loggers.addThreadPoolStats("read", readWorker);
+    }
+    loggers.addPipelineStats(encodeBranch)
       .addPipelineStats(writeBranch)
       .newLine()
       .add(writer::getLastTileLogDetails);
@@ -195,7 +221,7 @@ public class MbtilesWriter {
     TileBatch batch = new TileBatch();
     long featuresInThisBatch = 0;
     long tilesInThisBatch = 0;
-    for (var feature : features) {
+    for (var feature : inputTiles) {
       int z = feature.tileCoord().z();
       if (z != currentZoom) {
         LOGGER.trace("Starting z{}", z);
@@ -231,18 +257,22 @@ public class MbtilesWriter {
      * recomputing if the input hasn't changed.
      */
     byte[] lastBytes = null, lastEncoded = null;
+    Integer lastTileDataHash = null;
+    boolean compactDb = config.compactDb();
 
     for (TileBatch batch : prev) {
-      Queue<Mbtiles.TileEntry> result = new ArrayDeque<>(batch.size());
+      Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
       FeatureGroup.TileFeatures last = null;
       // each batch contains tile ordered by z asc, x asc, y desc
       for (int i = 0; i < batch.in.size(); i++) {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
+        Integer tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
           encoded = lastEncoded;
+          tileDataHash = lastTileDataHash;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
@@ -256,12 +286,21 @@ public class MbtilesWriter {
               tileFeatures.tileCoord(),
               encoded.length / 1024);
           }
+          if (compactDb && tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
+            tileDataHash = tileFeatures.generateContentHash();
+          } else {
+            tileDataHash = null;
+          }
+          lastTileDataHash = tileDataHash;
         }
         int zoom = tileFeatures.tileCoord().z();
         int encodedLength = encoded == null ? 0 : encoded.length;
         totalTileSizesByZoom[zoom].incBy(encodedLength);
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
-        result.add(new Mbtiles.TileEntry(tileFeatures.tileCoord(), bytes));
+        result.add(
+          new TileEncodingResult(tileFeatures.tileCoord(), bytes,
+            tileDataHash == null ? OptionalInt.empty() : OptionalInt.of(tileDataHash))
+        );
       }
       // hand result off to writer
       batch.out.complete(result);
@@ -292,15 +331,15 @@ public class MbtilesWriter {
     TileCoord lastTile = null;
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
-    try (var batchedWriter = db.newBatchedTileWriter()) {
+    try (var batchedTileWriter = db.newBatchedTileWriter()) {
       for (TileBatch batch : tileBatches) {
-        Queue<Mbtiles.TileEntry> tiles = batch.out.get();
-        Mbtiles.TileEntry tile;
-        while ((tile = tiles.poll()) != null) {
-          TileCoord tileCoord = tile.tile();
+        Queue<TileEncodingResult> encodedTiles = batch.out.get();
+        TileEncodingResult encodedTile;
+        while ((encodedTile = encodedTiles.poll()) != null) {
+          TileCoord tileCoord = encodedTile.coord();
           assert lastTile == null || lastTile.compareTo(tileCoord) < 0 : "Tiles out of order %s before %s"
             .formatted(lastTile, tileCoord);
-          lastTile = tile.tile();
+          lastTile = encodedTile.coord();
           int z = tileCoord.z();
           if (z != currentZ) {
             if (time == null) {
@@ -311,8 +350,9 @@ public class MbtilesWriter {
             time = Timer.start();
             currentZ = z;
           }
-          batchedWriter.write(tile.tile(), tile.bytes());
-          stats.wroteTile(z, tile.bytes().length);
+          batchedTileWriter.write(encodedTile);
+
+          stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
           tilesByZoom[z].inc();
         }
         lastTileWritten.set(lastTile);
@@ -368,7 +408,7 @@ public class MbtilesWriter {
    */
   private record TileBatch(
     List<FeatureGroup.TileFeatures> in,
-    CompletableFuture<Queue<Mbtiles.TileEntry>> out
+    CompletableFuture<Queue<TileEncodingResult>> out
   ) {
 
     TileBatch() {

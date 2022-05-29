@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
@@ -50,6 +51,45 @@ class ParseTest {
   })
   void testDirection(String in, int out) {
     assertEquals(out, Parse.direction(in));
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "1, 1",
+    "100, 100",
+    "-1.23 m,  -1.23",
+    "100.2, 100.2",
+    "1m, 1",
+    "1meter, 1",
+    "100 meters, 100",
+    "1.5m, 1.5",
+    "1km, 1000",
+    "0.2km, 200",
+    "0.2 km, 200",
+    "1mi, 1609.344",
+    "1 mi, 1609.344",
+    "328', 99.974",
+    "328ft, 99.974",
+    "328'11\", 100.254",
+    "328ft 11in, 100.254",
+    "garbage, null",
+    "1nmi, 1852",
+    "1.5 nmi, 2778",
+    "1..5 nmi, null",
+    "36\", 0.9144",
+    "1'11\", 0.584",
+    "132.74', 40.4592",
+    "132'8.88\", 40.4592",
+    "1'11m, 0.305",
+    "1.5 smoots, null",
+  }, nullValues = "null")
+  void testLength(String in, Double out) {
+    Double result = Parse.meters(in);
+    if (out == null) {
+      assertNull(result);
+    } else {
+      assertEquals(result, out, 1e-3);
+    }
   }
 
   @ParameterizedTest

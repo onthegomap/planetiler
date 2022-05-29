@@ -113,14 +113,14 @@ public class MountainPeak implements
 
   @Override
   public void process(Tables.OsmPeakPoint element, FeatureCollector features) {
-    Integer meters = Parse.parseIntSubstring(element.ele());
+    Double meters = Parse.meters(element.ele());
     if (meters != null && Math.abs(meters) < 10_000) {
       var feature = features.point(LAYER_NAME)
         .setAttr(Fields.CLASS, element.source().getTag("natural"))
         .putAttrs(LanguageUtils.getNames(element.source().tags(), translations))
         .putAttrs(elevationTags(meters))
         .setSortKeyDescending(
-          meters +
+          meters.intValue() +
             (nullIfEmpty(element.wikipedia()) != null ? 10_000 : 0) +
             (nullIfEmpty(element.name()) != null ? 10_000 : 0)
         )

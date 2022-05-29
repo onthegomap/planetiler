@@ -9,9 +9,12 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,8 +47,7 @@ import org.slf4j.LoggerFactory;
  * supported (see {@link CommonStringEncoder})
  */
 @NotThreadSafe
-public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<FeatureGroup.TileFeatures>,
-  DiskBacked {
+public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, DiskBacked {
 
   public static final int SORT_KEY_BITS = 23;
   public static final int SORT_KEY_MAX = (1 << (SORT_KEY_BITS - 1)) - 1;
@@ -57,6 +59,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   private final CommonStringEncoder commonStrings;
   private final Stats stats;
   private final LayerStats layerStats = new LayerStats();
+  private volatile boolean prepared = false;
 
   FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEncoder commonStrings, Stats stats) {
     this.sorter = sorter;
@@ -121,6 +124,20 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     }
   }
 
+  static GeometryType decodeGeomType(byte geomTypeAndScale) {
+    return GeometryType.valueOf((byte) (geomTypeAndScale & 0b111));
+  }
+
+  static int decodeScale(byte geomTypeAndScale) {
+    return (geomTypeAndScale & 0xff) >>> 3;
+  }
+
+  static byte encodeGeomTypeAndScale(VectorTile.VectorGeometry geometry) {
+    assert geometry.geomType().asByte() >= 0 && geometry.geomType().asByte() <= 8;
+    assert geometry.scale() >= 0 && geometry.scale() < (1 << 5);
+    return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
+  }
+
   /**
    * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
    * features on elements in that layer, and their types.
@@ -132,8 +149,6 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
   public long numFeaturesWritten() {
     return sorter.numFeaturesWritten();
   }
-
-  public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
   /** Returns a function for a single thread to use to serialize rendered features. */
   public RenderedFeatureEncoder newRenderedFeatureEncoder() {
@@ -232,33 +247,32 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     return packer.toByteArray();
   }
 
-  static GeometryType decodeGeomType(byte geomTypeAndScale) {
-    return GeometryType.valueOf((byte) (geomTypeAndScale & 0b111));
+  /** Returns a new feature writer that can be used for a single thread. */
+  public CloseableConusmer<SortableFeature> writerForThread() {
+    return sorter.writerForThread();
   }
 
-  static int decodeScale(byte geomTypeAndScale) {
-    return (geomTypeAndScale & 0xff) >>> 3;
-  }
-
-  static byte encodeGeomTypeAndScale(VectorTile.VectorGeometry geometry) {
-    assert geometry.geomType().asByte() >= 0 && geometry.geomType().asByte() <= 8;
-    assert geometry.scale() >= 0 && geometry.scale() < (1 << 5);
-    return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
-  }
-
-  /** Writes a serialized binary feature to intermediate storage. */
-  @Override
-  public void accept(SortableFeature entry) {
-    sorter.add(entry);
-  }
-
-  private volatile boolean prepared = false;
-
-  /** Iterates through features grouped by tile ID. */
   @Override
   public Iterator<TileFeatures> iterator() {
     prepare();
-    Iterator<SortableFeature> entries = sorter.iterator();
+    return groupIntoTiles(sorter.iterator());
+  }
+
+  /**
+   * Reads temp features using {@code threads} parallel threads and merges into a sorted list.
+   *
+   * @param threads The number of parallel read threads to spawn
+   * @return a {@link Reader} with a handle to the new read threads that were spawned, and in {@link Iterable} that can
+   *         be used to iterate over the results.
+   */
+  public Reader parallelIterator(int threads) {
+    prepare();
+    var parIter = sorter.parallelIterator(stats, threads);
+    return new Reader(parIter.reader(), () -> groupIntoTiles(parIter.iterator()));
+  }
+
+  private Iterator<TileFeatures> groupIntoTiles(Iterator<SortableFeature> entries) {
+    // entries are sorted by tile ID, so group consecutive entries in same tile into tiles
     if (!entries.hasNext()) {
       return Collections.emptyIterator();
     }
@@ -315,6 +329,10 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
     }
   }
 
+  public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
+
+  public record Reader(Worker readWorker, Iterable<TileFeatures> result) {}
+
   /** Features contained in a single tile. */
   public class TileFeatures {
 
@@ -326,6 +344,18 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
 
     private TileFeatures(int tileCoord) {
       this.tileCoord = TileCoord.decode(tileCoord);
+    }
+
+    private static void unscale(List<VectorTile.Feature> features) {
+      for (int i = 0; i < features.size(); i++) {
+        var feature = features.get(i);
+        if (feature != null) {
+          VectorTile.VectorGeometry geometry = feature.geometry();
+          if (geometry.scale() != 0) {
+            features.set(i, feature.copyWithNewGeometry(geometry.unscale()));
+          }
+        }
+      }
     }
 
     /** Returns the number of features read including features discarded from being over the limit in a group. */
@@ -340,6 +370,22 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
 
     public TileCoord tileCoord() {
       return tileCoord;
+    }
+
+    /**
+     * Generates a hash over the feature's relevant data: layer, geometry, and attributes. The coordinates are
+     * <b>not</b> part of the hash.
+     * <p>
+     * Used as an optimization to avoid writing the same (ocean) tiles over and over again.
+     */
+    public int generateContentHash() {
+      int hash = Hashing.FNV1_32_INIT;
+      for (var feature : entries) {
+        byte layerId = extractLayerIdFromKey(feature.key());
+        hash = Hashing.fnv1a32(hash, layerId);
+        hash = Hashing.fnv1a32(hash, feature.value());
+      }
+      return hash;
     }
 
     /**
@@ -363,6 +409,7 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       }
       return true;
     }
+
 
     private VectorTile.Feature decodeVectorTileFeature(SortableFeature entry) {
       try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(entry.value())) {
@@ -430,18 +477,6 @@ public final class FeatureGroup implements Consumer<SortableFeature>, Iterable<F
       }
       postProcessAndAddLayerFeatures(encoder, currentLayer, items);
       return encoder;
-    }
-
-    private static void unscale(List<VectorTile.Feature> features) {
-      for (int i = 0; i < features.size(); i++) {
-        var feature = features.get(i);
-        if (feature != null) {
-          VectorTile.VectorGeometry geometry = feature.geometry();
-          if (geometry.scale() != 0) {
-            features.set(i, feature.copyWithNewGeometry(geometry.unscale()));
-          }
-        }
-      }
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
