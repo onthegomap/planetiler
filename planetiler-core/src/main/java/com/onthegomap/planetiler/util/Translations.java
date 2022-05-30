@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.util;
 
-import com.ibm.icu.text.Transliterator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +15,8 @@ import java.util.Set;
  * wikidata} tag on a source feature points to.
  */
 public class Translations {
+  private static final ThreadLocal<ThreadLocalTransliterator> TRANSLITERATOR =
+    ThreadLocal.withInitial(ThreadLocalTransliterator::new);
 
   private boolean shouldTransliterate = true;
   private final Set<String> languageSet;
@@ -111,19 +112,15 @@ public class Translations {
     @Override
     public Map<String, String> getNameTranslations(Map<String, Object> tags) {
       Map<String, String> result = new HashMap<>();
-      for (String key : tags.keySet()) {
-        if (key.startsWith("name:")) {
-          Object value = tags.get(key);
-          if (value instanceof String stringVal) {
-            result.put(key, stringVal);
-          }
+      for (var entry : tags.entrySet()) {
+        String key = entry.getKey();
+        if (key.startsWith("name:") && entry.getValue()instanceof String stringVal) {
+          result.put(key, stringVal);
         }
       }
       return result;
     }
   }
-
-  private static final Transliterator TO_LATIN_TRANSLITERATOR = Transliterator.getInstance("Any-Latin");
 
   /**
    * Attempts to translate non-latin characters to latin characters that preserve the <em>sound</em> of the word (as
@@ -133,6 +130,7 @@ public class Translations {
    * of running in multiple threads, so exhaust all other options first.
    */
   public static String transliterate(String input) {
-    return input == null ? null : TO_LATIN_TRANSLITERATOR.transform(input);
+    return input == null ? null : TRANSLITERATOR.get().transliterate(input);
   }
 }
+
