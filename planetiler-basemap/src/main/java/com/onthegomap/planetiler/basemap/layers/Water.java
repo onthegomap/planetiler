@@ -36,15 +36,20 @@ See https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md for deta
 package com.onthegomap.planetiler.basemap.layers;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureMerge;
+import com.onthegomap.planetiler.ForwardingProfile;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.basemap.generated.OpenMapTilesSchema;
 import com.onthegomap.planetiler.basemap.generated.Tables;
 import com.onthegomap.planetiler.basemap.util.Utils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Translations;
+import java.util.List;
 
 /**
  * Defines the logic for generating map elements for oceans and lakes in the {@code water} layer from source features.
@@ -56,7 +61,8 @@ public class Water implements
   OpenMapTilesSchema.Water,
   Tables.OsmWaterPolygon.Handler,
   BasemapProfile.NaturalEarthProcessor,
-  BasemapProfile.OsmWaterPolygonProcessor {
+  BasemapProfile.OsmWaterPolygonProcessor,
+  ForwardingProfile.FeaturePostProcessor {
 
   /*
    * At low zoom levels, use natural earth for oceans and major lakes, and at high zoom levels
@@ -66,9 +72,11 @@ public class Water implements
    */
 
   private final MultiExpression.Index<String> classMapping;
+  private final PlanetilerConfig config;
 
   public Water(Translations translations, PlanetilerConfig config, Stats stats) {
     this.classMapping = FieldMappings.Class.index();
+    this.config = config;
   }
 
   @Override
@@ -115,5 +123,10 @@ public class Water implements
         .setAttrWithMinzoom(Fields.BRUNNEL, Utils.brunnel(element.isBridge(), element.isTunnel()), 12)
         .setAttr(Fields.CLASS, clazz);
     }
+  }
+
+  @Override
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
+    return items.size() > 1 ? FeatureMerge.mergeOverlappingPolygons(items, config.minFeatureSize(zoom)) : items;
   }
 }
