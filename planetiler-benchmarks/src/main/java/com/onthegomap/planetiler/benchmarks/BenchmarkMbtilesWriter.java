@@ -68,10 +68,7 @@ public class BenchmarkMbtilesWriter {
       Path outputPath = getTempOutputPath();
       try (var mbtiles = Mbtiles.newWriteToFileDatabase(outputPath, config.compactDb())) {
 
-        mbtiles.createTables();
-        if (!config.deferIndexCreation()) {
-          mbtiles.addTileIndex();
-        }
+        mbtiles.createTables(config.deferIndexCreation());
 
         try (var writer = mbtiles.newBatchedTileWriter()) {
           Stopwatch sw = Stopwatch.createStarted();

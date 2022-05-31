@@ -309,11 +309,10 @@ public class MbtilesWriter {
   }
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
-    db.createTables();
-    if (!config.deferIndexCreation()) {
-      db.addTileIndex();
-    } else {
-      LOGGER.info("Deferring index creation. Add later by executing: {}", Mbtiles.ADD_TILE_INDEX_SQL);
+    db.createTables(config.deferIndexCreation());
+    if (config.deferIndexCreation() && LOGGER.isInfoEnabled()) {
+      LOGGER.info("Deferring index creation. Add later by executing: {}",
+        String.join(" ; ", db.getManualIndexCreationStatements()));
     }
 
     db.metadata()

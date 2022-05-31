@@ -1,9 +1,7 @@
 package com.onthegomap.planetiler.mbtiles;
 
 import static com.onthegomap.planetiler.TestUtils.assertSameJson;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
@@ -12,7 +10,9 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -37,10 +37,8 @@ class MbtilesTest {
     void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize, boolean compactDb)
       throws IOException, SQLException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
-      db.createTables();
-      if (!deferIndexCreation) {
-        db.addTileIndex();
-      }
+      db.createTables(deferIndexCreation);
+
       assertNull(db.getTile(0, 0, 0));
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
       try (var writer = db.newBatchedTileWriter()) {
@@ -57,9 +55,7 @@ class MbtilesTest {
           expected.add(entry);
         }
       }
-      if (deferIndexCreation) {
-        db.addTileIndex();
-      }
+
       if (optimize) {
         db.vacuumAnalyze();
       }
@@ -103,11 +99,27 @@ class MbtilesTest {
     testWriteTiles(10, false, true, false);
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void testManualIndexCreationStatements(boolean compactDb) throws IOException, SQLException {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
+      db.createTables(true);
+
+      List<String> indexCreationStmts = db.getManualIndexCreationStatements();
+      assertFalse(indexCreationStmts.isEmpty());
+      for (String indexCreationStmt : indexCreationStmts) {
+        try (Statement stmt = db.connection().createStatement()) {
+          assertDoesNotThrow(() -> stmt.execute(indexCreationStmt));
+        }
+      }
+    }
+  }
+
   @Test
   void testAddMetadata() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTables().metadata();
+      var metadata = db.createTables(true).metadata();
       metadata.setName("name value");
       expected.put("name", "name value");
 
@@ -144,7 +156,7 @@ class MbtilesTest {
   void testAddMetadataWorldBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTables().metadata();
+      var metadata = db.createTables(true).metadata();
       metadata.setBoundsAndCenter(GeoUtils.WORLD_LAT_LON_BOUNDS);
       expected.put("bounds", "-180,-85.05113,180,85.05113");
       expected.put("center", "0,0,0");
@@ -157,7 +169,7 @@ class MbtilesTest {
   void testAddMetadataSmallBounds() throws IOException {
     Map<String, String> expected = new TreeMap<>();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTables().metadata();
+      var metadata = db.createTables(true).metadata();
       metadata.setBoundsAndCenter(new Envelope(-73.6632, -69.7598, 41.1274, 43.0185));
       expected.put("bounds", "-73.6632,41.1274,-69.7598,43.0185");
       expected.put("center", "-71.7115,42.07295,7");
@@ -168,7 +180,7 @@ class MbtilesTest {
 
   private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTables().metadata();
+      var metadata = db.createTables(true).metadata();
       metadata.setJson(object);
       var actual = metadata.getAll().get("json");
       assertSameJson(expected, actual);
