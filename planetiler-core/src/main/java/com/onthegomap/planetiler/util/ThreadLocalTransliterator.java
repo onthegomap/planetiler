@@ -1,28 +1,30 @@
 package com.onthegomap.planetiler.util;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Objects;
-import java.util.function.UnaryOperator;
 
+/**
+ * A {@link com.ibm.icu.text.Transliterator} that does not share any static data with other thread local
+ * transliterators.
+ * <p>
+ * By default, {@link com.ibm.icu.text.Transliterator} synchronizes on static data during transliteration, which results
+ * in contention between threads when transliterating many strings in parallel. Separate instances of this class can be
+ * used across different threads in order to transliterate without contention.
+ */
 public class ThreadLocalTransliterator {
-  private final UnaryOperator<String> transliterator;
+  private final ClassLoader classLoader = DuplicateClassLoader.duplicateClassesWithPrefix("com.ibm.icu");
 
-  public String transliterate(String input) {
-    return transliterator.apply(input);
-  }
-
-  public ThreadLocalTransliterator() {
-    var c = new Cloader();
+  /**
+   * Returns a {@link com.ibm.icu.text.Transliterator} for {@code id} that does not share any data with transliterators
+   * on other threads.
+   */
+  public TransliteratorInstance getInstance(String id) {
     try {
-      Class<?> cls = c.loadClass("com.ibm.icu.text.Transliterator");
+      Class<?> cls = classLoader.loadClass("com.ibm.icu.text.Transliterator");
       Method getInstance = cls.getMethod("getInstance", String.class);
-      Object t = getInstance.invoke(null, "Any-Latin");
-      Method transform = cls.getMethod("transform", String.class);
-      transliterator = str -> {
+      Object t = getInstance.invoke(null, id);
+      Method transform = cls.getMethod("transliterate", String.class);
+      return str -> {
         try {
           return (String) transform.invoke(t, str);
         } catch (IllegalAccessException | InvocationTargetException e) {
@@ -34,27 +36,8 @@ public class ThreadLocalTransliterator {
     }
   }
 
-  private static class Cloader extends ClassLoader {
-    @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-      if (!name.startsWith("com.ibm.icu")) {
-        Class<?> c = findLoadedClass(name);
-        if (c == null) {
-          byte[] b = loadClassFromFile(name);
-          return defineClass(name, b, 0, b.length);
-        }
-      }
-      return super.loadClass(name);
-    }
-
-    private byte[] loadClassFromFile(String fileName) {
-      try {
-        return Objects.requireNonNull(
-          getClass().getClassLoader().getResourceAsStream(fileName.replace('.', File.separatorChar) + ".class"))
-          .readAllBytes();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
+  @FunctionalInterface
+  public interface TransliteratorInstance {
+    String transliterate(String input);
   }
 }

@@ -15,8 +15,8 @@ import java.util.Set;
  * wikidata} tag on a source feature points to.
  */
 public class Translations {
-  private static final ThreadLocal<ThreadLocalTransliterator> TRANSLITERATOR =
-    ThreadLocal.withInitial(ThreadLocalTransliterator::new);
+  private static final ThreadLocal<ThreadLocalTransliterator.TransliteratorInstance> TRANSLITERATOR =
+    ThreadLocal.withInitial(() -> new ThreadLocalTransliterator().getInstance("Any-Latin"));
 
   private boolean shouldTransliterate = true;
   private final Set<String> languageSet;
@@ -126,8 +126,7 @@ public class Translations {
    * Attempts to translate non-latin characters to latin characters that preserve the <em>sound</em> of the word (as
    * opposed to translation which attempts to preserve meaning) using ICU4j.
    * <p>
-   * NOTE: This can be expensive and transliteration is synchronized deep down in ICU4j internals which limits benefit
-   * of running in multiple threads, so exhaust all other options first.
+   * NOTE: This can be expensive and the quality is hit or miss, so exhaust all other options first.
    */
   public static String transliterate(String input) {
     return input == null ? null : TRANSLITERATOR.get().transliterate(input);
