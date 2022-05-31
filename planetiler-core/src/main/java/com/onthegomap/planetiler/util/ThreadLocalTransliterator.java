@@ -36,15 +36,15 @@ public class ThreadLocalTransliterator {
 
   private static class Cloader extends ClassLoader {
     @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-      if (!resolve && name.startsWith("com.ibm.icu")) {
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+      if (!name.startsWith("com.ibm.icu")) {
         Class<?> c = findLoadedClass(name);
         if (c == null) {
           byte[] b = loadClassFromFile(name);
           return defineClass(name, b, 0, b.length);
         }
       }
-      return super.loadClass(name, resolve);
+      return super.loadClass(name);
     }
 
     private byte[] loadClassFromFile(String fileName) {
