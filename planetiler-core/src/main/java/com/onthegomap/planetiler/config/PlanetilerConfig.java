@@ -142,7 +142,7 @@ public record PlanetilerConfig(
         false),
       arguments.getBoolean("compact_db",
         "Reduce the DB size by separating and deduping the tile data",
-        false)
+        true)
     );
   }
 

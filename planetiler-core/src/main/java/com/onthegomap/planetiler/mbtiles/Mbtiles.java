@@ -105,7 +105,7 @@ public final class Mbtiles implements Closeable {
 
   /** @see {@link #newInMemoryDatabase(boolean)} */
   public static Mbtiles newInMemoryDatabase() {
-    return newInMemoryDatabase(false);
+    return newInMemoryDatabase(true);
   }
 
   /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
@@ -170,7 +170,7 @@ public final class Mbtiles implements Closeable {
 
   /**
    * Creates the required tables (and views).
-   * 
+   *
    * @param skipIndexCreation skip index creation on some tables - in that case the indexes should be added later
    *                          manually
    * @return {@code this}
@@ -185,9 +185,9 @@ public final class Mbtiles implements Closeable {
       .add("create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");");
 
     if (compactDb) {
-      /* 
+      /*
        * "primary key without rowid" results in a clustered index which is much more compact and performant (r/w)
-       * than "unique" which results in a non-clustered index 
+       * than "unique" which results in a non-clustered index
        */
       String tilesShallowPrimaryKeyAddition = skipIndexCreation ? "" : """
         , primary key(%s,%s,%s)
