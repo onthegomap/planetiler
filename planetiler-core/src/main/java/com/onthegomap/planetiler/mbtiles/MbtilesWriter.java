@@ -309,9 +309,9 @@ public class MbtilesWriter {
   }
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
-    db.createTables(config.deferIndexCreation());
-    if (config.deferIndexCreation() && LOGGER.isInfoEnabled()) {
-      LOGGER.info("Deferring index creation. Add later by executing: {}",
+    db.createTables(config.skipIndexCreation());
+    if (config.skipIndexCreation() && LOGGER.isInfoEnabled()) {
+      LOGGER.info("Skipping index creation. Add later by executing: {}",
         String.join(" ; ", db.getManualIndexCreationStatements()));
     }
 

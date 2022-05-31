@@ -34,10 +34,10 @@ class MbtilesTest {
 
   private static final
 
-    void testWriteTiles(int howMany, boolean deferIndexCreation, boolean optimize, boolean compactDb)
+    void testWriteTiles(int howMany, boolean skipIndexCreation, boolean optimize, boolean compactDb)
       throws IOException, SQLException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
-      db.createTables(deferIndexCreation);
+      db.createTables(skipIndexCreation);
 
       assertNull(db.getTile(0, 0, 0));
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
@@ -90,7 +90,7 @@ class MbtilesTest {
   }
 
   @Test
-  void testDeferIndexCreation() throws IOException, SQLException {
+  void testSkipIndexCreation() throws IOException, SQLException {
     testWriteTiles(10, true, false, false);
   }
 
