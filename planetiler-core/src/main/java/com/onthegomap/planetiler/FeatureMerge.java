@@ -91,7 +91,8 @@ public class FeatureMerge {
       // - only 1 element in the group
       // - it doesn't need to be clipped
       // - and it can't possibly be filtered out for being too short
-      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0) {
+      // - and it does not need to be simplified
+      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && tolerance == 0) {
         result.add(feature1);
       } else {
         LineMerger merger = new LineMerger();
