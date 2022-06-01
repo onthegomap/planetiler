@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.util;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Objects;
@@ -41,8 +40,7 @@ public class DuplicateClassLoader extends ClassLoader {
   }
 
   private byte[] loadClassFromFile(String fileName) {
-    String classFileName = fileName.replace('.', File.separatorChar) + ".class";
-    System.err.println(classFileName);
+    String classFileName = fileName.replace('.', '/') + ".class";
     try (var inputStream = getClass().getClassLoader().getResourceAsStream(classFileName)) {
       return Objects.requireNonNull(inputStream, "Could not load " + fileName + " (" + classFileName + ")")
         .readAllBytes();
