@@ -42,8 +42,10 @@ public class DuplicateClassLoader extends ClassLoader {
 
   private byte[] loadClassFromFile(String fileName) {
     String classFileName = fileName.replace('.', File.separatorChar) + ".class";
+    System.err.println(classFileName);
     try (var inputStream = getClass().getClassLoader().getResourceAsStream(classFileName)) {
-      return Objects.requireNonNull(inputStream).readAllBytes();
+      return Objects.requireNonNull(inputStream, "Could not load " + fileName + " (" + classFileName + ")")
+        .readAllBytes();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
