@@ -15,6 +15,9 @@ import java.util.Set;
  * wikidata} tag on a source feature points to.
  */
 public class Translations {
+  // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+  // values when a task is finished and are not re-used.
+  @SuppressWarnings("java:S5164")
   private static final ThreadLocal<ThreadLocalTransliterator.TransliteratorInstance> TRANSLITERATOR =
     ThreadLocal.withInitial(() -> new ThreadLocalTransliterator().getInstance("Any-Latin"));
 
