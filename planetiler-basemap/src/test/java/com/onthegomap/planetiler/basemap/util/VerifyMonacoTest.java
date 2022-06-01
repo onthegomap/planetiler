@@ -37,13 +37,13 @@ class VerifyMonacoTest {
 
   @Test
   void testEmptyTablesInvalid() {
-    mbtiles.createTables(false);
+    mbtiles.createTablesWithIndexes();
     assertInvalid(mbtiles);
   }
 
   @Test
   void testStilInvalidWithOneTile() throws IOException {
-    mbtiles.createTables(false);
+    mbtiles.createTablesWithIndexes();
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {
       VectorTile tile = new VectorTile();

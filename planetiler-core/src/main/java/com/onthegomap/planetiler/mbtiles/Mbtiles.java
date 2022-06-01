@@ -169,13 +169,19 @@ public final class Mbtiles implements Closeable {
   }
 
   /**
-   * Creates the required tables (and views).
-   *
-   * @param skipIndexCreation skip index creation on some tables - in that case the indexes should be added later
-   *                          manually
-   * @return {@code this}
+   * Creates the required tables (and views) but skips index creation on some tables. Those indexes should be added
+   * later manually as described in {@code #getManualIndexCreationStatements()}.
    */
-  public Mbtiles createTables(boolean skipIndexCreation) {
+  public Mbtiles createTablesWithoutIndexes() {
+    return createTables(true);
+  }
+
+  /** Creates the required tables (and views) including all indexes. */
+  public Mbtiles createTablesWithIndexes() {
+    return createTables(false);
+  }
+
+  private Mbtiles createTables(boolean skipIndexCreation) {
 
     List<String> ddlStatements = new ArrayList<>();
 
@@ -232,9 +238,9 @@ public final class Mbtiles implements Closeable {
         TILES_DATA_TABLE, TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_DATA_ID, TILES_DATA_TABLE, TILES_DATA_COL_DATA_ID
       ));
     } else {
-      // here "unique" is much more compact than a "primary key without rowid" because the tile data is part of the table
+      // here "primary key (with rowid)" is much more compact than a "primary key without rowid" because the tile data is part of the table
       String tilesUniqueAddition = skipIndexCreation ? "" : """
-        , unique(%s,%s,%s)
+        , primary key(%s,%s,%s)
         """.formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y);
       ddlStatements.add("""
         create table %s (
