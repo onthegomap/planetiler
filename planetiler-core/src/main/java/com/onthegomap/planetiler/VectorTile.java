@@ -504,7 +504,7 @@ public class VectorTile {
         for (var feature : layer.encodedFeatures) {
           empty = false;
           if (!feature.geometry.isFill()) {
-            return false;
+            return isFill = false;
           }
         }
       }
