@@ -135,4 +135,3 @@ public class Translations {
     return input == null ? null : TRANSLITERATOR.get().transliterate(input);
   }
 }
-
