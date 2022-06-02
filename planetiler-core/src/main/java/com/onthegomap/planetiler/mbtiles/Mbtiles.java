@@ -53,12 +53,6 @@ public final class Mbtiles implements Closeable {
   private static final String TILES_COL_X = "tile_column";
   private static final String TILES_COL_Y = "tile_row";
   private static final String TILES_COL_Z = "zoom_level";
-  public static final String ADD_TILE_INDEX_SQL = "create unique index tile_index on %s (%s, %s, %s)".formatted(
-    TILES_TABLE,
-    TILES_COL_Z,
-    TILES_COL_X,
-    TILES_COL_Y
-  );
   private static final String TILES_COL_DATA = "tile_data";
 
   private static final String TILES_DATA_TABLE = "tiles_data";
@@ -70,13 +64,6 @@ public final class Mbtiles implements Closeable {
   private static final String TILES_SHALLOW_COL_Y = TILES_COL_Y;
   private static final String TILES_SHALLOW_COL_Z = TILES_COL_Z;
   private static final String TILES_SHALLOW_COL_DATA_ID = TILES_DATA_COL_DATA_ID;
-  private static final String ADD_TILES_SHALLOW_INDEX_SQL =
-    "create unique index tiles_shallow_index on %s (%s, %s, %s)".formatted(
-      TILES_SHALLOW_TABLE,
-      TILES_SHALLOW_COL_Z,
-      TILES_SHALLOW_COL_X,
-      TILES_SHALLOW_COL_Y
-    );
 
   private static final String METADATA_TABLE = "metadata";
   private static final String METADATA_COL_NAME = "name";
@@ -118,7 +105,7 @@ public final class Mbtiles implements Closeable {
 
   /** @see {@link #newInMemoryDatabase(boolean)} */
   public static Mbtiles newInMemoryDatabase() {
-    return newInMemoryDatabase(false);
+    return newInMemoryDatabase(true);
   }
 
   /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
@@ -181,15 +168,20 @@ public final class Mbtiles implements Closeable {
     return execute(Arrays.asList(queries));
   }
 
-  public Mbtiles addTileIndex() {
-    if (compactDb) {
-      return execute(ADD_TILES_SHALLOW_INDEX_SQL);
-    } else {
-      return execute(ADD_TILE_INDEX_SQL);
-    }
+  /**
+   * Creates the required tables (and views) but skips index creation on some tables. Those indexes should be added
+   * later manually as described in {@code #getManualIndexCreationStatements()}.
+   */
+  public Mbtiles createTablesWithoutIndexes() {
+    return createTables(true);
   }
 
-  public Mbtiles createTables() {
+  /** Creates the required tables (and views) including all indexes. */
+  public Mbtiles createTablesWithIndexes() {
+    return createTables(false);
+  }
+
+  private Mbtiles createTables(boolean skipIndexCreation) {
 
     List<String> ddlStatements = new ArrayList<>();
 
@@ -199,6 +191,13 @@ public final class Mbtiles implements Closeable {
       .add("create unique index name on " + METADATA_TABLE + " (" + METADATA_COL_NAME + ");");
 
     if (compactDb) {
+      /*
+       * "primary key without rowid" results in a clustered index which is much more compact and performant (r/w)
+       * than "unique" which results in a non-clustered index
+       */
+      String tilesShallowPrimaryKeyAddition = skipIndexCreation ? "" : """
+        , primary key(%s,%s,%s)
+        """.formatted(TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y);
       ddlStatements
         .add("""
           create table %s (
@@ -206,9 +205,14 @@ public final class Mbtiles implements Closeable {
             %s integer,
             %s integer,
             %s integer
-          )
+
+            %s
+          ) %s
           """.formatted(TILES_SHALLOW_TABLE,
-          TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y, TILES_SHALLOW_COL_DATA_ID));
+          TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y, TILES_SHALLOW_COL_DATA_ID,
+          tilesShallowPrimaryKeyAddition,
+          skipIndexCreation ? "" : "without rowid"));
+      // here it's not worth to skip the "primary key"/index - doing so even hurts write performance
       ddlStatements.add("""
         create table %s (
           %s integer primary key,
@@ -234,12 +238,37 @@ public final class Mbtiles implements Closeable {
         TILES_DATA_TABLE, TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_DATA_ID, TILES_DATA_TABLE, TILES_DATA_COL_DATA_ID
       ));
     } else {
-      ddlStatements.add("create table " + TILES_TABLE + " (" + TILES_COL_Z + " integer, " + TILES_COL_X + " integer, " +
-        TILES_COL_Y + ", " + TILES_COL_DATA + " blob);");
+      // here "primary key (with rowid)" is much more compact than a "primary key without rowid" because the tile data is part of the table
+      String tilesUniqueAddition = skipIndexCreation ? "" : """
+        , primary key(%s,%s,%s)
+        """.formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y);
+      ddlStatements.add("""
+        create table %s (
+          %s integer,
+          %s integer,
+          %s integer,
+          %s blob
+          %s
+        )
+        """.formatted(TILES_TABLE, TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, tilesUniqueAddition));
     }
 
-
     return execute(ddlStatements);
+  }
+
+  /** Returns the DDL statements to create the indexes manually when the option to skip index creation was chosen. */
+  public List<String> getManualIndexCreationStatements() {
+    if (compactDb) {
+      return List.of(
+        "create unique index tiles_shallow_index on %s (%s, %s, %s)"
+          .formatted(TILES_SHALLOW_TABLE, TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y)
+      );
+    } else {
+      return List.of(
+        "create unique index tile_index on %s (%s, %s, %s)"
+          .formatted(TILES_TABLE, TILES_COL_Z, TILES_COL_X, TILES_COL_Y)
+      );
+    }
   }
 
   public Mbtiles vacuumAnalyze() {

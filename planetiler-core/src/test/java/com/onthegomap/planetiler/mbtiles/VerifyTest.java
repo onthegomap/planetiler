@@ -37,13 +37,13 @@ class VerifyTest {
 
   @Test
   void testEmptyTablesInvalid() {
-    mbtiles.createTables().addTileIndex();
+    mbtiles.createTablesWithIndexes();
     assertInvalid(mbtiles);
   }
 
   @Test
   void testValidWithNameAndOneTile() throws IOException {
-    mbtiles.createTables().addTileIndex();
+    mbtiles.createTablesWithIndexes();
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {
       VectorTile tile = new VectorTile();
@@ -60,7 +60,7 @@ class VerifyTest {
 
   @Test
   void testInvalidGeometry() throws IOException {
-    mbtiles.createTables().addTileIndex();
+    mbtiles.createTablesWithIndexes();
     mbtiles.metadata().setName("name");
     try (var writer = mbtiles.newBatchedTileWriter()) {
       VectorTile tile = new VectorTile();

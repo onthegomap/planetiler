@@ -14,7 +14,7 @@ tools like [TileServer GL](https://github.com/maptiler/tileserver-gl) or even
 See [awesome-vector-tiles](https://github.com/mapbox/awesome-vector-tiles) for more projects that work with data in this
 format.
 
-Planetiler works by mapping input elements to rendered tile features, flattening them into a big list, then sorting by
+Planetiler works by mapping input elements to vector tile features, flattening them into a big list, then sorting by
 tile ID to group into tiles. See [ARCHITECTURE.md](ARCHITECTURE.md) for more details or
 this [blog post](https://medium.com/@onthegomap/dc419f3af75d?source=friends_link&sk=fb71eaa0e2b26775a9d98c81750ec10b)
 for more of the backstory.
@@ -143,7 +143,7 @@ Some other tools that generate vector tiles from OpenStreetMap data:
   on. It uses an intermediate postgres database and operates in two modes:
   1. Import data into database (~1 day) then serve vector tiles directly from the database. Tile serving is slower and
      requires bigger machines, but lets you easily incorporate realtime updates
-  2. Import data into database (~1 day) then prerender every tile for the planet into an mbtiles file which
+  2. Import data into database (~1 day) then pregenerate every tile for the planet into an mbtiles file which
      takes [over 100 days](https://github.com/openmaptiles/openmaptiles/issues/654#issuecomment-724606293)
      or a cluster of machines, but then tiles can be served faster on smaller machines
 - [Tilemaker](https://github.com/systemed/tilemaker) uses a similar approach to Planetiler (no intermediate database),
