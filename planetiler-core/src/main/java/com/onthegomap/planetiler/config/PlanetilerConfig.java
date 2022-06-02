@@ -18,7 +18,7 @@ public record PlanetilerConfig(
   Duration logInterval,
   int minzoom,
   int maxzoom,
-  boolean deferIndexCreation,
+  boolean skipIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
   boolean force,
@@ -98,7 +98,7 @@ public record PlanetilerConfig(
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
-      arguments.getBoolean("defer_mbtiles_index_creation", "skip adding index to mbtiles file", false),
+      arguments.getBoolean("skip_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
@@ -142,7 +142,7 @@ public record PlanetilerConfig(
         false),
       arguments.getBoolean("compact_db",
         "Reduce the DB size by separating and deduping the tile data",
-        false)
+        true)
     );
   }
 

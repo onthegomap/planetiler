@@ -68,9 +68,10 @@ public class BenchmarkMbtilesWriter {
       Path outputPath = getTempOutputPath();
       try (var mbtiles = Mbtiles.newWriteToFileDatabase(outputPath, config.compactDb())) {
 
-        mbtiles.createTables();
-        if (!config.deferIndexCreation()) {
-          mbtiles.addTileIndex();
+        if (config.skipIndexCreation()) {
+          mbtiles.createTablesWithoutIndexes();
+        } else {
+          mbtiles.createTablesWithIndexes();
         }
 
         try (var writer = mbtiles.newBatchedTileWriter()) {
@@ -101,7 +102,7 @@ public class BenchmarkMbtilesWriter {
     for (int z = 0; z <= 14; z++) {
       int maxCoord = 1 << z;
       for (int x = 0; x < maxCoord; x++) {
-        for (int y = 0; y < maxCoord; y++) {
+        for (int y = maxCoord - 1; y >= 0; y--) {
 
           TileCoord coord = TileCoord.ofXYZ(x, y, z);
           TileEncodingResult toWrite;
