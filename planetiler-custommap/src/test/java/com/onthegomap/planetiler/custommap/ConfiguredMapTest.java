@@ -38,14 +38,16 @@ class ConfiguredMapTest {
     Path dbPath = tmpDir.resolve("output.mbtiles");
     ConfiguredMapMain.main(
       "generate-custom",
+      // Use local data extracts instead of downloading
       "--schema=" + TestConfigurableUtils.pathToSample("owg_simple.yml"),
-      "--download",
+      "--osm_path=" + TestUtils.pathToResource("monaco-latest.osm.pbf"),
+      "--water_polygons_path=" + TestUtils.pathToResource("water-polygons-split-3857.zip"),
 
       // Override temp dir location
-      "--tmp=" + tmpDir.toString(),
+      "--tmp=" + tmpDir,
 
       // Override output location
-      "--mbtiles=" + dbPath.toString()
+      "--mbtiles=" + dbPath
     );
     mbtiles = Mbtiles.newReadOnlyDatabase(dbPath);
   }
@@ -80,7 +82,7 @@ class ConfiguredMapTest {
     }
   }
 
-  //  @Test --TODO FIX
+  //  @Test --TODO FIX after adding water layer
   void testContainsOceanPolyons() {
     assertMinFeatures("water", Map.of(
       "natural", "water"

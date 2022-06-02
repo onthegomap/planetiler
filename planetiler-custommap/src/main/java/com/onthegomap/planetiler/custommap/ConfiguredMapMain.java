@@ -15,6 +15,12 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
+/**
+ * Main driver to create maps configured by a YAML file.
+ *
+ * Parses the config file into a {@link ConfiguredProfile}, loads sources into {@link Planetiler} runner and kicks off
+ * the map generation process.
+ */
 public class ConfiguredMapMain {
 
   private static final Yaml yaml = new Yaml();
@@ -60,23 +66,25 @@ public class ConfiguredMapMain {
     throws URISyntaxException {
 
     DataSourceType sourceType = source.type();
+    Path localPath = source.localPath();
 
     switch (sourceType) {
       case OSM -> {
-        String area = source.url();
-        String[] areaParts = area.split("[:/]");
+        String url = source.url();
+        String[] areaParts = url.split("[:/]");
         String areaFilename = areaParts[areaParts.length - 1];
         String areaName = areaFilename.replaceAll("\\..*$", "");
-        if (source.localPath() != null) {
-          planetiler.addOsmSource(sourceName, source.localPath(), area);
-        } else {
-          planetiler.addOsmSource(sourceName, sourcesDir.resolve(areaName + ".osm.pbf"), area);
+        if (localPath == null) {
+          localPath = sourcesDir.resolve(areaName + ".osm.pbf");
         }
+        planetiler.addOsmSource(sourceName, localPath, url);
       }
       case SHAPEFILE -> {
         String url = source.url();
-        String filename = Paths.get(new URI(url).getPath()).getFileName().toString();
-        planetiler.addShapefileSource(sourceName, sourcesDir.resolve(filename), url);
+        if (localPath == null) {
+          localPath = sourcesDir.resolve(Paths.get(new URI(url).getPath()).getFileName().toString());
+        }
+        planetiler.addShapefileSource(sourceName, localPath, url);
       }
       default -> throw new IllegalArgumentException("Unhandled source " + sourceType);
     }

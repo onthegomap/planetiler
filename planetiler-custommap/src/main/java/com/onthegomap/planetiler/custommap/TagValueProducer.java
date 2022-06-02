@@ -9,6 +9,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
+/**
+ * Utility that parses attribute values from source features, based on YAML config.
+ */
 public class TagValueProducer {
 
   private static final String STRING_DATATYPE = "string";
@@ -61,31 +64,35 @@ public class TagValueProducer {
     });
   }
 
-  public BiFunction<WithTags, String, Object> getValueGetter(String key) {
+  /**
+   * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
+   */
+  public BiFunction<WithTags, String, Object> valueGetterForKey(String key) {
     return valueRetriever.getOrDefault(key, DEFAULT_GETTER);
   }
 
-  public Function<WithTags, Object> getValueProducer(String key) {
-    return withTags -> getValueGetter(key).apply(withTags, key);
+  /**
+   * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
+   */
+  public Function<WithTags, Object> valueProducerForKey(String key) {
+    var getter = valueGetterForKey(key);
+    return withTags -> getter.apply(withTags, key);
   }
 
-  public <T extends Object> Map<Object, T> remapKeysByType(String key, Map<Object, T> keyedMap) {
+  /**
+   * Returns copy of {@code keyedMap} where the keys have been transformed by the parser associated with {code key}.
+   */
+  public <T> Map<Object, T> remapKeysByType(String key, Map<Object, T> keyedMap) {
     Map<Object, T> newMap = new LinkedHashMap<>();
 
     String dataType = keyType.get(key);
+    UnaryOperator<Object> parser;
 
-    keyedMap.forEach((mapKey, value) -> {
-      if (dataType == null) {
-        newMap.put(mapKey, value);
-      } else {
-        var parser = inputParse.get(dataType);
-        if (parser == null) {
-          newMap.put(mapKey, value);
-        } else {
-          newMap.put(parser.apply(mapKey), value);
-        }
-      }
-    });
+    if (dataType == null || (parser = inputParse.get(dataType)) == null) {
+      newMap.putAll(keyedMap);
+    } else {
+      keyedMap.forEach((mapKey, value) -> newMap.put(parser.apply(mapKey), value));
+    }
 
     return newMap;
   }

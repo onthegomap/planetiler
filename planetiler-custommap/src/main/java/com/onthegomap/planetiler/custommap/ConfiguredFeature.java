@@ -24,9 +24,13 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 /**
- * A map feature, configured from a YML configuration file
+ * A map feature, configured from a YML configuration file.
+ *
+ * {@link #matchExpression()} returns a filtering expression to limit input elements to ones this feature cares about,
+ * and {@link #processFeature(SourceFeature, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
 
@@ -82,7 +86,7 @@ public class ConfiguredFeature {
 
   /**
    * Produce an index that matches tags from configuration and returns a minimum zoom level
-   * 
+   *
    * @param zoom the configured zoom overrides
    * @return an index
    */
@@ -101,7 +105,7 @@ public class ConfiguredFeature {
   /**
    * Takes the zoom override configuration for a single zoom level and returns an expression that matches tags for that
    * level.
-   * 
+   *
    * @param config zoom override for a single level
    * @return matching expression
    */
@@ -117,7 +121,7 @@ public class ConfiguredFeature {
 
   /**
    * Returns an expression that matches against single key with one or more values
-   * 
+   *
    * @param keyExpression a map containing a key and one or more values
    * @return a matching expression
    */
@@ -127,17 +131,17 @@ public class ConfiguredFeature {
     Object rawVal = keyExpression.getValue();
 
     if (rawVal instanceof List<?> tagValues) {
-      return Expression.matchAnyTyped(key, tagValueProducer.getValueGetter(key), tagValues);
+      return Expression.matchAnyTyped(key, tagValueProducer.valueGetterForKey(key), tagValues);
     }
 
-    return Expression.matchAnyTyped(key, tagValueProducer.getValueGetter(key), rawVal);
+    return Expression.matchAnyTyped(key, tagValueProducer.valueGetterForKey(key), rawVal);
   }
 
   /**
    * Produces logic that generates attribute values based on configuration and input data. If both a constantValue
    * configuration and a tagValue configuration are set, this is likely a mistake, and the constantValue will take
    * precedence.
-   * 
+   *
    * @param attribute - attribute definition configured from YML
    * @return a function that generates an attribute value from a {@link SourceFeature} based on an attribute
    *         configuration.
@@ -151,46 +155,44 @@ public class ConfiguredFeature {
 
     String tagVal = attribute.tagValue();
     if (tagVal != null) {
-      return tagValueProducer.getValueProducer(tagVal);
+      return tagValueProducer.valueProducerForKey(tagVal);
     }
 
     //Default to producing a tag identical to the input
-    return tagValueProducer.getValueProducer(attribute.key());
+    return tagValueProducer.valueProducerForKey(attribute.key());
   }
 
   /**
    * Generate logic which determines the minimum zoom level for a feature based on a configured pixel size limit.
-   * 
+   *
    * @param minTilePercent - minimum percentage of a tile that a feature must cover to be shown
    * @param minZoom        - global minimum zoom for this feature
    * @param minZoomByValue - map of tag values to zoom level
    * @return minimum zoom function
    */
-  private static BiFunction<SourceFeature, Object, Byte> attributeZoomThreshold(Double minTilePercent, byte minZoom,
-    Map<Object, Byte> minZoomByValue) {
+  private static BiFunction<SourceFeature, Object, Integer> attributeZoomThreshold(Double minTilePercent, int minZoom,
+    Map<Object, Integer> minZoomByValue) {
 
     if (minZoom == 0 && minZoomByValue.isEmpty()) {
       return null;
     }
 
-    Function<SourceFeature, Byte> staticZooms =
-      sf -> (byte) Math.max(minZoom,
-        minZoomFromTilePercent(sf, minTilePercent));
+    ToIntFunction<SourceFeature> staticZooms = sf -> Math.max(minZoom, minZoomFromTilePercent(sf, minTilePercent));
 
     if (minZoomByValue.isEmpty()) {
-      return (sf, key) -> staticZooms.apply(sf);
+      return (sf, key) -> staticZooms.applyAsInt(sf);
     }
 
     //Attribute value-specific zooms override static zooms
-    return (sourceFeature, key) -> minZoomByValue.getOrDefault(key, staticZooms.apply(sourceFeature));
+    return (sourceFeature, key) -> minZoomByValue.getOrDefault(key, staticZooms.applyAsInt(sourceFeature));
   }
 
-  private static byte minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
+  private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
     if (minTilePercent == null) {
       return 0;
     }
     try {
-      return (byte) (Math.log(minTilePercent / sf.area()) / LOG4);
+      return (int) (Math.log(minTilePercent / sf.area()) / LOG4);
     } catch (GeometryException e) {
       return 14;
     }
@@ -198,7 +200,7 @@ public class ConfiguredFeature {
 
   /**
    * Generates a function which produces a fully-configured attribute for a feature.
-   * 
+   *
    * @param attribute - configuration for this attribute
    * @return processing logic
    */
@@ -206,7 +208,7 @@ public class ConfiguredFeature {
     var tagKey = attribute.key();
 
     var attributeMinZoom = attribute.minZoom();
-    attributeMinZoom = attributeMinZoom == null ? 0 : attributeMinZoom.byteValue();
+    attributeMinZoom = attributeMinZoom == null ? 0 : attributeMinZoom;
 
     var minZoomByValue = attribute.minZoomByValue();
     minZoomByValue = minZoomByValue == null ? Map.of() : minZoomByValue;
@@ -227,7 +229,7 @@ public class ConfiguredFeature {
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
 
-    BiFunction<SourceFeature, Object, Byte> attributeZoomProducer =
+    BiFunction<SourceFeature, Object, Integer> attributeZoomProducer =
       attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
     if (attributeZoomProducer != null) {
@@ -247,18 +249,15 @@ public class ConfiguredFeature {
   }
 
   /**
-   * Determines whether to include a source feature in the tiles.
-   * 
-   * @param sourceFeature - source feature
-   * @return true if the feature will be rendered
+   * Returns an expression that evaluates to true if a source feature should be included in the output.
    */
-  public Expression matchData() {
+  public Expression matchExpression() {
     return Expression.and(geometryTest, tagTest);
   }
 
   /**
    * Generates a tile feature based on a source feature.
-   * 
+   *
    * @param sourceFeature - input source feature
    * @param features      - output rendered feature collector
    */

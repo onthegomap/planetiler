@@ -7,6 +7,9 @@ import com.onthegomap.planetiler.expression.Expression;
 import java.util.Collection;
 import java.util.Map;
 
+/**
+ * Utility that maps expressions in YAML format to {@link Expression Expressions}.
+ */
 public class TagCriteria {
 
   private TagCriteria() {
@@ -15,7 +18,7 @@ public class TagCriteria {
 
   /**
    * Returns a function that determines whether a source feature matches any of the entries in this specification
-   * 
+   *
    * @param map              a map of tag criteria
    * @param tagValueProducer a TagValueProducer
    * @return a predicate which returns true if this criteria matches
@@ -38,14 +41,14 @@ public class TagCriteria {
     } else if (value instanceof Collection<?> values) {
       return matchAnyTyped(
         key,
-        tagValueProducer.getValueGetter(key),
+        tagValueProducer.valueGetterForKey(key),
         values.stream().toList());
 
       //Otherwise, a key and single value were passed, so match that exact tag
     } else {
       return matchAnyTyped(
         key,
-        tagValueProducer.getValueGetter(key),
+        tagValueProducer.valueGetterForKey(key),
         value);
     }
   }

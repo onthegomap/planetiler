@@ -16,10 +16,12 @@ public record SchemaConfig(
   Collection<FeatureLayer> layers
 ) {
 
+  private static final String DEFAULT_ATTRIBUTION = """
+    <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+    """.trim();
+
   @Override
   public String attribution() {
-    return attribution == null ?
-      "<a href=\\\"https://www.openstreetmap.org/copyright\\\" target=\\\"_blank\\\">&copy; OpenStreetMap contributors</a>" :
-      attribution;
+    return attribution == null ? DEFAULT_ATTRIBUTION : attribution;
   }
 }
