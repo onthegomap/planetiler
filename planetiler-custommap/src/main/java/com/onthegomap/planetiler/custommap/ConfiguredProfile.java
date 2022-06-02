@@ -26,7 +26,7 @@ public class ConfiguredProfile implements Profile {
     this.schemaConfig = schemaConfig;
 
     Collection<FeatureLayer> layers = schemaConfig.layers();
-    if (layers == null) {
+    if (layers == null || layers.isEmpty()) {
       throw new IllegalArgumentException("No layers defined");
     }
 
