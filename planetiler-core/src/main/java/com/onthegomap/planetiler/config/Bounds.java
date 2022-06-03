@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Holds the bounds of the map to generate.
  * <p>
- * Call {@link #setFallbackProvider(Provider)} when input data source (i.e. {@link OsmInputFile}) is available to infer
+ * Call {@link #addFallbackProvider(Provider)} when input data source (i.e. {@link OsmInputFile}) is available to infer
  * bounds automatically. If no bounds are set, defaults to the entire planet.
  */
 public class Bounds {
@@ -41,11 +41,13 @@ public class Bounds {
   }
 
   /** If no bounds were set initially, then infer bounds now from {@code latLonProvider}. */
-  public Bounds setFallbackProvider(Provider latLonProvider) {
+  public Bounds addFallbackProvider(Provider latLonProvider) {
     if (latLon == null) {
       Envelope bounds = latLonProvider.getLatLonBounds();
-      LOGGER.info("Setting map bounds from input: " + bounds);
-      set(bounds);
+      if (bounds != null && !bounds.isNull() && bounds.getArea() > 0) {
+        LOGGER.info("Setting map bounds from input: {}", bounds);
+        set(bounds);
+      }
     }
     return this;
   }
