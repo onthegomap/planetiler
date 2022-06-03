@@ -21,7 +21,6 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -338,55 +337,95 @@ class VectorTileTest {
 
   @ParameterizedTest
   @CsvSource({
-    "true,-1,-1,257,257",
-    "true,-5,-5,260,260",
-    "false,-1,-1,254,254",
-    "false,0,-1,257,257",
-    "false,-1,0,257,257",
-    "false,-1,-1,256,257",
-    "false,-1,-1,257,256",
+    "true,true,-1,-1,257,257",
+    "true,true,-5,-5,260,260",
+    "false,false,-1,-1,254,254",
+    "true,false,0,-1,257,257",
+    "true,false,-1,0,257,257",
+    "true,false,-1,-1,256,257",
+    "true,false,-1,-1,257,256",
 
-    "false,0,0,1,1",
-    "false,1,1,2,2",
-    "false,1,1,2,2",
+    "false,false,0,0,1,1",
+    "false,false,1,1,2,2",
+    "false,false,1,1,2,2",
 
-    "false,-10,-10,-5,-5",
-    "false,260,-10,270,5",
-    "false,-10,260,-5,270",
-    "false,260,260,270,270",
+    "false,false,-10,-10,-5,-5",
+    "false,false,260,-10,270,5",
+    "false,false,-10,260,-5,270",
+    "false,false,260,260,270,270",
+
+    "true,false,1,-1,257,257",
+    "true,false,1,-1,255,257",
+    "false,false,1,-1,255,255",
   })
-  void testIsFill(boolean isFill, double x1, double y1, double x2, double y2) {
-    for (int scale = 0; scale < 4; scale++) {
-      assertEquals(isFill, VectorTile.encodeGeometry(rectangle(x1, y1, x2, y2), scale).isFill(), "scale=" + scale);
-    }
+  void testRectangleIsFillOrEdge(boolean isFillOrEdge, boolean isFill, double x1, double y1, double x2, double y2) {
+    assertIsFillOrEdge(isFillOrEdge, isFill, rectangle(x1, y1, x2, y2));
   }
 
   @Test
-  void testCrossBoundaryNotFill() {
-    assertFalse(VectorTile.encodeGeometry(newPolygon(
+  void testRectangleWithSlantedEdgeIsNotFill() {
+    assertIsFillOrEdge(false, false, newPolygon(
+      1, -1,
+      257, -1,
+      257, 257,
+      2, 257,
+      1, -1
+    ));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "true,1,-1,1,257",
+    "false,1,1,1,257",
+    "false,1,-1,1,255",
+    "false,1,-1,2,257"
+  })
+  void testLineIsEdge(boolean isFillOrEdge, double x1, double y1, double x2, double y2) {
+    assertIsFillOrEdge(isFillOrEdge, false, newLineString(
+      x1, y1,
+      x2, y2
+    ));
+  }
+
+  @Test
+  void testCrossBoundaryNotFillOrEdge() {
+    assertIsFillOrEdge(false, false, newPolygon(
       -1, -1,
       257, -1,
       -1, 257,
       -1, -1
-    ), 0).isFill());
-    assertFalse(VectorTile.encodeGeometry(newPolygon(
+    ));
+    assertIsFillOrEdge(false, false, newPolygon(
       257, -1,
       -1, 257,
       -1, -1,
       257, -1
-    ), 0).isFill());
-    assertFalse(VectorTile.encodeGeometry(newPolygon(
+    ));
+    assertIsFillOrEdge(false, false, newPolygon(
       -1, 257,
       -1, -1,
       257, -1,
       -1, 257
-    ), 0).isFill());
-    assertFalse(VectorTile.encodeGeometry(newPolygon(
+    ));
+    assertIsFillOrEdge(false, false, newPolygon(
       -1, -1,
       513, -1,
       -1, 513,
       -1, -1
-    ), 1).isFill());
+    ));
+  }
+
+  private static void assertIsFillOrEdge(boolean isFillOrEdge, boolean isFill, Geometry geom) {
+    for (int rotation : List.of(0, 90, 180, 270)) {
+      var rectangle =
+        AffineTransformation.rotationInstance(Math.PI * rotation / 180, 128, 128).transform(geom);
+      for (int scale = 0; scale < 4; scale++) {
+        assertEquals(isFillOrEdge, VectorTile.encodeGeometry(rectangle, scale).isFillOrEdge(),
+          "scale=" + scale + " rotation=" + rotation);
+        assertEquals(isFill, VectorTile.encodeGeometry(rectangle, scale).isFill(),
+          "scale=" + scale + " rotation=" + rotation);
+      }
+    }
   }
 
   private void testRoundTripAttrs(Map<String, Object> attrs) {

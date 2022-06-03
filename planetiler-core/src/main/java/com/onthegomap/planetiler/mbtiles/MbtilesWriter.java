@@ -281,7 +281,7 @@ public class MbtilesWriter {
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
           if (skipFilled) {
-            lastIsFill = en.containsOnlyPolygonFills();
+            lastIsFill = en.containsOnlyFills();
             if (lastIsFill) {
               continue;
             }
@@ -294,7 +294,7 @@ public class MbtilesWriter {
               tileFeatures.tileCoord(),
               encoded.length / 1024);
           }
-          if (compactDb && en.containsOnlyPolygonFills()) {
+          if (compactDb && en.containsOnlyFillsOrEdges()) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
             tileDataHash = null;
