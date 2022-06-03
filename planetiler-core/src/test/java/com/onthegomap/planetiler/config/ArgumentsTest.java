@@ -136,7 +136,7 @@ class ArgumentsTest {
       new Bounds(Arguments.of("bounds", "world").bounds("bounds", "bounds")).latLon());
     assertEquals(new Envelope(7.409205, 7.448637, 43.72335, 43.75169),
       new Bounds(Arguments.of().bounds("bounds", "bounds"))
-        .setFallbackProvider(new OsmInputFile(TestUtils.pathToResource("monaco-latest.osm.pbf")))
+        .addFallbackProvider(new OsmInputFile(TestUtils.pathToResource("monaco-latest.osm.pbf")))
         .latLon());
   }
 

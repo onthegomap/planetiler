@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
+import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
@@ -71,6 +72,7 @@ public class Planetiler {
   private final Path featureDbPath;
   private final boolean downloadSources;
   private final boolean onlyDownloadSources;
+  private final boolean parseNodeBounds;
   private Profile profile = null;
   private Function<Planetiler, Profile> profileProvider = null;
   private final PlanetilerConfig config;
@@ -104,6 +106,8 @@ public class Planetiler {
     multipolygonPath =
       arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
     featureDbPath = arguments.file("temp_features", "temp feature db location", tmpDir.resolve("feature.db"));
+    parseNodeBounds =
+      arguments.getBoolean("osm_parse_node_bounds", "parse bounds from OSM nodes instead of header", false);
   }
 
   /** Returns a new empty runner that will get configuration from {@code arguments}. */
@@ -471,11 +475,10 @@ public class Planetiler {
       throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
     }
 
-    LOGGER.info(
-      "Building " + profile.getClass().getSimpleName() + " profile into " + output + " in these phases:");
+    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output);
 
     if (!toDownload.isEmpty()) {
-      LOGGER.info("  download: Download sources " + toDownload.stream().map(d -> d.id).toList());
+      LOGGER.info("  download: Download sources {}", toDownload.stream().map(d -> d.id).toList());
     }
 
     if (!onlyDownloadSources && fetchWikidata) {
@@ -485,11 +488,11 @@ public class Planetiler {
     if (!onlyDownloadSources && !onlyFetchWikidata) {
       for (Stage stage : stages) {
         for (String details : stage.details) {
-          LOGGER.info("  " + details);
+          LOGGER.info("  {}", details);
         }
       }
       LOGGER.info("  sort: Sort rendered features by tile ID");
-      LOGGER.info("  mbtiles: Encode each tile and write to " + output);
+      LOGGER.info("  mbtiles: Encode each tile and write to {}", output);
     }
 
     // in case any temp files are left from a previous run...
@@ -515,7 +518,11 @@ public class Planetiler {
     if (osmInputFile != null) {
       checkDiskSpace();
       checkMemory();
-      config.bounds().setFallbackProvider(osmInputFile);
+      var bounds = config.bounds();
+      if (!parseNodeBounds) {
+        bounds.addFallbackProvider(osmInputFile);
+      }
+      bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
 
     featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
@@ -532,7 +539,7 @@ public class Planetiler {
     profile.release();
     for (var inputPath : inputPaths) {
       if (inputPath.freeAfterReading()) {
-        LOGGER.info("Deleting " + inputPath.id + "(" + inputPath.path + ") to make room for output file");
+        LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
         FileUtils.delete(inputPath.path());
       }
     }
