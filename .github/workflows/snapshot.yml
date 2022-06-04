@@ -35,6 +35,13 @@ jobs:
           server-password: MAVEN_PASSWORD
       - run: ./scripts/build-release.sh
       - run: ./scripts/test-release.sh
+      - run: sha256sum planetiler-dist/target/*with-deps.jar
+      - run: md5sum planetiler-dist/target/*with-deps.jar
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v3
+        with:
+          name: planetiler-build
+          path: planetiler-dist/target/*with-deps.jar
       - name: Install GPG Private Key
         run: |
           echo -n "${{ secrets.OSSRH_GPG_SECRET_KEY }}" | base64 --decode | gpg --batch --import

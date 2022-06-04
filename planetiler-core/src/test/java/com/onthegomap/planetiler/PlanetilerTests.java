@@ -1600,6 +1600,7 @@ class PlanetilerTests {
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
     "--emit-tiles-in-order=false",
     "--free-osm-after-read",
+    "--osm-parse-node-bounds",
   })
   void testPlanetilerRunner(String args) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");

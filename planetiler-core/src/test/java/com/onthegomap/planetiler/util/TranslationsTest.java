@@ -27,4 +27,9 @@ class TranslationsTest {
     assertEquals(Map.of("name:en", "en2", "name:es", "es1", "name:de", "de2"),
       translations.getTranslations(Map.of("name:en", "en1", "name:es", "es1")));
   }
+
+  @Test
+  void testTransliterate() {
+    assertEquals("rì běn", Translations.transliterate("日本"));
+  }
 }
