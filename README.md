@@ -21,7 +21,8 @@ for more of the backstory.
 
 ## Demo
 
-See the [live demo](https://onthegomap.github.io/planetiler-demo/) of vector tiles created by Planetiler.
+See the [live demo](https://onthegomap.github.io/planetiler-demo/) of vector tiles created by Planetiler and hosted by
+the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetmap-americana/).
 
 [![Planetiler Demo Screenshot](./diagrams/demo.png)](https://onthegomap.github.io/planetiler-demo/)
 Style [© OpenMapTiles](https://www.openmaptiles.org/)
