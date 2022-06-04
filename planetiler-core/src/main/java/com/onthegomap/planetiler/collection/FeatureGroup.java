@@ -378,12 +378,12 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
      * <p>
      * Used as an optimization to avoid writing the same (ocean) tiles over and over again.
      */
-    public int generateContentHash() {
-      int hash = Hashing.FNV1_32_INIT;
+    public long generateContentHash() {
+      long hash = Hashing.FNV1_64_INIT;
       for (var feature : entries) {
         byte layerId = extractLayerIdFromKey(feature.key());
-        hash = Hashing.fnv1a32(hash, layerId);
-        hash = Hashing.fnv1a32(hash, feature.value());
+        hash = Hashing.fnv1a64(hash, layerId);
+        hash = Hashing.fnv1a64(hash, feature.value());
       }
       return hash;
     }

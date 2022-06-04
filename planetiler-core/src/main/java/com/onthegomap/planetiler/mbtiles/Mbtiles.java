@@ -2,13 +2,14 @@ package com.onthegomap.planetiler.mbtiles;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
 
-import com.carrotsearch.hppc.IntIntHashMap;
+import com.carrotsearch.hppc.LongIntHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.util.Format;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -509,6 +511,7 @@ public final class Mbtiles implements Closeable {
     private final boolean insertStmtInsertIgnore;
     private final String insertStmtValuesPlaceHolder;
     private final String insertStmtColumnsCsv;
+    private long count = 0;
 
 
     protected BatchedTableWriterBase(String tableName, List<String> columns, boolean insertIgnore) {
@@ -523,6 +526,7 @@ public final class Mbtiles implements Closeable {
 
     /** Queue-up a write or flush to disk if enough are waiting. */
     void write(T item) {
+      count++;
       batch.add(item);
       if (batch.size() >= batchLimit) {
         flush(batchStatement);
@@ -559,6 +563,10 @@ public final class Mbtiles implements Closeable {
       } catch (SQLException throwables) {
         throw new IllegalStateException("Error flushing batch", throwables);
       }
+    }
+
+    public long count() {
+      return count;
     }
 
     @Override
@@ -660,6 +668,8 @@ public final class Mbtiles implements Closeable {
 
     @Override
     void close();
+
+    default void printStats() {}
   }
 
   private class BatchedNonCompactTileWriter implements BatchedTileWriter {
@@ -682,7 +692,7 @@ public final class Mbtiles implements Closeable {
 
     private final BatchedTileShallowTableWriter batchedTileShallowTableWriter = new BatchedTileShallowTableWriter();
     private final BatchedTileDataTableWriter batchedTileDataTableWriter = new BatchedTileDataTableWriter();
-    private final IntIntHashMap tileDataIdByHash = new IntIntHashMap(1_000);
+    private final LongIntHashMap tileDataIdByHash = new LongIntHashMap(1_000);
 
     private int tileDataIdCounter = 1;
 
@@ -690,10 +700,10 @@ public final class Mbtiles implements Closeable {
     public void write(TileEncodingResult encodingResult) {
       int tileDataId;
       boolean writeData;
-      OptionalInt tileDataHashOpt = encodingResult.tileDataHash();
+      OptionalLong tileDataHashOpt = encodingResult.tileDataHash();
 
       if (tileDataHashOpt.isPresent()) {
-        int tileDataHash = tileDataHashOpt.getAsInt();
+        long tileDataHash = tileDataHashOpt.getAsLong();
         if (tileDataIdByHash.containsKey(tileDataHash)) {
           tileDataId = tileDataIdByHash.get(tileDataHash);
           writeData = false;
@@ -716,6 +726,17 @@ public final class Mbtiles implements Closeable {
     public void close() {
       batchedTileShallowTableWriter.close();
       batchedTileDataTableWriter.close();
+    }
+
+    @Override
+    public void printStats() {
+      if (LOGGER.isDebugEnabled()) {
+        var format = Format.defaultInstance();
+        LOGGER.debug("Shallow tiles written: {}", format.integer(batchedTileShallowTableWriter.count()));
+        LOGGER.debug("Tile data written: {} ({} omitted)", format.integer(batchedTileDataTableWriter.count()),
+          format.percent(1d - batchedTileDataTableWriter.count() * 1d / batchedTileShallowTableWriter.count()));
+        LOGGER.debug("Unique tile hashes: {}", format.integer(tileDataIdByHash.size()));
+      }
     }
   }
 
