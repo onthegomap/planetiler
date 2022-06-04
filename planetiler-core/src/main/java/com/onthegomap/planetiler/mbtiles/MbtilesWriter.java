@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -257,7 +257,7 @@ public class MbtilesWriter {
      * recomputing if the input hasn't changed.
      */
     byte[] lastBytes = null, lastEncoded = null;
-    Integer lastTileDataHash = null;
+    Long lastTileDataHash = null;
     boolean compactDb = config.compactDb();
 
     for (TileBatch batch : prev) {
@@ -268,7 +268,7 @@ public class MbtilesWriter {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
-        Integer tileDataHash;
+        Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
           encoded = lastEncoded;
@@ -299,7 +299,7 @@ public class MbtilesWriter {
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         result.add(
           new TileEncodingResult(tileFeatures.tileCoord(), bytes,
-            tileDataHash == null ? OptionalInt.empty() : OptionalInt.of(tileDataHash))
+            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash))
         );
       }
       // hand result off to writer
@@ -361,6 +361,7 @@ public class MbtilesWriter {
         }
         lastTileWritten.set(lastTile);
       }
+      batchedTileWriter.printStats();
     }
 
     if (time != null) {
