@@ -3,13 +3,13 @@ package com.onthegomap.planetiler.mbtiles;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 
 public record TileEncodingResult(
   TileCoord coord,
   byte[] tileData,
   /** will always be empty in non-compact mode and might also be empty in compact mode */
-  OptionalInt tileDataHash
+  OptionalLong tileDataHash
 ) {
 
   @Override

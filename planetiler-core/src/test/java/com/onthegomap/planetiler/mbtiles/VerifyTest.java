@@ -11,7 +11,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ class VerifyTest {
         VectorTile.encodeGeometry(point(0, 0)),
         Map.of()
       )));
-      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), OptionalInt.empty()));
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), OptionalLong.empty()));
     }
     assertValid(mbtiles);
   }
@@ -77,7 +77,7 @@ class VerifyTest {
         )),
         Map.of()
       )));
-      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), OptionalInt.empty()));
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), gzip(tile.encode()), OptionalLong.empty()));
     }
     assertInvalid(mbtiles);
   }
