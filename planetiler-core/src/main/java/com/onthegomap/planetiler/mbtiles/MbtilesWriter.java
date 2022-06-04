@@ -289,7 +289,7 @@ public class MbtilesWriter {
           if (compactDb && tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
-            tileDataHash = tileFeatures.generateContentHash();
+            tileDataHash = null;
           }
           lastTileDataHash = tileDataHash;
         }
