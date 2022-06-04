@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -49,7 +49,6 @@ public class MbtilesWriter {
   private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
-  private static final int MAX_FEATURES_HASHING_THRESHOLD = 5;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
   private final Mbtiles db;
@@ -257,8 +256,10 @@ public class MbtilesWriter {
      * recomputing if the input hasn't changed.
      */
     byte[] lastBytes = null, lastEncoded = null;
-    Integer lastTileDataHash = null;
+    Long lastTileDataHash = null;
+    boolean lastIsFill = false;
     boolean compactDb = config.compactDb();
+    boolean skipFilled = config.skipFilledTiles();
 
     for (TileBatch batch : prev) {
       Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
@@ -268,25 +269,32 @@ public class MbtilesWriter {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
-        Integer tileDataHash;
+        Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
+          if (skipFilled && lastIsFill) {
+            continue;
+          }
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
-          encoded = en.encode();
-          bytes = gzip(encoded);
+          if (skipFilled) {
+            lastIsFill = en.containsOnlyFills();
+            if (lastIsFill) {
+              continue;
+            }
+          }
+          lastEncoded = encoded = en.encode();
+          lastBytes = bytes = gzip(encoded);
           last = tileFeatures;
-          lastEncoded = encoded;
-          lastBytes = bytes;
           if (encoded.length > 1_000_000) {
             LOGGER.warn("{} {}kb uncompressed",
               tileFeatures.tileCoord(),
               encoded.length / 1024);
           }
-          if (compactDb && tileFeatures.getNumFeaturesToEmit() < MAX_FEATURES_HASHING_THRESHOLD) {
+          if (compactDb && en.containsOnlyFillsOrEdges()) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
             tileDataHash = null;
@@ -299,7 +307,7 @@ public class MbtilesWriter {
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         result.add(
           new TileEncodingResult(tileFeatures.tileCoord(), bytes,
-            tileDataHash == null ? OptionalInt.empty() : OptionalInt.of(tileDataHash))
+            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash))
         );
       }
       // hand result off to writer
@@ -361,6 +369,7 @@ public class MbtilesWriter {
         }
         lastTileWritten.set(lastTile);
       }
+      batchedTileWriter.printStats();
     }
 
     if (time != null) {

@@ -495,6 +495,34 @@ public class VectorTile {
     return tile.build().toByteArray();
   }
 
+  /**
+   * Returns true if this tile contains only polygon fills.
+   */
+  public boolean containsOnlyFills() {
+    return containsOnlyFillsOrEdges(false);
+  }
+
+  /**
+   * Returns true if this tile contains only polygon fills or horizontal/vertical edges that are likely to be repeated
+   * across tiles.
+   */
+  public boolean containsOnlyFillsOrEdges() {
+    return containsOnlyFillsOrEdges(true);
+  }
+
+  private boolean containsOnlyFillsOrEdges(boolean allowEdges) {
+    boolean empty = true;
+    for (var layer : layers.values()) {
+      for (var feature : layer.encodedFeatures) {
+        empty = false;
+        if (!feature.geometry.isFillOrEdge(allowEdges)) {
+          return false;
+        }
+      }
+    }
+    return !empty;
+  }
+
   private enum Command {
     MOVE_TO(1),
     LINE_TO(2),
@@ -519,9 +547,60 @@ public class VectorTile {
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
 
+    private static final int LEFT = 1;
+    private static final int RIGHT = 1 << 1;
+    private static final int TOP = 1 << 2;
+    private static final int BOTTOM = 1 << 3;
+    private static final int INSIDE = 0;
+    private static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
+
     public VectorGeometry {
       if (scale < 0) {
         throw new IllegalArgumentException("scale can not be less than 0, got: " + scale);
+      }
+    }
+
+    private static int getSide(int x, int y, int extent) {
+      int result = INSIDE;
+      if (x < 0) {
+        result |= LEFT;
+      } else if (x > extent) {
+        result |= RIGHT;
+      }
+      if (y < 0) {
+        result |= TOP;
+      } else if (y > extent) {
+        result |= BOTTOM;
+      }
+      return result;
+    }
+
+    private static boolean slanted(int x1, int y1, int x2, int y2) {
+      return x1 != x2 && y1 != y2;
+    }
+
+    private static boolean segmentCrossesTile(int x1, int y1, int x2, int y2, int extent) {
+      return (y1 >= 0 || y2 >= 0) &&
+        (y1 <= extent || y2 <= extent) &&
+        (x1 >= 0 || x2 >= 0) &&
+        (x1 <= extent || x2 <= extent);
+    }
+
+    private static boolean isSegmentInvalid(boolean allowEdges, int x1, int y1, int x2, int y2, int extent) {
+      boolean crossesTile = segmentCrossesTile(x1, y1, x2, y2, extent);
+      if (allowEdges) {
+        return crossesTile && slanted(x1, y1, x2, y2);
+      } else {
+        return crossesTile;
+      }
+    }
+
+
+    private static boolean visitedEnoughSides(boolean allowEdges, int sides) {
+      if (allowEdges) {
+        return ((sides & LEFT) > 0 && (sides & RIGHT) > 0) || ((sides & TOP) > 0 && (sides & BOTTOM) > 0);
+      } else {
+        return sides == ALL;
       }
     }
 
@@ -566,6 +645,95 @@ public class VectorTile {
         "], geomType=" + geomType +
         " (" + geomType.asByte() + ")]";
     }
+
+    /** Returns true if the encoded geometry is a polygon fill. */
+    public boolean isFill() {
+      return isFillOrEdge(false);
+    }
+
+    /**
+     * Returns true if the encoded geometry is a polygon fill, rectangle edge, or part of a horizontal/vertical line
+     * that is likely to be repeated across tiles.
+     */
+    public boolean isFillOrEdge() {
+      return isFillOrEdge(true);
+    }
+
+    /**
+     * Returns true if the encoded geometry is a polygon fill, or if {@code allowEdges == true} then also a rectangle
+     * edge, or part of a horizontal/vertical line that is likely to be repeated across tiles.
+     */
+    public boolean isFillOrEdge(boolean allowEdges) {
+      if (geomType != GeometryType.POLYGON && (!allowEdges || geomType != GeometryType.LINE)) {
+        return false;
+      }
+
+      boolean isLine = geomType == GeometryType.LINE;
+
+      int extent = EXTENT << scale;
+      int visited = INSIDE;
+      int firstX = 0;
+      int firstY = 0;
+      int x = 0;
+      int y = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int command = 0;
+      int i = 0;
+      while (i < geometryCount) {
+
+        if (length <= 0) {
+          length = commands[i++];
+          command = length & ((1 << 3) - 1);
+          length = length >> 3;
+          if (isLine && length > 2) {
+            return false;
+          }
+        }
+
+        if (length > 0) {
+          if (command == Command.CLOSE_PATH.value) {
+            if (isSegmentInvalid(allowEdges, x, y, firstX, firstY, extent) ||
+              !visitedEnoughSides(allowEdges, visited)) {
+              return false;
+            }
+            length--;
+            continue;
+          }
+
+          int dx = commands[i++];
+          int dy = commands[i++];
+
+          length--;
+
+          dx = zigZagDecode(dx);
+          dy = zigZagDecode(dy);
+
+          int nextX = x + dx;
+          int nextY = y + dy;
+
+          if (command == Command.MOVE_TO.value) {
+            firstX = nextX;
+            firstY = nextY;
+            if ((visited = getSide(firstX, firstY, extent)) == INSIDE) {
+              return false;
+            }
+          } else {
+            if (isSegmentInvalid(allowEdges, x, y, nextX, nextY, extent)) {
+              return false;
+            }
+            visited |= getSide(nextX, nextY, extent);
+          }
+          y = nextY;
+          x = nextX;
+        }
+
+      }
+
+      return visitedEnoughSides(allowEdges, visited);
+    }
+
   }
 
   /**

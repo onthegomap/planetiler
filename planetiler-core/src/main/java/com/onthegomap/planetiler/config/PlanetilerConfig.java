@@ -41,7 +41,8 @@ public record PlanetilerConfig(
   double simplifyToleranceAtMaxZoom,
   double simplifyToleranceBelowMaxZoom,
   boolean osmLazyReads,
-  boolean compactDb
+  boolean compactDb,
+  boolean skipFilledTiles
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -142,7 +143,10 @@ public record PlanetilerConfig(
         false),
       arguments.getBoolean("compact_db",
         "Reduce the DB size by separating and deduping the tile data",
-        true)
+        true),
+      arguments.getBoolean("skip_filled_tiles",
+        "Skip writing tiles containing only polygon fills to the output",
+        false)
     );
   }
 

@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.DoubleSummaryStatistics;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -34,23 +34,23 @@ public class BenchmarkMbtilesWriter {
      */
     int distinctTilesInPercent = arguments.getInteger("bench_distinct_tiles", "distinct tiles in percent", 10);
     /*
-     * select avg(length(tile_data)) 
-     * from (select tile_data_id from tiles_shallow group by tile_data_id having count(*) = 1) as x 
+     * select avg(length(tile_data))
+     * from (select tile_data_id from tiles_shallow group by tile_data_id having count(*) = 1) as x
      * join tiles_data using(tile_data_id)
      * => ~785 (Australia)
      */
     int distinctTileDataSize =
       arguments.getInteger("bench_distinct_tile_data_size", "distinct tile data size in bytes", 800);
     /*
-     * select avg(length(tile_data)) 
-     * from (select tile_data_id from tiles_shallow group by tile_data_id having count(*) > 1) as x 
-     * join tiles_shallow using(tile_data_id) 
+     * select avg(length(tile_data))
+     * from (select tile_data_id from tiles_shallow group by tile_data_id having count(*) > 1) as x
+     * join tiles_shallow using(tile_data_id)
      * join tiles_data using(tile_data_id)
      * => ~93 (Australia)
      */
     int dupeTileDataSize = arguments.getInteger("bench_dupe_tile_data_size", "dupe tile data size in bytes", 100);
     /*
-     * select count(*) * 100.0 / sum(usage_count) 
+     * select count(*) * 100.0 / sum(usage_count)
      * from (select tile_data_id, count(*) as usage_count from tiles_shallow group by tile_data_id having count(*) > 1)
      * => ~0.17% (Australia)
      */
@@ -107,11 +107,11 @@ public class BenchmarkMbtilesWriter {
           TileCoord coord = TileCoord.ofXYZ(x, y, z);
           TileEncodingResult toWrite;
           if (tilesWritten % 100 < distinctTilesInPercent) {
-            toWrite = new TileEncodingResult(coord, distinctTileData, OptionalInt.empty());
+            toWrite = new TileEncodingResult(coord, distinctTileData, OptionalLong.empty());
           } else {
             ++dupeCounter;
             int hash = dupeHashMod == 0 ? 0 : dupeCounter % dupeHashMod;
-            toWrite = new TileEncodingResult(coord, dupeTileData, OptionalInt.of(hash));
+            toWrite = new TileEncodingResult(coord, dupeTileData, OptionalLong.of(hash));
           }
 
           writer.write(toWrite);

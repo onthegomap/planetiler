@@ -233,4 +233,8 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
       }
     }
   }
+
+  public Path getPath() {
+    return path;
+  }
 }

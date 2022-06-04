@@ -675,6 +675,25 @@ class PlanetilerTests {
     )).stream().map(d -> d.geometry().geom().norm()).toList());
   }
 
+  @Test
+  void testSkipFill() throws Exception {
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "skip-filled-tiles", "true"),
+      List.of(
+        newReaderFeature(WORLD_POLYGON, Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 6)
+        .setBufferPixels(4)
+    );
+
+    assertEquals(481, results.tiles.size());
+    // spot-check one filled tile does not exist
+    assertNull(results.tiles.get(TileCoord.ofXYZ(
+      Z4_TILES / 2, Z4_TILES / 2, 4
+    )));
+  }
+
   @ParameterizedTest
   @CsvSource({
     "chesapeake.wkb, 4076",
@@ -1581,6 +1600,7 @@ class PlanetilerTests {
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
     "--emit-tiles-in-order=false",
     "--free-osm-after-read",
+    "--osm-parse-node-bounds",
   })
   void testPlanetilerRunner(String args) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
