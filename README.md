@@ -25,8 +25,7 @@ See the [live demo](https://onthegomap.github.io/planetiler-demo/) of vector til
 the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetmap-americana/).
 
 [![Planetiler Demo Screenshot](./diagrams/demo.png)](https://onthegomap.github.io/planetiler-demo/)
-Style [© OpenMapTiles](https://www.openmaptiles.org/)
-&middot; Data [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
+[© OpenMapTiles](https://www.openmaptiles.org/) [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
 
 ## Usage
 
