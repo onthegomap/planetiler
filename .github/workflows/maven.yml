@@ -74,8 +74,8 @@ jobs:
           cache: 'maven'
       - run: ./scripts/regenerate-openmaptiles.sh
       # Skip spotless since that gets checked in a separate task
-      - run: ./mvnw -Dspotless.check.skip  -DskipTests --batch-mode -no-transfer-progress clean install -pl planetiler-basemap -am
-      - run: ./mvnw -Dspotless.check.skip --batch-mode -no-transfer-progress verify -pl planetiler-basemap
+      - run: ./mvnw -Dspotless.check.skip  -DskipTests --batch-mode -no-transfer-progress clean install -pl planetiler-openmaptiles -am
+      - run: ./mvnw -Dspotless.check.skip --batch-mode -no-transfer-progress verify -pl planetiler-openmaptiles
 
   examples:
     name: Example project

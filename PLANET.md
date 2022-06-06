@@ -1,6 +1,7 @@
 # Generating a Map of the World
 
-To generate a map of the world using the built-in [basemap profile](planetiler-basemap), you will need a machine with
+To generate a map of the world using the built-in [OpenMapTiles profile](planetiler-openmaptiles), you will need a
+machine with
 Java 16 or later installed and at least 10x as much disk space and at least 0.5x as much RAM as the `planet.osm.pbf`
 file you start from. All testing has been done using Digital Ocean droplets with dedicated
 vCPUs ([referral link](https://m.do.co/c/a947e99aab25)) and OpenJDK 17 installed through `apt`. Planetiler splits work
@@ -66,7 +67,7 @@ java -Xmx20g \
 
 Run with `--help` to see all available arguments.
 
-NOTE: The default basemap profile merges nearby buildings at zoom-level 13 (for example,
+NOTE: The default OpenMapTiles profile merges nearby buildings at zoom-level 13 (for example,
 see [Boston](https://onthegomap.github.io/planetiler-demo/#13.08/42.35474/-71.06597)). This adds about 14 CPU hours (~50
 minutes with 16 CPUs) to planet generation time and can be disabled using `--building-merge-z13=false`.
 

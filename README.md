@@ -30,7 +30,7 @@ Style [© OpenMapTiles](https://www.openmaptiles.org/)
 
 ## Usage
 
-To generate a map of an area using the [basemap profile](planetiler-basemap), you will need:
+To generate a map of an area using the [OpenMapTiles profile](planetiler-openmaptiles), you will need:
 
 - Java 16+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
 - at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
@@ -53,7 +53,8 @@ Or using Docker:
 docker run -e JAVA_TOOL_OPTIONS="-Xmx1g" -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest --download --area=monaco
 ```
 
-:warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the basemap profile
+:warning: This starts off by downloading about 1GB of [data sources](NOTICE.md#data) required by the OpenMapTiles
+profile
 including ~750MB for [ocean polygons](https://osmdata.openstreetmap.de/data/water-polygons.html) and ~240MB
 for [Natural Earth Data](https://www.naturalearthdata.com/).
 
@@ -117,7 +118,7 @@ See the [planetiler-examples](planetiler-examples) project.
 
 ## Benchmarks
 
-Some example runtimes for the Basemap OpenMapTiles-compatible profile (excluding downloading resources):
+Some example runtimes for the OpenMapTiles profile (excluding downloading resources):
 
 |                                                                   Input                                                                   | Version |             Machine             |              Time               | mbtiles size |                                                          Logs                                                          |
 |-------------------------------------------------------------------------------------------------------------------------------------------|---------|---------------------------------|---------------------------------|--------------|------------------------------------------------------------------------------------------------------------------------|
@@ -142,8 +143,8 @@ Merging nearby buildings at z13 is very expensive, when run with `--building-mer
 Some other tools that generate vector tiles from OpenStreetMap data:
 
 - [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) is the reference implementation of
-  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that the [basemap profile](planetiler-basemap) is based
-  on. It uses an intermediate postgres database and operates in two modes:
+  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that the [OpenMapTiles profile](planetiler-openmaptiles)
+  is based on. It uses an intermediate postgres database and operates in two modes:
   1. Import data into database (~1 day) then serve vector tiles directly from the database. Tile serving is slower and
      requires bigger machines, but lets you easily incorporate realtime updates
   2. Import data into database (~1 day) then pregenerate every tile for the planet into an mbtiles file which
@@ -172,7 +173,7 @@ download regularly-updated tilesets.
   using [JTS geometry utilities](https://github.com/locationtech/jts)
 - Merge nearby lines or polygons with the same tags before emitting vector tiles
 - Automatically fixes self-intersecting polygons
-- Built-in basemap profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13.1
+- Built-in OpenMapTiles profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13.1
 - Optionally download additional name translations for elements from Wikidata
 - Export real-time stats to a [prometheus push gateway](https://github.com/prometheus/pushgateway) using
   `--pushgateway=http://user:password@ip` argument (and a [grafana dashboard](grafana.json) for viewing)
@@ -244,7 +245,7 @@ Planetiler is made possible by these awesome open source projects:
 
 - [OpenMapTiles](https://openmaptiles.org/) for the [schema](https://openmaptiles.org/schema/)
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
-  that the [basemap profile](planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers)
+  that the [openmaptiles profile](planetiler-openmaptiles/src/main/java/com/onthegomap/planetiler/openmaptiles/layers)
   is based on
 - [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries

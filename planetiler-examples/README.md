@@ -48,6 +48,7 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import java.nio.file.Path;
 
 public class MyProfile implements Profile {
+
   @Override
   public String name() {
     // name that shows up in the MBTiles metadata table
@@ -63,16 +64,16 @@ at zoom level 12 and above:
 
 ```java
 @Override
-public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-  if (sourceFeature.isPoint() && sourceFeature.hasTag("amenity", "toilets")) {
-    features.point("toilets") // create a point in layer named "toilets"
-      .setMinZoom(12)
-      .setAttr("customers_only", sourceFeature.hasTag("access", "customers"))
-      .setAttr("indoor", sourceFeature.getBoolean("indoor"))
-      .setAttr("name", sourceFeature.getTag("name"))
-      .setAttr("operator", sourceFeature.getTag("operator"));
+public void processFeature(SourceFeature sourceFeature,FeatureCollector features){
+  if(sourceFeature.isPoint()&&sourceFeature.hasTag("amenity","toilets")){
+  features.point("toilets") // create a point in layer named "toilets"
+  .setMinZoom(12)
+  .setAttr("customers_only",sourceFeature.hasTag("access","customers"))
+  .setAttr("indoor",sourceFeature.getBoolean("indoor"))
+  .setAttr("name",sourceFeature.getTag("name"))
+  .setAttr("operator",sourceFeature.getTag("operator"));
   }
-}
+  }
 ```
 
 Next, add a `main` entrypoint that
@@ -80,14 +81,14 @@ uses [Planetiler](../planetiler-core/src/main/java/com/onthegomap/planetiler/Pla
 and default input/output paths:
 
 ```java
-public static void main(String... args) throws Exception {
+public static void main(String...args)throws Exception{
   Planetiler.create(args)
-    .setProfile(new MyProfile())
-    // if input.pbf not found, download Monaco from Geofabrik
-    .addOsmSource("osm", Path.of("data", "sources", "input.pbf"), "geofabrik:monaco")
-    .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
-    .run();
-}
+  .setProfile(new MyProfile())
+  // if input.pbf not found, download Monaco from Geofabrik
+  .addOsmSource("osm",Path.of("data","sources","input.pbf"),"geofabrik:monaco")
+  .overwriteOutput("mbtiles",Path.of("data","toilets.mbtiles"))
+  .run();
+  }
 ```
 
 Then build the application into a single jar file with all dependencies included:
@@ -121,38 +122,38 @@ A basic unit test:
 
 ```java
 @Test
-public void unitTest() {
-  var profile = new MyProfile();
-  var node = SimpleFeature.create(
-    TestUtils.newPoint(1, 2),
-    Map.of("amenity", "toilets")
+public void unitTest(){
+  var profile=new MyProfile();
+  var node=SimpleFeature.create(
+  TestUtils.newPoint(1,2),
+  Map.of("amenity","toilets")
   );
-  List<FeatureCollector.Feature> mapFeatures = TestUtils.processSourceFeature(node, profile);
+  List<FeatureCollector.Feature>mapFeatures=TestUtils.processSourceFeature(node,profile);
   // Then inspect attributes of each of vector tile fetures emitted...
-  assertEquals(1, mapFeatures.length);
-  assertEquals(12, mapFeatures.get(0).getMinZoom());
-}
+  assertEquals(1,mapFeatures.length);
+  assertEquals(12,mapFeatures.get(0).getMinZoom());
+  }
 ```
 
 A basic integration test:
 
 ```java
 @Test
-public void integrationTest(@TempDir Path tmpDir) throws Exception {
-  Path mbtilesPath = tmpDir.resolve("output.mbtiles");
+public void integrationTest(@TempDir Path tmpDir)throws Exception{
+  Path mbtilesPath=tmpDir.resolve("output.mbtiles");
   MyProfile.main(
-    "--osm_path=" + TestUtils.pathToResource("monaco-latest.osm.pbf"),
-    "--tmp=" + tmpDir,
-    "--mbtiles=" + mbtilesPath,
+  "--osm_path="+TestUtils.pathToResource("monaco-latest.osm.pbf"),
+  "--tmp="+tmpDir,
+  "--mbtiles="+mbtilesPath,
   ));
-  try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(mbtilesPath)) {
-    Map<String, String> metadata = mbtiles.metadata().getAll();
-    assertEquals("My Profile", metadata.get("name"));
-    // then inspect features in the emitted vector tiles
-    TestUtils.assertNumFeatures(mbtiles, "toilets", 14, Map.of(), GeoUtils.WORLD_LAT_LON_BOUNDS,
-      34, Point.class);
+  try(Mbtiles mbtiles=Mbtiles.newReadOnlyDatabase(mbtilesPath)){
+  Map<String, String> metadata=mbtiles.metadata().getAll();
+  assertEquals("My Profile",metadata.get("name"));
+  // then inspect features in the emitted vector tiles
+  TestUtils.assertNumFeatures(mbtiles,"toilets",14,Map.of(),GeoUtils.WORLD_LAT_LON_BOUNDS,
+  34,Point.class);
   }
-}
+  }
 ```
 
 See [ToiletsProfileTest](./src/test/java/com/onthegomap/planetiler/examples/ToiletsProfileTest.java)
@@ -163,8 +164,8 @@ for a complete unit and integration test.
 Check out:
 
 - The other [minimal examples](./src/main/java/com/onthegomap/planetiler/examples)
-- The [basemap profile](../planetiler-basemap) for a full-featured example of a complex profile with processing broken
-  out into a handler per layer
+- The [OpenMapTiles profile](../planetiler-openmaptiles) for a full-featured example of a complex profile with
+  processing broken out into a handler per layer
 - [Planetiler](../planetiler-core/src/main/java/com/onthegomap/planetiler/Planetiler.java) for more options when
   invoking the program
 - [FeatureCollector](../planetiler-core/src/main/java/com/onthegomap/planetiler/FeatureCollector.java)

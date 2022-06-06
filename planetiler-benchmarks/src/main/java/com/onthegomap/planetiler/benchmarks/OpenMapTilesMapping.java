@@ -1,8 +1,8 @@
 package com.onthegomap.planetiler.benchmarks;
 
-import com.onthegomap.planetiler.basemap.BasemapProfile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -20,10 +20,10 @@ import org.locationtech.jts.geom.Geometry;
  * Performance tests for {@link MultiExpression}. Times how long a sample of elements from an OSM input file take to
  * match.
  */
-public class BasemapMapping {
+public class OpenMapTilesMapping {
 
   public static void main(String[] args) {
-    var profile = new BasemapProfile(Translations.nullProvider(List.of()), PlanetilerConfig.defaults(),
+    var profile = new OpenMapTilesProfile(Translations.nullProvider(List.of()), PlanetilerConfig.defaults(),
       Stats.inMemory());
     var random = new Random(0);
     List<SourceFeature> inputs = new ArrayList<>();
