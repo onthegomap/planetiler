@@ -59,6 +59,8 @@ class TiledGeometry {
 
   private final long featureId;
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
+  private final int shard;
+  private final int shards;
   /** Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry */
   private Map<Integer, IntRangeSet> filledRanges = null;
   private final TileExtents.ForZoom extents;
@@ -68,7 +70,8 @@ class TiledGeometry {
   private final boolean area;
   private final int maxTilesAtThisZoom;
 
-  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, long featureId) {
+  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, long featureId, int shard,
+    int shards) {
     this.featureId = featureId;
     this.extents = extents;
     this.buffer = buffer;
@@ -77,6 +80,8 @@ class TiledGeometry {
     this.z = z;
     this.area = area;
     this.maxTilesAtThisZoom = 1 << z;
+    this.shard = shard;
+    this.shards = shards;
   }
 
   /**
@@ -91,8 +96,8 @@ class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   public static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
-    Coordinate[] coords, long id) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, false, id);
+    Coordinate[] coords, long id, int shard, int shards) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, false, id, shard, shards);
     for (Coordinate coord : coords) {
       result.slicePoint(coord);
     }
@@ -115,16 +120,18 @@ class TiledGeometry {
     int minY = Math.max(extents.minY(), (int) Math.floor(worldY - neighborBuffer));
     int maxY = Math.min(extents.maxY() - 1, (int) Math.floor(worldY + neighborBuffer));
     for (int x = minX; x <= maxX; x++) {
-      double tileX = worldX - x;
-      int wrappedX = wrapInt(x, maxTilesAtThisZoom);
-      // point may end up inside bounds after wrapping
-      if (extents.testX(wrappedX)) {
-        for (int y = minY; y <= maxY; y++) {
-          TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
-          double tileY = worldY - y;
-          tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-            .get(0)
-            .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
+      if (x % shards == shard) {
+        double tileX = worldX - x;
+        int wrappedX = wrapInt(x, maxTilesAtThisZoom);
+        // point may end up inside bounds after wrapping
+        if (extents.testX(wrappedX)) {
+          for (int y = minY; y <= maxY; y++) {
+            TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
+            double tileY = worldY - y;
+            tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
+              .get(0)
+              .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
+          }
         }
       }
     }
@@ -148,8 +155,8 @@ class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents, long id) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, area, id);
+    TileExtents.ForZoom extents, long id, int shard, int shards) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, area, id, shard, shards);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);
@@ -329,47 +336,49 @@ class TiledGeometry {
 
       // for each column this segment crosses
       for (int x = startX; x <= endX; x++) {
-        double axTile = ax - x;
-        double bxTile = bx - x;
-        MutableCoordinateSequence slice = xSlices.get(x);
-        if (slice == null) {
-          xSlices.put(x, slice = new MutableCoordinateSequence());
-          List<MutableCoordinateSequence> newGeom = newGeoms.get(x);
-          if (newGeom == null) {
-            newGeoms.put(x, newGeom = new ArrayList<>());
+        if (x % shards == shard) {
+          double axTile = ax - x;
+          double bxTile = bx - x;
+          MutableCoordinateSequence slice = xSlices.get(x);
+          if (slice == null) {
+            xSlices.put(x, slice = new MutableCoordinateSequence());
+            List<MutableCoordinateSequence> newGeom = newGeoms.get(x);
+            if (newGeom == null) {
+              newGeoms.put(x, newGeom = new ArrayList<>());
+            }
+            newGeom.add(slice);
           }
-          newGeom.add(slice);
-        }
 
-        boolean exited = false;
+          boolean exited = false;
 
-        if (axTile < leftLimit) {
-          // ---|-->  | (line enters the clip region from the left)
-          if (bxTile > leftLimit) {
+          if (axTile < leftLimit) {
+            // ---|-->  | (line enters the clip region from the left)
+            if (bxTile > leftLimit) {
+              intersectX(slice, axTile, ay, bxTile, by, leftLimit);
+            }
+          } else if (axTile > rightLimit) {
+            // |  <--|--- (line enters the clip region from the right)
+            if (bxTile < rightLimit) {
+              intersectX(slice, axTile, ay, bxTile, by, rightLimit);
+            }
+          } else {
+            // | --> | (line starts inside)
+            slice.addPoint(axTile, ay);
+          }
+          if (bxTile < leftLimit && axTile >= leftLimit) {
+            // <--|---  | or <--|-----|--- (line exits the clip region on the left)
             intersectX(slice, axTile, ay, bxTile, by, leftLimit);
+            exited = true;
           }
-        } else if (axTile > rightLimit) {
-          // |  <--|--- (line enters the clip region from the right)
-          if (bxTile < rightLimit) {
+          if (bxTile > rightLimit && axTile <= rightLimit) {
+            // |  ---|--> or ---|-----|--> (line exits the clip region on the right)
             intersectX(slice, axTile, ay, bxTile, by, rightLimit);
+            exited = true;
           }
-        } else {
-          // | --> | (line starts inside)
-          slice.addPoint(axTile, ay);
-        }
-        if (bxTile < leftLimit && axTile >= leftLimit) {
-          // <--|---  | or <--|-----|--- (line exits the clip region on the left)
-          intersectX(slice, axTile, ay, bxTile, by, leftLimit);
-          exited = true;
-        }
-        if (bxTile > rightLimit && axTile <= rightLimit) {
-          // |  ---|--> or ---|-----|--> (line exits the clip region on the right)
-          intersectX(slice, axTile, ay, bxTile, by, rightLimit);
-          exited = true;
-        }
 
-        if (!area && exited) {
-          xSlices.remove(x);
+          if (!area && exited) {
+            xSlices.remove(x);
+          }
         }
       }
     }
@@ -380,10 +389,12 @@ class TiledGeometry {
     int endX = (int) Math.floor(ax + neighborBuffer);
 
     for (int x = startX - 1; x <= endX + 1; x++) {
-      double axTile = ax - x;
-      MutableCoordinateSequence slice = xSlices.get(x);
-      if (slice != null && axTile >= leftLimit && axTile <= rightLimit) {
-        slice.addPoint(axTile, ay);
+      if (x % shards == shard) {
+        double axTile = ax - x;
+        MutableCoordinateSequence slice = xSlices.get(x);
+        if (slice != null && axTile >= leftLimit && axTile <= rightLimit) {
+          slice.addPoint(axTile, ay);
+        }
       }
     }
 

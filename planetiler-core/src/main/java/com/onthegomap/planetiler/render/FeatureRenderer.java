@@ -115,7 +115,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
       // compute the tile coordinate of every tile these points should show up in at the given buffer size
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.getSourceId());
+      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.getSourceId(),
+        config.shard(), config.shards());
       int emitted = 0;
       for (var entry : tiled.getTileData()) {
         TileCoord tile = entry.getKey();
@@ -186,7 +187,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
-      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.getSourceId());
+      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.getSourceId(),
+        config.shard(), config.shards());
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
         // if profile wants the original number of points that the simplified but untiled geometry started with

@@ -38,7 +38,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1750,5 +1753,43 @@ class PlanetilerTests {
         compactResult.tileDataCount(), compactResult.tiles.size()
       )
     );
+  }
+
+  private PlanetilerResults runForShardedTest(int shards) throws Exception {
+    return IntStream.range(0, shards).mapToObj(shard -> {
+      try {
+        return runWithReaderFeatures(
+          Map.of(
+            "threads", "1",
+            "shard", Integer.toString(shard),
+            "shards", Integer.toString(shards)
+          ),
+          List.of(
+            newReaderFeature(WORLD_POLYGON, Map.of())
+          ),
+          (in, features) -> features.polygon("layer")
+            .setZoomRange(0, 2)
+            .setBufferPixels(0)
+        );
+      } catch (Exception e) {
+        throw new AssertionError(e);
+      }
+    }).reduce((last, next) -> new PlanetilerResults(
+      Stream.concat(last.tiles.entrySet().stream(), next.tiles.entrySet().stream()).collect(Collectors.toMap(
+        Map.Entry::getKey,
+        Map.Entry::getValue
+      )),
+      last.metadata,
+      last.tileDataCount + next.tileDataCount
+    )).get();
+  }
+
+  @Test
+  void testShardedDb() throws Exception {
+
+    var notShardedResult = runForShardedTest(1);
+    var shardedResult = runForShardedTest(2);
+
+    assertEquals(notShardedResult.tiles, shardedResult.tiles);
   }
 }

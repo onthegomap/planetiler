@@ -42,7 +42,9 @@ public record PlanetilerConfig(
   double simplifyToleranceBelowMaxZoom,
   boolean osmLazyReads,
   boolean compactDb,
-  boolean skipFilledTiles
+  boolean skipFilledTiles,
+  int shard,
+  int shards
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -60,6 +62,13 @@ public record PlanetilerConfig(
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (shards <= 0) {
+      throw new IllegalArgumentException("Illegal value for shards: " + shards);
+    }
+    if (shard < 0 || shard >= shards) {
+      throw new IllegalArgumentException(
+        "Illegal value for shard: " + shard + ", must be in range [0, " + shards + ")");
     }
   }
 
@@ -146,7 +155,9 @@ public record PlanetilerConfig(
         true),
       arguments.getBoolean("skip_filled_tiles",
         "Skip writing tiles containing only polygon fills to the output",
-        false)
+        false),
+      arguments.getInteger("shard", "Shard number", 0),
+      arguments.getInteger("shards", "Total shards", 1)
     );
   }
 
