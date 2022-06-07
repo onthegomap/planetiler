@@ -1,0 +1,37 @@
+schema_name: Highway areas
+schema_description: Features that represent the physical area of roads
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
+  OpenStreetMap contributors</a>
+sources:
+  osm:
+    type: osm
+    url: geofabrik:poland
+tag_mappings:
+  bridge: boolean
+  layer: long
+layers:
+- name: highway_area
+  features:
+  - sources:
+    - osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      area:highway:
+    attributes:
+    - key: highway
+      tag_value: area:highway
+    - key: layer
+    - key: surface
+    - key: bridge
+  - sources:
+    - osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      man_made: bridge
+    attributes:
+    - key: man_made
+      constant_value: bridge
+    - key: layer
+    - key: surface

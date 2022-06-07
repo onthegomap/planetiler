@@ -4,7 +4,7 @@ import static com.onthegomap.planetiler.TestUtils.newLineString;
 import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.rectangle;
 import static com.onthegomap.planetiler.expression.Expression.*;
-import static com.onthegomap.planetiler.expression.ExpressionTest.featureWithTags;
+import static com.onthegomap.planetiler.expression.ExpressionTestUtil.featureWithTags;
 import static com.onthegomap.planetiler.expression.MultiExpression.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

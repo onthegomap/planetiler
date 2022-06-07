@@ -1,0 +1,18 @@
+schema_name: Test Case Schema
+schema_description: Test case tile schema
+attribution: Test attribution
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+    local_path: data/rhode-island.osm.pbf
+layers:
+- name: testLayer
+  features:
+  - sources:
+    - osm
+    geometry: polygon
+    include_when:
+      natural: water
+    attributes:
+    - key: natural
