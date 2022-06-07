@@ -41,6 +41,8 @@ public interface Expression {
   Expression FALSE = new Constant(false, "FALSE");
   BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
+  List<String> dummyList = new NoopList<>();
+
   static And and(Expression... children) {
     return and(List.of(children));
   }
@@ -246,6 +248,26 @@ public interface Expression {
    * @return true if this expression matches the input element
    */
   boolean evaluate(WithTags input, List<String> matchKeys);
+
+  //A list that silently drops all additions
+  class NoopList<T> extends ArrayList<T> {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public boolean add(T t) {
+      return true;
+    }
+  }
+
+  /**
+   * Returns true if this expression matches an input element.
+   *
+   * @param input the input element
+   * @return true if this expression matches the input element
+   */
+  default boolean evaluate(WithTags input) {
+    return evaluate(input, dummyList);
+  }
 
   /** Returns Java code that can be used to reconstruct this expression. */
   String generateJavaCode();

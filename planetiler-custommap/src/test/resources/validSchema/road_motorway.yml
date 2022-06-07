@@ -1,0 +1,39 @@
+schema_name: OWG Simple Schema
+schema_description: Simple vector tile schema
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
+  OpenStreetMap contributors</a>
+sources:
+  water_polygons:
+    type: shapefile
+    url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+tag_mappings:
+  bridge: boolean # input=bridge, output=bridge, type=boolean
+  layer: long
+  tunnel: boolean
+layers:
+- name: road
+  features:
+  - sources:
+    - osm
+    min_zoom: 4
+    geometry: line
+    include_when:
+      highway: motorway
+    attributes:
+    - key: highway
+    - key: bridge
+      include_when:
+        bridge: true
+      min_zoom: 11
+    - key: tunnel
+      constant_value: true
+      include_when:
+        tunnel: true
+      min_zoom: 11
+    - key: name
+      min_zoom: 12
+    - key: layer
+      min_zoom: 13

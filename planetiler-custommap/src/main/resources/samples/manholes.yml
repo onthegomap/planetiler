@@ -1,0 +1,22 @@
+schema_name: Manhole covers
+schema_description: Manhole covers
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;
+  OpenStreetMap contributors</a>
+sources:
+  osm:
+    type: osm
+    url: geofabrik:rhode-island
+layers:
+- name: manhole
+  features:
+  - sources:
+    - osm
+    geometry: point
+    min_zoom: 14
+    include_when:
+      man_made: manhole
+    attributes:
+    - key: man_made
+    - key: manhole
+    - key: operator
+    - key: ref

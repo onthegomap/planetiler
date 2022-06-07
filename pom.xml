@@ -84,6 +84,7 @@
   <modules>
     <module>planetiler-core</module>
     <module>planetiler-basemap</module>
+    <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>
@@ -91,6 +92,16 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>1.30</version>
+      </dependency>
+      <dependency>
+        <groupId>org.commonmark</groupId>
+        <artifactId>commonmark</artifactId>
+        <version>0.18.2</version>
+      </dependency>
       <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>

@@ -1,18 +1,14 @@
 package com.onthegomap.planetiler.expression;
 
-import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.expression.Expression.*;
+import static com.onthegomap.planetiler.expression.ExpressionTestUtil.featureWithTags;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.reader.SimpleFeature;
-import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -21,14 +17,6 @@ class ExpressionTest {
   public static final Expression.MatchAny matchAB = matchAny("a", "b");
   public static final Expression.MatchAny matchCD = matchAny("c", "d");
   public static final Expression.MatchAny matchBC = matchAny("b", "c");
-
-  static SourceFeature featureWithTags(String... tags) {
-    Map<String, Object> map = new HashMap<>();
-    for (int i = 0; i < tags.length; i += 2) {
-      map.put(tags[i], tags[i + 1]);
-    }
-    return SimpleFeature.create(newPoint(0, 0), map);
-  }
 
   @Test
   void testSimplify() {
@@ -158,5 +146,36 @@ class ExpressionTest {
     assertEquals("matchAny(\"key\", \"foo\")", matchAny("key", "foo").generateJavaCode());
     var expression = matchAnyTyped("key", WithTags::getDirection, 1);
     assertThrows(UnsupportedOperationException.class, expression::generateJavaCode);
+  }
+
+  @Test
+  void testEvaluate() {
+    WithTags feature = featureWithTags("key1", "value1", "key2", "value2");
+
+    //And
+    assertTrue(and(matchAny("key1", "value1"), matchAny("key2", "value2")).evaluate(feature));
+    assertFalse(and(matchAny("key1", "value1"), matchAny("key2", "wrong")).evaluate(feature));
+    assertFalse(and(matchAny("key1", "wrong"), matchAny("key2", "value2")).evaluate(feature));
+    assertFalse(and(matchAny("key1", "wrong"), matchAny("key2", "wrong")).evaluate(feature));
+
+    //Or
+    assertTrue(or(matchAny("key1", "value1"), matchAny("key2", "value2")).evaluate(feature));
+    assertTrue(or(matchAny("key1", "value1"), matchAny("key2", "wrong")).evaluate(feature));
+    assertTrue(or(matchAny("key1", "wrong"), matchAny("key2", "value2")).evaluate(feature));
+    assertFalse(or(matchAny("key1", "wrong"), matchAny("key2", "wrong")).evaluate(feature));
+
+    //Not
+    assertFalse(not(matchAny("key1", "value1")).evaluate(feature));
+    assertTrue(not(matchAny("key1", "wrong")).evaluate(feature));
+
+    //MatchField
+    assertTrue(matchField("key1").evaluate(feature));
+    assertFalse(matchField("wrong").evaluate(feature));
+    assertTrue(not(matchAny("key1", "")).evaluate(feature));
+    assertTrue(matchAny("wrong", "").evaluate(feature));
+
+    //Constants
+    assertTrue(TRUE.evaluate(feature));
+    assertFalse(FALSE.evaluate(feature));
   }
 }
