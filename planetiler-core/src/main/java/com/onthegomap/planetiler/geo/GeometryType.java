@@ -14,7 +14,7 @@ import vector_tile.VectorTileProto;
 
 public enum GeometryType {
   UNKNOWN(VectorTileProto.Tile.GeomType.UNKNOWN, 0, (f, l) -> {
-    throw new IllegalArgumentException("");
+    throw new UnsupportedOperationException();
   }, "unknown"),
   @JsonProperty("point")
   POINT(VectorTileProto.Tile.GeomType.POINT, 1, FeatureCollector::point, "point"),
