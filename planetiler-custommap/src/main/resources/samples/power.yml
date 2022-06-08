@@ -24,7 +24,7 @@ layers:
   - sources:
     - osm
     geometry: line
-    min_zoom: 12
+    min_zoom: 7
     include_when:
       power:
       - line
