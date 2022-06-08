@@ -17,6 +17,14 @@ class TileCoordTest {
     "0,1,1",
     "1,1,1",
     "100,100,14",
+    "0,0,14",
+    "16383,0,14",
+    "0,16383,14",
+    "16363,16363,14",
+    "0,0,15",
+    "32767,0,15",
+    "0,32767,15",
+    "32767,32767,15"
   })
   void testTileCoord(int x, int y, int z) {
     TileCoord coord1 = TileCoord.ofXYZ(x, y, z);
@@ -27,31 +35,17 @@ class TileCoordTest {
     assertEquals(coord1, coord2);
   }
 
-  @Test
-  void testTileSortOrderRespectZ() {
-    int last = Integer.MIN_VALUE;
-    for (int z = 0; z <= 14; z++) {
-      int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
-      if (encoded < last) {
-        fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
-      }
-      last = encoded;
-    }
-  }
-
-  @Test
-  void testTileSortOrderFlipY() {
-    for (int z = 1; z <= 14; z++) {
-      int encoded1 = TileCoord.ofXYZ(0, 1, z).encoded();
-      int encoded2 = TileCoord.ofXYZ(0, 0, z).encoded();
-      if (encoded2 < encoded1) {
-        fail("encoded value for y=1 is not less than y=0 at z=" + z);
-      }
-    }
-  }
-
-  @Test
-  void testThrowsPastZ14() {
-    assertThrows(AssertionError.class, () -> TileCoord.ofXYZ(0, 0, 15));
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0",
+    "0,0,1,1",
+    "0,1,1,2",
+    "1,1,1,3",
+    "1,0,1,4",
+    "0,0,2,5",
+  })
+  void testTileOrderHilbert(int x, int y, int z, int i) {
+    int encoded = TileCoord.ofXYZ(x, y, z).encoded();
+    assertEquals(i, encoded);
   }
 }
