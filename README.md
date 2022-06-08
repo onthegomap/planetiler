@@ -111,7 +111,7 @@ Some common arguments:
 
 See [PLANET.md](PLANET.md).
 
-## Creating a Custom Map
+## Examples
 
 See the [planetiler-examples](planetiler-examples) project.
 
