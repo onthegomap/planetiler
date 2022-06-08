@@ -146,14 +146,17 @@ public abstract class LongLongMapTest {
             assertTrue(usage > 60_000_000_000L, sizeDescription);
             assertTrue(usage < 100_000_000_000L, sizeDescription);
           }
-          LongLongMap map = LongLongMap.from(type, storage, params);
-          try (var writer = map.newWriter()) {
-            writer.put(2, 3);
-            writer.put(4, 5);
-          }
-          if (type != LongLongMap.Type.NOOP) {
-            assertEquals(3, map.get(2), variant);
-            assertEquals(5, map.get(4), variant);
+          try (LongLongMap map = LongLongMap.from(type, storage, params)) {
+            try (var writer = map.newWriter()) {
+              writer.put(2, 3);
+              writer.put(4, 5);
+            }
+            if (type != LongLongMap.Type.NOOP) {
+              assertEquals(3, map.get(2), variant);
+              assertEquals(5, map.get(4), variant);
+            }
+          } catch (IOException e) {
+            throw new AssertionError(e);
           }
         }
       }
