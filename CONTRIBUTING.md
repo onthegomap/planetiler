@@ -14,14 +14,15 @@ To set up your local development environment:
 - Install Java 16 or later. You can download Java manually from [Adoptium](https://adoptium.net/installation.html) or
   use:
   - [Windows installer](https://adoptium.net/installation.html#windows-msi)
-  - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`)
+  - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`, or `port install openjdk17-temurin`)
   - [Linux installer](https://github.com/adoptium/website-v2/blob/main/src/asciidoc-pages/installation/linux.adoc)
     (or `apt-get install openjdk-17-jdk`)
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
   you run it):
-  - on max/linux: `./mvnw clean test`
+  - on mac/linux: `./mvnw clean test`
   - on windows: `mvnw.cmd clean test`
   - or if you already have maven installed globally on your machine: `mvn clean test`
+  - to run just one test e.g. `GeoUtilsTest`: `./mvnw -pl planetiler-core -Dtest=GeoUtilsTest test`
 
 GitHub Workflows will run regression tests on any pull request.
 
