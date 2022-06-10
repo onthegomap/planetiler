@@ -123,6 +123,21 @@ class FeatureMergeTest {
 
   @Test
   void simplifyLineStringIfToleranceIsSet() {
+    // does not resimplify by default
+    assertEquals(
+      List.of(
+        feature(1, newLineString(10, 10, 20, 20, 30, 30), Map.of("a", 1))
+      ),
+      FeatureMerge.mergeLineStrings(
+        List.of(
+          feature(1, newLineString(10, 10, 20, 20, 30, 30), Map.of("a", 1))
+        ),
+        0,
+        1,
+        0
+      )
+    );
+    // but does resimplify when resimplify=true
     assertEquals(
       List.of(
         feature(1, newLineString(10, 10, 30, 30), Map.of("a", 1))
@@ -133,7 +148,8 @@ class FeatureMergeTest {
         ),
         0,
         1,
-        0
+        0,
+        true
       )
     );
   }
