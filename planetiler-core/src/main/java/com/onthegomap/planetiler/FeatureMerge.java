@@ -63,24 +63,43 @@ public class FeatureMerge {
    * <p>
    * Orders grouped output multilinestring by the index of the first element in that group from the input list.
    *
-   * @param features  all features in a layer
-   * @param minLength minimum tile pixel length of features to emit, or 0 to emit all merged linestrings
-   * @param tolerance after merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step
-   * @param buffer    number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step
+   * @param features   all features in a layer
+   * @param minLength  minimum tile pixel length of features to emit, or 0 to emit all merged linestrings
+   * @param tolerance  after merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step
+   * @param buffer     number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step
+   * @param resimplify True if linestrings should be simplified even if they don't get merged with another
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
    *         ordered by the index of the first element in that group from the input list.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
-    double minLength, double tolerance, double buffer) {
-    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer);
+    double minLength, double tolerance, double buffer, boolean resimplify) {
+    return mergeLineStrings(features, attrs -> minLength, tolerance, buffer, resimplify);
   }
 
   /**
-   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double)} except with
-   * a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
+   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double, boolean)}
+   * except sets {@code resimplify=false} by default.
+   */
+  public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
+    double minLength, double tolerance, double buffer) {
+    return mergeLineStrings(features, minLength, tolerance, buffer, false);
+  }
+
+  /**
+   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, Function, double, double, boolean)}
+   * except sets {@code resimplify=false} by default.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer) {
+    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false);
+  }
+
+  /**
+   * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double, boolean)}
+   * except with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
+   */
+  public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -91,7 +110,8 @@ public class FeatureMerge {
       // - only 1 element in the group
       // - it doesn't need to be clipped
       // - and it can't possibly be filtered out for being too short
-      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0) {
+      // - and it does not need to be simplified
+      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
         result.add(feature1);
       } else {
         LineMerger merger = new LineMerger();
