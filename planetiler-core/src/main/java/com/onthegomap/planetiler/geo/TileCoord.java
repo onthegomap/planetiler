@@ -60,9 +60,9 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   private static TileCoord decodeOnLevel(int z, int position, int encoded) {
     int n = 1 << z;
-    int rx, ry, s, t = position;
+    int rx, ry, t = position;
     int[] xy = {0, 0};
-    for (s = 1; s < n; s *= 2) {
+    for (int s = 1; s < n; s *= 2) {
       rx = 1 & Integer.divideUnsigned(t, 2);
       ry = 1 & (t ^ rx);
       rotate(s, xy, rx, ry);
@@ -87,9 +87,9 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
       acc += (1 << tmp_z) * (1 << tmp_z);
     }
     int n = 1 << z;
-    int rx, ry, s, d = 0;
+    int rx, ry, d = 0;
     int[] xy = {x, y};
-    for (s = Integer.divideUnsigned(n, 2); s > 0; s = Integer.divideUnsigned(s, 2)) {
+    for (int s = Integer.divideUnsigned(n, 2); s > 0; s = Integer.divideUnsigned(s, 2)) {
       rx = (xy[0] & s) > 0 ? 1 : 0;
       ry = (xy[1] & s) > 0 ? 1 : 0;
       d += s * s * ((3 * rx) ^ ry);
