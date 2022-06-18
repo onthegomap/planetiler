@@ -199,16 +199,16 @@ Planetiler can be used as a maven-style dependency in a Java project using the s
 Set up your repositories block as follows:
 
 ```
-    mavenCentral()
-    maven {
-        url "https://repo.osgeo.org/repository/release/"
-    }
+mavenCentral()
+maven {
+    url "https://repo.osgeo.org/repository/release/"
+}
 ```
 
 Set up your dependencies block as follows:
 
 ```
-    implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
+implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
 ```
 
 ## Contributing
