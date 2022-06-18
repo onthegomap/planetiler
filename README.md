@@ -190,6 +190,27 @@ download regularly-updated tilesets.
   finished  ([boundary layer example](https://github.com/onthegomap/planetiler/blob/9e9cf7c413027ffb3ab5c7436d11418935ae3f6a/planetiler-basemap/src/main/java/com/onthegomap/planetiler/basemap/layers/Boundary.java#L294))
 - Planetiler only does full imports from `.osm.pbf` snapshots, there is no way to incorporate real-time updates.
 
+## Use as a library
+
+Planetiler can be used as a maven-style dependency in a Java project using the settings below:
+
+### Gradle
+
+Set up your repositories block as follows:
+
+```
+    mavenCentral()
+    maven {
+        url "https://repo.osgeo.org/repository/release/"
+    }
+```
+
+Set up your dependencies block as follows:
+
+```
+    implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
+```
+
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
