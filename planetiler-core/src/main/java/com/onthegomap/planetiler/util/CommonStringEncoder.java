@@ -11,78 +11,60 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class CommonStringEncoder {
 
-  private final Map<String, Byte> stringToId = new ConcurrentHashMap<>(255);
-  private final String[] idToString = new String[255];
-  private final AtomicInteger layerId = new AtomicInteger(0);
+  private static final int MAX_STRINGS = 100_000;
 
-  private final Map<String, Integer> stringToIdMap = new ConcurrentHashMap<>(255);
-  private final Map<Integer, String> idToStringMap = new ConcurrentHashMap<>();
-  private final AtomicInteger intStringId = new AtomicInteger(0);
+  private final Map<String, Integer> stringToId = new ConcurrentHashMap<>(MAX_STRINGS);
+  private final String[] idToString = new String[MAX_STRINGS];
+  private final AtomicInteger stringId = new AtomicInteger(0);
 
   /**
    * Returns the string for {@code id}.
    *
    * @throws IllegalArgumentException if there is no value for {@code id}.
    */
-  public String decodeByte(byte id) {
-    String str = idToString[id & 0xff];
+  public String decode(int id) {
+    String str = idToString[id];
     if (str == null) {
       throw new IllegalArgumentException("No string for " + id);
     }
     return str;
-  }
-
-  /**
-   * Returns the string for {@code id}.
-   *
-   * @throws IllegalArgumentException if there is no value for {@code id}.
-   */
-  public String decodeInt(int id) {
-    String str = idToStringMap.get(id);
-    if (str == null) {
-      throw new IllegalArgumentException("No string for " + id);
-    }
-    return str;
-  }
-
-  /**
-   * Returns a byte value to each unique string passed in.
-   *
-   * @param string the string to store
-   * @return a byte that can be converted back to a string by {@link #decodeByte(byte)}.
-   * @throws IllegalArgumentException if called for too many values
-   */
-  public byte encodeByte(String string) {
-    // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
-    // contains the value.
-    Byte result = stringToId.get(string);
-    if (result == null) {
-      result = stringToId.computeIfAbsent(string, s -> {
-        int id = layerId.getAndIncrement();
-        if (id > 250) {
-          throw new IllegalArgumentException("Too many string keys when inserting " + string);
-        }
-        idToString[id] = string;
-        return (byte) id;
-      });
-    }
-    return result;
   }
 
   /**
    * Returns a int value to each unique string passed in.
    *
    * @param string the string to store
-   * @return an int that can be converted back to a string by {@link #decodeInt(int)}.
+   * @return an int that can be converted back to a string by {@link #decode(int)}.
    * @throws IllegalArgumentException if called for too many values
    */
-  public int encodeInt(String string) {
+  public int encode(String string) {
     // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
     // contains the value.
-    return stringToIdMap.computeIfAbsent(string, s -> {
-      int id = intStringId.getAndIncrement();
-      idToStringMap.put(id, string);
+    return stringToId.computeIfAbsent(string, s -> {
+      int id = stringId.getAndIncrement();
+      if (id >= MAX_STRINGS) {
+        throw new IllegalArgumentException("Too many strings");
+      }
+      idToString[id] = string;
       return id;
     });
+  }
+
+  /**
+   * Variant of CommonStringEncoder based on byte rather than int for string indexing.
+   */
+  public static class AsByte {
+    private final CommonStringEncoder encoder = new CommonStringEncoder();
+
+    public String decode(byte id) {
+      return encoder.decode(id & 0xff);
+    }
+
+    public byte encode(String string) {
+      if (encoder.stringId.get() > 255) {
+        throw new IllegalArgumentException("Too many strings");
+      }
+      return (byte) encoder.encode(string);
+    }
   }
 }
