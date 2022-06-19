@@ -190,7 +190,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   private long encodeKey(RenderedFeature feature) {
     var vectorTileFeature = feature.vectorTileFeature();
-    byte encodedLayer = commonStrings.encode(vectorTileFeature.layer());
+    byte encodedLayer = commonStrings.encodeByte(vectorTileFeature.layer());
     return encodeKey(
       feature.tile().encoded(),
       encodedLayer,
@@ -214,7 +214,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
         if (entry.getValue() != null) {
-          packer.packByte(commonStrings.encode(entry.getKey()));
+          packer.packInt(commonStrings.encodeInt(entry.getKey()));
           Object value = entry.getValue();
           if (value instanceof String string) {
             packer.packValue(ValueFactory.newString(string));
@@ -427,7 +427,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         int mapSize = unpacker.unpackMapHeader();
         Map<String, Object> attrs = new HashMap<>(mapSize);
         for (int i = 0; i < mapSize; i++) {
-          String key = commonStrings.decode(unpacker.unpackByte());
+          String key = commonStrings.decodeInt(unpacker.unpackInt());
           Value v = unpacker.unpackValue();
           if (v.isStringValue()) {
             attrs.put(key, v.asStringValue().asString());
@@ -444,7 +444,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         for (int i = 0; i < commandSize; i++) {
           commands[i] = unpacker.unpackInt();
         }
-        String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
+        String layer = commonStrings.decodeByte(extractLayerIdFromKey(entry.key()));
         return new VectorTile.Feature(
           layer,
           id,
