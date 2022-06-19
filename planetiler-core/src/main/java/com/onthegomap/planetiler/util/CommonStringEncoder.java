@@ -40,14 +40,18 @@ public class CommonStringEncoder {
   public int encode(String string) {
     // optimization to avoid more expensive computeIfAbsent call for the majority case when concurrent hash map already
     // contains the value.
-    return stringToId.computeIfAbsent(string, s -> {
-      int id = stringId.getAndIncrement();
-      if (id >= MAX_STRINGS) {
-        throw new IllegalArgumentException("Too many strings");
-      }
-      idToString[id] = string;
-      return id;
-    });
+    Integer result = stringToId.get(string);
+    if (result == null) {
+      result = stringToId.computeIfAbsent(string, s -> {
+        int id = stringId.getAndIncrement();
+        if (id >= MAX_STRINGS) {
+          throw new IllegalArgumentException("Too many strings");
+        }
+        idToString[id] = string;
+        return id;
+      });
+    }
+    return result;
   }
 
   /**
