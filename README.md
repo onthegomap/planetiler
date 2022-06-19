@@ -198,7 +198,7 @@ Planetiler can be used as a maven-style dependency in a Java project using the s
 
 Add this dependency to your java project:
 
-```
+```xml
 <dependency>
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-core</artifactId>
@@ -210,7 +210,7 @@ Add this dependency to your java project:
 
 Set up your repositories block as follows:
 
-```
+```groovy
 mavenCentral()
 maven {
     url "https://repo.osgeo.org/repository/release/"
@@ -219,7 +219,7 @@ maven {
 
 Set up your dependencies block as follows:
 
-```
+```groovy
 implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
 ```
 
