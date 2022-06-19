@@ -194,6 +194,18 @@ download regularly-updated tilesets.
 
 Planetiler can be used as a maven-style dependency in a Java project using the settings below:
 
+### Maven
+
+Add this dependency to your java project:
+
+```
+<dependency>
+  <groupId>com.onthegomap.planetiler</groupId>
+  <artifactId>planetiler-core</artifactId>
+  <version>0.5.0</version>
+</dependency>
+```
+
 ### Gradle
 
 Set up your repositories block as follows:
