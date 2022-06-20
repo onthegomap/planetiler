@@ -34,10 +34,21 @@ class CommonStringEncoderTest {
   void testByteLimitsToMax() {
     for (int i = 0; i <= 255; i++) {
       String string = Integer.toString(i);
-      byte encoded = commonStringEncoderByte.encode(Integer.toString(i));
+      byte encoded = commonStringEncoderByte.encode(string);
       String decoded = commonStringEncoderByte.decode(encoded);
       assertEquals(string, decoded);
     }
     assertThrows(IllegalArgumentException.class, () -> commonStringEncoderByte.encode("too many"));
+  }
+
+  @Test
+  void testIntDoesNotLimitTo250() {
+    for (int i = 0; i < 100_000; i++) {
+      String string = Integer.toString(i);
+      int encoded = commonStringEncoderInteger.encode(string);
+      String decoded = commonStringEncoderInteger.decode(encoded);
+      assertEquals(string, decoded);
+    }
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoderInteger.encode("too many"));
   }
 }
