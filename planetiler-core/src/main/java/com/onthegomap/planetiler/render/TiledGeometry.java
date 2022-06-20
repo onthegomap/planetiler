@@ -451,9 +451,11 @@ class TiledGeometry {
 
       for (int y = startY; y <= endY; y++) {
 
-        TileCoord tileID = TileCoord.ofXYZ(x, y, z);
-        if (shape != null && !shape.getEnvelopeInternal().intersects(tileID.getEnvelope())) {
-          continue;
+        if (shape != null) {
+          TileCoord tileID = TileCoord.ofXYZ(x, y, z);
+          if (!shape.getEnvelopeInternal().intersects(tileID.getEnvelope())) {
+            continue;
+          }
         }
         // skip over filled tiles until we get to the next tile that already has detail on it
         if (area && y > endStartY && y < startEndY) {
@@ -497,6 +499,7 @@ class TiledGeometry {
           }
           // X is already relative to tile, but we need to adjust Y
           ySlices.put(y, slice = MutableCoordinateSequence.newScalingSequence(0, y, 256));
+          TileCoord tileID = TileCoord.ofXYZ(x, y, z);
           List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, tile -> new ArrayList<>());
 
           // if this is tile is inside a fill from an outer tile, infer that fill here
