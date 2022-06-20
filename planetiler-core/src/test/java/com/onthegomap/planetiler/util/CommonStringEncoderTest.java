@@ -7,26 +7,48 @@ import org.junit.jupiter.api.Test;
 
 class CommonStringEncoderTest {
 
-  private final CommonStringEncoder commonStringEncoder = new CommonStringEncoder();
+  private final CommonStringEncoder commonStringEncoderInteger = new CommonStringEncoder(100_000);
+  private final CommonStringEncoder.AsByte commonStringEncoderByte = new CommonStringEncoder.AsByte();
 
   @Test
-  void testRoundTrip() {
-    byte a = commonStringEncoder.encode("a");
-    byte b = commonStringEncoder.encode("b");
-    assertEquals("a", commonStringEncoder.decode(a));
-    assertEquals(a, commonStringEncoder.encode("a"));
-    assertEquals("b", commonStringEncoder.decode(b));
-    assertThrows(IllegalArgumentException.class, () -> commonStringEncoder.decode((byte) (b + 1)));
+  void testRoundTripByte() {
+    byte a = commonStringEncoderByte.encode("a");
+    byte b = commonStringEncoderByte.encode("b");
+    assertEquals("a", commonStringEncoderByte.decode(a));
+    assertEquals(a, commonStringEncoderByte.encode("a"));
+    assertEquals("b", commonStringEncoderByte.decode(b));
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoderByte.decode((byte) (b + 1)));
   }
 
   @Test
-  void testLimitsTo250() {
-    for (int i = 0; i <= 250; i++) {
+  void testRoundTripInteger() {
+    int a = commonStringEncoderInteger.encode("a");
+    int b = commonStringEncoderInteger.encode("b");
+    assertEquals("a", commonStringEncoderInteger.decode(a));
+    assertEquals(a, commonStringEncoderInteger.encode("a"));
+    assertEquals("b", commonStringEncoderInteger.decode(b));
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoderInteger.decode(b + 1));
+  }
+
+  @Test
+  void testByteLimitsToMax() {
+    for (int i = 0; i <= 255; i++) {
       String string = Integer.toString(i);
-      byte encoded = commonStringEncoder.encode(Integer.toString(i));
-      String decoded = commonStringEncoder.decode(encoded);
+      byte encoded = commonStringEncoderByte.encode(string);
+      String decoded = commonStringEncoderByte.decode(encoded);
       assertEquals(string, decoded);
     }
-    assertThrows(IllegalArgumentException.class, () -> commonStringEncoder.encode("too many"));
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoderByte.encode("too many"));
+  }
+
+  @Test
+  void testIntDoesNotLimitTo250() {
+    for (int i = 0; i < 100_000; i++) {
+      String string = Integer.toString(i);
+      int encoded = commonStringEncoderInteger.encode(string);
+      String decoded = commonStringEncoderInteger.decode(encoded);
+      assertEquals(string, decoded);
+    }
+    assertThrows(IllegalArgumentException.class, () -> commonStringEncoderInteger.encode("too many"));
   }
 }
