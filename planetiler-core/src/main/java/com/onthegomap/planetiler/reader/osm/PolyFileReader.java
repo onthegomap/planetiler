@@ -28,17 +28,18 @@ public class PolyFileReader {
         }
 
         File file = new File(filePath);
-        FileReader fr = new FileReader(file);
-        BufferedReader br = null;
-        try {
-            br = new BufferedReader(fr);
+        try (
+            BufferedReader br =
+            new BufferedReader(new FileReader(file))
+        ) {
             boolean inRing = false;
             String line;
-            int index = 0;
             List<Polygon> polygons = new ArrayList<>();
             List<Coordinate> currentRing = null;
+            boolean firstLine = true;
             while ((line = br.readLine()) != null) {
-                if (index++ == 0) {
+                if (firstLine) {
+                    firstLine = false;
                     // first line is junk.
                 } else if (inRing) {
                     if (line.strip().equals("END")) {
@@ -46,7 +47,8 @@ public class PolyFileReader {
                         if (currentRing != null) {
                             polygons.add(JTS_FACTORY
                                 .createPolygon(
-                                    JTS_FACTORY.createLinearRing(currentRing.toArray(new Coordinate[currentRing.size()])),
+                                    JTS_FACTORY
+                                        .createLinearRing(currentRing.toArray(new Coordinate[currentRing.size()])),
                                     null));
                             currentRing = null;
                         }
@@ -56,11 +58,11 @@ public class PolyFileReader {
                         String[] splitted = line.trim().split("\s+");
                         currentRing.add(new CoordinateXY(Float.parseFloat(splitted[0]), Float.parseFloat(splitted[1])));
                     }
-                }  else if (inRing == false) {
-                    if(line.strip().equals("END")) {
-                       // we are at the end of the whole polygon.
+                } else {
+                    if (line.strip().equals("END")) {
+                        // we are at the end of the whole polygon.
                         break;
-                    } else if( line.charAt(0) == '!') {
+                    } else if (line.charAt(0) == '!') {
                         // we ignore holes for now
                         inRing = true;
                     } else {
@@ -75,10 +77,6 @@ public class PolyFileReader {
         } catch (Exception e) {
             LOGGER.error("Failed to parse poly file {} : {}", filePath, e);
             return null;
-        } finally {
-            if (br != null) {
-                br.close();
-            }
         }
     }
 }
