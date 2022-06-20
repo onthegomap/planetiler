@@ -453,7 +453,7 @@ class TiledGeometry {
 
         if (shape != null) {
           TileCoord tileID = TileCoord.ofXYZ(x, y, z);
-          if (!shape.getEnvelopeInternal().intersects(tileID.getEnvelope())) {
+            if (!shape.intersects(tileID.getEnvelope())) {
             continue;
           }
         }

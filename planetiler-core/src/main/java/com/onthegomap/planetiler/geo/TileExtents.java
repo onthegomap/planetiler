@@ -22,6 +22,11 @@ public class TileExtents implements Predicate<TileCoord> {
   private static int quantizeUp(double value, int levels) {
     return Math.max(0, Math.min(levels, (int) Math.ceil(value * levels)));
   }
+  
+  /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
+  public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds) {
+    return computeFromWorldBounds(maxzoom, worldBounds, null);
+  }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
   public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds, MultiPolygon shape) {

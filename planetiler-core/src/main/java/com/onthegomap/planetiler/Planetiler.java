@@ -520,7 +520,6 @@ public class Planetiler {
     String osmPolyFilePath = arguments.getString("poly_shape", "a .poly file defining the \"bounds\" to generate", null);
     if (osmPolyFilePath != null) {
       MultiPolygon shape = PolyFileReader.parsePolyFile(osmPolyFilePath);
-
       config.bounds().setShape(shape);
     }
 

@@ -18,6 +18,10 @@ import org.slf4j.LoggerFactory;
 public class PolyFileReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(PolyFileReader.class);
 
+    private PolyFileReader() {
+        throw new IllegalStateException("Utility class");
+    }
+
     public static MultiPolygon parsePolyFile(String filePath) throws NumberFormatException, IOException {
         if (filePath == null) {
             return null;
@@ -28,49 +32,42 @@ public class PolyFileReader {
         BufferedReader br = null;
         try {
             br = new BufferedReader(fr);
-            boolean in_ring = false;
+            boolean inRing = false;
             String line;
             int index = 0;
-            List<Polygon> polygons = new ArrayList<Polygon>();
+            List<Polygon> polygons = new ArrayList<>();
             List<Coordinate> currentRing = null;
             while ((line = br.readLine()) != null) {
                 if (index++ == 0) {
                     // first line is junk.
-                    continue;
-
-
-                } else if (in_ring && line.strip().equals("END")) {
-                    if (currentRing != null) {
-                        polygons.add(JTS_FACTORY
-                            .createPolygon(
-                                JTS_FACTORY.createLinearRing(currentRing.toArray(new Coordinate[currentRing.size()])),
-                                null));
-                        currentRing = null;
-                    }
-                    // we are at the end of a ring, perhaps with more to come.
-                    in_ring = false;
-                }
-
-                else if (in_ring) {
-                    // we are in a ring and picking up new coordinates.
-                    if (currentRing != null) {
+                } else if (inRing) {
+                    if (line.strip().equals("END")) {
+                        // we are at the end of a ring, perhaps with more to come.
+                        if (currentRing != null) {
+                            polygons.add(JTS_FACTORY
+                                .createPolygon(
+                                    JTS_FACTORY.createLinearRing(currentRing.toArray(new Coordinate[currentRing.size()])),
+                                    null));
+                            currentRing = null;
+                        }
+                        inRing = false;
+                    } else if (currentRing != null) {
+                        // we are in a ring and picking up new coordinates.
                         String[] splitted = line.trim().split("\s+");
                         currentRing.add(new CoordinateXY(Float.parseFloat(splitted[0]), Float.parseFloat(splitted[1])));
                     }
-                } else if (in_ring == false && line.strip().equals("END")) {
-                    // we are at the end of the whole polygon.
-                    break;
-                }
-
-                else if (in_ring == false && line.charAt(0) == '!') {
-                    // we ignore holes for now
-                    in_ring = true;
-                }
-
-                else if (in_ring == false) {
-                    // we are at the start of a polygon part.
-                    currentRing = new ArrayList<Coordinate>();
-                    in_ring = true;
+                }  else if (inRing == false) {
+                    if(line.strip().equals("END")) {
+                       // we are at the end of the whole polygon.
+                        break;
+                    } else if( line.charAt(0) == '!') {
+                        // we ignore holes for now
+                        inRing = true;
+                    } else {
+                        // we are at the start of a polygon part.
+                        currentRing = new ArrayList<>();
+                        inRing = true;
+                    }
                 }
             }
 
@@ -79,7 +76,9 @@ public class PolyFileReader {
             LOGGER.error("Failed to parse poly file {} : {}", filePath, e);
             return null;
         } finally {
-            br.close();
+            if (br != null) {
+                br.close();
+            }
         }
     }
 }
