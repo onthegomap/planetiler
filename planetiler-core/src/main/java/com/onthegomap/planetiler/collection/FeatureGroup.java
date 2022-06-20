@@ -56,20 +56,16 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureGroup.class);
   private final FeatureSort sorter;
   private final Profile profile;
-  private final CommonStringEncoder.AsByte commonStrings;
+  private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
+  private final CommonStringEncoder commonValueStrings = new CommonStringEncoder(100_000);
   private final Stats stats;
   private final LayerStats layerStats = new LayerStats();
   private volatile boolean prepared = false;
 
-  FeatureGroup(FeatureSort sorter, Profile profile, CommonStringEncoder.AsByte commonStrings, Stats stats) {
+  FeatureGroup(FeatureSort sorter, Profile profile, Stats stats) {
     this.sorter = sorter;
     this.profile = profile;
-    this.commonStrings = commonStrings;
     this.stats = stats;
-  }
-
-  FeatureGroup(FeatureSort sorter, Profile profile, Stats stats) {
-    this(sorter, profile, new CommonStringEncoder.AsByte(), stats);
   }
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
@@ -190,7 +186,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
   private long encodeKey(RenderedFeature feature) {
     var vectorTileFeature = feature.vectorTileFeature();
-    byte encodedLayer = commonStrings.encode(vectorTileFeature.layer());
+    byte encodedLayer = commonLayerStrings.encode(vectorTileFeature.layer());
     return encodeKey(
       feature.tile().encoded(),
       encodedLayer,
@@ -214,7 +210,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
         if (entry.getValue() != null) {
-          packer.packInt(commonStrings.encode(entry.getKey()));
+          packer.packInt(commonValueStrings.encode(entry.getKey()));
           Object value = entry.getValue();
           if (value instanceof String string) {
             packer.packValue(ValueFactory.newString(string));
@@ -427,7 +423,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         int mapSize = unpacker.unpackMapHeader();
         Map<String, Object> attrs = new HashMap<>(mapSize);
         for (int i = 0; i < mapSize; i++) {
-          String key = commonStrings.decode(unpacker.unpackByte());
+          String key = commonValueStrings.decode(unpacker.unpackInt());
           Value v = unpacker.unpackValue();
           if (v.isStringValue()) {
             attrs.put(key, v.asStringValue().asString());
@@ -444,7 +440,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         for (int i = 0; i < commandSize; i++) {
           commands[i] = unpacker.unpackInt();
         }
-        String layer = commonStrings.decode(extractLayerIdFromKey(entry.key()));
+        String layer = commonLayerStrings.decode(extractLayerIdFromKey(entry.key()));
         return new VectorTile.Feature(
           layer,
           id,

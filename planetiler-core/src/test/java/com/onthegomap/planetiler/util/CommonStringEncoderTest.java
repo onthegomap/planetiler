@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class CommonStringEncoderTest {
 
-  private final CommonStringEncoder commonStringEncoderInteger = new CommonStringEncoder();
+  private final CommonStringEncoder commonStringEncoderInteger = new CommonStringEncoder(100_000);
   private final CommonStringEncoder.AsByte commonStringEncoderByte = new CommonStringEncoder.AsByte();
 
   @Test
@@ -31,7 +31,7 @@ class CommonStringEncoderTest {
   }
 
   @Test
-  void testByteLimitsTo250() {
+  void testByteLimitsToMax() {
     for (int i = 0; i <= 255; i++) {
       String string = Integer.toString(i);
       byte encoded = commonStringEncoderByte.encode(Integer.toString(i));

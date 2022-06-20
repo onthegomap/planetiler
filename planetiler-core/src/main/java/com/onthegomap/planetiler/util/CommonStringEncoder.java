@@ -11,11 +11,17 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class CommonStringEncoder {
 
-  private static final int MAX_STRINGS = 100_000;
+  private final int maxStrings;
 
-  private final Map<String, Integer> stringToId = new ConcurrentHashMap<>(MAX_STRINGS);
-  private final String[] idToString = new String[MAX_STRINGS];
+  private final Map<String, Integer> stringToId;
+  private final String[] idToString;
   private final AtomicInteger stringId = new AtomicInteger(0);
+
+  public CommonStringEncoder(int maxStrings) {
+    this.maxStrings = maxStrings;
+    stringToId = new ConcurrentHashMap<>(maxStrings);
+    idToString = new String[maxStrings];
+  }
 
   /**
    * Returns the string for {@code id}.
@@ -44,7 +50,7 @@ public class CommonStringEncoder {
     if (result == null) {
       result = stringToId.computeIfAbsent(string, s -> {
         int id = stringId.getAndIncrement();
-        if (id >= MAX_STRINGS) {
+        if (id >= maxStrings) {
           throw new IllegalArgumentException("Too many strings");
         }
         idToString[id] = string;
@@ -58,16 +64,13 @@ public class CommonStringEncoder {
    * Variant of CommonStringEncoder based on byte rather than int for string indexing.
    */
   public static class AsByte {
-    private final CommonStringEncoder encoder = new CommonStringEncoder();
+    private final CommonStringEncoder encoder = new CommonStringEncoder(256);
 
     public String decode(byte id) {
       return encoder.decode(id & 0xff);
     }
 
     public byte encode(String string) {
-      if (encoder.stringId.get() > 255) {
-        throw new IllegalArgumentException("Too many strings");
-      }
       return (byte) encoder.encode(string);
     }
   }
