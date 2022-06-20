@@ -280,15 +280,17 @@ public class MbtilesWriter {
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
+          last = tileFeatures;
           if (skipFilled) {
             lastIsFill = en.containsOnlyFills();
             if (lastIsFill) {
+              lastEncoded = null;
+              lastBytes = null;
               continue;
             }
           }
           lastEncoded = encoded = en.encode();
           lastBytes = bytes = gzip(encoded);
-          last = tileFeatures;
           if (encoded.length > 1_000_000) {
             LOGGER.warn("{} {}kb uncompressed",
               tileFeatures.tileCoord(),
