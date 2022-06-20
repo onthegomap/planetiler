@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.geo;
 
 import java.util.function.Predicate;
 import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.MultiPolygon;
 
 /**
  * A function that filters to only tile coordinates that overlap a given {@link Envelope}.
@@ -23,7 +24,7 @@ public class TileExtents implements Predicate<TileCoord> {
   }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
-  public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds) {
+  public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds, MultiPolygon shape) {
     ForZoom[] zoomExtents = new ForZoom[maxzoom + 1];
     for (int zoom = 0; zoom <= maxzoom; zoom++) {
       int max = 1 << zoom;
@@ -31,7 +32,8 @@ public class TileExtents implements Predicate<TileCoord> {
         quantizeDown(worldBounds.getMinX(), max),
         quantizeDown(worldBounds.getMinY(), max),
         quantizeUp(worldBounds.getMaxX(), max),
-        quantizeUp(worldBounds.getMaxY(), max)
+        quantizeUp(worldBounds.getMaxY(), max),
+        shape
       );
     }
     return new TileExtents(zoomExtents);
@@ -53,8 +55,9 @@ public class TileExtents implements Predicate<TileCoord> {
   /**
    * X/Y extents within a given zoom level. {@code minX} and {@code minY} are inclusive and {@code maxX} and {@code
    * maxY} are exclusive.
+   * shape is an optional polygon defining a more refine shape
    */
-  public record ForZoom(int minX, int minY, int maxX, int maxY) {
+  public record ForZoom(int minX, int minY, int maxX, int maxY, MultiPolygon shape) {
 
     public boolean test(int x, int y) {
       return testX(x) && testY(y);

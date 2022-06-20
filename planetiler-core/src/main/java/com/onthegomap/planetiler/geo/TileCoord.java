@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.util.Format;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 
 /**
  * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
@@ -115,6 +116,17 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new CoordinateXY(
       GeoUtils.getWorldLon(x / worldWidthAtZoom),
       GeoUtils.getWorldLat(y / worldWidthAtZoom)
+    );
+  }
+
+  /** Returns the latitude/longitude of the northwest corner of this tile. */
+  public Envelope getEnvelope() {
+    double worldWidthAtZoom = Math.pow(2, z);
+    return new Envelope(
+      GeoUtils.getWorldLon(x / worldWidthAtZoom),
+      GeoUtils.getWorldLon((x+1) / worldWidthAtZoom),
+      GeoUtils.getWorldLat(y / worldWidthAtZoom),
+      GeoUtils.getWorldLat((y+1) / worldWidthAtZoom)
     );
   }
 
