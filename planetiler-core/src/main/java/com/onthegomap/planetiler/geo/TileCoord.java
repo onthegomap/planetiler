@@ -91,11 +91,13 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return ((long) resultX << 32) | resultY;
   }
 
+  // Ignore warnings about nested scopes.
+  @SuppressWarnings("java:S1199")
   private static int hilbertXYToIndex(int n, int tx, int ty) {
     tx = tx << (16 - n);
     ty = ty << (16 - n);
 
-    int A, B, C, D;
+    int hA, hB, hC, hD;
 
     {
       int a = tx ^ ty;
@@ -103,51 +105,51 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
       int c = 0xFFFF ^ (tx | ty);
       int d = tx & (ty ^ 0xFFFF);
 
-      A = a | (b >>> 1);
-      B = (a >>> 1) ^ a;
+      hA = a | (b >>> 1);
+      hB = (a >>> 1) ^ a;
 
-      C = ((c >>> 1) ^ (b & (d >>> 1))) ^ c;
-      D = ((a & (c >>> 1)) ^ (d >>> 1)) ^ d;
+      hC = ((c >>> 1) ^ (b & (d >>> 1))) ^ c;
+      hD = ((a & (c >>> 1)) ^ (d >>> 1)) ^ d;
     }
 
     {
-      int a = A;
-      int b = B;
-      int c = C;
-      int d = D;
+      int a = hA;
+      int b = hB;
+      int c = hC;
+      int d = hD;
 
-      A = ((a & (a >>> 2)) ^ (b & (b >>> 2)));
-      B = ((a & (b >>> 2)) ^ (b & ((a ^ b) >>> 2)));
+      hA = ((a & (a >>> 2)) ^ (b & (b >>> 2)));
+      hB = ((a & (b >>> 2)) ^ (b & ((a ^ b) >>> 2)));
 
-      C ^= ((a & (c >>> 2)) ^ (b & (d >>> 2)));
-      D ^= ((b & (c >>> 2)) ^ ((a ^ b) & (d >>> 2)));
+      hC ^= ((a & (c >>> 2)) ^ (b & (d >>> 2)));
+      hD ^= ((b & (c >>> 2)) ^ ((a ^ b) & (d >>> 2)));
     }
 
     {
-      int a = A;
-      int b = B;
-      int c = C;
-      int d = D;
+      int a = hA;
+      int b = hB;
+      int c = hC;
+      int d = hD;
 
-      A = ((a & (a >>> 4)) ^ (b & (b >>> 4)));
-      B = ((a & (b >>> 4)) ^ (b & ((a ^ b) >>> 4)));
+      hA = ((a & (a >>> 4)) ^ (b & (b >>> 4)));
+      hB = ((a & (b >>> 4)) ^ (b & ((a ^ b) >>> 4)));
 
-      C ^= ((a & (c >>> 4)) ^ (b & (d >>> 4)));
-      D ^= ((b & (c >>> 4)) ^ ((a ^ b) & (d >>> 4)));
+      hC ^= ((a & (c >>> 4)) ^ (b & (d >>> 4)));
+      hD ^= ((b & (c >>> 4)) ^ ((a ^ b) & (d >>> 4)));
     }
 
     {
-      int a = A;
-      int b = B;
-      int c = C;
-      int d = D;
+      int a = hA;
+      int b = hB;
+      int c = hC;
+      int d = hD;
 
-      C ^= ((a & (c >>> 8)) ^ (b & (d >>> 8)));
-      D ^= ((b & (c >>> 8)) ^ ((a ^ b) & (d >>> 8)));
+      hC ^= ((a & (c >>> 8)) ^ (b & (d >>> 8)));
+      hD ^= ((b & (c >>> 8)) ^ ((a ^ b) & (d >>> 8)));
     }
 
-    int a = C ^ (C >>> 1);
-    int b = D ^ (D >>> 1);
+    int a = hC ^ (hC >>> 1);
+    int b = hD ^ (hD >>> 1);
 
     int i0 = tx ^ ty;
     int i1 = b | (0xFFFF ^ (i0 | a));
