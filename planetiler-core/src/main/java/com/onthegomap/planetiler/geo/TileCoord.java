@@ -81,7 +81,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
   }
 
-  private static int encode(int x, int y, int z) {
+  public static int encode(int x, int y, int z) {
     int acc = 0;
     for (int tmp_z = 0; tmp_z < z; tmp_z++) {
       acc += (1 << tmp_z) * (1 << tmp_z);
