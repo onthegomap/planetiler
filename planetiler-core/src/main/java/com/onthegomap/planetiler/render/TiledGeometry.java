@@ -108,6 +108,7 @@ class TiledGeometry {
   }
 
   private void slicePoint(Coordinate coord) {
+    var shape = this.extents.shape();
     double worldX = coord.getX() * maxTilesAtThisZoom;
     double worldY = coord.getY() * maxTilesAtThisZoom;
     int minX = (int) Math.floor(worldX - neighborBuffer);
@@ -121,6 +122,12 @@ class TiledGeometry {
       if (extents.testX(wrappedX)) {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
+          if (shape != null) {
+            TileCoord tileID = TileCoord.ofXYZ(x, y, z);
+            if (!shape.intersects(tileID.getEnvelope())) {
+              continue;
+            }
+          }
           double tileY = worldY - y;
           tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
             .get(0)
