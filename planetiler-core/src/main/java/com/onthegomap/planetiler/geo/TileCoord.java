@@ -22,8 +22,6 @@ import org.locationtech.jts.geom.CoordinateXY;
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
   // z16+ would need more space
 
-  private static final int XY_MASK = (1 << 14) - 1;
-
   public TileCoord {
     assert z <= 15;
   }
@@ -39,38 +37,126 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
       int num_tiles = (1 << tmp_z) * (1 << tmp_z);
       if (acc + num_tiles > encoded) {
         int position = encoded - acc;
-        return decodeOnLevel(tmp_z, position, encoded);
+        long xy = hilbertIndexToXY(tmp_z, position);
+        return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), tmp_z);
       }
       acc += num_tiles;
       tmp_z++;
     }
   }
 
-  private static void rotate(int n, int[] xy, int rx, int ry) {
-    if (ry == 0) {
-      if (rx == 1) {
-        xy[0] = n - 1 - xy[0];
-        xy[1] = n - 1 - xy[1];
-      }
-      int t = xy[0];
-      xy[0] = xy[1];
-      xy[1] = t;
-    }
+  // Fast Hilbert curve algorithm by http://threadlocalmutex.com/
+  // Ported from C++ https://github.com/rawrunprotected/hilbert_curves (public domain)
+  private static int deinterleave(int tx) {
+    tx = tx & 0x55555555;
+    tx = (tx | (tx >>> 1)) & 0x33333333;
+    tx = (tx | (tx >>> 2)) & 0x0F0F0F0F;
+    tx = (tx | (tx >>> 4)) & 0x00FF00FF;
+    tx = (tx | (tx >>> 8)) & 0x0000FFFF;
+    return tx;
   }
 
-  private static TileCoord decodeOnLevel(int z, int position, int encoded) {
-    int n = 1 << z;
-    int rx, ry, t = position;
-    int[] xy = {0, 0};
-    for (int s = 1; s < n; s *= 2) {
-      rx = 1 & Integer.divideUnsigned(t, 2);
-      ry = 1 & (t ^ rx);
-      rotate(s, xy, rx, ry);
-      xy[0] += s * rx;
-      xy[1] += s * ry;
-      t = Integer.divideUnsigned(t, 4);
+  private static int interleave(int tx) {
+    tx = (tx | (tx << 8)) & 0x00FF00FF;
+    tx = (tx | (tx << 4)) & 0x0F0F0F0F;
+    tx = (tx | (tx << 2)) & 0x33333333;
+    tx = (tx | (tx << 1)) & 0x55555555;
+    return tx;
+  }
+
+  private static int prefixScan(int tx) {
+    tx = (tx >>> 8) ^ tx;
+    tx = (tx >>> 4) ^ tx;
+    tx = (tx >>> 2) ^ tx;
+    tx = (tx >>> 1) ^ tx;
+    return tx;
+  }
+
+  private static int deScan(int tx) {
+    return tx ^ (tx >>> 1);
+  }
+
+  private static long hilbertIndexToXY(int n, int i) {
+    i = i << (32 - 2 * n);
+
+    int i0 = deinterleave(i);
+    int i1 = deinterleave(i >>> 1);
+
+    int t0 = (i0 | i1) ^ 0xFFFF;
+    int t1 = i0 & i1;
+
+    int prefixT0 = prefixScan(t0);
+    int prefixT1 = prefixScan(t1);
+
+    int a = (((i0 ^ 0xFFFF) & prefixT1) | (i0 & prefixT0));
+
+    int resultX = (a ^ i1) >>> (16 - n);
+    int resultY = (a ^ i0 ^ i1) >>> (16 - n);
+    return ((long) resultX << 32) | resultY;
+  }
+
+  private static int hilbertXYToIndex(int n, int tx, int ty) {
+    tx = tx << (16 - n);
+    ty = ty << (16 - n);
+
+    int A, B, C, D;
+
+    {
+      int a = tx ^ ty;
+      int b = 0xFFFF ^ a;
+      int c = 0xFFFF ^ (tx | ty);
+      int d = tx & (ty ^ 0xFFFF);
+
+      A = a | (b >>> 1);
+      B = (a >>> 1) ^ a;
+
+      C = ((c >>> 1) ^ (b & (d >>> 1))) ^ c;
+      D = ((a & (c >>> 1)) ^ (d >>> 1)) ^ d;
     }
-    return new TileCoord(encoded, xy[0], xy[1], z);
+
+    {
+      int a = A;
+      int b = B;
+      int c = C;
+      int d = D;
+
+      A = ((a & (a >>> 2)) ^ (b & (b >>> 2)));
+      B = ((a & (b >>> 2)) ^ (b & ((a ^ b) >>> 2)));
+
+      C ^= ((a & (c >>> 2)) ^ (b & (d >>> 2)));
+      D ^= ((b & (c >>> 2)) ^ ((a ^ b) & (d >>> 2)));
+    }
+
+    {
+      int a = A;
+      int b = B;
+      int c = C;
+      int d = D;
+
+      A = ((a & (a >>> 4)) ^ (b & (b >>> 4)));
+      B = ((a & (b >>> 4)) ^ (b & ((a ^ b) >>> 4)));
+
+      C ^= ((a & (c >>> 4)) ^ (b & (d >>> 4)));
+      D ^= ((b & (c >>> 4)) ^ ((a ^ b) & (d >>> 4)));
+    }
+
+    {
+      int a = A;
+      int b = B;
+      int c = C;
+      int d = D;
+
+      C ^= ((a & (c >>> 8)) ^ (b & (d >>> 8)));
+      D ^= ((b & (c >>> 8)) ^ ((a ^ b) & (d >>> 8)));
+    }
+
+    int a = C ^ (C >>> 1);
+    int b = D ^ (D >>> 1);
+
+    int i0 = tx ^ ty;
+    int i1 = b | (0xFFFF ^ (i0 | a));
+
+    return ((interleave(i1) << 1) | interleave(i0)) >>> (32 - 2 * n);
   }
 
   /** Returns the tile containing a latitude/longitude coordinate at a given zoom level. */
@@ -86,16 +172,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     for (int tmp_z = 0; tmp_z < z; tmp_z++) {
       acc += (1 << tmp_z) * (1 << tmp_z);
     }
-    int n = 1 << z;
-    int rx, ry, d = 0;
-    int[] xy = {x, y};
-    for (int s = Integer.divideUnsigned(n, 2); s > 0; s = Integer.divideUnsigned(s, 2)) {
-      rx = (xy[0] & s) > 0 ? 1 : 0;
-      ry = (xy[1] & s) > 0 ? 1 : 0;
-      d += s * s * ((3 * rx) ^ ry);
-      rotate(s, xy, rx, ry);
-    }
-    return acc + d;
+    return acc + hilbertXYToIndex(z, x, y);
   }
 
   @Override
