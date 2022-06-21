@@ -32,16 +32,16 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   public static TileCoord decode(int encoded) {
     int acc = 0;
-    int tmp_z = 0;
+    int tmpZ = 0;
     while (true) {
-      int num_tiles = (1 << tmp_z) * (1 << tmp_z);
-      if (acc + num_tiles > encoded) {
+      int numTiles = (1 << tmpZ) * (1 << tmpZ);
+      if (acc + numTiles > encoded) {
         int position = encoded - acc;
-        long xy = hilbertIndexToXY(tmp_z, position);
-        return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), tmp_z);
+        long xy = hilbertIndexToXY(tmpZ, position);
+        return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), tmpZ);
       }
-      acc += num_tiles;
-      tmp_z++;
+      acc += numTiles;
+      tmpZ++;
     }
   }
 
@@ -70,10 +70,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     tx = (tx >>> 2) ^ tx;
     tx = (tx >>> 1) ^ tx;
     return tx;
-  }
-
-  private static int deScan(int tx) {
-    return tx ^ (tx >>> 1);
   }
 
   private static long hilbertIndexToXY(int n, int i) {
@@ -169,8 +165,8 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   public static int encode(int x, int y, int z) {
     int acc = 0;
-    for (int tmp_z = 0; tmp_z < z; tmp_z++) {
-      acc += (1 << tmp_z) * (1 << tmp_z);
+    for (int tmpZ = 0; tmpZ < z; tmpZ++) {
+      acc += (1 << tmpZ) * (1 << tmpZ);
     }
     return acc + hilbertXYToIndex(z, x, y);
   }
