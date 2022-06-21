@@ -125,11 +125,11 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns the latitude/longitude of the northwest corner of this tile. */
   public Geometry getEnvelope() {
     double worldWidthAtZoom = Math.pow(2, z);
-    return JTS_FACTORY.toGeometry( new Envelope(
+    return JTS_FACTORY.toGeometry(new Envelope(
       GeoUtils.getWorldLon(x / worldWidthAtZoom),
-      GeoUtils.getWorldLon((x+1) / worldWidthAtZoom),
+      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
       GeoUtils.getWorldLat(y / worldWidthAtZoom),
-      GeoUtils.getWorldLat((y+1) / worldWidthAtZoom)
+      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom)
     ));
   }
 
