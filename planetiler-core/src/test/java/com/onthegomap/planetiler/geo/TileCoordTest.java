@@ -41,9 +41,17 @@ class TileCoordTest {
     "1,1,1,3",
     "1,0,1,4",
     "0,0,2,5",
+    "0,0,15,357913941",
+    "0,32767,15,715827882",
+    "32767,0,15,1431655764",
+    "32767,32767,15,1073741823"
   })
   void testTileOrderHilbert(int x, int y, int z, int i) {
     int encoded = TileCoord.ofXYZ(x, y, z).encoded();
     assertEquals(i, encoded);
+    TileCoord decoded = TileCoord.decode(i);
+    assertEquals(decoded.x(), x, "x");
+    assertEquals(decoded.y(), y, "y");
+    assertEquals(decoded.z(), z, "z");
   }
 }
