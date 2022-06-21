@@ -92,7 +92,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   // Ignore warnings about nested scopes amd code duplication.
-  @SuppressWarnings({"java:S1199", "common-java:DuplicatedBlocksSource"})
+  @SuppressWarnings({"java:S1199", "common-java:DuplicatedBlocks"})
   private static int hilbertXYToIndex(int n, int tx, int ty) {
     tx = tx << (16 - n);
     ty = ty << (16 - n);
