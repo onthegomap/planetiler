@@ -621,17 +621,20 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * A source feature generated from OSM elements. Inferring the geometry can be expensive, so each subclass is
    * constructed with the inputs necessary to create the geometry, but the geometry is constructed lazily on read.
    */
-  private abstract class OsmFeature extends SourceFeature {
+  private abstract class OsmFeature extends SourceFeature implements OsmSourceFeature {
 
+    private final OsmElement originalElement;
     private final boolean polygon;
     private final boolean line;
     private final boolean point;
     private Geometry latLonGeom;
     private Geometry worldGeom;
 
+
     public OsmFeature(OsmElement elem, boolean point, boolean line, boolean polygon,
       List<RelationMember<OsmRelationInfo>> relationInfo) {
       super(elem.tags(), name, null, relationInfo, elem.id());
+      this.originalElement = elem;
       this.point = point;
       this.line = line;
       this.polygon = polygon;
@@ -662,6 +665,11 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
     @Override
     public boolean canBePolygon() {
       return polygon;
+    }
+
+    @Override
+    public OsmElement originalElement() {
+      return originalElement;
     }
   }
 

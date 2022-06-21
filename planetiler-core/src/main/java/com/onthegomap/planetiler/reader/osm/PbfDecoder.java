@@ -241,9 +241,20 @@ public class PbfDecoder implements Iterable<OsmElement> {
       return new OsmElement.Way(
         way.getId(),
         buildTags(way.getKeysCount(), way::getKeys, way::getVals),
-        wayNodesList
+        wayNodesList,
+        parseInfo(way.getInfo())
       );
     }
+  }
+
+  private OsmElement.Info parseInfo(Osmformat.Info info) {
+    return info == null ? null : new OsmElement.Info(
+      info.getChangeset(),
+      info.getTimestamp(),
+      info.getUid(),
+      info.getVersion(),
+      fieldDecoder.decodeString(info.getUserSid())
+    );
   }
 
   private class DenseNodeIterator implements Iterator<OsmElement.Node> {
@@ -304,7 +315,8 @@ public class PbfDecoder implements Iterable<OsmElement> {
         nodeId,
         tags == null ? Collections.emptyMap() : tags,
         ((double) latitude) / 10000000,
-        ((double) longitude) / 10000000
+        ((double) longitude) / 10000000,
+        parseInfo(nodes.getDenseinfo(), i)
       );
     }
   }

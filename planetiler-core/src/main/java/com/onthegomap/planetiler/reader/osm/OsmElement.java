@@ -20,6 +20,8 @@ public interface OsmElement extends WithTags {
   /** OSM element ID */
   long id();
 
+  Info info();
+
   int cost();
 
   enum Type {
@@ -31,7 +33,8 @@ public interface OsmElement extends WithTags {
   /** An un-handled element read from the .osm.pbf file (i.e. file header). */
   record Other(
     @Override long id,
-    @Override Map<String, Object> tags
+    @Override Map<String, Object> tags,
+    @Override Info info
   ) implements OsmElement {
 
     @Override
@@ -48,6 +51,7 @@ public interface OsmElement extends WithTags {
     private final Map<String, Object> tags;
     private final double lat;
     private final double lon;
+    private final Info info;
     // bailed out of a record to make encodedLocation lazy since it is fairly expensive to compute
     private long encodedLocation = MISSING_LOCATION;
 
@@ -55,21 +59,28 @@ public interface OsmElement extends WithTags {
       long id,
       Map<String, Object> tags,
       double lat,
-      double lon
+      double lon,
+      Info info
     ) {
       this.id = id;
       this.tags = tags;
       this.lat = lat;
       this.lon = lon;
+      this.info = info;
     }
 
     public Node(long id, double lat, double lon) {
-      this(id, new HashMap<>(), lat, lon);
+      this(id, new HashMap<>(), lat, lon, null);
     }
 
     @Override
     public long id() {
       return id;
+    }
+
+    @Override
+    public Info info() {
+      return info;
     }
 
     @Override
@@ -109,12 +120,13 @@ public interface OsmElement extends WithTags {
       return this.id == that.id &&
         Objects.equals(this.tags, that.tags) &&
         Double.doubleToLongBits(this.lat) == Double.doubleToLongBits(that.lat) &&
-        Double.doubleToLongBits(this.lon) == Double.doubleToLongBits(that.lon);
+        Double.doubleToLongBits(this.lon) == Double.doubleToLongBits(that.lon) &&
+        Objects.equals(this.info, that.info);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(id, tags, lat, lon);
+      return Objects.hash(id, tags, lat, lon, info);
     }
 
     @Override
@@ -123,7 +135,8 @@ public interface OsmElement extends WithTags {
         "id=" + id + ", " +
         "tags=" + tags + ", " +
         "lat=" + lat + ", " +
-        "lon=" + lon + ']';
+        "lon=" + lon + ", " +
+        "info=" + info + ']';
     }
 
   }
@@ -132,11 +145,12 @@ public interface OsmElement extends WithTags {
   record Way(
     @Override long id,
     @Override Map<String, Object> tags,
-    LongArrayList nodes
+    LongArrayList nodes,
+    @Override Info info
   ) implements OsmElement {
 
     public Way(long id) {
-      this(id, new HashMap<>(), new LongArrayList(5));
+      this(id, new HashMap<>(), new LongArrayList(5), null);
     }
 
     @Override
@@ -149,11 +163,12 @@ public interface OsmElement extends WithTags {
   record Relation(
     @Override long id,
     @Override Map<String, Object> tags,
-    List<Member> members
+    List<Member> members,
+    @Override Info info
   ) implements OsmElement {
 
     public Relation(long id) {
-      this(id, new HashMap<>(), new ArrayList<>());
+      this(id, new HashMap<>(), new ArrayList<>(), null);
     }
 
     public Relation {
@@ -176,4 +191,6 @@ public interface OsmElement extends WithTags {
       String role
     ) {}
   }
+
+  record Info(long changeset, long timestamp, int userId, int version, String user) {}
 }

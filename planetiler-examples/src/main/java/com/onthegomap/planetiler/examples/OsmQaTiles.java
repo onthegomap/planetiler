@@ -5,6 +5,8 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import java.nio.file.Path;
 
 public class OsmQaTiles implements Profile {
@@ -29,12 +31,13 @@ public class OsmQaTiles implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
-    if (!sourceFeature.tags().isEmpty()) {
+    if (!sourceFeature.tags().isEmpty() && sourceFeature instanceof OsmSourceFeature osmFeature) {
       var feature = sourceFeature.canBePolygon() ? features.polygon("osm") :
         sourceFeature.canBeLine() ? features.line("osm") :
         sourceFeature.isPoint() ? features.point("osm") :
         null;
       if (feature != null) {
+        var element = osmFeature.originalElement();
         feature
           .setMinPixelSize(0)
           .setPixelTolerance(0)
@@ -50,6 +53,13 @@ public class OsmQaTiles implements Profile {
           .setAttr("@id", sourceFeature.id());
         for (var entry : sourceFeature.tags().entrySet()) {
           feature.setAttr(entry.getKey(), entry.getValue());
+        }
+        if (element instanceof OsmElement.Node) {
+          feature.setAttr("@type", "node");
+        } else if (element instanceof OsmElement.Way) {
+          feature.setAttr("@type", "way");
+        } else if (element instanceof OsmElement.Relation) {
+          feature.setAttr("@type", "relation");
         }
       }
     }
