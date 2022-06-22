@@ -26,8 +26,8 @@ To set up your local development environment:
   - to run benchmarks e.g. `BenchmarkTileCoord`:
 
 ```sh
-    ./scripts/build.sh
-    java -cp planetiler-dist/target/planetiler-dist-*-with-deps.jar com.onthegomap.planetiler.benchmarks.BenchmarkTileCoord
+./scripts/build.sh
+java -cp planetiler-dist/target/planetiler-dist-*-with-deps.jar com.onthegomap.planetiler.benchmarks.BenchmarkTileCoord
 ```
 
 GitHub Workflows will run regression tests on any pull request.
