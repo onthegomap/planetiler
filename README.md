@@ -28,6 +28,7 @@ the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetma
 [© OpenMapTiles](https://www.openmaptiles.org/) [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
 
 ## Usage
+
 To generate a map of an area using the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles), you will need:
 
 - Java 16+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
