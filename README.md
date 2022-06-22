@@ -223,6 +223,19 @@ Set up your dependencies block as follows:
 implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
 ```
 
+## Planetiler-openmaptiles
+
+To use [Openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles) you need to init and update its
+submodule.
+
+```bash
+# Clone Planetiler root repository
+git clone https://github.com/onthegomap/planetiler.git
+
+# Init planetiler-openmapties submodule
+git submodule update --init
+```
+
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
