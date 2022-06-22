@@ -40,9 +40,6 @@ The `planetiler-core` module includes the following software:
   - `osmformat.proto` and `fileformat.proto` (generates `Osmformat.java` and `Fileformat.java`)
     from [openstreetmap/OSM-binary](https://github.com/openstreetmap/OSM-binary/tree/master/osmpbf) (MIT License)
 
-Additionally, the `planetiler-openmaptiles` module is based
-on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
-
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)

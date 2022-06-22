@@ -48,7 +48,6 @@ import com.onthegomap.planetiler.reader.SourceFeature;
 import java.nio.file.Path;
 
 public class MyProfile implements Profile {
-
   @Override
   public String name() {
     // name that shows up in the MBTiles metadata table
@@ -164,8 +163,8 @@ for a complete unit and integration test.
 Check out:
 
 - The other [minimal examples](./src/main/java/com/onthegomap/planetiler/examples)
-- The [OpenMapTiles profile](../planetiler-openmaptiles) for a full-featured example of a complex profile with
-  processing broken out into a handler per layer
+- The [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles) for a full-featured example of a
+  complex profile with processing broken out into a handler per layer
 - [Planetiler](../planetiler-core/src/main/java/com/onthegomap/planetiler/Planetiler.java) for more options when
   invoking the program
 - [FeatureCollector](../planetiler-core/src/main/java/com/onthegomap/planetiler/FeatureCollector.java)

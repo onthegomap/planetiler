@@ -1,6 +1,6 @@
 # Generating a Map of the World
 
-To generate a map of the world using the built-in [OpenMapTiles profile](planetiler-openmaptiles), you will need a
+To generate a map of the world using the built-in [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles), you will need a
 machine with
 Java 16 or later installed and at least 10x as much disk space and at least 0.5x as much RAM as the `planet.osm.pbf`
 file you start from. All testing has been done using Digital Ocean droplets with dedicated
