@@ -517,8 +517,8 @@ public class Planetiler {
       return; // exit only if just fetching wikidata or downloading sources
     }
 
-    String osmPolyFilePath =
-      arguments.getString("poly_shape", "a .poly file defining the \"bounds\" to generate", null);
+    Path osmPolyFilePath =
+      arguments.file("poly_shape", "a .poly file defining the \"bounds\" to generate", null);
     if (osmPolyFilePath != null) {
       MultiPolygon shape = PolyFileReader.parsePolyFile(osmPolyFilePath);
       config.bounds().setShape(shape);

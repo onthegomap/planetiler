@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.geo;
 
 import java.util.function.Predicate;
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
 
 /**
  * A function that filters to only tile coordinates that overlap a given {@link Envelope}.
@@ -29,7 +29,7 @@ public class TileExtents implements Predicate<TileCoord> {
   }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
-  public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds, MultiPolygon shape) {
+  public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds, PreparedGeometry shape) {
     ForZoom[] zoomExtents = new ForZoom[maxzoom + 1];
     for (int zoom = 0; zoom <= maxzoom; zoom++) {
       int max = 1 << zoom;
@@ -61,7 +61,7 @@ public class TileExtents implements Predicate<TileCoord> {
    * X/Y extents within a given zoom level. {@code minX} and {@code minY} are inclusive and {@code maxX} and {@code
    * maxY} are exclusive. shape is an optional polygon defining a more refine shape
    */
-  public record ForZoom(int minX, int minY, int maxX, int maxY, MultiPolygon shape) {
+  public record ForZoom(int minX, int minY, int maxX, int maxY, PreparedGeometry shape) {
 
     public boolean test(int x, int y) {
       return testX(x) && testY(y);

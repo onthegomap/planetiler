@@ -123,7 +123,7 @@ class TiledGeometry {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
           if (shape != null) {
-            TileCoord tileID = TileCoord.ofXYZ(x, y, z);
+            TileCoord tileID = TileCoord.ofXYZ(wrappedX, y, z);
             if (!shape.intersects(tileID.getEnvelope())) {
               continue;
             }

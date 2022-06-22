@@ -5,6 +5,8 @@ import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +24,7 @@ public class Bounds {
   private Envelope world;
   private TileExtents tileExtents;
 
-  private MultiPolygon shape;
+  private PreparedGeometry shape;
 
   Bounds(Envelope latLon) {
     set(latLon);
@@ -56,8 +58,10 @@ public class Bounds {
   }
 
   public Bounds setShape(MultiPolygon shape) {
-    this.shape = shape;
-    set(shape.getEnvelopeInternal());
+    this.shape = PreparedGeometryFactory.prepare(shape);
+    if (latLon == null) {
+      set(shape.getEnvelopeInternal());
+    }
     return this;
   }
 
