@@ -208,7 +208,7 @@ public class MbtilesWriter {
       int zMaxX = extentForZoom.maxX();
       blurb = "%d/%d/%d (z%d %s%%) %s".formatted(
         lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), (100 * (lastTile.x() + 1 - zMinX)) / (zMaxX - zMinX),
+        lastTile.z(), 100 * lastTile.progressOnLevel(),
         lastTile.getDebugUrl()
       );
     }

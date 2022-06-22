@@ -197,6 +197,19 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return "{x=" + x + " y=" + y + " z=" + z + '}';
   }
 
+  public double progressOnLevel() {
+    int acc = 0;
+    int tmpZ = 0;
+    while (true) {
+      int numTiles = (1 << tmpZ) * (1 << tmpZ);
+      if (acc + numTiles > encoded) {
+        return (encoded - acc) / (double) numTiles;
+      }
+      acc += numTiles;
+      tmpZ++;
+    }
+  }
+
   @Override
   public int compareTo(TileCoord o) {
     return Long.compare(encoded, o.encoded);

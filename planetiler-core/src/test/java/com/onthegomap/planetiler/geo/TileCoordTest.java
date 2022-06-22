@@ -54,4 +54,18 @@ class TileCoordTest {
     assertEquals(decoded.y(), y, "y");
     assertEquals(decoded.z(), z, "z");
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0",
+    "0,0,1,0",
+    "0,1,1,0.25",
+    "1,1,1,0.5",
+    "1,0,1,0.75",
+    "0,0,2,0"
+  })
+  void testTileProgressOnLevel(int x, int y, int z, double p) {
+    double progress = TileCoord.ofXYZ(x, y, z).progressOnLevel();
+    assertEquals(p, progress);
+  }
 }
