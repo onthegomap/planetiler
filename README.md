@@ -113,6 +113,7 @@ Planetiler has a submodule dependency. To use [Openmaptiles profile](https://git
 submodule.
 
 To init the submodule repo.
+
 ```bash
 # Clone Planetiler root repository
 git clone https://github.com/onthegomap/planetiler.git
@@ -120,7 +121,9 @@ cd planetiler
 # Init planetiler-openmapties submodule
 git submodule update --init
 ```
+
 To pull latest changes
+
 ```bash
 cd planetiler
 git submodule foreach git pull origin master
