@@ -107,6 +107,25 @@ Some common arguments:
 - `--force` overwrites the output file
 - `--help` shows all of the options and exits
 
+### Planetiler-openmaptiles
+
+Planetiler has a submodule dependency. To use [Openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles) you need to init and update its
+submodule.
+
+To init the submodule repo.
+```bash
+# Clone Planetiler root repository
+git clone https://github.com/onthegomap/planetiler.git
+cd planetiler
+# Init planetiler-openmapties submodule
+git submodule update --init
+```
+To pull latest changes
+```bash
+cd planetiler
+git submodule foreach git pull origin master
+```
+
 ## Generating a Map of the World
 
 See [PLANET.md](PLANET.md).
@@ -221,19 +240,6 @@ Set up your dependencies block as follows:
 
 ```groovy
 implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
-```
-
-## Planetiler-openmaptiles
-
-To use [Openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles) you need to init and update its
-submodule.
-
-```bash
-# Clone Planetiler root repository
-git clone https://github.com/onthegomap/planetiler.git
-
-# Init planetiler-openmapties submodule
-git submodule update --init
 ```
 
 ## Contributing
