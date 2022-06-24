@@ -108,7 +108,6 @@ class TiledGeometry {
   }
 
   private void slicePoint(Coordinate coord) {
-    var shape = this.extents.shape();
     double worldX = coord.getX() * maxTilesAtThisZoom;
     double worldY = coord.getY() * maxTilesAtThisZoom;
     int minX = (int) Math.floor(worldX - neighborBuffer);
@@ -122,11 +121,8 @@ class TiledGeometry {
       if (extents.testX(wrappedX)) {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
-          if (shape != null) {
-            TileCoord tileID = TileCoord.ofXYZ(wrappedX, y, z);
-            if (!shape.intersects(tileID.getEnvelope())) {
-              continue;
-            }
+          if (!extents.testOverShape(wrappedX, y, z)) {
+            continue;
           }
           double tileY = worldY - y;
           tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
@@ -434,8 +430,6 @@ class TiledGeometry {
     record SkippedSegment(Direction side, int lo, int hi) {}
     List<SkippedSegment> skipped = null;
 
-    var shape = this.extents.shape();
-
     for (int i = 0; i < stripeSegment.size() - 1; i++) {
       double ax = stripeSegment.getX(i);
       double ay = stripeSegment.getY(i);
@@ -457,12 +451,8 @@ class TiledGeometry {
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
 
       for (int y = startY; y <= endY; y++) {
-
-        if (shape != null) {
-          TileCoord tileID = TileCoord.ofXYZ(x, y, z);
-          if (!shape.intersects(tileID.getEnvelope())) {
-            continue;
-          }
+        if (!extents.testOverShape(x, y, z)) {
+          continue;
         }
         // skip over filled tiles until we get to the next tile that already has detail on it
         if (area && y > endStartY && y < startEndY) {

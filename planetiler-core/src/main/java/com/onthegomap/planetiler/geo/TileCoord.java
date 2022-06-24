@@ -1,14 +1,10 @@
 package com.onthegomap.planetiler.geo;
 
-import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
-
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.util.Format;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
 
 /**
  * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
@@ -122,16 +118,6 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     );
   }
 
-  /** Returns the latitude/longitude of the northwest corner of this tile. */
-  public Geometry getEnvelope() {
-    double worldWidthAtZoom = Math.pow(2, z);
-    return JTS_FACTORY.toGeometry(new Envelope(
-      GeoUtils.getWorldLon(x / worldWidthAtZoom),
-      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
-      GeoUtils.getWorldLat(y / worldWidthAtZoom),
-      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom)
-    ));
-  }
 
   /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl() {
