@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.util.LanguageUtils.containsOnlyLatinChar
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,7 +41,10 @@ class LanguageUtilsTest {
 
   @ParameterizedTest
   @CsvSource(value = {
+    "null,null",
     "abcaāíìś+, +",
+    "abcaāíìś, null",
+    "日本, 日本",
     "abca日āíìś+, 日+",
     "(abc), null",
     "日本 (Japan), 日本",
@@ -93,6 +97,9 @@ class LanguageUtilsTest {
     "name:gsw",
   })
   void testLatinFallbacks(String key) {
+    if (key.startsWith("name:")) {
+      assertTrue(LanguageUtils.isValidOsmNameTag(key));
+    }
     assertEquals("a", LanguageUtils.getLatinName(Map.of(
       key, "a"
     ), true));
@@ -123,6 +130,7 @@ class LanguageUtilsTest {
     "name:genitive",
   })
   void testNoLatinFallback(String key) {
+    assertFalse(LanguageUtils.isValidOsmNameTag(key));
     assertEquals("Branch Hill–Loveland Road", LanguageUtils.getLatinName(Map.of(
       "name", "Branch Hill–Loveland Road",
       key, "Q22133584;Q843993"
