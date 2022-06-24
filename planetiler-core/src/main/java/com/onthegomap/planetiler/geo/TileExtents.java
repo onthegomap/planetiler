@@ -3,19 +3,21 @@ package com.onthegomap.planetiler.geo;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 
 import java.util.function.Predicate;
-import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.geom.util.GeometryTransformer;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A function that filters to only tile coordinates that overlap a given {@link Envelope}.
  */
 public class TileExtents implements Predicate<TileCoord> {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(TileExtents.class);
   private final ForZoom[] zoomExtents;
 
   private TileExtents(ForZoom[] zoomExtents) {
@@ -35,23 +37,11 @@ public class TileExtents implements Predicate<TileCoord> {
     return computeFromWorldBounds(maxzoom, worldBounds, null);
   }
 
-  public static Geometry latLonToTileCoordinates(Geometry geom, int zoom) {
-    var transformer = new GeometryTransformer() {
-      @Override
-      protected CoordinateSequence transformCoordinates(CoordinateSequence coords, Geometry parent) {
-        CoordinateSequence copy = new PackedCoordinateSequence.Double(coords.size(), 2, 0);
-        double n = Math.pow(2d, zoom);
-        for (int i = 0; i < coords.size(); i++) {
-          copy.setOrdinate(i, 0, n * GeoUtils.getWorldX(coords.getX(i)));
-          copy.setOrdinate(i, 1, n * GeoUtils.getWorldY(coords.getY(i)));
-        }
-        return copy;
-      }
-    };
-    // arbitrary tolerance to make test fast while getting as less tiles as possible
-    double tolerance = 10d / 256d / zoom;
-    var simplified = DouglasPeuckerSimplifier.simplify(geom, tolerance);
-    return transformer.transform(simplified);
+  private static Geometry prepareShapeForZoom(Geometry geom, int zoom) {
+    double scale = 1 << zoom;
+    var mercator = GeoUtils.latLonToWorldCoords(geom);
+    var scaled = AffineTransformation.scaleInstance(scale, scale).transform(mercator);
+    return TopologyPreservingSimplifier.simplify(scaled, 0.1);
   }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
@@ -64,8 +54,9 @@ public class TileExtents implements Predicate<TileCoord> {
         quantizeDown(worldBounds.getMinY(), max),
         quantizeUp(worldBounds.getMaxX(), max),
         quantizeUp(worldBounds.getMaxY(), max),
-        shape != null ? PreparedGeometryFactory.prepare(latLonToTileCoordinates(shape, zoom)) : null
+        shape != null ? PreparedGeometryFactory.prepare(prepareShapeForZoom(shape, zoom)) : null
       );
+      LOGGER.warn("prepareShapeForZoom {} {}", zoom, prepareShapeForZoom(shape, zoom).getNumPoints());
     }
     return new TileExtents(zoomExtents);
   }
@@ -90,26 +81,19 @@ public class TileExtents implements Predicate<TileCoord> {
   public record ForZoom(int minX, int minY, int maxX, int maxY, PreparedGeometry shape) {
 
     public boolean test(int x, int y) {
-      if (shape != null) {
-
-        return shape.intersects(JTS_FACTORY.toGeometry(new Envelope(
-          x,
-          x + 1.0f,
-          y,
-          y + 1.0f
-        )));
-      }
-      return testX(x) && testY(y);
+      return testOverShape(x, y) && testX(x) && testY(y);
     }
 
-    public boolean testOverShape(int x, int y, int z) {
+    public boolean testOverShape(int x, int y) {
       if (shape != null) {
-        return shape.intersects(JTS_FACTORY.toGeometry(new Envelope(
-          x,
-          x + 1.0f,
-          y,
-          y + 1.0f
-        )));
+        return shape
+          .intersects(JTS_FACTORY.createPolygon(PackedCoordinateSequenceFactory.DOUBLE_FACTORY.create(new double[]{
+            x, y,
+            x, y + 1d,
+            x + 1d, y + 1d,
+            x + 1d, y,
+            x, y
+          }, 2)));
       }
       return true;
     }

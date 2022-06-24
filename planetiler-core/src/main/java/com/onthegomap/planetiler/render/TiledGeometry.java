@@ -121,7 +121,7 @@ class TiledGeometry {
       if (extents.testX(wrappedX)) {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
-          if (!extents.testOverShape(wrappedX, y, z)) {
+          if (!extents.testOverShape(wrappedX, y)) {
             continue;
           }
           double tileY = worldY - y;
@@ -451,7 +451,7 @@ class TiledGeometry {
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
 
       for (int y = startY; y <= endY; y++) {
-        if (!extents.testOverShape(x, y, z)) {
+        if (!extents.testOverShape(x, y)) {
           continue;
         }
         // skip over filled tiles until we get to the next tile that already has detail on it
