@@ -73,6 +73,15 @@ public interface OsmElement extends WithTags {
       this(id, new HashMap<>(), lat, lon, null);
     }
 
+    public Node(
+      long id,
+      Map<String, Object> tags,
+      double lat,
+      double lon
+    ) {
+      this(id, tags, lat, lon, null);
+    }
+
     @Override
     public long id() {
       return id;
@@ -153,6 +162,10 @@ public interface OsmElement extends WithTags {
       this(id, new HashMap<>(), new LongArrayList(5), null);
     }
 
+    public Way(long id, Map<String, Object> tags, LongArrayList nodes) {
+      this(id, tags, nodes, null);
+    }
+
     @Override
     public int cost() {
       return 1 + tags.size() + nodes.size();
@@ -169,6 +182,10 @@ public interface OsmElement extends WithTags {
 
     public Relation(long id) {
       this(id, new HashMap<>(), new ArrayList<>(), null);
+    }
+
+    public Relation(long id, Map<String, Object> tags, List<Member> members) {
+      this(id, tags, members, null);
     }
 
     public Relation {
