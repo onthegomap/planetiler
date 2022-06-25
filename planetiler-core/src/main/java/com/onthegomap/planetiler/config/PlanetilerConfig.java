@@ -18,6 +18,7 @@ public record PlanetilerConfig(
   Duration logInterval,
   int minzoom,
   int maxzoom,
+  int maxzoomForRendering,
   boolean skipIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
@@ -99,6 +100,7 @@ public record PlanetilerConfig(
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
+      arguments.getInteger("render_maxzoom", "maximum rendering zoom level (limit 14)", MAX_MAXZOOM),
       arguments.getBoolean("skip_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
@@ -151,10 +153,10 @@ public record PlanetilerConfig(
   }
 
   public double minFeatureSize(int zoom) {
-    return zoom >= maxzoom ? minFeatureSizeAtMaxZoom : minFeatureSizeBelowMaxZoom;
+    return zoom >= maxzoomForRendering ? minFeatureSizeAtMaxZoom : minFeatureSizeBelowMaxZoom;
   }
 
   public double tolerance(int zoom) {
-    return zoom >= maxzoom ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
+    return zoom >= maxzoomForRendering ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
   }
 }
