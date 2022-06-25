@@ -27,6 +27,7 @@ import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -78,7 +79,8 @@ public class Planetiler {
   private final PlanetilerConfig config;
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
-  private Path output;
+  private Path tmpOutput;
+  private Path finalOutput;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -103,6 +105,7 @@ public class Planetiler {
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
 
     nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
+    tmpOutput = arguments.file("temp_mbtiles", "temp mbtiles location", tmpDir.resolve("temp.mbtiles"));
     multipolygonPath =
       arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
     featureDbPath = arguments.file("temp_features", "temp feature db location", tmpDir.resolve("feature.db"));
@@ -422,7 +425,7 @@ public class Planetiler {
    * @see MbtilesWriter
    */
   public Planetiler setOutput(String argument, Path fallback) {
-    this.output = arguments.file(argument, "mbtiles output file", fallback);
+    this.finalOutput = arguments.file(argument, "mbtiles output file", fallback);
     return this;
   }
 
@@ -453,7 +456,7 @@ public class Planetiler {
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
     }
-    if (output == null) {
+    if (finalOutput == null) {
       throw new IllegalArgumentException("No output specified");
     }
     if (stages.isEmpty()) {
@@ -465,17 +468,18 @@ public class Planetiler {
     ran = true;
     MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
 
+    FileUtils.deleteFile(tmpOutput);
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (overwrite || config.force()) {
-      FileUtils.deleteFile(output);
-    } else if (Files.exists(output)) {
-      throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
+      FileUtils.deleteFile(tmpOutput);
+    } else if (Files.exists(finalOutput)) {
+      throw new IllegalArgumentException(finalOutput + " already exists, use the --force argument to overwrite.");
     }
 
-    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output);
+    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), finalOutput);
 
     if (!toDownload.isEmpty()) {
       LOGGER.info("  download: Download sources {}", toDownload.stream().map(d -> d.id).toList());
@@ -492,13 +496,13 @@ public class Planetiler {
         }
       }
       LOGGER.info("  sort: Sort rendered features by tile ID");
-      LOGGER.info("  mbtiles: Encode each tile and write to {}", output);
+      LOGGER.info("  mbtiles: Encode each tile and write to {} then {}", tmpOutput, finalOutput);
     }
 
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
     Files.createDirectories(tmpDir);
-    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output);
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, tmpOutput, finalOutput);
 
     if (!toDownload.isEmpty()) {
       download();
@@ -529,7 +533,7 @@ public class Planetiler {
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);
     stats.monitorFile("multipolygons", multipolygonPath);
-    stats.monitorFile("mbtiles", output);
+    stats.monitorFile("mbtiles", tmpOutput);
 
     for (Stage stage : stages) {
       stage.task.run();
@@ -546,9 +550,13 @@ public class Planetiler {
 
     featureGroup.prepare();
 
-    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
+    MbtilesWriter.writeOutput(featureGroup, tmpOutput, mbtilesMetadata, config, stats);
 
     overallTimer.stop();
+    var moveTimer = stats.startStage("move");
+    LOGGER.info("Moving output from {} to {}", tmpOutput, finalOutput);
+    Files.move(tmpOutput, finalOutput, StandardCopyOption.REPLACE_EXISTING);
+    moveTimer.stop();
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
@@ -572,7 +580,8 @@ public class Planetiler {
     readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
-    writePhase.addDisk(output, outputSize, "mbtiles output");
+    writePhase.addDisk(tmpOutput, outputSize, "mbtiles output");
+    writePhase.addDisk(finalOutput, outputSize, "mbtiles output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {
