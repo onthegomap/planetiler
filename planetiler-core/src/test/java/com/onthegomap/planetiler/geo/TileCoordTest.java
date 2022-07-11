@@ -10,43 +10,33 @@ class TileCoordTest {
 
   @ParameterizedTest
   @CsvSource({
-    "0,0,0",
-    "0,0,1",
-    "0,1,1",
-    "1,1,1",
-    "100,100,14",
-    "0,0,14",
-    "16383,0,14",
-    "0,16383,14",
-    "16363,16363,14",
-    "0,0,15",
-    "32767,0,15",
-    "0,32767,15",
-    "32767,32767,15"
-  })
-  void testTileCoord(int x, int y, int z) {
-    TileCoord coord1 = TileCoord.ofXYZ(x, y, z);
-    TileCoord coord2 = TileCoord.decode(coord1.encoded());
-    assertEquals(coord1.x(), coord2.x(), "x");
-    assertEquals(coord1.y(), coord2.y(), "y");
-    assertEquals(coord1.z(), coord2.z(), "z");
-    assertEquals(coord1, coord2);
-  }
-
-  @ParameterizedTest
-  @CsvSource({
     "0,0,0,0",
-    "0,0,1,1",
-    "0,1,1,2",
+    "0,1,1,1",
+    "0,0,1,2",
     "1,1,1,3",
     "1,0,1,4",
-    "0,0,2,5",
-    "0,0,15,357913941",
-    "0,32767,15,715827882",
+    "0,3,2,5",
+    "0,2,2,6",
+    "0,1,2,7",
+    "0,0,2,8",
+    "1,3,2,9",
+    "1,2,2,10",
+    "1,1,2,11",
+    "1,0,2,12",
+    "2,3,2,13",
+    "2,2,2,14",
+    "2,1,2,15",
+    "2,0,2,16",
+    "3,3,2,17",
+    "3,2,2,18",
+    "3,1,2,19",
+    "3,0,2,20",
+    "0,0,15,357946708",
+    "0,32767,15,357913941",
     "32767,0,15,1431655764",
-    "32767,32767,15,1073741823"
+    "32767,32767,15,1431622997"
   })
-  void testTileOrderHilbert(int x, int y, int z, int i) {
+  void testTileOrder(int x, int y, int z, int i) {
     int encoded = TileCoord.ofXYZ(x, y, z).encoded();
     assertEquals(i, encoded);
     TileCoord decoded = TileCoord.decode(i);
@@ -58,11 +48,11 @@ class TileCoordTest {
   @ParameterizedTest
   @CsvSource({
     "0,0,0,0",
-    "0,0,1,0",
-    "0,1,1,0.25",
+    "0,1,1,0",
+    "0,0,1,0.25",
     "1,1,1,0.5",
     "1,0,1,0.75",
-    "0,0,2,0"
+    "0,3,2,0"
   })
   void testTileProgressOnLevel(int x, int y, int z, double p) {
     double progress = TileCoord.ofXYZ(x, y, z).progressOnLevel();
