@@ -9,9 +9,8 @@ import org.locationtech.jts.geom.CoordinateXY;
  * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
  * <p>
  * Tile coords are sorted by consecutive Z levels in ascending order: 0 coords for z=0, 4 coords for z=1, etc. TMS
- * order: tiles in a level are sorted by x ascending, y descending to match the ordering of {@link mbtiles.Mbtiles}
- * sqlite index. Hilbert order: tiles in a level are ordered on the Hilbert curve with the first coordinate at the tip
- * left.
+ * order: tiles in a level are sorted by x ascending, y descending to match the ordering of the MBTiles sqlite index.
+ * Hilbert order: tiles in a level are ordered on the Hilbert curve with the first coordinate at the tip left.
  * <p>
  *
  * @param encoded the tile ID encoded as a 32-bit integer
