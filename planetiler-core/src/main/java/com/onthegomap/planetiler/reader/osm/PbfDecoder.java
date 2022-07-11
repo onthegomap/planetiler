@@ -269,7 +269,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
     int i = 0;
     int kvIndex = 0;
     // info
-    int version = 0;
     long timestamp = 0;
     long changeset = 0;
     int uid = 0;
@@ -295,9 +294,10 @@ public class PbfDecoder implements Iterable<OsmElement> {
       nodeId += nodes.getId(i);
       latitude += nodes.getLat(i);
       longitude += nodes.getLon(i);
+      int version = 0;
 
       if (denseInfo != null) {
-        version += denseInfo.getVersion(i);
+        version = denseInfo.getVersion(i);
         timestamp += denseInfo.getTimestamp(i);
         changeset += denseInfo.getChangeset(i);
         uid += denseInfo.getUid(i);
