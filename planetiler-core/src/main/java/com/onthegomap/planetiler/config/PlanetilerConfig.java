@@ -43,7 +43,8 @@ public record PlanetilerConfig(
   double simplifyToleranceBelowMaxZoom,
   boolean osmLazyReads,
   boolean compactDb,
-  boolean skipFilledTiles
+  boolean skipFilledTiles,
+  int tileWarningSizeBytes
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -148,7 +149,10 @@ public record PlanetilerConfig(
         true),
       arguments.getBoolean("skip_filled_tiles",
         "Skip writing tiles containing only polygon fills to the output",
-        false)
+        false),
+      (int) (arguments.getDouble("tile_warning_size_mb",
+        "Maximum size in megabytes of a tile to emit a warning about",
+        1d) * 1024 * 1024)
     );
   }
 

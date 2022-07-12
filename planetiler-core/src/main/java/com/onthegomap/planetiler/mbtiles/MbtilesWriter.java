@@ -283,7 +283,7 @@ public class MbtilesWriter {
           } else {
             encoded = en.encode();
             bytes = gzip(encoded);
-            if (encoded.length > 1_000_000) {
+            if (encoded.length > config.tileWarningSizeBytes()) {
               LOGGER.warn("{} {}kb uncompressed",
                 tileFeatures.tileCoord(),
                 encoded.length / 1024);
