@@ -39,7 +39,7 @@ public interface OsmElement extends WithTags {
 
     @Override
     public int cost() {
-      return 1 + tags.size();
+      return 1 + tags.size() + (info == null ? 0 : Info.COST);
     }
   }
 
@@ -114,7 +114,7 @@ public interface OsmElement extends WithTags {
 
     @Override
     public int cost() {
-      return 1 + tags.size();
+      return 1 + tags.size() + (info == null ? 0 : Info.COST);
     }
 
     @Override
@@ -168,7 +168,7 @@ public interface OsmElement extends WithTags {
 
     @Override
     public int cost() {
-      return 1 + tags.size() + nodes.size();
+      return 1 + tags.size() + nodes.size() + (info == null ? 0 : Info.COST);
     }
   }
 
@@ -196,7 +196,7 @@ public interface OsmElement extends WithTags {
 
     @Override
     public int cost() {
-      return 1 + tags.size() + members.size() * 3;
+      return 1 + tags.size() + members.size() * 3 + (info == null ? 0 : Info.COST);
     }
 
     /**
@@ -209,5 +209,7 @@ public interface OsmElement extends WithTags {
     ) {}
   }
 
-  record Info(long changeset, long timestamp, int userId, int version, String user) {}
+  record Info(long changeset, long timestamp, int userId, int version, String user) {
+    private static final int COST = 2;
+  }
 }
