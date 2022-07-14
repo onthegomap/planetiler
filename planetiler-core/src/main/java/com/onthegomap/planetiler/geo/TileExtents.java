@@ -49,14 +49,15 @@ public class TileExtents implements Predicate<TileCoord> {
     ForZoom[] zoomExtents = new ForZoom[maxzoom + 1];
     for (int zoom = 0; zoom <= maxzoom; zoom++) {
       int max = 1 << zoom;
+      Geometry zoomGeom = shape == null ? null : prepareShapeForZoom(shape, zoom);
       zoomExtents[zoom] = new ForZoom(
         quantizeDown(worldBounds.getMinX(), max),
         quantizeDown(worldBounds.getMinY(), max),
         quantizeUp(worldBounds.getMaxX(), max),
         quantizeUp(worldBounds.getMaxY(), max),
-        shape != null ? PreparedGeometryFactory.prepare(prepareShapeForZoom(shape, zoom)) : null
+        zoomGeom == null ? null : PreparedGeometryFactory.prepare(zoomGeom)
       );
-      LOGGER.warn("prepareShapeForZoom {} {}", zoom, prepareShapeForZoom(shape, zoom).getNumPoints());
+      LOGGER.debug("prepareShapeForZoom {} {}", zoom, zoomGeom == null ? 0 : zoomGeom.getNumPoints());
     }
     return new TileExtents(zoomExtents);
   }
@@ -81,19 +82,19 @@ public class TileExtents implements Predicate<TileCoord> {
   public record ForZoom(int minX, int minY, int maxX, int maxY, PreparedGeometry shape) {
 
     public boolean test(int x, int y) {
-      return testOverShape(x, y) && testX(x) && testY(y);
+      return testX(x) && testY(y) && testOverShape(x, y);
     }
 
-    public boolean testOverShape(int x, int y) {
+    private boolean testOverShape(int x, int y) {
       if (shape != null) {
-        return shape
-          .intersects(JTS_FACTORY.createPolygon(PackedCoordinateSequenceFactory.DOUBLE_FACTORY.create(new double[]{
-            x, y,
-            x, y + 1d,
-            x + 1d, y + 1d,
-            x + 1d, y,
-            x, y
-          }, 2)));
+        var tile = JTS_FACTORY.createPolygon(PackedCoordinateSequenceFactory.DOUBLE_FACTORY.create(new double[]{
+          x, y,
+          x, y + 1d,
+          x + 1d, y + 1d,
+          x + 1d, y,
+          x, y
+        }, 2));
+        return shape.intersects(tile);
       }
       return true;
     }

@@ -121,13 +121,12 @@ class TiledGeometry {
       if (extents.testX(wrappedX)) {
         for (int y = minY; y <= maxY; y++) {
           TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
-          if (!extents.testOverShape(wrappedX, y)) {
-            continue;
+          if (extents.test(wrappedX, y)) {
+            double tileY = worldY - y;
+            tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
+              .get(0)
+              .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
           }
-          double tileY = worldY - y;
-          tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-            .get(0)
-            .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
         }
       }
     }
@@ -451,7 +450,7 @@ class TiledGeometry {
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
 
       for (int y = startY; y <= endY; y++) {
-        if (!extents.testOverShape(x, y)) {
+        if (!extents.test(x, y)) {
           continue;
         }
         // skip over filled tiles until we get to the next tile that already has detail on it
