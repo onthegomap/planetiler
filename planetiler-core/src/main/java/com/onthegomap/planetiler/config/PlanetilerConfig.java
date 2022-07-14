@@ -18,6 +18,7 @@ public record PlanetilerConfig(
   Duration logInterval,
   int minzoom,
   int maxzoom,
+  int maxzoomForRendering,
   boolean skipIndexCreation,
   boolean optimizeDb,
   boolean emitTilesInOrder,
@@ -42,7 +43,8 @@ public record PlanetilerConfig(
   double simplifyToleranceBelowMaxZoom,
   boolean osmLazyReads,
   boolean compactDb,
-  boolean skipFilledTiles
+  boolean skipFilledTiles,
+  int tileWarningSizeBytes
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -99,6 +101,7 @@ public record PlanetilerConfig(
       arguments.getDuration("loginterval", "time between logs", "10s"),
       arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
       arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
+      arguments.getInteger("render_maxzoom", "maximum rendering zoom level (limit 14)", MAX_MAXZOOM),
       arguments.getBoolean("skip_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
@@ -146,15 +149,18 @@ public record PlanetilerConfig(
         true),
       arguments.getBoolean("skip_filled_tiles",
         "Skip writing tiles containing only polygon fills to the output",
-        false)
+        false),
+      (int) (arguments.getDouble("tile_warning_size_mb",
+        "Maximum size in megabytes of a tile to emit a warning about",
+        1d) * 1024 * 1024)
     );
   }
 
   public double minFeatureSize(int zoom) {
-    return zoom >= maxzoom ? minFeatureSizeAtMaxZoom : minFeatureSizeBelowMaxZoom;
+    return zoom >= maxzoomForRendering ? minFeatureSizeAtMaxZoom : minFeatureSizeBelowMaxZoom;
   }
 
   public double tolerance(int zoom) {
-    return zoom >= maxzoom ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
+    return zoom >= maxzoomForRendering ? simplifyToleranceAtMaxZoom : simplifyToleranceBelowMaxZoom;
   }
 }

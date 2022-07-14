@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.ZoomFunction;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
@@ -582,4 +583,32 @@ class FeatureCollectorTest {
 
     assertFalse(iter.hasNext());
   }
+
+  @Test
+  void testManyAttr() {
+
+    Map<String, Object> tags = new HashMap<>();
+
+    for (int i = 0; i < 500; i++) {
+      tags.put("key" + i, "val" + i);
+    }
+
+    var collector = factory.get(newReaderFeature(newPoint(0, 0), tags));
+    var point = collector.point("layername");
+
+    for (int i = 0; i < 500; i++) {
+      point.setAttr("key" + i, tags.get("key" + i));
+    }
+
+    assertFeatures(13, List.of(
+      Map.of(
+        "key0", "val0",
+        "key10", "val10",
+        "key100", "val100",
+        "key256", "val256",
+        "key499", "val499"
+      )
+    ), collector);
+  }
+
 }

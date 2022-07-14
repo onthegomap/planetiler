@@ -271,35 +271,36 @@ public class MbtilesWriter {
         byte[] bytes, encoded;
         Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
-          if (skipFilled && lastIsFill) {
-            continue;
-          }
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
-          if (skipFilled) {
-            lastIsFill = en.containsOnlyFills();
-            if (lastIsFill) {
-              continue;
+          if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
+            encoded = null;
+            bytes = null;
+          } else {
+            encoded = en.encode();
+            bytes = gzip(encoded);
+            if (encoded.length > config.tileWarningSizeBytes()) {
+              LOGGER.warn("{} {}kb uncompressed",
+                tileFeatures.tileCoord(),
+                encoded.length / 1024);
             }
           }
-          lastEncoded = encoded = en.encode();
-          lastBytes = bytes = gzip(encoded);
+          lastEncoded = encoded;
+          lastBytes = bytes;
           last = tileFeatures;
-          if (encoded.length > 1_000_000) {
-            LOGGER.warn("{} {}kb uncompressed",
-              tileFeatures.tileCoord(),
-              encoded.length / 1024);
-          }
           if (compactDb && en.containsOnlyFillsOrEdges()) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
             tileDataHash = null;
           }
           lastTileDataHash = tileDataHash;
+        }
+        if (skipFilled && lastIsFill) {
+          continue;
         }
         int zoom = tileFeatures.tileCoord().z();
         int encodedLength = encoded == null ? 0 : encoded.length;

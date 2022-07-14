@@ -1751,4 +1751,44 @@ class PlanetilerTests {
       )
     );
   }
+
+
+  private PlanetilerResults runForMaxZoomTest(Map<String, String> attrs) throws Exception {
+    double z8Pixel = 1d / (1 << 8) / 256d;
+    double tileMiddle = 0.5 + Z14_WIDTH / 2;
+    return runWithReaderFeatures(
+      attrs,
+      List.of(
+        newReaderFeature(newLineString(worldCoordinateList(
+          tileMiddle, tileMiddle,
+          tileMiddle + z8Pixel / 2, tileMiddle
+        )), Map.of())
+      ),
+      (in, features) -> features.line("layer").setBufferPixels(0).setZoomRange(0, 14)
+    );
+  }
+
+  @Test
+  void testRenderMaxzoom() throws Exception {
+
+    var baseResult = runForMaxZoomTest(Map.of(
+      "minzoom", "0",
+      "maxzoom", "14")
+    );
+    var maxzoomResult = runForMaxZoomTest(Map.of(
+      "minzoom", "0",
+      "maxzoom", "8"
+    ));
+    var renderMaxzoomResult = runForMaxZoomTest(Map.of(
+      "minzoom", "0",
+      "maxzoom", "8",
+      "render_maxzoom", "8"
+    ));
+
+    // the feature is too small to include at z8, unless z8 is the max zoom for rendering to support overzooming
+    var z8Tile = TileCoord.ofXYZ((1 << 8) / 2, (1 << 8) / 2, 8);
+    assertFalse(baseResult.tiles.containsKey(z8Tile));
+    assertTrue(renderMaxzoomResult.tiles.containsKey(z8Tile));
+    assertFalse(maxzoomResult.tiles.containsKey(z8Tile));
+  }
 }

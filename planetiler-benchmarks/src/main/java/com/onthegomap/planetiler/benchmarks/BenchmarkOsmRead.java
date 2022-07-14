@@ -15,10 +15,12 @@ import java.nio.file.Path;
 public class BenchmarkOsmRead {
 
   public static void main(String[] args) throws IOException {
-    OsmInputFile file = new OsmInputFile(Path.of("data/sources/northeast.osm.pbf"), true);
     var profile = new Profile.NullProfile();
     var stats = Stats.inMemory();
-    var config = PlanetilerConfig.from(Arguments.of());
+    var parsedArgs = Arguments.fromArgsOrConfigFile(args);
+    var config = PlanetilerConfig.from(parsedArgs);
+    var path = parsedArgs.inputFile("osm_path", "path to osm file", Path.of("data/sources/northeast.osm.pbf"));
+    OsmInputFile file = new OsmInputFile(path, config.osmLazyReads());
 
     while (true) {
       Timer timer = Timer.start();

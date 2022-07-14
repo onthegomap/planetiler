@@ -756,13 +756,17 @@ public final class Mbtiles implements Closeable {
 
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
-        LOGGER.debug("Set mbtiles metadata: {}={}", name, value);
+        String stringValue = value.toString();
+        LOGGER.debug("Set mbtiles metadata: {}={}", name,
+          stringValue.length() > 1_000 ?
+            (stringValue.substring(0, 1_000) + "... " + (stringValue.length() - 1_000) + " more characters") :
+            stringValue);
         try (
           PreparedStatement statement = connection.prepareStatement(
             "INSERT INTO " + METADATA_TABLE + " (" + METADATA_COL_NAME + "," + METADATA_COL_VALUE + ") VALUES(?, ?);")
         ) {
           statement.setString(1, name);
-          statement.setString(2, value.toString());
+          statement.setString(2, stringValue);
           statement.execute();
         } catch (SQLException throwables) {
           LOGGER.error("Error setting metadata " + name + "=" + value, throwables);
