@@ -149,7 +149,8 @@ public class PbfDecoder implements Iterable<OsmElement> {
         node.getId(),
         buildTags(node.getKeysCount(), node::getKeys, node::getVals),
         fieldDecoder.decodeLatitude(node.getLat()),
-        fieldDecoder.decodeLongitude(node.getLon())
+        fieldDecoder.decodeLongitude(node.getLon()),
+        parseInfo(node.getInfo())
       );
     }
   }
@@ -198,7 +199,8 @@ public class PbfDecoder implements Iterable<OsmElement> {
       return new OsmElement.Relation(
         relation.getId(),
         buildTags(relation.getKeysCount(), relation::getKeys, relation::getVals),
-        members
+        members,
+        parseInfo(relation.getInfo())
       );
     }
   }
@@ -241,27 +243,40 @@ public class PbfDecoder implements Iterable<OsmElement> {
       return new OsmElement.Way(
         way.getId(),
         buildTags(way.getKeysCount(), way::getKeys, way::getVals),
-        wayNodesList
+        wayNodesList,
+        parseInfo(way.getInfo())
       );
     }
+  }
+
+  private OsmElement.Info parseInfo(Osmformat.Info info) {
+    return info == null ? null : new OsmElement.Info(
+      info.getChangeset(),
+      info.getTimestamp(),
+      info.getUid(),
+      info.getVersion(),
+      fieldDecoder.decodeString(info.getUserSid())
+    );
   }
 
   private class DenseNodeIterator implements Iterator<OsmElement.Node> {
 
     final Osmformat.DenseNodes nodes;
-    long nodeId;
-    long latitude;
-    long longitude;
-    int i;
-    int kvIndex;
+    final Osmformat.DenseInfo denseInfo;
+    long nodeId = 0;
+    long latitude = 0;
+    long longitude = 0;
+    int i = 0;
+    int kvIndex = 0;
+    // info
+    long timestamp = 0;
+    long changeset = 0;
+    int uid = 0;
+    int userSid = 0;
 
     public DenseNodeIterator(Osmformat.DenseNodes nodes) {
       this.nodes = nodes;
-      nodeId = 0;
-      latitude = 0;
-      longitude = 0;
-      i = 0;
-      kvIndex = 0;
+      this.denseInfo = nodes.getDenseinfo();
     }
 
 
@@ -279,6 +294,16 @@ public class PbfDecoder implements Iterable<OsmElement> {
       nodeId += nodes.getId(i);
       latitude += nodes.getLat(i);
       longitude += nodes.getLon(i);
+      int version = 0;
+
+      if (denseInfo != null) {
+        version = denseInfo.getVersion(i);
+        timestamp += denseInfo.getTimestamp(i);
+        changeset += denseInfo.getChangeset(i);
+        uid += denseInfo.getUid(i);
+        userSid += denseInfo.getUserSid(i);
+      }
+
       i++;
 
       // Build the tags. The key and value string indexes are sequential
@@ -304,7 +329,14 @@ public class PbfDecoder implements Iterable<OsmElement> {
         nodeId,
         tags == null ? Collections.emptyMap() : tags,
         ((double) latitude) / 10000000,
-        ((double) longitude) / 10000000
+        ((double) longitude) / 10000000,
+        denseInfo == null ? null : new OsmElement.Info(
+          changeset,
+          timestamp,
+          uid,
+          version,
+          fieldDecoder.decodeString(userSid)
+        )
       );
     }
   }

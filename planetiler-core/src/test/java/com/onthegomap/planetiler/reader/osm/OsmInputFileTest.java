@@ -24,7 +24,7 @@ class OsmInputFileTest {
   private final OsmElement.Node expectedNode = new OsmElement.Node(1737114566L, Map.of(
     "highway", "crossing",
     "crossing", "zebra"
-  ), 43.7409723, 7.4303278);
+  ), 43.7409723, 7.4303278, new OsmElement.Info(0, 1600807207, 0, 5, ""));
   private final OsmElement.Way expectedWay = new OsmElement.Way(4097656L, Map.of(
     "name", "Avenue Princesse Alice",
     "lanes", "2",
@@ -35,7 +35,7 @@ class OsmInputFileTest {
   ), LongArrayList.from(
     21912089L, 7265761724L, 1079750744L, 2104793864L, 6340961560L, 1110560507L, 21912093L, 6340961559L, 21912095L,
     7265762803L, 2104793866L, 6340961561L, 5603088200L, 6340961562L, 21912097L, 21912099L
-  ));
+  ), new OsmElement.Info(0, 1583398246, 0, 13, ""));
   private final OsmElement.Relation expectedRel = new OsmElement.Relation(7360630L, Map.of(
     "local_ref", "Saint-Roman",
     "public_transport:version", "2",
@@ -51,7 +51,7 @@ class OsmInputFileTest {
     new OsmElement.Relation.Member(OsmElement.Type.NODE, 3465728159L, "stop"),
     new OsmElement.Relation.Member(OsmElement.Type.NODE, 4939122068L, "platform"),
     new OsmElement.Relation.Member(OsmElement.Type.NODE, 3805333988L, "stop")
-  ));
+  ), new OsmElement.Info(0, 1586074405, 0, 2, ""));
   private final Envelope expectedBounds = new Envelope(7.409205, 7.448637, 43.72335, 43.75169);
 
   @Test

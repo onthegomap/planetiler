@@ -1,11 +1,14 @@
 package com.onthegomap.planetiler;
 
+import static java.util.Map.entry;
+
 import com.onthegomap.planetiler.basemap.BasemapMain;
 import com.onthegomap.planetiler.basemap.util.VerifyMonaco;
 import com.onthegomap.planetiler.benchmarks.BasemapMapping;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
+import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.mbtiles.Verify;
@@ -20,17 +23,19 @@ import java.util.Map;
 public class Main {
 
   private static final EntryPoint DEFAULT_TASK = BasemapMain::main;
-  private static final Map<String, EntryPoint> ENTRY_POINTS = Map.of(
-    "generate-basemap", BasemapMain::main,
-    "generate-custom", ConfiguredMapMain::main,
-    "basemap", BasemapMain::main,
-    "example-bikeroutes", BikeRouteOverlay::main,
-    "example-toilets", ToiletsOverlay::main,
-    "example-toilets-lowlevel", ToiletsOverlayLowLevelApi::main,
-    "benchmark-mapping", BasemapMapping::main,
-    "benchmark-longlongmap", LongLongMapBench::main,
-    "verify-mbtiles", Verify::main,
-    "verify-monaco", VerifyMonaco::main
+  private static final Map<String, EntryPoint> ENTRY_POINTS = Map.ofEntries(
+    entry("generate-basemap", BasemapMain::main),
+    entry("generate-custom", ConfiguredMapMain::main),
+    entry("basemap", BasemapMain::main),
+    entry("example-bikeroutes", BikeRouteOverlay::main),
+    entry("example-toilets", ToiletsOverlay::main),
+    entry("example-toilets-lowlevel", ToiletsOverlayLowLevelApi::main),
+    entry("example-qa", OsmQaTiles::main),
+    entry("osm-qa", OsmQaTiles::main),
+    entry("benchmark-mapping", BasemapMapping::main),
+    entry("benchmark-longlongmap", LongLongMapBench::main),
+    entry("verify-mbtiles", Verify::main),
+    entry("verify-monaco", VerifyMonaco::main)
   );
 
   public static void main(String[] args) throws Exception {
