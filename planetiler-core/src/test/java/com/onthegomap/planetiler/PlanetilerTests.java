@@ -1791,4 +1791,45 @@ class PlanetilerTests {
     assertTrue(renderMaxzoomResult.tiles.containsKey(z8Tile));
     assertFalse(maxzoomResult.tiles.containsKey(z8Tile));
   }
+
+  private PlanetilerResults runForBoundsTest(String key, String value) throws Exception {
+    return runWithReaderFeatures(
+      Map.of("threads", "1", key, value),
+      List.of(
+        newReaderFeature(WORLD_POLYGON, Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 2)
+        .setBufferPixels(0)
+    );
+  }
+
+  @Test
+  void testBoundFilters() throws Exception {
+    var origResult = runForBoundsTest("", "");
+    var bboxResult = runForBoundsTest("bounds", "1,-85.05113,180,-1");
+    var polyResult = runForBoundsTest("polygon", TestUtils.pathToResource("bottomrightearth.poly").toString());
+
+    assertEquals(1 + 4 + 16, origResult.tiles.size());
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 0),
+      TileCoord.ofXYZ(1, 1, 1),
+      TileCoord.ofXYZ(2, 2, 2),
+      TileCoord.ofXYZ(3, 2, 2),
+      TileCoord.ofXYZ(2, 3, 2),
+      TileCoord.ofXYZ(3, 3, 2)
+    ), bboxResult.tiles.keySet());
+    assertEquals(Set.of(
+      TileCoord.ofXYZ(0, 0, 0),
+      TileCoord.ofXYZ(1, 1, 1),
+      // TileCoord.ofXYZ(2, 2, 2),  - omit since this one is outside of triangle
+      TileCoord.ofXYZ(3, 2, 2),
+      TileCoord.ofXYZ(2, 3, 2),
+      TileCoord.ofXYZ(3, 3, 2)
+    ), polyResult.tiles.keySet());
+
+    // but besides the omitted tile, the rest should be the same
+    bboxResult.tiles.remove(TileCoord.ofXYZ(2, 2, 2));
+    assertEquals(bboxResult.tiles, polyResult.tiles);
+  }
 }

@@ -137,6 +137,20 @@ class FeatureRendererTest {
     ), renderGeometry(feature));
   }
 
+  @Test
+  void testEmitPointsRespectShape() {
+    config = PlanetilerConfig.from(Arguments.of(
+      "polygon", TestUtils.pathToResource("bottomrightearth.poly")
+    ));
+    var feature = pointFeature(newPoint(0.5 + 1d / 512, 0.5 + 1d / 512))
+      .setZoomRange(0, 2)
+      .setBufferPixels(2);
+    assertSameNormalizedFeatures(Map.of(
+      TileCoord.ofXYZ(0, 0, 0), List.of(newPoint(128.5, 128.5)),
+      TileCoord.ofXYZ(1, 1, 1), List.of(newPoint(1, 1))
+    ), renderGeometry(feature));
+  }
+
   @TestFactory
   List<DynamicTest> testProcessPointsNearInternationalDateLineAndPoles() {
     double d = 1d / 512;

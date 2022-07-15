@@ -120,8 +120,8 @@ class TiledGeometry {
       // point may end up inside bounds after wrapping
       if (extents.testX(wrappedX)) {
         for (int y = minY; y <= maxY; y++) {
-          TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
           if (extents.test(wrappedX, y)) {
+            TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
             double tileY = worldY - y;
             tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
               .get(0)

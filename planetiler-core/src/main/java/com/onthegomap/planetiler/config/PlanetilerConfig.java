@@ -2,6 +2,10 @@ package com.onthegomap.planetiler.config;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
+import com.onthegomap.planetiler.reader.osm.PolyFileReader;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.stream.Stream;
 
@@ -90,9 +94,19 @@ public record PlanetilerConfig(
     int featureProcessThreads =
       arguments.getInteger("process_threads", "number of threads to use when processing input features",
         Math.max(threads < 4 ? threads : (threads - featureWriteThreads), 1));
+    Bounds bounds = new Bounds(arguments.bounds("bounds", "bounds"));
+    Path polygonFile =
+      arguments.file("polygon", "a .poly file that limits output to tiles intersecting the shape", null);
+    if (polygonFile != null) {
+      try {
+        bounds.setShape(PolyFileReader.parsePolyFile(polygonFile));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
     return new PlanetilerConfig(
       arguments,
-      new Bounds(arguments.bounds("bounds", "bounds")),
+      bounds,
       threads,
       featureWriteThreads,
       featureProcessThreads,

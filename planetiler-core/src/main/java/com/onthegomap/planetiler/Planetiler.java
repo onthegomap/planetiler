@@ -12,7 +12,6 @@ import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
-import com.onthegomap.planetiler.reader.osm.PolyFileReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
@@ -31,7 +30,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import org.locationtech.jts.geom.MultiPolygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -515,13 +513,6 @@ public class Planetiler {
     }
     if (onlyDownloadSources || onlyFetchWikidata) {
       return; // exit only if just fetching wikidata or downloading sources
-    }
-
-    Path osmPolyFilePath =
-      arguments.file("poly_shape", "a .poly file defining the \"bounds\" to generate", null);
-    if (osmPolyFilePath != null) {
-      MultiPolygon shape = PolyFileReader.parsePolyFile(osmPolyFilePath);
-      config.bounds().setShape(shape);
     }
 
     if (osmInputFile != null) {

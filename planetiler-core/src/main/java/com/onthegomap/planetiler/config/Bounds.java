@@ -5,7 +5,6 @@ import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.MultiPolygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +55,8 @@ public class Bounds {
     return this;
   }
 
-  public Bounds setShape(MultiPolygon shape) {
+  /** Planetiler will emit any tile that intersects {@code shape}. */
+  public Bounds setShape(Geometry shape) {
     this.shape = shape;
     if (latLon == null) {
       set(shape.getEnvelopeInternal());
