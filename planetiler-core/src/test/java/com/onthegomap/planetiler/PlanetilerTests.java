@@ -1608,7 +1608,7 @@ class PlanetilerTests {
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
-      ("--tmpdir=" + tempDir + " " + args).split("\\s+")
+      ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
     ))
       .setProfile(new Profile.NullProfile() {
         @Override
