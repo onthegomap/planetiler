@@ -111,7 +111,7 @@ class ExternalMergeSort implements FeatureSort {
     }
     this.gzip = gzip;
     this.mmapIO = mmap;
-    long memLimit = ProcessInfo.getMaxMemoryBytes() / 2;
+    long memLimit = ProcessInfo.getMaxMemoryBytes() / 3;
     if (chunkSizeLimit > memLimit) {
       throw new IllegalStateException("Not enough memory for chunkSize=" + chunkSizeLimit + " limit=" + memLimit);
     }
