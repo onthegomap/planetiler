@@ -7,6 +7,7 @@ import com.google.common.collect.Iterators;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,8 +40,22 @@ public class PbfDecoder implements Iterable<OsmElement> {
     fieldDecoder = new PbfFieldDecoder(block);
   }
 
+  private PbfDecoder(ByteBuffer rawBlob) throws IOException {
+    byte[] data = readBlobContent(rawBlob);
+    block = Osmformat.PrimitiveBlock.parseFrom(data);
+    fieldDecoder = new PbfFieldDecoder(block);
+  }
+
+  private static byte[] readBlobContent(ByteBuffer input) throws IOException {
+    return readBlobContent(Fileformat.Blob.parseFrom(input));
+
+  }
+
   private static byte[] readBlobContent(byte[] input) throws IOException {
-    Fileformat.Blob blob = Fileformat.Blob.parseFrom(input);
+    return readBlobContent(Fileformat.Blob.parseFrom(input));
+  }
+
+  private static byte[] readBlobContent(Fileformat.Blob blob) {
     byte[] blobData;
 
     if (blob.hasRaw()) {
@@ -67,6 +82,15 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   /** Decompresses and parses a block of primitive OSM elements. */
   public static Iterable<OsmElement> decode(byte[] raw) {
+    try {
+      return new PbfDecoder(raw);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Unable to process PBF blob", e);
+    }
+  }
+
+  /** Decompresses and parses a block of primitive OSM elements. */
+  public static Iterable<OsmElement> decode(ByteBuffer raw) {
     try {
       return new PbfDecoder(raw);
     } catch (IOException e) {

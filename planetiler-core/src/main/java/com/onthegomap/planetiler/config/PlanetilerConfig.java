@@ -143,7 +143,7 @@ public record PlanetilerConfig(
         0.1d),
       arguments.getBoolean("osm_lazy_reads",
         "Read OSM blocks from disk in worker threads",
-        false),
+        true),
       arguments.getBoolean("compact_db",
         "Reduce the DB size by separating and deduping the tile data",
         true),
