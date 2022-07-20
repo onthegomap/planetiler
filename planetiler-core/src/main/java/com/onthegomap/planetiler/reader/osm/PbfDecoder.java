@@ -321,11 +321,11 @@ public class PbfDecoder implements Iterable<OsmElement> {
       int version = 0;
 
       if (denseInfo != null) {
-        version = denseInfo.getVersion(i);
-        timestamp += denseInfo.getTimestamp(i);
-        changeset += denseInfo.getChangeset(i);
-        uid += denseInfo.getUid(i);
-        userSid += denseInfo.getUserSid(i);
+        version = denseInfo.getVersionCount() > i ? denseInfo.getVersion(i) : 0;
+        timestamp += denseInfo.getTimestampCount() > i ? denseInfo.getTimestamp(i) : 0;
+        changeset += denseInfo.getChangesetCount() > i ? denseInfo.getChangeset(i) : 0;
+        uid += denseInfo.getUidCount() > i ? denseInfo.getUid(i) : 0;
+        userSid += denseInfo.getUserSidCount() > i ? denseInfo.getUserSid(i) : 0;
       }
 
       i++;
