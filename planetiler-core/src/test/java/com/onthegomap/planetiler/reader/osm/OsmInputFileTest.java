@@ -121,4 +121,49 @@ class OsmInputFileTest {
       }
     }
   }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  @Timeout(30)
+  void testReadMonacoWithoutChangesetsTwice(boolean lazy) {
+    for (int i = 1; i <= 2; i++) {
+      AtomicInteger nodes = new AtomicInteger(0);
+      AtomicInteger ways = new AtomicInteger(0);
+      AtomicInteger rels = new AtomicInteger(0);
+      AtomicReference<OsmElement.Node> node = new AtomicReference<>();
+      AtomicReference<OsmElement.Way> way = new AtomicReference<>();
+      AtomicReference<OsmElement.Relation> rel = new AtomicReference<>();
+      var file = new OsmInputFile(TestUtils.pathToResource("monaco-latest-without-changesets.osm.pbf"), lazy);
+      try (var osmReader = file.get()) {
+        WorkerPipeline.start("test", Stats.inMemory())
+          .fromGenerator("pbf", osmReader::forEachBlock)
+          .addBuffer("pbf_blocks", 100)
+          .sinkToConsumer("counter", 1, block -> {
+            for (var elem : block.decodeElements()) {
+              if (elem instanceof OsmElement.Node n) {
+                if (n.id() == expectedNode.id()) {
+                  node.set(n);
+                }
+                nodes.incrementAndGet();
+              } else if (elem instanceof OsmElement.Way w) {
+                if (w.id() == expectedWay.id()) {
+                  way.set(w);
+                }
+                ways.incrementAndGet();
+              } else if (elem instanceof OsmElement.Relation r) {
+                if (r.id() == expectedRel.id()) {
+                  rel.set(r);
+                }
+                rels.incrementAndGet();
+              }
+            }
+          }).await();
+        assertEquals(27_135, nodes.get(), "nodes pass " + i);
+        assertEquals(4_295, ways.get(), "ways pass " + i);
+        assertEquals(255, rels.get(), "rels pass " + i);
+
+        assertEquals(new OsmElement.Info(0, 1647347498, 0, 8, ""), node.get().info());
+      }
+    }
+  }
 }
