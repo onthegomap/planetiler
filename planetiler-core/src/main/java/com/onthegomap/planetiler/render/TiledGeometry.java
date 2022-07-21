@@ -61,13 +61,14 @@ import org.roaringbitmap.RoaringBitmap;
  * {@link GeometryCoordinateSequences} converts between JTS {@link Geometry} instances and {@link CoordinateSequence}
  * lists for this utility.
  * <p>
- * This class is adapted from the stripe clipping algorithm in https://github.com/mapbox/geojson-vt/ and modified so
- * that it eagerly produces all sliced tiles at a zoom level for each input geometry.
+ * This class is adapted from the stripe clipping algorithm in
+ * <a href="https://github.com/mapbox/geojson-vt/">geojson-vt</a> and modified so that it eagerly produces all sliced
+ * tiles at a zoom level for each input geometry.
  */
 @NotThreadSafe
 public class TiledGeometry {
 
-  private static final Format FORMAT = Format.defaultInstance();;
+  private static final Format FORMAT = Format.defaultInstance();
   private static final double NEIGHBOR_BUFFER_EPS = 0.1d / 4096;
 
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
