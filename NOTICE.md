@@ -23,6 +23,7 @@ The `planetiler-core` module includes the following software:
   - org.openstreetmap.osmosis:osmosis-osm-binary (LGPL 3.0)
   - com.carrotsearch:hppc (Apache license)
   - com.github.jnr:jnr-ffi (Apache license)
+  - org.roaringbitmap:RoaringBitmap (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
