@@ -329,13 +329,13 @@ public class GeoUtils {
    *
    * @param tilesAtZoom       the tile width of the world at this zoom level
    * @param labelGridTileSize the tile width of each grid square
-   * @param coord             the coordinate
+   * @param coord             the coordinate, scaled to this zoom level
    * @return an ID representing the grid square that {@code coord} falls into.
    */
   public static long labelGridId(int tilesAtZoom, double labelGridTileSize, Coordinate coord) {
     return GeoUtils.longPair(
-      (int) Math.floor(wrapDouble(coord.getX() * tilesAtZoom, tilesAtZoom) / labelGridTileSize),
-      (int) Math.floor((coord.getY() * tilesAtZoom) / labelGridTileSize)
+      (int) Math.floor(wrapDouble(coord.getX(), tilesAtZoom) / labelGridTileSize),
+      (int) Math.floor((coord.getY()) / labelGridTileSize)
     );
   }
 

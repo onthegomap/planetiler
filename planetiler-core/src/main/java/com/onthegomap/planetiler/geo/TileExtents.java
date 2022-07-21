@@ -1,15 +1,10 @@
 package com.onthegomap.planetiler.geo;
 
-import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
-
+import com.onthegomap.planetiler.render.TiledGeometry;
 import java.util.function.Predicate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +12,7 @@ import org.slf4j.LoggerFactory;
  * A function that filters to only tile coordinates that overlap a given {@link Envelope}.
  */
 public class TileExtents implements Predicate<TileCoord> {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(TileExtents.class);
   private final ForZoom[] zoomExtents;
 
@@ -37,27 +33,31 @@ public class TileExtents implements Predicate<TileCoord> {
     return computeFromWorldBounds(maxzoom, worldBounds, null);
   }
 
-  private static Geometry prepareShapeForZoom(Geometry geom, int zoom) {
-    double scale = 1 << zoom;
-    var mercator = GeoUtils.latLonToWorldCoords(geom);
-    var scaled = AffineTransformation.scaleInstance(scale, scale).transform(mercator);
-    return TopologyPreservingSimplifier.simplify(scaled, 0.1);
-  }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */
   public static TileExtents computeFromWorldBounds(int maxzoom, Envelope worldBounds, Geometry shape) {
     ForZoom[] zoomExtents = new ForZoom[maxzoom + 1];
+    var mercator = shape == null ? null : GeoUtils.latLonToWorldCoords(shape);
     for (int zoom = 0; zoom <= maxzoom; zoom++) {
       int max = 1 << zoom;
-      Geometry zoomGeom = shape == null ? null : prepareShapeForZoom(shape, zoom);
-      zoomExtents[zoom] = new ForZoom(
+
+      var forZoom = new ForZoom(
+        zoom,
         quantizeDown(worldBounds.getMinX(), max),
         quantizeDown(worldBounds.getMinY(), max),
         quantizeUp(worldBounds.getMaxX(), max),
         quantizeUp(worldBounds.getMaxY(), max),
-        zoomGeom == null ? null : PreparedGeometryFactory.prepare(zoomGeom)
+        null
       );
-      LOGGER.debug("prepareShapeForZoom {} {}", zoom, zoomGeom == null ? 0 : zoomGeom.getNumPoints());
+
+      if (mercator != null) {
+        Geometry scaled = AffineTransformation.scaleInstance(1 << zoom, 1 << zoom).transform(mercator);
+        TiledGeometry.CoveredTiles covered = TiledGeometry.getCoveredTiles(scaled, zoom, forZoom);
+        forZoom = forZoom.withShape(covered);
+        LOGGER.info("prepareShapeForZoom z{} {}", zoom, covered);
+      }
+
+      zoomExtents[zoom] = forZoom;
     }
     return new TileExtents(zoomExtents);
   }
@@ -79,22 +79,21 @@ public class TileExtents implements Predicate<TileCoord> {
    * X/Y extents within a given zoom level. {@code minX} and {@code minY} are inclusive and {@code maxX} and {@code
    * maxY} are exclusive. shape is an optional polygon defining a more refine shape
    */
-  public record ForZoom(int minX, int minY, int maxX, int maxY, PreparedGeometry shape) {
+  public record ForZoom(int z, int minX, int minY, int maxX, int maxY, TilePredicate shapeFilter)
+    implements TilePredicate {
 
+    public ForZoom withShape(TilePredicate shape) {
+      return new ForZoom(z, minX, minY, maxX, maxY, shape);
+    }
+
+    @Override
     public boolean test(int x, int y) {
       return testX(x) && testY(y) && testOverShape(x, y);
     }
 
     private boolean testOverShape(int x, int y) {
-      if (shape != null) {
-        var tile = JTS_FACTORY.createPolygon(PackedCoordinateSequenceFactory.DOUBLE_FACTORY.create(new double[]{
-          x, y,
-          x, y + 1d,
-          x + 1d, y + 1d,
-          x + 1d, y,
-          x, y
-        }, 2));
-        return shape.intersects(tile);
+      if (shapeFilter != null) {
+        return shapeFilter.test(x, y);
       }
       return true;
     }
