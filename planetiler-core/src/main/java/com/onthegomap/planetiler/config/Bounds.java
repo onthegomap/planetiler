@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileExtents;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,8 @@ public class Bounds {
   private Envelope world;
   private TileExtents tileExtents;
 
+  private Geometry shape;
+
   Bounds(Envelope latLon) {
     set(latLon);
   }
@@ -35,7 +38,7 @@ public class Bounds {
 
   public TileExtents tileExtents() {
     if (tileExtents == null) {
-      tileExtents = TileExtents.computeFromWorldBounds(PlanetilerConfig.MAX_MAXZOOM, world());
+      tileExtents = TileExtents.computeFromWorldBounds(PlanetilerConfig.MAX_MAXZOOM, world(), shape);
     }
     return tileExtents;
   }
@@ -52,11 +55,20 @@ public class Bounds {
     return this;
   }
 
+  /** Planetiler will emit any tile that intersects {@code shape}. */
+  public Bounds setShape(Geometry shape) {
+    this.shape = shape;
+    if (latLon == null) {
+      set(shape.getEnvelopeInternal());
+    }
+    return this;
+  }
+
   private void set(Envelope latLon) {
     if (latLon != null) {
       this.latLon = latLon;
       this.world = GeoUtils.toWorldBounds(latLon);
-      this.tileExtents = TileExtents.computeFromWorldBounds(PlanetilerConfig.MAX_MAXZOOM, world);
+      this.tileExtents = TileExtents.computeFromWorldBounds(PlanetilerConfig.MAX_MAXZOOM, world, shape);
     }
   }
 

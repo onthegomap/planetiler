@@ -26,20 +26,33 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
+import com.onthegomap.planetiler.geo.TilePredicate;
+import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.roaringbitmap.RoaringBitmap;
 
 /**
  * Splits geometries represented by lists of {@link CoordinateSequence CoordinateSequences} into the geometries that
@@ -48,28 +61,27 @@ import org.slf4j.LoggerFactory;
  * {@link GeometryCoordinateSequences} converts between JTS {@link Geometry} instances and {@link CoordinateSequence}
  * lists for this utility.
  * <p>
- * This class is adapted from the stripe clipping algorithm in https://github.com/mapbox/geojson-vt/ and modified so
- * that it eagerly produces all sliced tiles at a zoom level for each input geometry.
+ * This class is adapted from the stripe clipping algorithm in
+ * <a href="https://github.com/mapbox/geojson-vt/">geojson-vt</a> and modified so that it eagerly produces all sliced
+ * tiles at a zoom level for each input geometry.
  */
 @NotThreadSafe
-class TiledGeometry {
+public class TiledGeometry {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TiledGeometry.class);
+  private static final Format FORMAT = Format.defaultInstance();
   private static final double NEIGHBOR_BUFFER_EPS = 0.1d / 4096;
 
-  private final long featureId;
   private final Map<TileCoord, List<List<CoordinateSequence>>> tileContents = new HashMap<>();
-  /** Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry */
-  private Map<Integer, IntRangeSet> filledRanges = null;
   private final TileExtents.ForZoom extents;
   private final double buffer;
   private final double neighborBuffer;
   private final int z;
   private final boolean area;
   private final int maxTilesAtThisZoom;
+  /** Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry */
+  private Map<Integer, IntRangeSet> filledRanges = null;
 
-  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, long featureId) {
-    this.featureId = featureId;
+  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
     this.extents = extents;
     this.buffer = buffer;
     // make sure we inspect neighboring tiles when a line runs along an edge
@@ -87,12 +99,11 @@ class TiledGeometry {
    * @param z       zoom level
    * @param coords  the world web mercator coordinates of each point to emit at this zoom level where (0,0) is the
    *                northwest and (2^z,2^z) is the southeast corner of the planet
-   * @param id      feature ID
    * @return each tile this feature touches, and the points that appear on each
    */
-  public static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
-    Coordinate[] coords, long id) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, false, id);
+  static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
+    Coordinate[] coords) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, false);
     for (Coordinate coord : coords) {
       result.slicePoint(coord);
     }
@@ -107,35 +118,69 @@ class TiledGeometry {
     return value;
   }
 
-  private void slicePoint(Coordinate coord) {
-    double worldX = coord.getX() * maxTilesAtThisZoom;
-    double worldY = coord.getY() * maxTilesAtThisZoom;
-    int minX = (int) Math.floor(worldX - neighborBuffer);
-    int maxX = (int) Math.floor(worldX + neighborBuffer);
-    int minY = Math.max(extents.minY(), (int) Math.floor(worldY - neighborBuffer));
-    int maxY = Math.min(extents.maxY() - 1, (int) Math.floor(worldY + neighborBuffer));
-    for (int x = minX; x <= maxX; x++) {
-      double tileX = worldX - x;
-      int wrappedX = wrapInt(x, maxTilesAtThisZoom);
-      // point may end up inside bounds after wrapping
-      if (extents.testX(wrappedX)) {
-        for (int y = minY; y <= maxY; y++) {
-          TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
-          double tileY = worldY - y;
-          tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-            .get(0)
-            .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
-        }
-      }
+  /**
+   * Returns all the points that appear on tiles representing points at {@code coords}.
+   *
+   * @param scaledGeom the scaled geometry to slice into tiles, in world web mercator coordinates where (0,0) is the
+   *                   northwest and (1,1) is the southeast corner of the planet
+   * @param minSize    the minimum length of a line or area of a polygon to emit
+   * @param buffer     how far detail should be included beyond the edge of each tile (0=none, 1=a full tile width)
+   * @param z          zoom level
+   * @param extents    range of tile coordinates within the bounds of the map to generate
+   * @return each tile this feature touches, and the points that appear on each
+   */
+  public static TiledGeometry sliceIntoTiles(Geometry scaledGeom, double minSize, double buffer, int z,
+    TileExtents.ForZoom extents) {
+
+    if (scaledGeom.isEmpty()) {
+      // ignore
+      return new TiledGeometry(extents, buffer, z, false);
+    } else if (scaledGeom instanceof Point point) {
+      return slicePointsIntoTiles(extents, buffer, z, point.getCoordinates());
+    } else if (scaledGeom instanceof MultiPoint points) {
+      return slicePointsIntoTiles(extents, buffer, z, points.getCoordinates());
+    } else if (scaledGeom instanceof Polygon || scaledGeom instanceof MultiPolygon ||
+      scaledGeom instanceof LineString ||
+      scaledGeom instanceof MultiLineString) {
+      var coordinateSequences = GeometryCoordinateSequences.extractGroups(scaledGeom, minSize);
+      boolean area = scaledGeom instanceof Polygonal;
+      return sliceIntoTiles(coordinateSequences, buffer, area, z, extents);
+    } else {
+      throw new UnsupportedOperationException(
+        "Unsupported JTS geometry type " + scaledGeom.getClass().getSimpleName() + " " +
+          scaledGeom.getGeometryType());
     }
   }
 
-  public int zoomLevel() {
-    return z;
+  /**
+   * Returns the set of tiles that {@code scaledGeom} touches at a zoom level.
+   *
+   * @param scaledGeom The geometry in scaled web mercator coordinates where northwest is (0,0) and southeast is
+   *                   (2^z,2^z)
+   * @param zoom       The zoom level
+   * @param extents    The tile extents for this zoom level.
+   * @return A {@link CoveredTiles} instance for the tiles that are covered by this geometry.
+   */
+  public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents) {
+    if (scaledGeom.isEmpty()) {
+      return new CoveredTiles(new RoaringBitmap(), zoom);
+    } else if (scaledGeom instanceof Puntal || scaledGeom instanceof Polygonal || scaledGeom instanceof Lineal) {
+      return sliceIntoTiles(scaledGeom, 0, 0, zoom, extents).getCoveredTiles();
+    } else if (scaledGeom instanceof GeometryCollection gc) {
+      CoveredTiles result = new CoveredTiles(new RoaringBitmap(), zoom);
+      for (int i = 0; i < gc.getNumGeometries(); i++) {
+        result = CoveredTiles.merge(getCoveredTiles(gc.getGeometryN(i), zoom, extents), result);
+      }
+      return result;
+    } else {
+      throw new UnsupportedOperationException(
+        "Unsupported JTS geometry type " + scaledGeom.getClass().getSimpleName() + " " +
+          scaledGeom.getGeometryType());
+    }
   }
 
   /**
-   * Returns all the points that appear on tiles representing points at {@code coords}.
+   * Returns the tiles that this geometry touches, and the contents of those tiles for this geometry.
    *
    * @param groups  the list of linestrings or polygon rings extracted using {@link GeometryCoordinateSequences} in
    *                world web mercator coordinates where (0,0) is the northwest and (2^z,2^z) is the southeast corner of
@@ -144,12 +189,11 @@ class TiledGeometry {
    * @param area    {@code true} if this is a polygon {@code false} if this is a linestring
    * @param z       zoom level
    * @param extents range of tile coordinates within the bounds of the map to generate
-   * @param id      feature ID
    * @return each tile this feature touches, and the points that appear on each
    */
-  public static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents, long id) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, area, id);
+  static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
+    TileExtents.ForZoom extents) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);
@@ -158,32 +202,6 @@ class TiledGeometry {
       result.sliceWorldCopy(groups, result.maxTilesAtThisZoom);
     }
     return result;
-  }
-
-  /**
-   * Returns an iterator over the coordinates of every tile that is completely filled within this polygon at this zoom
-   * level, ordered by x ascending, y ascending.
-   */
-  public Iterable<TileCoord> getFilledTiles() {
-    return filledRanges == null ? Collections.emptyList() :
-      () -> filledRanges.entrySet().stream()
-        .<TileCoord>mapMulti((entry, next) -> {
-          int x = entry.getKey();
-          for (int y : entry.getValue()) {
-            TileCoord coord = TileCoord.ofXYZ(x, y, z);
-            if (!tileContents.containsKey(coord)) {
-              next.accept(coord);
-            }
-          }
-        }).iterator();
-  }
-
-  /**
-   * Returns every tile that this geometry touches, and the partial geometry contained on that tile that can be
-   * reassembled using {@link GeometryCoordinateSequences}.
-   */
-  public Iterable<Map.Entry<TileCoord, List<List<CoordinateSequence>>>> getTileData() {
-    return tileContents.entrySet();
   }
 
   private static int wrapX(int x, int max) {
@@ -220,6 +238,79 @@ class TiledGeometry {
     }, 2, 0);
   }
 
+  private void slicePoint(Coordinate coord) {
+    double worldX = coord.getX();
+    double worldY = coord.getY();
+    int minX = (int) Math.floor(worldX - neighborBuffer);
+    int maxX = (int) Math.floor(worldX + neighborBuffer);
+    int minY = Math.max(extents.minY(), (int) Math.floor(worldY - neighborBuffer));
+    int maxY = Math.min(extents.maxY() - 1, (int) Math.floor(worldY + neighborBuffer));
+    for (int x = minX; x <= maxX; x++) {
+      double tileX = worldX - x;
+      int wrappedX = wrapInt(x, maxTilesAtThisZoom);
+      // point may end up inside bounds after wrapping
+      if (extents.testX(wrappedX)) {
+        for (int y = minY; y <= maxY; y++) {
+          if (extents.test(wrappedX, y)) {
+            TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
+            double tileY = worldY - y;
+            tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
+              .get(0)
+              .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
+          }
+        }
+      }
+    }
+  }
+
+  public int zoomLevel() {
+    return z;
+  }
+
+  /**
+   * Returns an iterator over the coordinates of every tile that is completely filled within this polygon at this zoom
+   * level, ordered by x ascending, y ascending.
+   */
+  public Iterable<TileCoord> getFilledTiles() {
+    return filledRanges == null ? Collections.emptyList() :
+      () -> filledRanges.entrySet().stream()
+        .<TileCoord>mapMulti((entry, next) -> {
+          int x = entry.getKey();
+          for (int y : entry.getValue()) {
+            if (extents.test(x, y)) {
+              TileCoord coord = TileCoord.ofXYZ(x, y, z);
+              if (!tileContents.containsKey(coord)) {
+                next.accept(coord);
+              }
+            }
+          }
+        }).iterator();
+  }
+
+  /** Returns the tiles touched by this geometry. */
+  public CoveredTiles getCoveredTiles() {
+    RoaringBitmap bitmap = new RoaringBitmap();
+    for (TileCoord coord : tileContents.keySet()) {
+      bitmap.add(maxTilesAtThisZoom * coord.x() + coord.y());
+    }
+    if (filledRanges != null) {
+      for (var entry : filledRanges.entrySet()) {
+        long colStart = (long) entry.getKey() * maxTilesAtThisZoom;
+        var yRanges = entry.getValue();
+        bitmap.or(RoaringBitmap.addOffset(yRanges.bitmap(), colStart));
+      }
+    }
+    return new CoveredTiles(bitmap, z);
+  }
+
+  /**
+   * Returns every tile that this geometry touches, and the partial geometry contained on that tile that can be
+   * reassembled using {@link GeometryCoordinateSequences}.
+   */
+  public Map<TileCoord, List<List<CoordinateSequence>>> getTileData() {
+    return tileContents;
+  }
+
   /**
    * Slices a geometry into tiles and stores in member fields for a single "copy" of the world.
    * <p>
@@ -251,9 +342,6 @@ class TiledGeometry {
          *  | | | | | |
          */
         IntObjectMap<List<MutableCoordinateSequence>> xSlices = sliceX(segment);
-        if (z >= 6 && xSlices.size() >= Math.pow(2, z) - 1) {
-          LOGGER.warn("Feature " + featureId + " crosses world at z" + z + ": " + xSlices.size());
-        }
         for (IntObjectCursor<List<MutableCoordinateSequence>> xCursor : xSlices) {
           int x = xCursor.key + xOffset;
           // skip processing content past the edge of the world, but return that we saw it
@@ -299,7 +387,7 @@ class TiledGeometry {
       List<CoordinateSequence> outSeqs = inSeqs.stream()
         .filter(seq -> seq.size() >= minPoints)
         .toList();
-      if (!outSeqs.isEmpty()) {
+      if (!outSeqs.isEmpty() && extents.test(tileID.x(), tileID.y())) {
         tileContents.computeIfAbsent(tileID, tile -> new ArrayList<>()).add(outSeqs);
       }
     }
@@ -448,7 +536,6 @@ class TiledGeometry {
       boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
 
       for (int y = startY; y <= endY; y++) {
-
         // skip over filled tiles until we get to the next tile that already has detail on it
         if (area && y > endStartY && y < startEndY) {
           if (onRightEdge || onLeftEdge) {
@@ -608,5 +695,52 @@ class TiledGeometry {
   private enum Direction {
     RIGHT,
     LEFT
+  }
+
+  /**
+   * A set of tiles touched by a geometry.
+   */
+  public static class CoveredTiles implements TilePredicate, Iterable<TileCoord> {
+    private final RoaringBitmap bitmap;
+    private final int maxTilesAtZoom;
+    private final int z;
+
+    private CoveredTiles(RoaringBitmap bitmap, int z) {
+      this.bitmap = bitmap;
+      this.maxTilesAtZoom = 1 << z;
+      this.z = z;
+    }
+
+    /**
+     * Returns the union of tiles covered by {@code a} and {@code b}.
+     *
+     * @throws IllegalArgumentException if {@code a} and {@code b} have different zoom levels.
+     */
+    public static CoveredTiles merge(CoveredTiles a, CoveredTiles b) {
+      if (a.z != b.z) {
+        throw new IllegalArgumentException("Cannot combine CoveredTiles with different zoom levels ");
+      }
+      return new CoveredTiles(RoaringBitmap.or(a.bitmap, b.bitmap), a.z);
+    }
+
+    @Override
+    public boolean test(int x, int y) {
+      return bitmap.contains(x * maxTilesAtZoom + y);
+    }
+
+    @Override
+    public String toString() {
+      return "CoveredTiles{z=" + z + ", tiles=" + FORMAT.integer(bitmap.getCardinality()) + ", storage=" +
+        FORMAT.storage(bitmap.getSizeInBytes()) + "B}";
+    }
+
+    public Stream<TileCoord> stream() {
+      return bitmap.stream().mapToObj(i -> TileCoord.ofXYZ(i / maxTilesAtZoom, i % maxTilesAtZoom, z));
+    }
+
+    @Override
+    public Iterator<TileCoord> iterator() {
+      return stream().iterator();
+    }
   }
 }

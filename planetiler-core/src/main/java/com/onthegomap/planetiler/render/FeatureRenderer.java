@@ -94,13 +94,24 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     }
   }
 
-  private void renderPoint(FeatureCollector.Feature feature, Coordinate... coords) {
+  private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
     long id = idGenerator.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
+    Coordinate[] coords = new Coordinate[origCoords.length];
+    for (int i = 0; i < origCoords.length; i++) {
+      coords[i] = origCoords[i].copy();
+    }
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
+      // scale coordinates for this zoom
+      for (int i = 0; i < coords.length; i++) {
+        var orig = origCoords[i];
+        coords[i].setX(orig.x * tilesAtZoom);
+        coords[i].setY(orig.y * tilesAtZoom);
+      }
+
 
       // for "label grid" point density limiting, compute the grid square that this point sits in
       // only valid if not a multipoint
@@ -115,9 +126,9 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
       // compute the tile coordinate of every tile these points should show up in at the given buffer size
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, feature.getSourceId());
+      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
       int emitted = 0;
-      for (var entry : tiled.getTileData()) {
+      for (var entry : tiled.getTileData().entrySet()) {
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
         Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
@@ -186,7 +197,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
-      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, feature.getSourceId());
+      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
         // if profile wants the original number of points that the simplified but untiled geometry started with
@@ -202,7 +213,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   private void writeTileFeatures(int zoom, long id, FeatureCollector.Feature feature, TiledGeometry sliced,
     Map<String, Object> attrs) {
     int emitted = 0;
-    for (var entry : sliced.getTileData()) {
+    for (var entry : sliced.getTileData().entrySet()) {
       TileCoord tile = entry.getKey();
       try {
         List<List<CoordinateSequence>> geoms = entry.getValue();

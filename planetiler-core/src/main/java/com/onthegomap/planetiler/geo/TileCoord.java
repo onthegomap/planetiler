@@ -118,6 +118,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     );
   }
 
+
   /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl() {
     Coordinate coord = getLatLon();
