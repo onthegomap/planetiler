@@ -27,15 +27,6 @@ public class IntRangeSet implements Iterable<Integer> {
     return this;
   }
 
-  public static void main(String[] args) {
-    var set = new IntRangeSet();
-    set.add(0, 100000);
-    set.remove(10000);
-    System.err.println(set.bitmap.getSizeInBytes());
-    set.bitmap.runOptimize();
-    System.err.println(set.bitmap.getSizeInBytes());
-  }
-
   @Override
   public PrimitiveIterator.OfInt iterator() {
     return new Iter(bitmap.getIntIterator());
