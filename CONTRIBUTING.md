@@ -14,7 +14,8 @@ To set up your local development environment:
 - Install Java 16 or later. You can download Java manually from [Adoptium](https://adoptium.net/installation.html) or
   use:
   - [Windows installer](https://adoptium.net/installation.html#windows-msi)
-  - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`, or `port install openjdk17-temurin`)
+  - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`,
+    or `port install openjdk17-temurin`)
   - [Linux installer](https://github.com/adoptium/website-v2/blob/main/src/asciidoc-pages/installation/linux.adoc)
     (or `apt-get install openjdk-17-jdk`)
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
@@ -24,11 +25,10 @@ To set up your local development environment:
   - or if you already have maven installed globally on your machine: `mvn clean test`
   - to run just one test e.g. `GeoUtilsTest`: `./mvnw -pl planetiler-core -Dtest=GeoUtilsTest test`
   - to run benchmarks e.g. `BenchmarkTileCoord`:
-
-```sh
-./scripts/build.sh
-java -cp planetiler-dist/target/planetiler-dist-*-with-deps.jar com.onthegomap.planetiler.benchmarks.BenchmarkTileCoord
-```
+    ```sh
+    ./scripts/build.sh
+    java -cp planetiler-dist/target/planetiler-dist-*-with-deps.jar com.onthegomap.planetiler.benchmarks.BenchmarkTileCoord
+    ```
 
 GitHub Workflows will run regression tests on any pull request.
 

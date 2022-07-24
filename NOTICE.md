@@ -35,6 +35,8 @@ The `planetiler-core` module includes the following software:
   - `PbfFieldDecoder` from [osmosis](https://github.com/openstreetmap/osmosis) (Public Domain)
   - `Madvise` from [uppend](https://github.com/upserve/uppend/) (MIT License)
   - `ArrayLongMinHeap` implementations from [graphhopper](https://github.com/graphhopper/graphhopper) (Apache license)
+  - `Hilbert` implementation
+    from [github.com/rawrunprotected/hilbert_curves](https://github.com/rawrunprotected/hilbert_curves) (Public Domain)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 
