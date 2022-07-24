@@ -203,12 +203,9 @@ public class MbtilesWriter {
     if (lastTile == null) {
       blurb = "n/a";
     } else {
-      var extentForZoom = config.bounds().tileExtents().getForZoom(lastTile.z());
-      int zMinX = extentForZoom.minX();
-      int zMaxX = extentForZoom.maxX();
       blurb = "%d/%d/%d (z%d %s%%) %s".formatted(
         lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), (100 * (lastTile.x() + 1 - zMinX)) / (zMaxX - zMinX),
+        lastTile.z(), 100 * lastTile.progressOnLevel(),
         lastTile.getDebugUrl()
       );
     }
