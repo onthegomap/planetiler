@@ -59,7 +59,6 @@ public class Housenumber implements
   public void process(Tables.OsmHousenumberPoint element, FeatureCollector features) {
     features.centroidIfConvex(LAYER_NAME)
       .setBufferPixels(BUFFER_SIZE)
-      .setAttr(Fields.HOUSENUMBER, element.housenumber())
-      .setMinZoom(14);
+      .setAttr(Fields.HOUSENUMBER, element.housenumber());
   }
 }

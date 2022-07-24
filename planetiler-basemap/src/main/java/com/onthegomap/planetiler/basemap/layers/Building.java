@@ -102,8 +102,10 @@ public class Building implements
     entry("clay", "#9d8b75") // same as mud
   );
   private final boolean mergeZ13Buildings;
+  private final PlanetilerConfig config;
 
   public Building(Translations translations, PlanetilerConfig config, Stats stats) {
+    this.config = config;
     this.mergeZ13Buildings = config.arguments().getBoolean(
       "building_merge_z13",
       "building layer: merge nearby buildings at z13",

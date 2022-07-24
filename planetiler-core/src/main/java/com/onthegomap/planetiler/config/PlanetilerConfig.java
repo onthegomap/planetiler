@@ -52,7 +52,8 @@ public record PlanetilerConfig(
 ) {
 
   public static final int MIN_MINZOOM = 0;
-  public static final int MAX_MAXZOOM = 14;
+  public static final int MAX_MAXZOOM = 15;
+  private static final int DEFAULT_MAXZOOM = 14;
 
   public PlanetilerConfig {
     if (minzoom > maxzoom) {
@@ -104,6 +105,12 @@ public record PlanetilerConfig(
         throw new UncheckedIOException(e);
       }
     }
+
+    int minzoom = arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM);
+    int maxzoom = arguments.getInteger("maxzoom", "maximum zoom level up to " + MAX_MAXZOOM, DEFAULT_MAXZOOM);
+    int renderMaxzoom =
+      arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
+        Math.max(maxzoom, DEFAULT_MAXZOOM));
     return new PlanetilerConfig(
       arguments,
       bounds,
@@ -113,9 +120,9 @@ public record PlanetilerConfig(
       arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
         threads < 32 ? 1 : 2),
       arguments.getDuration("loginterval", "time between logs", "10s"),
-      arguments.getInteger("minzoom", "minimum zoom level", MIN_MINZOOM),
-      arguments.getInteger("maxzoom", "maximum zoom level (limit 14)", MAX_MAXZOOM),
-      arguments.getInteger("render_maxzoom", "maximum rendering zoom level (limit 14)", MAX_MAXZOOM),
+      minzoom,
+      maxzoom,
+      renderMaxzoom,
       arguments.getBoolean("skip_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "optimize mbtiles after writing", false),
       arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),

@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
+import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
+
 import com.onthegomap.planetiler.util.Format;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
@@ -22,15 +24,17 @@ import org.locationtech.jts.geom.CoordinateXY;
 @Immutable
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
 
-  private static final int MAX_ZOOM = 15;
-
-  private static final int[] ZOOM_START_INDEX = new int[MAX_ZOOM + 1];
+  private static final int[] ZOOM_START_INDEX = new int[MAX_MAXZOOM + 1];
 
   static {
     int idx = 0;
-    for (int z = 0; z <= MAX_ZOOM; z++) {
+    for (int z = 0; z <= MAX_MAXZOOM; z++) {
       ZOOM_START_INDEX[z] = idx;
-      idx += (1 << z) * (1 << z);
+      int count = (1 << z) * (1 << z);
+      if (Integer.MAX_VALUE - idx < count) {
+        throw new IllegalStateException("Too many zoom levels " + MAX_MAXZOOM);
+      }
+      idx += count;
     }
   }
 
@@ -39,7 +43,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   private static int zoomForIndex(int idx) {
-    for (int z = MAX_ZOOM; z >= 0; z--) {
+    for (int z = MAX_MAXZOOM; z >= 0; z--) {
       if (ZOOM_START_INDEX[z] <= idx) {
         return z;
       }
@@ -48,7 +52,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   public TileCoord {
-    assert z <= MAX_ZOOM;
+    assert z <= MAX_MAXZOOM;
   }
 
   public static TileCoord ofXYZ(int x, int y, int z) {
