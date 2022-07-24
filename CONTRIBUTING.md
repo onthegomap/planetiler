@@ -25,6 +25,7 @@ To set up your local development environment:
   - or if you already have maven installed globally on your machine: `mvn clean test`
   - to run just one test e.g. `GeoUtilsTest`: `./mvnw -pl planetiler-core -Dtest=GeoUtilsTest test`
   - to run benchmarks e.g. `BenchmarkTileCoord`:
+
     ```sh
     ./scripts/build.sh
     java -cp planetiler-dist/target/planetiler-dist-*-with-deps.jar com.onthegomap.planetiler.benchmarks.BenchmarkTileCoord
