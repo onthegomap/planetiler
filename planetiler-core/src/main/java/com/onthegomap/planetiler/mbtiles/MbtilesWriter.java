@@ -203,9 +203,9 @@ public class MbtilesWriter {
     if (lastTile == null) {
       blurb = "n/a";
     } else {
-      blurb = "%d/%d/%d (z%d %s%%) %s".formatted(
+      blurb = "%d/%d/%d (z%d %s) %s".formatted(
         lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), 100 * lastTile.progressOnLevel(),
+        lastTile.z(), Format.defaultInstance().percent(lastTile.progressOnLevel(config.bounds().tileExtents())),
         lastTile.getDebugUrl()
       );
     }

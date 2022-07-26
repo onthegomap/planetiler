@@ -1,7 +1,9 @@
 package com.onthegomap.planetiler.geo;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -45,17 +47,28 @@ class TileCoordTest {
     assertEquals(decoded.z(), z, "z");
   }
 
+  @Test
+  void testTileSortOrderRespectZ() {
+    int last = Integer.MIN_VALUE;
+    for (int z = 0; z <= 15; z++) {
+      int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
+      if (encoded < last) {
+        fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
+      }
+      last = encoded;
+    }
+  }
+
   @ParameterizedTest
   @CsvSource({
     "0,0,0,0",
     "0,1,1,0",
-    "0,0,1,0.25",
     "1,1,1,0.5",
-    "1,0,1,0.75",
     "0,3,2,0"
   })
   void testTileProgressOnLevel(int x, int y, int z, double p) {
-    double progress = TileCoord.ofXYZ(x, y, z).progressOnLevel();
+    double progress =
+      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }
 }
