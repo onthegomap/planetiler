@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class HilbertTest {
@@ -20,5 +22,38 @@ class HilbertTest {
         fail("x=" + x + ", y=" + y + " index=" + i + " re-encoded=" + reEncoded);
       }
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0",
+
+    "1,0,0,0",
+    "1,0,1,1",
+    "1,1,1,2",
+    "1,1,0,3",
+
+    "2,1,1,2",
+
+    "15,0,0,0",
+    "15,0,1,1",
+    "15,1,1,2",
+    "15,1,0,3",
+    "15,32767,0,1073741823",
+    "15,32767,32767,715827882",
+
+    "16,0,0,0",
+    "16,1,0,1",
+    "16,1,1,2",
+    "16,0,1,3",
+    "16,65535,0,-1",
+    "16,65535,65535,-1431655766",
+  })
+  void testEncoding(int level, int x, int y, int encoded) {
+    int actualEncoded = Hilbert.hilbertXYToIndex(level, x, y);
+    assertEquals(encoded, actualEncoded);
+    long decoded = Hilbert.hilbertPositionToXY(level, encoded);
+    assertEquals(x, Hilbert.extractX(decoded));
+    assertEquals(y, Hilbert.extractY(decoded));
   }
 }
