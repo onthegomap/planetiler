@@ -245,7 +245,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
               LOGGER.error("Error preprocessing OSM node " + node.id(), e);
             }
             // TODO allow limiting node storage to only ones that profile cares about
-            nodeWriter.put(node.id(), node.encodedLocation());
+            //            nodeWriter.put(node.id(), node.encodedLocation());
           } else if (element instanceof OsmElement.Way way) {
             phases.arriveAndWaitForOthers(OsmPhaser.Phase.WAYS);
             try {

@@ -33,6 +33,11 @@
       <version>0.9.30</version>
     </dependency>
     <dependency>
+      <groupId>us.hebi.quickbuf</groupId>
+      <artifactId>quickbuf-runtime</artifactId>
+      <version>1.0-rc1</version>
+    </dependency>
+    <dependency>
       <groupId>org.openstreetmap.osmosis</groupId>
       <artifactId>osmosis-osm-binary</artifactId>
       <version>0.48.3</version>

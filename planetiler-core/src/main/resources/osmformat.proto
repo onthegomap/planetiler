@@ -110,7 +110,7 @@ message PrimitiveBlock {
 message PrimitiveGroup {
   repeated Node nodes = 1;
   optional DenseNodes dense = 2;
-  repeated Way ways = 3;
+  repeated Way ways = 3 [lazy = true];
   repeated Relation relations = 4;
   repeated ChangeSet changesets = 5;
 }

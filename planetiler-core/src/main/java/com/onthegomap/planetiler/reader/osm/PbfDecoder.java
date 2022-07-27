@@ -5,6 +5,8 @@ package com.onthegomap.planetiler.reader.osm;
 import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.Iterators;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import crosby.binary.Fileformat;
+import crosby.binary.Osmformat;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -17,11 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.IntUnaryOperator;
+import java.util.stream.StreamSupport;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.locationtech.jts.geom.Envelope;
-import org.openstreetmap.osmosis.osmbinary.Fileformat;
-import org.openstreetmap.osmosis.osmbinary.Osmformat;
+import us.hebi.quickbuf.RepeatedInt;
+import us.hebi.quickbuf.RepeatedMessage;
 
 /**
  * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an iterator over blocks
@@ -114,8 +117,8 @@ public class PbfDecoder implements Iterable<OsmElement> {
       );
       return new OsmHeader(
         bounds,
-        header.getRequiredFeaturesList(),
-        header.getOptionalFeaturesList(),
+        StreamSupport.stream(header.getRequiredFeatures().spliterator(), false).toList(),
+        StreamSupport.stream(header.getOptionalFeatures().spliterator(), false).toList(),
         header.getWritingprogram(),
         header.getSource(),
         Instant.ofEpochSecond(header.getOsmosisReplicationTimestamp()),
@@ -134,11 +137,15 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   private class GroupIter implements Iterator<Iterator<OsmElement>> {
 
-    int i = 0;
+    private final Iterator<Osmformat.PrimitiveGroup> iter;
+
+    GroupIter() {
+      this.iter = block.getPrimitivegroup().iterator();
+    }
 
     @Override
     public boolean hasNext() {
-      return i < block.getPrimitivegroupCount();
+      return iter.hasNext();
     }
 
     @Override
@@ -146,12 +153,12 @@ public class PbfDecoder implements Iterable<OsmElement> {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      var primitiveGroup = block.getPrimitivegroup(i++);
+      var primitiveGroup = iter.next();
       return Iterators.concat(
         new DenseNodeIterator(primitiveGroup.getDense()),
-        new NodeIterator(primitiveGroup.getNodesList()),
-        new WayIterator(primitiveGroup.getWaysList()),
-        new RelationIterator(primitiveGroup.getRelationsList())
+        new NodeIterator(primitiveGroup.getNodes()),
+        new WayIterator(primitiveGroup.getWays()),
+        new RelationIterator(primitiveGroup.getRelations())
       );
     }
   }
@@ -171,17 +178,15 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   private class NodeIterator implements Iterator<OsmElement.Node> {
 
-    private final List<Osmformat.Node> nodes;
-    int i;
+    private final Iterator<Osmformat.Node> nodes;
 
-    public NodeIterator(List<Osmformat.Node> nodes) {
-      this.nodes = nodes;
-      i = 0;
+    public NodeIterator(RepeatedMessage<Osmformat.Node> nodes) {
+      this.nodes = nodes.iterator();
     }
 
     @Override
     public boolean hasNext() {
-      return i < nodes.size();
+      return nodes.hasNext();
     }
 
     @Override
@@ -189,10 +194,10 @@ public class PbfDecoder implements Iterable<OsmElement> {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      var node = nodes.get(i++);
+      var node = nodes.next();
       return new OsmElement.Node(
         node.getId(),
-        buildTags(node.getKeysCount(), node::getKeys, node::getVals),
+        buildTags(node.getKeys(), node.getVals()),
         fieldDecoder.decodeLatitude(node.getLat()),
         fieldDecoder.decodeLongitude(node.getLon()),
         parseInfo(node.getInfo())
@@ -200,19 +205,27 @@ public class PbfDecoder implements Iterable<OsmElement> {
     }
   }
 
+  private Map<String, Object> buildTags(RepeatedInt keys, RepeatedInt vals) {
+    int num = keys.length();
+    Map<String, Object> result = new HashMap<>(num);
+
+    for (int i = 0; i < num; i++) {
+      result.put(fieldDecoder.decodeString(keys.get(i)), fieldDecoder.decodeString(vals.get(i)));
+    }
+    return result;
+  }
+
   private class RelationIterator implements Iterator<OsmElement.Relation> {
 
-    private final List<Osmformat.Relation> relations;
-    int i;
+    private final Iterator<Osmformat.Relation> relations;
 
-    public RelationIterator(List<Osmformat.Relation> relations) {
-      this.relations = relations;
-      i = 0;
+    public RelationIterator(RepeatedMessage<Osmformat.Relation> relations) {
+      this.relations = relations.iterator();
     }
 
     @Override
     public boolean hasNext() {
-      return i < relations.size();
+      return relations.hasNext();
     }
 
     @Override
@@ -220,15 +233,15 @@ public class PbfDecoder implements Iterable<OsmElement> {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      var relation = relations.get(i++);
-      int num = relation.getMemidsCount();
+      var relation = relations.next();
+      int num = relation.getMemids().length();
 
       List<OsmElement.Relation.Member> members = new ArrayList<>(num);
 
       long memberId = 0;
       for (int j = 0; j < num; j++) {
-        memberId += relation.getMemids(j);
-        var memberType = switch (relation.getTypes(j)) {
+        memberId += relation.getMemids().get(j);
+        var memberType = switch (relation.getTypes().get(j)) {
           case WAY -> OsmElement.Type.WAY;
           case NODE -> OsmElement.Type.NODE;
           case RELATION -> OsmElement.Type.RELATION;
@@ -236,14 +249,14 @@ public class PbfDecoder implements Iterable<OsmElement> {
         members.add(new OsmElement.Relation.Member(
           memberType,
           memberId,
-          fieldDecoder.decodeString(relation.getRolesSid(j))
+          fieldDecoder.decodeString(relation.getRolesSid().get(j))
         ));
       }
 
       // Add the bound object to the results.
       return new OsmElement.Relation(
         relation.getId(),
-        buildTags(relation.getKeysCount(), relation::getKeys, relation::getVals),
+        buildTags(relation.getKeys(), relation.getVals()),
         members,
         parseInfo(relation.getInfo())
       );
@@ -252,17 +265,15 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   private class WayIterator implements Iterator<OsmElement.Way> {
 
-    private final List<Osmformat.Way> ways;
-    int i;
+    private final Iterator<Osmformat.Way> ways;
 
-    public WayIterator(List<Osmformat.Way> ways) {
-      this.ways = ways;
-      i = 0;
+    public WayIterator(RepeatedMessage<Osmformat.Way> ways) {
+      this.ways = ways.iterator();
     }
 
     @Override
     public boolean hasNext() {
-      return i < ways.size();
+      return ways.hasNext();
     }
 
     @Override
@@ -270,24 +281,24 @@ public class PbfDecoder implements Iterable<OsmElement> {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      var way = ways.get(i++);
+      var way = ways.next();
       // Build up the list of way nodes for the way. The node ids are
       // delta encoded meaning that each id is stored as a delta against
       // the previous one.
       long nodeId = 0;
-      int numNodes = way.getRefsCount();
+      int numNodes = way.getRefs().length();
       LongArrayList wayNodesList = new LongArrayList(numNodes);
       wayNodesList.elementsCount = numNodes;
       long[] wayNodes = wayNodesList.buffer;
       for (int j = 0; j < numNodes; j++) {
-        long nodeIdOffset = way.getRefs(j);
+        long nodeIdOffset = way.getRefs().get(j);
         nodeId += nodeIdOffset;
         wayNodes[j] = nodeId;
       }
 
       return new OsmElement.Way(
         way.getId(),
-        buildTags(way.getKeysCount(), way::getKeys, way::getVals),
+        buildTags(way.getKeys(), way.getVals()),
         wayNodesList,
         parseInfo(way.getInfo())
       );
@@ -308,6 +319,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     final Osmformat.DenseNodes nodes;
     final Osmformat.DenseInfo denseInfo;
+    private final RepeatedInt kv;
     long nodeId = 0;
     long latitude = 0;
     long longitude = 0;
@@ -321,13 +333,14 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
     public DenseNodeIterator(Osmformat.DenseNodes nodes) {
       this.nodes = nodes;
+      this.kv = nodes.getKeysVals();
       this.denseInfo = nodes.getDenseinfo();
     }
 
 
     @Override
     public boolean hasNext() {
-      return i < nodes.getIdCount();
+      return i < nodes.getId().length();
     }
 
     @Override
@@ -336,17 +349,17 @@ public class PbfDecoder implements Iterable<OsmElement> {
         throw new NoSuchElementException();
       }
       // Delta decode node fields.
-      nodeId += nodes.getId(i);
-      latitude += nodes.getLat(i);
-      longitude += nodes.getLon(i);
+      nodeId += nodes.getId().get(i);
+      latitude += nodes.getLat().get(i);
+      longitude += nodes.getLon().get(i);
       int version = 0;
 
       if (denseInfo != null) {
-        version = denseInfo.getVersionCount() > i ? denseInfo.getVersion(i) : 0;
-        timestamp += denseInfo.getTimestampCount() > i ? denseInfo.getTimestamp(i) : 0;
-        changeset += denseInfo.getChangesetCount() > i ? denseInfo.getChangeset(i) : 0;
-        uid += denseInfo.getUidCount() > i ? denseInfo.getUid(i) : 0;
-        userSid += denseInfo.getUserSidCount() > i ? denseInfo.getUserSid(i) : 0;
+        version = denseInfo.getVersion().length() > i ? denseInfo.getVersion().get(i) : 0;
+        timestamp += denseInfo.getTimestamp().length() > i ? denseInfo.getTimestamp().get(i) : 0;
+        changeset += denseInfo.getChangeset().length() > i ? denseInfo.getChangeset().get(i) : 0;
+        uid += denseInfo.getUid().length() > i ? denseInfo.getUid().get(i) : 0;
+        userSid += denseInfo.getUserSid().length() > i ? denseInfo.getUserSid().get(i) : 0;
       }
 
       i++;
@@ -355,16 +368,16 @@ public class PbfDecoder implements Iterable<OsmElement> {
       // in the same PBF array. Each set of tags is delimited by an index
       // with a value of 0.
       Map<String, Object> tags = null;
-      while (kvIndex < nodes.getKeysValsCount()) {
-        int keyIndex = nodes.getKeysVals(kvIndex++);
+      while (kvIndex < kv.length()) {
+        int keyIndex = kv.get(kvIndex++);
         if (keyIndex == 0) {
           break;
         }
-        int valueIndex = nodes.getKeysVals(kvIndex++);
+        int valueIndex = kv.get(kvIndex++);
 
         if (tags == null) {
           // divide by 2 as key&value, multiply by 2 because of the better approximation
-          tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
+          tags = new HashMap<>(Math.max(3, 2 * (kv.length() / 2) / kv.length()));
         }
 
         tags.put(fieldDecoder.decodeString(keyIndex), fieldDecoder.decodeString(valueIndex));
