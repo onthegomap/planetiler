@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 public class LanguageUtils {
   // Name tags that should be eligible for finding a latin name.
   // See https://wiki.openstreetmap.org/wiki/Multilingual_names
-  private static final Predicate<String> VALID_NAME_TAGS =
+  public static final Predicate<String> VALID_NAME_TAGS =
     Pattern
       .compile("^name:[a-z]{2,3}(-[a-z]{4})?([-_](x-)?[a-z]{2,})?(-([a-z]{2}|[0-9]{3}))?$", Pattern.CASE_INSENSITIVE)
       .asMatchPredicate();
@@ -25,7 +25,7 @@ public class LanguageUtils {
   private static final Pattern EMPTY_PARENS = Pattern.compile("(\\([ -.]*\\)|\\[[ -.]*])");
   private static final Pattern LEADING_TRAILING_JUNK = Pattern.compile("((^[\\s./-]*)|([\\s./-]*$))");
   private static final Pattern WHITESPACE = Pattern.compile("\\s+");
-  private static final Set<String> EN_DE_NAME_KEYS = Set.of("name:en", "name:de");
+  public static final Set<String> EN_DE_NAME_KEYS = Set.of("name:en", "name:de");
 
   private LanguageUtils() {
     throw new IllegalStateException("Utility class");
