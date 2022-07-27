@@ -84,6 +84,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
   public static Iterable<OsmElement> decode(byte[] raw) {
     try {
       return new PbfDecoder(raw);
+      //      return StreamSupport.stream(new PbfDecoder(raw).spliterator(), false).toList();
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to process PBF blob", e);
     }
@@ -93,6 +94,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
   public static Iterable<OsmElement> decode(ByteBuffer raw) {
     try {
       return new PbfDecoder(raw);
+      //      return StreamSupport.stream(new PbfDecoder(raw).spliterator(), false).toList();
     } catch (IOException e) {
       throw new UncheckedIOException("Unable to process PBF blob", e);
     }
@@ -127,12 +129,31 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   @Override
   public Iterator<OsmElement> iterator() {
-    return Iterators.concat(block.getPrimitivegroupList().stream().map(primitiveGroup -> Iterators.concat(
-      new DenseNodeIterator(primitiveGroup.getDense()),
-      new NodeIterator(primitiveGroup.getNodesList()),
-      new WayIterator(primitiveGroup.getWaysList()),
-      new RelationIterator(primitiveGroup.getRelationsList())
-    )).iterator());
+    return Iterators.concat(new GroupIter());
+  }
+
+  private class GroupIter implements Iterator<Iterator<OsmElement>> {
+
+    int i = 0;
+
+    @Override
+    public boolean hasNext() {
+      return i < block.getPrimitivegroupCount();
+    }
+
+    @Override
+    public Iterator<OsmElement> next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      var primitiveGroup = block.getPrimitivegroup(i++);
+      return Iterators.concat(
+        new DenseNodeIterator(primitiveGroup.getDense()),
+        new NodeIterator(primitiveGroup.getNodesList()),
+        new WayIterator(primitiveGroup.getWaysList()),
+        new RelationIterator(primitiveGroup.getRelationsList())
+      );
+    }
   }
 
   private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {

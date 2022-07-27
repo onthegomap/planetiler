@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.reader.osm;
 
 import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -227,10 +226,13 @@ public class OsmInputFile implements Bounds.Provider, Supplier<OsmBlockSource>, 
 
       public Iterable<OsmElement> decodeElements() {
         try {
-          var buffer = channel.map(FileChannel.MapMode.READ_ONLY, offset, length);
-          var result = PbfDecoder.decode(buffer);
-          ByteBufferUtil.free(buffer);
-          return result;
+          //          var buffer = channel.map(FileChannel.MapMode.READ_ONLY, offset, length);
+          ByteBuffer buf = ByteBuffer.allocate(length);
+          if (channel.read(buf, offset) != length) {
+            throw new IllegalStateException();
+          }
+          buf.flip();
+          return PbfDecoder.decode(buf);
         } catch (IOException e) {
           throw new UncheckedIOException(e);
         }
