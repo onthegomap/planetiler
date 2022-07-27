@@ -31,12 +31,22 @@ public class LanguageUtils {
     throw new IllegalStateException("Utility class");
   }
 
+  public static void putIfNotEmpty(Map<String, Object> dest, String key, Object value) {
+    if (value != null && !value.equals("")) {
+      dest.put(key, value);
+    }
+  }
+
   public static String string(Object obj) {
     return nullIfEmpty(obj == null ? null : obj.toString());
   }
 
   public static boolean containsOnlyLatinCharacters(String string) {
     return string != null && ONLY_LATIN.test(string);
+  }
+
+  public static String transliteratedName(Map<String, Object> tags) {
+    return Translations.transliterate(string(tags.get("name")));
   }
 
   public static String removeLatinCharacters(String name) {

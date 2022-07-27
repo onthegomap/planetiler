@@ -1,3 +1,4 @@
 [submodule "planetiler-openmaptiles"]
 	path = planetiler-openmaptiles
-	url = https://github.com/openmaptiles/planetiler-openmaptiles.git
+	url = https://github.com/lazaa32/planetiler-openmaptiles.git
+	branch = lang-utils
