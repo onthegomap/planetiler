@@ -110,7 +110,7 @@ message PrimitiveBlock {
 message PrimitiveGroup {
   repeated Node nodes = 1;
   optional DenseNodes dense = 2;
-  repeated Way ways = 3 [lazy = true];
+  repeated Way ways = 3;
   repeated Relation relations = 4;
   repeated ChangeSet changesets = 5;
 }
@@ -221,8 +221,8 @@ message Way {
   //
   // If this is used, you MUST set the optional_features tag "LocationsOnWays"
   // and the number of values in refs, lat, and lon MUST be the same.
-  repeated sint64 lat = 9 [packed = true]; // DELTA coded, optional
-  repeated sint64 lon = 10 [packed = true]; // DELTA coded, optional
+  //  repeated sint64 lat = 9 [packed = true]; // DELTA coded, optional
+  //  repeated sint64 lon = 10 [packed = true]; // DELTA coded, optional
 }
 
 message Relation {

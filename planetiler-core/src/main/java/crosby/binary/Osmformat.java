@@ -5294,24 +5294,9 @@ public final class Osmformat {
     private long id;
 
     /**
-     * optional .OSMPBF.Info info = 4;
-     */
-    private final Info info = Info.newInstance();
-
-    /**
      * repeated sint64 refs = 8 [packed = true];
      */
     private final RepeatedLong refs = RepeatedLong.newEmptyInstance();
-
-    /**
-     * repeated sint64 lat = 9 [packed = true];
-     */
-    private final RepeatedLong lat = RepeatedLong.newEmptyInstance();
-
-    /**
-     * repeated sint64 lon = 10 [packed = true];
-     */
-    private final RepeatedLong lon = RepeatedLong.newEmptyInstance();
 
     /**
      * repeated uint32 keys = 2 [packed = true];
@@ -5331,11 +5316,11 @@ public final class Osmformat {
     }
 
     public boolean hasId() {
-      return (bitField0_ & 0x00000040) != 0;
+      return (bitField0_ & 0x00000008) != 0;
     }
 
     public Way clearId() {
-      bitField0_ &= ~0x00000040;
+      bitField0_ &= ~0x00000008;
       id = 0L;
       return this;
     }
@@ -5345,53 +5330,17 @@ public final class Osmformat {
     }
 
     public Way setId(final long value) {
-      bitField0_ |= 0x00000040;
+      bitField0_ |= 0x00000008;
       id = value;
       return this;
     }
 
-    public boolean hasInfo() {
+    public boolean hasRefs() {
       return (bitField0_ & 0x00000001) != 0;
     }
 
-    public Way clearInfo() {
-      bitField0_ &= ~0x00000001;
-      info.clear();
-      return this;
-    }
-
-    /**
-     * This method returns the internal storage object without modifying any has state.
-     * The returned object should not be modified and be treated as read-only.
-     *
-     * Use {@link #getMutableInfo()} if you want to modify it.
-     */
-    public Info getInfo() {
-      return info;
-    }
-
-    /**
-     * This method returns the internal storage object and sets the corresponding
-     * has state. The returned object will become part of this message and its
-     * contents may be modified as long as the has state is not cleared.
-     */
-    public Info getMutableInfo() {
-      bitField0_ |= 0x00000001;
-      return info;
-    }
-
-    public Way setInfo(final Info value) {
-      bitField0_ |= 0x00000001;
-      info.copyFrom(value);
-      return this;
-    }
-
-    public boolean hasRefs() {
-      return (bitField0_ & 0x00000002) != 0;
-    }
-
     public Way clearRefs() {
-      bitField0_ &= ~0x00000002;
+      bitField0_ &= ~0x00000001;
       refs.clear();
       return this;
     }
@@ -5412,112 +5361,28 @@ public final class Osmformat {
      * contents may be modified as long as the has state is not cleared.
      */
     public RepeatedLong getMutableRefs() {
-      bitField0_ |= 0x00000002;
+      bitField0_ |= 0x00000001;
       return refs;
     }
 
     public Way addRefs(final long value) {
-      bitField0_ |= 0x00000002;
+      bitField0_ |= 0x00000001;
       refs.add(value);
       return this;
     }
 
     public Way addAllRefs(final long... values) {
-      bitField0_ |= 0x00000002;
+      bitField0_ |= 0x00000001;
       refs.addAll(values);
       return this;
     }
 
-    public boolean hasLat() {
-      return (bitField0_ & 0x00000004) != 0;
-    }
-
-    public Way clearLat() {
-      bitField0_ &= ~0x00000004;
-      lat.clear();
-      return this;
-    }
-
-    /**
-     * This method returns the internal storage object without modifying any has state.
-     * The returned object should not be modified and be treated as read-only.
-     *
-     * Use {@link #getMutableLat()} if you want to modify it.
-     */
-    public RepeatedLong getLat() {
-      return lat;
-    }
-
-    /**
-     * This method returns the internal storage object and sets the corresponding
-     * has state. The returned object will become part of this message and its
-     * contents may be modified as long as the has state is not cleared.
-     */
-    public RepeatedLong getMutableLat() {
-      bitField0_ |= 0x00000004;
-      return lat;
-    }
-
-    public Way addLat(final long value) {
-      bitField0_ |= 0x00000004;
-      lat.add(value);
-      return this;
-    }
-
-    public Way addAllLat(final long... values) {
-      bitField0_ |= 0x00000004;
-      lat.addAll(values);
-      return this;
-    }
-
-    public boolean hasLon() {
-      return (bitField0_ & 0x00000008) != 0;
-    }
-
-    public Way clearLon() {
-      bitField0_ &= ~0x00000008;
-      lon.clear();
-      return this;
-    }
-
-    /**
-     * This method returns the internal storage object without modifying any has state.
-     * The returned object should not be modified and be treated as read-only.
-     *
-     * Use {@link #getMutableLon()} if you want to modify it.
-     */
-    public RepeatedLong getLon() {
-      return lon;
-    }
-
-    /**
-     * This method returns the internal storage object and sets the corresponding
-     * has state. The returned object will become part of this message and its
-     * contents may be modified as long as the has state is not cleared.
-     */
-    public RepeatedLong getMutableLon() {
-      bitField0_ |= 0x00000008;
-      return lon;
-    }
-
-    public Way addLon(final long value) {
-      bitField0_ |= 0x00000008;
-      lon.add(value);
-      return this;
-    }
-
-    public Way addAllLon(final long... values) {
-      bitField0_ |= 0x00000008;
-      lon.addAll(values);
-      return this;
-    }
-
     public boolean hasKeys() {
-      return (bitField0_ & 0x00000010) != 0;
+      return (bitField0_ & 0x00000002) != 0;
     }
 
     public Way clearKeys() {
-      bitField0_ &= ~0x00000010;
+      bitField0_ &= ~0x00000002;
       keys.clear();
       return this;
     }
@@ -5538,28 +5403,28 @@ public final class Osmformat {
      * contents may be modified as long as the has state is not cleared.
      */
     public RepeatedInt getMutableKeys() {
-      bitField0_ |= 0x00000010;
+      bitField0_ |= 0x00000002;
       return keys;
     }
 
     public Way addKeys(final int value) {
-      bitField0_ |= 0x00000010;
+      bitField0_ |= 0x00000002;
       keys.add(value);
       return this;
     }
 
     public Way addAllKeys(final int... values) {
-      bitField0_ |= 0x00000010;
+      bitField0_ |= 0x00000002;
       keys.addAll(values);
       return this;
     }
 
     public boolean hasVals() {
-      return (bitField0_ & 0x00000020) != 0;
+      return (bitField0_ & 0x00000004) != 0;
     }
 
     public Way clearVals() {
-      bitField0_ &= ~0x00000020;
+      bitField0_ &= ~0x00000004;
       vals.clear();
       return this;
     }
@@ -5580,18 +5445,18 @@ public final class Osmformat {
      * contents may be modified as long as the has state is not cleared.
      */
     public RepeatedInt getMutableVals() {
-      bitField0_ |= 0x00000020;
+      bitField0_ |= 0x00000004;
       return vals;
     }
 
     public Way addVals(final int value) {
-      bitField0_ |= 0x00000020;
+      bitField0_ |= 0x00000004;
       vals.add(value);
       return this;
     }
 
     public Way addAllVals(final int... values) {
-      bitField0_ |= 0x00000020;
+      bitField0_ |= 0x00000004;
       vals.addAll(values);
       return this;
     }
@@ -5602,10 +5467,7 @@ public final class Osmformat {
       if ((bitField0_ | other.bitField0_) != 0) {
         bitField0_ = other.bitField0_;
         id = other.id;
-        info.copyFrom(other.info);
         refs.copyFrom(other.refs);
-        lat.copyFrom(other.lat);
-        lon.copyFrom(other.lon);
         keys.copyFrom(other.keys);
         vals.copyFrom(other.vals);
       }
@@ -5621,17 +5483,8 @@ public final class Osmformat {
       if (other.hasId()) {
         setId(other.id);
       }
-      if (other.hasInfo()) {
-        getMutableInfo().mergeFrom(other.info);
-      }
       if (other.hasRefs()) {
         getMutableRefs().addAll(other.refs);
-      }
-      if (other.hasLat()) {
-        getMutableLat().addAll(other.lat);
-      }
-      if (other.hasLon()) {
-        getMutableLon().addAll(other.lon);
       }
       if (other.hasKeys()) {
         getMutableKeys().addAll(other.keys);
@@ -5650,10 +5503,7 @@ public final class Osmformat {
       cachedSize = -1;
       bitField0_ = 0;
       id = 0L;
-      info.clear();
       refs.clear();
-      lat.clear();
-      lon.clear();
       keys.clear();
       vals.clear();
       return this;
@@ -5666,10 +5516,7 @@ public final class Osmformat {
       }
       cachedSize = -1;
       bitField0_ = 0;
-      info.clearQuick();
       refs.clear();
-      lat.clear();
-      lon.clear();
       keys.clear();
       vals.clear();
       return this;
@@ -5686,43 +5533,28 @@ public final class Osmformat {
       Way other = (Way) o;
       return bitField0_ == other.bitField0_
         && (!hasId() || id == other.id)
-        && (!hasInfo() || info.equals(other.info))
         && (!hasRefs() || refs.equals(other.refs))
-        && (!hasLat() || lat.equals(other.lat))
-        && (!hasLon() || lon.equals(other.lon))
         && (!hasKeys() || keys.equals(other.keys))
         && (!hasVals() || vals.equals(other.vals));
     }
 
     @Override
     public void writeTo(final ProtoSink output) throws IOException {
-      if ((((bitField0_ & 0x00000040) != 0x00000040))) {
+      if ((((bitField0_ & 0x00000008) != 0x00000008))) {
         throw new UninitializedMessageException(this);
       }
       try {
         output.writeRawByte((byte) 8);
         output.writeInt64NoTag(id);
         if ((bitField0_ & 0x00000001) != 0) {
-          output.writeRawByte((byte) 34);
-          output.writeMessageNoTag(info);
-        }
-        if ((bitField0_ & 0x00000002) != 0) {
           output.writeRawByte((byte) 66);
           output.writePackedSInt64NoTag(refs);
         }
-        if ((bitField0_ & 0x00000004) != 0) {
-          output.writeRawByte((byte) 74);
-          output.writePackedSInt64NoTag(lat);
-        }
-        if ((bitField0_ & 0x00000008) != 0) {
-          output.writeRawByte((byte) 82);
-          output.writePackedSInt64NoTag(lon);
-        }
-        if ((bitField0_ & 0x00000010) != 0) {
+        if ((bitField0_ & 0x00000002) != 0) {
           output.writeRawByte((byte) 18);
           output.writePackedUInt32NoTag(keys);
         }
-        if ((bitField0_ & 0x00000020) != 0) {
+        if ((bitField0_ & 0x00000004) != 0) {
           output.writeRawByte((byte) 26);
           output.writePackedUInt32NoTag(vals);
         }
@@ -5733,32 +5565,21 @@ public final class Osmformat {
 
     @Override
     protected int computeSerializedSize() {
-      if ((((bitField0_ & 0x00000040) != 0x00000040))) {
+      if ((((bitField0_ & 0x00000008) != 0x00000008))) {
         throw new UninitializedMessageException(this);
       }
       try {
         int size = 0;
         size += 1 + ProtoSink.computeInt64SizeNoTag(id);
         if ((bitField0_ & 0x00000001) != 0) {
-          size += 1 + ProtoSink.computeMessageSizeNoTag(info);
-        }
-        if ((bitField0_ & 0x00000002) != 0) {
           final int dataSize = ProtoSink.computeRepeatedSInt64SizeNoTag(refs);
           size += 1 + ProtoSink.computeDelimitedSize(dataSize);
         }
-        if ((bitField0_ & 0x00000004) != 0) {
-          final int dataSize = ProtoSink.computeRepeatedSInt64SizeNoTag(lat);
-          size += 1 + ProtoSink.computeDelimitedSize(dataSize);
-        }
-        if ((bitField0_ & 0x00000008) != 0) {
-          final int dataSize = ProtoSink.computeRepeatedSInt64SizeNoTag(lon);
-          size += 1 + ProtoSink.computeDelimitedSize(dataSize);
-        }
-        if ((bitField0_ & 0x00000010) != 0) {
+        if ((bitField0_ & 0x00000002) != 0) {
           final int dataSize = ProtoSink.computeRepeatedUInt32SizeNoTag(keys);
           size += 1 + ProtoSink.computeDelimitedSize(dataSize);
         }
-        if ((bitField0_ & 0x00000020) != 0) {
+        if ((bitField0_ & 0x00000004) != 0) {
           final int dataSize = ProtoSink.computeRepeatedUInt32SizeNoTag(vals);
           size += 1 + ProtoSink.computeDelimitedSize(dataSize);
         }
@@ -5776,15 +5597,7 @@ public final class Osmformat {
         switch (tag) {
           case 8: {
             id = input.readInt64();
-            bitField0_ |= 0x00000040;
-            tag = input.readTag();
-            if (tag != 34) {
-              break;
-            }
-          }
-          case 34: {
-            input.readMessage(info);
-            bitField0_ |= 0x00000001;
+            bitField0_ |= 0x00000008;
             tag = input.readTag();
             if (tag != 66) {
               break;
@@ -5792,23 +5605,7 @@ public final class Osmformat {
           }
           case 66: {
             input.readPackedSInt64(refs, tag);
-            bitField0_ |= 0x00000002;
-            tag = input.readTag();
-            if (tag != 74) {
-              break;
-            }
-          }
-          case 74: {
-            input.readPackedSInt64(lat, tag);
-            bitField0_ |= 0x00000004;
-            tag = input.readTag();
-            if (tag != 82) {
-              break;
-            }
-          }
-          case 82: {
-            input.readPackedSInt64(lon, tag);
-            bitField0_ |= 0x00000008;
+            bitField0_ |= 0x00000001;
             tag = input.readTag();
             if (tag != 18) {
               break;
@@ -5816,7 +5613,7 @@ public final class Osmformat {
           }
           case 18: {
             input.readPackedUInt32(keys, tag);
-            bitField0_ |= 0x00000010;
+            bitField0_ |= 0x00000002;
             tag = input.readTag();
             if (tag != 26) {
               break;
@@ -5824,7 +5621,7 @@ public final class Osmformat {
           }
           case 26: {
             input.readPackedUInt32(vals, tag);
-            bitField0_ |= 0x00000020;
+            bitField0_ |= 0x00000004;
             tag = input.readTag();
             if (tag != 0) {
               break;
@@ -5842,27 +5639,17 @@ public final class Osmformat {
           }
           case 64: {
             tag = input.readRepeatedSInt64(refs, tag);
-            bitField0_ |= 0x00000002;
-            break;
-          }
-          case 72: {
-            tag = input.readRepeatedSInt64(lat, tag);
-            bitField0_ |= 0x00000004;
-            break;
-          }
-          case 80: {
-            tag = input.readRepeatedSInt64(lon, tag);
-            bitField0_ |= 0x00000008;
+            bitField0_ |= 0x00000001;
             break;
           }
           case 16: {
             tag = input.readRepeatedUInt32(keys, tag);
-            bitField0_ |= 0x00000010;
+            bitField0_ |= 0x00000002;
             break;
           }
           case 24: {
             tag = input.readRepeatedUInt32(vals, tag);
-            bitField0_ |= 0x00000020;
+            bitField0_ |= 0x00000004;
             break;
           }
         }
@@ -5871,7 +5658,7 @@ public final class Osmformat {
 
     @Override
     public final boolean isInitialized() {
-      if ((((bitField0_ & 0x00000040) != 0x00000040))) {
+      if ((((bitField0_ & 0x00000008) != 0x00000008))) {
         return false;
       }
       return true;
@@ -5886,28 +5673,19 @@ public final class Osmformat {
 
     @Override
     public void writeTo(final JsonSink output) throws IOException {
-      if ((((bitField0_ & 0x00000040) != 0x00000040))) {
+      if ((((bitField0_ & 0x00000008) != 0x00000008))) {
         throw new UninitializedMessageException(this);
       }
       try {
         output.beginObject();
         output.writeInt64(FieldNames.id, id);
         if ((bitField0_ & 0x00000001) != 0) {
-          output.writeMessage(FieldNames.info, info);
-        }
-        if ((bitField0_ & 0x00000002) != 0) {
           output.writeRepeatedSInt64(FieldNames.refs, refs);
         }
-        if ((bitField0_ & 0x00000004) != 0) {
-          output.writeRepeatedSInt64(FieldNames.lat, lat);
-        }
-        if ((bitField0_ & 0x00000008) != 0) {
-          output.writeRepeatedSInt64(FieldNames.lon, lon);
-        }
-        if ((bitField0_ & 0x00000010) != 0) {
+        if ((bitField0_ & 0x00000002) != 0) {
           output.writeRepeatedUInt32(FieldNames.keys, keys);
         }
-        if ((bitField0_ & 0x00000020) != 0) {
+        if ((bitField0_ & 0x00000004) != 0) {
           output.writeRepeatedUInt32(FieldNames.vals, vals);
         }
         output.endObject();
@@ -5926,16 +5704,7 @@ public final class Osmformat {
           case 3355: {
             if (input.isAtField(FieldNames.id)) {
               id = input.readInt64();
-              bitField0_ |= 0x00000040;
-            } else {
-              input.skipUnknownField();
-            }
-            break;
-          }
-          case 3237038: {
-            if (input.isAtField(FieldNames.info)) {
-              input.readMessage(info);
-              bitField0_ |= 0x00000001;
+              bitField0_ |= 0x00000008;
             } else {
               input.skipUnknownField();
             }
@@ -5944,25 +5713,7 @@ public final class Osmformat {
           case 3496512: {
             if (input.isAtField(FieldNames.refs)) {
               input.readRepeatedSInt64(refs);
-              bitField0_ |= 0x00000002;
-            } else {
-              input.skipUnknownField();
-            }
-            break;
-          }
-          case 106911: {
-            if (input.isAtField(FieldNames.lat)) {
-              input.readRepeatedSInt64(lat);
-              bitField0_ |= 0x00000004;
-            } else {
-              input.skipUnknownField();
-            }
-            break;
-          }
-          case 107339: {
-            if (input.isAtField(FieldNames.lon)) {
-              input.readRepeatedSInt64(lon);
-              bitField0_ |= 0x00000008;
+              bitField0_ |= 0x00000001;
             } else {
               input.skipUnknownField();
             }
@@ -5971,7 +5722,7 @@ public final class Osmformat {
           case 3288564: {
             if (input.isAtField(FieldNames.keys)) {
               input.readRepeatedUInt32(keys);
-              bitField0_ |= 0x00000010;
+              bitField0_ |= 0x00000002;
             } else {
               input.skipUnknownField();
             }
@@ -5980,7 +5731,7 @@ public final class Osmformat {
           case 3612018: {
             if (input.isAtField(FieldNames.vals)) {
               input.readRepeatedUInt32(vals);
-              bitField0_ |= 0x00000020;
+              bitField0_ |= 0x00000004;
             } else {
               input.skipUnknownField();
             }
@@ -6036,13 +5787,7 @@ public final class Osmformat {
     static class FieldNames {
       static final FieldName id = FieldName.forField("id");
 
-      static final FieldName info = FieldName.forField("info");
-
       static final FieldName refs = FieldName.forField("refs");
-
-      static final FieldName lat = FieldName.forField("lat");
-
-      static final FieldName lon = FieldName.forField("lon");
 
       static final FieldName keys = FieldName.forField("keys");
 

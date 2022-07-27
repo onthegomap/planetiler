@@ -300,7 +300,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
         way.getId(),
         buildTags(way.getKeys(), way.getVals()),
         wayNodesList,
-        parseInfo(way.getInfo())
+        null//parseInfo(way.getInfo())
       );
     }
   }
