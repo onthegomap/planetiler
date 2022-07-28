@@ -1,7 +1,5 @@
 package com.onthegomap.planetiler.util;
 
-import static com.onthegomap.planetiler.util.Utils.nullIfEmpty;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -35,6 +33,10 @@ public class LanguageUtils {
     if (value != null && !value.equals("")) {
       dest.put(key, value);
     }
+  }
+
+  public static String nullIfEmpty(String a) {
+    return (a == null || a.isEmpty()) ? null : a;
   }
 
   public static String string(Object obj) {
