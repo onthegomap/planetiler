@@ -2,8 +2,8 @@
 // See NOTICE.md here or copying.txt from https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
 package com.onthegomap.planetiler.reader.osm;
 
+import crosby.binary.Osmformat;
 import java.util.Date;
-import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
  * Manages decoding of the lower level PBF data structures.
