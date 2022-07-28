@@ -64,6 +64,8 @@ class PlanetilerTests {
   private static final String TEST_PROFILE_DESCRIPTION = "test description";
   private static final String TEST_PROFILE_ATTRIBUTION = "test attribution";
   private static final String TEST_PROFILE_VERSION = "test version";
+  private static final int Z15_TILES = 1 << 15;
+  private static final double Z15_WIDTH = 1d / Z15_TILES;
   private static final int Z14_TILES = 1 << 14;
   private static final double Z14_WIDTH = 1d / Z14_TILES;
   private static final int Z13_TILES = 1 << 13;
@@ -281,33 +283,39 @@ class PlanetilerTests {
 
   @Test
   void testSinglePoint() throws Exception {
-    double x = 0.5 + Z14_WIDTH / 2;
-    double y = 0.5 + Z14_WIDTH / 2;
+    double x = 0.5 + Z14_WIDTH / 4;
+    double y = 0.5 + Z14_WIDTH / 4;
     double lat = GeoUtils.getWorldLat(y);
     double lng = GeoUtils.getWorldLon(x);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
+      Map.of("threads", "1", "maxzoom", "15"),
       List.of(
         newReaderFeature(newPoint(lng, lat), Map.of(
           "attr", "value"
         ))
       ),
       (in, features) -> features.point("layer")
-        .setZoomRange(13, 14)
+        .setZoomRange(13, 15)
         .setAttr("name", "name value")
         .inheritAttrFromSource("attr")
     );
 
     assertSubmap(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newPoint(128, 128), Map.of(
           "attr", "value",
           "name", "name value"
         ))
       ),
-      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
         feature(newPoint(64, 64), Map.of(
+          "attr", "value",
+          "name", "name value"
+        ))
+      ),
+      TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
+        feature(newPoint(32, 32), Map.of(
           "attr", "value",
           "name", "name value"
         ))
@@ -317,7 +325,7 @@ class PlanetilerTests {
       """
         {
           "vector_layers": [
-            {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 14}
+            {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 15}
           ]
         }
         """,
@@ -654,6 +662,33 @@ class PlanetilerTests {
         feature(tileTopLeft(4), Map.of())
       ))
     ), results.tiles);
+  }
+
+  @Test
+  void testZ15Fill() throws Exception {
+    List<Coordinate> outerPoints = z14CoordinateList(
+      -2, -2,
+      2, -2,
+      2, 2,
+      -2, 2,
+      -2, -2
+    );
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1", "maxzoom", "15"),
+      List.of(
+        newReaderFeature(newPolygon(
+          outerPoints
+        ), Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(15, 15)
+        .setBufferPixels(4)
+    );
+
+    assertEquals(List.of(
+      feature(newPolygon(tileFill(5)), Map.of())
+    ), results.tiles.get(TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15)));
   }
 
   @Test
@@ -1158,17 +1193,17 @@ class PlanetilerTests {
 
   @Test
   void testMergeLineStrings() throws Exception {
-    double y = 0.5 + Z14_WIDTH / 2;
+    double y = 0.5 + Z15_WIDTH / 2;
     double lat = GeoUtils.getWorldLat(y);
 
-    double x1 = 0.5 + Z14_WIDTH / 4;
+    double x1 = 0.5 + Z15_WIDTH / 4;
     double lng1 = GeoUtils.getWorldLon(x1);
-    double lng2 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 10d / 256);
-    double lng3 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 20d / 256);
-    double lng4 = GeoUtils.getWorldLon(x1 + Z14_WIDTH * 30d / 256);
+    double lng2 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 10d / 256);
+    double lng3 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 20d / 256);
+    double lng4 = GeoUtils.getWorldLon(x1 + Z15_WIDTH * 30d / 256);
 
     var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
+      Map.of("threads", "1", "maxzoom", "15"),
       List.of(
         // merge at z13 (same "group"):
         newReaderFeature(newLineString(
@@ -1186,22 +1221,27 @@ class PlanetilerTests {
         ), Map.of("group", "2", "other", "3"))
       ),
       (in, features) -> features.line("layer")
-        .setZoomRange(13, 14)
+        .setMinZoom(13)
         .setAttrWithMinzoom("z14attr", in.getTag("other"), 14)
         .inheritAttrFromSource("group"),
       (layer, zoom, items) -> FeatureMerge.mergeLineStrings(items, 0, 0, 0)
     );
 
     assertSubmap(sortListValues(Map.of(
-      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+      TileCoord.ofXYZ(Z15_TILES / 2, Z15_TILES / 2, 15), List.of(
         feature(newLineString(64, 128, 74, 128), Map.of("group", "1", "z14attr", "1")),
         feature(newLineString(74, 128, 84, 128), Map.of("group", "1", "z14attr", "2")),
         feature(newLineString(84, 128, 94, 128), Map.of("group", "2", "z14attr", "3"))
       ),
+      TileCoord.ofXYZ(Z14_TILES / 2, Z14_TILES / 2, 14), List.of(
+        feature(newLineString(32, 64, 37, 64), Map.of("group", "1", "z14attr", "1")),
+        feature(newLineString(37, 64, 42, 64), Map.of("group", "1", "z14attr", "2")),
+        feature(newLineString(42, 64, 47, 64), Map.of("group", "2", "z14attr", "3"))
+      ),
       TileCoord.ofXYZ(Z13_TILES / 2, Z13_TILES / 2, 13), List.of(
         // merge 32->37 and 37->42 since they have same attrs
-        feature(newLineString(32, 64, 42, 64), Map.of("group", "1")),
-        feature(newLineString(42, 64, 47, 64), Map.of("group", "2"))
+        feature(newLineString(16, 32, 21, 32), Map.of("group", "1")),
+        feature(newLineString(21, 32, 23.5, 32), Map.of("group", "2"))
       )
     )), sortListValues(results.tiles));
   }
