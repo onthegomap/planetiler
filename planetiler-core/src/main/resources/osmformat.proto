@@ -93,7 +93,7 @@ message HeaderBBox {
 
 message PrimitiveBlock {
   required StringTable stringtable = 1;
-  repeated PrimitiveGroup primitivegroup = 2;
+  repeated bytes primitivegroup = 2;
 
   // Granularity, units of nanodegrees, used to store coordinates in this block.
   optional int32 granularity = 17 [default = 100];
@@ -221,8 +221,8 @@ message Way {
   //
   // If this is used, you MUST set the optional_features tag "LocationsOnWays"
   // and the number of values in refs, lat, and lon MUST be the same.
-  //  repeated sint64 lat = 9 [packed = true]; // DELTA coded, optional
-  //  repeated sint64 lon = 10 [packed = true]; // DELTA coded, optional
+  repeated sint64 lat = 9 [packed = true]; // DELTA coded, optional
+  repeated sint64 lon = 10 [packed = true]; // DELTA coded, optional
 }
 
 message Relation {

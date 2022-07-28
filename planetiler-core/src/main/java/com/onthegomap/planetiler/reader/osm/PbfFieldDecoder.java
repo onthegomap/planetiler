@@ -2,9 +2,8 @@
 // See NOTICE.md here or copying.txt from https://github.com/openstreetmap/osmosis/blob/master/package/copying.txt for details.
 package com.onthegomap.planetiler.reader.osm;
 
-import crosby.binary.Osmformat;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
  * Manages decoding of the lower level PBF data structures.
@@ -36,11 +35,9 @@ public class PbfFieldDecoder {
     this.dateGranularity = primitiveBlock.getDateGranularity();
 
     Osmformat.StringTable stringTable = primitiveBlock.getStringtable();
-    var s = stringTable.getS();
-    strings = new String[s.length()];
-    int i = 0;
-    for (var string : s) {
-      strings[i++] = new String(string.array(), StandardCharsets.UTF_8);
+    strings = new String[stringTable.getSCount()];
+    for (int i = 0; i < strings.length; i++) {
+      strings[i] = stringTable.getS(i).toStringUtf8();
     }
   }
 
