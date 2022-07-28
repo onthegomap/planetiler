@@ -19,19 +19,19 @@ public class BenchmarkOsmRead {
     var stats = Stats.inMemory();
     var parsedArgs = Arguments.fromArgsOrConfigFile(args);
     var config = PlanetilerConfig.from(parsedArgs);
-    var path = parsedArgs.inputFile("osm_path", "path to osm file", Path.of("data/sources/planet.osm.pbf"));
+    var path = parsedArgs.inputFile("osm_path", "path to osm file", Path.of("data/sources/northeast.osm.pbf"));
     OsmInputFile file = new OsmInputFile(path, config.osmLazyReads());
 
-    //    while (true) {
-    Timer timer = Timer.start();
-    try (
-      var nodes = LongLongMap.noop();
-      var multipolygons = LongLongMultimap.noop();
-      var reader = new OsmReader("osm", file, nodes, multipolygons, profile, stats)
-    ) {
-      reader.pass1(config);
+    while (true) {
+      Timer timer = Timer.start();
+      try (
+        var nodes = LongLongMap.noop();
+        var multipolygons = LongLongMultimap.noop();
+        var reader = new OsmReader("osm", file, nodes, multipolygons, profile, stats)
+      ) {
+        reader.pass1(config);
+      }
+      System.err.println(timer.stop());
     }
-    System.err.println(timer.stop());
-    //    }
   }
 }

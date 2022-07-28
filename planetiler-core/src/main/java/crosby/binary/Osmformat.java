@@ -3255,6 +3255,13 @@ public final class Osmformat {
     crosby.binary.Osmformat.StringTableOrBuilder getStringtableOrBuilder();
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @return A list containing the primitivegroup.
@@ -3262,6 +3269,13 @@ public final class Osmformat {
     java.util.List<com.google.protobuf.ByteString> getPrimitivegroupList();
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @return The count of primitivegroup.
@@ -3269,6 +3283,13 @@ public final class Osmformat {
     int getPrimitivegroupCount();
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @param index The index of the element to return.
@@ -3518,6 +3539,13 @@ public final class Osmformat {
     private java.util.List<com.google.protobuf.ByteString> primitivegroup_;
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @return A list containing the primitivegroup.
@@ -3528,6 +3556,13 @@ public final class Osmformat {
     }
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @return The count of primitivegroup.
@@ -3537,6 +3572,13 @@ public final class Osmformat {
     }
 
     /**
+     * <pre>
+     * [PLANETILER] modified from original:
+     * repeated PrimitiveGroup primitivegroup = 2;
+     * so that we can lazily deserialize each primitive group to reduce memory
+     * pressure when reading an input file
+     * </pre>
+     *
      * <code>repeated bytes primitivegroup = 2;</code>
      * 
      * @param index The index of the element to return.
@@ -4301,6 +4343,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @return A list containing the primitivegroup.
@@ -4311,6 +4360,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @return The count of primitivegroup.
@@ -4320,6 +4376,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @param index The index of the element to return.
@@ -4330,6 +4393,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @param index The index to set the value at.
@@ -4348,6 +4418,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @param value The primitivegroup to add.
@@ -4364,6 +4441,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @param values The primitivegroup to add.
@@ -4379,6 +4463,13 @@ public final class Osmformat {
       }
 
       /**
+       * <pre>
+       * [PLANETILER] modified from original:
+       * repeated PrimitiveGroup primitivegroup = 2;
+       * so that we can lazily deserialize each primitive group to reduce memory
+       * pressure when reading an input file
+       * </pre>
+       *
        * <code>repeated bytes primitivegroup = 2;</code>
        * 
        * @return This builder for chaining.

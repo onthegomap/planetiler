@@ -33,9 +33,9 @@
       <version>0.9.30</version>
     </dependency>
     <dependency>
-      <groupId>org.openstreetmap.osmosis</groupId>
-      <artifactId>osmosis-osm-binary</artifactId>
-      <version>0.48.3</version>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>3.21.3</version>
     </dependency>
     <dependency>
       <groupId>com.github.jnr</groupId>

@@ -128,10 +128,33 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   @Override
   public Iterator<OsmElement> iterator() {
-    return Iterators.concat(new GroupIter());
+    return Iterators.concat(new PrimitiveGroupIterator());
   }
 
-  private class GroupIter implements Iterator<Iterator<OsmElement>> {
+  private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
+    if (num > 0) {
+      Map<String, Object> tags = new HashMap<>(num);
+      for (int i = 0; i < num; i++) {
+        String k = fieldDecoder.decodeString(key.applyAsInt(i));
+        String v = fieldDecoder.decodeString(value.applyAsInt(i));
+        tags.put(k, v);
+      }
+      return tags;
+    }
+    return Collections.emptyMap();
+  }
+
+  private OsmElement.Info parseInfo(Osmformat.Info info) {
+    return info == null ? null : new OsmElement.Info(
+      info.getChangeset(),
+      info.getTimestamp(),
+      info.getUid(),
+      info.getVersion(),
+      fieldDecoder.decodeString(info.getUserSid())
+    );
+  }
+
+  private class PrimitiveGroupIterator implements Iterator<Iterator<OsmElement>> {
     private int i = 0;
 
     @Override
@@ -153,23 +176,9 @@ public class PbfDecoder implements Iterable<OsmElement> {
           new RelationIterator(primitiveGroup.getRelationsList())
         );
       } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
+        throw new FileFormatException("Unable to parse primitive group", e);
       }
     }
-  }
-
-
-  private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
-    if (num > 0) {
-      Map<String, Object> tags = new HashMap<>(num);
-      for (int i = 0; i < num; i++) {
-        String k = fieldDecoder.decodeString(key.applyAsInt(i));
-        String v = fieldDecoder.decodeString(value.applyAsInt(i));
-        tags.put(k, v);
-      }
-      return tags;
-    }
-    return Collections.emptyMap();
   }
 
   private class NodeIterator implements Iterator<OsmElement.Node> {
@@ -295,16 +304,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
         parseInfo(way.getInfo())
       );
     }
-  }
-
-  private OsmElement.Info parseInfo(Osmformat.Info info) {
-    return info == null ? null : new OsmElement.Info(
-      info.getChangeset(),
-      info.getTimestamp(),
-      info.getUid(),
-      info.getVersion(),
-      fieldDecoder.decodeString(info.getUserSid())
-    );
   }
 
   private class DenseNodeIterator implements Iterator<OsmElement.Node> {

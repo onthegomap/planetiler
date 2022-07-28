@@ -1,12 +1,15 @@
 /** Copyright (c) 2010 Scott A. Crosby. <scott@sacrosby.com>
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, including without limitation the rights to
 use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
 of the Software, and to permit persons to whom the Software is furnished to do
 so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -14,7 +17,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
 */
+
+/*
+This file is copied from https://raw.githubusercontent.com/openstreetmap/OSM-binary/master/osmpbf/osmformat.proto
+(MIT License) and modified to allow for lazy deserialization of primitive groups.
+ */
 
 syntax = "proto2";
 
@@ -22,27 +31,33 @@ option java_package = "crosby.binary";
 package OSMPBF;
 
 /* OSM Binary file format
+
 This is the master schema file of the OSM binary file format. This
 file is designed to support limited random-access and future
 extendability.
+
 A binary OSM file consists of a sequence of FileBlocks (please see
 fileformat.proto). The first fileblock contains a serialized instance
 of HeaderBlock, followed by a sequence of PrimitiveBlock blocks that
 contain the primitives.
+
 Each primitiveblock is designed to be independently parsable. It
 contains a string table storing all strings in that block (keys and
 values in tags, roles in relations, usernames, etc.) as well as
 metadata containing the precision of coordinates or timestamps in that
 block.
+
 A primitiveblock contains a sequence of primitive groups, each
 containing primitives of the same type (nodes, densenodes, ways,
 relations). Coordinates are stored in signed 64-bit integers. Lat&lon
 are measured in units <granularity> nanodegrees. The default of
 granularity of 100 nanodegrees corresponds to about 1cm on the ground,
 and a full lat or lon fits into 32 bits.
+
 Converting an integer to a latitude or longitude uses the formula:
 $OUT = IN * granularity / 10**9$. Many encoding schemes use delta
 coding when representing nodes and relations.
+
 */
 
 //////////////////////////////////////////////////////////////////////////
@@ -93,7 +108,12 @@ message HeaderBBox {
 
 message PrimitiveBlock {
   required StringTable stringtable = 1;
+  // [PLANETILER] modified from original:
+  // repeated PrimitiveGroup primitivegroup = 2;
+  // so that we can lazily deserialize each primitive group to reduce memory
+  // pressure when reading an input file
   repeated bytes primitivegroup = 2;
+
 
   // Granularity, units of nanodegrees, used to store coordinates in this block.
   optional int32 granularity = 17 [default = 100];
@@ -117,8 +137,10 @@ message PrimitiveGroup {
 
 
 /** String table, contains the common strings in each block.
+
  Note that we reserve index '0' as a delimiter, so the entry at that
  index in the table is ALWAYS blank and unused.
+
  */
 message StringTable {
   repeated bytes s = 1;
@@ -183,11 +205,14 @@ message Node {
 }
 
 /* Used to densly represent a sequence of nodes that do not have any tags.
+
 We represent these nodes columnwise as five columns: ID's, lats, and
 lons, all delta coded. When metadata is not omitted,
+
 We encode keys & vals for all nodes as a single array of integers
 containing key-stringid and val-stringid, using a stringid of 0 as a
 delimiter between nodes.
+
    ( (<keyid> <valid>)* '0' )*
  */
 
