@@ -3,8 +3,8 @@ package com.onthegomap.planetiler;
 import static java.util.Map.entry;
 
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
-import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
+import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
