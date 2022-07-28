@@ -4,7 +4,10 @@ package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.Iterators;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import crosby.binary.Fileformat;
+import crosby.binary.Osmformat;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -20,8 +23,6 @@ import java.util.function.IntUnaryOperator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import org.locationtech.jts.geom.Envelope;
-import org.openstreetmap.osmosis.osmbinary.Fileformat;
-import org.openstreetmap.osmosis.osmbinary.Osmformat;
 
 /**
  * Converts PBF block data into decoded entities. This class was adapted from Osmosis to expose an iterator over blocks
@@ -127,12 +128,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   @Override
   public Iterator<OsmElement> iterator() {
-    return Iterators.concat(block.getPrimitivegroupList().stream().map(primitiveGroup -> Iterators.concat(
-      new DenseNodeIterator(primitiveGroup.getDense()),
-      new NodeIterator(primitiveGroup.getNodesList()),
-      new WayIterator(primitiveGroup.getWaysList()),
-      new RelationIterator(primitiveGroup.getRelationsList())
-    )).iterator());
+    return Iterators.concat(new PrimitiveGroupIterator());
   }
 
   private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
@@ -146,6 +142,43 @@ public class PbfDecoder implements Iterable<OsmElement> {
       return tags;
     }
     return Collections.emptyMap();
+  }
+
+  private OsmElement.Info parseInfo(Osmformat.Info info) {
+    return info == null ? null : new OsmElement.Info(
+      info.getChangeset(),
+      info.getTimestamp(),
+      info.getUid(),
+      info.getVersion(),
+      fieldDecoder.decodeString(info.getUserSid())
+    );
+  }
+
+  private class PrimitiveGroupIterator implements Iterator<Iterator<OsmElement>> {
+    private int i = 0;
+
+    @Override
+    public boolean hasNext() {
+      return i < block.getPrimitivegroupCount();
+    }
+
+    @Override
+    public Iterator<OsmElement> next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      try {
+        var primitiveGroup = Osmformat.PrimitiveGroup.parseFrom(block.getPrimitivegroup(i++));
+        return Iterators.concat(
+          new DenseNodeIterator(primitiveGroup.getDense()),
+          new NodeIterator(primitiveGroup.getNodesList()),
+          new WayIterator(primitiveGroup.getWaysList()),
+          new RelationIterator(primitiveGroup.getRelationsList())
+        );
+      } catch (InvalidProtocolBufferException e) {
+        throw new FileFormatException("Unable to parse primitive group", e);
+      }
+    }
   }
 
   private class NodeIterator implements Iterator<OsmElement.Node> {
@@ -271,16 +304,6 @@ public class PbfDecoder implements Iterable<OsmElement> {
         parseInfo(way.getInfo())
       );
     }
-  }
-
-  private OsmElement.Info parseInfo(Osmformat.Info info) {
-    return info == null ? null : new OsmElement.Info(
-      info.getChangeset(),
-      info.getTimestamp(),
-      info.getUid(),
-      info.getVersion(),
-      fieldDecoder.decodeString(info.getUserSid())
-    );
   }
 
   private class DenseNodeIterator implements Iterator<OsmElement.Node> {

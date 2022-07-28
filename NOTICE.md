@@ -20,7 +20,7 @@ The `planetiler-core` module includes the following software:
   - org.xerial:sqlite-jdbc (Apache license)
   - com.ibm.icu:icu4j ([ICU license](https://github.com/unicode-org/icu/blob/main/icu4c/LICENSE))
   - com.google.guava:guava (Apache license)
-  - org.openstreetmap.osmosis:osmosis-osm-binary (LGPL 3.0)
+  - com.google.protobuf:protobuf-java (BSD 3-Clause License)
   - com.carrotsearch:hppc (Apache license)
   - com.github.jnr:jnr-ffi (Apache license)
   - org.roaringbitmap:RoaringBitmap (Apache license)
@@ -37,6 +37,8 @@ The `planetiler-core` module includes the following software:
   - `ArrayLongMinHeap` implementations from [graphhopper](https://github.com/graphhopper/graphhopper) (Apache license)
   - `Hilbert` implementation
     from [github.com/rawrunprotected/hilbert_curves](https://github.com/rawrunprotected/hilbert_curves) (Public Domain)
+  - `osmformat.proto` and `fileformat.proto` (generates `Osmformat.java` and `Fileformat.java`)
+    from [openstreetmap/OSM-binary](https://github.com/openstreetmap/OSM-binary/tree/master/osmpbf) (MIT License)
 
 Additionally, the `planetiler-basemap` module is based on [OpenMapTiles](https://github.com/openmaptiles/openmaptiles):
 

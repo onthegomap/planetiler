@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
+import crosby.binary.Fileformat.BlobHeader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -15,7 +16,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.locationtech.jts.geom.Envelope;
-import org.openstreetmap.osmosis.osmbinary.Fileformat.BlobHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
