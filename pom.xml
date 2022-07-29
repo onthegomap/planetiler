@@ -26,8 +26,10 @@
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
-    <sonar.exclusions>planetiler-benchmarks/**/*, **/VectorTileProto.java, **/crosby/binary/*.java,
+    <sonar.exclusions>
+      planetiler-benchmarks/**/*, **/VectorTileProto.java, **/crosby/binary/*.java,
       **/generated/*.java
+    , planetiler-openmaptiles/**/*
     </sonar.exclusions>
   </properties>
 
@@ -85,7 +87,7 @@
 
   <modules>
     <module>planetiler-core</module>
-    <module>planetiler-basemap</module>
+    <module>planetiler-openmaptiles</module>
     <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>

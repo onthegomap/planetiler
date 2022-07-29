@@ -20,7 +20,7 @@
     </dependency>
     <dependency>
       <groupId>com.onthegomap.planetiler</groupId>
-      <artifactId>planetiler-basemap</artifactId>
+      <artifactId>planetiler-openmaptiles</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
   </dependencies>

@@ -14,7 +14,7 @@ echo "Building..."
 ./mvnw -DskipTests=true --projects planetiler-dist -am package
 
 echo "Running..."
-java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.basemap.Generate -tag="${TAG}" -base-url="${BASE_URL}"
+java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.openmaptiles.Generate -tag="${TAG}" -base-url="${BASE_URL}"
 
 echo "Formatting..."
 ./scripts/format.sh

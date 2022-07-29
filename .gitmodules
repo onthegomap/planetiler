@@ -1,0 +1,4 @@
+[submodule "planetiler-openmaptiles"]
+	path = planetiler-openmaptiles
+	url = https://github.com/openmaptiles/planetiler-openmaptiles.git
+	branch = main
