@@ -19,6 +19,7 @@
     <geotools.version>27.1</geotools.version>
     <log4j.version>2.18.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
+    <protobuf.version>3.21.4</protobuf.version>
   </properties>
 
   <dependencies>
@@ -35,7 +36,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>3.21.3</version>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.github.jnr</groupId>
@@ -172,6 +173,14 @@
       </plugins>
     </pluginManagement>
 
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.7.0</version>
+      </extension>
+    </extensions>
+
     <plugins>
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -182,6 +191,22 @@
       <plugin>
         <groupId>io.github.zlika</groupId>
         <artifactId>reproducible-build-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>0.6.1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+        </configuration>
       </plugin>
     </plugins>
   </build>
