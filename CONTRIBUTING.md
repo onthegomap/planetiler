@@ -10,7 +10,7 @@ Pull requests are welcome! Any pull request should:
 
 To set up your local development environment:
 
-- Fork the repo
+- Fork the repo [setup submodules](README.md#git-submodules)
 - Install Java 16 or later. You can download Java manually from [Adoptium](https://adoptium.net/installation.html) or
   use:
   - [Windows installer](https://adoptium.net/installation.html#windows-msi)

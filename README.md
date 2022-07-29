@@ -29,7 +29,8 @@ the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetma
 
 ## Usage
 
-To generate a map of an area using the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles), you will need:
+To generate a map of an area using the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles),
+you will need:
 
 - Java 16+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
 - at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
@@ -107,27 +108,31 @@ Some common arguments:
 - `--force` overwrites the output file
 - `--help` shows all of the options and exits
 
-### Planetiler-openmaptiles
+### Git submodules
 
-Planetiler has a submodule dependency. To use [Openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles) you need to init and update its
-submodule.
+Planetiler has a submodule dependency
+on [planetiler-openmaptiles](https://github.com/openmaptiles/planetiler-openmaptiles). Add `--recurse-submodules`
+to `git clone`, `git pull`, or `git checkout` commands to also update submodule dependencies.
 
-To init the submodule repo.
+To clone the repo with submodules:
 
 ```bash
-# Clone Planetiler root repository
-git clone https://github.com/onthegomap/planetiler.git
-cd planetiler
-# Init planetiler-openmapties submodule
+git clone --recurse-submodules https://github.com/onthegomap/planetiler.git
+```
+
+If you already pulled the repo, you can initialize submodules with:
+
+```bash
 git submodule update --init
 ```
 
-To pull latest changes
+To force git to always update submodules (recommended), run this command in your local repo:
 
 ```bash
-cd planetiler
-git submodule foreach git pull origin master
+git config --local submodule.recurse true
 ```
+
+Learn more about working with submodules [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
 ## Generating a Map of the World
 
@@ -164,7 +169,8 @@ Merging nearby buildings at z13 is very expensive, when run with `--building-mer
 Some other tools that generate vector tiles from OpenStreetMap data:
 
 - [OpenMapTiles](https://github.com/openmaptiles/openmaptiles) is the reference implementation of
-  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles)
+  the [OpenMapTiles schema](https://openmaptiles.org/schema/) that
+  the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles)
   is based on. It uses an intermediate postgres database and operates in two modes:
   1. Import data into database (~1 day) then serve vector tiles directly from the database. Tile serving is slower and
      requires bigger machines, but lets you easily incorporate realtime updates
@@ -266,7 +272,8 @@ Planetiler is made possible by these awesome open source projects:
 
 - [OpenMapTiles](https://openmaptiles.org/) for the [schema](https://openmaptiles.org/schema/)
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
-  that the [openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles/tree/main/src/main/java/com/onthegomap/planetiler/openmaptiles/layers)
+  that
+  the [openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles/tree/main/src/main/java/com/onthegomap/planetiler/openmaptiles/layers)
   is based on
 - [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
