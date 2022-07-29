@@ -26,6 +26,8 @@ jobs:
             version = context.payload.inputs.version;
             if (/^v/.test(version)) throw new Error("Bad version number: " + version)
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Cache data/sources
         uses: ./.github/cache-sources-action
       - uses: actions/setup-java@v3

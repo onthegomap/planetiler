@@ -22,6 +22,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Cache data/sources
         uses: ./.github/cache-sources-action
       - name: Set up JDK
