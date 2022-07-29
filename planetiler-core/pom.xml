@@ -161,12 +161,11 @@
             </execution>
           </executions>
           <configuration>
-            <!-- reduce the size of the sources jar a bit (leave behind monaco.osm.pbf file) -->
+            <!-- reduce the size of the sources jar a bit (leave behind monaco.osm.pbf and *.zip files) -->
             <excludes>
               <exclude>*.wkb</exclude>
               <exclude>*.mbtiles</exclude>
               <exclude>*.sqlite</exclude>
-              <exclude>*.zip</exclude>
             </excludes>
           </configuration>
         </plugin>
