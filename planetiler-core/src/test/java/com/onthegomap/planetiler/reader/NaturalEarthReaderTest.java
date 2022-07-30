@@ -63,11 +63,12 @@ class NaturalEarthReaderTest {
   @Timeout(30)
   void testCopyAndReadNaturalEarth(@TempDir Path tempDir) throws IOException {
     var tempPath = tempDir.resolve("tmp.zip");
+    var tempPath2 = tempDir.resolve("tmp.sqlite");
     var profile = new Profile.NullProfile();
     var config = PlanetilerConfig.defaults();
     var stats = Stats.inMemory();
     Files.copy(TestUtils.pathToResource("natural_earth_vector.sqlite.zip"), tempPath);
     var featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
-    NaturalEarthReader.process("test", tempPath, tempDir, featureGroup, config, profile, stats);
+    NaturalEarthReader.process("test", tempPath, tempPath2, featureGroup, config, profile, stats);
   }
 }
