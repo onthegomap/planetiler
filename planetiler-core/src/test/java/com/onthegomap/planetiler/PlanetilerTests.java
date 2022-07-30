@@ -1643,10 +1643,13 @@ class PlanetilerTests {
     "--osm-parse-node-bounds",
   })
   void testPlanetilerRunner(String args) throws Exception {
-    Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
-    Files.copy(originalOsm, tempOsm);
+    Path tmpShapefile = tempDir.resolve("shapefile.zip");
+    Path tmpNaturalEarth = tempDir.resolve("natural_earth_vector.sqlite");
+    Files.copy(TestUtils.pathToResource("natural_earth_vector.sqlite"), tmpNaturalEarth);
+    Files.copy(TestUtils.pathToResource("shapefile.zip"), tmpShapefile);
+    Files.copy(TestUtils.pathToResource("monaco-latest.osm.pbf"), tempOsm);
     Planetiler.create(Arguments.fromArgs(
       ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
     ))
@@ -1659,8 +1662,8 @@ class PlanetilerTests {
         }
       })
       .addOsmSource("osm", tempOsm)
-      .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
-      .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .addNaturalEarthSource("ne", tmpNaturalEarth)
+      .addShapefileSource("shapefile", tmpShapefile)
       .setOutput("mbtiles", mbtiles)
       .run();
 
