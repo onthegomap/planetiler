@@ -1668,12 +1668,13 @@ class PlanetilerTests {
       .run();
 
     Files.delete(tmpNaturalEarth);
-    Files.delete(tempOsm);
     Files.delete(tmpShapefile);
 
     // make sure it got deleted after write
     if (args.contains("free-osm-after-read")) {
       assertFalse(Files.exists(tempOsm));
+    } else {
+      Files.delete(tempOsm);
     }
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
