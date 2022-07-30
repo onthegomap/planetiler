@@ -113,8 +113,11 @@ public class ShapefileReader extends SimpleReader implements Closeable {
     try {
       URI uri;
       if (FileUtils.hasExtension(path, "zip")) {
-        try (var zipFs = FileSystems.newFileSystem(path)) {
-          Path shapeFileInZip = FileUtils.walkFileSystem(zipFs)
+        try (
+          var zipFs = FileSystems.newFileSystem(path);
+          var walkStream = FileUtils.walkFileSystem(zipFs)
+        ) {
+          Path shapeFileInZip = walkStream
             .filter(z -> FileUtils.hasExtension(z, "shp"))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path));
