@@ -6,13 +6,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,5 +57,17 @@ class NaturalEarthReaderTest {
         );
       }
     }
+  }
+
+  @Test
+  @Timeout(30)
+  void testCopyAndReadNaturalEarth(@TempDir Path tempDir) throws IOException {
+    var tempPath = tempDir.resolve("tmp.zip");
+    var profile = new Profile.NullProfile();
+    var config = PlanetilerConfig.defaults();
+    var stats = Stats.inMemory();
+    Files.copy(TestUtils.pathToResource("natural_earth_vector.sqlite.zip"), tempPath);
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
+    NaturalEarthReader.process("test", tempPath, tempDir, featureGroup, config, profile, stats);
   }
 }
