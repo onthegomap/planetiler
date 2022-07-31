@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.util;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
@@ -8,8 +9,11 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,5 +171,45 @@ public class FileUtils {
    */
   public static void deleteOnExit(Path path) {
     path.toFile().deleteOnExit();
+  }
+
+  /**
+   * Unzips a zip file on the classpath to {@code destDir}.
+   *
+   * @throws UncheckedIOException if an IO exception occurs
+   */
+  public static void unzipResource(String resource, Path dest) {
+    try (var is = FileUtils.class.getResourceAsStream(resource)) {
+      Objects.requireNonNull(is, "Resource not found on classpath: " + resource);
+      unzip(is, dest);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Unzips a zip file from an input stream to {@code destDir}.
+   *
+   * @throws UncheckedIOException if an IO exception occurs
+   */
+  public static void unzip(InputStream input, Path destDir) {
+    try (var zip = new ZipInputStream(input)) {
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null) {
+        Path targetDirResolved = destDir.resolve(entry.getName());
+        Path destination = targetDirResolved.normalize();
+        if (!destination.startsWith(destDir)) {
+          throw new IOException("Bad zip entry: " + entry.getName());
+        }
+        if (entry.isDirectory()) {
+          FileUtils.createDirectory(destDir);
+        } else {
+          createParentDirectories(destination);
+          Files.copy(zip, destination);
+        }
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 }

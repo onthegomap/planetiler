@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -43,5 +45,40 @@ class FileUtilsTest {
     var nested = tmpDir.resolve("subdir").resolve("nonexistant_file");
     FileUtils.createParentDirectories(nested);
     assertEquals(filestore, FileUtils.getFileStore(nested));
+  }
+
+  @Test
+  void testUnzip() throws IOException {
+    var dest = tmpDir.resolve("unzipped");
+    FileUtils.unzipResource("/shapefile.zip", dest);
+    try (var walkStream = Files.walk(dest)) {
+      var all = walkStream.toList();
+      var directories = all.stream()
+        .filter(Files::isDirectory)
+        .map(tmpDir::relativize)
+        .collect(Collectors.toSet());
+      var files = all.stream()
+        .filter(Files::isRegularFile)
+        .map(tmpDir::relativize)
+        .collect(Collectors.toSet());
+      assertEquals(Set.of(
+        Path.of("unzipped"),
+        Path.of("unzipped", "shapefile")
+      ), directories);
+      assertEquals(Set.of(
+        Path.of("unzipped", "shapefile", "stations.shx"),
+        Path.of("unzipped", "shapefile", "stations.cpg"),
+        Path.of("unzipped", "shapefile", "stations.shp"),
+        Path.of("unzipped", "shapefile", "stations.dbf"),
+        Path.of("unzipped", "shapefile", "stations.prj")
+      ), files);
+    }
+    assertEquals(
+      """
+        GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]
+        """
+        .strip(),
+      Files.readString(dest.resolve("shapefile").resolve("stations.prj"))
+    );
   }
 }
