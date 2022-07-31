@@ -8,10 +8,13 @@ import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.stream.Stream;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
@@ -60,8 +63,10 @@ public class ShapefileReader extends SimpleReader implements Closeable {
       for (int i = 0; i < attributeNames.length; i++) {
         attributeNames[i] = inputSource.getSchema().getDescriptor(i).getLocalName();
       }
-    } catch (IOException | FactoryException e) {
-      throw new RuntimeException(e);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } catch (FactoryException e) {
+      throw new FileFormatException("Bad reference system", e);
     }
   }
 
@@ -109,16 +114,27 @@ public class ShapefileReader extends SimpleReader implements Closeable {
     processWithProjection(null, sourceName, input, writer, config, profile, stats);
   }
 
+  private static URI findShpFile(Path path, Stream<Path> walkStream) {
+    return walkStream
+      .filter(z -> FileUtils.hasExtension(z, "shp"))
+      .findFirst()
+      .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path))
+      .toUri();
+  }
+
   private ShapefileDataStore open(Path path) {
     try {
       URI uri;
-      if (FileUtils.hasExtension(path, "zip")) {
-        try (var zipFs = FileSystems.newFileSystem(path)) {
-          Path shapeFileInZip = FileUtils.walkFileSystem(zipFs)
-            .filter(z -> FileUtils.hasExtension(z, "shp"))
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path));
-          uri = shapeFileInZip.toUri();
+      if (Files.isDirectory(path)) {
+        try (var walkStream = Files.walk(path)) {
+          uri = findShpFile(path, walkStream);
+        }
+      } else if (FileUtils.hasExtension(path, "zip")) {
+        try (
+          var zipFs = FileSystems.newFileSystem(path);
+          var walkStream = FileUtils.walkFileSystem(zipFs)
+        ) {
+          uri = findShpFile(path, walkStream);
         }
       } else if (FileUtils.hasExtension(path, "shp")) {
         uri = path.toUri();
