@@ -80,5 +80,9 @@ class FileUtilsTest {
         .strip(),
       Files.readString(dest.resolve("shapefile").resolve("stations.prj"))
     );
+    assertEquals(
+      "UTF8",
+      Files.readString(dest.resolve("shapefile").resolve("stations.cpg"))
+    );
   }
 }

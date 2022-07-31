@@ -8,6 +8,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -21,6 +22,11 @@ import org.slf4j.LoggerFactory;
  * Convenience methods for working with files on disk.
  */
 public class FileUtils {
+  private static final Format FORMAT = Format.defaultInstance();
+  // Prevent zip-bomb attack, see https://rules.sonarsource.com/java/RSPEC-5042
+  private static final int ZIP_THRESHOLD_ENTRIES = 10_000;
+  private static final int ZIP_THRESHOLD_SIZE = 1_000_000_000;
+  private static final double ZIP_THRESHOLD_RATIO = 1_000;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUtils.class);
 
@@ -193,6 +199,8 @@ public class FileUtils {
    * @throws UncheckedIOException if an IO exception occurs
    */
   public static void unzip(InputStream input, Path destDir) {
+    int totalSizeArchive = 0;
+    int totalEntryArchive = 0;
     try (var zip = new ZipInputStream(input)) {
       ZipEntry entry;
       while ((entry = zip.getNextEntry()) != null) {
@@ -205,7 +213,41 @@ public class FileUtils {
           FileUtils.createDirectory(destDir);
         } else {
           createParentDirectories(destination);
-          Files.copy(zip, destination);
+
+          // Instead of Files.copy, read 2kB at a time to prevent zip bomb attack, see https://rules.sonarsource.com/java/RSPEC-5042
+          int nBytes;
+          byte[] buffer = new byte[2048];
+          int totalSizeEntry = 0;
+
+          try (
+            var out = Files.newOutputStream(destination, StandardOpenOption.CREATE_NEW,
+              StandardOpenOption.WRITE)
+          ) {
+            totalEntryArchive++;
+            while ((nBytes = zip.read(buffer)) > 0) {
+              out.write(buffer, 0, nBytes);
+              totalSizeEntry += nBytes;
+              totalSizeArchive += nBytes;
+
+              double compressionRatio = totalSizeEntry * 1d / entry.getCompressedSize();
+              if (compressionRatio > ZIP_THRESHOLD_RATIO) {
+                throw new IOException(
+                  "Ratio between compressed and uncompressed data is highly suspicious " +
+                    FORMAT.numeric(compressionRatio) +
+                    "x, looks like a Zip Bomb Attack");
+              }
+            }
+
+            if (totalSizeArchive > ZIP_THRESHOLD_SIZE) {
+              throw new IOException("The uncompressed data size " + FORMAT.storage(totalSizeArchive) +
+                "B is too much for the application resource capacity");
+            }
+
+            if (totalEntryArchive > ZIP_THRESHOLD_ENTRIES) {
+              throw new IOException("Too much entries in this archive " + FORMAT.integer(totalEntryArchive) +
+                ", can lead to inodes exhaustion of the system");
+            }
+          }
         }
       }
     } catch (IOException e) {
