@@ -26,11 +26,7 @@
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
-    <sonar.exclusions>
-      planetiler-benchmarks/**/*, **/VectorTileProto.java, **/crosby/binary/*.java,
-      **/generated/*.java
-    , planetiler-openmaptiles/**/*
-    </sonar.exclusions>
+    <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
   </properties>
 
   <scm>

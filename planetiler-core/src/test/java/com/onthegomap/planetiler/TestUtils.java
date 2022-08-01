@@ -24,6 +24,7 @@ import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
@@ -35,6 +36,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -315,6 +317,23 @@ public class TestUtils {
     Path cwd = Path.of("").toAbsolutePath();
     Path pathFromRoot = Path.of("planetiler-core", "src", "test", "resources", resource);
     return cwd.resolveSibling(pathFromRoot);
+  }
+
+  public static Path extractPathToResource(Path tempDir, String resource) {
+    return extractPathToResource(tempDir, resource, resource);
+  }
+
+  public static Path extractPathToResource(Path tempDir, String resource, String local) {
+    var path = tempDir.resolve(resource);
+    try (
+      var input = TestUtils.class.getResourceAsStream("/" + resource);
+      var output = Files.newOutputStream(path);
+    ) {
+      Objects.requireNonNull(input, "Could not find " + resource + " on classpath").transferTo(output);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return path;
   }
 
   public interface GeometryComparision {
