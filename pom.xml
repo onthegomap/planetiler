@@ -83,7 +83,7 @@
 
   <modules>
     <module>planetiler-core</module>
-    <module>planetiler-openmaptiles</module>
+    <module>planetiler-openmaptiles/submodule.pom.xml</module>
     <module>planetiler-custommap</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
