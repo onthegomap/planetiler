@@ -174,6 +174,7 @@
             </includes>
             <excludes>
               <exclude>**/target/**</exclude>
+              <exclude>planetiler-openmaptiles/**</exclude>
             </excludes>
             <flexmark/>
           </markdown>
