@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.benchmarks;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
-import com.onthegomap.planetiler.openmaptiles.OpenMapTilesProfile;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -15,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.locationtech.jts.geom.Geometry;
+import org.openmaptiles.OpenMapTilesProfile;
 
 /**
  * Performance tests for {@link MultiExpression}. Times how long a sample of elements from an OSM input file take to

@@ -10,11 +10,11 @@ import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.mbtiles.Verify;
-import com.onthegomap.planetiler.openmaptiles.OpenMapTilesMain;
-import com.onthegomap.planetiler.openmaptiles.util.VerifyMonaco;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import org.openmaptiles.OpenMapTilesMain;
+import org.openmaptiles.util.VerifyMonaco;
 
 /**
  * Main entry-point for executable jar and container distributions of Planetiler, which delegates to individual {@code
