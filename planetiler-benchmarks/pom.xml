@@ -19,7 +19,7 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.onthegomap.planetiler</groupId>
+      <groupId>org.openmaptiles</groupId>
       <artifactId>planetiler-openmaptiles</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
