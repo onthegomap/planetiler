@@ -273,7 +273,7 @@ Planetiler is made possible by these awesome open source projects:
 - [OpenMapTiles](https://openmaptiles.org/) for the [schema](https://openmaptiles.org/schema/)
   and [reference implementation](https://github.com/openmaptiles/openmaptiles)
   that
-  the [openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles/tree/main/src/main/java/com/onthegomap/planetiler/openmaptiles/layers)
+  the [openmaptiles profile](https://github.com/openmaptiles/planetiler-openmaptiles/tree/main/src/main/java/org/openmaptiles/layers)
   is based on
 - [Graphhopper](https://www.graphhopper.com/) for basis of utilities to process OpenStreetMap data in Java
 - [JTS Topology Suite](https://github.com/locationtech/jts) for working with vector geometries
