@@ -55,7 +55,7 @@ public class Arguments {
   /**
    * Returns arguments parsed from command-line arguments.
    * <p>
-   * For example to set {@code key=value}: {@code java -jar ... key=value}
+   * For example to set {@code key=value}: {@code java -jar ... key=value} or {@code java -jar ... --key value}
    * <p>
    * Or to set {@code key=true}: {@code java -jar ... --key}
    *
@@ -64,14 +64,23 @@ public class Arguments {
    */
   public static Arguments fromArgs(String... args) {
     Map<String, String> parsed = new HashMap<>();
-    for (String arg : args) {
+    for (int i = 0; i < args.length; i++) {
+      String arg = args[i].strip();
       String[] kv = arg.split("=", 2);
+      String key = kv[0].replaceAll("^[\\s-]+", "");
       if (kv.length == 2) {
-        String key = kv[0].replaceAll("^[\\s-]+", "");
         String value = kv[1];
         parsed.put(key, value);
       } else if (kv.length == 1) {
-        parsed.put(kv[0].replaceAll("^[\\s-]+", ""), "true");
+        if (arg.startsWith("-")) {
+          if (i >= args.length - 1 || args[i + 1].strip().startsWith("-")) {
+            parsed.put(key, "true");
+          } else {
+            parsed.put(key, args[++i].strip());
+          }
+        } else {
+          parsed.put(key, "true");
+        }
       }
     }
     return of(parsed);
