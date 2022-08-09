@@ -145,6 +145,9 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - run: ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
-      - run: ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
-      - run: ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
+      - name: quickstart.sh --build
+        run: rm -f data/output.mbtiles && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
+      - name: quickstart.sh --docker
+        run: rm -f data/output.mbtiles && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
+      - name: quickstart.sh --jar
+        run: rm -f data/output.mbtiles && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
