@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.util;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -71,39 +72,61 @@ public class Geofabrik {
 
   static String searchIndexForDownloadUrl(String searchQuery, IndexJson index) {
     Set<String> searchTokens = tokenize(searchQuery);
-    List<PropertiesJson> approx = new ArrayList<>();
-    List<PropertiesJson> exact = new ArrayList<>();
+    List<PropertiesJson> approxName = new ArrayList<>();
+    List<PropertiesJson> id = new ArrayList<>();
+    List<PropertiesJson> exactName = new ArrayList<>();
     for (var feature : index.features) {
       PropertiesJson properties = feature.properties;
       if (properties.urls.containsKey("pbf")) {
-        if (tokenize(properties.id).equals(searchTokens) ||
-          tokenize(properties.name).equals(searchTokens)) {
-          exact.add(properties);
+        if (properties.ids().stream().map(Geofabrik::tokenize).anyMatch(searchTokens::equals)) {
+          id.add(properties);
+        } else if (tokenize(properties.name).equals(searchTokens)) {
+          exactName.add(properties);
         } else if (tokenize(properties.name).containsAll(searchTokens)) {
-          approx.add(properties);
+          approxName.add(properties);
         }
       }
     }
-    if (exact.size() > 1) {
+    String result = getIfOnly(searchQuery, "exact ID matches", id);
+    if (result == null) {
+      result = getIfOnly(searchQuery, "exact name matches", exactName);
+    }
+    if (result == null) {
+      result = getIfOnly(searchQuery, "approximate name matches", approxName);
+    }
+    if (result == null) {
+      throw new IllegalArgumentException("No matches for '" + searchQuery + "'");
+    }
+    return result;
+  }
+
+  private static String getIfOnly(String name, String searchQuery, List<PropertiesJson> values) {
+    if (values.size() > 1) {
       throw new IllegalArgumentException(
-        "Multiple exact matches for '" + searchQuery + "': " + exact.stream().map(d -> d.id).collect(
+        "Multiple " + name + " for '" + searchQuery + "': " + values.stream().map(d -> d.id).collect(
           Collectors.joining(", ")));
-    } else if (exact.size() == 1) {
-      return exact.get(0).urls.get("pbf");
+    } else if (values.size() == 1) {
+      return values.get(0).urls.get("pbf");
     } else {
-      if (approx.size() > 1) {
-        throw new IllegalArgumentException(
-          "Multiple approximate matches for '" + searchQuery + "': " + approx.stream().map(d -> d.id).collect(
-            Collectors.joining(", ")));
-      } else if (approx.size() == 1) {
-        return approx.get(0).urls.get("pbf");
-      } else {
-        throw new IllegalArgumentException("No matches for '" + searchQuery + "'");
-      }
+      return null;
     }
   }
 
-  record PropertiesJson(String id, String parent, String name, Map<String, String> urls) {}
+  record PropertiesJson(String id, String parent, String name, Map<String, String> urls,
+    @JsonProperty("iso3166-1:alpha2") List<String> iso3166_1,
+    @JsonProperty("iso3166-2") List<String> iso3166_2
+  ) {
+    List<String> ids() {
+      List<String> result = new ArrayList<>(List.of(id, name));
+      if (iso3166_1 != null) {
+        result.addAll(iso3166_1);
+      }
+      if (iso3166_2 != null) {
+        result.addAll(iso3166_2);
+      }
+      return result;
+    }
+  }
 
   record FeatureJson(PropertiesJson properties) {}
 
