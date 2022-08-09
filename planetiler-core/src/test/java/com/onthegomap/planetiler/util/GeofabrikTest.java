@@ -165,4 +165,11 @@ class GeofabrikTest {
     assertThrows(IllegalArgumentException.class,
       () -> Geofabrik.searchIndexForDownloadUrl("monaco", index));
   }
+
+  @Test
+  void testAmbiguous() throws IOException {
+    var index = Geofabrik.parseIndexJson(new ByteArrayInputStream(response));
+    assertThrows(IllegalArgumentException.class,
+      () -> Geofabrik.searchIndexForDownloadUrl("georgia", index));
+  }
 }
