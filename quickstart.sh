@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
 
-# Usage: quickstart.sh {--docker, --jar, --source} {--planet,--area=monaco,massachusetts,etc.} [--memory=5g] other args...
+# Usage: quickstart.sh {--docker,--jar,--source} {--area=planet,monaco,massachusetts,etc.} [--memory=5g] other args...
 
 set -o errexit
 set -o pipefail
 set -o nounset
 
 JAVA="${JAVA:-java}"
-METHOD="build"
+METHOD="jar"
 AREA="monaco"
 STORAGE="mmap"
 PLANETILER_ARGS=("--download" "--force")
 MEMORY=""
 DRY_RUN=""
+VERSION="latest"
 DOCKER_DIR="$(pwd)/data"
+
+# Handle quickstart.sh planet or quickstart.sh monaco
+case $1 in
+  -*) ;;
+  *) AREA="$1"; shift ;;
+esac
 
 # Parse args into env vars
 while [[ $# -gt 0 ]]; do
@@ -23,6 +30,8 @@ while [[ $# -gt 0 ]]; do
     --dockerdir) DOCKER_DIR="$2"; shift ;;
     --jar) METHOD="jar" ;;
     --build|--source) METHOD="build" ;;
+    --version=*) VERSION="${1#*=}" ;;
+    --version) VERSION="$2"; shift ;;
 
     --area=*) AREA="${1#*=}" ;;
     --area) AREA="$2"; shift ;;
@@ -70,7 +79,12 @@ echo "PLANETILER_ARGS=\"${PLANETILER_ARGS[*]}\""
 echo "DRY_RUN=\"${DRY_RUN:-false}\""
 echo ""
 
-sleep 3
+if [ "$DRY_RUN" == "true" ]
+then
+  echo "Without --dry-run, will run commands:"
+else
+  sleep 3
+fi
 
 function run() {
   echo "$ $*"
@@ -81,26 +95,29 @@ function run() {
 }
 
 function check_java_version() {
-  if [ -z "$(which java)" ]; then
-    echo "java not found on path"
-    exit 1
-  else
-    OUTPUT="$($JAVA -jar "$1" --help 2>&1 || echo OK)"
-    if [[ "$OUTPUT" =~ "UnsupportedClassVersionError" ]]; then
-      echo "Wrong version of java installed, need at least 16 but found:"
-      $JAVA --version
+  if [ "$DRY_RUN" != "true" ]
+  then
+    if [ -z "$(which java)" ]; then
+      echo "java not found on path"
       exit 1
+    else
+      OUTPUT="$($JAVA -jar "$1" --help 2>&1 || echo OK)"
+      if [[ "$OUTPUT" =~ "UnsupportedClassVersionError" ]]; then
+        echo "Wrong version of java installed, need at least 16 but found:"
+        $JAVA --version
+        exit 1
+      fi
     fi
   fi
 }
 
-# Run planetiler
+# Run planetiler using docker, jar file, or build from source
 case $METHOD in
   docker)
-    run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data ghcr.io/onthegomap/planetiler:latest "${PLANETILER_ARGS[@]}"
+    run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
     ;;
   jar)
-    run wget -nc https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+    run wget -nc "https://github.com/onthegomap/planetiler/releases/${VERSION}/download/planetiler.jar"
     check_java_version planetiler.jar
     run "$JAVA" "${JVM_ARGS}" -jar planetiler.jar "${PLANETILER_ARGS[@]}"
     ;;

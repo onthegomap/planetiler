@@ -127,3 +127,24 @@ jobs:
         run: ./scripts/test-release.sh CI_ONLY
         env:
           SKIP_EXAMPLE_PROJECT: true
+
+  quickstart:
+    name: Quickstart script
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Cache data/sources
+        uses: ./.github/cache-sources-action
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - run: ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
+      - run: ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
+      - run: ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
