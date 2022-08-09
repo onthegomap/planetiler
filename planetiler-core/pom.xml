@@ -31,7 +31,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>0.9.30</version>
+      <version>0.9.31</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -61,7 +61,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.36.0.3</version>
+      <version>3.39.2.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>

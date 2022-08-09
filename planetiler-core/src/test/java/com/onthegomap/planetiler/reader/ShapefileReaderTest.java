@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Geometry;
 
@@ -32,6 +34,7 @@ class ShapefileReaderTest {
 
   @Test
   @Timeout(30)
+  @DisabledOnOs(OS.WINDOWS) // the zip file doesn't fully close, which causes trouble running test on windows
   void testReadShapefileExtracted() throws IOException {
     var extracted = TestUtils.extractPathToResource(tempDir, "shapefile.zip");
     testReadShapefile(extracted);
