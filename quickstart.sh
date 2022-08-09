@@ -7,7 +7,7 @@ set -o pipefail
 set -o nounset
 
 JAVA="${JAVA:-java}"
-METHOD="jar"
+METHOD="build"
 AREA="monaco"
 STORAGE="mmap"
 PLANETILER_ARGS=("--download" "--force")
@@ -73,10 +73,11 @@ esac
 
 JVM_ARGS="-XX:+UseParallelGC $MEMORY"
 
-echo "METHOD=\"$METHOD\""
-echo "JVM_ARGS=\"${JVM_ARGS}\""
-echo "PLANETILER_ARGS=\"${PLANETILER_ARGS[*]}\""
-echo "DRY_RUN=\"${DRY_RUN:-false}\""
+echo "Running planetiler with:"
+echo "  METHOD=\"$METHOD\" (change with --docker --jar or --build)"
+echo "  JVM_ARGS=\"${JVM_ARGS}\" (change with --memory=Xg)"
+echo "  PLANETILER_ARGS=\"${PLANETILER_ARGS[*]}\""
+echo "  DRY_RUN=\"${DRY_RUN:-false}\""
 echo ""
 
 if [ "$DRY_RUN" == "true" ]
