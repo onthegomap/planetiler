@@ -169,4 +169,16 @@ class ArgumentsTest {
       "--force_download=true"
     ).getBoolean("force_download", "force", false));
   }
+
+  @Test
+  void testSpaceBetweenArgs() {
+    Arguments args = Arguments.fromArgs(
+      "--key value --key2 value2 --force1 --force2".split("\\s+")
+    );
+
+    assertEquals("value", args.getString("key", "key", null));
+    assertEquals("value2", args.getString("key2", "key2", null));
+    assertTrue(args.getBoolean("force1", "force1", false));
+    assertTrue(args.getBoolean("force2", "force2", false));
+  }
 }
