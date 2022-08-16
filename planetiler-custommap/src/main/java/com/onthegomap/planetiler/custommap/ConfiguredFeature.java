@@ -50,7 +50,7 @@ public class ConfiguredFeature {
   private final List<BiConsumer<SourceFeature, Feature>> attributeProcessors;
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
-    sources = new HashSet<>(feature.sources());
+    sources = new HashSet<>(feature.source());
 
     GeometryType geometryType = feature.geometry();
 

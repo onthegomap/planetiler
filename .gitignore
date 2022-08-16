@@ -12,6 +12,7 @@ target/
 !.idea/codeStyles
 !.idea/vcs.xml
 !.idea/eclipseCodeFormatter.xml
+!.idea/jsonSchemas.xml
 
 # eclipse
 .classpath

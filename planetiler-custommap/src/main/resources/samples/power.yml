@@ -7,29 +7,27 @@ sources:
     type: osm
     url: geofabrik:new-jersey
 layers:
-- name: power
-  features:
-  - sources:
-    - osm
-    geometry: point
-    min_zoom: 13
-    include_when:
-      power:
-      - pole
-    attributes:
-    - key: power
-    - key: ref
-    - key: height
-    - key: operator
-  - sources:
-    - osm
-    geometry: line
-    min_zoom: 7
-    include_when:
-      power:
-      - line
-    attributes:
-    - key: power
-    - key: voltage
-    - key: cables
-    - key: operator
+  - name: power
+    features:
+      - source: osm
+        geometry: point
+        min_zoom: 13
+        include_when:
+          power:
+            - pole
+        attributes:
+          - key: power
+          - key: ref
+          - key: height
+          - key: operator
+      - source: osm
+        geometry: line
+        min_zoom: 7
+        include_when:
+          power:
+            - line
+        attributes:
+          - key: power
+          - key: voltage
+          - key: cables
+          - key: operator

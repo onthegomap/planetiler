@@ -26,6 +26,7 @@ public class Main {
   private static final Map<String, EntryPoint> ENTRY_POINTS = Map.ofEntries(
     entry("generate-openmaptiles", OpenMapTilesMain::main),
     entry("generate-custom", ConfiguredMapMain::main),
+    entry("custom", ConfiguredMapMain::main),
     entry("openmaptiles", OpenMapTilesMain::main),
     entry("example-bikeroutes", BikeRouteOverlay::main),
     entry("example-toilets", ToiletsOverlay::main),
@@ -43,14 +44,19 @@ public class Main {
 
     if (args.length > 0) {
       String maybeTask = args[0].trim().toLowerCase(Locale.ROOT);
-      EntryPoint taskFromArg0 = ENTRY_POINTS.get(maybeTask);
-      if (taskFromArg0 != null) {
-        args = Arrays.copyOfRange(args, 1, args.length);
-        task = taskFromArg0;
-      } else if (!maybeTask.contains("=") && !maybeTask.startsWith("-")) {
-        System.err.println("Unrecognized task: " + maybeTask);
-        System.err.println("possibilities: " + ENTRY_POINTS.keySet());
-        System.exit(1);
+      if (maybeTask.matches("^.*\\.ya?ml$")) {
+        task = ConfiguredMapMain::main;
+        args[0] = "--schema=" + args[0];
+      } else {
+        EntryPoint taskFromArg0 = ENTRY_POINTS.get(maybeTask);
+        if (taskFromArg0 != null) {
+          args = Arrays.copyOfRange(args, 1, args.length);
+          task = taskFromArg0;
+        } else if (!maybeTask.contains("=") && !maybeTask.startsWith("-")) {
+          System.err.println("Unrecognized task: " + maybeTask);
+          System.err.println("possibilities: " + ENTRY_POINTS.keySet());
+          System.exit(1);
+        }
       }
     }
 

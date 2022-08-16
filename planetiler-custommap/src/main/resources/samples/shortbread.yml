@@ -1,0 +1,30 @@
+schema_name: Shortbread
+schema_description: A basic, lean, general-purpose vector tile schema for OpenStreetMap data.
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+sources:
+  ocean:
+    type: shapefile
+    url: https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+  admin_points:
+    type: shapefile
+    url: https://shortbread.geofabrik.de/shapefiles/admin-points-4326.zip
+  osm:
+    type: osm
+    url: geofabrik:massachusetts
+layers:
+  - name: ocean
+    features:
+      - source: ocean
+        geometry: polygon
+    #  - name: water_polygons
+    #    features:
+    #      - source:
+    #          - osm
+    #        min_zoom: 4
+    #        geometry: polygon
+    #        include_when:
+    #          tag:
+    #            key: natural
+    #            value:
+    #              - water
+  #              - glacier

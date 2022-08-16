@@ -10,17 +10,11 @@ JAVA="${JAVA:-java}"
 METHOD="build"
 AREA="monaco"
 STORAGE="mmap"
-PLANETILER_ARGS=("--download" "--force")
+PLANETILER_ARGS=()
 MEMORY=""
 DRY_RUN=""
 VERSION="latest"
 DOCKER_DIR="$(pwd)/data"
-
-# Handle quickstart.sh planet or quickstart.sh monaco
-case $1 in
-  -*) ;;
-  *) AREA="$1"; shift ;;
-esac
 
 # Parse args into env vars
 while [[ $# -gt 0 ]]; do
@@ -50,6 +44,8 @@ done
 
 PLANETILER_ARGS+=("--area=$AREA")
 PLANETILER_ARGS+=("--storage=$STORAGE")
+PLANETILER_ARGS+=("--download")
+PLANETILER_ARGS+=("--force")
 
 # Configure memory settings based on the area being built
 case $AREA in
@@ -118,12 +114,14 @@ case $METHOD in
     run docker run -e JAVA_TOOL_OPTIONS=\'"${JVM_ARGS}"\' -v "$DOCKER_DIR":/data "ghcr.io/onthegomap/planetiler:${VERSION}" "${PLANETILER_ARGS[@]}"
     ;;
   jar)
+    echo "Downloading latest planetiler release..."
     run wget -nc "https://github.com/onthegomap/planetiler/releases/${VERSION}/download/planetiler.jar"
     check_java_version planetiler.jar
     run "$JAVA" "${JVM_ARGS}" -jar planetiler.jar "${PLANETILER_ARGS[@]}"
     ;;
   build)
-    run ./mvnw -DskipTests --projects planetiler-dist -am clean package
+    echo "Building planetiler..."
+    run ./mvnw -q -DskipTests --projects planetiler-dist -am clean package
     run "$JAVA" "${JVM_ARGS}" -jar planetiler-dist/target/*with-deps.jar "${PLANETILER_ARGS[@]}"
     ;;
 esac
