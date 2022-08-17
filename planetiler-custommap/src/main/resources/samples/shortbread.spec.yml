@@ -1,0 +1,63 @@
+examples:
+- name: ocean polygons
+  input:
+    source: ocean
+    geometry: polygon
+    tags:
+      x: 1
+      y: 2
+  output:
+    layer: ocean
+    geometry: polygon
+    min_zoom: 0
+    tags: # no tags
+
+- name: natural=glacier
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      natural: glacier
+  output:
+    layer: water_polygons
+    geometry: polygon
+    min_zoom: 4
+    tags:
+      kind: glacier
+
+- name: waterway=dock
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      waterway: dock
+  output:
+    layer: water_polygons
+    geometry: polygon
+    min_zoom: 10
+    tags:
+      kind: dock
+
+- name: waterway=canal linestring
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: canal
+      name: The Canal
+      name:en: The Canal (en)
+      name:de: The Canal (de)
+  output:
+  - layer: water_lines
+    geometry: line
+    min_zoom: 9
+    tags:
+      kind: canal
+  - layer: water_line_labels
+    geometry: line
+    min_zoom: 9
+    tags:
+      kind: canal
+      name: The Canal
+      name_en: The Canal (en)
+      name_de: The Canal (de)

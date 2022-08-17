@@ -16,101 +16,101 @@ tag_mappings:
   layer: long
   tunnel: boolean
 layers:
-  - name: water
-    features:
-      - source: osm
-        geometry: polygon
-        include_when:
-          natural: water
-        attributes:
-          - key: natural
-          - key: intermittent
-            include_when:
-              intermittent: true
-          - key: name
-            min_tile_cover_size: 0.01
-            include_when:
-            exclude_when:
-              tag:
-                key: water
-                value:
-                  - river
-                  - canal
-                  - stream
-      - source: water_polygons
-        geometry: polygon
-        attributes:
-          - key: natural
-            constant_value: water
-      - source: osm
-        min_zoom: 7
-        geometry: line
-        include_when:
-          tag:
-            key: waterway
-            value:
-              - river
-              - stream
-              - canal
-        attributes:
-          - key: waterway
-          - key: intermittent
-            include_when:
-              intermittent: true
-          - key: name
-            min_zoom: 12
-  - name: road
-    features:
-      - source: osm
-        geometry: line
-        include_when:
-          highway:
-            - motorway
-            - trunk
-            - primary
-            - secondary
-            - tertiary
-            - motorway_link
-            - trunk_link
-            - primary_link
-            - secondary_link
-            - tertiary_link
-            - unclassified
-            - residential
-            - living_street
-            - service
-            - track
-        min_zoom: 4
-        zoom_override:
-          - min: 5
-            tag:
-              highway: trunk
-          - min: 7
-            tag:
-              highway: primary
-          - min: 8
-            tag:
-              highway: secondary
-          - min: 9
-            tag:
-              highway:
-                - tertiary
-                - motorway_link
-                - trunk_link
-                - primary_link
-                - secondary_link
-                - tertiary_link
-          - min: 11
-            tag:
-              highway:
-                - unclassified
-                - residential
-                - living_street
-          - min: 12
-            tag:
-              highway: track
-          - min: 13
-            tag:
-              highway: service
-        attributes:
-          - key: highway
+- name: water
+  features:
+  - source: osm
+    geometry: polygon
+    include_when:
+      natural: water
+    attributes:
+    - key: natural
+    - key: intermittent
+      include_when:
+        intermittent: true
+    - key: name
+      min_tile_cover_size: 0.01
+      include_when:
+      exclude_when:
+        tag:
+          key: water
+          value:
+          - river
+          - canal
+          - stream
+  - source: water_polygons
+    geometry: polygon
+    attributes:
+    - key: natural
+      constant_value: water
+  - source: osm
+    min_zoom: 7
+    geometry: line
+    include_when:
+      tag:
+        key: waterway
+        value:
+        - river
+        - stream
+        - canal
+    attributes:
+    - key: waterway
+    - key: intermittent
+      include_when:
+        intermittent: true
+    - key: name
+      min_zoom: 12
+- name: road
+  features:
+  - source: osm
+    geometry: line
+    include_when:
+      highway:
+      - motorway
+      - trunk
+      - primary
+      - secondary
+      - tertiary
+      - motorway_link
+      - trunk_link
+      - primary_link
+      - secondary_link
+      - tertiary_link
+      - unclassified
+      - residential
+      - living_street
+      - service
+      - track
+    min_zoom: 4
+    zoom_override:
+    - min: 5
+      tag:
+        highway: trunk
+    - min: 7
+      tag:
+        highway: primary
+    - min: 8
+      tag:
+        highway: secondary
+    - min: 9
+      tag:
+        highway:
+        - tertiary
+        - motorway_link
+        - trunk_link
+        - primary_link
+        - secondary_link
+        - tertiary_link
+    - min: 11
+      tag:
+        highway:
+        - unclassified
+        - residential
+        - living_street
+    - min: 12
+      tag:
+        highway: track
+    - min: 13
+      tag:
+        highway: service
+    attributes:
+    - key: highway

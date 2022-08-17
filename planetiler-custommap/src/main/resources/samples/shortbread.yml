@@ -1,5 +1,5 @@
 schema_name: Shortbread
-schema_description: A basic, lean, general-purpose vector tile schema for OpenStreetMap data.
+schema_description: A basic, lean, general-purpose vector tile schema for OpenStreetMap data. See https://shortbread.geofabrik.de/
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
 sources:
   ocean:
@@ -12,19 +12,103 @@ sources:
     type: osm
     url: geofabrik:massachusetts
 layers:
-  - name: ocean
-    features:
-      - source: ocean
-        geometry: polygon
-    #  - name: water_polygons
-    #    features:
-    #      - source:
-    #          - osm
-    #        min_zoom: 4
-    #        geometry: polygon
-    #        include_when:
-    #          tag:
-    #            key: natural
-    #            value:
-    #              - water
-  #              - glacier
+
+#  Water
+- name: ocean
+  features:
+  - source: ocean
+    geometry: polygon
+- name: water_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 4
+    include_when:
+      natural:
+      - glacier
+      - water
+      waterway:
+      - riverbank
+      - dock
+      - canal
+      landuse:
+      - reservoir
+      - basin
+    zoom_override:
+    - min: 10
+      tag:
+        waterway:
+        - dock
+        - canal
+    attributes:
+    - key: kind
+    # TODO type: mapping_value
+
+# TODO water_polygons_labels
+
+- name: water_lines
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 9
+    # TODO rivers and canals min length=0.25px
+    include_when:
+      waterway:
+      - canal
+      - river
+      - stream
+      - ditch
+    zoom_override:
+    - min: 14
+      tag:
+        waterway:
+        - stream
+        - ditch
+    attributes:
+    - key: kind
+    # TODO type: mapping_value
+
+- name: water_line_labels
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 12
+    # TODO rivers and canals min length=0.25px
+    include_when:
+      waterway:
+      - canal
+      - river
+      - stream
+      - ditch
+    zoom_override:
+    - min: 14
+      tag:
+        waterway:
+        - stream
+        - ditch
+    attributes:
+    - key: kind
+      # TODO type: mapping_value
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+
+##  Countries, States, Cities
+# TODO boundaries
+# TODO boundary_labels
+# TODO place_labels
+##  Land Use, Land Cover, Buildings
+# TODO land
+# TODO sites
+# TODO buildings
+# TODO addresses
+##  Streets and Transport
+# TODO streets
+# TODO street_polygons
+# TODO street_labels
+# TODO streets_polygons_labels
+# TODO streets_labels_points
+# TODO aerialways
+# TODO public_transport

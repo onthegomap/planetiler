@@ -148,11 +148,15 @@
         },
         "include_when": {
           "description": "A tag specification which determines which features to include. If unspecified, all features from the specified sources are included",
-          "type": "object"
+          "type": {
+            "$ref": "#/definitions/tag_filters"
+          }
         },
         "exclude_when": {
           "description": "A tag specification which determines which features to exclude. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-          "type": "object"
+          "type": {
+            "$ref": "#/definitions/tag_filters"
+          }
         },
         "min_zoom": {
           "description": "Minimum zoom to show the feature that matches the filter specifications.",
@@ -197,7 +201,7 @@
         "attributes": {
           "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed",
           "type": "array",
-          "item": {
+          "items": {
             "type": "object",
             "properties": {
               "key": {
