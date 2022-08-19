@@ -1,19 +1,14 @@
 package com.onthegomap.planetiler.custommap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.DataSource;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * Main driver to create maps configured by a YAML file.
@@ -22,9 +17,6 @@ import org.yaml.snakeyaml.Yaml;
  * the map generation process.
  */
 public class ConfiguredMapMain {
-
-  private static final Yaml yaml = new Yaml();
-  private static final ObjectMapper mapper = new ObjectMapper();
 
   /*
    * Main entrypoint
@@ -41,7 +33,7 @@ public class ConfiguredMapMain {
       "schema",
       "Location of YML-format schema definition file");
 
-    var config = loadConfig(schemaFile);
+    var config = SchemaConfig.load(schemaFile);
 
     var planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
@@ -53,13 +45,6 @@ public class ConfiguredMapMain {
 
     planetiler.overwriteOutput("mbtiles", Path.of("data", "output.mbtiles"))
       .run();
-  }
-
-  static SchemaConfig loadConfig(Path schemaFile) throws IOException {
-    try (var schemaStream = Files.newInputStream(schemaFile)) {
-      Map<String, Object> parsed = yaml.load(schemaStream);
-      return mapper.convertValue(parsed, SchemaConfig.class);
-    }
   }
 
   private static void configureSource(Planetiler planetiler, Path sourcesDir, String sourceName, DataSource source)

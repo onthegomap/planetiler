@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -85,7 +86,7 @@ class ConfiguredFeatureTest {
 
   private static Profile loadConfig(Function<String, Path> pathFunction, String filename) throws IOException {
     var staticAttributeConfig = pathFunction.apply(filename);
-    var schema = ConfiguredMapMain.loadConfig(staticAttributeConfig);
+    var schema = YAML.load(staticAttributeConfig, SchemaConfig.class);
     return new ConfiguredProfile(schema);
   }
 
