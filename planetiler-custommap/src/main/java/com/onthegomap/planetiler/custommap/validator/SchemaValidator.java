@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
 
 public class SchemaValidator {
+
   private static Geometry parseGeometry(String geometry) {
     String wkt = switch (geometry.toLowerCase(Locale.ROOT).trim()) {
       case "point" -> "POINT (0 0)";
@@ -53,21 +55,18 @@ public class SchemaValidator {
           issues.add(
             "Different number of elements, expected=%s actual=%s".formatted(expectedFeatures.size(), result.size()));
         } else {
-          var expectedList =
-            expectedFeatures.stream().sorted(Comparator.comparing(d -> d.layer())).toList();
-          var actualList = result.stream()
-            .sorted(Comparator.comparing(d -> d.getLayer()))
-            .toList();
-          for (int i = 0; i < expectedList.size(); i++) {
-            var expected = expectedList.get(i);
-            var actual = actualList.get(i);
+          for (int i = 0; i < expectedFeatures.size(); i++) {
+            var expected = expectedFeatures.get(i);
+            var actual = result.stream().max(proximityTo(expected)).orElseThrow();
+            result.remove(actual);
             var actualTags = actual.getAttrsAtZoom(expected.atZoom());
-            validate("layer", issues, expected.layer(), actual.getLayer());
-            validate("minzoom", issues, expected.minZoom(), actual.getMinZoom());
-            validate("maxzoom", issues, expected.maxZoom(), actual.getMaxZoom());
-            validate("geometry", issues, expected.geometry(), GeometryType.valueOf(actual.getGeometry()));
+            String prefix = "feature[%d]".formatted(i);
+            validate(prefix + ".layer", issues, expected.layer(), actual.getLayer());
+            validate(prefix + ".minzoom", issues, expected.minZoom(), actual.getMinZoom());
+            validate(prefix + ".maxzoom", issues, expected.maxZoom(), actual.getMaxZoom());
+            validate(prefix + ".geometry", issues, expected.geometry(), GeometryType.valueOf(actual.getGeometry()));
             expected.tags().forEach((tag, value) -> {
-              validate("tags[\"%s\"]".formatted(tag), issues, value, actualTags.get(tag), false);
+              validate(prefix + ".tags[\"%s\"]".formatted(tag), issues, value, actualTags.get(tag), false);
             });
           }
         }
@@ -78,9 +77,24 @@ public class SchemaValidator {
     }).toList());
   }
 
+  private static Comparator<FeatureCollector.Feature> proximityTo(SchemaSpecification.OutputFeature expected) {
+    return Comparator.comparingInt(item -> (Objects.equals(item.getLayer(), expected.layer()) ? 2 : 0) +
+      (Objects.equals(GeometryType.valueOf(item.getGeometry()), expected.geometry()) ? 1 : 0));
+  }
+
   private static <T> void validate(String field, List<String> issues, T expected, T actual, boolean ignoreWhenNull) {
     if ((!ignoreWhenNull || expected != null) && !Objects.equals(expected, actual)) {
-      issues.add("%s: expected %s actual %s".formatted(field, expected, actual));
+      issues.add("%s: expected <%s> actual <%s>".formatted(field, format(expected), format(actual)));
+    }
+  }
+
+  private static String format(Object o) {
+    if (o == null) {
+      return "null";
+    } else if (o instanceof String s) {
+      return Format.quote(s);
+    } else {
+      return o.toString();
     }
   }
 
@@ -91,13 +105,17 @@ public class SchemaValidator {
   public record ExampleResult(
     SchemaSpecification.Example example,
     Optional<Exception> exception,
-    List<String> issues) {
+    // TODO include a symmetric diff so we can pretty-print the expected/actual output diff
+    List<String> issues
+  ) {
+
     public boolean ok() {
       return exception.isEmpty() && issues.isEmpty();
     }
   }
 
   public record Result(List<ExampleResult> results) {
+
     public boolean ok() {
       return results.stream().allMatch(ExampleResult::ok);
     }

@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap.validator;
 import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.custommap.YAML;
 import com.onthegomap.planetiler.geo.GeometryType;
 import java.nio.file.Path;
@@ -45,9 +46,9 @@ public record SchemaSpecification(List<Example> examples) {
   public record OutputFeature(
     String layer,
     GeometryType geometry,
-    Integer minZoom,
-    Integer maxZoom,
-    Integer atZoom,
+    @JsonProperty("min_zoom") Integer minZoom,
+    @JsonProperty("max_zoom") Integer maxZoom,
+    @JsonProperty("at_zoom") Integer atZoom,
     Map<String, Object> tags
   ) {
 
