@@ -23,7 +23,7 @@ examples:
     geometry: polygon
     min_zoom: 4
     tags:
-      kind: glacier
+      # kind: glacier
 
 - name: waterway=dock
   input:
@@ -36,7 +36,7 @@ examples:
     geometry: polygon
     min_zoom: 10
     tags:
-      kind: dock
+      # kind: dock
 
 - name: waterway=canal linestring
   input:

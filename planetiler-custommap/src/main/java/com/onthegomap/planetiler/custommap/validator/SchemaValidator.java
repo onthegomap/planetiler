@@ -1,13 +1,19 @@
 package com.onthegomap.planetiler.custommap.validator;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.ConfiguredProfile;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.AnsiColors;
+import com.onthegomap.planetiler.util.FileWatcher;
 import com.onthegomap.planetiler.util.Format;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,7 +24,71 @@ import org.geotools.geometry.jts.WKTReader2;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
 
+/** Verifies that a profile maps input elements map to expected vector tile features. */
 public class SchemaValidator {
+
+  public static void main(String[] args) {
+    var arguments = Arguments.fromEnvOrArgs(args);
+    var watch =
+      arguments.getBoolean("watch", "Watch files for changes and re-run validation when schema or spec changes", false);
+    var schema = arguments.inputFile("schema", "Schema file");
+    var spec = arguments.inputFile("spec", "Schema specification",
+      schema.resolveSibling(schema.getFileName().toString().replaceAll("\\.yml$", ".spec.yml")));
+
+    validateFromCli(schema, spec, arguments);
+
+    if (watch) {
+      System.out.println();
+      System.out.println("Watching filesystem for changes...");
+      var watcher = FileWatcher.newWatcher(schema, spec);
+      watcher.pollForChanges(Duration.ofMillis(300), changed -> {
+        validateFromCli(schema, spec, arguments);
+      });
+    }
+  }
+
+  private static void validateFromCli(Path schema, Path spec, Arguments args) {
+    String passBadge = AnsiColors.greenBackground(" PASS ");
+    String failBadge = AnsiColors.redBackground(" FAIL ");
+    System.out.println();
+    System.out.println("Validating...");
+    System.out.println();
+    var result = validate(
+      SchemaConfig.load(schema),
+      SchemaSpecification.load(spec),
+      args
+    );
+    int failed = 0, passed = 0;
+    for (var example : result.results) {
+      if (example.ok()) {
+        passed++;
+        System.out.printf("%s %s%n", passBadge, example.example().name());
+      } else {
+        failed++;
+        System.out.printf("%s %s%n", failBadge, example.example().name());
+        var exception = example.exception();
+        if (exception.isPresent()) {
+          System.out.println(exception.get().toString().indent(4).stripTrailing());
+        } else {
+          for (var issue : example.issues()) {
+            System.out.println("  ● " + issue.indent(4).strip());
+          }
+        }
+      }
+    }
+    List<String> summary = new ArrayList<>();
+    if (failed > 0) {
+      summary.add(AnsiColors.redBold(failed + " failed"));
+    }
+    if (passed > 0) {
+      summary.add(AnsiColors.greenBold(passed + " passed"));
+    }
+    if (passed > 0 && failed > 0) {
+      summary.add((failed + passed) + " total");
+    }
+    System.out.println();
+    System.out.println(String.join(", ", summary));
+  }
 
   private static Geometry parseGeometry(String geometry) {
     String wkt = switch (geometry.toLowerCase(Locale.ROOT).trim()) {
@@ -36,9 +106,17 @@ public class SchemaValidator {
     }
   }
 
-  public static Result validate(SchemaConfig schema, SchemaSpecification specification) {
-    var profile = new ConfiguredProfile(schema);
-    var featureCollectorFactory = new FeatureCollector.Factory(PlanetilerConfig.defaults(), Stats.inMemory());
+  /**
+   * Returns the result of validating the profile defined by {@code schema} against the examples in
+   * {@code specification}.
+   */
+  public static Result validate(SchemaConfig schema, SchemaSpecification specification, Arguments args) {
+    return validate(new ConfiguredProfile(schema), specification, args);
+  }
+
+  /** Returns the result of validating {@code profile} against the examples in {@code specification}. */
+  public static Result validate(Profile profile, SchemaSpecification specification, Arguments args) {
+    var featureCollectorFactory = new FeatureCollector.Factory(PlanetilerConfig.from(args.silence()), Stats.inMemory());
     return new Result(specification.examples().stream().map(example -> {
       List<String> issues = new ArrayList<>();
       Exception exception = null;

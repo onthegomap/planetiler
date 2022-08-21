@@ -5,6 +5,7 @@ import static java.util.Map.entry;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
 import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
+import com.onthegomap.planetiler.custommap.validator.SchemaValidator;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
@@ -25,16 +26,25 @@ public class Main {
   private static final EntryPoint DEFAULT_TASK = OpenMapTilesMain::main;
   private static final Map<String, EntryPoint> ENTRY_POINTS = Map.ofEntries(
     entry("generate-openmaptiles", OpenMapTilesMain::main),
+    entry("openmaptiles", OpenMapTilesMain::main),
+
     entry("generate-custom", ConfiguredMapMain::main),
     entry("custom", ConfiguredMapMain::main),
-    entry("openmaptiles", OpenMapTilesMain::main),
+
+    entry("verify", SchemaValidator::main),
+    entry("verify-custom", SchemaValidator::main),
+    entry("verify-schema", SchemaValidator::main),
+
     entry("example-bikeroutes", BikeRouteOverlay::main),
     entry("example-toilets", ToiletsOverlay::main),
     entry("example-toilets-lowlevel", ToiletsOverlayLowLevelApi::main),
+
     entry("example-qa", OsmQaTiles::main),
     entry("osm-qa", OsmQaTiles::main),
+
     entry("benchmark-mapping", OpenMapTilesMapping::main),
     entry("benchmark-longlongmap", LongLongMapBench::main),
+
     entry("verify-mbtiles", Verify::main),
     entry("verify-monaco", VerifyMonaco::main)
   );

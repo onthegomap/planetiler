@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -29,8 +30,9 @@ public class Arguments {
   private static final Logger LOGGER = LoggerFactory.getLogger(Arguments.class);
 
   private final Function<String, String> provider;
+  private boolean silent = false;
 
-  private Arguments(Function<String, String> provider) {
+  private Arguments(UnaryOperator<String> provider) {
     this.provider = provider;
   }
 
@@ -116,15 +118,32 @@ public class Arguments {
    * @return arguments parsed from those sources
    */
   public static Arguments fromArgsOrConfigFile(String... args) {
-    Arguments fromArgsOrEnv = fromArgs(args)
-      .orElse(fromJvmProperties())
-      .orElse(fromEnvironment());
+    Arguments fromArgsOrEnv = fromEnvOrArgs(args);
     Path configFile = fromArgsOrEnv.file("config", "path to config file", null);
     if (configFile != null) {
       return fromArgsOrEnv.orElse(fromConfigFile(configFile));
     } else {
       return fromArgsOrEnv;
     }
+  }
+
+  /**
+   * Returns arguments parsed from command-line arguments, JVM properties, environmental variables.
+   * <p>
+   * Priority order:
+   * <ol>
+   * <li>command-line arguments: {@code java ... key=value}</li>
+   * <li>jvm properties: {@code java -Dplanetiler.key=value ...}</li>
+   * <li>environmental variables: {@code PLANETILER_KEY=value java ...}</li>
+   * </ol>
+   *
+   * @param args command-line args provide to main entrypoint method
+   * @return arguments parsed from those sources
+   */
+  public static Arguments fromEnvOrArgs(String... args) {
+    return fromArgs(args)
+      .orElse(fromJvmProperties())
+      .orElse(fromEnvironment());
   }
 
   public static Arguments of(Map<String, String> map) {
@@ -200,7 +219,15 @@ public class Arguments {
   }
 
   private void logArgValue(String key, String description, Object result) {
-    LOGGER.debug("argument: " + key + "=" + result + " (" + description + ")");
+    if (!silent) {
+      LOGGER.debug("argument: {}={} ({})", key, result, description);
+    }
+  }
+
+  /** Stop logging argument values when they are read and return this instance. */
+  public Arguments silence() {
+    this.silent = true;
+    return this;
   }
 
   public String getString(String key, String description, String defaultValue) {

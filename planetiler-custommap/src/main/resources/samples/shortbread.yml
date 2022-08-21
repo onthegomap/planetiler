@@ -12,7 +12,6 @@ sources:
     type: osm
     url: geofabrik:massachusetts
 layers:
-
 #  Water
 - name: ocean
   features:

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,7 +14,8 @@ class SchemaValidatorTest {
   SchemaValidator.Result validate(String schema, String spec) {
     var result = SchemaValidator.validate(
       SchemaConfig.load(schema),
-      SchemaSpecification.load(spec)
+      SchemaSpecification.load(spec),
+      Arguments.of()
     );
     for (var example : result.results()) {
       if (example.exception().isPresent()) {
