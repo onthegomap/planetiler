@@ -98,10 +98,118 @@ layers:
 # TODO boundaries
 # TODO boundary_labels
 # TODO place_labels
+
 ##  Land Use, Land Cover, Buildings
-# TODO land
-# TODO sites
-# TODO buildings
+- name: land
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 11
+    include_when:
+      amenity:
+      - grave_yard
+      landuse:
+      - allotments
+      - brownfield
+      - cemetery
+      - commercial
+      - farmland
+      - farmyard
+      - forest
+      - grass
+      - greenfield
+      - greenhouse_horticulture
+      - industrial
+      - landfill
+      - meadow
+      - orchard
+      - plant_nursery
+      - quarry
+      - railway
+      - recreation_ground
+      - residential
+      - retail
+      - village_green
+      - vineyard
+      leisure:
+      - garden
+      - golf_course
+      - miniature_golf
+      - park
+      - playground
+      natural:
+      - bare_rock
+      - beach
+      - grassland
+      - heath
+      - sand
+      - scree
+      - scrub
+      - shingle
+      - wood
+      wetland:
+      - bog
+      - marsh
+      - string_bog
+      - swamp
+      - wet_meadow
+    zoom_override:
+    - min: 7
+      tag:
+        natural: wood
+    - min: 10
+      tag:
+        landuse:
+        - brownfield
+        - commercial
+        - farmland
+        - farmyard
+        - greenfield
+        - industrial
+        - landfill
+        - railway
+        - residential
+        - retail
+        natural:
+        - beach
+        - sand
+    - min: 13
+      tag:
+        amenity: grave_yard
+        natural: wood
+        landuse: cemetery
+    attributes:
+    - key: kind
+      # TODO type: mapping_value
+
+- name: sites
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      military: danger_area
+      leisure: sports_center
+      landuse: construction
+      amenity:
+      - university
+      - hospital
+      - prison
+      - parking
+      - bicycle_parking
+    attributes:
+    - key: kind
+      # TODO type: mapping_value
+      # TODO label: name ?
+
+- name: buildings
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      building: yes # TODO anything besides no
+
 # TODO addresses
 ##  Streets and Transport
 # TODO streets

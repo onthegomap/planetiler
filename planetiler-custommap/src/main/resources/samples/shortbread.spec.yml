@@ -85,3 +85,65 @@ examples:
       name: The Stream
       name_en: The Stream (en)
       name_de: The Stream (de)
+
+- name: landuse=grass
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      landuse: grass
+  output:
+  - layer: land
+    geometry: polygon
+    min_zoom: 11
+    tags:
+  # TODO      kind: grass
+
+- name: natural=wood
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      natural: wood
+  output:
+  - layer: land
+    geometry: polygon
+    min_zoom: 7
+    tags:
+  # TODO      kind: wood
+
+- name: amenity=parking
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      amenity: parking
+  output:
+  - layer: sites
+    geometry: polygon
+    min_zoom: 14
+    tags:
+  # TODO      kind: parking
+
+- name: building=yes
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      building: yes
+  output:
+  - layer: buildings
+    geometry: polygon
+    min_zoom: 14
+
+# TODO
+#- name: building=house
+#  input:
+#    source: osm
+#    geometry: polygon
+#    tags:
+#      building: house
+#  output:
+#  - layer: buildings
+#    geometry: polygon
+#    min_zoom: 14

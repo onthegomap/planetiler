@@ -53,11 +53,18 @@ public class SchemaValidator {
     System.out.println();
     System.out.println("Validating...");
     System.out.println();
-    var result = validate(
-      SchemaConfig.load(schema),
-      SchemaSpecification.load(spec),
-      args
-    );
+    SchemaValidator.Result result;
+    try {
+      result = validate(
+        SchemaConfig.load(schema),
+        SchemaSpecification.load(spec),
+        args
+      );
+    } catch (Exception e) {
+      System.out.println("Error initializing:");
+      e.printStackTrace();
+      return;
+    }
     int failed = 0, passed = 0;
     for (var example : result.results) {
       if (example.ok()) {
