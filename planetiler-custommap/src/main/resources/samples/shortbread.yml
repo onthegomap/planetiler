@@ -182,6 +182,11 @@ layers:
     attributes:
     - key: kind
       type: match_value
+    # TODO cleaner way to override value?
+    - key: kind
+      constant_value: wood
+      include_when:
+        landuse: forest
 
 - name: sites
   features:

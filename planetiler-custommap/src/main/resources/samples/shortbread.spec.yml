@@ -112,7 +112,7 @@ examples:
     tags:
       kind: wood
 
-- name: landuse=forest
+- name: landuse=forest override kind to wood
   input:
     source: osm
     geometry: polygon
@@ -123,7 +123,7 @@ examples:
     geometry: polygon
     min_zoom: 7
     tags:
-# TODO      kind: wood
+      kind: wood
 
 - name: amenity=parking
   input:
