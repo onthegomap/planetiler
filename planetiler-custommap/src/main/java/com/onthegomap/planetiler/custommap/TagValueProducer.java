@@ -4,9 +4,9 @@ import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Parse;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -74,9 +74,16 @@ public class TagValueProducer {
   /**
    * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
    */
-  public Function<WithTags, Object> valueProducerForKey(String key) {
+  public BiFunction<WithTags, List<String>, Object> valueProducerForKey(String key) {
     var getter = valueGetterForKey(key);
-    return withTags -> getter.apply(withTags, key);
+    return (withTags, keys) -> getter.apply(withTags, key);
+  }
+
+  /**
+   * Returns the mapped value for a key where the key is not known ahead-of-time.
+   */
+  public Object valueForKey(WithTags feature, String key) {
+    return valueGetterForKey(key).apply(feature, key);
   }
 
   /**

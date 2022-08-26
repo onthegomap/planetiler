@@ -41,7 +41,7 @@ layers:
         - canal
     attributes:
     - key: kind
-    # TODO type: mapping_value
+      type: match_value
 
 # TODO water_polygons_labels
 
@@ -65,7 +65,7 @@ layers:
         - ditch
     attributes:
     - key: kind
-    # TODO type: mapping_value
+      type: match_value
 
 - name: water_line_labels
   features:
@@ -87,7 +87,7 @@ layers:
         - ditch
     attributes:
     - key: kind
-      # TODO type: mapping_value
+      type: match_value
     - key: name
     - key: name_en
       tag_value: name:en
@@ -157,6 +157,7 @@ layers:
     - min: 7
       tag:
         natural: wood
+        landuse: forest
     - min: 10
       tag:
         landuse:
@@ -180,7 +181,7 @@ layers:
         landuse: cemetery
     attributes:
     - key: kind
-      # TODO type: mapping_value
+      type: match_value
 
 - name: sites
   features:
@@ -199,7 +200,7 @@ layers:
       - bicycle_parking
     attributes:
     - key: kind
-      # TODO type: mapping_value
+      type: match_value
       # TODO label: name ?
 
 - name: buildings

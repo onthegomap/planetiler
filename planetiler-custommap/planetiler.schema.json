@@ -208,6 +208,20 @@
                 "description": "Name of this attribute in the tile",
                 "type": "string"
               },
+              "type": {
+                "description": "Type of the attribute to map to",
+                "type": "string",
+                "anyOf": [
+                  {
+                    "const": "match_key",
+                    "description": "The key that triggered this element to match"
+                  },
+                  {
+                    "const": "match_value",
+                    "description": "The value for the key that triggered this element to match"
+                  }
+                ]
+              },
               "constant_value": {
                 "description": "Value of the attribute in the tile, as a constant"
               },

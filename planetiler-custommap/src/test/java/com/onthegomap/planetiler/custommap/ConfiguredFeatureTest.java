@@ -15,7 +15,6 @@ import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,32 +37,32 @@ class ConfiguredFeatureTest {
     "test_zoom_tag", "test_zoom_value"
   );
 
-  private static Map<String, Object> motorwayTags = Map.of(
+  private static final Map<String, Object> motorwayTags = Map.of(
     "highway", "motorway",
     "layer", "1",
     "bridge", "yes",
     "tunnel", "yes"
   );
 
-  private static Map<String, Object> trunkTags = Map.of(
+  private static final Map<String, Object> trunkTags = Map.of(
     "highway", "trunk",
     "toll", "yes"
   );
 
-  private static Map<String, Object> primaryTags = Map.of(
+  private static final Map<String, Object> primaryTags = Map.of(
     "highway", "primary",
     "lanes", "2"
 
   );
 
-  private static Map<String, Object> highwayAreaTags = Map.of(
+  private static final Map<String, Object> highwayAreaTags = Map.of(
     "area:highway", "motorway",
     "layer", "1",
     "bridge", "yes",
     "surface", "asphalt"
   );
 
-  private static Map<String, Object> inputMappingTags = Map.of(
+  private static final Map<String, Object> inputMappingTags = Map.of(
     "s_type", "string_val",
     "l_type", "1",
     "b_type", "yes",
@@ -84,18 +83,32 @@ class ConfiguredFeatureTest {
     return factory.get(SimpleFeature.create(TestUtils.newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
   }
 
-  private static Profile loadConfig(Function<String, Path> pathFunction, String filename) throws IOException {
+  private static Profile loadConfig(Function<String, Path> pathFunction, String filename) {
     var staticAttributeConfig = pathFunction.apply(filename);
-    var schema = YAML.load(staticAttributeConfig, SchemaConfig.class);
+    var schema = SchemaConfig.load(staticAttributeConfig);
+    return new ConfiguredProfile(schema);
+  }
+
+  private static Profile loadConfig(String config) {
+    var schema = SchemaConfig.load(config);
     return new ConfiguredProfile(schema);
   }
 
   private static void testFeature(Function<String, Path> pathFunction, String schemaFilename, SourceFeature sf,
-    Supplier<FeatureCollector> fcFactory,
-    Consumer<Feature> test, int expectedMatchCount)
-    throws Exception {
-
+    Supplier<FeatureCollector> fcFactory, Consumer<Feature> test, int expectedMatchCount) {
     var profile = loadConfig(pathFunction, schemaFilename);
+    testFeature(sf, fcFactory, test, expectedMatchCount, profile);
+  }
+
+  private static void testFeature(String config, SourceFeature sf, Supplier<FeatureCollector> fcFactory,
+    Consumer<Feature> test, int expectedMatchCount) {
+    var profile = loadConfig(config);
+    testFeature(sf, fcFactory, test, expectedMatchCount, profile);
+  }
+
+
+  private static void testFeature(SourceFeature sf, Supplier<FeatureCollector> fcFactory, Consumer<Feature> test,
+    int expectedMatchCount, Profile profile) {
     var fc = fcFactory.get();
 
     profile.processFeature(sf, fc);
@@ -110,9 +123,22 @@ class ConfiguredFeatureTest {
     assertEquals(expectedMatchCount, length.get(), "Wrong number of features generated");
   }
 
+  private static void testPolygon(String config, Map<String, Object> tags,
+    Consumer<Feature> test, int expectedMatchCount) {
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
+    testFeature(config, sf, ConfiguredFeatureTest::polygonFeatureCollector, test, expectedMatchCount);
+  }
+
+  private static void testLinestring(String config,
+    Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
+    testFeature(config, sf, ConfiguredFeatureTest::linestringFeatureCollector, test, expectedMatchCount);
+  }
+
   private static void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
-    Consumer<Feature> test, int expectedMatchCount)
-    throws Exception {
+    Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf,
@@ -120,8 +146,7 @@ class ConfiguredFeatureTest {
   }
 
   private static void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
-    Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount)
-    throws Exception {
+    Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf,
@@ -129,7 +154,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testStaticAttributeTest() throws Exception {
+  void testStaticAttributeTest() {
     testPolygon(TEST_RESOURCE, "static_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("aTestConstantValue", attr.get("natural"));
@@ -137,7 +162,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testTagValueAttributeTest() throws Exception {
+  void testTagValueAttributeTest() {
     testPolygon(TEST_RESOURCE, "tag_attribute.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("water", attr.get("natural"));
@@ -145,7 +170,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testTagIncludeAttributeTest() throws Exception {
+  void testTagIncludeAttributeTest() {
     testPolygon(TEST_RESOURCE, "tag_include.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("ok", attr.get("test_include"));
@@ -154,7 +179,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testZoomAttributeTest() throws Exception {
+  void testZoomAttributeTest() {
     testPolygon(TEST_RESOURCE, "tag_include.yml", waterTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("test_zoom_value", attr.get("test_zoom_tag"));
@@ -168,7 +193,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testTagHighwayLinestringTest() throws Exception {
+  void testTagHighwayLinestringTest() {
     testLinestring(TEST_RESOURCE, "road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertEquals("motorway", attr.get("highway"));
@@ -176,7 +201,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testTagTypeConversionTest() throws Exception {
+  void testTagTypeConversionTest() {
     testLinestring(TEST_RESOURCE, "road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
 
@@ -191,7 +216,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testZoomFilterAttributeTest() throws Exception {
+  void testZoomFilterAttributeTest() {
     testLinestring(TEST_RESOURCE, "road_motorway.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(14);
       assertTrue(attr.containsKey("bridge"), "Produce attribute bridge at z14");
@@ -202,7 +227,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testZoomFilterConditionalTest() throws Exception {
+  void testZoomFilterConditionalTest() {
     testLinestring(TEST_RESOURCE, "zoom_filter.yml", motorwayTags, f -> {
       var attr = f.getAttrsAtZoom(4);
       assertEquals("motorway", attr.get("highway"), "Produce attribute highway at z4");
@@ -237,7 +262,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testAllValuesInKey() throws Exception {
+  void testAllValuesInKey() {
     //Show that a key in includeWhen with no values matches all values
     testPolygon(SAMPLE_RESOURCE, "highway_areas.yml", highwayAreaTags, f -> {
       var attr = f.getAttrsAtZoom(14);
@@ -249,7 +274,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testInputMapping() throws Exception {
+  void testInputMapping() {
     //Show that a key in includeWhen with no values matches all values
     testLinestring(TEST_RESOURCE, "data_type_attributes.yml", inputMappingTags, f -> {
       var attr = f.getAttrsAtZoom(14);
@@ -265,7 +290,37 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testGeometryTypeMismatch() throws Exception {
+  void testMappingKeyValue() {
+    testPolygon("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            type: match_key
+          - key: value
+            type: match_value
+      """, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(Map.of(
+        "key", "natural",
+        "value", "water"
+      ), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
+
+  @Test
+  void testGeometryTypeMismatch() {
     //Validate that a schema that filters on lines does not match on a polygon feature
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), motorwayTags, "osm", null, 1,
@@ -277,7 +332,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testSourceTypeMismatch() throws Exception {
+  void testSourceTypeMismatch() {
     //Validate that a schema only matches on the specified data source
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1, 0, 0), highwayAreaTags, "not_osm", null, 1,
@@ -289,7 +344,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testInvalidSchemas() throws Exception {
+  void testInvalidSchemas() {
     testInvalidSchema("bad_geometry_type.yml", "Profile defined with invalid geometry type");
     testInvalidSchema("no_layers.yml", "Profile defined with no layers");
   }

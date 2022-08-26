@@ -184,8 +184,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
 
     /** Returns all data values associated with expressions that match an input element. */
     default List<T> getMatches(SourceFeature input) {
-      List<Match<T>> matches = getMatchesWithTriggers(input);
-      return matches.stream().sorted(BY_ID).map(d -> d.match).toList();
+      return getMatchesWithTriggers(input).stream().map(d -> d.match).toList();
     }
 
     /**
@@ -295,6 +294,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
           }
         }
       }
+      result.sort(BY_ID);
       return result;
     }
   }
@@ -343,6 +343,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       } else {
         result = pointIndex.getMatchesWithTriggers(input);
       }
+      result.sort(BY_ID);
       return result;
     }
   }

@@ -58,8 +58,12 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
-    featureLayerMatcher.getMatches(sourceFeature)
-      .forEach(configuredFeature -> configuredFeature.processFeature(sourceFeature, featureCollector));
+    featureLayerMatcher.getMatchesWithTriggers(sourceFeature)
+      .forEach(configuredFeature -> configuredFeature.match().processFeature(
+        sourceFeature,
+        configuredFeature.keys(),
+        featureCollector
+      ));
   }
 
   @Override

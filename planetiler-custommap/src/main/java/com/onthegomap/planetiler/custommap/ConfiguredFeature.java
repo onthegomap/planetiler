@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -30,7 +29,7 @@ import java.util.function.ToIntFunction;
  * A map feature, configured from a YML configuration file.
  *
  * {@link #matchExpression()} returns a filtering expression to limit input elements to ones this feature cares about,
- * and {@link #processFeature(SourceFeature, FeatureCollector)} processes matching elements.
+ * and {@link #processFeature(SourceFeature, List, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
 
@@ -47,7 +46,12 @@ public class ConfiguredFeature {
   private static final Index<Integer> NO_ZOOM_OVERRIDE = MultiExpression.<Integer>of(List.of()).index();
   private static final Integer DEFAULT_MAX_ZOOM = 14;
 
-  private final List<BiConsumer<SourceFeature, Feature>> attributeProcessors;
+  private final List<AttributeProcessor> attributeProcessors;
+
+  @FunctionalInterface
+  private interface AttributeProcessor {
+    void process(SourceFeature inputFeature, List<String> matchKeys, Feature outputFeature);
+  }
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = new HashSet<>(feature.source());
@@ -146,16 +150,25 @@ public class ConfiguredFeature {
    * @return a function that generates an attribute value from a {@link SourceFeature} based on an attribute
    *         configuration.
    */
-  private Function<WithTags, Object> attributeValueProducer(AttributeDefinition attribute) {
+  private BiFunction<WithTags, List<String>, Object> attributeValueProducer(AttributeDefinition attribute) {
 
     Object constVal = attribute.constantValue();
     if (constVal != null) {
-      return sf -> constVal;
+      return (sf, keys) -> constVal;
     }
 
     String tagVal = attribute.tagValue();
     if (tagVal != null) {
       return tagValueProducer.valueProducerForKey(tagVal);
+    }
+
+    String type = attribute.type();
+    if ("match_key".equals(type)) {
+      return (sf, keys) -> keys.isEmpty() ? null : keys.get(0);
+    } else if ("match_value".equals(type)) {
+      return (sf, keys) -> keys.isEmpty() ? null : tagValueProducer.valueForKey(sf, keys.get(0));
+    } else if (type != null) {
+      throw new IllegalArgumentException("Unrecognized value for type: " + type);
     }
 
     //Default to producing a tag identical to the input
@@ -204,7 +217,7 @@ public class ConfiguredFeature {
    * @param attribute - configuration for this attribute
    * @return processing logic
    */
-  private BiConsumer<SourceFeature, Feature> attributeProcessor(AttributeDefinition attribute) {
+  private AttributeProcessor attributeProcessor(AttributeDefinition attribute) {
     var tagKey = attribute.key();
 
     var attributeMinZoom = attribute.minZoom();
@@ -233,17 +246,17 @@ public class ConfiguredFeature {
       attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
     if (attributeZoomProducer != null) {
-      return (sf, f) -> {
+      return (sf, keys, f) -> {
         if (attributeTest.evaluate(sf)) {
-          Object value = attributeValueProducer.apply(sf);
+          Object value = attributeValueProducer.apply(sf, keys);
           f.setAttrWithMinzoom(tagKey, value, attributeZoomProducer.apply(sf, value));
         }
       };
     }
 
-    return (sf, f) -> {
+    return (sf, keys, f) -> {
       if (attributeTest.evaluate(sf)) {
-        f.setAttr(tagKey, attributeValueProducer.apply(sf));
+        f.setAttr(tagKey, attributeValueProducer.apply(sf, keys));
       }
     };
   }
@@ -258,10 +271,11 @@ public class ConfiguredFeature {
   /**
    * Generates a tile feature based on a source feature.
    *
-   * @param sourceFeature - input source feature
-   * @param features      - output rendered feature collector
+   * @param sourceFeature input source feature
+   * @param matchKeys     feature tag keys that triggered the match
+   * @param features      output rendered feature collector
    */
-  public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
+  public void processFeature(SourceFeature sourceFeature, List<String> matchKeys, FeatureCollector features) {
 
     //Ensure that this feature is from the correct source
     if (!sources.contains(sourceFeature.getSource())) {
@@ -275,7 +289,7 @@ public class ConfiguredFeature {
       .setMaxZoom(featureMaxZoom);
 
     for (var processor : attributeProcessors) {
-      processor.accept(sourceFeature, f);
+      processor.process(sourceFeature, matchKeys, f);
     }
   }
 }
