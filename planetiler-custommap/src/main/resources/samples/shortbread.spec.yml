@@ -23,7 +23,7 @@ examples:
     geometry: polygon
     min_zoom: 4
     tags:
-      kind: glacier
+# TODO      kind: glacier
 
 - name: waterway=dock
   input:
@@ -36,7 +36,7 @@ examples:
     geometry: polygon
     min_zoom: 10
     tags:
-      kind: dock
+# TODO      kind: dock
 
 - name: waterway=canal linestring
   input:
@@ -52,12 +52,36 @@ examples:
     geometry: line
     min_zoom: 9
     tags:
-      kind: canal
+  # TODO      kind: canal
   - layer: water_line_labels
     geometry: line
-    min_zoom: 9
+    min_zoom: 12
     tags:
-      kind: canal
+      # TODO      kind: canal
       name: The Canal
       name_en: The Canal (en)
       name_de: The Canal (de)
+
+- name: waterway=stream linestring
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: stream
+      name: The Stream
+      name:en: The Stream (en)
+      name:de: The Stream (de)
+  output:
+  - layer: water_lines
+    geometry: line
+    min_zoom: 14
+    tags:
+  # TODO      kind: stream
+  - layer: water_line_labels
+    geometry: line
+    min_zoom: 14
+    tags:
+      # TODO      kind: stream
+      name: The Stream
+      name_en: The Stream (en)
+      name_de: The Stream (de)
