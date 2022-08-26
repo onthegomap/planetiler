@@ -11,5 +11,6 @@ public record AttributeDefinition(
   @JsonProperty("exclude_when") Map<String, Object> excludeWhen,
   @JsonProperty("min_zoom") Integer minZoom,
   @JsonProperty("min_zoom_by_value") Map<Object, Integer> minZoomByValue,
-  @JsonProperty("min_tile_cover_size") Double minTileCoverSize
+  @JsonProperty("min_tile_cover_size") Double minTileCoverSize,
+  @JsonProperty("type") String type
 ) {}

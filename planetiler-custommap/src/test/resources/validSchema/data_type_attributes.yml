@@ -16,16 +16,16 @@ tag_mappings:
   bridge:
     type: boolean
 layers:
-  - name: testLayer
-    features:
-      - source:
-          - osm
-        geometry: line
-        attributes:
-          - key: b_type
-          - key: l_type
-          - key: d_type
-          - key: s_type
-          - key: intermittent
-          - key: is_intermittent
-          - key: bridge
+- name: testLayer
+  features:
+  - source:
+    - osm
+    geometry: line
+    attributes:
+    - key: b_type
+    - key: l_type
+    - key: d_type
+    - key: s_type
+    - key: intermittent
+    - key: is_intermittent
+    - key: bridge

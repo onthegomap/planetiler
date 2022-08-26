@@ -7,12 +7,12 @@ sources:
     url: geofabrik:rhode-island
     local_path: data/rhode-island.osm.pbf
 layers:
-  - name: testLayer
-    features:
-      - source:
-          - osm
-        geometry: polygon
-        include_when:
-          natural: water
-        attributes:
-          - key: natural
+- name: testLayer
+  features:
+  - source:
+    - osm
+    geometry: polygon
+    include_when:
+      natural: water
+    attributes:
+    - key: natural

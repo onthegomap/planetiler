@@ -6,12 +6,12 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 layers:
-  - name: testLayer
-    features:
-      - source:
-          - osm
-        geometry: polygon
-        include_when:
-          natural: water
-        attributes:
-          - key: natural
+- name: testLayer
+  features:
+  - source:
+    - osm
+    geometry: polygon
+    include_when:
+      natural: water
+    attributes:
+    - key: natural
