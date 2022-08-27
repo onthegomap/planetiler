@@ -29,7 +29,7 @@ examples:
       kind: glacier
   - layer: water_polygons_labels
     geometry: point
-    min_zoom: 4
+    min_zoom: 14
     tags:
       kind: glacier
       name: The glacier

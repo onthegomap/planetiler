@@ -50,7 +50,7 @@ layers:
   features:
   - source: osm
     geometry: polygon_centroid
-    min_zoom: 4
+    min_zoom: 14
     include_when: *water_filter
     exclude_when:
       name: ''
