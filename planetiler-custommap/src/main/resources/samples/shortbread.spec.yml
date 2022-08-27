@@ -160,14 +160,13 @@ examples:
     geometry: polygon
     min_zoom: 14
 
-# TODO
-#- name: building=house
-#  input:
-#    source: osm
-#    geometry: polygon
-#    tags:
-#      building: house
-#  output:
-#  - layer: buildings
-#    geometry: polygon
-#    min_zoom: 14
+- name: building=house
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      building: house
+  output:
+  - layer: buildings
+    geometry: polygon
+    min_zoom: 14

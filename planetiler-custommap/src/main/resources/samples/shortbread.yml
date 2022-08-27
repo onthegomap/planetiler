@@ -235,7 +235,9 @@ layers:
     geometry: polygon
     min_zoom: 14
     include_when:
-      building: yes # TODO anything besides no
+      building: __any__
+    exclude_when:
+      building: no
 
 # TODO addresses
 ##  Streets and Transport
