@@ -170,3 +170,29 @@ examples:
   - layer: buildings
     geometry: polygon
     min_zoom: 14
+
+- name: address polygon with house number
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      addr:housenumber: 123
+  output:
+  - layer: addresses
+    geometry: point
+    min_zoom: 14
+    tags:
+      number: 123
+
+- name: address point with house name
+  input:
+    source: osm
+    geometry: point
+    tags:
+      addr:housename: the 123 house
+  output:
+  - layer: addresses
+    geometry: point
+    min_zoom: 14
+    tags:
+      name: the 123 house

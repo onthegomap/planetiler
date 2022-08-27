@@ -239,7 +239,25 @@ layers:
     exclude_when:
       building: no
 
-# TODO addresses
+- name: addresses
+  features:
+  - source: osm
+    geometry: polygon_centroid_if_convex
+    min_zoom: 14
+    include_when: &address_filter
+      addr:housenumber: __any__
+      addr:housename: __any__
+    attributes: &address_attributes
+    - key: name
+      tag_value: addr:housename
+    - key: number
+      tag_value: addr:housenumber
+  - source: osm
+    geometry: point
+    min_zoom: 14
+    include_when: *address_filter
+    attributes: *address_attributes
+
 ##  Streets and Transport
 # TODO streets
 # TODO street_polygons
