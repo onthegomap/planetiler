@@ -150,7 +150,7 @@ class ExpressionTest {
 
   @Test
   void testEvaluate() {
-    WithTags feature = featureWithTags("key1", "value1", "key2", "value2");
+    WithTags feature = featureWithTags("key1", "value1", "key2", "value2", "key3", "");
 
     //And
     assertTrue(and(matchAny("key1", "value1"), matchAny("key2", "value2")).evaluate(feature));
@@ -173,6 +173,7 @@ class ExpressionTest {
     assertFalse(matchField("wrong").evaluate(feature));
     assertTrue(not(matchAny("key1", "")).evaluate(feature));
     assertTrue(matchAny("wrong", "").evaluate(feature));
+    assertTrue(matchAny("key3", "").evaluate(feature));
 
     //Constants
     assertTrue(TRUE.evaluate(feature));

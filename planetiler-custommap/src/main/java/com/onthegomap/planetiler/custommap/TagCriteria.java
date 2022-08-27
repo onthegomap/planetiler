@@ -34,7 +34,8 @@ public class TagCriteria {
   private static Expression tagCriterionToExpression(TagValueProducer tagValueProducer, String key, Object value) {
 
     //If only a key is provided, with no value, match any object tagged with that key.
-    if (value == null) {
+    if (value == null || "__any__".equals(value) ||
+      (value instanceof Collection<?> values && values.contains("__any__"))) {
       return matchField(key);
 
       //If a collection is provided, match any of these values.

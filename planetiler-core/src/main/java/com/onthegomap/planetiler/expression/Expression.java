@@ -371,23 +371,30 @@ public interface Expression {
 
     MatchAny(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
       this(field, values,
-        values.stream().map(Object::toString).filter(v -> !v.contains("%")).collect(Collectors.toSet()),
-        values.stream().map(Object::toString).filter(v -> v.contains("%")).map(val -> {
+        nonEmptyValues(values).filter(v -> !v.contains("%"))
+          .collect(Collectors.toSet()),
+        nonEmptyValues(values).filter(v -> v.contains("%")).map(val -> {
           var matcher = containsPattern.matcher(val);
           if (!matcher.matches()) {
             throw new IllegalArgumentException("wildcards must start/end with %: " + val);
           }
           return matcher.group(1);
         }).toList(),
-        values.contains(""),
+        values.stream().anyMatch(v -> v == null || "".equals(v)),
         valueGetter
       );
+    }
+
+    private static Stream<String> nonEmptyValues(List<?> values) {
+      return values.stream()
+        .map(v -> v == null ? "" : v.toString())
+        .filter(d -> !d.isBlank());
     }
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
-      if (value == null) {
+      if (value == null || "".equals(value)) {
         return matchWhenMissing;
       } else {
         String str = value.toString();
@@ -436,7 +443,8 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input.hasTag(field)) {
+      Object value = input.getTag(field);
+      if (value != null && !"".equals(value)) {
         matchKeys.add(field);
         return true;
       }

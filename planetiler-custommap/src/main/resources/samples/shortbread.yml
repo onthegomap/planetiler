@@ -52,6 +52,8 @@ layers:
     geometry: polygon_centroid
     min_zoom: 4
     include_when: *water_filter
+    exclude_when:
+      name: ''
     zoom_override: *water_zoom
     attributes:
     - key: kind
@@ -96,6 +98,8 @@ layers:
       - river
       - stream
       - ditch
+    exclude_when:
+      name: ''
     zoom_override:
     - min: 14
       tag:

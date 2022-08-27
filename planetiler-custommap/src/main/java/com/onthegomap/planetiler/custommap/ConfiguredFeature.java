@@ -65,11 +65,19 @@ public class ConfiguredFeature {
     this.tagValueProducer = tagValueProducer;
 
     //Test to determine whether this feature is included based on tagging
+    Expression filter;
     if (feature.includeWhen() == null) {
-      tagTest = Expression.TRUE;
+      filter = Expression.TRUE;
     } else {
-      tagTest = matcher(feature.includeWhen(), tagValueProducer);
+      filter = matcher(feature.includeWhen(), tagValueProducer);
     }
+    if (feature.excludeWhen() != null) {
+      filter = Expression.and(
+        filter,
+        Expression.not(matcher(feature.excludeWhen(), tagValueProducer))
+      );
+    }
+    tagTest = filter;
 
     //Index of zoom ranges for a feature based on what tags are present.
     zoomOverride = zoomOverride(feature.zoom());

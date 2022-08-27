@@ -20,9 +20,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.geotools.geometry.jts.WKTReader2;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /** Verifies that a profile maps input elements map to expected vector tile features. */
 public class SchemaValidator {
@@ -60,9 +62,14 @@ public class SchemaValidator {
         SchemaSpecification.load(spec),
         args
       );
+    } catch (YAMLException e) {
+      System.out.println(AnsiColors.red("Malformed yaml input:\n\n" + e.toString().indent(4)));
+      return;
     } catch (Exception e) {
-      System.out.println("Error initializing:");
-      e.printStackTrace();
+      System.out.println(AnsiColors.red(
+        "Unexpected exception thrown:\n" + e.toString().indent(4) + "\n" +
+          String.join("\n", ExceptionUtils.getRootCauseStackTrace(e)))
+        .indent(4));
       return;
     }
     int failed = 0, passed = 0;

@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfiguredFeatureTest {
 
@@ -287,6 +289,93 @@ class ConfiguredFeatureTest {
       assertEquals(true, attr.get("is_intermittent"), "Produce and rename boolean");
       assertEquals(true, attr.get("bridge"), "Produce boolean from full structure");
     }, 1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"natural:", "natural: [__any__]", "natural: __any__"})
+  void testMatchAny(String filter) {
+    testPolygon("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            %s
+      """.formatted(filter), Map.of(
+      "natural", "water"
+    ), feature -> {
+    }, 1);
+  }
+
+  @Test
+  void testExcludeValue() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            natural: water
+          exclude_when:
+            name: excluded
+      """;
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "name", "name"
+    ), feature -> {
+    }, 1);
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "name", "excluded"
+    ), feature -> {
+    }, 0);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"''", "['']", "[null]"})
+  void testRequireValue(String matchString) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            natural: water
+          exclude_when:
+            name: %s
+      """.formatted(matchString);
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "name", "name"
+    ), feature -> {
+    }, 1);
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+    }, 0);
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "name", ""
+    ), feature -> {
+    }, 0);
   }
 
   @Test

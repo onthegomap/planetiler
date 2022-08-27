@@ -131,8 +131,9 @@ class MultiExpressionTest {
 
   private void matchFieldCheck(Index<String> index) {
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", null)));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
@@ -145,7 +146,8 @@ class MultiExpressionTest {
       entry("a", not(matchField("key")))
     )).index();
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", null)));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value")));
