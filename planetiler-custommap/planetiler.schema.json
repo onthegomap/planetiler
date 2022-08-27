@@ -121,9 +121,12 @@
           "description": "Include objects of a certain geometry type",
           "type": "string",
           "enum": [
-            "polygon",
+            "point",
             "line",
-            "point"
+            "polygon",
+            "polygon_centroid",
+            "polygon_centroid_if_convex",
+            "polygon_point_on_surface"
           ]
         },
         "source": {

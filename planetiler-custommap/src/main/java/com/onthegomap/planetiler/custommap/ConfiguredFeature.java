@@ -6,6 +6,7 @@ import static com.onthegomap.planetiler.expression.Expression.not;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
+import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
 import com.onthegomap.planetiler.custommap.configschema.ZoomOverride;
 import com.onthegomap.planetiler.expression.Expression;
@@ -13,7 +14,6 @@ import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Entry;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
-import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.Collection;
@@ -56,7 +56,7 @@ public class ConfiguredFeature {
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = new HashSet<>(feature.source());
 
-    GeometryType geometryType = feature.geometry();
+    FeatureGeometry geometryType = feature.geometry();
 
     //Test to determine whether this type of geometry is included
     geometryTest = geometryType.featureTest();

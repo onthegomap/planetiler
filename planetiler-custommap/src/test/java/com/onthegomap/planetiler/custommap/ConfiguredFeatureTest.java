@@ -320,6 +320,36 @@ class ConfiguredFeatureTest {
   }
 
   @Test
+  void testPolygonCentroid() {
+    testPolygon("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon_centroid
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            type: match_key
+          - key: value
+            type: match_value
+      """, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(Map.of(
+        "key", "natural",
+        "value", "water"
+      ), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
+
+  @Test
   void testGeometryTypeMismatch() {
     //Validate that a schema that filters on lines does not match on a polygon feature
     var sf =

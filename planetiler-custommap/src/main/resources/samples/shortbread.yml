@@ -12,17 +12,20 @@ sources:
     type: osm
     url: geofabrik:massachusetts
 layers:
+
 #  Water
+
 - name: ocean
   features:
   - source: ocean
     geometry: polygon
+
 - name: water_polygons
   features:
   - source: osm
     geometry: polygon
     min_zoom: 4
-    include_when:
+    include_when: &water_filter
       natural:
       - glacier
       - water
@@ -33,7 +36,7 @@ layers:
       landuse:
       - reservoir
       - basin
-    zoom_override:
+    zoom_override: &water_zoom
     - min: 10
       tag:
         waterway:
@@ -43,7 +46,21 @@ layers:
     - key: kind
       type: match_value
 
-# TODO water_polygons_labels
+- name: water_polygons_labels
+  features:
+  - source: osm
+    geometry: polygon_centroid
+    min_zoom: 4
+    include_when: *water_filter
+    zoom_override: *water_zoom
+    attributes:
+    - key: kind
+      type: match_value
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
 
 - name: water_lines
   features:

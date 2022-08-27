@@ -149,7 +149,7 @@ public class SchemaValidator {
             validate(prefix + ".layer", issues, expected.layer(), actual.getLayer());
             validate(prefix + ".minzoom", issues, expected.minZoom(), actual.getMinZoom());
             validate(prefix + ".maxzoom", issues, expected.maxZoom(), actual.getMaxZoom());
-            validate(prefix + ".geometry", issues, expected.geometry(), GeometryType.valueOf(actual.getGeometry()));
+            validate(prefix + ".geometry", issues, expected.geometry(), GeometryType.typeOf(actual.getGeometry()));
             expected.tags().forEach((tag, value) -> {
               validate(prefix + ".tags[\"%s\"]".formatted(tag), issues, value, actualTags.get(tag), false);
             });
@@ -164,7 +164,7 @@ public class SchemaValidator {
 
   private static Comparator<FeatureCollector.Feature> proximityTo(SchemaSpecification.OutputFeature expected) {
     return Comparator.comparingInt(item -> (Objects.equals(item.getLayer(), expected.layer()) ? 2 : 0) +
-      (Objects.equals(GeometryType.valueOf(item.getGeometry()), expected.geometry()) ? 1 : 0));
+      (Objects.equals(GeometryType.typeOf(item.getGeometry()), expected.geometry()) ? 1 : 0));
   }
 
   private static <T> void validate(String field, List<String> issues, T expected, T actual, boolean ignoreWhenNull) {

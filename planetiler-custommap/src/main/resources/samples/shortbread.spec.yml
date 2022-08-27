@@ -18,12 +18,23 @@ examples:
     geometry: polygon
     tags:
       natural: glacier
+      name: The glacier
+      name:en: The glacier (en)
+      name:de: The glacier (de)
   output:
-    layer: water_polygons
+  - layer: water_polygons
     geometry: polygon
     min_zoom: 4
     tags:
       kind: glacier
+  - layer: water_polygons_labels
+    geometry: point
+    min_zoom: 4
+    tags:
+      kind: glacier
+      name: The glacier
+      name_en: The glacier (en)
+      name_de: The glacier (de)
 
 - name: waterway=dock
   input:
