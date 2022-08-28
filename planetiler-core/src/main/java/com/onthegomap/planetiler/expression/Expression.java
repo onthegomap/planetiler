@@ -193,7 +193,7 @@ public interface Expression {
         .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
         .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
         .map(Expression::simplifyOnce).toList());
-    } else if (expression instanceof MatchAny any && any.isEmpty()) {
+    } else if (expression instanceof MatchAny any && any.isMatchAnything()) {
       return matchField(any.field);
     } else {
       return expression;
@@ -361,62 +361,36 @@ public interface Expression {
    *
    * @param values           all raw string values that were initially provided
    * @param exactMatches     the input {@code values} that should be treated as exact matches
-   * @param contains         the input {@code values} that the value must contain
-   * @param startsWith       the input {@code values} that the value must start with
-   * @param endsWith         the input {@code values} that the value must end with
    * @param patterns         regular expressions that the value must match
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
     String field, List<?> values, Set<String> exactMatches,
-    List<String> contains, List<String> startsWith, List<String> endsWith, List<Pattern> patterns,
-    boolean matchWhenMissing, boolean isEmpty,
+    List<Pattern> patterns,
+    boolean matchWhenMissing,
     BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
     static MatchAny from(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
       List<String> exactMatches = new ArrayList<>();
-      List<String> contains = new ArrayList<>();
-      List<String> startsWith = new ArrayList<>();
-      List<String> endsWith = new ArrayList<>();
       List<Pattern> patterns = new ArrayList<>();
 
       for (var value : values) {
         if (value != null) {
           String string = value.toString();
-          if (!string.matches("%*")) {
-            boolean wildcardStart = string.startsWith("%");
-            boolean wildcardEnd = string.matches("^.*[^\\\\]%$");
-            boolean wildcardMiddle = string.matches("^.+(?<!\\\\)%.+$");
-            if (wildcardMiddle) {
-              patterns.add(wildcardToRegex(string));
-            } else {
-              string = unescape(string.replaceAll("(^%+|(?<!\\\\)%+$)", ""));
-              if (wildcardStart && wildcardEnd) {
-                contains.add(string);
-              } else if (wildcardStart) {
-                endsWith.add(string);
-              } else if (wildcardEnd) {
-                startsWith.add(string);
-              } else {
-                exactMatches.add(string);
-              }
-            }
+          if (string.matches("^.*(?<!\\\\)%.*$")) {
+            patterns.add(wildcardToRegex(string));
+          } else {
+            exactMatches.add(unescape(string.replaceAll("(^%+|(?<!\\\\)%+$)", "")));
           }
         }
       }
       boolean matchWhenMissing = values.stream().anyMatch(v -> v == null || "".equals(v));
-      boolean isEmpty = exactMatches.isEmpty() && contains.isEmpty() && startsWith.isEmpty() && endsWith.isEmpty() &&
-        patterns.isEmpty() && !matchWhenMissing;
 
       return new MatchAny(field, values,
         Set.copyOf(exactMatches),
-        List.copyOf(contains),
-        List.copyOf(startsWith),
-        List.copyOf(endsWith),
         List.copyOf(patterns),
         matchWhenMissing,
-        isEmpty,
         valueGetter
       );
     }
@@ -438,7 +412,7 @@ public interface Expression {
           }
           token.setLength(0);
           regex.append(".*");
-          string = string.replaceFirst("^%*", "");
+          string = string.replaceFirst("^%+", "");
         } else {
           token.append(string.charAt(0));
           string = string.substring(1);
@@ -466,31 +440,13 @@ public interface Expression {
           matchKeys.add(field);
           return true;
         }
-        for (String target : contains) {
-          if (str.contains(target)) {
-            matchKeys.add(field);
-            return true;
-          }
-        }
-        for (String target : startsWith) {
-          if (str.startsWith(target)) {
-            matchKeys.add(field);
-            return true;
-          }
-        }
-        for (String target : endsWith) {
-          if (str.endsWith(target)) {
-            matchKeys.add(field);
-            return true;
-          }
-        }
         for (Pattern pattern : patterns) {
           if (pattern.matcher(str).matches()) {
             matchKeys.add(field);
             return true;
           }
         }
-        return isEmpty();
+        return false;
       }
     }
 
@@ -512,6 +468,11 @@ public interface Expression {
         }
       }
       return "matchAny(" + Format.quote(field) + ", " + String.join(", ", valueStrings) + ")";
+    }
+
+    public boolean isMatchAnything() {
+      return !matchWhenMissing && exactMatches.isEmpty() &&
+        patterns.stream().allMatch(p -> p.toString().equals("^.*$"));
     }
   }
 

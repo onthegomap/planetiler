@@ -145,10 +145,7 @@ class ExpressionTest {
   void testWildcardStartsWith() {
     var matcher = matchAny("key", "a%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(List.of("a"), matcher.startsWith());
-    assertEquals(List.of(), matcher.endsWith());
-    assertEquals(List.of(), matcher.contains());
-    assertEquals(List.of(), matcher.patterns());
+    assertEquals(1, matcher.patterns().size());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -159,10 +156,7 @@ class ExpressionTest {
   void testWildcardEndsWith() {
     var matcher = matchAny("key", "%a");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(List.of(), matcher.startsWith());
-    assertEquals(List.of("a"), matcher.endsWith());
-    assertEquals(List.of(), matcher.contains());
-    assertEquals(List.of(), matcher.patterns());
+    assertEquals(1, matcher.patterns().size());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "cba")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -173,10 +167,7 @@ class ExpressionTest {
   void testWildcardContains() {
     var matcher = matchAny("key", "%a%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(List.of(), matcher.startsWith());
-    assertEquals(List.of(), matcher.endsWith());
-    assertEquals(List.of(), matcher.patterns());
-    assertEquals(List.of("a"), matcher.contains());
+    assertEquals(1, matcher.patterns().size());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "bab")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -187,10 +178,7 @@ class ExpressionTest {
   void testWildcardAny() {
     var matcher = matchAny("key", "%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(List.of(), matcher.startsWith());
-    assertEquals(List.of(), matcher.endsWith());
-    assertEquals(List.of(), matcher.contains());
-    assertEquals(List.of(), matcher.patterns());
+    assertEquals(1, matcher.patterns().size());
     assertEquals(matchField("key"), matcher.simplify());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
@@ -201,9 +189,6 @@ class ExpressionTest {
   void testWildcardMiddle() {
     var matcher = matchAny("key", "a%c");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(List.of(), matcher.startsWith());
-    assertEquals(List.of(), matcher.endsWith());
-    assertEquals(List.of(), matcher.contains());
     assertEquals(1, matcher.patterns().size());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
