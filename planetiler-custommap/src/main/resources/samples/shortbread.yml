@@ -259,7 +259,117 @@ layers:
     attributes: *address_attributes
 
 ##  Streets and Transport
-# TODO streets
+- name: streets
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 13
+    #    min_tile_cover_size: 0
+    include_when:
+      highway:
+      - motorway
+      - motorway_link
+      - trunk
+      - trunk_link
+      - primary
+      - primary_link
+      - secondary
+      - secondary_link
+      - tertiary
+      - tertiary_link
+      - unclassified
+      - residential
+      - living_street
+      - service
+      - pedestrian
+      - track
+      - footway
+      - steps
+      - path
+      - cycleway
+      # TODO should these be aeroway?
+      - runway
+      - taxiway
+      railway:
+      - rail
+      - narrow_gauge
+      - tram
+      - light_rail
+      - funicular
+      - subway
+      - monorail
+    zoom_override:
+    - min: 5
+      tag:
+        highway: motorway%
+    - min: 6
+      tag:
+        highway: trunk%
+    - min: 8
+      tag:
+        highway: primary%
+        # TODO railway={rail/narrow_gauge} AND service=*
+    - min: 9
+      tag:
+        highway: secondary%
+    - min: 10
+      tag:
+        # TODO railway={rail/narrow_gauge} AND service is missing
+        railway:
+        - funicular
+        - light_rail
+        - monorail
+        - subway
+        - tram
+        highway: tertiary
+    - min: 11
+      tag:
+        highway: runway # TODO aeroway?
+    - min: 12
+      tag:
+        highway: [ residential, unclassified ]
+    attributes:
+    - key: kind
+      # TODO strip off "_link"
+      type: match_value
+    - key: link
+      min_zoom: 11
+      constant_value: true
+      # TODO fallback false
+      include_when:
+        highway: '%_link'
+    - key: rail
+      min_zoom: 11
+      constant_value: true
+      # TODO fallback false
+      include_when:
+        railway: __any__
+    - key: tunnel
+      min_zoom: 11
+      constant_value: true
+      # TODO fallback false
+      include_when:
+        tunnel: [ yes, building_passage ]
+        covered: yes
+    - key: bridge
+      min_zoom: 11
+      constant_value: true
+      # TODO fallback false
+      include_when:
+        bridge: yes
+    - key: tracktype
+      min_zoom: 11
+    - key: surface
+      min_zoom: 11
+    - key: service
+      min_zoom: 11
+    - key: bicycle
+      min_zoom: 14
+    - key: horse
+      min_zoom: 14
+
+
+
 # TODO street_polygons
 # TODO street_labels
 # TODO streets_polygons_labels

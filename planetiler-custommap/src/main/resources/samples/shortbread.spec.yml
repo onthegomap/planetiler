@@ -196,3 +196,42 @@ examples:
     min_zoom: 14
     tags:
       name: the 123 house
+
+- name: B27 highway
+  input:
+    source: osm
+    geometry: line
+    tags:
+      change:lanes:backward: no
+      change:lanes:forward: not_left|not_right
+      embankment: yes
+      highway: primary
+      lanes: 3
+      lanes:backward: 1
+      lanes:forward: 2
+      maxspeed: 100
+      overtaking:backward: no
+      priority_road: designated
+      ref: B 27
+      sidewalk: no
+      source:maxspeed: DE:rural
+      surface: asphalt
+      zone:traffic: DE:rural
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 8
+    tags:
+      bridge: false
+      kind: primary
+      link: false
+      rail: false
+      surface: asphalt
+      tunnel: false
+
+# tags:
+# kind/rail 5+
+# link/tunnel/bridge/tracktype/surface/service 11+
+# bicycle/horse 14+
+
+

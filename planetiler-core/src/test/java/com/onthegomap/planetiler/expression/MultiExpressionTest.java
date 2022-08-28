@@ -210,6 +210,38 @@ class MultiExpressionTest {
   }
 
   @Test
+  void testStartsWith() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "value%"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testEndsWith() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "%value"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value1")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
   void testMultipleMatches() {
     var feature = featureWithTags("a", "b", "c", "d");
     var index = MultiExpression.of(List.of(

@@ -78,7 +78,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, GET_TAG, values);
+    return MatchAny.from(field, GET_TAG, values);
   }
 
   /**
@@ -99,7 +99,7 @@ public interface Expression {
    */
   static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter,
     List<?> values) {
-    return new MatchAny(field, typeGetter, values);
+    return MatchAny.from(field, typeGetter, values);
   }
 
   /** Returns an expression that evaluates to true if the element has any value for tag {@code field}. */
@@ -193,6 +193,8 @@ public interface Expression {
         .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
         .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
         .map(Expression::simplifyOnce).toList());
+    } else if (expression instanceof MatchAny any && any.isEmpty()) {
+      return matchField(any.field);
     } else {
       return expression;
     }
@@ -359,36 +361,98 @@ public interface Expression {
    *
    * @param values           all raw string values that were initially provided
    * @param exactMatches     the input {@code values} that should be treated as exact matches
-   * @param wildcards        the input {@code values} that should be treated as wildcards
+   * @param contains         the input {@code values} that the value must contain
+   * @param startsWith       the input {@code values} that the value must start with
+   * @param endsWith         the input {@code values} that the value must end with
+   * @param patterns         regular expressions that the value must match
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
-    String field, List<?> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
+    String field, List<?> values, Set<String> exactMatches,
+    List<String> contains, List<String> startsWith, List<String> endsWith, List<Pattern> patterns,
+    boolean matchWhenMissing, boolean isEmpty,
     BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
-    private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
+    static MatchAny from(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
+      List<String> exactMatches = new ArrayList<>();
+      List<String> contains = new ArrayList<>();
+      List<String> startsWith = new ArrayList<>();
+      List<String> endsWith = new ArrayList<>();
+      List<Pattern> patterns = new ArrayList<>();
 
-    MatchAny(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
-      this(field, values,
-        nonEmptyValues(values).filter(v -> !v.contains("%"))
-          .collect(Collectors.toSet()),
-        nonEmptyValues(values).filter(v -> v.contains("%")).map(val -> {
-          var matcher = containsPattern.matcher(val);
-          if (!matcher.matches()) {
-            throw new IllegalArgumentException("wildcards must start/end with %: " + val);
+      for (var value : values) {
+        if (value != null) {
+          String string = value.toString();
+          if (!string.matches("%*")) {
+            boolean wildcardStart = string.startsWith("%");
+            boolean wildcardEnd = string.matches("^.*[^\\\\]%$");
+            boolean wildcardMiddle = string.matches("^.+(?<!\\\\)%.+$");
+            if (wildcardMiddle) {
+              patterns.add(wildcardToRegex(string));
+            } else {
+              string = unescape(string.replaceAll("(^%+|(?<!\\\\)%+$)", ""));
+              if (wildcardStart && wildcardEnd) {
+                contains.add(string);
+              } else if (wildcardStart) {
+                endsWith.add(string);
+              } else if (wildcardEnd) {
+                startsWith.add(string);
+              } else {
+                exactMatches.add(string);
+              }
+            }
           }
-          return matcher.group(1);
-        }).toList(),
-        values.stream().anyMatch(v -> v == null || "".equals(v)),
+        }
+      }
+      boolean matchWhenMissing = values.stream().anyMatch(v -> v == null || "".equals(v));
+      boolean isEmpty = exactMatches.isEmpty() && contains.isEmpty() && startsWith.isEmpty() && endsWith.isEmpty() &&
+        patterns.isEmpty() && !matchWhenMissing;
+
+      return new MatchAny(field, values,
+        Set.copyOf(exactMatches),
+        List.copyOf(contains),
+        List.copyOf(startsWith),
+        List.copyOf(endsWith),
+        List.copyOf(patterns),
+        matchWhenMissing,
+        isEmpty,
         valueGetter
       );
     }
 
-    private static Stream<String> nonEmptyValues(List<?> values) {
-      return values.stream()
-        .map(v -> v == null ? "" : v.toString())
-        .filter(d -> !d.isBlank());
+    private static Pattern wildcardToRegex(String string) {
+      StringBuilder regex = new StringBuilder("^");
+      StringBuilder token = new StringBuilder();
+      while (!string.isEmpty()) {
+        if (string.startsWith("\\%")) {
+          if (!token.isEmpty()) {
+            regex.append(Pattern.quote(token.toString()));
+          }
+          token.setLength(0);
+          regex.append("%");
+          string = string.replaceFirst("^\\\\%", "");
+        } else if (string.startsWith("%")) {
+          if (!token.isEmpty()) {
+            regex.append(Pattern.quote(token.toString()));
+          }
+          token.setLength(0);
+          regex.append(".*");
+          string = string.replaceFirst("^%*", "");
+        } else {
+          token.append(string.charAt(0));
+          string = string.substring(1);
+        }
+      }
+      if (!token.isEmpty()) {
+        regex.append(Pattern.quote(token.toString()));
+      }
+      regex.append('$');
+      return Pattern.compile(regex.toString());
+    }
+
+    private static String unescape(String input) {
+      return input.replace("\\%", "%");
     }
 
     @Override
@@ -402,13 +466,31 @@ public interface Expression {
           matchKeys.add(field);
           return true;
         }
-        for (String target : wildcards) {
+        for (String target : contains) {
           if (str.contains(target)) {
             matchKeys.add(field);
             return true;
           }
         }
-        return false;
+        for (String target : startsWith) {
+          if (str.startsWith(target)) {
+            matchKeys.add(field);
+            return true;
+          }
+        }
+        for (String target : endsWith) {
+          if (str.endsWith(target)) {
+            matchKeys.add(field);
+            return true;
+          }
+        }
+        for (Pattern pattern : patterns) {
+          if (pattern.matcher(str).matches()) {
+            matchKeys.add(field);
+            return true;
+          }
+        }
+        return isEmpty();
       }
     }
 

@@ -29,7 +29,7 @@ public class CacheByZoom<T> {
    * @return a cache for {@code supplier} by zom
    */
   public static <T> CacheByZoom<T> create(PlanetilerConfig config, IntFunction<T> supplier) {
-    return new CacheByZoom<>(config.minzoom(), config.maxzoomForRendering(), supplier);
+    return new CacheByZoom<>(0, PlanetilerConfig.MAX_MAXZOOM, supplier);
   }
 
   public T get(int zoom) {

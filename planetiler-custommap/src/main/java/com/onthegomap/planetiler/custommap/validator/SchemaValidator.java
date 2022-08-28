@@ -82,7 +82,7 @@ public class SchemaValidator {
         System.out.printf("%s %s%n", failBadge, example.example().name());
         var exception = example.exception();
         if (exception.isPresent()) {
-          System.out.println(exception.get().toString().indent(4).stripTrailing());
+          System.out.println(ExceptionUtils.getStackTrace(exception.get()).indent(4).stripTrailing());
         } else {
           for (var issue : example.issues()) {
             System.out.println("  ● " + issue.indent(4).strip());

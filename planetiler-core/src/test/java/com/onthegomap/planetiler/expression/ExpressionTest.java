@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -133,10 +134,95 @@ class ExpressionTest {
 
   @Test
   void testContains() {
+    assertEquals(List.of(), matchCD.patterns());
     assertTrue(matchCD.contains(e -> e.equals(matchCD)));
     assertTrue(or(not(matchCD)).contains(e -> e.equals(matchCD)));
     assertFalse(matchCD.contains(e -> e.equals(matchAB)));
     assertFalse(or(not(matchCD)).contains(e -> e.equals(matchAB)));
+  }
+
+  @Test
+  void testWildcardStartsWith() {
+    var matcher = matchAny("key", "a%");
+    assertEquals(Set.of(), matcher.exactMatches());
+    assertEquals(List.of("a"), matcher.startsWith());
+    assertEquals(List.of(), matcher.endsWith());
+    assertEquals(List.of(), matcher.contains());
+    assertEquals(List.of(), matcher.patterns());
+
+    assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
+    assertTrue(matcher.evaluate(featureWithTags("key", "a")));
+    assertFalse(matcher.evaluate(featureWithTags("key", "cba")));
+  }
+
+  @Test
+  void testWildcardEndsWith() {
+    var matcher = matchAny("key", "%a");
+    assertEquals(Set.of(), matcher.exactMatches());
+    assertEquals(List.of(), matcher.startsWith());
+    assertEquals(List.of("a"), matcher.endsWith());
+    assertEquals(List.of(), matcher.contains());
+    assertEquals(List.of(), matcher.patterns());
+
+    assertTrue(matcher.evaluate(featureWithTags("key", "cba")));
+    assertTrue(matcher.evaluate(featureWithTags("key", "a")));
+    assertFalse(matcher.evaluate(featureWithTags("key", "abc")));
+  }
+
+  @Test
+  void testWildcardContains() {
+    var matcher = matchAny("key", "%a%");
+    assertEquals(Set.of(), matcher.exactMatches());
+    assertEquals(List.of(), matcher.startsWith());
+    assertEquals(List.of(), matcher.endsWith());
+    assertEquals(List.of(), matcher.patterns());
+    assertEquals(List.of("a"), matcher.contains());
+
+    assertTrue(matcher.evaluate(featureWithTags("key", "bab")));
+    assertTrue(matcher.evaluate(featureWithTags("key", "a")));
+    assertFalse(matcher.evaluate(featureWithTags("key", "c")));
+  }
+
+  @Test
+  void testWildcardAny() {
+    var matcher = matchAny("key", "%");
+    assertEquals(Set.of(), matcher.exactMatches());
+    assertEquals(List.of(), matcher.startsWith());
+    assertEquals(List.of(), matcher.endsWith());
+    assertEquals(List.of(), matcher.contains());
+    assertEquals(List.of(), matcher.patterns());
+    assertEquals(matchField("key"), matcher.simplify());
+
+    assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
+    assertFalse(matcher.evaluate(featureWithTags("key", "")));
+  }
+
+  @Test
+  void testWildcardMiddle() {
+    var matcher = matchAny("key", "a%c");
+    assertEquals(Set.of(), matcher.exactMatches());
+    assertEquals(List.of(), matcher.startsWith());
+    assertEquals(List.of(), matcher.endsWith());
+    assertEquals(List.of(), matcher.contains());
+    assertEquals(1, matcher.patterns().size());
+
+    assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
+    assertTrue(matcher.evaluate(featureWithTags("key", "ac")));
+    assertFalse(matcher.evaluate(featureWithTags("key", "ab")));
+  }
+
+  @Test
+  void testWildcardEscape() {
+    assertTrue(matchAny("key", "a\\%").evaluate(featureWithTags("key", "a%")));
+    assertFalse(matchAny("key", "a\\%").evaluate(featureWithTags("key", "ab")));
+
+    assertTrue(matchAny("key", "a\\%b").evaluate(featureWithTags("key", "a%b")));
+    assertTrue(matchAny("key", "%a\\%b%").evaluate(featureWithTags("key", "dda%b")));
+    assertTrue(matchAny("key", "\\%%").evaluate(featureWithTags("key", "%abc")));
+    assertTrue(matchAny("key", "%\\%").evaluate(featureWithTags("key", "abc%")));
+    assertTrue(matchAny("key", "%\\%%").evaluate(featureWithTags("key", "a%c")));
+    assertTrue(matchAny("key", "%\\%%").evaluate(featureWithTags("key", "%")));
+    assertFalse(matchAny("key", "\\%%").evaluate(featureWithTags("key", "abc%")));
   }
 
   @Test
