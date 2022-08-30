@@ -20,64 +20,58 @@
     "sources": {
       "description": "A list of sources from which features should be extracted, specified as a list of names",
       "type": "object",
-      "patternProperties": {
-        "^.*$": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "description": "Source file format",
-              "type": "string",
-              "enum": [
-                "osm",
-                "shapefile"
-              ]
-            },
-            "url": {
-              "description": "URL to download this file from if not present at `local_path`",
-              "type": "string"
-            },
-            "local_path": {
-              "description": "Local path to the file to use, inferred from `url` if missing"
-            }
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "osm",
+              "shapefile"
+            ]
           },
-          "oneOf": [
-            {
-              "required": [
-                "url"
-              ]
-            },
-            {
-              "required": [
-                "local_path"
-              ]
-            }
-          ]
-        }
+          "url": {
+            "description": "URL to download this file from if not present at `local_path`",
+            "type": "string"
+          },
+          "local_path": {
+            "description": "Local path to the file to use, inferred from `url` if missing"
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "local_path"
+            ]
+          }
+        ]
       }
     },
     "tag_mappings": {
       "description": "Specifies that certain tag key should have their values treated as being a certain data type",
       "type": "object",
-      "patternProperties": {
-        "^.*$": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/datatype"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "$ref": "#/definitions/datatype"
-                },
-                "output": {
-                  "description": "The name of the typed key that will be presented to the attribute logic",
-                  "type": "string"
-                }
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/datatype"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/$defs/datatype"
+              },
+              "output": {
+                "description": "The name of the typed key that will be presented to the attribute logic",
+                "type": "string"
               }
             }
-          ]
-        }
+          }
+        ]
       }
     },
     "layers": {
@@ -94,14 +88,14 @@
             "description": "A list of features contained in this layer",
             "type": "array",
             "items": {
-              "$ref": "#/definitions/feature"
+              "$ref": "#/$defs/feature"
             }
           }
         }
       }
     }
   },
-  "definitions": {
+  "$defs": {
     "datatype": {
       "type": "string",
       "enum": [
@@ -151,21 +145,15 @@
         },
         "include_when": {
           "description": "A tag specification which determines which features to include. If unspecified, all features from the specified sources are included",
-          "type": {
-            "$ref": "#/definitions/tag_filters"
-          }
+          "$ref": "#/$defs/tag_filters"
         },
         "exclude_when": {
           "description": "A tag specification which determines which features to exclude. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-          "type": {
-            "$ref": "#/definitions/tag_filters"
-          }
+          "$ref": "#/$defs/tag_filters"
         },
         "min_zoom": {
           "description": "Minimum zoom to show the feature that matches the filter specifications.",
-          "type": {
-            "$ref": "#/definitions/zoom_level"
-          }
+          "$ref": "#/$defs/zoom_level"
         },
         "zoom_override": {
           "description": "List of rules that overrides the `min_zoom` for this feature if certain tags are present. If multiple rules match, the first matching rule will be applied.",
@@ -175,28 +163,11 @@
             "properties": {
               "min": {
                 "description": "Minimum zoom to render a feature matching this rule",
-                "type": {
-                  "$ref": "#/definitions/zoom_level"
-                }
+                "$ref": "#/$defs/zoom_level"
               },
               "tag": {
                 "description": "List of tags for which this rule applies. Tags are specified as a list of key/value pairs",
-                "type": "object",
-                "patternProperties": {
-                  "^.*$": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ]
-                  }
-                }
+                "$ref": "#/$defs/tag_filters"
               }
             }
           }
@@ -233,31 +204,21 @@
               },
               "include_when": {
                 "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
-                "type": {
-                  "$ref": "#/definitions/tag_filters"
-                }
+                "$ref": "#/$defs/tag_filters"
               },
               "exclude_when": {
                 "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-                "type": {
-                  "$ref": "#/definitions/tag_filters"
-                }
+                "$ref": "#/$defs/tag_filters"
               },
               "min_zoom": {
                 "description": "The minimum zoom at which to render this attribute",
-                "type": {
-                  "$ref": "#/definitions/zoom_level"
-                }
+                "$ref": "#/$defs/zoom_level"
               },
               "min_zoom_by_value": {
                 "description": "Minimum zoom to render this attribute depending on the value. Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value",
                 "type": "object",
-                "patternProperties": {
-                  "^.*$": {
-                    "type": {
-                      "$ref": "#/definitions/zoom_level"
-                    }
-                  }
+                "additionalProperties": {
+                  "$ref": "#/$defs/zoom_level"
                 }
               }
             }
@@ -271,23 +232,26 @@
       "maximum": 15
     },
     "tag_filters": {
-      "patternProperties": {
-        "^.*$": {
-          "anyOf": [
-            {
-              "description": "A single value for the key",
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "description": "Matches any value for this key",
+            "const": "__any__"
+          },
+          {
+            "description": "A single value for the key",
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "description": "A list of possible values for the key",
+            "items": {
+              "description": "One of the possible values for the key",
               "type": "string"
-            },
-            {
-              "type": "array",
-              "description": "A list of possible values for the key",
-              "items": {
-                "description": "One of the possible values for the key",
-                "type": "string"
-              }
             }
-          ]
-        }
+          }
+        ]
       }
     }
   }

@@ -264,7 +264,7 @@ layers:
   - source: osm
     geometry: line
     min_zoom: 13
-    #    min_tile_cover_size: 0
+    #  TODO   min_tile_cover_size: 0
     include_when:
       highway:
       - motorway
