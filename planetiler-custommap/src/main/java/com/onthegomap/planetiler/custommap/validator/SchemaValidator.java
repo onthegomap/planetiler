@@ -62,6 +62,9 @@ public class SchemaValidator {
         SchemaSpecification.load(spec),
         args
       );
+    } catch (com.onthegomap.planetiler.custommap.expression.ParseException e) {
+      System.out.println(AnsiColors.red("Malformed expression:\n\n" + e.getCause().toString().indent(4)));
+      return;
     } catch (YAMLException e) {
       System.out.println(AnsiColors.red("Malformed yaml input:\n\n" + e.toString().indent(4)));
       return;

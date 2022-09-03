@@ -202,12 +202,7 @@ layers:
         landuse: cemetery
     attributes:
     - key: kind
-      type: match_value
-    # TODO cleaner way to override value?
-    - key: kind
-      constant_value: wood
-      include_when:
-        landuse: forest
+      value: "${match_value == 'forest' ? 'wood' : match_value}"
 
 - name: sites
   features:
@@ -330,30 +325,30 @@ layers:
         highway: [ residential, unclassified ]
     attributes:
     - key: kind
-      # TODO strip off "_link"
+      value: ${ match_value.replace('_link', '') }
       type: match_value
     - key: link
       min_zoom: 11
-      constant_value: true
+      value: true
       # TODO fallback false
       include_when:
         highway: '%_link'
     - key: rail
       min_zoom: 11
-      constant_value: true
+      value: true
       # TODO fallback false
       include_when:
         railway: __any__
     - key: tunnel
       min_zoom: 11
-      constant_value: true
+      value: true
       # TODO fallback false
       include_when:
         tunnel: [ yes, building_passage ]
         covered: yes
     - key: bridge
       min_zoom: 11
-      constant_value: true
+      value: true
       # TODO fallback false
       include_when:
         bridge: yes

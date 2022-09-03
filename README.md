@@ -292,6 +292,9 @@ Planetiler is made possible by these awesome open source projects:
 - [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
 - [JNR-FFI](https://github.com/jnr/jnr-ffi) for utilities to access low-level system utilities to improve memory-mapped
   file performance.
+- [cel-java](https://github.com/projectnessie/cel-java) for the Java implementation of
+  Google's [Common Expression Language](https://github.com/google/cel-spec) that powers dynamic expressions embedded in
+  schema config files.
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

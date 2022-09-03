@@ -1,12 +1,13 @@
 package com.onthegomap.planetiler.custommap;
 
+import com.onthegomap.planetiler.custommap.expression.Contexts;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Parse;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -74,9 +75,9 @@ public class TagValueProducer {
   /**
    * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
    */
-  public BiFunction<WithTags, List<String>, Object> valueProducerForKey(String key) {
+  public Signature valueProducerForKey(String key) {
     var getter = valueGetterForKey(key);
-    return (withTags, keys) -> getter.apply(withTags, key);
+    return context -> getter.apply(context.parent().feature(), key);
   }
 
   /**
@@ -103,4 +104,7 @@ public class TagValueProducer {
 
     return newMap;
   }
+
+  @FunctionalInterface
+  public interface Signature extends Function<Contexts.ProcessFeature.PostMatch, Object> {}
 }

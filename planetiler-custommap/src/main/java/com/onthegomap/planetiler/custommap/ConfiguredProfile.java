@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import com.onthegomap.planetiler.custommap.expression.Contexts;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -21,6 +22,7 @@ public class ConfiguredProfile implements Profile {
   private final SchemaConfig schemaConfig;
 
   private final Index<ConfiguredFeature> featureLayerMatcher;
+  private final TagValueProducer tagValueProducer;
 
   public ConfiguredProfile(SchemaConfig schemaConfig) {
     this.schemaConfig = schemaConfig;
@@ -30,7 +32,7 @@ public class ConfiguredProfile implements Profile {
       throw new IllegalArgumentException("No layers defined");
     }
 
-    TagValueProducer tagValueProducer = new TagValueProducer(schemaConfig.inputMappings());
+    tagValueProducer = new TagValueProducer(schemaConfig.inputMappings());
 
     List<MultiExpression.Entry<ConfiguredFeature>> configuredFeatureEntries = new ArrayList<>();
 
@@ -58,12 +60,16 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
-    featureLayerMatcher.getMatchesWithTriggers(sourceFeature)
-      .forEach(configuredFeature -> configuredFeature.match().processFeature(
-        sourceFeature,
-        configuredFeature.keys(),
-        featureCollector
-      ));
+    var matches = featureLayerMatcher.getMatchesWithTriggers(sourceFeature);
+    if (!matches.isEmpty()) {
+      var context = new Contexts.ProcessFeature(sourceFeature, tagValueProducer);
+      for (var configuredFeature : matches) {
+        configuredFeature.match().processFeature(
+          context.createPostMatchContext(configuredFeature.keys()),
+          featureCollector
+        );
+      }
+    }
   }
 
   @Override

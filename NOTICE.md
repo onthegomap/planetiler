@@ -24,6 +24,7 @@ The `planetiler-core` module includes the following software:
   - com.carrotsearch:hppc (Apache license)
   - com.github.jnr:jnr-ffi (Apache license)
   - org.roaringbitmap:RoaringBitmap (Apache license)
+  - org.projectnessie.cel:cel-tools (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)

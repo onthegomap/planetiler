@@ -229,6 +229,37 @@ examples:
       surface: asphalt
       tunnel: false
 
+- name: B39A link
+  input:
+    source: osm
+    geometry: line
+    tags:
+      cycleway:right: no
+      destination: Löwenstein;Obersulm;Ellhofen;Breitenauer See
+      destination:colour: ;;;brown
+      foot: no
+      hazard: traffic_signals
+      highway: primary_link
+      lanes: 1
+      lit: no
+      maxspeed: 50
+      oneway: yes
+      ref: B 39A
+      sidewalk: no
+      surface: asphalt
+      turn: right
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 8
+    tags:
+      bridge: false
+      kind: primary
+      link: true
+      rail: false
+      surface: asphalt
+      tunnel: false
+
 # tags:
 # kind/rail 5+
 # link/tunnel/bridge/tracktype/surface/service 11+

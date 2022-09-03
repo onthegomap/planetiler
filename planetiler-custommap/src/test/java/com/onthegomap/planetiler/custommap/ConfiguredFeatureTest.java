@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.custommap;
 
 import static com.onthegomap.planetiler.TestUtils.newLineString;
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static com.onthegomap.planetiler.TestUtils.newPolygon;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
@@ -16,14 +16,13 @@ import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfiguredFeatureTest {
@@ -73,18 +72,6 @@ class ConfiguredFeatureTest {
     "bridge", "yes"
   );
 
-  private static FeatureCollector polygonFeatureCollector() {
-    var config = PlanetilerConfig.defaults();
-    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
-    return factory.get(SimpleFeature.create(TestUtils.newPolygon(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
-  }
-
-  private static FeatureCollector linestringFeatureCollector() {
-    var config = PlanetilerConfig.defaults();
-    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
-    return factory.get(SimpleFeature.create(TestUtils.newLineString(0, 0, 0.1, 0, 0.1, 0.1, 0, 0), new HashMap<>()));
-  }
-
   private static Profile loadConfig(Function<String, Path> pathFunction, String filename) {
     var staticAttributeConfig = pathFunction.apply(filename);
     var schema = SchemaConfig.load(staticAttributeConfig);
@@ -97,21 +84,21 @@ class ConfiguredFeatureTest {
   }
 
   private static void testFeature(Function<String, Path> pathFunction, String schemaFilename, SourceFeature sf,
-    Supplier<FeatureCollector> fcFactory, Consumer<Feature> test, int expectedMatchCount) {
-    var profile = loadConfig(pathFunction, schemaFilename);
-    testFeature(sf, fcFactory, test, expectedMatchCount, profile);
-  }
-
-  private static void testFeature(String config, SourceFeature sf, Supplier<FeatureCollector> fcFactory,
     Consumer<Feature> test, int expectedMatchCount) {
+    var profile = loadConfig(pathFunction, schemaFilename);
+    testFeature(sf, test, expectedMatchCount, profile);
+  }
+
+  private static void testFeature(String config, SourceFeature sf, Consumer<Feature> test, int expectedMatchCount) {
     var profile = loadConfig(config);
-    testFeature(sf, fcFactory, test, expectedMatchCount, profile);
+    testFeature(sf, test, expectedMatchCount, profile);
   }
 
 
-  private static void testFeature(SourceFeature sf, Supplier<FeatureCollector> fcFactory, Consumer<Feature> test,
-    int expectedMatchCount, Profile profile) {
-    var fc = fcFactory.get();
+  private static void testFeature(SourceFeature sf, Consumer<Feature> test, int expectedMatchCount, Profile profile) {
+    var config = PlanetilerConfig.defaults();
+    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
+    var fc = factory.get(sf);
 
     profile.processFeature(sf, fc);
 
@@ -129,30 +116,36 @@ class ConfiguredFeatureTest {
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
-    testFeature(config, sf, ConfiguredFeatureTest::polygonFeatureCollector, test, expectedMatchCount);
+    testFeature(config, sf, test, expectedMatchCount);
   }
+
+  private static void testPoint(String config, Map<String, Object> tags,
+    Consumer<Feature> test, int expectedMatchCount) {
+    var sf =
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), tags, "osm", null, 1, emptyList());
+    testFeature(config, sf, test, expectedMatchCount);
+  }
+
 
   private static void testLinestring(String config,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
-    testFeature(config, sf, ConfiguredFeatureTest::linestringFeatureCollector, test, expectedMatchCount);
+    testFeature(config, sf, test, expectedMatchCount);
   }
 
   private static void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
-    testFeature(pathFunction, schemaFilename, sf,
-      ConfiguredFeatureTest::polygonFeatureCollector, test, expectedMatchCount);
+    testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
   }
 
   private static void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
-    testFeature(pathFunction, schemaFilename, sf,
-      ConfiguredFeatureTest::linestringFeatureCollector, test, expectedMatchCount);
+    testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
   }
 
   @Test
@@ -408,9 +401,21 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
-  @Test
-  void testPolygonCentroid() {
-    testPolygon("""
+  @ParameterizedTest
+  @CsvSource(value = {
+    "1| 1",
+    "1+1| 1+1",
+    "${1+1}| 2",
+    "${match_key + '=' + match_value}| natural=water",
+    "${match_value.replace('ter', 'wa')}| wawa",
+    "${feature.tags.natural}| water",
+    "${feature.id}|1",
+    "${feature.source}|osm",
+    "${feature.source_layer}|null",
+    "${coalesce(feature.source_layer, 'missing')}|missing",
+  }, delimiter = '|')
+  void testExpressionValue(String expression, Object value) {
+    testPoint("""
       sources:
         osm:
           type: osm
@@ -420,21 +425,51 @@ class ConfiguredFeatureTest {
       - name: testLayer
         features:
         - source: osm
-          geometry: polygon_centroid
+          geometry: point
           include_when:
             natural: water
           attributes:
           - key: key
-            type: match_key
-          - key: value
-            type: match_value
-      """, Map.of(
+            value: %s
+      """.formatted(expression), Map.of(
       "natural", "water"
     ), feature -> {
-      assertEquals(Map.of(
-        "key", "natural",
-        "value", "water"
-      ), feature.getAttrsAtZoom(14));
+      var result = feature.getAttrsAtZoom(14).get("key");
+      String resultString = result == null ? "null" : result.toString();
+      assertEquals(value, resultString);
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "12,12",
+    "${5+5},10",
+    "${match_key.size()},7",
+    "${value.size()},5"
+  })
+  void testAttributeMinZoomExpression(String expression, int minZoom) {
+    testPoint("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: point
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            value: value
+            min_zoom: %s
+      """.formatted(expression), Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertNull(feature.getAttrsAtZoom(minZoom - 1).get("key"));
+      assertEquals("value", feature.getAttrsAtZoom(minZoom).get("key"));
     }, 1);
   }
 
@@ -445,9 +480,8 @@ class ConfiguredFeatureTest {
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), motorwayTags, "osm", null, 1,
         emptyList());
 
-    testFeature(TEST_RESOURCE, "road_motorway.yml", sf,
-      ConfiguredFeatureTest::linestringFeatureCollector, f -> {
-      }, 0);
+    testFeature(TEST_RESOURCE, "road_motorway.yml", sf, f -> {
+    }, 0);
   }
 
   @Test
@@ -457,9 +491,8 @@ class ConfiguredFeatureTest {
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1, 0, 0), highwayAreaTags, "not_osm", null, 1,
         emptyList());
 
-    testFeature(SAMPLE_RESOURCE, "highway_areas.yml", sf,
-      ConfiguredFeatureTest::linestringFeatureCollector, f -> {
-      }, 0);
+    testFeature(SAMPLE_RESOURCE, "highway_areas.yml", sf, f -> {
+    }, 0);
   }
 
   @Test
