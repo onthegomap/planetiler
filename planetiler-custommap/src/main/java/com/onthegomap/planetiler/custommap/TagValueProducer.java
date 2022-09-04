@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.expression.ValueGetter.GET_TAG;
+
 import com.onthegomap.planetiler.custommap.expression.Contexts;
+import com.onthegomap.planetiler.expression.ValueGetter;
 import com.onthegomap.planetiler.reader.WithTags;
-import com.onthegomap.planetiler.util.Parse;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,32 +17,9 @@ import java.util.function.UnaryOperator;
  */
 public class TagValueProducer {
 
-  private static final String STRING_DATATYPE = "string";
-  private static final String BOOLEAN_DATATYPE = "boolean";
-  private static final String DIRECTION_DATATYPE = "direction";
-  private static final String LONG_DATATYPE = "long";
-
-  private static final BiFunction<WithTags, String, Object> DEFAULT_GETTER = WithTags::getTag;
-
   private final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
 
   private final Map<String, String> keyType = new HashMap<>();
-
-  private static final Map<String, BiFunction<WithTags, String, Object>> inputGetter =
-    Map.of(
-      STRING_DATATYPE, WithTags::getString,
-      BOOLEAN_DATATYPE, WithTags::getBoolean,
-      DIRECTION_DATATYPE, WithTags::getDirection,
-      LONG_DATATYPE, WithTags::getLong
-    );
-
-  private static final Map<String, UnaryOperator<Object>> inputParse =
-    Map.of(
-      STRING_DATATYPE, s -> s,
-      BOOLEAN_DATATYPE, Parse::bool,
-      DIRECTION_DATATYPE, Parse::direction,
-      LONG_DATATYPE, Parse::parseLong
-    );
 
   public TagValueProducer(Map<String, Object> map) {
     if (map == null) {
@@ -49,12 +28,12 @@ public class TagValueProducer {
 
     map.forEach((key, value) -> {
       if (value instanceof String stringType) {
-        valueRetriever.put(key, inputGetter.get(stringType));
+        valueRetriever.put(key, ValueGetter.from(stringType));
         keyType.put(key, stringType);
       } else if (value instanceof Map<?, ?> renameMap) {
         String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
         BiFunction<WithTags, String, Object> getter =
-          renameMap.containsKey("type") ? inputGetter.get(renameMap.get("type").toString()) : DEFAULT_GETTER;
+          renameMap.containsKey("type") ? ValueGetter.from(renameMap.get("type").toString()) : ValueGetter.GET_TAG;
         //When requesting the output value, actually retrieve the input key with the desired getter
         valueRetriever.put(output,
           (withTags, requestedKey) -> getter.apply(withTags, key));
@@ -69,7 +48,7 @@ public class TagValueProducer {
    * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
    */
   public BiFunction<WithTags, String, Object> valueGetterForKey(String key) {
-    return valueRetriever.getOrDefault(key, DEFAULT_GETTER);
+    return valueRetriever.getOrDefault(key, GET_TAG);
   }
 
   /**
@@ -96,7 +75,7 @@ public class TagValueProducer {
     String dataType = keyType.get(key);
     UnaryOperator<Object> parser;
 
-    if (dataType == null || (parser = inputParse.get(dataType)) == null) {
+    if (dataType == null || (parser = ValueGetter.from(dataType).parser()) == null) {
       newMap.putAll(keyedMap);
     } else {
       keyedMap.forEach((mapKey, value) -> newMap.put(parser.apply(mapKey), value));

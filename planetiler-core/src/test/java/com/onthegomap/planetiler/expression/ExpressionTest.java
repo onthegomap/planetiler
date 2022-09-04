@@ -2,14 +2,10 @@ package com.onthegomap.planetiler.expression;
 
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static com.onthegomap.planetiler.expression.ExpressionTestUtil.featureWithTags;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +25,11 @@ class ExpressionTest {
     assertEquals(or(matchAB, matchCD),
       or(or(matchAB), or(matchCD)).simplify()
     );
+  }
+
+  @Test
+  void testMatchAnyEquals() {
+    assertEquals(matchAny("a", "b%"), matchAny("a", "b%"));
   }
 
   @Test
@@ -134,7 +135,7 @@ class ExpressionTest {
 
   @Test
   void testContains() {
-    assertEquals(List.of(), matchCD.patterns());
+    assertNull(matchCD.pattern());
     assertTrue(matchCD.contains(e -> e.equals(matchCD)));
     assertTrue(or(not(matchCD)).contains(e -> e.equals(matchCD)));
     assertFalse(matchCD.contains(e -> e.equals(matchAB)));
@@ -145,7 +146,7 @@ class ExpressionTest {
   void testWildcardStartsWith() {
     var matcher = matchAny("key", "a%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(1, matcher.patterns().size());
+    assertNotNull(matcher.pattern());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -156,7 +157,7 @@ class ExpressionTest {
   void testWildcardEndsWith() {
     var matcher = matchAny("key", "%a");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(1, matcher.patterns().size());
+    assertNotNull(matcher.pattern());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "cba")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -167,7 +168,7 @@ class ExpressionTest {
   void testWildcardContains() {
     var matcher = matchAny("key", "%a%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(1, matcher.patterns().size());
+    assertNotNull(matcher.pattern());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "bab")));
     assertTrue(matcher.evaluate(featureWithTags("key", "a")));
@@ -178,7 +179,7 @@ class ExpressionTest {
   void testWildcardAny() {
     var matcher = matchAny("key", "%");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(1, matcher.patterns().size());
+    assertNotNull(matcher.pattern());
     assertEquals(matchField("key"), matcher.simplify());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
@@ -189,7 +190,7 @@ class ExpressionTest {
   void testWildcardMiddle() {
     var matcher = matchAny("key", "a%c");
     assertEquals(Set.of(), matcher.exactMatches());
-    assertEquals(1, matcher.patterns().size());
+    assertNotNull(matcher.pattern());
 
     assertTrue(matcher.evaluate(featureWithTags("key", "abc")));
     assertTrue(matcher.evaluate(featureWithTags("key", "ac")));

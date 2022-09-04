@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.expression;
 
+import static com.onthegomap.planetiler.expression.ValueGetter.GET_TAG;
+
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
@@ -13,6 +15,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +42,6 @@ public interface Expression {
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
   Expression TRUE = new Constant(true, "TRUE");
   Expression FALSE = new Constant(false, "FALSE");
-  BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
   List<String> dummyList = new NoopList<>();
 
@@ -253,8 +255,6 @@ public interface Expression {
 
   //A list that silently drops all additions
   class NoopList<T> extends ArrayList<T> {
-    private static final long serialVersionUID = 1L;
-
     @Override
     public boolean add(T t) {
       return true;
@@ -361,19 +361,19 @@ public interface Expression {
    *
    * @param values           all raw string values that were initially provided
    * @param exactMatches     the input {@code values} that should be treated as exact matches
-   * @param patterns         regular expressions that the value must match
+   * @param pattern          regular expression that the value must match, or null
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
     String field, List<?> values, Set<String> exactMatches,
-    List<Pattern> patterns,
+    Pattern pattern,
     boolean matchWhenMissing,
     BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
     static MatchAny from(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
       List<String> exactMatches = new ArrayList<>();
-      List<Pattern> patterns = new ArrayList<>();
+      List<String> patterns = new ArrayList<>();
 
       for (var value : values) {
         if (value != null) {
@@ -381,7 +381,7 @@ public interface Expression {
           if (string.matches("^.*(?<!\\\\)%.*$")) {
             patterns.add(wildcardToRegex(string));
           } else {
-            exactMatches.add(unescape(string.replaceAll("(^%+|(?<!\\\\)%+$)", "")));
+            exactMatches.add(unescape(string.replaceAll("((^%+)|((?<!\\\\)%+$))", "")));
           }
         }
       }
@@ -389,13 +389,13 @@ public interface Expression {
 
       return new MatchAny(field, values,
         Set.copyOf(exactMatches),
-        List.copyOf(patterns),
+        patterns.isEmpty() ? null : Pattern.compile("(" + Strings.join(patterns, '|') + ")"),
         matchWhenMissing,
         valueGetter
       );
     }
 
-    private static Pattern wildcardToRegex(String string) {
+    private static String wildcardToRegex(String string) {
       StringBuilder regex = new StringBuilder("^");
       StringBuilder token = new StringBuilder();
       while (!string.isEmpty()) {
@@ -422,7 +422,7 @@ public interface Expression {
         regex.append(Pattern.quote(token.toString()));
       }
       regex.append('$');
-      return Pattern.compile(regex.toString());
+      return regex.toString();
     }
 
     private static String unescape(String input) {
@@ -440,7 +440,7 @@ public interface Expression {
           matchKeys.add(field);
           return true;
         }
-        for (Pattern pattern : patterns) {
+        if (pattern != null) {
           if (pattern.matcher(str).matches()) {
             matchKeys.add(field);
             return true;
@@ -471,8 +471,31 @@ public interface Expression {
     }
 
     public boolean isMatchAnything() {
-      return !matchWhenMissing && exactMatches.isEmpty() &&
-        patterns.stream().allMatch(p -> p.toString().equals("^.*$"));
+      return !matchWhenMissing && exactMatches.isEmpty() && (pattern != null && pattern.toString().equals("(^.*$)"));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      MatchAny matchAny = (MatchAny) o;
+      return matchWhenMissing == matchAny.matchWhenMissing && field.equals(matchAny.field) && values.equals(
+        matchAny.values) && exactMatches.equals(matchAny.exactMatches) &&
+        Objects.equals(patternString(), matchAny.patternString()) &&
+        valueGetter.equals(matchAny.valueGetter);
+    }
+
+    private String patternString() {
+      return pattern == null ? null : pattern.pattern();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field, values, exactMatches, patternString(), matchWhenMissing, valueGetter);
     }
   }
 
