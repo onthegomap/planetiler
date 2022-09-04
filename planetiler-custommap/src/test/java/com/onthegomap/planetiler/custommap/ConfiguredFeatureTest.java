@@ -474,6 +474,47 @@ class ConfiguredFeatureTest {
   }
 
   @Test
+  void testFallbackValue() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            value: 1
+            include_when:
+              otherkey: value
+            else: 0
+      """;
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(Map.of("key", 0), feature.getAttrsAtZoom(14));
+    }, 1);
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "otherkey", "othervalue"
+    ), feature -> {
+      assertEquals(Map.of("key", 0), feature.getAttrsAtZoom(14));
+    }, 1);
+    testPolygon(config, Map.of(
+      "natural", "water",
+      "otherkey", "value"
+    ), feature -> {
+      assertEquals(Map.of("key", 1), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
+
+  @Test
   void testGeometryTypeMismatch() {
     //Validate that a schema that filters on lines does not match on a polygon feature
     var sf =

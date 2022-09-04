@@ -326,32 +326,31 @@ layers:
     attributes:
     - key: kind
       value: ${ match_value.replace('_link', '') }
-      type: match_value
     - key: link
       min_zoom: 11
       value: true
-      # TODO fallback false
       include_when:
         highway: '%_link'
+      else: false
     - key: rail
       min_zoom: 11
       value: true
-      # TODO fallback false
       include_when:
         railway: __any__
+      else: false
     - key: tunnel
       min_zoom: 11
       value: true
-      # TODO fallback false
       include_when:
         tunnel: [ yes, building_passage ]
         covered: yes
+      else: false
     - key: bridge
       min_zoom: 11
       value: true
-      # TODO fallback false
       include_when:
         bridge: yes
+      else: false
     - key: tracktype
       min_zoom: 11
     - key: surface

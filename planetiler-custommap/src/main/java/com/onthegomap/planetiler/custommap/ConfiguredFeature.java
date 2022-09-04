@@ -266,6 +266,7 @@ public class ConfiguredFeature {
     minZoomByValue = tagValueProducer.remapKeysByType(tagKey, minZoomByValue);
 
     var attributeValueProducer = attributeValueProducer(attribute);
+    var fallback = attribute.fallback();
 
     var attrIncludeWhen = attribute.includeWhen();
     var attrExcludeWhen = attribute.excludeWhen();
@@ -281,19 +282,28 @@ public class ConfiguredFeature {
     Function<Contexts.ProcessFeature.PostMatch.AttrZoom, Integer> attributeZoomProducer =
       attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
-    if (attributeZoomProducer != null) {
-      return (context, f) -> {
-        if (attributeTest.evaluate(context.parent().feature())) {
-          Object value = attributeValueProducer.apply(context);
-          f.setAttrWithMinzoom(tagKey, value, attributeZoomProducer.apply(context.createAttrZoomContext(value)));
-        }
-      };
-    }
-
     return (context, f) -> {
+      Object value = null;
       if (attributeTest.evaluate(context.parent().feature())) {
-        f.setAttr(tagKey, attributeValueProducer.apply(context));
+        value = attributeValueProducer.apply(context);
       }
+      if (value == null) {
+        value = fallback;
+      }
+      if (value != null) {
+        if (attributeZoomProducer != null) {
+          f.setAttrWithMinzoom(tagKey, value, attributeZoomProducer.apply(context.createAttrZoomContext(value)));
+        } else {
+          f.setAttr(tagKey, value);
+        }
+      }
+    };
+  }
+
+  private static <T, U> Function<T, U> applyFallback(Function<T, U> original, U fallback) {
+    return fallback == null ? original : ctx -> {
+      var result = original.apply(ctx);
+      return result != null ? result : fallback;
     };
   }
 

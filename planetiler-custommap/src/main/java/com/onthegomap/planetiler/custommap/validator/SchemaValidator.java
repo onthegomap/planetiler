@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap.validator;
 
+import com.fasterxml.jackson.core.JacksonException;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
@@ -49,6 +50,10 @@ public class SchemaValidator {
     }
   }
 
+  private static boolean hasCause(Throwable t, Class<?> cause) {
+    return t != null && (cause.isInstance(t) || hasCause(t.getCause(), cause));
+  }
+
   private static void validateFromCli(Path schema, Path spec, Arguments args) {
     String passBadge = AnsiColors.greenBackground(" PASS ");
     String failBadge = AnsiColors.redBackground(" FAIL ");
@@ -62,17 +67,18 @@ public class SchemaValidator {
         SchemaSpecification.load(spec),
         args
       );
-    } catch (com.onthegomap.planetiler.custommap.expression.ParseException e) {
-      System.out.println(AnsiColors.red("Malformed expression:\n\n" + e.getCause().toString().indent(4)));
-      return;
-    } catch (YAMLException e) {
-      System.out.println(AnsiColors.red("Malformed yaml input:\n\n" + e.toString().indent(4)));
-      return;
-    } catch (Exception e) {
-      System.out.println(AnsiColors.red(
-        "Unexpected exception thrown:\n" + e.toString().indent(4) + "\n" +
-          String.join("\n", ExceptionUtils.getRootCauseStackTrace(e)))
-        .indent(4));
+    } catch (Exception exception) {
+      Throwable rootCause = ExceptionUtils.getRootCause(exception);
+      if (hasCause(exception, com.onthegomap.planetiler.custommap.expression.ParseException.class)) {
+        System.out.println(AnsiColors.red("Malformed expression:\n\n" + rootCause.toString().indent(4)));
+      } else if (hasCause(exception, YAMLException.class) || hasCause(exception, JacksonException.class)) {
+        System.out.println(AnsiColors.red("Malformed yaml input:\n\n" + rootCause.toString().indent(4)));
+      } else {
+        System.out.println(AnsiColors.red(
+          "Unexpected exception thrown:\n" + rootCause.toString().indent(4) + "\n" +
+            String.join("\n", ExceptionUtils.getStackTrace(rootCause)))
+          .indent(4));
+      }
       return;
     }
     int failed = 0, passed = 0;

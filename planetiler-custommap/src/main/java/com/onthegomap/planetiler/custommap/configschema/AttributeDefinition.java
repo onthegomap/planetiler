@@ -13,5 +13,6 @@ public record AttributeDefinition(
   @JsonProperty("min_zoom") Object minZoom,
   @JsonProperty("min_zoom_by_value") Map<Object, Integer> minZoomByValue,
   @JsonProperty("min_tile_cover_size") Double minTileCoverSize,
-  @JsonProperty("type") String type
+  @JsonProperty("type") String type,
+  @JsonProperty("else") Object fallback
 ) {}
