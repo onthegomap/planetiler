@@ -303,13 +303,17 @@ layers:
     - min: 8
       tag:
         highway: primary%
-        # TODO railway={rail/narrow_gauge} AND service=*
+        __all__:
+          railway: [ rail, narrow_gauge ]
+          service: __any__
     - min: 9
       tag:
         highway: secondary%
     - min: 10
       tag:
-        # TODO railway={rail/narrow_gauge} AND service is missing
+        __all__:
+          railway: [ rail, narrow_gauge ]
+          service: ''
         railway:
         - funicular
         - light_rail

@@ -8,7 +8,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 
 public class YAML {
@@ -26,7 +25,7 @@ public class YAML {
 
   public static <T> T load(InputStream stream, Class<T> clazz) {
     try (stream) {
-      Map<String, Object> parsed = snakeYaml.load(stream);
+      Object parsed = snakeYaml.load(stream);
       return jackson.convertValue(parsed, clazz);
     } catch (IOException e) {
       throw new UncheckedIOException(e);

@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.geotools.geometry.jts.WKTReader2;
 import org.locationtech.jts.geom.Geometry;
@@ -166,9 +168,16 @@ public class SchemaValidator {
             validate(prefix + ".minzoom", issues, expected.minZoom(), actual.getMinZoom());
             validate(prefix + ".maxzoom", issues, expected.maxZoom(), actual.getMaxZoom());
             validate(prefix + ".geometry", issues, expected.geometry(), GeometryType.typeOf(actual.getGeometry()));
+            Set<String> tags = new TreeSet<>(actualTags.keySet());
             expected.tags().forEach((tag, value) -> {
               validate(prefix + ".tags[\"%s\"]".formatted(tag), issues, value, actualTags.get(tag), false);
+              tags.remove(tag);
             });
+            if (Boolean.FALSE.equals(expected.allowExtraTags())) {
+              for (var tag : tags) {
+                validate(prefix + ".tags[\"%s\"]".formatted(tag), issues, null, actualTags.get(tag), false);
+              }
+            }
           }
         }
       } catch (Exception e) {

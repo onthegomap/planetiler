@@ -14,7 +14,6 @@ import com.onthegomap.planetiler.custommap.expression.Contexts;
 import com.onthegomap.planetiler.custommap.expression.ParseException;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
-import com.onthegomap.planetiler.expression.MultiExpression.Entry;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -111,44 +110,9 @@ public class ConfiguredFeature {
 
     return MultiExpression.of(
       zoom.stream()
-        .map(this::generateOverrideExpression)
+        .map(config -> MultiExpression.entry(config.min(), matcher(config.tag(), tagValueProducer)))
         .toList())
       .index();
-  }
-
-  /**
-   * Takes the zoom override configuration for a single zoom level and returns an expression that matches tags for that
-   * level.
-   *
-   * @param config zoom override for a single level
-   * @return matching expression
-   */
-  private Entry<Integer> generateOverrideExpression(ZoomOverride config) {
-    return MultiExpression.entry(config.min(),
-      Expression.or(
-        config.tag()
-          .entrySet()
-          .stream()
-          .map(this::generateKeyExpression)
-          .toList()));
-  }
-
-  /**
-   * Returns an expression that matches against single key with one or more values
-   *
-   * @param keyExpression a map containing a key and one or more values
-   * @return a matching expression
-   */
-  private Expression generateKeyExpression(Map.Entry<String, Object> keyExpression) {
-    // Values are either a single value, or a collection
-    String key = keyExpression.getKey();
-    Object rawVal = keyExpression.getValue();
-
-    if (rawVal instanceof List<?> tagValues) {
-      return Expression.matchAnyTyped(key, tagValueProducer.valueGetterForKey(key), tagValues);
-    }
-
-    return Expression.matchAnyTyped(key, tagValueProducer.valueGetterForKey(key), rawVal);
   }
 
   /**
@@ -228,7 +192,7 @@ public class ConfiguredFeature {
     ToIntFunction<SourceFeature> staticZooms = sf -> Math.max(minZoom, minZoomFromTilePercent(sf, minTilePercent));
 
     if (minZoomByValue.isEmpty()) {
-      return context -> staticZooms.applyAsInt(context.parent().parent().feature());
+      return context -> staticZooms.applyAsInt(context.parent().sourceFeature());
     }
 
     //Attribute value-specific zooms override static zooms

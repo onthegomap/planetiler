@@ -260,6 +260,44 @@ examples:
       surface: asphalt
       tunnel: false
 
+- name: rail with service
+  input:
+    source: osm
+    geometry: line
+    tags:
+      railway: rail
+      service: service_value
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 8
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: rail
+      link: false
+      rail: true
+      tunnel: false
+      service: service_value
+
+- name: narrow_gauge without service
+  input:
+    source: osm
+    geometry: line
+    tags:
+      railway: narrow_gauge
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 10
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: narrow_gauge
+      link: false
+      rail: true
+      tunnel: false
+
 # tags:
 # kind/rail 5+
 # link/tunnel/bridge/tracktype/surface/service 11+

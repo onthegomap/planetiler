@@ -145,11 +145,11 @@
         },
         "include_when": {
           "description": "A tag specification which determines which features to include. If unspecified, all features from the specified sources are included",
-          "$ref": "#/$defs/tag_filters"
+          "$ref": "#/$defs/boolean_expression"
         },
         "exclude_when": {
           "description": "A tag specification which determines which features to exclude. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-          "$ref": "#/$defs/tag_filters"
+          "$ref": "#/$defs/boolean_expression"
         },
         "min_zoom": {
           "description": "Minimum zoom to show the feature that matches the filter specifications.",
@@ -167,7 +167,7 @@
               },
               "tag": {
                 "description": "List of tags for which this rule applies. Tags are specified as a list of key/value pairs",
-                "$ref": "#/$defs/tag_filters"
+                "$ref": "#/$defs/boolean_expression"
               }
             }
           }
@@ -204,11 +204,11 @@
               },
               "include_when": {
                 "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
-                "$ref": "#/$defs/tag_filters"
+                "$ref": "#/$defs/boolean_expression"
               },
               "exclude_when": {
                 "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-                "$ref": "#/$defs/tag_filters"
+                "$ref": "#/$defs/boolean_expression"
               },
               "min_zoom": {
                 "description": "The minimum zoom at which to render this attribute",
@@ -231,8 +231,32 @@
       "minimum": 0,
       "maximum": 15
     },
-    "tag_filters": {
+    "boolean_expression": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/single_boolean_expression"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/single_boolean_expression"
+          }
+        }
+      ]
+    },
+    "single_boolean_expression": {
       "type": "object",
+      "properties": {
+        "__all__": {
+          "$ref": "#/$defs/boolean_expression"
+        },
+        "__any__": {
+          "$ref": "#/$defs/boolean_expression"
+        },
+        "__not__": {
+          "$ref": "#/$defs/boolean_expression"
+        }
+      },
       "additionalProperties": {
         "anyOf": [
           {
@@ -240,16 +264,18 @@
             "const": "__any__"
           },
           {
-            "description": "A single value for the key",
-            "type": "string"
+            "description": "Matches when this key is missing or empty",
+            "const": ""
           },
           {
             "type": "array",
             "description": "A list of possible values for the key",
             "items": {
-              "description": "One of the possible values for the key",
-              "type": "string"
+              "description": "One of the possible values for the key"
             }
+          },
+          {
+            "description": "A single value for the key"
           }
         ]
       }

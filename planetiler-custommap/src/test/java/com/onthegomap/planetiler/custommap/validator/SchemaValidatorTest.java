@@ -41,7 +41,7 @@ class SchemaValidatorTest {
         - key: natural
     """;
 
-  private SchemaValidator.Result validateWater(String layer, String geometry, String tags) {
+  private SchemaValidator.Result validateWater(String layer, String geometry, String tags, String allowExtraTags) {
     return validate(
       waterSchema,
       """
@@ -55,26 +55,33 @@ class SchemaValidatorTest {
           output:
             layer: %s
             geometry: %s
+            %s
             tags:
               %s
-        """.formatted(layer, geometry, tags == null ? "" : tags.indent(6).strip())
+        """.formatted(layer, geometry, allowExtraTags == null ? "" : allowExtraTags,
+        tags == null ? "" : tags.indent(6).strip())
     );
   }
 
   @ParameterizedTest
   @CsvSource(value = {
-    "true,water,polygon,natural: water",
-    "true,water,polygon,",
-    "true,water,polygon,'natural: water\nother: null'",
-    "false,water,polygon,natural: null",
-    "false,water2,polygon,natural: water",
-    "false,water,line,natural: water",
-    "false,water,line,natural: water",
-    "false,water,polygon,natural: water2",
-    "false,water,polygon,'natural: water\nother: value'",
+    "true,water,polygon,natural: water,",
+    "true,water,polygon,,",
+    "true,water,polygon,'natural: water\nother: null',",
+    "false,water,polygon,natural: null,",
+    "false,water2,polygon,natural: water,",
+    "false,water,line,natural: water,",
+    "false,water,line,natural: water,",
+    "false,water,polygon,natural: water2,",
+    "false,water,polygon,'natural: water\nother: value',",
+
+    "true,water,polygon,natural: water,allow_extra_tags: true",
+    "true,water,polygon,natural: water,allow_extra_tags: false",
+    "true,water,polygon,,allow_extra_tags: true",
+    "false,water,polygon,,allow_extra_tags: false",
   })
-  void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags) {
-    var results = validateWater(layer, geometry, tags);
+  void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags, String allowExtraTags) {
+    var results = validateWater(layer, geometry, tags, allowExtraTags);
     assertEquals(1, results.results().size());
     assertEquals("test output", results.results().get(0).example().name());
     if (shouldBeOk) {

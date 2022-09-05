@@ -49,12 +49,18 @@ public record SchemaSpecification(List<Example> examples) {
     @JsonProperty("min_zoom") Integer minZoom,
     @JsonProperty("max_zoom") Integer maxZoom,
     @JsonProperty("at_zoom") Integer atZoom,
-    Map<String, Object> tags
+    @JsonProperty("allow_extra_tags") Boolean allowExtraTags,
+    @JsonProperty("tags") Map<String, Object> tags
   ) {
 
     @Override
     public Map<String, Object> tags() {
       return tags == null ? Map.of() : tags;
+    }
+
+    @Override
+    public Boolean allowExtraTags() {
+      return allowExtraTags == null || allowExtraTags;
     }
 
     @Override
