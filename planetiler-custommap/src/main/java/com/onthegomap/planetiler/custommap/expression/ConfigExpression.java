@@ -13,12 +13,10 @@ public class ConfigExpression<I extends ScriptContext, O> implements Function<I,
   private static final Pattern EXPRESSION_PATTERN = Pattern.compile("^\\s*\\$\\{(.*)}\\s*$");
   private final Script script;
   private final Class<O> returnType;
-  private final String scriptText;
 
-  private ConfigExpression(String scriptText, Script script, Class<O> returnType) {
+  private ConfigExpression(Script script, Class<O> returnType) {
     this.script = script;
     this.returnType = returnType;
-    this.scriptText = scriptText;
   }
 
   /** Returns true if this is a string expression like {@code "${ ... }"} */
@@ -61,7 +59,7 @@ public class ConfigExpression<I extends ScriptContext, O> implements Function<I,
       }
       var script = scriptBuilder.build();
 
-      return new ConfigExpression<>(string, script, expected);
+      return new ConfigExpression<>(script, expected);
     } catch (ScriptCreateException e) {
       throw new ParseException("Invalid expression", e);
     }

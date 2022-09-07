@@ -37,7 +37,7 @@ public interface Expression {
   String LINESTRING_TYPE = "linestring";
   String POINT_TYPE = "point";
   String POLYGON_TYPE = "polygon";
-  String UNKNOWN_GEOMETRY_TYPE = "unknown";
+  String UNKNOWN_GEOMETRY_TYPE = "unknown_type";
 
   Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, UNKNOWN_GEOMETRY_TYPE);
   Expression TRUE = new Constant(true, "TRUE");
@@ -381,7 +381,7 @@ public interface Expression {
           if (string.matches("^.*(?<!\\\\)%.*$")) {
             patterns.add(wildcardToRegex(string));
           } else {
-            exactMatches.add(unescape(string.replaceAll("((^%+)|((?<!\\\\)%+$))", "")));
+            exactMatches.add(unescape(string));
           }
         }
       }
@@ -440,11 +440,9 @@ public interface Expression {
           matchKeys.add(field);
           return true;
         }
-        if (pattern != null) {
-          if (pattern.matcher(str).matches()) {
-            matchKeys.add(field);
-            return true;
-          }
+        if (pattern != null && pattern.matcher(str).matches()) {
+          matchKeys.add(field);
+          return true;
         }
         return false;
       }

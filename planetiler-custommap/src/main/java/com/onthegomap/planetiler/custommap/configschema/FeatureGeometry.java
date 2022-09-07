@@ -46,7 +46,7 @@ public enum FeatureGeometry {
    * @param layerName - name of the layer
    * @return geometry factory method
    */
-  public Function<FeatureCollector, FeatureCollector.Feature> geometryFactory(String layerName) {
+  public Function<FeatureCollector, FeatureCollector.Feature> newGeometryFactory(String layerName) {
     return features -> geometryFactory.apply(features, layerName);
   }
 }

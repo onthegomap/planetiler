@@ -12,6 +12,8 @@ import org.yaml.snakeyaml.Yaml;
 
 public class YAML {
 
+  private YAML() {}
+
   private static final Yaml snakeYaml = new Yaml();
   private static final ObjectMapper jackson = new ObjectMapper();
 

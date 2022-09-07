@@ -88,7 +88,7 @@ public class ConfiguredFeature {
     featureMaxZoom = feature.maxZoom() == null ? DEFAULT_MAX_ZOOM : feature.maxZoom();
 
     //Factory to generate the right feature type from FeatureCollector
-    geometryFactory = geometryType.geometryFactory(layerName);
+    geometryFactory = geometryType.newGeometryFactory(layerName);
 
     //Configure logic for each attribute in the output tile
     attributeProcessors = feature.attributes()
@@ -263,13 +263,6 @@ public class ConfiguredFeature {
           f.setAttr(tagKey, value);
         }
       }
-    };
-  }
-
-  private static <T, U> Function<T, U> applyFallback(Function<T, U> original, U fallback) {
-    return fallback == null ? original : ctx -> {
-      var result = original.apply(ctx);
-      return result != null ? result : fallback;
     };
   }
 

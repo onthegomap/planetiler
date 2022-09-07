@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class GeometryTypeTest {
 
   @Test
-  void testGeometryFactory() throws Exception {
+  void testGeometryFactory() {
     Map<String, Object> tags = Map.of("key1", "value1");
 
     var line =

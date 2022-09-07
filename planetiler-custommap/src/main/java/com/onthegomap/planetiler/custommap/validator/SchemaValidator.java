@@ -46,9 +46,7 @@ public class SchemaValidator {
       System.out.println();
       System.out.println("Watching filesystem for changes...");
       var watcher = FileWatcher.newWatcher(schema, spec);
-      watcher.pollForChanges(Duration.ofMillis(300), changed -> {
-        validateFromCli(schema, spec, arguments);
-      });
+      watcher.pollForChanges(Duration.ofMillis(300), changed -> validateFromCli(schema, spec, arguments));
     }
   }
 
