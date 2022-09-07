@@ -66,6 +66,7 @@ public class Contexts {
     private static final String FEATURE_SOURCE_LAYER = "feature.source_layer";
 
     public static final ScriptContextDescription<ProcessFeature> DESCRIPTION = ScriptContextDescription.root()
+      .forInput(ProcessFeature.class)
       .withDeclarations(
         Decls.newVar(FEATURE_TAGS, Decls.newMapType(Decls.String, Decls.Any)),
         Decls.newVar(FEATURE_ID, Decls.Int),
@@ -107,6 +108,7 @@ public class Contexts {
       private static final String MATCH_VALUE = "match_value";
 
       public static final ScriptContextDescription<PostMatch> DESCRIPTION = ProcessFeature.DESCRIPTION
+        .forInput(PostMatch.class)
         .withDeclarations(
           Decls.newVar(MATCH_KEY, Decls.String),
           Decls.newVar(MATCH_VALUE, Decls.Any)
@@ -148,6 +150,7 @@ public class Contexts {
       public record AttrZoom(@Override PostMatch parent, Object value) implements FeatureContext {
         private static final String VALUE = "value";
         public static final ScriptContextDescription<AttrZoom> DESCRIPTION = PostMatch.DESCRIPTION
+          .forInput(AttrZoom.class)
           .withDeclarations(Decls.newVar(VALUE, Decls.Any));
 
         @Override

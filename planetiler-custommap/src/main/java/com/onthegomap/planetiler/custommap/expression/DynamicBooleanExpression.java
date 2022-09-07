@@ -10,24 +10,29 @@ import org.projectnessie.cel.tools.Script;
 /**
  * An {@link Expression} based off of a dynamic common-expression-language {@link Script common-expression-language
  * script}.
+ *
+ * @param <T> Input type of the expression
  */
-public final class DynamicBooleanExpression implements Expression {
-  private final ConfigExpression<ScriptContext, Boolean> expression;
+public final class DynamicBooleanExpression<T extends ScriptContext> implements Expression {
+  private final ConfigExpression<T, Boolean> expression;
   private final String expressionText;
+  private final Class<T> inputClass;
 
-  private DynamicBooleanExpression(String expression, ScriptContextDescription<ScriptContext> context) {
+  private DynamicBooleanExpression(String expression, ScriptContextDescription<T> context) {
     expressionText = expression;
     this.expression = ConfigExpression.parse(expression, context, Boolean.class);
+    this.inputClass = context.clazz();
   }
 
   /** Creates a new boolean expression wrapping {@code expression}. */
-  public static DynamicBooleanExpression dynamic(String expression, ScriptContextDescription<ScriptContext> context) {
-    return new DynamicBooleanExpression(expression, context);
+  public static <T extends ScriptContext> DynamicBooleanExpression<T> dynamic(String expression,
+    ScriptContextDescription<T> context) {
+    return new DynamicBooleanExpression<>(expression, context);
   }
 
   @Override
   public boolean evaluate(WithTags input, List<String> matchKeys) {
-    return input instanceof ScriptContext context && expression.evaluate(context);
+    return inputClass.isInstance(input) && expression.evaluate(inputClass.cast(input));
   }
 
   @Override
@@ -37,11 +42,13 @@ public final class DynamicBooleanExpression implements Expression {
 
   @Override
   public boolean equals(Object o) {
-    return o == this || (o instanceof DynamicBooleanExpression e && Objects.equals(e.expressionText, expressionText));
+    return o == this ||
+      (o instanceof DynamicBooleanExpression<?> e && Objects.equals(e.expressionText, expressionText) &&
+        Objects.equals(e.inputClass, inputClass));
   }
 
   @Override
   public int hashCode() {
-    return expressionText.hashCode();
+    return Objects.hash(expressionText, inputClass);
   }
 }

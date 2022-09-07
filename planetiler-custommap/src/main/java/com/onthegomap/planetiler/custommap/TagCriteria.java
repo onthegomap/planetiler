@@ -18,8 +18,10 @@ import java.util.regex.Pattern;
 
 /**
  * Utility that maps expressions in YAML format to {@link Expression Expressions}.
+ *
+ * @param <T> Input type of the expression
  */
-public class TagCriteria {
+public class TagCriteria<T extends ScriptContext> {
 
   private static final Pattern ESCAPED =
     Pattern.compile("^([\\s\\\\]*)\\\\(__any__|__all__)", Pattern.CASE_INSENSITIVE);
@@ -31,25 +33,24 @@ public class TagCriteria {
   private static final Predicate<String> IS_NOT =
     Pattern.compile("^\\s*__not__\\s*$", Pattern.CASE_INSENSITIVE).asMatchPredicate();
   private final TagValueProducer tagValueProducer;
-  private final ScriptContextDescription<ScriptContext> context;
+  private final ScriptContextDescription<T> context;
 
-  private TagCriteria(TagValueProducer tagValueProducer, ScriptContextDescription<? extends ScriptContext> context) {
+  private TagCriteria(TagValueProducer tagValueProducer, ScriptContextDescription<T> context) {
     this.tagValueProducer = tagValueProducer;
-    @SuppressWarnings("unchecked") ScriptContextDescription<ScriptContext> casted =
-      (ScriptContextDescription<ScriptContext>) context;
-    this.context = casted;
+    this.context = context;
   }
 
   /**
    * Returns a function that determines whether a source feature matches any of the entries in this specification
    *
+   * @param <T>              Type of input the expression takes
    * @param object           a map or list of tag criteria
    * @param tagValueProducer a TagValueProducer
    * @return a predicate which returns true if this criteria matches
    */
-  public static Expression matcher(Object object, TagValueProducer tagValueProducer,
-    ScriptContextDescription<? extends ScriptContext> context) {
-    return new TagCriteria(tagValueProducer, context).matcher(object);
+  public static <T extends ScriptContext> Expression matcher(Object object, TagValueProducer tagValueProducer,
+    ScriptContextDescription<T> context) {
+    return new TagCriteria<>(tagValueProducer, context).matcher(object);
   }
 
   private Expression matcher(Object object) {
