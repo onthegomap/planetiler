@@ -4,7 +4,6 @@ import static com.onthegomap.planetiler.custommap.TagCriteria.matcher;
 import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
-import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
@@ -29,13 +28,13 @@ import java.util.function.ToIntFunction;
  * A map feature, configured from a YML configuration file.
  *
  * {@link #matchExpression()} returns a filtering expression to limit input elements to ones this feature cares about,
- * and {@link #processFeature(Contexts.ProcessFeature.PostMatch, FeatureCollector)} processes matching elements.
+ * and {@link #processFeature(Contexts.FeatureMatch, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
 
   private final Set<String> sources;
   private final Expression geometryTest;
-  private final Function<FeatureCollector, Feature> geometryFactory;
+  private final Function<FeatureCollector, FeatureCollector.Feature> geometryFactory;
   private final Expression tagTest;
   private final Index<Integer> zoomOverride;
   private final Integer featureMinZoom;
@@ -51,7 +50,7 @@ public class ConfiguredFeature {
 
   @FunctionalInterface
   private interface AttributeProcessor {
-    void process(Contexts.ProcessFeature.PostMatch context, Feature outputFeature);
+    void process(Contexts.FeatureMatch context, FeatureCollector.Feature outputFeature);
   }
 
   public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
@@ -70,12 +69,12 @@ public class ConfiguredFeature {
     if (feature.includeWhen() == null) {
       filter = Expression.TRUE;
     } else {
-      filter = matcher(feature.includeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION);
+      filter = matcher(feature.includeWhen(), tagValueProducer, Contexts.Feature.DESCRIPTION);
     }
     if (feature.excludeWhen() != null) {
       filter = Expression.and(
         filter,
-        Expression.not(matcher(feature.excludeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION))
+        Expression.not(matcher(feature.excludeWhen(), tagValueProducer, Contexts.Feature.DESCRIPTION))
       );
     }
     tagTest = filter;
@@ -111,7 +110,7 @@ public class ConfiguredFeature {
     return MultiExpression.of(
       zoom.stream()
         .map(config -> MultiExpression.entry(config.min(),
-          matcher(config.tag(), tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION)))
+          matcher(config.tag(), tagValueProducer, Contexts.FeatureMatch.DESCRIPTION)))
         .toList())
       .index();
   }
@@ -131,7 +130,7 @@ public class ConfiguredFeature {
     if (value != null) {
       String rawExpression = ConfigExpression.extractFromEscaped(value);
       if (rawExpression != null) {
-        var expression = ConfigExpression.parse(rawExpression, Contexts.ProcessFeature.PostMatch.DESCRIPTION);
+        var expression = ConfigExpression.parse(rawExpression, Contexts.FeatureMatch.DESCRIPTION);
         return expression::evaluate;
       } else {
         return context -> value;
@@ -150,9 +149,9 @@ public class ConfiguredFeature {
 
     String type = attribute.type();
     if ("match_key".equals(type)) {
-      return Contexts.ProcessFeature.PostMatch::matchKey;
+      return Contexts.FeatureMatch::matchKey;
     } else if ("match_value".equals(type)) {
-      return Contexts.ProcessFeature.PostMatch::matchValue;
+      return Contexts.FeatureMatch::matchValue;
     } else if (type != null) {
       throw new IllegalArgumentException("Unrecognized value for type: " + type);
     }
@@ -169,13 +168,13 @@ public class ConfiguredFeature {
    * @param minZoomByValue - map of tag values to zoom level
    * @return minimum zoom function
    */
-  private static Function<Contexts.ProcessFeature.PostMatch.AttrZoom, Integer> attributeZoomThreshold(
+  private static Function<Contexts.FeatureMatchAttr, Integer> attributeZoomThreshold(
     Double minTilePercent,
     Object rawMinZoom, Map<Object, Integer> minZoomByValue) {
 
     String expression = ConfigExpression.extractFromEscaped(rawMinZoom);
     if (expression != null) {
-      return ConfigExpression.parse(expression, Contexts.ProcessFeature.PostMatch.AttrZoom.DESCRIPTION,
+      return ConfigExpression.parse(expression, Contexts.FeatureMatchAttr.DESCRIPTION,
         Integer.class);
     }
 
@@ -238,14 +237,14 @@ public class ConfiguredFeature {
     var attributeTest =
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE :
-          matcher(attrIncludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION),
+          matcher(attrIncludeWhen, tagValueProducer, Contexts.FeatureMatch.DESCRIPTION),
         attrExcludeWhen == null ? Expression.TRUE :
-          not(matcher(attrExcludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION))
+          not(matcher(attrExcludeWhen, tagValueProducer, Contexts.FeatureMatch.DESCRIPTION))
       ).simplify();
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
 
-    Function<Contexts.ProcessFeature.PostMatch.AttrZoom, Integer> attributeZoomProducer =
+    Function<Contexts.FeatureMatchAttr, Integer> attributeZoomProducer =
       attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
     return (context, f) -> {
@@ -279,7 +278,7 @@ public class ConfiguredFeature {
    * @param context  The evaluation context containing the source feature
    * @param features output rendered feature collector
    */
-  public void processFeature(Contexts.ProcessFeature.PostMatch context, FeatureCollector features) {
+  public void processFeature(Contexts.FeatureMatch context, FeatureCollector features) {
     var sourceFeature = context.feature();
 
     //Ensure that this feature is from the correct source
