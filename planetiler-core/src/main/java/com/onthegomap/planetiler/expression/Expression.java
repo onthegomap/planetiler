@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.expression;
 
 import static com.onthegomap.planetiler.expression.ValueGetter.GET_TAG;
 
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
@@ -37,9 +37,9 @@ public interface Expression {
   String LINESTRING_TYPE = "linestring";
   String POINT_TYPE = "point";
   String POLYGON_TYPE = "polygon";
-  String RELATION_MEMBER_TYPE = "relation_member";
+  String UNKNOWN_GEOMETRY_TYPE = "unknown";
 
-  Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
+  Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, UNKNOWN_GEOMETRY_TYPE);
   Expression TRUE = new Constant(true, "TRUE");
   Expression FALSE = new Constant(false, "FALSE");
 
@@ -530,12 +530,11 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input instanceof SourceFeature sourceFeature) {
+      if (input instanceof WithGeometryType withGeom) {
         return switch (type) {
-          case LINESTRING_TYPE -> sourceFeature.canBeLine();
-          case POLYGON_TYPE -> sourceFeature.canBePolygon();
-          case POINT_TYPE -> sourceFeature.isPoint();
-          case RELATION_MEMBER_TYPE -> sourceFeature.hasRelationInfo();
+          case LINESTRING_TYPE -> withGeom.canBeLine();
+          case POLYGON_TYPE -> withGeom.canBePolygon();
+          case POINT_TYPE -> withGeom.isPoint();
           default -> false;
         };
       } else {

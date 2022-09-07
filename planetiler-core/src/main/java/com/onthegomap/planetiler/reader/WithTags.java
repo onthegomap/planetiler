@@ -6,6 +6,9 @@ import java.util.Map;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
+  static WithTags wrap(Map<String, Object> tags) {
+    return new Simple(tags);
+  }
 
   /** The key/value pairs on this element. */
   Map<String, Object> tags();
@@ -108,4 +111,6 @@ public interface WithTags {
   default void setTag(String key, Object value) {
     tags().put(key, value);
   }
+
+  record Simple(@Override Map<String, Object> tags) implements WithTags {}
 }

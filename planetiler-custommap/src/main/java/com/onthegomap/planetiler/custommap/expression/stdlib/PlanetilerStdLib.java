@@ -6,24 +6,31 @@ import com.google.api.expr.v1alpha1.Type;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.projectnessie.cel.checker.Decls;
+import org.projectnessie.cel.common.types.BoolT;
 import org.projectnessie.cel.common.types.Err;
 import org.projectnessie.cel.common.types.NullT;
 import org.projectnessie.cel.common.types.StringT;
+import org.projectnessie.cel.common.types.ref.Val;
+import org.projectnessie.cel.common.types.traits.Mapper;
 import org.projectnessie.cel.interpreter.functions.Overload;
 
 /**
  * Built-in functions to expose to all CEL expression used in planetiler configs.
  */
 public class PlanetilerStdLib extends PlanetilerLib {
+  private static final int VARARG_LIMIT = 32;
   private static final Type T = Decls.newTypeParamType("T");
+  private static final Type K = Decls.newTypeParamType("K");
+  private static final Type V = Decls.newTypeParamType("V");
 
   public PlanetilerStdLib() {
     super(List.of(
       // coalesce(a, b, c...) -> first non-null value
       new BuiltInFunction(
         Decls.newFunction("coalesce",
-          IntStream.range(0, 22)
+          IntStream.range(0, VARARG_LIMIT)
             .mapToObj(
               i -> newOverload("coalesce_" + i, IntStream.range(0, i).mapToObj(d -> Decls.Any).toList(), Decls.Any))
             .toList()
@@ -65,7 +72,63 @@ public class PlanetilerStdLib extends PlanetilerLib {
             return Err.newErr(e, "%s", e.getMessage());
           }
         })
-      )
-    ));
+      ),
+
+      // map.has(key) -> true if key is present in map
+      // map.has(key, value...) true if the value for key is in the list of values provided
+      new BuiltInFunction(
+        Decls.newFunction("has",
+          IntStream.range(0, VARARG_LIMIT)
+            .mapToObj(
+              i -> Decls.newInstanceOverload("map_has_" + i, Stream.concat(
+                Stream.of(Decls.newMapType(K, V), K),
+                IntStream.range(0, i).mapToObj(n -> V)
+              ).toList(), Decls.Bool)
+            ).toList()
+        ),
+        Overload.overload("has",
+          null,
+          null,
+          (map, key) -> {
+            try {
+              return getFromMap(map, key) != null ? BoolT.True : BoolT.False;
+            } catch (RuntimeException e) {
+              return Err.newErr(e, "%s", e.getMessage());
+            }
+          },
+          args -> {
+            try {
+              Val elem = getFromMap(args[0], args[1]);
+              if (elem == null) {
+                return BoolT.False;
+              }
+              for (int i = 2; i < args.length; i++) {
+                if (args[i].equals(elem)) {
+                  return BoolT.True;
+                }
+              }
+              return BoolT.False;
+            } catch (RuntimeException e) {
+              return Err.newErr(e, "%s", e.getMessage());
+            }
+          })
+      ),
+
+      // map.get(key) -> the value for key, or null if missing
+      new BuiltInFunction(
+        Decls.newFunction("get", Decls.newInstanceOverload("get", List.of(Decls.newMapType(K, V), K), V)),
+        Overload.binary("get", (map, key) -> {
+          try {
+            var value = getFromMap(map, key);
+            return value == null ? NullT.NullValue : value;
+          } catch (RuntimeException e) {
+            return Err.newErr(e, "%s", e.getMessage());
+          }
+        })
+      )));
+  }
+
+  private static Val getFromMap(Val map, Val key) {
+    return map instanceof Mapper mapper ? mapper.find(key) : null;
   }
 }

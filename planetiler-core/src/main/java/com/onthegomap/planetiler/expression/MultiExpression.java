@@ -3,10 +3,9 @@ package com.onthegomap.planetiler.expression;
 import static com.onthegomap.planetiler.expression.Expression.FALSE;
 import static com.onthegomap.planetiler.expression.Expression.TRUE;
 import static com.onthegomap.planetiler.expression.Expression.matchType;
-import static com.onthegomap.planetiler.geo.GeoUtils.EMPTY_GEOMETRY;
 
-import com.onthegomap.planetiler.reader.SimpleFeature;
-import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithGeometryType;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -28,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * {@link #index()} returns an optimized {@link Index} that evaluates the minimal set of expressions on the keys present
  * on the element.
  * <p>
- * {@link Index#getMatches(SourceFeature)} returns the data value associated with the expressions that match an input
+ * {@link Index#getMatches(WithTags)} )} returns the data value associated with the expressions that match an input
  * element.
  *
  * @param <T> type of data value associated with each expression
@@ -47,10 +46,10 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /**
-   * Evaluates a list of expressions on an input element, storing the matches into {@code result} and using {@code
-   * visited} to avoid evaluating an expression more than once.
+   * Evaluates a list of expressions on an input element, storing the matches into {@code result} and using
+   * {@code visited} to avoid evaluating an expression more than once.
    */
-  private static <T> void visitExpressions(SourceFeature input, List<Match<T>> result,
+  private static <T> void visitExpressions(WithTags input, List<Match<T>> result,
     boolean[] visited, List<EntryWithId<T>> expressions) {
     if (expressions != null) {
       for (EntryWithId<T> expressionValue : expressions) {
@@ -79,7 +78,9 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     } else if (expression instanceof Expression.MatchAny any && any.matchWhenMissing()) {
       return true;
     } else {
-      return TRUE.equals(expression);
+      return !(expression instanceof Expression.MatchAny) &&
+        !(expression instanceof Expression.MatchField) &&
+        !FALSE.equals(expression);
     }
   }
 
@@ -136,8 +137,8 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /**
-   * Returns a copy of this multi-expression that replaces every sub-expression that matches {@code test} with {@code
-   * b}.
+   * Returns a copy of this multi-expression that replaces every sub-expression that matches {@code test} with
+   * {@code b}.
    */
   public MultiExpression<T> replace(Predicate<Expression> test, Expression b) {
     return map(e -> e.replace(test, b));
@@ -176,14 +177,14 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   /**
    * An optimized index for finding which expressions match an input element.
    *
-   * @param <T> type of data value associated with each expression
+   * @param <O> type of data value associated with each expression
    */
-  public interface Index<T> {
+  public interface Index<O> {
 
-    List<Match<T>> getMatchesWithTriggers(SourceFeature input);
+    List<Match<O>> getMatchesWithTriggers(WithTags input);
 
     /** Returns all data values associated with expressions that match an input element. */
-    default List<T> getMatches(SourceFeature input) {
+    default List<O> getMatches(WithTags input) {
       return getMatchesWithTriggers(input).stream().map(d -> d.match).toList();
     }
 
@@ -191,21 +192,21 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
      * Returns the data value associated with the first expression that match an input element, or {@code defaultValue}
      * if none match.
      */
-    default T getOrElse(SourceFeature input, T defaultValue) {
-      List<T> matches = getMatches(input);
+    default O getOrElse(WithTags input, O defaultValue) {
+      List<O> matches = getMatches(input);
       return matches.isEmpty() ? defaultValue : matches.get(0);
     }
 
     /**
      * Returns the data value associated with expressions matching a feature with {@code tags}.
      */
-    default T getOrElse(Map<String, Object> tags, T defaultValue) {
-      List<T> matches = getMatches(SimpleFeature.create(EMPTY_GEOMETRY, tags));
+    default O getOrElse(Map<String, Object> tags, O defaultValue) {
+      List<O> matches = getMatches(WithTags.wrap(tags));
       return matches.isEmpty() ? defaultValue : matches.get(0);
     }
 
     /** Returns true if any expression matches that tags from an input element. */
-    default boolean matches(SourceFeature input) {
+    default boolean matches(WithTags input) {
       return !getMatchesWithTriggers(input).isEmpty();
     }
 
@@ -215,13 +216,14 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   private interface WithId {
+
     int id();
   }
 
   private static class EmptyIndex<T> implements Index<T> {
 
     @Override
-    public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
+    public List<Match<T>> getMatchesWithTriggers(WithTags input) {
       return List.of();
     }
 
@@ -278,7 +280,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
 
     /** Lookup matches in this index for expressions that match a certain type. */
     @Override
-    public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
+    public List<Match<T>> getMatchesWithTriggers(WithTags input) {
       List<Match<T>> result = new ArrayList<>();
       boolean[] visited = new boolean[numExpressions];
       visitExpressions(input, result, visited, alwaysEvaluateExpressionList);
@@ -305,6 +307,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
     private final KeyIndex<T> pointIndex;
     private final KeyIndex<T> lineIndex;
     private final KeyIndex<T> polygonIndex;
+    private final KeyIndex<T> otherIndex;
 
     private GeometryTypeIndex(MultiExpression<T> expressions, boolean warn) {
       // build an index per type then search in each of those indexes based on the geometry type of each input element
@@ -312,6 +315,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       pointIndex = indexForType(expressions, Expression.POINT_TYPE, warn);
       lineIndex = indexForType(expressions, Expression.LINESTRING_TYPE, warn);
       polygonIndex = indexForType(expressions, Expression.POLYGON_TYPE, warn);
+      otherIndex = indexForType(expressions, Expression.UNKNOWN_GEOMETRY_TYPE, warn);
     }
 
     private KeyIndex<T> indexForType(MultiExpression<T> expressions, String type, boolean warn) {
@@ -328,20 +332,24 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
      * Returns all data values associated with expressions that match an input element, along with the tag keys that
      * caused the match.
      */
-    public List<Match<T>> getMatchesWithTriggers(SourceFeature input) {
+    public List<Match<T>> getMatchesWithTriggers(WithTags input) {
       List<Match<T>> result;
-      if (input.isPoint()) {
-        result = pointIndex.getMatchesWithTriggers(input);
-      } else if (input.canBeLine()) {
-        result = lineIndex.getMatchesWithTriggers(input);
-        // closed ways can be lines or polygons, unless area=yes or no
-        if (input.canBePolygon()) {
-          result.addAll(polygonIndex.getMatchesWithTriggers(input));
+      if (input instanceof WithGeometryType withGeometryType) {
+        if (withGeometryType.isPoint()) {
+          result = pointIndex.getMatchesWithTriggers(input);
+        } else if (withGeometryType.canBeLine()) {
+          result = lineIndex.getMatchesWithTriggers(input);
+          // closed ways can be lines or polygons, unless area=yes or no
+          if (withGeometryType.canBePolygon()) {
+            result.addAll(polygonIndex.getMatchesWithTriggers(input));
+          }
+        } else if (withGeometryType.canBePolygon()) {
+          result = polygonIndex.getMatchesWithTriggers(input);
+        } else {
+          result = otherIndex.getMatchesWithTriggers(input);
         }
-      } else if (input.canBePolygon()) {
-        result = polygonIndex.getMatchesWithTriggers(input);
       } else {
-        result = pointIndex.getMatchesWithTriggers(input);
+        result = otherIndex.getMatchesWithTriggers(input);
       }
       result.sort(BY_ID);
       return result;

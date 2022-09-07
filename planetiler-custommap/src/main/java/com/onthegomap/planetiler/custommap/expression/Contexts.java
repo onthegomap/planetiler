@@ -2,7 +2,10 @@ package com.onthegomap.planetiler.custommap.expression;
 
 import com.onthegomap.planetiler.custommap.TagValueProducer;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.WithGeometryType;
+import com.onthegomap.planetiler.reader.WithTags;
 import java.util.List;
+import java.util.Map;
 import org.projectnessie.cel.checker.Decls;
 import org.projectnessie.cel.common.types.NullT;
 
@@ -18,13 +21,44 @@ public class Contexts {
     return nullable == null ? NullT.NullValue : nullable;
   }
 
+  private interface FeatureContext extends ScriptContext, WithTags, WithGeometryType {
+    default FeatureContext parent() {
+      return null;
+    }
+
+    default SourceFeature feature() {
+      return parent().feature();
+    }
+
+    @Override
+    default Map<String, Object> tags() {
+      return feature().tags();
+    }
+
+    @Override
+    default boolean isPoint() {
+      return feature().isPoint();
+    }
+
+    @Override
+    default boolean canBeLine() {
+      return feature().canBeLine();
+    }
+
+    @Override
+    default boolean canBePolygon() {
+      return feature().canBePolygon();
+    }
+  }
+
   /**
    * Context available when processing an input feature.
    *
    * @param feature          The input feature being processed
    * @param tagValueProducer Common parsing for input feature tags
    */
-  public record ProcessFeature(SourceFeature feature, TagValueProducer tagValueProducer) implements ScriptContext {
+  public record ProcessFeature(@Override SourceFeature feature, TagValueProducer tagValueProducer)
+    implements FeatureContext {
 
     private static final String FEATURE_TAGS = "feature.tags";
     private static final String FEATURE_ID = "feature.id";
@@ -67,7 +101,7 @@ public class Contexts {
      * @param parent    The parent context
      * @param matchKeys Keys that triggered the match
      */
-    public record PostMatch(ProcessFeature parent, List<String> matchKeys) implements ScriptContext {
+    public record PostMatch(@Override ProcessFeature parent, List<String> matchKeys) implements FeatureContext {
 
       private static final String MATCH_KEY = "match_key";
       private static final String MATCH_VALUE = "match_value";
@@ -82,8 +116,8 @@ public class Contexts {
       public Object apply(String key) {
         if (key != null) {
           return switch (key) {
-            case MATCH_KEY -> matchKey();
-            case MATCH_VALUE -> matchValue();
+            case MATCH_KEY -> wrapNullable(matchKey());
+            case MATCH_VALUE -> wrapNullable(matchValue());
             default -> parent.apply(key);
           };
         } else {
@@ -97,11 +131,7 @@ public class Contexts {
 
       public Object matchValue() {
         String matchKey = matchKey();
-        return parent.tagValueProducer.valueForKey(parent().feature(), matchKey);
-      }
-
-      public SourceFeature sourceFeature() {
-        return parent.feature;
+        return matchKey == null ? null : parent.tagValueProducer.valueForKey(parent().feature(), matchKey);
       }
 
       public AttrZoom createAttrZoomContext(Object value) {
@@ -115,7 +145,7 @@ public class Contexts {
        * @param parent The parent context
        * @param value  Value of the attribute
        */
-      public record AttrZoom(PostMatch parent, Object value) implements ScriptContext {
+      public record AttrZoom(@Override PostMatch parent, Object value) implements FeatureContext {
         private static final String VALUE = "value";
         public static final ScriptContextDescription<AttrZoom> DESCRIPTION = PostMatch.DESCRIPTION
           .withDeclarations(Decls.newVar(VALUE, Decls.Any));

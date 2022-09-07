@@ -33,6 +33,16 @@ class ExpressionTests {
 
     "'abc'.matches('a.c')|true|boolean",
     "'abc'.matches('a.d')|false|boolean",
+
+    "{'a': 1}.has('a')|true|boolean",
+    "{'a': 1}.has('a', 1)|true|boolean",
+    "{'a': 1}.has('a', 1, 2)|true|boolean",
+    "{'a': 2}.has('a', 1, 2)|true|boolean",
+    "{'a': 2}.has('a', 3)|false|boolean",
+    "{'a': 1}.has('b')|false|boolean",
+
+    "coalesce({'a': 1}.get('a'), 2)|1|long",
+    "coalesce({'a': 1}.get('b'), 2)|2|long",
   }, delimiter = '|')
   void testExpression(String in, String expected, String type) {
     var expression = ConfigExpression.parse(in, ScriptContextDescription.root());

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.reader.WithTags;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -250,5 +251,36 @@ class ExpressionTest {
     //Constants
     assertTrue(TRUE.evaluate(feature));
     assertFalse(FALSE.evaluate(feature));
+  }
+
+  @Test
+  void testCustomExpression() {
+    Expression custom = new Expression() {
+      @Override
+      public boolean evaluate(WithTags input, List<String> matchKeys) {
+        return input.hasTag("abc");
+      }
+
+      @Override
+      public String generateJavaCode() {
+        return null;
+      }
+    };
+    WithTags matching = featureWithTags("abc", "123");
+    WithTags notMatching = featureWithTags("abcd", "123");
+
+    assertTrue(custom.evaluate(matching));
+    assertTrue(and(custom).evaluate(matching));
+    assertTrue(and(custom, custom).evaluate(matching));
+    assertTrue(or(custom, custom).evaluate(matching));
+    assertTrue(and(TRUE, custom).evaluate(matching));
+    assertTrue(or(FALSE, custom).evaluate(matching));
+
+    assertFalse(custom.evaluate(notMatching));
+    assertFalse(and(custom).evaluate(notMatching));
+    assertFalse(and(custom, custom).evaluate(notMatching));
+    assertFalse(or(custom, custom).evaluate(notMatching));
+    assertFalse(and(TRUE, custom).evaluate(notMatching));
+    assertFalse(or(FALSE, custom).evaluate(notMatching));
   }
 }

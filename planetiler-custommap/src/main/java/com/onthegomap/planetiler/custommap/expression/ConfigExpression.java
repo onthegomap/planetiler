@@ -21,6 +21,15 @@ public class ConfigExpression<I extends ScriptContext, O> implements Function<I,
     this.scriptText = scriptText;
   }
 
+  /** Returns true if this is a string expression like {@code "${ ... }"} */
+  public static boolean isExpression(Object obj) {
+    if (obj instanceof String string) {
+      var matcher = EXPRESSION_PATTERN.matcher(string);
+      return matcher.matches();
+    }
+    return false;
+  }
+
   public static String extractFromEscaped(Object obj) {
     if (obj instanceof String string) {
       var matcher = EXPRESSION_PATTERN.matcher(string);

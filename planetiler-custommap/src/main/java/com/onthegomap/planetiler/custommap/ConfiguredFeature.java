@@ -70,12 +70,12 @@ public class ConfiguredFeature {
     if (feature.includeWhen() == null) {
       filter = Expression.TRUE;
     } else {
-      filter = matcher(feature.includeWhen(), tagValueProducer);
+      filter = matcher(feature.includeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION);
     }
     if (feature.excludeWhen() != null) {
       filter = Expression.and(
         filter,
-        Expression.not(matcher(feature.excludeWhen(), tagValueProducer))
+        Expression.not(matcher(feature.excludeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION))
       );
     }
     tagTest = filter;
@@ -110,7 +110,8 @@ public class ConfiguredFeature {
 
     return MultiExpression.of(
       zoom.stream()
-        .map(config -> MultiExpression.entry(config.min(), matcher(config.tag(), tagValueProducer)))
+        .map(config -> MultiExpression.entry(config.min(),
+          matcher(config.tag(), tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION)))
         .toList())
       .index();
   }
@@ -192,12 +193,11 @@ public class ConfiguredFeature {
     ToIntFunction<SourceFeature> staticZooms = sf -> Math.max(minZoom, minZoomFromTilePercent(sf, minTilePercent));
 
     if (minZoomByValue.isEmpty()) {
-      return context -> staticZooms.applyAsInt(context.parent().sourceFeature());
+      return context -> staticZooms.applyAsInt(context.feature());
     }
 
     //Attribute value-specific zooms override static zooms
-    return context -> minZoomByValue.getOrDefault(context.value(), staticZooms.applyAsInt(context.parent()
-      .sourceFeature()));
+    return context -> minZoomByValue.getOrDefault(context.value(), staticZooms.applyAsInt(context.feature()));
   }
 
   private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
@@ -237,8 +237,10 @@ public class ConfiguredFeature {
 
     var attributeTest =
       Expression.and(
-        attrIncludeWhen == null ? Expression.TRUE : matcher(attrIncludeWhen, tagValueProducer),
-        attrExcludeWhen == null ? Expression.TRUE : not(matcher(attrExcludeWhen, tagValueProducer))
+        attrIncludeWhen == null ? Expression.TRUE :
+          matcher(attrIncludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION),
+        attrExcludeWhen == null ? Expression.TRUE :
+          not(matcher(attrExcludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION))
       ).simplify();
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
@@ -248,7 +250,7 @@ public class ConfiguredFeature {
 
     return (context, f) -> {
       Object value = null;
-      if (attributeTest.evaluate(context.parent().feature())) {
+      if (attributeTest.evaluate(context)) {
         value = attributeValueProducer.apply(context);
       }
       if (value == null) {
@@ -285,14 +287,14 @@ public class ConfiguredFeature {
    * @param features output rendered feature collector
    */
   public void processFeature(Contexts.ProcessFeature.PostMatch context, FeatureCollector features) {
-    var sourceFeature = context.sourceFeature();
+    var sourceFeature = context.feature();
 
     //Ensure that this feature is from the correct source
     if (!sources.contains(sourceFeature.getSource())) {
       return;
     }
 
-    var minZoom = zoomOverride.getOrElse(sourceFeature, featureMinZoom);
+    var minZoom = zoomOverride.getOrElse(context, featureMinZoom);
 
     var f = geometryFactory.apply(features)
       .setMinZoom(minZoom)

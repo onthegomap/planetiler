@@ -514,6 +514,105 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+  @ParameterizedTest
+  @CsvSource(value = {
+    "\"${feature.tags.has('natural', 'water')}\"",
+    "{__all__: [\"${feature.tags.has('natural', 'water')}\"]}",
+  }, delimiter = '|')
+  void testExpressionInMatch(String filter) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when: %s
+      """.formatted(filter);
+
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+    }, 1);
+
+    testPolygon(config, Map.of(
+      "natural", "other"
+    ), feature -> {
+    }, 0);
+
+    testPolygon(config, Map.of(
+    ), feature -> {
+    }, 0);
+  }
+
+  @Test
+  void testExpressionAttrFilter() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when:
+            natural: water
+            highway: motorway
+          attributes:
+          - key: key
+            value: true
+            include_when: ${ match_value.startsWith("wa") }
+            else: false
+      """;
+
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(true, feature.getAttrsAtZoom(14).get("key"));
+    }, 1);
+
+    testPolygon(config, Map.of(
+      "highway", "motorway"
+    ), feature -> {
+      assertEquals(false, feature.getAttrsAtZoom(14).get("key"));
+    }, 1);
+  }
+
+  @Test
+  void testExpressionAttrFilterNoMatchingKey() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          include_when: ${ feature.tags.has("natural", "water") }
+          attributes:
+          - key: key
+            value: true
+            include_when: ${ coalesce(match_value, '').startsWith("wa") }
+            else: false
+      """;
+
+    testPolygon(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(false, feature.getAttrsAtZoom(14).get("key"));
+    }, 1);
+  }
+
   @Test
   void testGeometryTypeMismatch() {
     //Validate that a schema that filters on lines does not match on a polygon feature
