@@ -5,14 +5,19 @@ import static org.projectnessie.cel.checker.Decls.newOverload;
 import com.google.api.expr.v1alpha1.Type;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.DoubleBinaryOperator;
+import java.util.function.LongBinaryOperator;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.projectnessie.cel.checker.Decls;
 import org.projectnessie.cel.common.types.BoolT;
+import org.projectnessie.cel.common.types.DoubleT;
 import org.projectnessie.cel.common.types.Err;
+import org.projectnessie.cel.common.types.IntT;
 import org.projectnessie.cel.common.types.NullT;
 import org.projectnessie.cel.common.types.StringT;
 import org.projectnessie.cel.common.types.ref.Val;
+import org.projectnessie.cel.common.types.traits.Lister;
 import org.projectnessie.cel.common.types.traits.Mapper;
 import org.projectnessie.cel.interpreter.functions.Overload;
 
@@ -125,10 +130,70 @@ public class PlanetilerStdLib extends PlanetilerLib {
             return Err.newErr(e, "%s", e.getMessage());
           }
         })
-      )));
+      ),
+
+      // map.getOrDefault(key, default) -> the value for key, or default if missing
+      new BuiltInFunction(
+        Decls.newFunction("getOrDefault",
+          Decls.newInstanceOverload("getOrDefault", List.of(Decls.newMapType(K, V), K, V), V)),
+        Overload.function("getOrDefault", args -> {
+          try {
+            var value = getFromMap(args[0], args[1]);
+            return value == null ? args[2] : value;
+          } catch (RuntimeException e) {
+            return Err.newErr(e, "%s", e.getMessage());
+          }
+        })
+      ),
+
+      // min(list) -> the minimum value from the list, or null if empty
+      new BuiltInFunction(
+        Decls.newFunction("min",
+          Decls.newOverload("min_int", List.of(Decls.newListType(Decls.Int)), Decls.Int),
+          Decls.newOverload("min_double", List.of(Decls.newListType(Decls.Double)), Decls.Double)
+        ),
+        Overload.unary("min", list -> reduceNumeric(list, Math::min, Math::min))
+      ),
+
+      // max(list) -> the maximum value from the list, or null if empty
+      new BuiltInFunction(
+        Decls.newFunction("max",
+          Decls.newOverload("max_int", List.of(Decls.newListType(Decls.Int)), Decls.Int),
+          Decls.newOverload("max_double", List.of(Decls.newListType(Decls.Double)), Decls.Double)
+        ),
+        Overload.unary("max", list -> reduceNumeric(list, Math::max, Math::max))
+      )
+    ));
   }
 
   private static Val getFromMap(Val map, Val key) {
     return map instanceof Mapper mapper ? mapper.find(key) : null;
+  }
+
+  private static Val reduceNumeric(Val list, LongBinaryOperator intFn, DoubleBinaryOperator doubleFn) {
+    try {
+      var iterator = ((Lister) list).iterator();
+      if (!iterator.hasNext().booleanValue()) {
+        return NullT.NullValue;
+      }
+      var next = iterator.next();
+      if (next instanceof IntT intT) {
+        long acc = intT.intValue();
+        while (iterator.hasNext().booleanValue()) {
+          acc = intFn.applyAsLong(iterator.next().convertToNative(Long.class), acc);
+        }
+        return IntT.intOf(acc);
+      } else if (next instanceof DoubleT doubleT) {
+        double acc = doubleT.convertToNative(Double.class);
+        while (iterator.hasNext().booleanValue()) {
+          acc = doubleFn.applyAsDouble(iterator.next().convertToNative(Double.class), acc);
+        }
+        return DoubleT.doubleOf(acc);
+      } else {
+        return Err.newErr("Bad element of list for min(): %s", next);
+      }
+    } catch (RuntimeException e) {
+      return Err.newErr(e, "%s", e.getMessage());
+    }
   }
 }

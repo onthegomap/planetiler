@@ -5,7 +5,6 @@ import java.util.Map;
 
 public record AttributeDefinition(
   String key,
-  @JsonProperty("constant_value") Object constantValue,
   @JsonProperty("value") Object value,
   @JsonProperty("tag_value") String tagValue,
   @JsonProperty("include_when") Object includeWhen,

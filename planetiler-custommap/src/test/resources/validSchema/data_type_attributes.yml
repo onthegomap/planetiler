@@ -8,8 +8,10 @@ sources:
 tag_mappings:
   b_type: boolean
   l_type: long
+  i_type: integer
   d_type: direction
   s_type: string
+  double_type: double
   intermittent:
     output: is_intermittent
     type: boolean
@@ -24,6 +26,8 @@ layers:
     attributes:
     - key: b_type
     - key: l_type
+    - key: i_type
+    - key: double_type
     - key: d_type
     - key: s_type
     - key: intermittent

@@ -64,14 +64,8 @@ public class Parse {
 
   /** Returns {@code tag} as an integer or null if invalid. */
   public static Integer parseIntOrNull(Object tag) {
-    if (tag instanceof Number num) {
-      return num.intValue();
-    }
-    if (!(tag instanceof String)) {
-      return null;
-    }
     try {
-      return Integer.parseInt(tag.toString());
+      return tag == null ? null : tag instanceof Number number ? number.intValue() : Integer.parseInt(tag.toString());
     } catch (NumberFormatException e) {
       return null;
     }
@@ -101,15 +95,10 @@ public class Parse {
   }
 
   /** Returns {@code tag} as a double or null if invalid. */
-  public static Double parseDoubleOrNull(Object value) {
-    if (value instanceof Number num) {
-      return num.doubleValue();
-    }
-    if (value == null) {
-      return null;
-    }
+  public static Double parseDoubleOrNull(Object tag) {
     try {
-      return Double.parseDouble(value.toString());
+      return tag == null ? null : tag instanceof Number number ? number.doubleValue() :
+        Double.parseDouble(tag.toString());
     } catch (NumberFormatException e) {
       return null;
     }

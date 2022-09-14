@@ -1,12 +1,11 @@
 package com.onthegomap.planetiler.expression;
 
-import static com.onthegomap.planetiler.expression.ValueGetter.GET_TAG;
+import static com.onthegomap.planetiler.expression.DataTypes.GET_TAG;
 
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-public interface Expression {
+public interface Expression extends Simplifiable<Expression> {
   Logger LOGGER = LoggerFactory.getLogger(Expression.class);
 
   String LINESTRING_TYPE = "linestring";
@@ -131,82 +130,6 @@ public interface Expression {
     return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
   }
 
-  private static Expression simplify(Expression initial) {
-    // iteratively simplify the expression until we reach a fixed point and start seeing
-    // an expression that's already been seen before
-    Expression simplified = initial;
-    Set<Expression> seen = new HashSet<>();
-    seen.add(simplified);
-    while (true) {
-      simplified = simplifyOnce(simplified);
-      if (seen.contains(simplified)) {
-        return simplified;
-      }
-      if (seen.size() > 1000) {
-        throw new IllegalStateException("Infinite loop while simplifying expression " + initial);
-      }
-      seen.add(simplified);
-    }
-  }
-
-  private static Expression simplifyOnce(Expression expression) {
-    if (expression instanceof Not not) {
-      if (not.child instanceof Or or) {
-        return and(or.children.stream().<Expression>map(Expression::not).toList());
-      } else if (not.child instanceof And and) {
-        return or(and.children.stream().<Expression>map(Expression::not).toList());
-      } else if (not.child instanceof Not not2) {
-        return not2.child;
-      } else if (not.child == TRUE) {
-        return FALSE;
-      } else if (not.child == FALSE) {
-        return TRUE;
-      } else if (not.child instanceof MatchAny any && any.values.equals(List.of(""))) {
-        return matchField(any.field);
-      }
-      return not;
-    } else if (expression instanceof Or or) {
-      if (or.children.isEmpty()) {
-        return FALSE;
-      }
-      if (or.children.size() == 1) {
-        return simplifyOnce(or.children.get(0));
-      }
-      if (or.children.contains(TRUE)) {
-        return TRUE;
-      }
-      return or(or.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
-        .filter(child -> child != FALSE) // or() == or(FALSE) == or(FALSE, FALSE) == FALSE, so safe to remove all here
-        .map(Expression::simplifyOnce).toList());
-    } else if (expression instanceof And and) {
-      if (and.children.isEmpty()) {
-        return TRUE;
-      }
-      if (and.children.size() == 1) {
-        return simplifyOnce(and.children.get(0));
-      }
-      if (and.children.contains(FALSE)) {
-        return FALSE;
-      }
-      return and(and.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
-        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
-        .map(Expression::simplifyOnce).toList());
-    } else if (expression instanceof MatchAny any && any.isMatchAnything()) {
-      return matchField(any.field);
-    } else {
-      return expression;
-    }
-  }
-
-  /** Returns an equivalent, simplified copy of this expression but does not modify {@code this}. */
-  default Expression simplify() {
-    return simplify(this);
-  }
-
   /** Returns a copy of this expression where every nested instance of {@code a} is replaced with {@code b}. */
   default Expression replace(Expression a, Expression b) {
     return replace(a::equals, b);
@@ -304,6 +227,25 @@ public interface Expression {
       }
       return true;
     }
+
+    @Override
+    public Expression simplifyOnce() {
+      if (children.isEmpty()) {
+        return TRUE;
+      }
+      if (children.size() == 1) {
+        return children.get(0).simplifyOnce();
+      }
+      if (children.contains(FALSE)) {
+        return FALSE;
+      }
+      return and(children.stream()
+        // hoist children
+        .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
+        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
+        .distinct()
+        .map(Simplifiable::simplifyOnce).toList());
+    }
   }
 
   record Or(List<Expression> children) implements Expression {
@@ -340,6 +282,24 @@ public interface Expression {
       return Objects.hash(children);
     }
 
+    @Override
+    public Expression simplifyOnce() {
+      if (children.isEmpty()) {
+        return FALSE;
+      }
+      if (children.size() == 1) {
+        return children.get(0).simplifyOnce();
+      }
+      if (children.contains(TRUE)) {
+        return TRUE;
+      }
+      return or(children.stream()
+        // hoist children
+        .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
+        .filter(child -> child != FALSE) // or() == or(FALSE) == or(FALSE, FALSE) == FALSE, so safe to remove all here
+        .distinct()
+        .map(Simplifiable::simplifyOnce).toList());
+    }
   }
 
   record Not(Expression child) implements Expression {
@@ -352,6 +312,24 @@ public interface Expression {
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
+    }
+
+    @Override
+    public Expression simplifyOnce() {
+      if (child instanceof Or or) {
+        return and(or.children.stream().<Expression>map(Expression::not).toList());
+      } else if (child instanceof And and) {
+        return or(and.children.stream().<Expression>map(Expression::not).toList());
+      } else if (child instanceof Not not2) {
+        return not2.child;
+      } else if (child == TRUE) {
+        return FALSE;
+      } else if (child == FALSE) {
+        return TRUE;
+      } else if (child instanceof MatchAny any && any.values.equals(List.of(""))) {
+        return matchField(any.field);
+      }
+      return this;
     }
   }
 
@@ -446,6 +424,11 @@ public interface Expression {
         }
         return false;
       }
+    }
+
+    @Override
+    public Expression simplifyOnce() {
+      return isMatchAnything() ? matchField(field) : this;
     }
 
     @Override

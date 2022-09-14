@@ -15,4 +15,4 @@ layers:
       natural: water
     attributes:
     - key: natural
-      constant_value: aTestConstantValue
+      value: aTestConstantValue

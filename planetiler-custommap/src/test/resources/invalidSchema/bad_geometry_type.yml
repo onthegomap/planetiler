@@ -15,4 +15,4 @@ layers:
       natural: water
     attributes:
     - key: water
-    - constant_value: wet
+    - value: wet

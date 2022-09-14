@@ -29,6 +29,12 @@ class ExpressionTest {
   }
 
   @Test
+  void testSimplifyDuplicates() {
+    assertEquals(matchAB, or(or(matchAB), or(matchAB)).simplify());
+    assertEquals(matchAB, and(matchAB, matchAB).simplify());
+  }
+
+  @Test
   void testMatchAnyEquals() {
     assertEquals(matchAny("a", "b%"), matchAny("a", "b%"));
   }

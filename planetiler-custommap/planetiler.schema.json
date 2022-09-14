@@ -102,7 +102,9 @@
         "boolean",
         "string",
         "direction",
-        "long"
+        "long",
+        "integer",
+        "double"
       ]
     },
     "feature": {
@@ -153,24 +155,7 @@
         },
         "min_zoom": {
           "description": "Minimum zoom to show the feature that matches the filter specifications.",
-          "$ref": "#/$defs/zoom_level"
-        },
-        "zoom_override": {
-          "description": "List of rules that overrides the `min_zoom` for this feature if certain tags are present. If multiple rules match, the first matching rule will be applied.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "min": {
-                "description": "Minimum zoom to render a feature matching this rule",
-                "$ref": "#/$defs/zoom_level"
-              },
-              "tag": {
-                "description": "List of tags for which this rule applies. Tags are specified as a list of key/value pairs",
-                "$ref": "#/$defs/boolean_expression"
-              }
-            }
-          }
+          "$ref": "#/$defs/expression"
         },
         "attributes": {
           "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed",
@@ -184,20 +169,21 @@
               },
               "type": {
                 "description": "Type of the attribute to map to",
-                "type": "string",
-                "anyOf": [
+                "oneOf": [
                   {
-                    "const": "match_key",
-                    "description": "The key that triggered this element to match"
+                    "type": "string",
+                    "enum": [
+                      "match_key",
+                      "match_value"
+                    ]
                   },
                   {
-                    "const": "match_value",
-                    "description": "The value for the key that triggered this element to match"
+                    "$ref": "#/$defs/datatype"
                   }
                 ]
               },
-              "constant_value": {
-                "description": "Value of the attribute in the tile, as a constant"
+              "value": {
+                "$ref": "#/$defs/expression"
               },
               "tag_value": {
                 "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)"
@@ -233,6 +219,9 @@
     },
     "boolean_expression": {
       "anyOf": [
+        {
+          "type": "string"
+        },
         {
           "$ref": "#/$defs/single_boolean_expression"
         },
@@ -279,6 +268,72 @@
           }
         ]
       }
+    },
+    "expression": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "default_value": {
+              "$ref": "#/$defs/expression"
+            },
+            "overrides": {
+              "$ref": "#/$defs/multiexpression"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "match": {
+              "$ref": "#/$defs/multiexpression"
+            }
+          }
+        }
+      ]
+    },
+    "multiexpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/boolean_expression"
+              },
+              {
+                "const": "otherwise"
+              }
+            ]
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/expression"
+              },
+              "if": {
+                "$ref": "#/$defs/boolean_expression"
+              },
+              "else": {
+                "$ref": "#/$defs/expression"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

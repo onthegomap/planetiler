@@ -13,26 +13,19 @@ import org.projectnessie.cel.tools.Script;
  *
  * @param <T> Input type of the expression
  */
-public final class DynamicBooleanExpression<T extends ScriptContext> implements Expression {
-  private final ConfigExpression<T, Boolean> expression;
-  private final String expressionText;
-  private final Class<T> inputClass;
-
-  private DynamicBooleanExpression(String expression, ScriptContextDescription<T> context) {
-    expressionText = expression;
-    this.expression = ConfigExpression.parse(expression, context, Boolean.class);
-    this.inputClass = context.clazz();
-  }
+public record DynamicBooleanExpression<T extends ScriptContext> (String expressionText,
+  ConfigExpression<T, Boolean> expression, Class<T> inputClass) implements Expression {
 
   /** Creates a new boolean expression wrapping {@code expression}. */
   public static <T extends ScriptContext> DynamicBooleanExpression<T> dynamic(String expression,
     ScriptContextDescription<T> context) {
-    return new DynamicBooleanExpression<>(expression, context);
+    var parsed = ConfigExpression.parse(expression, context, Boolean.class);
+    return new DynamicBooleanExpression<>(expression, parsed, context.clazz());
   }
 
   @Override
   public boolean evaluate(WithTags input, List<String> matchKeys) {
-    return inputClass.isInstance(input) && expression.evaluate(inputClass.cast(input));
+    return inputClass.isInstance(input) && expression.apply(inputClass.cast(input));
   }
 
   @Override
@@ -50,5 +43,15 @@ public final class DynamicBooleanExpression<T extends ScriptContext> implements 
   @Override
   public int hashCode() {
     return Objects.hash(expressionText, inputClass);
+  }
+
+  @Override
+  public Expression simplifyOnce() {
+    var result = expression.tryStaticEvaluate();
+    if (result.isSuccess()) {
+      return Boolean.TRUE.equals(result.item()) ? Expression.TRUE : Expression.FALSE;
+    } else {
+      return this;
+    }
   }
 }

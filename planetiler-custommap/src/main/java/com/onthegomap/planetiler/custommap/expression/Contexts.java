@@ -21,6 +21,21 @@ public class Contexts {
     return nullable == null ? NullT.NullValue : nullable;
   }
 
+  public static Root root() {
+    return new Root();
+  }
+
+  public record Root() implements ScriptContext {
+
+    public static final ScriptContextDescription<Root> DESCRIPTION =
+      ScriptContextDescription.root().forInput(Root.class);
+
+    @Override
+    public Object apply(String input) {
+      return null;
+    }
+  }
+
   private interface FeatureContext extends ScriptContext, WithTags, WithGeometryType {
     default FeatureContext parent() {
       return null;
@@ -78,7 +93,7 @@ public class Contexts {
     public Object apply(String key) {
       if (key != null) {
         return switch (key) {
-          case FEATURE_TAGS -> feature.tags();
+          case FEATURE_TAGS -> tagValueProducer.mapTags(feature);
           case FEATURE_ID -> feature.id();
           case FEATURE_SOURCE -> feature.getSource();
           case FEATURE_SOURCE_LAYER -> wrapNullable(feature.getSourceLayer());

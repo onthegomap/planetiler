@@ -30,6 +30,6 @@ layers:
       man_made: bridge
     attributes:
     - key: man_made
-      constant_value: bridge
+      value: bridge
     - key: layer
     - key: surface

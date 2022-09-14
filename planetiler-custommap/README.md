@@ -80,7 +80,6 @@ Specifies a zoom-based inclusion rules for this feature.
 ### Attributes
 
 * `key` - Name of this attribute in the tile.
-* `constant_value` - Value of the attribute in the tile, as a constant
 * `tag_value` - Value of the attribute in the tile, as copied from the value of the specified tag key. If neither
   constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (
   pass-through)

@@ -29,4 +29,16 @@ public record ScriptContextDescription<T extends ScriptContext> (List<Object> ty
   public static ScriptContextDescription<ScriptContext> root() {
     return new ScriptContextDescription<>(List.of(), List.of(), ScriptContext.class);
   }
+
+  public boolean containsVariable(String var) {
+    return declarations().stream().anyMatch(decl -> decl.getName().equals(var));
+  }
+
+  @Override
+  public String toString() {
+    return "ScriptContextDescription{" +
+      "declarations=" + declarations.stream().map(Decl::getName).toList() +
+      ", clazz=" + clazz +
+      '}';
+  }
 }

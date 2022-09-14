@@ -66,6 +66,8 @@ class ConfiguredFeatureTest {
   private static final Map<String, Object> inputMappingTags = Map.of(
     "s_type", "string_val",
     "l_type", "1",
+    "i_type", "1",
+    "double_type", "1.5",
     "b_type", "yes",
     "d_type", "yes",
     "intermittent", "yes",
@@ -277,6 +279,8 @@ class ConfiguredFeatureTest {
       assertEquals("string_val", attr.get("s_type"), "Produce string");
       assertEquals(1, attr.get("d_type"), "Produce direction");
       assertEquals(1L, attr.get("l_type"), "Produce long");
+      assertEquals(1, attr.get("i_type"), "Produce integer");
+      assertEquals(1.5, attr.get("double_type"), "Produce double");
 
       assertEquals("yes", attr.get("intermittent"), "Produce raw attribute");
       assertEquals(true, attr.get("is_intermittent"), "Produce and rename boolean");
@@ -401,6 +405,39 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+  @Test
+  void testCoerceAttributeValue() {
+    testPolygon("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: polygon
+          attributes:
+          - key: int
+            type: integer
+          - key: long
+            type: long
+          - key: double
+            type: double
+      """, Map.of(
+      "int", "1",
+      "long", "-1",
+      "double", "1.5"
+    ), feature -> {
+      assertEquals(Map.of(
+        "int", 1,
+        "long", -1L,
+        "double", 1.5
+      ), feature.getAttrsAtZoom(14));
+    }, 1);
+  }
+
   @ParameterizedTest
   @CsvSource(value = {
     "1| 1",
@@ -410,9 +447,13 @@ class ConfiguredFeatureTest {
     "${match_value.replace('ter', 'wa')}| wawa",
     "${feature.tags.natural}| water",
     "${feature.id}|1",
+    "\\${feature.id}|${feature.id}",
+    "\\\\${feature.id}|\\${feature.id}",
     "${feature.source}|osm",
     "${feature.source_layer}|null",
     "${coalesce(feature.source_layer, 'missing')}|missing",
+    "{match: {test: {natural: water}}}|test",
+    "{match: {test: {natural: not_water}}}|null",
   }, delimiter = '|')
   void testExpressionValue(String expression, Object value) {
     testPoint("""
@@ -440,13 +481,47 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "tag_value: depth",
+    "value: '${feature.tags[\"depth\"]}'",
+    "value: '${feature.tags.get(\"depth\")}'"
+  })
+  void testGetInExpressionUsesTagMapping(String getter) {
+    testPoint("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      tag_mappings:
+        depth: long
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: point
+          attributes:
+          - key: depth
+            %s
+      """.formatted(getter), Map.of(
+      "depth", "35"
+    ), feature -> {
+      assertEquals(35L, feature.getAttrsAtZoom(14).get("depth"));
+    }, 1);
+  }
+
   @ParameterizedTest
   @CsvSource(value = {
-    "12,12",
-    "${5+5},10",
-    "${match_key.size()},7",
-    "${value.size()},5"
-  })
+    "12|12",
+    "${5+5}|10",
+    "${match_key.size()}|7",
+    "${value.size()}|5",
+    "{default_value: 4, overrides: {3: {natural: water}}}|3",
+    "{default_value: 4, overrides: {3: {natural: not_water}}}|4",
+  }, delimiter = '|')
   void testAttributeMinZoomExpression(String expression, int minZoom) {
     testPoint("""
       sources:
@@ -470,6 +545,40 @@ class ConfiguredFeatureTest {
     ), feature -> {
       assertNull(feature.getAttrsAtZoom(minZoom - 1).get("key"));
       assertEquals("value", feature.getAttrsAtZoom(minZoom).get("key"));
+    }, 1);
+  }
+
+  @Test
+  void testMinZoomExpression() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - name: testLayer
+        features:
+        - source: osm
+          geometry: point
+          min_zoom:
+            default_value: 4
+            overrides:
+            - if: '${feature.tags.has("a", "b")}'
+              value: 5
+          include_when:
+            natural: water
+      """;
+    testPoint(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(4, feature.getMinZoom());
+    }, 1);
+    testPoint(config, Map.of(
+      "natural", "water",
+      "a", "b"
+    ), feature -> {
+      assertEquals(5, feature.getMinZoom());
     }, 1);
   }
 

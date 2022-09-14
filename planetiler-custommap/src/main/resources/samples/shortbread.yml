@@ -24,7 +24,11 @@ layers:
   features:
   - source: osm
     geometry: polygon
-    min_zoom: 4
+    min_zoom:
+      default_value: 4
+      overrides: &water_zoom_overrides
+        10:
+          waterway: [ dock, canal ]
     include_when: &water_filter
       natural:
       - glacier
@@ -36,12 +40,6 @@ layers:
       landuse:
       - reservoir
       - basin
-    zoom_override: &water_zoom
-    - min: 10
-      tag:
-        waterway:
-        - dock
-        - canal
     attributes:
     - key: kind
       type: match_value
@@ -50,11 +48,12 @@ layers:
   features:
   - source: osm
     geometry: polygon_centroid
-    min_zoom: 14
+    min_zoom:
+      default_value: 14
+      overrides: *water_zoom_overrides
     include_when: *water_filter
     exclude_when:
       name: ''
-    zoom_override: *water_zoom
     attributes:
     - key: kind
       type: match_value
@@ -68,7 +67,11 @@ layers:
   features:
   - source: osm
     geometry: line
-    min_zoom: 9
+    min_zoom:
+      default_value: 9
+      overrides:
+        14:
+          waterway: [ stream, ditch ]
     # TODO rivers and canals min length=0.25px
     include_when:
       waterway:
@@ -76,12 +79,6 @@ layers:
       - river
       - stream
       - ditch
-    zoom_override:
-    - min: 14
-      tag:
-        waterway:
-        - stream
-        - ditch
     attributes:
     - key: kind
       type: match_value
@@ -90,7 +87,11 @@ layers:
   features:
   - source: osm
     geometry: line
-    min_zoom: 12
+    min_zoom:
+      default_value: 12
+      overrides:
+        14:
+          waterway: [ stream, ditch ]
     # TODO rivers and canals min length=0.25px
     include_when:
       waterway:
@@ -100,12 +101,6 @@ layers:
       - ditch
     exclude_when:
       name: ''
-    zoom_override:
-    - min: 14
-      tag:
-        waterway:
-        - stream
-        - ditch
     attributes:
     - key: kind
       type: match_value
@@ -116,16 +111,131 @@ layers:
       tag_value: name:de
 
 ##  Countries, States, Cities
-# TODO boundaries
-# TODO boundary_labels
-# TODO place_labels
+- name: boundaries
+  features:
+  - source: osm
+    geometry: line
+    # TODO admin_level=2 => z0, admin_level=4 => z7
+    # TODO get min admin level from relations
+    min_zoom:
+      default_value: 7
+      overrides:
+        0:
+          admin_level: 2
+    include_when:
+      __all__:
+      - boundary: administrative
+      - admin_level: [ 2, 4 ]
+    attributes:
+    - key: maritime
+      type: boolean
+    - key: admin_level
+      type: integer
 
-##  Land Use, Land Cover, Buildings
+- name: boundary_labels
+  features:
+  - source: admin_points
+    geometry: point
+    min_zoom:
+      default_value: 5
+      overrides:
+        2: '${ feature.tags.has("ADMIN_LEVEL", "2") && double(feature.tags.WAY_AREA) >= 2e8 }'
+        3: '${ double(feature.tags.WAY_AREA) >= 7e7 }'
+        4: '${ double(feature.tags.WAY_AREA) >= 1e7 }'
+    # TODO sort by WAY_AREA descending
+    attributes:
+    - key: way_area
+      tag_value: WAY_AREA
+      type: double
+    - key: admin_level
+      tag_value: ADMIN_LEVEL
+      type: integer
+    - key: name
+      tag_value: NAME
+    - key: name_en
+      tag_value: NAME_EN
+    - key: name_de
+      tag_value: NAME_DE
+
+- name: place_labels
+  features:
+  - source: osm
+    geometry: point
+    include_when:
+      place:
+      - city
+      - town
+      - village
+      - hamlet
+      - suburb
+      - neighbourhood
+      - isolated_dwelling
+      - farm
+      - island
+      - locality
+    exclude_when:
+      name: ''
+    min_zoom:
+      default_value: 10
+      overrides:
+        4:
+          __all__:
+            place: [ city, town, village, hamlet ]
+            capital: [ 'yes', '4' ]
+        6:
+          __all__:
+            place: city
+            __not__:
+              capital: [ 'yes', '4' ]
+        7:
+          __all__:
+            place: town
+            __not__:
+              capital: [ 'yes', '4' ]
+    # TODO z-order
+    attributes:
+    - key: kind
+      value:
+        default_value: '${ match_value }'
+        overrides:
+          capital:
+            __all__:
+              place: [ city, town, village, hamlet ]
+              capital: 'yes'
+          state_capital:
+            __all__:
+              place: [ city, town, village, hamlet ]
+              capital: '4'
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+    - key: population
+      type: integer
+      value:
+        match:
+        - value: '${ int(feature.tags.get("population")) }'
+          if: { population: __any__ }
+        - value: 100_000
+          if: { place: city }
+        - value: 5_000
+          if: { place: town }
+        - value: 1_000
+          if: { place: suburb }
+        - value: 100
+          if: { place: [ village, neighborhood ] }
+        - value: 50
+          if: { place: hamlet }
+        - value: 5
+          if: { place: [ isolated_dwelling, farm ] }
+        - else: 0
+
+#  Land Use, Land Cover, Buildings
 - name: land
   features:
   - source: osm
     geometry: polygon
-    min_zoom: 11
     include_when:
       amenity:
       - grave_yard
@@ -174,35 +284,34 @@ layers:
       - string_bog
       - swamp
       - wet_meadow
-    zoom_override:
-    - min: 7
-      tag:
-        natural: wood
-        landuse: forest
-    - min: 10
-      tag:
-        landuse:
-        - brownfield
-        - commercial
-        - farmland
-        - farmyard
-        - greenfield
-        - industrial
-        - landfill
-        - railway
-        - residential
-        - retail
-        natural:
-        - beach
-        - sand
-    - min: 13
-      tag:
-        amenity: grave_yard
-        natural: wood
-        landuse: cemetery
+    min_zoom:
+      default_value: 11
+      overrides:
+        7:
+          natural: wood
+          landuse: forest
+        10:
+          landuse:
+          - brownfield
+          - commercial
+          - farmland
+          - farmyard
+          - greenfield
+          - industrial
+          - landfill
+          - railway
+          - residential
+          - retail
+          natural:
+          - beach
+          - sand
+        13:
+          amenity: grave_yard
+          natural: wood
+          landuse: cemetery
     attributes:
     - key: kind
-      value: "${match_value == 'forest' ? 'wood' : match_value}"
+      value: '${match_value == "forest" ? "wood": match_value}'
 
 - name: sites
   features:
@@ -222,7 +331,6 @@ layers:
     attributes:
     - key: kind
       type: match_value
-      # TODO label: name ?
 
 - name: buildings
   features:
@@ -258,8 +366,37 @@ layers:
   features:
   - source: osm
     geometry: line
-    min_zoom: 13
+    min_zoom:
+      default_value: 13
+      overrides:
+        5:
+          highway: motorway%
+        6:
+          highway: trunk%
+        8:
+          highway: primary%
+          __all__:
+            railway: [ rail, narrow_gauge ]
+            service: __any__
+        9:
+          highway: secondary%
+        10:
+          __all__:
+            railway: [ rail, narrow_gauge ]
+            service: ''
+          railway:
+          - funicular
+          - light_rail
+          - monorail
+          - subway
+          - tram
+          highway: tertiary
+        11:
+          aeroway: runway
+        12:
+          highway: [ residential, unclassified ]
     #  TODO   min_tile_cover_size: 0
+    # TODO z-order
     include_when:
       highway:
       - motorway
@@ -282,7 +419,7 @@ layers:
       - steps
       - path
       - cycleway
-      # TODO should these be aeroway?
+      aeroway: # TODO update shortbread spec
       - runway
       - taxiway
       railway:
@@ -293,43 +430,9 @@ layers:
       - funicular
       - subway
       - monorail
-    zoom_override:
-    - min: 5
-      tag:
-        highway: motorway%
-    - min: 6
-      tag:
-        highway: trunk%
-    - min: 8
-      tag:
-        highway: primary%
-        __all__:
-          railway: [ rail, narrow_gauge ]
-          service: __any__
-    - min: 9
-      tag:
-        highway: secondary%
-    - min: 10
-      tag:
-        __all__:
-          railway: [ rail, narrow_gauge ]
-          service: ''
-        railway:
-        - funicular
-        - light_rail
-        - monorail
-        - subway
-        - tram
-        highway: tertiary
-    - min: 11
-      tag:
-        highway: runway # TODO aeroway?
-    - min: 12
-      tag:
-        highway: [ residential, unclassified ]
     attributes:
     - key: kind
-      value: ${ match_value.replace('_link', '') }
+      value: '${ match_value.replace("_link", "") }'
     - key: link
       min_zoom: 11
       value: true
@@ -342,22 +445,24 @@ layers:
       include_when:
         railway: __any__
       else: false
-    - key: tunnel
+    - &tunnel_attr
+      key: tunnel
       min_zoom: 11
       value: true
       include_when:
-        tunnel: [ yes, building_passage ]
-        covered: yes
+        tunnel: [ 'yes', building_passage ]
+        covered: 'yes'
       else: false
-    - key: bridge
+    - &bridge_attr
+      key: bridge
       min_zoom: 11
       value: true
       include_when:
-        bridge: yes
+        bridge: 'yes'
       else: false
     - key: tracktype
       min_zoom: 11
-    - key: surface
+    - key: surface # TODO canonicalize?
       min_zoom: 11
     - key: service
       min_zoom: 11
@@ -366,11 +471,166 @@ layers:
     - key: horse
       min_zoom: 14
 
+- name: street_labels
+  features:
+  - source: osm
+    geometry: line
+    min_zoom:
+      default_value: 14
+      overrides:
+        10:
+          highway: motorway
+        12:
+          highway: [ trunk, primary ]
+        13:
+          highway:
+          - motorway_link
+          - trunk_link
+          - primary_link
+          - secondary
+          - secondary_link
+          - tertiary
+    include_when:
+      highway:
+      - motorway
+      - motorway_link
+      - trunk
+      - trunk_link
+      - primary
+      - primary_link
+      - secondary
+      - secondary_link
+      - tertiary
+      - tertiary_link
+      - unclassified
+      - residential
+      - living_street
+      - service
+      - pedestrian
+      - track
+      - footway
+      - steps
+      - path
+      - cycleway
+    exclude_when:
+      __all__:
+        name: ''
+        ref: ''
+    attributes:
+    - key: kind
+      value: '${ match_value.replace("_link", "") }'
+    # TODO reusable name logic:
+    # name=coalesce(name, name_en, name_de)
+    # name_en=coalesce(name:en, name, name:de)
+    # name_de=coalesce(name:de, name, name:en)
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+    - key: ref
+      exclude_when: &missing_ref
+        ref: ''
+      value: '${ feature.tags["ref"].replace(";", "\n") }'
+    - key: ref_cols
+      value: '${ max(feature.tags["ref"].split(";").map(r, size(r))) }'
+      exclude_when: *missing_ref
+    - key: ref_rows
+      value: '${ size(feature.tags["ref"].split(";")) }'
+      exclude_when: *missing_ref
 
+- name: street_polygons
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      __all__:
+      - highway: [ pedestrian, service ]
+      - area: 'yes'
+    attributes:
+    - key: kind
+      type: match_value
+    - *bridge_attr
+    - *tunnel_attr
+    - key: surface
+    - key: rail
+      value: false # TODO omit?
 
-# TODO street_polygons
-# TODO street_labels
-# TODO streets_polygons_labels
-# TODO streets_labels_points
-# TODO aerialways
-# TODO public_transport
+- name: street_polygons_labels
+  features:
+  - source: osm
+    geometry: polygon_point_on_surface
+    min_zoom: 14
+    include_when:
+      __all__:
+        highway: [ pedestrian, service ]
+        area: 'yes'
+        name: __any__
+    attributes:
+    - key: kind
+      type: match_value
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+
+- name: street_labels_points # TODO update documentation (streetS_labels_points)
+  features:
+  - source: osm
+    geometry: point
+    min_zoom: 12
+    include_when:
+      highway: motorway_junction
+    attributes:
+    - key: kind
+      type: match_value
+    - key: ref
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+
+- name: aerialways
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 12
+    include_when:
+      aerialway: __any__
+    attributes:
+    - key: kind
+      type: match_value
+
+- name: public_transport
+  features:
+  - source: osm
+    geometry: point
+    min_zoom: &public_transport_zoom
+      default_value: 14
+      overrides:
+        11:
+          aeroway: aerodrome
+        13:
+          railway: [ station, halt ]
+          aerialway: station
+    include_when: &public_transport_filter
+      railway: [ station, halt, tram_stop ]
+      aeroway: aerodrome
+      aerialway: station
+    attributes: &public_transport_attrs
+    - key: kind
+      type: match_value
+    - key: name
+    - key: name_en
+      tag_value: name:en
+    - key: name_de
+      tag_value: name:de
+    - key: iata
+  - source: osm
+    geometry: polygon_point_on_surface
+    min_zoom: *public_transport_zoom
+    include_when: *public_transport_filter
+    attributes: *public_transport_attrs

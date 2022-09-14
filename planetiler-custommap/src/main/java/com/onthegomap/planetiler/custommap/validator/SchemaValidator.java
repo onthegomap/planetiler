@@ -54,9 +54,10 @@ public class SchemaValidator {
     return t != null && (cause.isInstance(t) || hasCause(t.getCause(), cause));
   }
 
+  private static final String PASS_BADGE = AnsiColors.greenBackground(" PASS ");
+  private static final String FAIL_BADGE = AnsiColors.redBackground(" FAIL ");
+
   private static void validateFromCli(Path schema, Path spec, Arguments args) {
-    String passBadge = AnsiColors.greenBackground(" PASS ");
-    String failBadge = AnsiColors.redBackground(" FAIL ");
     System.out.println();
     System.out.println("Validating...");
     System.out.println();
@@ -82,21 +83,22 @@ public class SchemaValidator {
       return;
     }
     int failed = 0, passed = 0;
+    List<ExampleResult> failures = new ArrayList<>();
     for (var example : result.results) {
       if (example.ok()) {
         passed++;
-        System.out.printf("%s %s%n", passBadge, example.example().name());
+        System.out.printf("%s %s%n", PASS_BADGE, example.example().name());
       } else {
         failed++;
-        System.out.printf("%s %s%n", failBadge, example.example().name());
-        var exception = example.exception();
-        if (exception.isPresent()) {
-          System.out.println(ExceptionUtils.getStackTrace(exception.get()).indent(4).stripTrailing());
-        } else {
-          for (var issue : example.issues()) {
-            System.out.println("  ● " + issue.indent(4).strip());
-          }
-        }
+        printFailure(example);
+        failures.add(example);
+      }
+    }
+    if (!failures.isEmpty()) {
+      System.out.println();
+      System.out.println("Summary of failures:");
+      for (var failure : failures) {
+        printFailure(failure);
       }
     }
     List<String> summary = new ArrayList<>();
@@ -111,6 +113,18 @@ public class SchemaValidator {
     }
     System.out.println();
     System.out.println(String.join(", ", summary));
+  }
+
+  private static void printFailure(ExampleResult example) {
+    System.out.printf("%s %s%n", FAIL_BADGE, example.example().name());
+    var exception = example.exception();
+    if (exception.isPresent()) {
+      System.out.println(ExceptionUtils.getStackTrace(exception.get()).indent(4).stripTrailing());
+    } else {
+      for (var issue : example.issues()) {
+        System.out.println("  ● " + issue.indent(4).strip());
+      }
+    }
   }
 
   private static Geometry parseGeometry(String geometry) {
@@ -192,6 +206,10 @@ public class SchemaValidator {
 
   private static <T> void validate(String field, List<String> issues, T expected, T actual, boolean ignoreWhenNull) {
     if ((!ignoreWhenNull || expected != null) && !Objects.equals(expected, actual)) {
+      // handle when expected and actual are int/long or long/int
+      if (expected instanceof Number && actual instanceof Number && expected.toString().equals(actual.toString())) {
+        return;
+      }
       issues.add("%s: expected <%s> actual <%s>".formatted(field, format(expected), format(actual)));
     }
   }

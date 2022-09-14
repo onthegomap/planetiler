@@ -43,12 +43,22 @@ class ExpressionTests {
 
     "coalesce({'a': 1}.get('a'), 2)|1|long",
     "coalesce({'a': 1}.get('b'), 2)|2|long",
+    "{'a': 1}.getOrDefault('a', 2)|1|long",
+    "{'a': 1}.getOrDefault('b', 2)|2|long",
+
+    "max([1, 2, 3])|3|long",
+    "max([1.1, 2.2, 3.3])|3.3|double",
+    "min([1, 2, 3])|1|long",
+    "min([1.1, 2.2, 3.3])|1.1|double",
+    "max([1])|1|long",
+    "min([1])|1|long",
   }, delimiter = '|')
   void testExpression(String in, String expected, String type) {
     var expression = ConfigExpression.parse(in, ScriptContextDescription.root());
-    var result = expression.evaluate(ScriptContext.empty());
+    var result = expression.apply(ScriptContext.empty());
     switch (type) {
       case "long" -> assertEquals(Long.valueOf(expected), result);
+      case "double" -> assertEquals(Double.valueOf(expected), result);
       case "string" -> assertEquals(expected, result);
       case "boolean" -> assertEquals(Boolean.valueOf(expected), result);
       case "null" -> assertNull(result);
