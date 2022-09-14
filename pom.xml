@@ -20,7 +20,7 @@
     <maven.compiler.source>16</maven.compiler.source>
     <maven.compiler.target>16</maven.compiler.target>
     <maven.source.excludeResources>true</maven.source.excludeResources>
-    <jackson.version>2.13.3</jackson.version>
+    <jackson.version>2.13.4</jackson.version>
     <junit.version>5.9.0</junit.version>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     <sonar.organization>onthegomap</sonar.organization>
@@ -95,7 +95,7 @@
       <dependency>
         <groupId>org.yaml</groupId>
         <artifactId>snakeyaml</artifactId>
-        <version>1.30</version>
+        <version>1.32</version>
       </dependency>
       <dependency>
         <groupId>org.commonmark</groupId>
@@ -123,7 +123,7 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>4.6.1</version>
+        <version>4.8.0</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
@@ -157,7 +157,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.24.1</version>
+        <version>2.25.0</version>
         <configuration>
           <java>
             <importOrder/>
@@ -252,7 +252,7 @@
         <plugin>
           <groupId>com.google.cloud.tools</groupId>
           <artifactId>jib-maven-plugin</artifactId>
-          <version>3.2.1</version>
+          <version>3.3.0</version>
           <configuration>
             <skip>true</skip>
           </configuration>
