@@ -14,6 +14,7 @@ public record SchemaConfig(
   @JsonProperty("schema_description") String schemaDescription,
   String attribution,
   Map<String, DataSource> sources,
+  Object definitions,
   @JsonProperty("tag_mappings") Map<String, Object> inputMappings,
   Collection<FeatureLayer> layers
 ) {

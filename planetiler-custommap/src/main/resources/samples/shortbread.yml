@@ -11,6 +11,17 @@ sources:
   osm:
     type: osm
     url: geofabrik:massachusetts
+definitions:
+  # TODO let attribute definitions set multiple keys so you can just use `- *names`
+  name: &name
+    key: name
+  name_en: &name_en
+    key: name_en
+    tag_value: name:en
+  name_de: &name_de
+    key: name_de
+    tag_value: name:de
+
 layers:
 
 #  Water
@@ -57,11 +68,9 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
 
 - name: water_lines
   features:
@@ -104,18 +113,15 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
 
 ##  Countries, States, Cities
 - name: boundaries
   features:
   - source: osm
     geometry: line
-    # TODO admin_level=2 => z0, admin_level=4 => z7
     # TODO get min admin level from relations
     min_zoom:
       default_value: 7
@@ -206,11 +212,9 @@ layers:
             __all__:
               place: [ city, town, village, hamlet ]
               capital: '4'
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
     - key: population
       type: integer
       value:
@@ -519,15 +523,10 @@ layers:
     attributes:
     - key: kind
       value: '${ match_value.replace("_link", "") }'
-    # TODO reusable name logic:
-    # name=coalesce(name, name_en, name_de)
-    # name_en=coalesce(name:en, name, name:de)
-    # name_de=coalesce(name:de, name, name:en)
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
+    # TODO use ref var to avoid duplicating logic
     - key: ref
       exclude_when: &missing_ref
         ref: ''
@@ -570,11 +569,9 @@ layers:
     attributes:
     - key: kind
       type: match_value
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
 
 - name: street_labels_points # TODO update documentation (streetS_labels_points)
   features:
@@ -587,11 +584,9 @@ layers:
     - key: kind
       type: match_value
     - key: ref
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
 
 - name: aerialways
   features:
@@ -623,11 +618,9 @@ layers:
     attributes: &public_transport_attrs
     - key: kind
       type: match_value
-    - key: name
-    - key: name_en
-      tag_value: name:en
-    - key: name_de
-      tag_value: name:de
+    - *name
+    - *name_en
+    - *name_de
     - key: iata
   - source: osm
     geometry: polygon_point_on_surface
