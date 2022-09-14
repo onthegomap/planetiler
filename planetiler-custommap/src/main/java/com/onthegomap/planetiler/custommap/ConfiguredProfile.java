@@ -60,7 +60,7 @@ public class ConfiguredProfile implements Profile {
 
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector featureCollector) {
-    var context = new Contexts.Feature(sourceFeature, tagValueProducer);
+    var context = new Contexts.ProcessFeature(sourceFeature, tagValueProducer);
     var matches = featureLayerMatcher.getMatchesWithTriggers(context);
     for (var configuredFeature : matches) {
       configuredFeature.match().processFeature(

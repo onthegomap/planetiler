@@ -85,5 +85,5 @@ public class TagValueProducer {
   }
 
   @FunctionalInterface
-  public interface Signature extends Function<Contexts.FeatureMatch, Object> {}
+  public interface Signature extends Function<Contexts.ProcessFeature.PostMatch, Object> {}
 }
