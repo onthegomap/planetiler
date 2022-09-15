@@ -799,3 +799,18 @@ examples:
       kind: capital
       name: 'Name'
       population: 100_000
+
+- name: 'population with comma'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: city
+      population: 123,123
+      name: 'Name'
+  output:
+    layer: place_labels
+    geometry: point
+    tags:
+      kind: city
+      population: 123123

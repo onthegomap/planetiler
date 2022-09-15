@@ -634,7 +634,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         return attrs;
       }
       if (attrCache == null) {
-        attrCache = CacheByZoom.create(config, this::computeAttrsAtZoom);
+        attrCache = CacheByZoom.create(this::computeAttrsAtZoom);
       }
       return attrCache.get(zoom);
     }

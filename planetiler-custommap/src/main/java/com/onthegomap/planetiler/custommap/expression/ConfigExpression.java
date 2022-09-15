@@ -96,7 +96,7 @@ public class ConfigExpression<I extends ScriptContext, O> implements ConfigFunct
     try {
       return TypeConversion.convert(script.execute(Object.class, input), returnType);
     } catch (ScriptException e) {
-      throw new EvaluationException("Error evaluating script", e);
+      throw new EvaluationException("Error evaluating script '%s'".formatted(scriptText), e);
     }
   }
 

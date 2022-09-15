@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.mbtiles.Verify;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.openmaptiles.OpenMapTilesMain;
 import org.openmaptiles.util.VerifyMonaco;
 
@@ -30,6 +31,9 @@ public class Main {
 
     entry("generate-custom", ConfiguredMapMain::main),
     entry("custom", ConfiguredMapMain::main),
+
+    entry("generate-shortbread", bundledSchema("shortbread.yml")),
+    entry("shortbread", bundledSchema("shortbread.yml")),
 
     entry("verify", SchemaValidator::main),
     entry("verify-custom", SchemaValidator::main),
@@ -48,6 +52,13 @@ public class Main {
     entry("verify-mbtiles", Verify::main),
     entry("verify-monaco", VerifyMonaco::main)
   );
+
+  private static EntryPoint bundledSchema(String path) {
+    return args -> ConfiguredMapMain.main(Stream.concat(
+      Stream.of("--schema=" + path),
+      Stream.of(args)
+    ).toArray(String[]::new));
+  }
 
   public static void main(String[] args) throws Exception {
     EntryPoint task = DEFAULT_TASK;

@@ -2,11 +2,15 @@ package com.onthegomap.planetiler.expression;
 
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Parse;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 
+/**
+ * Destination data types for an attribute that link the type to functions that can parse the value from an input object
+ */
 public enum DataTypes implements BiFunction<WithTags, String, Object> {
-  GET_STRING("string", WithTags::getString, s -> s),
+  GET_STRING("string", WithTags::getString, Objects::toString),
   GET_BOOLEAN("boolean", WithTags::getBoolean, Parse::bool),
   GET_DIRECTION("direction", WithTags::getDirection, Parse::direction),
   GET_LONG("long", WithTags::getLong, Parse::parseLongOrNull),
@@ -39,6 +43,7 @@ public enum DataTypes implements BiFunction<WithTags, String, Object> {
     return this.parser.apply(value);
   }
 
+  /** Returns the data type associated with {@code id}, or {@link #GET_TAG} as a fallback. */
   public static DataTypes from(String id) {
     for (var value : values()) {
       if (value.id.equals(id)) {

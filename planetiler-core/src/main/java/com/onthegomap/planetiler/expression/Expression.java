@@ -457,17 +457,14 @@ public interface Expression extends Simplifiable<Expression> {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      MatchAny matchAny = (MatchAny) o;
-      return matchWhenMissing == matchAny.matchWhenMissing && field.equals(matchAny.field) && values.equals(
-        matchAny.values) && exactMatches.equals(matchAny.exactMatches) &&
+      return this == o || (o instanceof MatchAny matchAny &&
+        matchWhenMissing == matchAny.matchWhenMissing &&
+        Objects.equals(field, matchAny.field) &&
+        Objects.equals(values, matchAny.values) &&
+        Objects.equals(exactMatches, matchAny.exactMatches) &&
+        // Patterns for the same input string are not equal
         Objects.equals(patternString(), matchAny.patternString()) &&
-        valueGetter.equals(matchAny.valueGetter);
+        Objects.equals(valueGetter, matchAny.valueGetter));
     }
 
     private String patternString() {

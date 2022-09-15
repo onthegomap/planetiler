@@ -219,7 +219,7 @@ layers:
       type: integer
       value:
         match:
-        - value: '${ int(feature.tags.get("population")) }'
+        - value: '${ feature.tags.get("population") }'
           if: { population: __any__ }
         - value: 100_000
           if: { place: city }

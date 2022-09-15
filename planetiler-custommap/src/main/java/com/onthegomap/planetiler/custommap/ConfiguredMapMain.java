@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -29,11 +30,24 @@ public class ConfiguredMapMain {
     var dataDir = Path.of("data");
     var sourcesDir = dataDir.resolve("sources");
 
-    var schemaFile = args.inputFile(
+    var schemaFile = args.getString(
       "schema",
-      "Location of YML-format schema definition file");
+      "Location of YML-format schema definition file"
+    );
 
-    var config = SchemaConfig.load(schemaFile);
+    var path = Path.of(schemaFile);
+    SchemaConfig config;
+    if (Files.exists(path)) {
+      config = SchemaConfig.load(path);
+    } else {
+      // if the file doesn't exist, check if it's bundled in the jar
+      schemaFile = schemaFile.startsWith("/samples/") ? schemaFile : "/samples/" + schemaFile;
+      if (ConfiguredMapMain.class.getResource(schemaFile) != null) {
+        config = YAML.loadResource(schemaFile, SchemaConfig.class);
+      } else {
+        throw new IllegalArgumentException("Schema file not found: " + schemaFile);
+      }
+    }
 
     var planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));

@@ -1,14 +1,16 @@
 package com.onthegomap.planetiler.util;
 
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
  * Utilities to parse values from strings.
  */
 public class Parse {
-
-  private Parse() {}
 
   private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
   private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");
@@ -17,13 +19,28 @@ public class Parse {
     Pattern.compile(
       "(?<value>-?[\\d.]+)\\s*((?<mi>mi)|(?<m>m|$)|(?<km>km|kilom)|(?<ft>ft|')|(?<in>in|\")|(?<nmi>nmi|international nautical mile|nautical))",
       Pattern.CASE_INSENSITIVE);
+  private static final NumberFormat PARSER = NumberFormat.getNumberInstance(Locale.ROOT);
+
+  private Parse() {}
 
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
     try {
       return tag == null ? null : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::longValue);
+    }
+  }
+
+  private static <T> T retryParseNumber(Object obj, Function<Number, T> getter) {
+    return retryParseNumber(obj, getter, null);
+  }
+
+  private static <T> T retryParseNumber(Object obj, Function<Number, T> getter, T backup) {
+    try {
+      return getter.apply(PARSER.parse(obj.toString()));
+    } catch (ParseException e) {
+      return backup;
     }
   }
 
@@ -32,7 +49,7 @@ public class Parse {
     try {
       return tag == null ? 0 : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
-      return 0;
+      return retryParseNumber(tag, Number::longValue, 0L);
     }
   }
 
@@ -67,7 +84,7 @@ public class Parse {
     try {
       return tag == null ? null : tag instanceof Number number ? number.intValue() : Integer.parseInt(tag.toString());
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::intValue);
     }
   }
 
@@ -100,7 +117,7 @@ public class Parse {
       return tag == null ? null : tag instanceof Number number ? number.doubleValue() :
         Double.parseDouble(tag.toString());
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::doubleValue);
     }
   }
 

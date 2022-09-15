@@ -46,25 +46,6 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /**
-   * Evaluates a list of expressions on an input element, storing the matches into {@code result} and using
-   * {@code visited} to avoid evaluating an expression more than once.
-   */
-  private static <T> void visitExpressions(WithTags input, List<Match<T>> result,
-    boolean[] visited, List<EntryWithId<T>> expressions) {
-    if (expressions != null) {
-      for (EntryWithId<T> expressionValue : expressions) {
-        if (!visited[expressionValue.id]) {
-          visited[expressionValue.id] = true;
-          List<String> matchKeys = new ArrayList<>();
-          if (expressionValue.expression().evaluate(input, matchKeys)) {
-            result.add(new Match<>(expressionValue.result, matchKeys, expressionValue.id));
-          }
-        }
-      }
-    }
-  }
-
-  /**
    * Returns true if {@code expression} only contains "not filter" so we can't limit evaluating this expression to only
    * when a particular key is present on the input.
    */
@@ -153,7 +134,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
 
   /** Returns a copy of this multi-expression with each expression simplified. */
   public MultiExpression<T> simplify() {
-    return map(e -> e.simplify());
+    return map(Simplifiable::simplify);
   }
 
   /** Returns a copy of this multi-expression, filtering-out the entry for each data value matching {@code accept}. */
@@ -276,6 +257,25 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
       ));
       keyToExpressionsList = List.copyOf(keyToExpressionsMap.entrySet());
       numExpressions = id;
+    }
+
+    /**
+     * Evaluates a list of expressions on an input element, storing the matches into {@code result} and using
+     * {@code visited} to avoid evaluating an expression more than once.
+     */
+    private static <T> void visitExpressions(WithTags input, List<Match<T>> result,
+      boolean[] visited, List<EntryWithId<T>> expressions) {
+      if (expressions != null) {
+        for (EntryWithId<T> expressionValue : expressions) {
+          if (!visited[expressionValue.id]) {
+            visited[expressionValue.id] = true;
+            List<String> matchKeys = new ArrayList<>();
+            if (expressionValue.expression().evaluate(input, matchKeys)) {
+              result.add(new Match<>(expressionValue.result, matchKeys, expressionValue.id));
+            }
+          }
+        }
+      }
     }
 
     /** Lookup matches in this index for expressions that match a certain type. */

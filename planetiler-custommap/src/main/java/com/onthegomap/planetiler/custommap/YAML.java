@@ -41,4 +41,12 @@ public class YAML {
       throw new UncheckedIOException(e);
     }
   }
+
+  public static <T> T loadResource(String resourceName, Class<T> clazz) {
+    try (var stream = YAML.class.getResourceAsStream(resourceName)) {
+      return load(stream, clazz);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
 }

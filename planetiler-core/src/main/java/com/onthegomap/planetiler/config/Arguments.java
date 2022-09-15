@@ -236,6 +236,12 @@ public class Arguments {
     return value;
   }
 
+  public String getString(String key, String description) {
+    String value = getRequiredArg(key, description);
+    logArgValue(key, description, value);
+    return value;
+  }
+
   /** Returns a {@link Path} parsed from {@code key} argument, or fall back to a default if the argument is not set. */
   public Path file(String key, String description, Path defaultValue) {
     String value = getArg(key);
@@ -246,13 +252,18 @@ public class Arguments {
 
   /** Returns a {@link Path} parsed from {@code key} argument which may or may not exist. */
   public Path file(String key, String description) {
+    String value = getRequiredArg(key, description);
+    Path file = Path.of(value);
+    logArgValue(key, description, file);
+    return file;
+  }
+
+  private String getRequiredArg(String key, String description) {
     String value = getArg(key);
     if (value == null) {
       throw new IllegalArgumentException("Missing required parameter: " + key + " (" + description + ")");
     }
-    Path file = Path.of(value);
-    logArgValue(key, description, file);
-    return file;
+    return value;
   }
 
   /**
