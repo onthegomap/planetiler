@@ -10,8 +10,8 @@ import java.util.Set;
  * this expression, and {@link #simplify()} will take care of applying it repeatedly until the output settles to a fixed
  * point.
  * <p>
- * Implementers must also ensure {@link #equals(Object)} and {@link #hashCode()} reflect equivalence between expressions
- * so that {@link #simplify()} can know when to stop.
+ * Implementers must also ensure {@code equals} and {@code hashCode} reflect equivalence between expressions so that
+ * {@link #simplify()} can know when to stop.
  */
 public interface Simplifiable<T extends Simplifiable<T>> {
 
