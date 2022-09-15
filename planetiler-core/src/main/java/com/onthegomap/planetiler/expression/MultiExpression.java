@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> type of data value associated with each expression
  */
-public record MultiExpression<T> (List<Entry<T>> expressions) {
+public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplifiable<MultiExpression<T>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
@@ -133,7 +133,8 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
   }
 
   /** Returns a copy of this multi-expression with each expression simplified. */
-  public MultiExpression<T> simplify() {
+  @Override
+  public MultiExpression<T> simplifyOnce() {
     return map(Simplifiable::simplify);
   }
 
@@ -182,7 +183,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) {
      * Returns the data value associated with expressions matching a feature with {@code tags}.
      */
     default O getOrElse(Map<String, Object> tags, O defaultValue) {
-      List<O> matches = getMatches(WithTags.wrap(tags));
+      List<O> matches = getMatches(WithTags.from(tags));
       return matches.isEmpty() ? defaultValue : matches.get(0);
     }
 

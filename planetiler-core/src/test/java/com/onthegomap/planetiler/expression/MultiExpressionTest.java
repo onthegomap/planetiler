@@ -560,7 +560,7 @@ class MultiExpressionTest {
     SourceFeature point = SimpleFeature.create(newPoint(0, 0), map);
     SourceFeature linestring = SimpleFeature.create(newLineString(0, 0, 1, 1), map);
     SourceFeature polygon = SimpleFeature.create(rectangle(0, 1), map);
-    WithTags other = WithTags.wrap(Map.of("field", "value"));
+    WithTags other = WithTags.from(Map.of("field", "value"));
     var index = MultiExpression.of(List.of(
       entry("polygon", polygonExpression),
       entry("linestring", linestringExpression),

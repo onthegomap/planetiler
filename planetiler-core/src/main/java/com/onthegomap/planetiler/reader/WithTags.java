@@ -6,8 +6,8 @@ import java.util.Map;
 
 /** An input element with a set of string key/object value pairs. */
 public interface WithTags {
-  static WithTags wrap(Map<String, Object> tags) {
-    return new Simple(tags);
+  static WithTags from(Map<String, Object> tags) {
+    return new OfMap(tags);
   }
 
   /** The key/value pairs on this element. */
@@ -112,5 +112,5 @@ public interface WithTags {
     tags().put(key, value);
   }
 
-  record Simple(@Override Map<String, Object> tags) implements WithTags {}
+  record OfMap(@Override Map<String, Object> tags) implements WithTags {}
 }

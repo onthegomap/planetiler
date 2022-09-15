@@ -28,15 +28,12 @@ public class Parse {
     try {
       return tag == null ? null : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
-      return retryParseNumber(tag, Number::longValue);
+      return retryParseNumber(tag, Number::longValue, null);
     }
   }
 
-  private static <T> T retryParseNumber(Object obj, Function<Number, T> getter) {
-    return retryParseNumber(obj, getter, null);
-  }
-
   private static <T> T retryParseNumber(Object obj, Function<Number, T> getter, T backup) {
+    // more expensive parser in case simple valueOf parse fails
     try {
       return getter.apply(PARSER.parse(obj.toString()));
     } catch (ParseException e) {
@@ -84,7 +81,7 @@ public class Parse {
     try {
       return tag == null ? null : tag instanceof Number number ? number.intValue() : Integer.parseInt(tag.toString());
     } catch (NumberFormatException e) {
-      return retryParseNumber(tag, Number::intValue);
+      return retryParseNumber(tag, Number::intValue, null);
     }
   }
 
@@ -117,7 +114,7 @@ public class Parse {
       return tag == null ? null : tag instanceof Number number ? number.doubleValue() :
         Double.parseDouble(tag.toString());
     } catch (NumberFormatException e) {
-      return retryParseNumber(tag, Number::doubleValue);
+      return retryParseNumber(tag, Number::doubleValue, null);
     }
   }
 

@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
+// TODO rename to BooleanExpression
 public interface Expression extends Simplifiable<Expression> {
   Logger LOGGER = LoggerFactory.getLogger(Expression.class);
 

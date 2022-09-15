@@ -1,6 +1,15 @@
 package com.onthegomap.planetiler.util;
 
+/**
+ * A container for the result of an operation that may succeed or fail.
+ *
+ * @param <T> Type of the result value, if success
+ */
 public interface Try<T> {
+  /**
+   * Calls {@code supplier} and wraps the result in {@link Success} if successful, or {@link Failure} if it throws an
+   * exception.
+   */
   static <T> Try<T> apply(SupplierThatThrows<T> supplier) {
     try {
       return success(supplier.get());
@@ -17,6 +26,11 @@ public interface Try<T> {
     return new Failure<>(throwable);
   }
 
+  /**
+   * Returns the result if success, or throws an exception if failure.
+   *
+   * @throws IllegalStateException wrapping the exception on failure
+   */
   T item();
 
   boolean isSuccess();
@@ -55,6 +69,7 @@ public interface Try<T> {
 
   @FunctionalInterface
   interface SupplierThatThrows<T> {
+    @SuppressWarnings("java:S112")
     T get() throws Exception;
   }
 }
