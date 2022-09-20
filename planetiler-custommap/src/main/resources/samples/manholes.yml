@@ -7,7 +7,7 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 layers:
-- name: manhole
+- id: manhole
   features:
   - source:
     - osm

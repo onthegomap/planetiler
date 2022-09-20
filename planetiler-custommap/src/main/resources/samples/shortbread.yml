@@ -1,6 +1,7 @@
 schema_name: Shortbread
 schema_description: A basic, lean, general-purpose vector tile schema for OpenStreetMap data. See https://shortbread.geofabrik.de/
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+examples: shortbread.spec.yml
 sources:
   ocean:
     type: shapefile
@@ -26,12 +27,12 @@ layers:
 
 #  Water
 
-- name: ocean
+- id: ocean
   features:
   - source: ocean
     geometry: polygon
 
-- name: water_polygons
+- id: water_polygons
   features:
   - source: osm
     geometry: polygon
@@ -55,7 +56,7 @@ layers:
     - key: kind
       type: match_value
 
-- name: water_polygons_labels
+- id: water_polygons_labels
   features:
   - source: osm
     geometry: polygon_centroid
@@ -72,7 +73,7 @@ layers:
     - *name_en
     - *name_de
 
-- name: water_lines
+- id: water_lines
   features:
   - source: osm
     geometry: line
@@ -92,7 +93,7 @@ layers:
     - key: kind
       type: match_value
 
-- name: water_line_labels
+- id: water_line_labels
   features:
   - source: osm
     geometry: line
@@ -118,7 +119,7 @@ layers:
     - *name_de
 
 ##  Countries, States, Cities
-- name: boundaries
+- id: boundaries
   features:
   - source: osm
     geometry: line
@@ -138,7 +139,7 @@ layers:
     - key: admin_level
       type: integer
 
-- name: boundary_labels
+- id: boundary_labels
   features:
   - source: admin_points
     geometry: point
@@ -163,7 +164,7 @@ layers:
     - key: name_de
       tag_value: NAME_DE
 
-- name: place_labels
+- id: place_labels
   features:
   - source: osm
     geometry: point
@@ -187,17 +188,17 @@ layers:
         4:
           __all__:
             place: [ city, town, village, hamlet ]
-            capital: [ 'yes', '4' ]
+            capital: [ yes, '4' ]
         6:
           __all__:
             place: city
             __not__:
-              capital: [ 'yes', '4' ]
+              capital: [ yes, '4' ]
         7:
           __all__:
             place: town
             __not__:
-              capital: [ 'yes', '4' ]
+              capital: [ yes, '4' ]
     # TODO z-order
     attributes:
     - key: kind
@@ -207,7 +208,7 @@ layers:
           capital:
             __all__:
               place: [ city, town, village, hamlet ]
-              capital: 'yes'
+              capital: yes
           state_capital:
             __all__:
               place: [ city, town, village, hamlet ]
@@ -221,11 +222,11 @@ layers:
         match:
         - value: '${ feature.tags.get("population") }'
           if: { population: __any__ }
-        - value: 100_000
+        - value: 100000
           if: { place: city }
-        - value: 5_000
+        - value: 5000
           if: { place: town }
-        - value: 1_000
+        - value: 1000
           if: { place: suburb }
         - value: 100
           if: { place: [ village, neighborhood ] }
@@ -236,7 +237,7 @@ layers:
         - else: 0
 
 #  Land Use, Land Cover, Buildings
-- name: land
+- id: land
   features:
   - source: osm
     geometry: polygon
@@ -317,7 +318,7 @@ layers:
     - key: kind
       value: '${match_value == "forest" ? "wood": match_value}'
 
-- name: sites
+- id: sites
   features:
   - source: osm
     geometry: polygon
@@ -336,7 +337,7 @@ layers:
     - key: kind
       type: match_value
 
-- name: buildings
+- id: buildings
   features:
   - source: osm
     geometry: polygon
@@ -346,7 +347,7 @@ layers:
     exclude_when:
       building: no
 
-- name: addresses
+- id: addresses
   features:
   - source: osm
     geometry: polygon_centroid_if_convex
@@ -366,7 +367,7 @@ layers:
     attributes: *address_attributes
 
 ##  Streets and Transport
-- name: streets
+- id: streets
   features:
   - source: osm
     geometry: line
@@ -454,15 +455,15 @@ layers:
       min_zoom: 11
       value: true
       include_when:
-        tunnel: [ 'yes', building_passage ]
-        covered: 'yes'
+        tunnel: [ yes, building_passage ]
+        covered: yes
       else: false
     - &bridge_attr
       key: bridge
       min_zoom: 11
       value: true
       include_when:
-        bridge: 'yes'
+        bridge: yes
       else: false
     - key: tracktype
       min_zoom: 11
@@ -475,7 +476,7 @@ layers:
     - key: horse
       min_zoom: 14
 
-- name: street_labels
+- id: street_labels
   features:
   - source: osm
     geometry: line
@@ -538,7 +539,7 @@ layers:
       value: '${ size(feature.tags["ref"].split(";")) }'
       exclude_when: *missing_ref
 
-- name: street_polygons
+- id: street_polygons
   features:
   - source: osm
     geometry: polygon
@@ -546,7 +547,7 @@ layers:
     include_when:
       __all__:
       - highway: [ pedestrian, service ]
-      - area: 'yes'
+      - area: yes
     attributes:
     - key: kind
       type: match_value
@@ -556,7 +557,7 @@ layers:
     - key: rail
       value: false # TODO omit?
 
-- name: street_polygons_labels
+- id: street_polygons_labels
   features:
   - source: osm
     geometry: polygon_point_on_surface
@@ -564,7 +565,7 @@ layers:
     include_when:
       __all__:
         highway: [ pedestrian, service ]
-        area: 'yes'
+        area: yes
         name: __any__
     attributes:
     - key: kind
@@ -573,7 +574,7 @@ layers:
     - *name_en
     - *name_de
 
-- name: street_labels_points # TODO update documentation (streetS_labels_points)
+- id: street_labels_points # TODO update documentation (streetS_labels_points)
   features:
   - source: osm
     geometry: point
@@ -588,7 +589,7 @@ layers:
     - *name_en
     - *name_de
 
-- name: aerialways
+- id: aerialways
   features:
   - source: osm
     geometry: line
@@ -599,7 +600,7 @@ layers:
     - key: kind
       type: match_value
 
-- name: public_transport
+- id: public_transport
   features:
   - source: osm
     geometry: point

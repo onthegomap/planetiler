@@ -67,8 +67,8 @@ Specifies that certain tag key should have their values treated as being a certa
 
 ### Tag Input and Output Mappings
 
-* `type`: One of `boolean`, `string`, `direction`, or `long`
-* `output`: The name of the typed key that will be presented to the attribute logic
+* `type`: One of `boolean`, `string`, `direction`, `long`, `integer` or `double`
+* `input`: The name of the key that this attribute is parsed from
 
 ### Feature Zoom Override
 

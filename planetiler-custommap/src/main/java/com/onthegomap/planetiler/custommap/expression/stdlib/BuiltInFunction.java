@@ -5,7 +5,7 @@ import java.util.List;
 import org.projectnessie.cel.interpreter.functions.Overload;
 
 /**
- * Groups together a built-in function's type signature and implementation.
+ * Groups together a built-in function's type signature and implementation that is available to dynamic expressions.
  */
 record BuiltInFunction(Decl signature, List<Overload> implementations) {
   BuiltInFunction(Decl signature, Overload... implementations) {

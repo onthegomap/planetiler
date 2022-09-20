@@ -17,6 +17,9 @@
       "description": "An attribution statement, which may include HTML such as links",
       "type": "string"
     },
+    "definitions": {
+      "description": "An unused spot where you can define anchors and aliases to be used in other parts of the schema"
+    },
     "sources": {
       "description": "A list of sources from which features should be extracted, specified as a list of names",
       "type": "object",
@@ -37,7 +40,7 @@
             "description": "Local path to the file to use, inferred from `url` if missing"
           }
         },
-        "oneOf": [
+        "anyOf": [
           {
             "required": [
               "url"
@@ -65,8 +68,8 @@
               "type": {
                 "$ref": "#/$defs/datatype"
               },
-              "output": {
-                "description": "The name of the typed key that will be presented to the attribute logic",
+              "input": {
+                "description": "The name of the key that this attribute is parsed from",
                 "type": "string"
               }
             }
@@ -79,9 +82,12 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id"
+        ],
         "properties": {
-          "name": {
-            "description": "Name of this layer",
+          "id": {
+            "description": "Unique layer name",
             "type": "string"
           },
           "features": {
@@ -93,6 +99,17 @@
           }
         }
       }
+    },
+    "examples": {
+      "description": "Example input features and the vector tile features they map to, or a relative path to a file with those examples in it.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/include"
+        },
+        {
+          "$ref": "planetilerspec.schema.json#/properties/examples"
+        }
+      ]
     }
   },
   "$defs": {
@@ -161,53 +178,39 @@
           "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed",
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "key": {
-                "description": "Name of this attribute in the tile",
-                "type": "string"
-              },
-              "type": {
-                "description": "Type of the attribute to map to",
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "match_key",
-                      "match_value"
-                    ]
-                  },
-                  {
-                    "$ref": "#/$defs/datatype"
-                  }
-                ]
-              },
-              "value": {
+            "anyOf": [
+              {
                 "$ref": "#/$defs/expression"
               },
-              "tag_value": {
-                "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)"
-              },
-              "include_when": {
-                "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
-                "$ref": "#/$defs/boolean_expression"
-              },
-              "exclude_when": {
-                "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-                "$ref": "#/$defs/boolean_expression"
-              },
-              "min_zoom": {
-                "description": "The minimum zoom at which to render this attribute",
-                "$ref": "#/$defs/zoom_level"
-              },
-              "min_zoom_by_value": {
-                "description": "Minimum zoom to render this attribute depending on the value. Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value",
+              {
                 "type": "object",
-                "additionalProperties": {
-                  "$ref": "#/$defs/zoom_level"
+                "properties": {
+                  "key": {
+                    "description": "Name of this attribute in the tile",
+                    "type": "string"
+                  },
+                  "include_when": {
+                    "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
+                    "$ref": "#/$defs/boolean_expression"
+                  },
+                  "exclude_when": {
+                    "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
+                    "$ref": "#/$defs/boolean_expression"
+                  },
+                  "min_zoom": {
+                    "description": "The minimum zoom at which to render this attribute",
+                    "$ref": "#/$defs/zoom_level"
+                  },
+                  "min_zoom_by_value": {
+                    "description": "Minimum zoom to render this attribute depending on the value. Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value",
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/$defs/zoom_level"
+                    }
+                  }
                 }
               }
-            }
+            ]
           }
         }
       }
@@ -298,6 +301,45 @@
               "$ref": "#/$defs/multiexpression"
             }
           }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "coalesce": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expression"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "tag_value": {
+              "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)",
+              "$ref": "#/$defs/expression"
+            },
+            "type": {
+              "description": "Type of the attribute to map to",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "match_key",
+                    "match_value"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/datatype"
+                }
+              ]
+            },
+            "value": {
+              "description": "Type of the attribute to map to",
+              "$ref": "#/$defs/expression"
+            }
+          }
         }
       ]
     },
@@ -334,6 +376,9 @@
           }
         }
       ]
+    },
+    "include": {
+      "type": "string"
     }
   }
 }

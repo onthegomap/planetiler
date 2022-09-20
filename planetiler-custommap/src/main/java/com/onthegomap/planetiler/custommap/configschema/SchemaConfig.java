@@ -16,7 +16,8 @@ public record SchemaConfig(
   Map<String, DataSource> sources,
   Object definitions,
   @JsonProperty("tag_mappings") Map<String, Object> inputMappings,
-  Collection<FeatureLayer> layers
+  Collection<FeatureLayer> layers,
+  Object examples
 ) {
 
   private static final String DEFAULT_ATTRIBUTION = """

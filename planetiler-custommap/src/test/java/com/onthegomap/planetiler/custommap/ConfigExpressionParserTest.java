@@ -1,10 +1,10 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.custommap.expression.ConfigFunction.*;
+import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.planetiler.custommap.expression.ConfigFunction;
-import com.onthegomap.planetiler.custommap.expression.Contexts;
+import com.onthegomap.planetiler.custommap.expression.ConfigExpression;
+import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import java.util.List;
@@ -13,14 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class TagFunctionTest {
+class ConfigExpressionParserTest {
   private static final TagValueProducer TVP = new TagValueProducer(Map.of());
-  private static final ConfigFunction.Signature<Contexts.ProcessFeature, Object> FEATURE_SIGNATURE =
+  private static final ConfigExpression.Signature<Contexts.ProcessFeature, Object> FEATURE_SIGNATURE =
     signature(Contexts.ProcessFeature.DESCRIPTION, Object.class);
 
-  private static <O> void assertParse(String yaml, ConfigFunction<?, ?> parsed, Class<O> clazz) {
+  private static <O> void assertParse(String yaml, ConfigExpression<?, ?> parsed, Class<O> clazz) {
     Object expression = YAML.load(yaml, Object.class);
-    var actual = TagFunction.function(expression, TVP, FEATURE_SIGNATURE.in(), clazz);
+    var actual = ConfigExpressionParser.parse(expression, TVP, FEATURE_SIGNATURE.in(), clazz);
     assertEquals(
       parsed.simplify(),
       actual.simplify()
@@ -55,7 +55,7 @@ class TagFunctionTest {
 
   @Test
   void testDynamicExpression() {
-    assertParse("${feature.tags.a}", expression(FEATURE_SIGNATURE, "feature.tags.a"), Object.class);
+    assertParse("${feature.tags.a}", script(FEATURE_SIGNATURE, "feature.tags.a"), Object.class);
   }
 
   @Test
@@ -74,8 +74,8 @@ class TagFunctionTest {
       - ${feature.tags.get('a')}
       - ${feature.tags.get('b')}
       """, coalesce(List.of(
-      expression(FEATURE_SIGNATURE, "feature.tags.get('a')"),
-      expression(FEATURE_SIGNATURE, "feature.tags.get('b')")
+      script(FEATURE_SIGNATURE, "feature.tags.get('a')"),
+      script(FEATURE_SIGNATURE, "feature.tags.get('b')")
     )), Object.class);
   }
 
@@ -124,5 +124,44 @@ class TagFunctionTest {
       MultiExpression.entry(constOf(1), Expression.matchAny("natural", "water")),
       MultiExpression.entry(constOf(2), Expression.matchAny("natural", "lake"))
     )), constOf(3)), Integer.class);
+  }
+
+  @Test
+  void testCast() {
+    assertParse("""
+      tag_value: abc
+      type: integer
+      """,
+      cast(
+        FEATURE_SIGNATURE.withOutput(Integer.class),
+        getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")),
+        DataType.GET_INT
+      ),
+      Integer.class
+    );
+  }
+
+  @Test
+  void testCoalesceWithType() {
+    assertParse("""
+      type: double
+      coalesce:
+      - '1'
+      - '2'
+      """, constOf(1d), Double.class);
+  }
+
+  @Test
+  void testCastAValue() {
+    assertParse("""
+      type: double
+      value: '${feature.tags.a}'
+      """,
+      cast(
+        FEATURE_SIGNATURE.withOutput(Double.class),
+        script(FEATURE_SIGNATURE.withOutput(Object.class), "feature.tags.a"),
+        DataType.GET_DOUBLE
+      ),
+      Double.class);
   }
 }

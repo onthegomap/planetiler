@@ -8,7 +8,7 @@ sources:
 tag_mappings:
   lanes: long
 layers:
-- name: testLayer
+- id: testLayer
   features:
   - source:
     - osm

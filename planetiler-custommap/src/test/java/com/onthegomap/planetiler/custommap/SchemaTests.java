@@ -26,11 +26,11 @@ class SchemaTests {
     );
     return result.results().stream()
       .map(test -> dynamicTest(test.example().name(), () -> {
-        if (test.exception().isPresent()) {
-          throw test.exception().get();
+        if (test.issues().isFailure()) {
+          throw test.issues().exception();
         }
-        if (!test.issues().isEmpty()) {
-          throw new AssertionError("Validation failed:\n" + String.join("\n", test.issues()));
+        if (!test.issues().get().isEmpty()) {
+          throw new AssertionError("Validation failed:\n" + String.join("\n", test.issues().get()));
         }
       })).toList();
   }

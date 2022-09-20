@@ -1,149 +1,246 @@
 package com.onthegomap.planetiler.custommap.expression;
 
 import com.onthegomap.planetiler.custommap.TypeConversion;
-import com.onthegomap.planetiler.custommap.expression.stdlib.PlanetilerStdLib;
-import com.onthegomap.planetiler.util.Try;
-import java.util.Map;
+import com.onthegomap.planetiler.expression.DataType;
+import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.expression.Simplifiable;
+import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
-import org.projectnessie.cel.extension.StringsLib;
-import org.projectnessie.cel.tools.Script;
-import org.projectnessie.cel.tools.ScriptCreateException;
-import org.projectnessie.cel.tools.ScriptException;
-import org.projectnessie.cel.tools.ScriptHost;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
-public class ConfigExpression<I extends ScriptContext, O> implements ConfigFunction<I, O> {
-  private static final Pattern EXPRESSION_PATTERN = Pattern.compile("^\\s*\\$\\{(.*)}\\s*$");
-  private static final Pattern ESCAPED_EXPRESSION_PATTERN = Pattern.compile("^\\s*\\\\+\\$\\{(.*)}\\s*$");
-  private final Script script;
-  private final Class<O> returnType;
-  private final String scriptText;
-  private final ScriptContextDescription<I> descriptor;
+/**
+ * A function defined in part of a schema config that produces an output value (min zoom, attribute value, etc.) for a
+ * feature at runtime.
+ * <p>
+ * This can be parsed from a structured object that lists combinations of tag key/values, an embedded script, or a
+ * combination of the two.
+ *
+ * @param <I> Type of the input context that expressions can pull values from at runtime.
+ * @param <O> Output type
+ */
+public interface ConfigExpression<I extends ScriptContext, O>
+  extends Function<I, O>, Simplifiable<ConfigExpression<I, O>> {
 
-  private ConfigExpression(String scriptText, Script script, ScriptContextDescription<I> descriptor,
-    Class<O> returnType) {
-    this.scriptText = scriptText;
-    this.script = script;
-    this.returnType = returnType;
-    this.descriptor = descriptor;
+  static <I extends ScriptContext, O> ConfigExpression<I, O> script(Signature<I, O> signature, String script) {
+    return ConfigExpressionScript.parse(script, signature.in(), signature.out());
   }
 
-  /** Returns true if this is a string expression like {@code "${ ... }"} */
-  public static boolean isExpression(Object obj) {
-    if (obj instanceof String string) {
-      var matcher = EXPRESSION_PATTERN.matcher(string);
-      return matcher.matches();
+  static <I extends ScriptContext, O> ConfigExpression<I, O> variable(Signature<I, O> signature, String text) {
+    return new Variable<>(signature, text);
+  }
+
+  static <I extends ScriptContext, O> ConfigExpression<I, O> constOf(O value) {
+    return new Const<>(value);
+  }
+
+  static <I extends ScriptContext, O> ConfigExpression<I, O> coalesce(
+    List<ConfigExpression<I, O>> values) {
+    return new Coalesce<>(values);
+  }
+
+  static <I extends ScriptContext, O> ConfigExpression<I, O> getTag(Signature<I, O> signature,
+    ConfigExpression<I, String> tag) {
+    return new GetTag<>(signature, tag);
+  }
+
+  static <I extends ScriptContext, O> ConfigExpression<I, O> cast(Signature<I, O> signature,
+    ConfigExpression<I, ?> input, DataType dataType) {
+    return new Cast<>(signature, input, dataType);
+  }
+
+  static <I extends ScriptContext, O> Match<I, O> match(Signature<I, O> description,
+    MultiExpression<ConfigExpression<I, O>> multiExpression) {
+    return new Match<>(description, multiExpression, constOf(null));
+  }
+
+  static <I extends ScriptContext, O> Match<I, O> match(Signature<I, O> description,
+    MultiExpression<ConfigExpression<I, O>> multiExpression, ConfigExpression<I, O> fallback) {
+    return new Match<>(description, multiExpression, fallback);
+  }
+
+  static <I extends ScriptContext, O> Signature<I, O> signature(ScriptEnvironment<I> in, Class<O> out) {
+    return new Signature<>(in, out);
+  }
+
+  /** An expression that always returns {@code value}. */
+  record Const<I extends ScriptContext, O> (O value) implements ConfigExpression<I, O> {
+
+    @Override
+    public O apply(I i) {
+      return value;
     }
-    return false;
   }
 
-  public static boolean isEscapedExpression(Object obj) {
-    if (obj instanceof String string) {
-      var matcher = ESCAPED_EXPRESSION_PATTERN.matcher(string);
-      return matcher.matches();
+  /** An expression that returns the value associated with the first matching boolean expression. */
+  record Match<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    MultiExpression<ConfigExpression<I, O>> multiExpression,
+    ConfigExpression<I, O> fallback,
+    MultiExpression.Index<ConfigExpression<I, O>> indexed
+  ) implements ConfigExpression<I, O> {
+
+    public Match(
+      Signature<I, O> signature,
+      MultiExpression<ConfigExpression<I, O>> multiExpression,
+      ConfigExpression<I, O> fallback
+    ) {
+      this(signature, multiExpression, fallback, multiExpression.index());
     }
-    return false;
-  }
 
-  public static Object unescapeExpression(Object obj) {
-    if (isEscapedExpression(obj)) {
-      return obj.toString().replaceFirst("\\\\\\$", "\\$");
-    } else {
-      return obj;
+    @Override
+    public boolean equals(Object o) {
+      // ignore the indexed expression
+      return this == o ||
+        (o instanceof Match<?, ?> match &&
+          Objects.equals(signature, match.signature) &&
+          Objects.equals(multiExpression, match.multiExpression) &&
+          Objects.equals(fallback, match.fallback));
+    }
+
+    @Override
+    public int hashCode() {
+      // ignore the indexed expression
+      return Objects.hash(signature, multiExpression, fallback);
+    }
+
+    @Override
+    public O apply(I i) {
+      var resultFunction = indexed.getOrElse(i, fallback);
+      return resultFunction == null ? null : resultFunction.apply(i);
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      var newMultiExpression = multiExpression
+        .mapResults(Simplifiable::simplifyOnce)
+        .simplify();
+      var newFallback = fallback.simplifyOnce();
+      if (newMultiExpression.expressions().isEmpty()) {
+        return newFallback;
+      }
+      var expressions = newMultiExpression.expressions();
+      for (int i = 0; i < expressions.size(); i++) {
+        var expression = expressions.get(i);
+        // if one of the cases is always true, then ignore the cases after it and make this value the fallback
+        if (Expression.TRUE.equals(expression.expression())) {
+          return new Match<>(
+            signature,
+            MultiExpression.of(expressions.stream().limit(i).toList()),
+            expression.result()
+          );
+        }
+      }
+      return new Match<>(signature, newMultiExpression, newFallback);
+    }
+
+    public Match<I, O> withDefaultValue(ConfigExpression<I, O> newFallback) {
+      return new Match<>(signature, multiExpression, newFallback);
     }
   }
 
-  public static String extractFromEscaped(Object obj) {
-    if (obj instanceof String string) {
-      var matcher = EXPRESSION_PATTERN.matcher(string);
-      if (matcher.matches()) {
-        return matcher.group(1);
+  /** An expression that returns the first non-null result of evaluating each child expression. */
+  record Coalesce<I extends ScriptContext, O> (List<? extends ConfigExpression<I, O>> children)
+    implements ConfigExpression<I, O> {
+
+    @Override
+    public O apply(I i) {
+      for (var condition : children) {
+        var result = condition.apply(i);
+        if (result != null) {
+          return result;
+        }
+      }
+      return null;
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      return switch (children.size()) {
+        case 0 -> constOf(null);
+        case 1 -> children.get(0);
+        default -> {
+          var result = children.stream()
+            .flatMap(
+              child -> child instanceof Coalesce<I, O> childCoalesce ? childCoalesce.children.stream() :
+                Stream.of(child))
+            .filter(child -> !child.equals(constOf(null)))
+            .distinct()
+            .toList();
+          var indexOfFirstConst = result.stream().takeWhile(d -> !(d instanceof ConfigExpression.Const<I, O>)).count();
+          yield coalesce(result.stream().limit(indexOfFirstConst + 1).toList());
+        }
+      };
+    }
+  }
+
+  /** An expression that returns the value associated a given variable name at runtime. */
+  record Variable<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    String name
+  ) implements ConfigExpression<I, O> {
+
+    public Variable {
+      if (!signature.in.containsVariable(name)) {
+        throw new ParseException("Variable not available: " + name);
       }
     }
-    return null;
+
+    @Override
+    public O apply(I i) {
+      return TypeConversion.convert(i.apply(name), signature.out);
+    }
   }
 
-  public static <I extends ScriptContext> ConfigExpression<I, Object> parse(String string,
-    ScriptContextDescription<I> description) {
-    return parse(string, description, Object.class);
+  /** An expression that returns the value associated a given tag of the input feature at runtime. */
+  record GetTag<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    ConfigExpression<I, String> tag
+  ) implements ConfigExpression<I, O> {
+
+    @Override
+    public O apply(I i) {
+      return TypeConversion.convert(i.tagValueProducer().valueForKey(i, tag.apply(i)), signature.out);
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      return new GetTag<>(signature, tag.simplifyOnce());
+    }
   }
 
-  public static <I extends ScriptContext, O> ConfigExpression<I, O> parse(String string,
-    ScriptContextDescription<I> description, Class<O> expected) {
-    ScriptHost scriptHost = ScriptHost.newBuilder().build();
-    try {
-      var scriptBuilder = scriptHost.buildScript(string).withLibraries(
-        new StringsLib(),
-        new PlanetilerStdLib()
-      );
-      if (!description.declarations().isEmpty()) {
-        scriptBuilder.withDeclarations(description.declarations());
+  /** An expression that converts the input to a desired output {@link DataType} at runtime. */
+  record Cast<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    ConfigExpression<I, ?> input,
+    DataType output
+  ) implements ConfigExpression<I, O> {
+
+
+    @Override
+    public O apply(I i) {
+      return TypeConversion.convert(output.convertFrom(input.apply(i)), signature.out);
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      var in = input.simplifyOnce();
+      if (in instanceof ConfigExpression.Const<?, ?> inConst) {
+        return constOf(TypeConversion.convert(output.convertFrom(inConst.value), signature.out));
+      } else if (in instanceof ConfigExpression.Cast<?, ?> cast && cast.output == output) {
+        @SuppressWarnings("unchecked") ConfigExpression<I, ?> newIn = (ConfigExpression<I, ?>) cast.input;
+        return cast(signature, newIn, output);
+      } else {
+        return new Cast<>(signature, input.simplifyOnce(), output);
       }
-      if (!description.types().isEmpty()) {
-        scriptBuilder.withTypes(description.types());
-      }
-      var script = scriptBuilder.build();
-
-      return new ConfigExpression<>(string, script, description, expected);
-    } catch (ScriptCreateException e) {
-      throw new ParseException("Invalid expression", e);
     }
   }
 
-  @Override
-  public O apply(I input) {
-    try {
-      return TypeConversion.convert(script.execute(Object.class, input), returnType);
-    } catch (ScriptException e) {
-      throw new EvaluationException("Error evaluating script '%s'".formatted(scriptText), e);
+  record Signature<I extends ScriptContext, O> (ScriptEnvironment<I> in, Class<O> out) {
+
+    public <O2> Signature<I, O2> withOutput(Class<O2> newOut) {
+      return new Signature<>(in, newOut);
     }
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    return this == o || (o instanceof ConfigExpression<?, ?> config &&
-      returnType.equals(config.returnType) &&
-      scriptText.equals(config.scriptText));
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(returnType, scriptText);
-  }
-
-  private static final Map<ConfigExpression<?, ?>, Boolean> staticEvaluationCache = new ConcurrentHashMap<>();
-
-  public Try<O> tryStaticEvaluate() {
-    boolean canStaticEvaluate =
-      staticEvaluationCache.computeIfAbsent(this, config -> config.doTryStaticEvaluate().isSuccess());
-    if (canStaticEvaluate) {
-      return doTryStaticEvaluate();
-    } else {
-      return Try.failure(new IllegalStateException());
-    }
-  }
-
-  private Try<O> doTryStaticEvaluate() {
-    return Try
-      .apply(() -> ConfigExpression.parse(scriptText, Contexts.Root.DESCRIPTION, returnType).apply(Contexts.root()));
-  }
-
-  @Override
-  public String toString() {
-    return "ConfigExpression[returnType=" + returnType +
-      ", scriptText='" + scriptText + '\'' +
-      ']';
-  }
-
-  @Override
-  public ConfigFunction<I, O> simplifyOnce() {
-    var result = tryStaticEvaluate();
-    if (result.isSuccess()) {
-      return ConfigFunction.constOf(result.item());
-    } else if (descriptor.containsVariable(scriptText.strip())) {
-      return ConfigFunction.variable(ConfigFunction.signature(descriptor, returnType), scriptText.strip());
-    }
-    return this;
   }
 }

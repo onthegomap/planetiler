@@ -6,7 +6,7 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 layers:
-- name: testLayer
+- id: testLayer
   features:
   - source:
     - osm

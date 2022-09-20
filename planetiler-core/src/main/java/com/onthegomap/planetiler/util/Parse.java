@@ -25,8 +25,14 @@ public class Parse {
 
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
+    return tag == null ? null : tag instanceof Number number ? Long.valueOf(number.longValue()) :
+      parseLongOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as a long or null if invalid. */
+  public static Long parseLongOrNull(String tag) {
     try {
-      return tag == null ? null : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
+      return tag == null ? null : Long.parseLong(tag);
     } catch (NumberFormatException e) {
       return retryParseNumber(tag, Number::longValue, null);
     }
@@ -78,8 +84,14 @@ public class Parse {
 
   /** Returns {@code tag} as an integer or null if invalid. */
   public static Integer parseIntOrNull(Object tag) {
+    return tag == null ? null : tag instanceof Number number ? Integer.valueOf(number.intValue()) :
+      parseIntOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as an integer or null if invalid. */
+  public static Integer parseIntOrNull(String tag) {
     try {
-      return tag == null ? null : tag instanceof Number number ? number.intValue() : Integer.parseInt(tag.toString());
+      return tag == null ? null : Integer.parseInt(tag);
     } catch (NumberFormatException e) {
       return retryParseNumber(tag, Number::intValue, null);
     }
@@ -110,9 +122,14 @@ public class Parse {
 
   /** Returns {@code tag} as a double or null if invalid. */
   public static Double parseDoubleOrNull(Object tag) {
+    return tag == null ? null : tag instanceof Number number ? Double.valueOf(number.doubleValue()) :
+      parseDoubleOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as a double or null if invalid. */
+  public static Double parseDoubleOrNull(String tag) {
     try {
-      return tag == null ? null : tag instanceof Number number ? number.doubleValue() :
-        Double.parseDouble(tag.toString());
+      return tag == null ? null : Double.parseDouble(tag);
     } catch (NumberFormatException e) {
       return retryParseNumber(tag, Number::doubleValue, null);
     }

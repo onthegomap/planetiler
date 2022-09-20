@@ -1,6 +1,6 @@
 package com.onthegomap.planetiler.expression;
 
-import static com.onthegomap.planetiler.expression.DataTypes.GET_TAG;
+import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
 
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;

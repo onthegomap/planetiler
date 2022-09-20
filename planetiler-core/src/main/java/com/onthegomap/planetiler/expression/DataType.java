@@ -9,7 +9,7 @@ import java.util.function.UnaryOperator;
 /**
  * Destination data types for an attribute that link the type to functions that can parse the value from an input object
  */
-public enum DataTypes implements BiFunction<WithTags, String, Object> {
+public enum DataType implements BiFunction<WithTags, String, Object> {
   GET_STRING("string", WithTags::getString, Objects::toString),
   GET_BOOLEAN("boolean", WithTags::getBoolean, Parse::bool),
   GET_DIRECTION("direction", WithTags::getDirection, Parse::direction),
@@ -22,16 +22,14 @@ public enum DataTypes implements BiFunction<WithTags, String, Object> {
   private final String id;
   private final UnaryOperator<Object> parser;
 
-  DataTypes(String id, BiFunction<WithTags, String, Object> getter, UnaryOperator<Object> parser) {
+  DataType(String id, BiFunction<WithTags, String, Object> getter, UnaryOperator<Object> parser) {
     this.id = id;
     this.getter = getter;
     this.parser = parser;
   }
 
-  DataTypes(String id, UnaryOperator<Object> parser) {
-    this.id = id;
-    this.getter = (d, k) -> parser.apply(d.getTag(k));
-    this.parser = parser;
+  DataType(String id, UnaryOperator<Object> parser) {
+    this(id, (d, k) -> parser.apply(d.getTag(k)), parser);
   }
 
   @Override
@@ -44,13 +42,17 @@ public enum DataTypes implements BiFunction<WithTags, String, Object> {
   }
 
   /** Returns the data type associated with {@code id}, or {@link #GET_TAG} as a fallback. */
-  public static DataTypes from(String id) {
+  public static DataType from(String id) {
     for (var value : values()) {
       if (value.id.equals(id)) {
         return value;
       }
     }
     return GET_TAG;
+  }
+
+  public String id() {
+    return id;
   }
 
   public UnaryOperator<Object> parser() {

@@ -16,6 +16,7 @@ class FileWatcherTest {
   static Path tempDir;
   Path a = normalize(tempDir.resolve("a"));
   Path b = normalize(tempDir.resolve("b"));
+  Path c = normalize(tempDir.resolve("c"));
   long time = 1;
 
   private void touch(Path... paths) throws IOException {
@@ -50,5 +51,38 @@ class FileWatcherTest {
     watcher.unwatch(b);
     touch(a, b);
     assertEquals(Set.of(), watcher.poll());
+  }
+
+  @Test
+  void testReturnWatched() throws IOException {
+    touch(a);
+    var watcher = FileWatcher.newWatcher(a, b);
+    assertEquals(Set.of(), watcher.poll());
+    assertEquals(Set.of(), watcher.poll());
+    touch(a);
+    assertEquals(Set.of(a), watcher.poll());
+
+    watcher.setWatched(Set.of(b, c));
+    touch(b);
+    assertEquals(Set.of(b), watcher.poll());
+    touch(a);
+    assertEquals(Set.of(), watcher.poll());
+    touch(a, b, c);
+    assertEquals(Set.of(b, c), watcher.poll());
+
+    watcher.setWatched(Set.of(a));
+    touch(b);
+    assertEquals(Set.of(), watcher.poll());
+    touch(a);
+    assertEquals(Set.of(a), watcher.poll());
+    touch(a, b, c);
+    assertEquals(Set.of(a), watcher.poll());
+
+    watcher.setWatched(Set.of());
+    touch(a, b, c);
+    assertEquals(Set.of(a), watcher.poll());
+    watcher.setWatched(null);
+    touch(a, b, c);
+    assertEquals(Set.of(a), watcher.poll());
   }
 }

@@ -298,7 +298,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -319,7 +319,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -350,7 +350,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -384,7 +384,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -414,7 +414,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -463,7 +463,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: point
@@ -481,6 +481,37 @@ class ConfiguredFeatureTest {
     }, 1);
   }
 
+  @Test
+  void testGetTag() {
+    testPoint("""
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            value:
+              tag_value: natural
+          - key: key2
+            value:
+              tag_value: intval
+              type: integer
+      """, Map.of(
+      "natural", "water",
+      "intval", "1"
+    ), feature -> {
+      assertEquals("water", feature.getAttrsAtZoom(14).get("key"));
+      assertEquals(1, feature.getAttrsAtZoom(14).get("key2"));
+    }, 1);
+  }
 
   @ParameterizedTest
   @ValueSource(strings = {
@@ -499,7 +530,7 @@ class ConfiguredFeatureTest {
       tag_mappings:
         depth: long
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: point
@@ -530,7 +561,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: point
@@ -557,7 +588,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: point
@@ -591,7 +622,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -636,7 +667,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -667,7 +698,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon
@@ -703,7 +734,7 @@ class ConfiguredFeatureTest {
           url: geofabrik:rhode-island
           local_path: data/rhode-island.osm.pbf
       layers:
-      - name: testLayer
+      - id: testLayer
         features:
         - source: osm
           geometry: polygon

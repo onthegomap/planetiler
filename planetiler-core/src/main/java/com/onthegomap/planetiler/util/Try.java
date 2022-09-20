@@ -31,39 +31,26 @@ public interface Try<T> {
    *
    * @throws IllegalStateException wrapping the exception on failure
    */
-  T item();
+  T get();
 
-  boolean isSuccess();
-
-  boolean isFailure();
-
-  record Success<T> (T item) implements Try<T> {
-
-    @Override
-    public boolean isSuccess() {
-      return true;
-    }
-
-    @Override
-    public boolean isFailure() {
-      return false;
-    }
+  default boolean isSuccess() {
+    return !isFailure();
   }
-  record Failure<T> (Exception failure) implements Try<T> {
+
+  default boolean isFailure() {
+    return exception() != null;
+  }
+
+  default Exception exception() {
+    return null;
+  }
+
+  record Success<T> (T get) implements Try<T> {}
+  record Failure<T> (@Override Exception exception) implements Try<T> {
 
     @Override
-    public T item() {
-      throw new IllegalStateException(failure);
-    }
-
-    @Override
-    public boolean isSuccess() {
-      return false;
-    }
-
-    @Override
-    public boolean isFailure() {
-      return true;
+    public T get() {
+      throw new IllegalStateException(exception);
     }
   }
 

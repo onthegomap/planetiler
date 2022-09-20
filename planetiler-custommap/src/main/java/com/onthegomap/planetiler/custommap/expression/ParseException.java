@@ -5,8 +5,8 @@ package com.onthegomap.planetiler.custommap.expression;
  */
 public class ParseException extends RuntimeException {
 
-  public ParseException(String message, Exception cause) {
-    super(message, cause);
+  public ParseException(String script, Exception cause) {
+    super("Error parsing: %s".formatted(script), cause);
   }
 
   public ParseException(String message) {

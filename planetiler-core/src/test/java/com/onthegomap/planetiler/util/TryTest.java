@@ -10,7 +10,7 @@ class TryTest {
   void success() {
     var result = Try.apply(() -> 1);
     assertEquals(Try.success(1), result);
-    assertEquals(1, result.item());
+    assertEquals(1, result.get());
   }
 
   @Test
@@ -20,6 +20,6 @@ class TryTest {
       throw exception;
     });
     assertEquals(Try.failure(exception), result);
-    assertThrows(IllegalStateException.class, result::item);
+    assertThrows(IllegalStateException.class, result::get);
   }
 }

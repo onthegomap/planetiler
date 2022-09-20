@@ -2,27 +2,73 @@ package com.onthegomap.planetiler.custommap.validator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class SchemaValidatorTest {
-  SchemaValidator.Result validate(String schema, String spec) {
+  @TempDir
+  Path tmpDir;
+
+  record Result(SchemaValidator.Result output, String cliOutput) {}
+
+  Result validate(String schema, String spec) throws IOException {
+    var args = Arguments.of();
     var result = SchemaValidator.validate(
       SchemaConfig.load(schema),
       SchemaSpecification.load(spec),
-      Arguments.of()
+      args
     );
     for (var example : result.results()) {
-      if (example.exception().isPresent()) {
-        throw new RuntimeException(example.example().name() + " threw exception", example.exception().get());
+      if (example.issues().isFailure()) {
+        assertNotNull(example.issues().get());
       }
     }
-    return result;
+    // also exercise the cli writer and return what it would have printed to stdout
+    var cliOutput = validateCli(Files.writeString(tmpDir.resolve("schema"),
+      schema + "\nexamples: " + Files.writeString(tmpDir.resolve("spec.yml"), spec)), args);
+
+    // also test the case where the examples are embedded in the schema itself
+    assertEquals(
+      cliOutput,
+      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\n" + spec), args)
+    );
+
+    // also test where examples points to a relative path (written in previous step)
+    assertEquals(
+      cliOutput,
+      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\nexamples: spec.yml"), args)
+    );
+    return new Result(result, cliOutput);
+  }
+
+  private String validateCli(Path path, Arguments args) {
+    try (
+      var baos = new ByteArrayOutputStream();
+      var printStream = new PrintStream(baos, true, StandardCharsets.UTF_8)
+    ) {
+      SchemaValidator.validateFromCli(
+        path,
+        args,
+        printStream
+      );
+      return baos.toString(StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   String waterSchema = """
@@ -31,7 +77,7 @@ class SchemaValidatorTest {
         type: osm
         url: geofabrik:rhode-island
     layers:
-    - name: water
+    - id: water
       features:
       - source: osm
         geometry: polygon
@@ -41,7 +87,7 @@ class SchemaValidatorTest {
         - key: natural
     """;
 
-  private SchemaValidator.Result validateWater(String layer, String geometry, String tags, String allowExtraTags) {
+  private Result validateWater(String layer, String geometry, String tags, String allowExtraTags) throws IOException {
     return validate(
       waterSchema,
       """
@@ -80,19 +126,22 @@ class SchemaValidatorTest {
     "true,water,polygon,,allow_extra_tags: true",
     "false,water,polygon,,allow_extra_tags: false",
   })
-  void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags, String allowExtraTags) {
+  void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags, String allowExtraTags)
+    throws IOException {
     var results = validateWater(layer, geometry, tags, allowExtraTags);
-    assertEquals(1, results.results().size());
-    assertEquals("test output", results.results().get(0).example().name());
+    assertEquals(1, results.output.results().size());
+    assertEquals("test output", results.output.results().get(0).example().name());
     if (shouldBeOk) {
-      assertTrue(results.ok(), results.toString());
+      assertTrue(results.output.ok(), results.toString());
+      assertFalse(results.cliOutput.contains("FAIL"), "contained FAIL but should not have: " + results.cliOutput);
     } else {
-      assertFalse(results.ok(), "Expected an issue, but there were none");
+      assertFalse(results.output.ok(), "Expected an issue, but there were none");
+      assertTrue(results.cliOutput.contains("FAIL"), "did not contain FAIL but should have: " + results.cliOutput);
     }
   }
 
   @Test
-  void testValidationFailsWrongNumberOfFeatures() {
+  void testValidationFailsWrongNumberOfFeatures() throws IOException {
     var results = validate(
       waterSchema,
       """
@@ -106,7 +155,7 @@ class SchemaValidatorTest {
           output:
         """
     );
-    assertFalse(results.ok(), results.toString());
+    assertFalse(results.output.ok(), results.toString());
 
     results = validate(
       waterSchema,
@@ -129,6 +178,6 @@ class SchemaValidatorTest {
               natural: water2
         """
     );
-    assertFalse(results.ok(), results.toString());
+    assertFalse(results.output.ok(), results.toString());
   }
 }

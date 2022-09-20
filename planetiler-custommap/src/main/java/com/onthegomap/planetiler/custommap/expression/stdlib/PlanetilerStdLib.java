@@ -22,7 +22,7 @@ import org.projectnessie.cel.common.types.traits.Mapper;
 import org.projectnessie.cel.interpreter.functions.Overload;
 
 /**
- * Built-in functions to expose to all CEL expression used in planetiler configs.
+ * Built-in functions to expose to all dynamic expression used in planetiler configs.
  */
 public class PlanetilerStdLib extends PlanetilerLib {
   private static final int VARARG_LIMIT = 32;

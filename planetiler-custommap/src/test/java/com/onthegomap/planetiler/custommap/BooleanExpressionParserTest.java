@@ -3,17 +3,17 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.planetiler.custommap.expression.ScriptContextDescription;
+import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class TagCriteriaTest {
+class BooleanExpressionParserTest {
   private static final TagValueProducer TVP = new TagValueProducer(Map.of());
 
   private static void assertParse(String yaml, Expression parsed) {
     Object expression = YAML.load(yaml, Object.class);
-    var actual = TagCriteria.matcher(expression, TVP, ScriptContextDescription.root());
+    var actual = BooleanExpressionParser.parse(expression, TVP, ScriptEnvironment.root());
     assertEquals(
       parsed.simplify().generateJavaCode(),
       actual.simplify().generateJavaCode()

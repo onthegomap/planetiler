@@ -7,7 +7,7 @@ sources:
     type: osm
     url: geofabrik:new-jersey
 layers:
-- name: power
+- id: power
   features:
   - source: osm
     geometry: point

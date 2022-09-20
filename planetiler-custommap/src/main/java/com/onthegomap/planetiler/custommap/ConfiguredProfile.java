@@ -7,7 +7,6 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
-import com.onthegomap.planetiler.custommap.expression.Contexts;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -41,9 +40,9 @@ public class ConfiguredProfile implements Profile {
     Map<String, List<MultiExpression.Entry<ConfiguredFeature>>> configuredFeatureEntries = new HashMap<>();
 
     for (var layer : layers) {
-      String layerName = layer.name();
+      String layerId = layer.id();
       for (var feature : layer.features()) {
-        var configuredFeature = new ConfiguredFeature(layerName, tagValueProducer, feature);
+        var configuredFeature = new ConfiguredFeature(layerId, tagValueProducer, feature);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
         for (var source : feature.source()) {
           var list = configuredFeatureEntries.computeIfAbsent(source, s -> new ArrayList<>());

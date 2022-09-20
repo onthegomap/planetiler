@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.custommap.TagCriteria.matcher;
-import static com.onthegomap.planetiler.custommap.expression.ConfigFunction.constOf;
+import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.constOf;
 import static com.onthegomap.planetiler.expression.Expression.not;
 
 import com.onthegomap.planetiler.FeatureCollector;
@@ -9,42 +8,35 @@ import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
-import com.onthegomap.planetiler.custommap.expression.Contexts;
-import com.onthegomap.planetiler.expression.DataTypes;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
  * A map feature, configured from a YML configuration file.
  *
  * {@link #matchExpression()} returns a filtering expression to limit input elements to ones this feature cares about,
- * and {@link #processFeature(Contexts.ProcessFeature.PostMatch, FeatureCollector)} processes matching elements.
+ * and {@link #processFeature(Contexts.FeaturePostMatch, FeatureCollector)} processes matching elements.
  */
 public class ConfiguredFeature {
+  private static final double LOG4 = Math.log(4);
   private final Expression geometryTest;
   private final Function<FeatureCollector, Feature> geometryFactory;
   private final Expression tagTest;
-  private final Function<Contexts.ProcessFeature.PostMatch, Integer> featureMinZoom;
-  private final Function<Contexts.ProcessFeature.PostMatch, Integer> featureMaxZoom;
   private final TagValueProducer tagValueProducer;
-
-  private static final double LOG4 = Math.log(4);
-
-  private final List<AttributeProcessor> attributeProcessors;
+  private final List<BiConsumer<Contexts.FeaturePostMatch, Feature>> featureProcessors;
   private final Set<String> sources;
 
 
-  @FunctionalInterface
-  private interface AttributeProcessor {
-    void process(Contexts.ProcessFeature.PostMatch context, Feature outputFeature);
-  }
-
-  public ConfiguredFeature(String layerName, TagValueProducer tagValueProducer, FeatureItem feature) {
+  public ConfiguredFeature(String layer, TagValueProducer tagValueProducer, FeatureItem feature) {
     sources = Set.copyOf(feature.source());
 
     FeatureGeometry geometryType = feature.geometry();
@@ -60,38 +52,63 @@ public class ConfiguredFeature {
     if (feature.includeWhen() == null) {
       filter = Expression.TRUE;
     } else {
-      filter = matcher(feature.includeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION);
+      filter =
+        BooleanExpressionParser.parse(feature.includeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION);
     }
     if (feature.excludeWhen() != null) {
       filter = Expression.and(
         filter,
-        Expression.not(matcher(feature.excludeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION))
+        Expression.not(
+          BooleanExpressionParser.parse(feature.excludeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION))
       );
     }
     tagTest = filter;
 
-    //Test to determine at which zooms to include this feature based on tagging
-    featureMinZoom = feature.minZoom() == null ? constOf(null) : TagFunction.function(
-      feature.minZoom(),
-      tagValueProducer,
-      Contexts.ProcessFeature.PostMatch.DESCRIPTION,
-      Integer.class
-    );
-    featureMaxZoom = feature.maxZoom() == null ? constOf(null) : TagFunction.function(
-      feature.maxZoom(),
-      tagValueProducer,
-      Contexts.ProcessFeature.PostMatch.DESCRIPTION,
-      Integer.class
-    );
-
     //Factory to generate the right feature type from FeatureCollector
-    geometryFactory = geometryType.newGeometryFactory(layerName);
+    geometryFactory = geometryType.newGeometryFactory(layer);
 
     //Configure logic for each attribute in the output tile
-    attributeProcessors = feature.attributes()
-      .stream()
-      .map(this::attributeProcessor)
-      .toList();
+    List<BiConsumer<Contexts.FeaturePostMatch, Feature>> processors = new ArrayList<>();
+    for (var attribute : feature.attributes()) {
+      processors.add(attributeProcessor(attribute));
+    }
+    processors.add(makeFeatureProcessor(feature.minZoom(), Integer.class, Feature::setMinZoom));
+    processors.add(makeFeatureProcessor(feature.maxZoom(), Integer.class, Feature::setMaxZoom));
+
+    featureProcessors = processors.stream().filter(Objects::nonNull).toList();
+  }
+
+  private <T> BiConsumer<Contexts.FeaturePostMatch, Feature> makeFeatureProcessor(Object input, Class<T> clazz,
+    BiConsumer<Feature, T> consumer) {
+    if (input == null) {
+      return null;
+    }
+    var expression = ConfigExpressionParser.parse(
+      input,
+      tagValueProducer,
+      Contexts.FeaturePostMatch.DESCRIPTION,
+      clazz
+    );
+    if (expression.equals(constOf(null))) {
+      return null;
+    }
+    return (context, feature) -> {
+      var result = expression.apply(context);
+      if (result != null) {
+        consumer.accept(feature, result);
+      }
+    };
+  }
+
+  private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
+    if (minTilePercent == null) {
+      return 0;
+    }
+    try {
+      return (int) (Math.log(minTilePercent / sf.area()) / LOG4);
+    } catch (GeometryException e) {
+      return 14;
+    }
   }
 
   /**
@@ -103,34 +120,32 @@ public class ConfiguredFeature {
    * @return a function that generates an attribute value from a {@link SourceFeature} based on an attribute
    *         configuration.
    */
-  private Function<Contexts.ProcessFeature.PostMatch, Object> attributeValueProducer(AttributeDefinition attribute) {
-    Function<Contexts.ProcessFeature.PostMatch, Object> result;
-    String type = attribute.type();
+  private Function<Contexts.FeaturePostMatch, Object> attributeValueProducer(AttributeDefinition attribute) {
+    Object type = attribute.type();
 
-    if (attribute.value() != null) {
-      result = TagFunction.function(attribute.value(), tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION,
-        Object.class);
-    } else if (attribute.tagValue() != null) {
-      result = tagValueProducer.valueProducerForKey(attribute.tagValue());
-    } else if ("match_key".equals(type)) {
-      result = Contexts.ProcessFeature.PostMatch::matchKey;
+    // some expression features are hoisted to the top-level for attribute values for brevity,
+    // so just map them to what the equivalent expression syntax would be and parse as an expression.
+    Map<String, Object> value = new HashMap<>();
+    if ("match_key".equals(type)) {
+      value.put("value", "${match_key}");
     } else if ("match_value".equals(type)) {
-      result = Contexts.ProcessFeature.PostMatch::matchValue;
+      value.put("value", "${match_value}");
     } else {
-      result = tagValueProducer.valueProducerForKey(attribute.key());
-    }
-
-    // if type is set, coerce the result to the desired datatype
-    if (type != null && !Set.of("match_key", "match_value").contains(type)) {
-      var dataType = DataTypes.from(attribute.type());
-      if (dataType == DataTypes.GET_TAG) {
-        throw new IllegalArgumentException("Unrecognized value for type: " + type);
+      if (type != null) {
+        value.put("type", type);
       }
-      var previousResult = result;
-      result = ctx -> dataType.convertFrom(previousResult.apply(ctx));
+      if (attribute.coalesce() != null) {
+        value.put("coalesce", attribute.coalesce());
+      } else if (attribute.value() != null) {
+        value.put("value", attribute.value());
+      } else if (attribute.tagValue() != null) {
+        value.put("tag_value", attribute.tagValue());
+      } else {
+        value.put("tag_value", attribute.key());
+      }
     }
 
-    return result;
+    return ConfigExpressionParser.parse(value, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION, Object.class);
   }
 
   /**
@@ -141,11 +156,11 @@ public class ConfiguredFeature {
    * @param minZoomByValue - map of tag values to zoom level
    * @return minimum zoom function
    */
-  private Function<Contexts.ProcessFeature.PostMatch.AttrZoom, Integer> attributeZoomThreshold(
+  private Function<Contexts.FeatureAttribute, Integer> attributeZoomThreshold(
     Double minTilePercent, Object rawMinZoom, Map<Object, Integer> minZoomByValue) {
 
-    var result = TagFunction.function(rawMinZoom, tagValueProducer,
-      Contexts.ProcessFeature.PostMatch.AttrZoom.DESCRIPTION, Integer.class);
+    var result = ConfigExpressionParser.parse(rawMinZoom, tagValueProducer,
+      Contexts.FeatureAttribute.DESCRIPTION, Integer.class);
 
     if ((result.equals(constOf(0)) ||
       result.equals(constOf(null))) && minZoomByValue.isEmpty()) {
@@ -164,24 +179,13 @@ public class ConfiguredFeature {
     };
   }
 
-  private static int minZoomFromTilePercent(SourceFeature sf, Double minTilePercent) {
-    if (minTilePercent == null) {
-      return 0;
-    }
-    try {
-      return (int) (Math.log(minTilePercent / sf.area()) / LOG4);
-    } catch (GeometryException e) {
-      return 14;
-    }
-  }
-
   /**
    * Generates a function which produces a fully-configured attribute for a feature.
    *
    * @param attribute - configuration for this attribute
    * @return processing logic
    */
-  private AttributeProcessor attributeProcessor(AttributeDefinition attribute) {
+  private BiConsumer<Contexts.FeaturePostMatch, Feature> attributeProcessor(AttributeDefinition attribute) {
     var tagKey = attribute.key();
 
     Object attributeMinZoom = attribute.minZoom();
@@ -202,14 +206,14 @@ public class ConfiguredFeature {
     var attributeTest =
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE :
-          matcher(attrIncludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION),
+          BooleanExpressionParser.parse(attrIncludeWhen, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION),
         attrExcludeWhen == null ? Expression.TRUE :
-          not(matcher(attrExcludeWhen, tagValueProducer, Contexts.ProcessFeature.PostMatch.DESCRIPTION))
+          not(BooleanExpressionParser.parse(attrExcludeWhen, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION))
       ).simplify();
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();
 
-    Function<Contexts.ProcessFeature.PostMatch.AttrZoom, Integer> attributeZoomProducer =
+    Function<Contexts.FeatureAttribute, Integer> attributeZoomProducer =
       attributeZoomThreshold(minTileCoverage, attributeMinZoom, minZoomByValue);
 
     return (context, f) -> {
@@ -225,7 +229,12 @@ public class ConfiguredFeature {
       }
       if (value != null) {
         if (attributeZoomProducer != null) {
-          f.setAttrWithMinzoom(tagKey, value, attributeZoomProducer.apply(context.createAttrZoomContext(value)));
+          Integer minzoom = attributeZoomProducer.apply(context.createAttrZoomContext(value));
+          if (minzoom != null) {
+            f.setAttrWithMinzoom(tagKey, value, minzoom);
+          } else {
+            f.setAttr(tagKey, value);
+          }
         } else {
           f.setAttr(tagKey, value);
         }
@@ -246,24 +255,15 @@ public class ConfiguredFeature {
    * @param context  The evaluation context containing the source feature
    * @param features output rendered feature collector
    */
-  public void processFeature(Contexts.ProcessFeature.PostMatch context, FeatureCollector features) {
+  public void processFeature(Contexts.FeaturePostMatch context, FeatureCollector features) {
     var sourceFeature = context.feature();
 
-    // Ensure that this feature is from the correct source (index should enforce this)
+    // Ensure that this feature is from the correct source (index should enforce this, so just check when assertions enabled)
     assert sources.contains(sourceFeature.getSource());
 
     var f = geometryFactory.apply(features);
-    var minZoom = featureMinZoom.apply(context);
-    if (minZoom != null) {
-      f.setMinZoom(minZoom);
-    }
-    var maxZoom = featureMaxZoom.apply(context);
-    if (maxZoom != null) {
-      f.setMaxZoom(maxZoom);
-    }
-
-    for (var processor : attributeProcessors) {
-      processor.process(context, f);
+    for (var processor : featureProcessors) {
+      processor.accept(context, f);
     }
   }
 }

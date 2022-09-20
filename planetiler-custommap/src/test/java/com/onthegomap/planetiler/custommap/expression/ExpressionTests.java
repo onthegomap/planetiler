@@ -54,7 +54,7 @@ class ExpressionTests {
     "min([1])|1|long",
   }, delimiter = '|')
   void testExpression(String in, String expected, String type) {
-    var expression = ConfigExpression.parse(in, ScriptContextDescription.root());
+    var expression = ConfigExpressionScript.parse(in, ScriptEnvironment.root());
     var result = expression.apply(ScriptContext.empty());
     switch (type) {
       case "long" -> assertEquals(Long.valueOf(expected), result);

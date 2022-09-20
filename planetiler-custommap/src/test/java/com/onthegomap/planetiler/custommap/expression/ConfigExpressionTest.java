@@ -1,14 +1,16 @@
 package com.onthegomap.planetiler.custommap.expression;
 
 import static com.onthegomap.planetiler.TestUtils.newPoint;
-import static com.onthegomap.planetiler.custommap.expression.ConfigFunction.*;
+import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.*;
 import static com.onthegomap.planetiler.expression.Expression.matchAny;
 import static com.onthegomap.planetiler.expression.Expression.or;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.TagValueProducer;
+import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -16,10 +18,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class ConfigFunctionTest {
-  private static final ConfigFunction.Signature<Contexts.Root, Integer> ROOT =
+class ConfigExpressionTest {
+  private static final ConfigExpression.Signature<Contexts.Root, Integer> ROOT =
     signature(Contexts.Root.DESCRIPTION, Integer.class);
-  private static final ConfigFunction.Signature<Contexts.ProcessFeature, Integer> FEATURE_SIGNATURE =
+  private static final ConfigExpression.Signature<Contexts.ProcessFeature, Integer> FEATURE_SIGNATURE =
     signature(Contexts.ProcessFeature.DESCRIPTION, Integer.class);
 
   @Test
@@ -38,7 +40,7 @@ class ConfigFunctionTest {
     assertEquals(99L, variable(FEATURE_SIGNATURE.withOutput(Long.class), "feature.id").apply(context));
     assertEquals(99, variable(FEATURE_SIGNATURE.withOutput(Integer.class), "feature.id").apply(context));
     assertEquals(99d, variable(FEATURE_SIGNATURE.withOutput(Double.class), "feature.id").apply(context));
-    assertThrows(IllegalArgumentException.class, () -> variable(FEATURE_SIGNATURE, "missing"));
+    assertThrows(ParseException.class, () -> variable(FEATURE_SIGNATURE, "missing"));
   }
 
   @Test
@@ -62,7 +64,7 @@ class ConfigFunctionTest {
 
   @Test
   void testDynamic() {
-    assertEquals(1, expression(ROOT, "5 - 4").apply(Contexts.root()));
+    assertEquals(1, script(ROOT, "5 - 4").apply(Contexts.root()));
   }
 
   @Test
@@ -72,32 +74,32 @@ class ConfigFunctionTest {
     // simple match
     assertEquals(2, match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
       MultiExpression.entry(constOf(1),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'c')", FEATURE_SIGNATURE.in())),
+        BooleanExpressionScript.script("feature.tags.has('a', 'c')", FEATURE_SIGNATURE.in())),
       MultiExpression.entry(constOf(2),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
+        BooleanExpressionScript.script("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
     ))).apply(context));
 
     // dynamic fallback
     assertEquals(5, match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
       MultiExpression.entry(constOf(1),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'c')", FEATURE_SIGNATURE.in())),
+        BooleanExpressionScript.script("feature.tags.has('a', 'c')", FEATURE_SIGNATURE.in())),
       MultiExpression.entry(constOf(2),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'd')", FEATURE_SIGNATURE.in()))
-    )), ConfigFunction.expression(FEATURE_SIGNATURE, "feature.tags.c + 4")).apply(context));
+        BooleanExpressionScript.script("feature.tags.has('a', 'd')", FEATURE_SIGNATURE.in()))
+    )), ConfigExpression.script(FEATURE_SIGNATURE, "feature.tags.c + 4")).apply(context));
 
     // no fallback
     assertNull(match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
       MultiExpression.entry(constOf(1),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'd')", FEATURE_SIGNATURE.in())),
+        BooleanExpressionScript.script("feature.tags.has('a', 'd')", FEATURE_SIGNATURE.in())),
       MultiExpression.entry(constOf(2),
-        DynamicBooleanExpression.dynamic("feature.tags.has('a', 'e')", FEATURE_SIGNATURE.in()))
+        BooleanExpressionScript.script("feature.tags.has('a', 'e')", FEATURE_SIGNATURE.in()))
     ))).apply(context));
 
     // dynamic value
     assertEquals(2, match(
       FEATURE_SIGNATURE,
       MultiExpression.of(List.of(
-        MultiExpression.entry(expression(FEATURE_SIGNATURE, "1 + size(feature.tags.a)"),
+        MultiExpression.entry(script(FEATURE_SIGNATURE, "1 + size(feature.tags.a)"),
           Expression.matchAny("a", "b")),
         MultiExpression.entry(constOf(1), Expression.matchAny("a", "c"))
       ))
@@ -109,7 +111,7 @@ class ConfigFunctionTest {
     assertEquals(
       constOf(3),
 
-      expression(FEATURE_SIGNATURE, "1+2").simplify()
+      script(FEATURE_SIGNATURE, "1+2").simplify()
     );
   }
 
@@ -118,12 +120,12 @@ class ConfigFunctionTest {
     assertEquals(
       variable(FEATURE_SIGNATURE, "feature.id"),
 
-      expression(FEATURE_SIGNATURE, "feature.id").simplify()
+      script(FEATURE_SIGNATURE, "feature.id").simplify()
     );
     assertEquals(
-      expression(FEATURE_SIGNATURE, "feature.tags.a"),
+      script(FEATURE_SIGNATURE, "feature.tags.a"),
 
-      expression(FEATURE_SIGNATURE, "feature.tags.a").simplify()
+      script(FEATURE_SIGNATURE, "feature.tags.a").simplify()
     );
   }
 
@@ -162,9 +164,9 @@ class ConfigFunctionTest {
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(1),
-          DynamicBooleanExpression.dynamic("1 > 2", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("1 > 2", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("1 > 3", FEATURE_SIGNATURE.in()))
+          BooleanExpressionScript.script("1 > 3", FEATURE_SIGNATURE.in()))
       ))).simplify()
     );
   }
@@ -176,10 +178,10 @@ class ConfigFunctionTest {
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(1),
-          DynamicBooleanExpression.dynamic("1 > 2", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("1 > 2", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("1 > 3", FEATURE_SIGNATURE.in()))
-      )), expression(FEATURE_SIGNATURE, "1+2")).simplify()
+          BooleanExpressionScript.script("1 > 3", FEATURE_SIGNATURE.in()))
+      )), script(FEATURE_SIGNATURE, "1+2")).simplify()
     );
   }
 
@@ -188,16 +190,16 @@ class ConfigFunctionTest {
     assertEquals(
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(0),
-          DynamicBooleanExpression.dynamic("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
+          BooleanExpressionScript.script("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
       )), constOf(1)),
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(0),
-          DynamicBooleanExpression.dynamic("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(1),
-          DynamicBooleanExpression.dynamic("1 < 2", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("1 < 2", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("feature.tags.has('c', 'd')", FEATURE_SIGNATURE.in()))
+          BooleanExpressionScript.script("feature.tags.has('c', 'd')", FEATURE_SIGNATURE.in()))
       )), constOf(2)).simplify()
     );
   }
@@ -207,15 +209,15 @@ class ConfigFunctionTest {
     assertEquals(
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
-      )), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")),
+          BooleanExpressionScript.script("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
+      )), script(FEATURE_SIGNATURE, "size(feature.tags.a)")),
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(1),
-          DynamicBooleanExpression.dynamic("1 > 2", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("1 > 2", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
-      )), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
+          BooleanExpressionScript.script("feature.tags.has('a', 'b')", FEATURE_SIGNATURE.in()))
+      )), script(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
     );
   }
 
@@ -224,11 +226,11 @@ class ConfigFunctionTest {
     assertEquals(
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(2), matchAny("a", "b")))
-      ), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")),
+      ), script(FEATURE_SIGNATURE, "size(feature.tags.a)")),
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(2), or(or(matchAny("a", "b"))))
-      )), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
+      )), script(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
     );
   }
 
@@ -237,11 +239,11 @@ class ConfigFunctionTest {
     assertEquals(
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(2), matchAny("a", "b")))
-      ), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")),
+      ), script(FEATURE_SIGNATURE, "size(feature.tags.a)")),
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(coalesce(List.of(constOf(2))), matchAny("a", "b"))
-      )), expression(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
+      )), script(FEATURE_SIGNATURE, "size(feature.tags.a)")).simplify()
     );
   }
 
@@ -254,7 +256,7 @@ class ConfigFunctionTest {
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(2), matchAny("a", "b"))
-      )), expression(FEATURE_SIGNATURE, "1+2")).simplify()
+      )), script(FEATURE_SIGNATURE, "1+2")).simplify()
     );
   }
 
@@ -265,10 +267,78 @@ class ConfigFunctionTest {
 
       match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
         MultiExpression.entry(constOf(1),
-          DynamicBooleanExpression.dynamic("1 < 2", FEATURE_SIGNATURE.in())),
+          BooleanExpressionScript.script("1 < 2", FEATURE_SIGNATURE.in())),
         MultiExpression.entry(constOf(2),
-          DynamicBooleanExpression.dynamic("1 > 3", FEATURE_SIGNATURE.in()))
+          BooleanExpressionScript.script("1 > 3", FEATURE_SIGNATURE.in()))
       ))).simplify()
+    );
+  }
+
+  @Test
+  void testGetTag() {
+    var feature = SimpleFeature.create(newPoint(0, 0), Map.of("abc", "123"), "source", "source_layer", 99);
+    assertEquals(
+      "123",
+      getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")).apply(
+        new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of())))
+    );
+
+    assertEquals(
+      123,
+      getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc"))
+        .apply(new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of("abc", "integer"))))
+    );
+
+    assertEquals(
+      123,
+      getTag(signature(Contexts.FeaturePostMatch.DESCRIPTION, Object.class), constOf("abc"))
+        .apply(new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of("abc", "integer")))
+          .createPostMatchContext(List.of()))
+    );
+
+    assertEquals(
+      null,
+      getTag(signature(Contexts.Root.DESCRIPTION, Object.class), constOf("abc"))
+        .apply(Contexts.root())
+    );
+  }
+
+  @Test
+  void testCastGetTag() {
+    var feature = SimpleFeature.create(newPoint(0, 0), Map.of("abc", "123"), "source", "source_layer", 99);
+    var context = new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of()));
+    var expression = cast(
+      FEATURE_SIGNATURE.withOutput(Integer.class),
+      getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")),
+      DataType.GET_INT
+    );
+    assertEquals(123, expression.apply(context));
+
+    assertEquals(123d, cast(
+      FEATURE_SIGNATURE.withOutput(Double.class),
+      getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")),
+      DataType.GET_INT
+    ).apply(context));
+  }
+
+  @Test
+  void testCast() {
+    var expression = cast(
+      ROOT.withOutput(Integer.class),
+      constOf("123"),
+      DataType.GET_INT
+    );
+    assertEquals(123, expression.apply(Contexts.root()));
+  }
+
+  @Test
+  void testSimplifyCast() {
+    assertEquals(constOf(123),
+      cast(
+        ROOT.withOutput(Integer.class),
+        constOf("123"),
+        DataType.GET_INT
+      ).simplify()
     );
   }
 }

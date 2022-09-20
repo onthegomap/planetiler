@@ -1,14 +1,11 @@
 package com.onthegomap.planetiler.custommap;
 
-import static com.onthegomap.planetiler.expression.DataTypes.GET_TAG;
+import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
 
-import com.onthegomap.planetiler.custommap.expression.Contexts;
-import com.onthegomap.planetiler.expression.DataTypes;
+import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.reader.WithTags;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -18,11 +15,11 @@ import java.util.function.UnaryOperator;
  * Utility that parses attribute values from source features, based on YAML config.
  */
 public class TagValueProducer {
+  public static final TagValueProducer EMPTY = new TagValueProducer(null);
 
   private final Map<String, BiFunction<WithTags, String, Object>> valueRetriever = new HashMap<>();
 
   private final Map<String, String> keyType = new HashMap<>();
-  private final List<String> remappedKeys = new ArrayList<>();
 
   public TagValueProducer(Map<String, Object> map) {
     if (map == null) {
@@ -31,19 +28,20 @@ public class TagValueProducer {
 
     map.forEach((key, value) -> {
       if (value instanceof String stringType) {
-        valueRetriever.put(key, DataTypes.from(stringType));
+        valueRetriever.put(key, DataType.from(stringType));
         keyType.put(key, stringType);
-        remappedKeys.add(key);
       } else if (value instanceof Map<?, ?> renameMap) {
-        String output = renameMap.containsKey("output") ? renameMap.get("output").toString() : key;
-        remappedKeys.add(output);
-        BiFunction<WithTags, String, Object> getter =
-          renameMap.containsKey("type") ? DataTypes.from(renameMap.get("type").toString()) : DataTypes.GET_TAG;
+        String inputKey = renameMap.containsKey("input") ? renameMap.get("input").toString() : key;
+        var getter =
+          renameMap.containsKey("type") ? DataType.from(renameMap.get("type").toString()) : DataType.GET_TAG;
         //When requesting the output value, actually retrieve the input key with the desired getter
-        valueRetriever.put(output,
-          (withTags, requestedKey) -> getter.apply(withTags, key));
+        if (inputKey.equals(key)) {
+          valueRetriever.put(key, getter);
+        } else {
+          valueRetriever.put(key, (withTags, requestedKey) -> getter.convertFrom(valueForKey(withTags, inputKey)));
+        }
         if (renameMap.containsKey("type")) {
-          keyType.put(output, renameMap.get("type").toString());
+          keyType.put(key, renameMap.get("type").toString());
         }
       }
     });
@@ -59,13 +57,13 @@ public class TagValueProducer {
   /**
    * Returns a function that extracts the value for {@code key} from a {@link WithTags} instance.
    */
-  public Signature valueProducerForKey(String key) {
+  public Function<Contexts.FeaturePostMatch, Object> valueProducerForKey(String key) {
     var getter = valueGetterForKey(key);
     return context -> getter.apply(context.parent().feature(), key);
   }
 
   /**
-   * Returns the mapped value for a key where the key is not known ahead-of-time.
+   * Returns the mapped value for a key where the key is not known ahead of time.
    */
   public Object valueForKey(WithTags feature, String key) {
     return valueGetterForKey(key).apply(feature, key);
@@ -80,7 +78,7 @@ public class TagValueProducer {
     String dataType = keyType.get(key);
     UnaryOperator<Object> parser;
 
-    if (dataType == null || (parser = DataTypes.from(dataType).parser()) == null) {
+    if (dataType == null || (parser = DataType.from(dataType).parser()) == null) {
       newMap.putAll(keyedMap);
     } else {
       keyedMap.forEach((mapKey, value) -> newMap.put(parser.apply(mapKey), value));
@@ -89,6 +87,7 @@ public class TagValueProducer {
     return newMap;
   }
 
+  /** Returns a new map where every tag has been transformed (or inferred) by the registered conversions. */
   public Map<String, Object> mapTags(WithTags feature) {
     if (valueRetriever.isEmpty()) {
       return feature.tags();
@@ -98,7 +97,4 @@ public class TagValueProducer {
       return result;
     }
   }
-
-  @FunctionalInterface
-  public interface Signature extends Function<Contexts.ProcessFeature.PostMatch, Object> {}
 }

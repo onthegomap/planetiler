@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Watches a set of paths so that each time you call {@link #poll()} it returns the set of paths that have been modified
@@ -19,6 +20,20 @@ import java.util.TreeSet;
  */
 public class FileWatcher {
   private final Map<Path, Long> modificationTimes = new TreeMap<>();
+
+  /** Returns the canonical form of {@code path}. */
+  static Path normalize(Path path) {
+    return path.toAbsolutePath().normalize();
+  }
+
+  /** Returns a new file watcher watching a set of files for modifications. */
+  public static FileWatcher newWatcher(Path... paths) {
+    var watcher = new FileWatcher();
+    for (var path : paths) {
+      watcher.watch(path);
+    }
+    return watcher;
+  }
 
   /** Returns the (normalized) paths modified since the last call to poll. */
   public Set<Path> poll() {
@@ -49,45 +64,58 @@ public class FileWatcher {
     modificationTimes.remove(normalize(path));
   }
 
-  /** Returns the canonical form of {@code path}. */
-  static Path normalize(Path path) {
-    return path.toAbsolutePath().normalize();
+  /** Returns true if we are currently watching {@code path} for changes. */
+  public boolean watching(Path path) {
+    return modificationTimes.containsKey(normalize(path));
   }
 
-  /** Returns a new file watcher watching a set of files for modifications. */
-  public static FileWatcher newWatcher(Path... paths) {
-    var watcher = new FileWatcher();
-    for (var path : paths) {
-      watcher.watch(path);
+  /** Ensures we are only watching {@code paths} provided. */
+  public void setWatched(Set<Path> paths) {
+    if (paths == null || paths.isEmpty()) {
+      return;
     }
-    return watcher;
-  }
-
-  @FunctionalInterface
-  public interface ConsumerThatThrows<T> {
-
-    @SuppressWarnings("java:S112")
-    void accept(T value) throws Exception;
-
-    default void runAndWrapException(T value) {
-      try {
-        accept(value);
-      } catch (Exception e) {
-        throwFatalException(e);
+    paths = paths.stream().map(FileWatcher::normalize).collect(Collectors.toSet());
+    for (var toWatch : paths) {
+      if (!watching(toWatch)) {
+        watch(toWatch);
+      }
+    }
+    for (var watching : Set.copyOf(modificationTimes.keySet())) {
+      if (!paths.contains(watching)) {
+        unwatch(watching);
       }
     }
   }
 
-  public void pollForChanges(Duration delay, ConsumerThatThrows<Set<Path>> action) {
+  /**
+   * Blocks and invokes {@code action} every time one of the watched files changes, checking every {@code delay}
+   * interval.
+   */
+  public void pollForChanges(Duration delay, FunctionThatThrows<Set<Path>, Set<Path>> action) {
     while (!Thread.currentThread().isInterrupted()) {
       var changes = poll();
       if (!changes.isEmpty()) {
-        action.runAndWrapException(changes);
+        setWatched(action.runAndWrapException(changes));
       }
       try {
         Thread.sleep(delay.toMillis());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+      }
+    }
+  }
+
+  @FunctionalInterface
+  public interface FunctionThatThrows<I, O> {
+
+    @SuppressWarnings("java:S112")
+    O apply(I value) throws Exception;
+
+    default O runAndWrapException(I value) {
+      try {
+        return apply(value);
+      } catch (Exception e) {
+        return throwFatalException(e);
       }
     }
   }

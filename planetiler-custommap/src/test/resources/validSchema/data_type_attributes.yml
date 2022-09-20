@@ -12,13 +12,13 @@ tag_mappings:
   d_type: direction
   s_type: string
   double_type: double
-  intermittent:
-    output: is_intermittent
+  is_intermittent:
+    input: intermittent
     type: boolean
   bridge:
     type: boolean
 layers:
-- name: testLayer
+- id: testLayer
   features:
   - source:
     - osm

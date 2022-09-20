@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap.validator;
 import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.custommap.YAML;
 import com.onthegomap.planetiler.geo.GeometryType;
@@ -10,6 +11,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+/** A model of example input source features and expected output vector tile features that a schema should produce. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SchemaSpecification(List<Example> examples) {
 
   public static SchemaSpecification load(Path path) {
@@ -20,6 +23,7 @@ public record SchemaSpecification(List<Example> examples) {
     return YAML.load(string, SchemaSpecification.class);
   }
 
+  /** An individual test case */
   public record Example(
     String name,
     InputFeature input,
@@ -32,6 +36,7 @@ public record SchemaSpecification(List<Example> examples) {
     }
   }
 
+  /** Description of an input feature from a source that the schema will process. */
   public record InputFeature(
     String source,
     String geometry,
@@ -43,6 +48,8 @@ public record SchemaSpecification(List<Example> examples) {
       return tags == null ? Map.of() : tags;
     }
   }
+
+  /** Description of an expected vector tile feature that the schema should produce. */
   public record OutputFeature(
     String layer,
     GeometryType geometry,

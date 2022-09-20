@@ -10,13 +10,12 @@ sources:
     type: osm
     url: geofabrik:monaco
 tag_mappings:
-  bridge:
-    type: boolean
+  bridge: boolean
   intermittent: boolean
   layer: long
   tunnel: boolean
 layers:
-- name: water
+- id: water
   features:
   - source: osm
     geometry: polygon
@@ -58,7 +57,7 @@ layers:
         intermittent: true
     - key: name
       min_zoom: 12
-- name: road
+- id: road
   features:
   - source: osm
     geometry: line

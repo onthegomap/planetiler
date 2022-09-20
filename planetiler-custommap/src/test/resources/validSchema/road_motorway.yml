@@ -14,7 +14,7 @@ tag_mappings:
   layer: long
   tunnel: boolean
 layers:
-- name: road
+- id: road
   features:
   - source:
     - osm

@@ -14,7 +14,7 @@
                 <list>
                   <Item>
                     <option name="directory" value="true" />
-                    <option name="path" value="planetiler-custommap/src/main/resources/samples" />
+                    <option name="path" value="planetiler-custommap" />
                     <option name="mappingKind" value="Directory" />
                   </Item>
                 </list>

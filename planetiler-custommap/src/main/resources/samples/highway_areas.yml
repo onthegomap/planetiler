@@ -10,7 +10,7 @@ tag_mappings:
   bridge: boolean
   layer: long
 layers:
-- name: highway_area
+- id: highway_area
   features:
   - source: osm
     geometry: polygon

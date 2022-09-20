@@ -7,7 +7,7 @@ sources:
     url: geofabrik:rhode-island
     local_path: data/rhode-island.osm.pbf
 layers:
-- name: testLayer
+- id: testLayer
   features:
   - source:
     - osm

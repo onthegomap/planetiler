@@ -8,13 +8,18 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.yaml.snakeyaml.Yaml;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
 
+/**
+ * Utility for parsing YAML files into java objects using snakeyaml to handle aliases and anchors and jackson to map
+ * into java model objects.
+ */
 public class YAML {
 
   private YAML() {}
 
-  private static final Yaml snakeYaml = new Yaml();
+  private static final Load snakeYaml = new Load(LoadSettings.builder().build());
   private static final ObjectMapper jackson = new ObjectMapper();
 
   public static <T> T load(Path file, Class<T> clazz) {
@@ -27,8 +32,8 @@ public class YAML {
 
   public static <T> T load(InputStream stream, Class<T> clazz) {
     try (stream) {
-      Object parsed = snakeYaml.load(stream);
-      return jackson.convertValue(parsed, clazz);
+      Object parsed = snakeYaml.loadFromInputStream(stream);
+      return convertValue(parsed, clazz);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -48,5 +53,9 @@ public class YAML {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  public static <T> T convertValue(Object parsed, Class<T> clazz) {
+    return jackson.convertValue(parsed, clazz);
   }
 }

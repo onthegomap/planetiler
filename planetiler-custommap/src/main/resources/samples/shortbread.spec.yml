@@ -154,7 +154,7 @@ examples:
     source: osm
     geometry: polygon
     tags:
-      building: 'yes'
+      building: yes
   output:
   - layer: buildings
     geometry: polygon
@@ -204,7 +204,7 @@ examples:
     tags:
       change:lanes:backward: no
       change:lanes:forward: not_left|not_right
-      embankment: 'yes'
+      embankment: yes
       highway: primary
       lanes: 3
       lanes:backward: 1
@@ -252,7 +252,7 @@ examples:
       lanes: 1
       lit: no
       maxspeed: 50
-      oneway: 'yes'
+      oneway: yes
       ref: B 39;B 39A
       sidewalk: no
       surface: asphalt
@@ -398,7 +398,7 @@ examples:
     geometry: line
     tags:
       highway: path
-      bridge: 'yes'
+      bridge: yes
   output:
     layer: streets
     geometry: line
@@ -414,7 +414,7 @@ examples:
     geometry: line
     tags:
       highway: pedestrian
-      tunnel: 'yes'
+      tunnel: yes
   output:
     layer: streets
     geometry: line
@@ -486,9 +486,9 @@ examples:
     source: osm
     geometry: polygon
     tags:
-      area: 'yes'
+      area: yes
       highway: pedestrian
-      lit: 'yes'
+      lit: yes
       surface: paving_stones
       name: 'Name'
       name:en: 'Name (en)'
@@ -527,9 +527,9 @@ examples:
     source: osm
     geometry: polygon
     tags:
-      area: 'yes'
+      area: yes
       highway: service
-      bridge: 'yes'
+      bridge: yes
   output:
     layer: street_polygons
     geometry: polygon
@@ -702,7 +702,7 @@ examples:
     tags:
       boundary: administrative
       admin_level: '2'
-      maritime: 'yes'
+      maritime: yes
   output:
     layer: boundaries
     geometry: line
@@ -780,7 +780,7 @@ examples:
     tags:
       kind: state_capital
       name: 'Name'
-      population: 100_000
+      population: 100000
 
 - name: 'capital'
   input:
@@ -788,7 +788,7 @@ examples:
     geometry: point
     tags:
       place: city
-      capital: 'yes'
+      capital: yes
       name: 'Name'
   output:
     layer: place_labels
@@ -798,7 +798,7 @@ examples:
     tags:
       kind: capital
       name: 'Name'
-      population: 100_000
+      population: 100000
 
 - name: 'population with comma'
   input:

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/onthegomap/planetiler/main/planetiler-custommap/planetilerspec.schema.json",
+  "title": "Planetiler Specification",
+  "description": "Planetiler schema specification with example input features and the expected output features",
+  "type": "object",
+  "properties": {
+    "examples": {
+      "description": "A list of example input features, and the output vector tile features they should map to",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Unique name for this test case",
+            "type": "string"
+          },
+          "input": {
+            "description": "The input feature from a source",
+            "type": "object",
+            "properties": {
+              "source": {
+                "description": "ID of the source this feature comes from",
+                "type": "string"
+              },
+              "geometry": {
+                "description": "Geometry type of the input feature",
+                "type": "string",
+                "enum": [
+                  "polygon",
+                  "line",
+                  "point"
+                ]
+              },
+              "tags": {
+                "description": "Key/value attributes on the source feature",
+                "oneOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "output": {
+            "description": "The output vector tile feature(s) this map to, or [] for no features",
+            "oneOf": [
+              {
+                "$ref": "#/$defs/output"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/output"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "output": {
+      "type": "object",
+      "properties": {
+        "layer": {
+          "description": "Vector tile layer of the expected output feature",
+          "type": "string"
+        },
+        "geometry": {
+          "description": "Geometry type of the expected output feature",
+          "$ref": "#/$defs/geometry"
+        },
+        "min_zoom": {
+          "description": "Min zoom level that the output feature appears in",
+          "type": "integer"
+        },
+        "max_zoom": {
+          "description": "Max zoom level that the output feature appears in",
+          "type": "integer"
+        },
+        "tags": {
+          "description": "Attributes expected on the output vector tile feature, or null if the attribute should not be set. Use allow_extra_tags: true to fail if any other tags appear besides the ones specified here",
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allow_extra_tags": {
+          "description": "If true, then fail when extra attributes besides tags appear on the output feature. If false or unset then ignore them.",
+          "type": "boolean"
+        },
+        "at_zoom": {
+          "description": "Some attributes change by zoom level, so get values at this zoom level for comparison",
+          "type": "integer"
+        }
+      }
+    },
+    "geometry": {
+      "type": "string",
+      "enum": [
+        "polygon",
+        "line",
+        "point"
+      ]
+    }
+  }
+}
