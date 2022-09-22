@@ -9,5 +9,5 @@ fi
 
 version="$1"
 
-./mvnw -B -ntp versions:set-property versions:commit -Dproperty="revision" -DnewVersion="${version}" -f planetiler-examples/standalone.pom.xml
+./mvnw -B -ntp versions:set-property versions:commit -Dproperty="revision" -DnewVersion="${version}"
 ./mvnw -B -ntp versions:set-property versions:commit -Dproperty="planetiler.version" -DnewVersion="${version}" -f planetiler-examples/standalone.pom.xml
