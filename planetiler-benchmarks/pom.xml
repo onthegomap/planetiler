@@ -9,19 +9,19 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <dependencies>
     <dependency>
       <groupId>com.onthegomap.planetiler</groupId>
       <artifactId>planetiler-core</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${revision}</version>
     </dependency>
     <dependency>
       <groupId>org.openmaptiles</groupId>
       <artifactId>planetiler-openmaptiles</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${revision}</version>
     </dependency>
   </dependencies>
 
