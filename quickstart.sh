@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
           *openmaptiles*)
             PLANETILER_ARGS+=("$1")
             ;;
-          *.yml|*shortbread*|generate-*|*-qa|example-*|verify-*|*custom|benchmark*)
+          *.yml|*shortbread*|generate-*|*-qa|example-*|verify*|*custom|benchmark*)
             TASK="$1"
             PLANETILER_ARGS+=("$1")
             ;;
@@ -99,8 +99,6 @@ echo ""
 
 if [ "$DRY_RUN" == "true" ]; then
   echo "Without --dry-run, will run commands:"
-else
-  sleep 3
 fi
 
 function run() {

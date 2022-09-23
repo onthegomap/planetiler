@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.geotools.geometry.jts.WKTReader2;
 import org.locationtech.jts.geom.Geometry;
@@ -39,10 +40,17 @@ public class SchemaValidator {
   private static final String FAIL_BADGE = AnsiColors.redBackground(" FAIL ");
 
   public static void main(String[] args) {
+    // let users run `verify schema.yml` as a shortcut
+    String schemaFile = null;
+    if (args.length > 0 && args[0].endsWith(".yml") && !args[0].startsWith("-")) {
+      schemaFile = args[0];
+      args = Stream.of(args).skip(1).toArray(String[]::new);
+    }
     var arguments = Arguments.fromEnvOrArgs(args);
+    var schema = schemaFile == null ? arguments.inputFile("schema", "Schema file") :
+      arguments.inputFile("schema", "Schema file", Path.of(schemaFile));
     var watch =
       arguments.getBoolean("watch", "Watch files for changes and re-run validation when schema or spec changes", false);
-    var schema = arguments.inputFile("schema", "Schema file");
 
 
     PrintStream output = System.out;
@@ -84,7 +92,7 @@ public class SchemaValidator {
       } else if (examples != null) {
         spec = YAML.convertValue(parsedSchema, SchemaSpecification.class);
       } else {
-        throw new IllegalArgumentException("Missing examples in " + schema);
+        spec = new SchemaSpecification(List.of());
       }
       result = validate(parsedSchema, spec, args);
     } catch (Exception exception) {
@@ -121,13 +129,14 @@ public class SchemaValidator {
       }
     }
     List<String> summary = new ArrayList<>();
-    if (failed > 0) {
+    boolean none = (passed + failed) == 0;
+    if (none || failed > 0) {
       summary.add(AnsiColors.redBold(failed + " failed"));
     }
-    if (passed > 0) {
+    if (none || passed > 0) {
       summary.add(AnsiColors.greenBold(passed + " passed"));
     }
-    if (passed > 0 && failed > 0) {
+    if (none || passed > 0 && failed > 0) {
       summary.add((failed + passed) + " total");
     }
     output.println();

@@ -62,12 +62,12 @@ public class PlanetilerStdLib extends PlanetilerLib {
         Overload.binary("nullif", (a, b) -> Objects.equals(a, b) ? NullT.NullValue : a)
       ),
 
-      // string.regexp_replace(regex, replacement) -> replaces all matches for regex in string with replacement
+      // string.replaceRegex(regex, replacement) -> replaces all matches for regex in string with replacement
       new BuiltInFunction(
-        Decls.newFunction("regexp_replace",
-          Decls.newInstanceOverload("regexp_replace", List.of(Decls.String, Decls.String, Decls.String), Decls.String)
+        Decls.newFunction("replaceRegex",
+          Decls.newInstanceOverload("replaceRegex", List.of(Decls.String, Decls.String, Decls.String), Decls.String)
         ),
-        Overload.function("regexp_replace", values -> {
+        Overload.function("replaceRegex", values -> {
           try {
             String string = ((String) values[0].value());
             String regexp = ((String) values[1].value());

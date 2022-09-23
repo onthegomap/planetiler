@@ -18,22 +18,33 @@
       "type": "string"
     },
     "definitions": {
-      "description": "An unused spot where you can define anchors and aliases to be used in other parts of the schema"
+      "description": "An unparsed spot where you can define anchors and aliases to be used in other parts of the schema",
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "description": "An unparsed array of attribute fragments to be used below.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attribute"
+          }
+        }
+      }
     },
     "sources": {
-      "description": "A list of sources from which features should be extracted, specified as a list of names",
+      "description": "An object where key is the source ID and value is the definition of where the features should be extracted from",
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "properties": {
           "type": {
+            "description": "File format of the data source",
             "enum": [
               "osm",
               "shapefile"
             ]
           },
           "url": {
-            "description": "URL to download this file from if not present at `local_path`",
+            "description": "Location to download the file from. For geofabrik named areas, use `geofabrik:` prefixes, for example `geofabrik:rhode-island`.",
             "type": "string"
           },
           "local_path": {
@@ -143,7 +154,7 @@
           ]
         },
         "source": {
-          "description": "A source or list of sources from which features should be extracted",
+          "description": "A source ID or list of source IDs from which features should be extracted",
           "oneOf": [
             {
               "type": "string"
@@ -163,54 +174,22 @@
           "maximum": 1
         },
         "include_when": {
-          "description": "A tag specification which determines which features to include. If unspecified, all features from the specified sources are included",
+          "description": "A tag specification which determines the features to include. If unspecified, all features from the specified sources are included",
           "$ref": "#/$defs/boolean_expression"
         },
         "exclude_when": {
-          "description": "A tag specification which determines which features to exclude. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
+          "description": "A tag specification which determines the features to exclude. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
           "$ref": "#/$defs/boolean_expression"
         },
         "min_zoom": {
-          "description": "Minimum zoom to show the feature that matches the filter specifications.",
+          "description": "An expression that returns the minimum zoom to render this feature at.",
           "$ref": "#/$defs/expression"
         },
         "attributes": {
           "description": "Specifies the attributes that should be rendered into the tiles for this feature, and how they are constructed",
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/expression"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "key": {
-                    "description": "Name of this attribute in the tile",
-                    "type": "string"
-                  },
-                  "include_when": {
-                    "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
-                    "$ref": "#/$defs/boolean_expression"
-                  },
-                  "exclude_when": {
-                    "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
-                    "$ref": "#/$defs/boolean_expression"
-                  },
-                  "min_zoom": {
-                    "description": "The minimum zoom at which to render this attribute",
-                    "$ref": "#/$defs/zoom_level"
-                  },
-                  "min_zoom_by_value": {
-                    "description": "Minimum zoom to render this attribute depending on the value. Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value",
-                    "type": "object",
-                    "additionalProperties": {
-                      "$ref": "#/$defs/zoom_level"
-                    }
-                  }
-                }
-              }
-            ]
+            "$ref": "#/$defs/attribute"
           }
         }
       }
@@ -219,6 +198,51 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 15
+    },
+    "attribute": {
+      "type": "object",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/expression_coalesce"
+        },
+        {
+          "$ref": "#/$defs/expression_tag_value"
+        },
+        {
+          "$ref": "#/$defs/expression_value"
+        },
+        {
+          "$ref": "#/$defs/expression_with_type_or_match_key_value"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "description": "ID of this attribute in the tile",
+              "type": "string"
+            },
+            "include_when": {
+              "description": "A filter specification which determines whether to include this attribute. If unspecified, the attribute will be included unless excluded by `excludeWhen`",
+              "$ref": "#/$defs/boolean_expression"
+            },
+            "exclude_when": {
+              "description": "A filter specification which determines whether to exclude this attribute. This rule is applied after `includeWhen`. If unspecified, no exclusion filter is applied.",
+              "$ref": "#/$defs/boolean_expression"
+            },
+            "min_zoom": {
+              "description": "The minimum zoom at which to render this attribute",
+              "$ref": "#/$defs/zoom_level"
+            },
+            "min_zoom_by_value": {
+              "description": "Minimum zoom to render this attribute depending on the value. Contains a map of `value: zoom` entries that indicate the minimum zoom for each possible value",
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/zoom_level"
+              }
+            }
+          }
+        }
+      ]
     },
     "boolean_expression": {
       "anyOf": [
@@ -281,101 +305,144 @@
           "type": "number"
         },
         {
-          "type": "boolean"
+          "$ref": "#/$defs/expression_default_overrides"
         },
         {
-          "type": "object",
-          "properties": {
-            "default_value": {
-              "$ref": "#/$defs/expression"
-            },
-            "overrides": {
-              "$ref": "#/$defs/multiexpression"
-            }
-          }
+          "$ref": "#/$defs/expression_match"
         },
         {
-          "type": "object",
-          "properties": {
-            "match": {
-              "$ref": "#/$defs/multiexpression"
-            }
-          }
+          "$ref": "#/$defs/expression_coalesce"
         },
         {
-          "type": "object",
-          "properties": {
-            "coalesce": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/expression"
-              }
-            }
-          }
+          "$ref": "#/$defs/expression_tag_value"
         },
         {
-          "type": "object",
-          "properties": {
-            "tag_value": {
-              "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)",
-              "$ref": "#/$defs/expression"
-            },
-            "type": {
-              "description": "Type of the attribute to map to",
-              "oneOf": [
-                {
-                  "type": "string",
-                  "enum": [
-                    "match_key",
-                    "match_value"
-                  ]
-                },
-                {
-                  "$ref": "#/$defs/datatype"
-                }
-              ]
-            },
-            "value": {
-              "description": "Type of the attribute to map to",
-              "$ref": "#/$defs/expression"
-            }
-          }
+          "$ref": "#/$defs/expression_value"
+        },
+        {
+          "$ref": "#/$defs/expression_with_type"
+        },
+        {
+          "$ref": "#/$defs/multiexpression"
         }
       ]
+    },
+    "expression_with_type_or_match_key_value": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Type of the attribute to map to",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "match_key",
+                "match_value"
+              ]
+            },
+            {
+              "$ref": "#/$defs/datatype"
+            }
+          ]
+        }
+      }
+    },
+    "expression_with_type": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Type of the attribute to map to",
+          "$ref": "#/$defs/datatype"
+        }
+      }
+    },
+    "expression_tag_value": {
+      "type": "object",
+      "properties": {
+        "tag_value": {
+          "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)",
+          "$ref": "#/$defs/expression"
+        }
+      }
+    },
+    "expression_value": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "An expression that computes the value for this key for each input element",
+          "$ref": "#/$defs/expression"
+        }
+      }
+    },
+    "expression_coalesce": {
+      "type": "object",
+      "properties": {
+        "coalesce": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          }
+        }
+      }
+    },
+    "expression_match": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "$ref": "#/$defs/multiexpression"
+        }
+      }
+    },
+    "expression_default_overrides": {
+      "type": "object",
+      "properties": {
+        "default_value": {
+          "$ref": "#/$defs/expression"
+        },
+        "overrides": {
+          "$ref": "#/$defs/multiexpression"
+        }
+      }
     },
     "multiexpression": {
       "oneOf": [
         {
-          "type": "object",
-          "additionalProperties": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/boolean_expression"
-              },
-              {
-                "const": "otherwise"
-              }
-            ]
-          }
+          "$ref": "#/$defs/multiexpression_object"
         },
         {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "value": {
-                "$ref": "#/$defs/expression"
-              },
-              "if": {
-                "$ref": "#/$defs/boolean_expression"
-              },
-              "else": {
-                "$ref": "#/$defs/expression"
-              }
-            }
-          }
+          "$ref": "#/$defs/multiexpression_array"
         }
       ]
+    },
+    "multiexpression_object": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/boolean_expression"
+          },
+          {
+            "const": "otherwise"
+          }
+        ]
+      }
+    },
+    "multiexpression_array": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/$defs/expression"
+          },
+          "if": {
+            "$ref": "#/$defs/boolean_expression"
+          },
+          "else": {
+            "$ref": "#/$defs/expression"
+          }
+        }
+      }
     },
     "include": {
       "type": "string"

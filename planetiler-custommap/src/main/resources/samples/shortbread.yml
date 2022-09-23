@@ -14,12 +14,13 @@ sources:
     url: geofabrik:massachusetts
 definitions:
   # TODO let attribute definitions set multiple keys so you can just use `- *names`
-  name: &name
+  attributes:
+  - &name
     key: name
-  name_en: &name_en
+  - &name_en
     key: name_en
     tag_value: name:en
-  name_de: &name_de
+  - &name_de
     key: name_de
     tag_value: name:de
 

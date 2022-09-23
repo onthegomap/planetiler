@@ -27,7 +27,7 @@ class ExpressionTests {
     "nullif(1, 12)|1|long",
 
     "'123'.replace('12', 'X')|X3|string",
-    "'123'.regexp_replace('1(.)', '$1')|23|string",
+    "'123'.replaceRegex('1(.)', '$1')|23|string",
     "string(123)|123|string",
     "string({1:2,3:'4'}[1])|2|string",
 

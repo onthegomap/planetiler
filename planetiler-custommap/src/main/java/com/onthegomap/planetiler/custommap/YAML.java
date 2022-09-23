@@ -20,7 +20,7 @@ public class YAML {
   private YAML() {}
 
   private static final Load snakeYaml = new Load(LoadSettings.builder().build());
-  private static final ObjectMapper jackson = new ObjectMapper();
+  public static final ObjectMapper jackson = new ObjectMapper();
 
   public static <T> T load(Path file, Class<T> clazz) {
     try (var schemaStream = Files.newInputStream(file)) {
