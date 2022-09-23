@@ -2,4 +2,4 @@
 
 set -eu
 
-./mvnw -B -ntp install jib:dockerBuild
+./mvnw -B -ntp install jib:dockerBuild -Pflatten
