@@ -9,8 +9,8 @@ import java.util.Objects;
 /**
  * A boolean {@link Expression} based off of a dynamic expression script parsed from a string.
  *
- * @param expression     The original CEL script string to evaluate
- * @param expressionText The parsed CEL script
+ * @param expression     The parsed CEL script
+ * @param expressionText The original CEL script string to evaluate
  * @param inputClass     Type of the context that the script is expecting.
  *
  * @param <T>            Type of the expression context

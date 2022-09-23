@@ -16,6 +16,7 @@ public class TypeConversion {
   // so put more specific conversions first, and general fallbacks last
   // NOTE: only does single-hop conversions, does NOT attempt to chain together multiple conversions
   private static final List<Converter<?, ?>> CONVERTERS = List.of(
+    // implicit initial conversion returns the input if it is null, or already a subclass of the output type
     converter(Number.class, Double.class, Number::doubleValue),
     converter(Number.class, Integer.class, Number::intValue),
     converter(Number.class, Long.class, Number::longValue),

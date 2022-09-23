@@ -129,7 +129,7 @@ the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.ja
 
 - what vector tile features to generate from an input feature
 - what information from OpenStreetMap relations we need to save for later use
-- how post-process vector features grouped into a tile before emitting
+- how to post-process vector features grouped into a tile before emitting
 
 A Java project can implement this interface and add arbitrarily complex processing when overriding the methods.
 The [custommap](planetiler-custommap) project defines

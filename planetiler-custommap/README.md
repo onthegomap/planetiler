@@ -14,8 +14,8 @@ Schema files are in [YAML 1.2](https://yaml.org) format and this page and
 accompanying [JSON schema](planetiler.schema.json) describe the required format and available
 options. See the [samples](src/main/resources/samples) directory for working examples.
 
-NOTE: The configuration schema is under active development so the format may change between releases. Only a
-subset of the Java API is currently exposed so for more complex schemas you can switch to the Java API (see
+:construction: The configuration schema is under active development so the format may change between releases.
+Only a subset of the Java API is currently exposed so for more complex schemas you should switch to the Java API (see
 the [examples project](../planetiler-examples)). Feedback is welcome to help shape the final product!
 
 ## Root
@@ -31,7 +31,7 @@ The root of the schema has the following attributes:
   See [Tag Mappings](#tag-mappings).
 - `layers` - A list of vector tile [Layers](#layer) to emit and their definitions
 - `examples` - A list of [Test Case](#test-case) input features and the vector tile features they should map to, or a
-  relative path to a file with those examples in it. Run planetiler with arguments `verify schema_file.yml` to see
+  relative path to a file with those examples in it. Run planetiler with `verify schema_file.yml` to see
   if they work as expected.
 - `definitions` - An unparsed spot where you can
   define [anchor labels](https://en.wikipedia.org/wiki/YAML#Advanced_components) to be used in other parts of the
@@ -45,8 +45,8 @@ schema_description: A map of power lines from OpenStreetMap
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
 sources: { ... }
 tag_mappings: { ... }
-layers: [ ... ]
-examples: [ ... ]
+layers: [...]
+examples: [...]
 definitions: # anything ...
 ```
 
@@ -94,17 +94,17 @@ tag_mappings:
 
 A layer contains a thematically-related set of features from one or more input sources.
 
-* `id` - Unique name of this layer
-* `features` - A list of features contained in this layer. See [Layer Features](#layer-feature)
+- `id` - Unique name of this layer
+- `features` - A list of features contained in this layer. See [Layer Features](#layer-feature)
 
 For example:
 
 ```yaml
 layers:
-- id: power
-  features:
-  - { ... }
-  - { ... }
+  - id: power
+    features:
+      - { ... }
+      - { ... }
 ```
 
 ## Layer Feature
@@ -137,10 +137,10 @@ geometry: line
 min_zoom: 7
 include_when:
   power:
-  - line
+    - line
 attributes:
-- { ... }
-- { ... }
+  - { ... }
+  - { ... }
 ```
 
 ## Feature Attribute
@@ -148,7 +148,7 @@ attributes:
 Defines an attribute to include on an output vector tile feature and how to compute its value.
 
 - `key` - ID of this attribute in the tile
-- `include_when` - A [Boolean Expression](#boolean-expression)  which determines whether to include
+- `include_when` - A [Boolean Expression](#boolean-expression) which determines whether to include
   this attribute. If unspecified, the attribute will be included unless
   excluded by `excludeWhen`.
 - `exclude_when` - A [Boolean Expression](#boolean-expression) which determines whether to exclude
@@ -163,18 +163,18 @@ Defines an attribute to include on an output vector tile feature and how to comp
 
 To define the value, use one of:
 
-- `value` - An [Expression](#expression) that computes the value for this key for each input element.
+- `value` - A constant string/number/boolean value, or an [Expression](#expression) that computes the value for this key
+  for each input element.
 - `coalesce` - A [Coalesce Expression](#coalesce-expression) that sets this attribute to the first non-null match from a
-  list of expressions for each input element.
-- `tag_value` - A [Tag Value Expression](#tag-value-expression) that sets this attribute to the value for a tag from
-  each input feature.
+  list of expressions.
+- `tag_value` - A [Tag Value Expression](#tag-value-expression) that sets this attribute to the value for a tag.
 
 For example:
 
 ```yaml
 key: voltage
 min_zoom: 10
-include_when: '${ double(feature.tags.voltage) > 1000 }'
+include_when: "${ double(feature.tags.voltage) > 1000 }"
 tag_value: voltage
 type: integer
 ```
@@ -185,7 +185,8 @@ A string enum that defines how to map from an input. Allowed values:
 
 - `boolean` - Map 0, "no", or "false" to false and everything else to true
 - `string` - Returns the string representation of the input value
-- `direction` - Maps "-1" to -1, "1" "yes" or "true" to 1, and everything else to 0
+- `direction` - Maps "-1" to -1, "1" "yes" or "true" to 1, and everything else to 0.
+  See [Key:oneway](https://wiki.openstreetmap.org/wiki/Key:oneway#Data_consumers).
 - `long` - Parses an input as a 64-bit signed number
 - `integer` - Parses an input as a 32-bit signed number
 - `double` - Parses an input as a floating point number
@@ -193,9 +194,8 @@ A string enum that defines how to map from an input. Allowed values:
 ## Expression
 
 Expressions let you define how to dynamically compute a value (attribute value, min zoom, etc.) at runtime. You can
-structure some data-heavy expressions in YAML (ie. [match](#match-expression) or [coalesce](#coalesce-expression)) or
-for simpler expressions that require more flexibility you can embed an [inline script](#inline-script)
-using `${ expression }` syntax.
+structure data-heavy expressions in YAML (ie. [match](#match-expression) or [coalesce](#coalesce-expression)) or
+simpler expressions that require more flexibility as an [inline script](#inline-script) using `${ expression }` syntax.
 
 ### Constant Value Expression
 
@@ -209,9 +209,10 @@ value: true
 
 ### Tag Value Expression
 
-Use `tag_value:` to make the expression evaluate to the value of the input feature's `natural` tag at runtime:
+Use `tag_value:` to return the value for each feature's tag at runtime:
 
 ```yaml
+# return value for "natural" tag
 value:
   tag_value: natural
 ```
@@ -224,10 +225,10 @@ expressions at runtime:
 ```yaml
 value:
   coalesce:
-  - tag_value: highway
-  - tag_value: aerialway
-  - tag_value: railway
-  - 'fallback value'
+    - tag_value: highway
+    - tag_value: aerialway
+    - tag_value: railway
+    - "fallback value"
 ```
 
 ### Match Expression
@@ -240,13 +241,13 @@ value:
   # returns "farmland" if subclass is farmland, farm, or orchard
   farmland:
     subclass:
-    - farmland
-    - farm
-    - orchard
+      - farmland
+      - farm
+      - orchard
   ice:
     subclass:
-    - glacier
-    - ice_shelf
+      - glacier
+      - ice_shelf
   # "otherwise" keyword means this is the fallback value
   water: otherwise
 ```
@@ -255,17 +256,17 @@ If the values are not simple strings, then you can use an array of objects with 
 
 ```yaml
 value:
-- value: 100000
-  if:
-    place: city
-- value: 5000
-  if:
-    place: town
-- value: 100
-  if:
-    place: [ village, neighborhood ]
-# fallback value
-- else: 0
+  - value: 100000
+    if:
+      place: city
+  - value: 5000
+    if:
+      place: town
+  - value: 100
+    if:
+      place: [village, neighborhood]
+  # fallback value
+  - else: 0
 ```
 
 In some cases it is more straightforward to express match logic as a `default_value` with `overrides`, for example:
@@ -310,7 +311,7 @@ If a script's value will never change, planetiler evaluates it once ahead of tim
 compute a complex value with no runtime overhead:
 
 ```yaml
-value: '${ 8 * 24 - 2 }'
+value: "${ 8 * 24 - 2 }"
 ```
 
 #### Inline Script Contexts
@@ -326,6 +327,7 @@ nested, so each child context can also access the variables from its parent.
 >>
 >> Context available when processing an input feature, for example testing whether to include it from `include_when`.
 >> Available variables:
+>>
 >> - `feature.tags` - map with key/value tags from the input feature
 >> - `feature.id` - numeric ID of the input feature
 >> - `feature.source` - string source ID this feature came from
@@ -334,6 +336,7 @@ nested, so each child context can also access the variables from its parent.
 >>> ##### post-match context
 >>>
 >>> Context available after a feature has matched, for example computing an attribute value. Adds variables:
+>>>
 >>> - `match_key` - string tag that triggered a match to include the feature in this layer
 >>> - `match_value` - the tag value associated with that key
 >>>
@@ -341,7 +344,15 @@ nested, so each child context can also access the variables from its parent.
 >>>>
 >>>> Context available after the value of an attribute has been computed, for example: set min zoom to render an
 >>>> attribute. Adds variables:
+>>>>
 >>>> - `value` the value that was computed for this key
+
+For example:
+
+```yaml
+# return the value associated with the matching tag, converted to lower case:
+value: '${ match_value.lowerAscii() }'
+```
 
 #### Built-In Functions
 
@@ -352,8 +363,8 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
 
 - `coalesce(any, any, ...)` returns the first non-null argument
 - `nullif(arg1, arg2)` returns null if arg1 is the same as arg2, otherwise arg1
-- `min(list&lt;number&gt;)` returns the minimum value from a list
-- `max(list&lt;number&gt;)` returns the maximum value from a list
+- `min(list<number>)` returns the minimum value from a list
+- `max(list<number>)` returns the maximum value from a list
 - map extensions:
   - `<map>.has(key)` returns true if the map contains a key
   - `<map>.has(key, value)` returns true if the map contains a key and the value for that key is value
@@ -373,7 +384,7 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
   - `<string>.replace(from, to, limit)` returns the input string with the first N occurrences of from replaced by to
   - `<string>.replaceRegex(pattern, value)` replaces every occurrence of regular expression with value from the string
     it was called on using java's
-    built-in [replaceAll](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String))
+    built-in [replaceAll](<https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String)>)
     behavior
   - `<string>.split(separator)` returns a list of strings split from the input by a separator
   - `<string>.split(separator, limit)` splits the list into up to N parts
@@ -383,23 +394,27 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
 
 ## Boolean Expression
 
-A boolean expression evaluates to true or false for a given input feature. It can be specified as a map from key to
-value or list of values, a [complex boolean expression](#complex-boolean-expressions), or
+A boolean expression evaluates to true or false for a given input feature. It can be specified as
+a [tag-based boolean expression](#tag-based-boolean-expressions),
+a [complex boolean expression](#complex-boolean-expressions), or
 an [inline script](#inline-boolean-expression-script).
 
-For example:
+### Tag-Based Boolean Expressions
+
+Boolean expressions can be specified as a map from key to value or list of values. For example:
 
 ```yaml
 # match features where natural=glacier, waterway=riverbank, OR waterway=canal
 include_when:
   natural: water
   waterway:
-  - riverbank
-  - canal
+    - riverbank
+    - canal
 ```
 
-Planetiler optimizes runtime performance by pre-processing all of the `include_when` boolean expressions in order to
-evaluate the minimum set of them at runtime based on the tags present on the feature.
+Planetiler optimizes runtime performance by pre-processing all of the `include_when` boolean expressions in
+each [match expression](#match-expression) and `include_when` block in order to evaluate the minimum set of them at
+runtime based on the tags present on the feature.
 
 To match when a tag is present, use the `__any__` keyword:
 
@@ -414,7 +429,7 @@ To match when a feature does _not_ have a tag use `''` as the value:
 ```yaml
 # exclude features without a name tag
 exclude_when:
-  name: ''
+  name: ""
 ```
 
 To match when the value for a key matches a pattern, use the `%` wildcard character:
@@ -422,7 +437,7 @@ To match when the value for a key matches a pattern, use the `%` wildcard charac
 ```yaml
 # include features where highway tag ends in "_link"
 include_when:
-  highway: '%_link'
+  highway: "%_link"
 ```
 
 When a feature matches a boolean expression in the `include_when` field, the first key that triggered the match is
@@ -432,76 +447,80 @@ available to other expressions as `match_key` and its value is available as `mat
 ```yaml
 include_when:
   highway:
-  - motorway%
-  - trunk%
-  - primary%
+    - motorway%
+    - trunk%
+    - primary%
   railway: rail
 attributes:
-# set "kind" attribute to the value for highway or railway, with trailing "_link" stripped off
-- key: kind
-  value: '${ match_value.replace("_link", ") }'
+  # set "kind" attribute to the value for highway or railway, with trailing "_link" stripped off
+  - key: kind
+    value: '${ match_value.replace("_link", ") }'
 ```
 
 ### Complex Boolean Expressions
 
-The simple boolean expressions above match when _any_ of the tag conditions are true, but to match only when all of them
-are true, you can nest them under an `__all__` key:
+The [tag-based boolean expressions](#tag-based-boolean-expressions) above match when _any_ of the tag conditions are
+true, but to match only when all of them are true, you can nest them under an `__all__` key:
 
 ```yaml
 # match when highway=pedestrian or highway=service AND area=yes
 __all__:
   highway:
-  - pedestrian
-  - service
+    - pedestrian
+    - service
   area: yes
 ```
 
-You can also match when any subexpressions is true with `__any__` and when the subexpression is false using
-the `__not__` key.
+`__all__` can take an array as well. By default, each array item matches if _any_ of its children match, and you can
+make that explicit with the `__any__` keyword:
+
+```yaml
+# match when highway=pedestrian OR foot=yes, and area=yes
+__all__:
+- highway: pedestrian
+  foot: yes
+- area: yes
+
+# equivalent to:
+__all__:
+- __any__:
+    highway: pedestrian
+    foot: yes
+- area: yes
+```
+
+You can also match when the subexpression is false using the `__not__` keyword:
 
 ```yaml
 # match when place=city AND capital is not 'yes' or '4'
 __all__:
   place: city
   __not__:
-    capital: [ yes, '4' ]
-```
-
-`__any__` and `__all__` take a [boolean expression](#boolean-expression) object or array of boolean expressions as
-input, so you can also group child expressions into arrays for more fine-grained control:
-
-```yaml
-# match when place=city
-# AND the wikipedia or wikidata tag is present
-# AND capital is not 'yes' or '4'
-__all__:
-- place: city
-- wikipedia: __any__
-  wikidata: __any__
-- __not__:
-    capital: [ yes, '4' ]
+    capital: [yes, "4"]
 ```
 
 ### Inline Boolean Expression Script
 
 You can also specify boolean logic with an [inline script](#inline-script) that evaluates to `true` or `false` using
-the `${ expression }` syntax. For example to set the `min_zoom` attribute based on the value of an area tag:
+the `${ expression }` syntax. For example:
 
 ```yaml
+# set the `min_zoom` attribute to:
+# 2 if area > 20 million, 3 if > 7 million, 4 if > 1 million, or 5 otherwise
 min_zoom:
   default_value: 5
   overrides:
-    2: '${ double(feature.tags.area) >= 2e8 }'
-    3: '${ double(feature.tags.area) >= 7e7 }'
-    4: '${ double(feature.tags.area) >= 1e7 }'
+    2: "${ double(feature.tags.area) >= 2e8 }"
+    3: "${ double(feature.tags.area) >= 7e7 }"
+    4: "${ double(feature.tags.area) >= 1e7 }"
 ```
 
-WARNING: If you use an expression script in `include_when`, it will get evaluated against every input element
-and will not set the `match_key` or `match_value` variables. When possible, use structured tag expressions which are
-optimized for runtime matching performance.
+:warning: If you use an expression script in `include_when`, it will get evaluated against every input element
+and will not set the `match_key` or `match_value` variables. When possible,
+use [structured tag expressions](#tag-based-boolean-expressions) which are optimized for runtime matching performance.
 
-You can, however combine a post-filter in an `__all__` block which will only get evaluated if the structured tag
-expression matches first:
+You can, however combine a post-filter in an `__all__` block which will only get evaluated if
+the [structured tag expressions](#tag-based-boolean-expressions) matches first:
 
 ```yaml
 # Include a feature when place=city or place=town
@@ -509,18 +528,24 @@ expression matches first:
 # AND the population value is greater than 10000
 include_when:
   __all__:
-  - place: [ city, town ]
-  - population: __any__
-  # only evaluated if previous conditions are true
-  - '${ double(feature.tags.population) > 10000 }'
+    - place: [city, town]
+    - population: __any__
+    # only evaluated if previous conditions are true
+    - "${ double(feature.tags.population) > 10000 }"
 ```
 
 ## Test Case
 
-An example input source feature, and the expected vector tile features that it produces. You can run planetiler with
-arguments `verify schema.yml` to test your schema against each of
-the examples. Or you can add the `--watch` argument watch the input file(s) for changes and validate the test cases
-on each change.
+An example input source feature, and the expected vector tile features that it produces. Run planetiler
+with `verify schema.yml` to test your schema against each of the examples. Or you can add the `--watch` argument watch
+the input file(s) for changes and validate the test cases on each change:
+
+```yaml
+# from a java build
+java -jar planetiler.jar verify schema.yml --watch
+# or with docker (put the schema in data/schema.yml to include in the attached volume)
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /data/schema.yml --watch
+```
 
 - `name` - Unique name for this test case.
 - `input` - The input feature from a source, with the following attributes:
@@ -548,14 +573,14 @@ input:
   source: osm
   tags:
     power: line
-    voltage: '1200'
+    voltage: "1200"
 output:
-- layer: power
-  geometry: line
-  min_zoom: 7
-  tags:
-    power: line
-    voltage: 1200
+  - layer: power
+    geometry: line
+    min_zoom: 7
+    tags:
+      power: line
+      voltage: 1200
 ```
 
 See [shortbread.spec.yml](src/main/resources/samples/shortbread.spec.yml) for more examples.

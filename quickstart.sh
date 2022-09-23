@@ -42,14 +42,12 @@ while [[ $# -gt 0 ]]; do
       # on the first passthrough arg, check if it's instructions to do something besides openmaptiles
       if (( ${#PLANETILER_ARGS[@]} == 0 )); then
         case $1 in
-          *openmaptiles*)
-            PLANETILER_ARGS+=("$1")
-            ;;
-          *.yml|*shortbread*|generate-*|*-qa|example-*|verify*|*custom|benchmark*)
+          *openmaptiles*) PLANETILER_ARGS+=("$1") ;;
+          -*) PLANETILER_ARGS+=("$1") ;;
+          *.yml|*shortbread*|*generate*|*-qa|*example*|*verify*|*custom*|*benchmark*)
             TASK="$1"
             PLANETILER_ARGS+=("$1")
             ;;
-          -*) PLANETILER_ARGS+=("$1") ;;
           *) AREA="$1" ;;
         esac
       else
