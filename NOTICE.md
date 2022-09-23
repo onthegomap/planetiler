@@ -24,6 +24,7 @@ The `planetiler-core` module includes the following software:
   - com.carrotsearch:hppc (Apache license)
   - com.github.jnr:jnr-ffi (Apache license)
   - org.roaringbitmap:RoaringBitmap (Apache license)
+  - org.projectnessie.cel:cel-tools (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -41,6 +42,7 @@ The `planetiler-core` module includes the following software:
     from [openstreetmap/OSM-binary](https://github.com/openstreetmap/OSM-binary/tree/master/osmpbf) (MIT License)
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)
+  - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
 - Code adapted from OpenMapTiles (BSD 3-Clause License):
   - `generated` package generated from OpenMapTiles

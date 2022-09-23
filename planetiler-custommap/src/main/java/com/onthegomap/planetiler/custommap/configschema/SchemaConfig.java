@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.onthegomap.planetiler.custommap.YAML;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
 
@@ -12,8 +14,10 @@ public record SchemaConfig(
   @JsonProperty("schema_description") String schemaDescription,
   String attribution,
   Map<String, DataSource> sources,
+  Object definitions,
   @JsonProperty("tag_mappings") Map<String, Object> inputMappings,
-  Collection<FeatureLayer> layers
+  Collection<FeatureLayer> layers,
+  Object examples
 ) {
 
   private static final String DEFAULT_ATTRIBUTION = """
@@ -23,5 +27,13 @@ public record SchemaConfig(
   @Override
   public String attribution() {
     return attribution == null ? DEFAULT_ATTRIBUTION : attribution;
+  }
+
+  public static SchemaConfig load(Path path) {
+    return YAML.load(path, SchemaConfig.class);
+  }
+
+  public static SchemaConfig load(String string) {
+    return YAML.load(string, SchemaConfig.class);
   }
 }

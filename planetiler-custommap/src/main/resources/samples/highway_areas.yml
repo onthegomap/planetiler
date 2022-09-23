@@ -10,10 +10,9 @@ tag_mappings:
   bridge: boolean
   layer: long
 layers:
-- name: highway_area
+- id: highway_area
   features:
-  - sources:
-    - osm
+  - source: osm
     geometry: polygon
     min_zoom: 14
     include_when:
@@ -24,14 +23,13 @@ layers:
     - key: layer
     - key: surface
     - key: bridge
-  - sources:
-    - osm
+  - source: osm
     geometry: polygon
     min_zoom: 14
     include_when:
       man_made: bridge
     attributes:
     - key: man_made
-      constant_value: bridge
+      value: bridge
     - key: layer
     - key: surface

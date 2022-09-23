@@ -14,9 +14,9 @@ tag_mappings:
   layer: long
   tunnel: boolean
 layers:
-- name: road
+- id: road
   features:
-  - sources:
+  - source:
     - osm
     min_zoom: 4
     geometry: line
@@ -29,7 +29,7 @@ layers:
         bridge: true
       min_zoom: 11
     - key: tunnel
-      constant_value: true
+      value: true
       include_when:
         tunnel: true
       min_zoom: 11

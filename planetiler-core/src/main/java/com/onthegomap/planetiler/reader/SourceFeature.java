@@ -11,9 +11,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.MultiLineString;
-import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -26,7 +24,7 @@ import org.locationtech.jts.geom.Polygon;
  * All geometries except for {@link #latLonGeometry()} return elements in world web mercator coordinates where (0,0) is
  * the northwest corner and (1,1) is the southeast corner of the planet.
  */
-public abstract class SourceFeature implements WithTags {
+public abstract class SourceFeature implements WithTags, WithGeometryType {
 
   private final Map<String, Object> tags;
   private final String source;
@@ -247,25 +245,6 @@ public abstract class SourceFeature implements WithTags {
       (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
-  /** Returns true if this feature can be interpreted as a {@link Point} or {@link MultiPoint}. */
-  public abstract boolean isPoint();
-
-  /**
-   * Returns true if this feature can be interpreted as a {@link Polygon} or {@link MultiPolygon}.
-   * <p>
-   * A closed ring can either be a polygon or linestring, so return false to not allow this closed ring to be treated as
-   * a polygon.
-   */
-  public abstract boolean canBePolygon();
-
-  /**
-   * Returns true if this feature can be interpreted as a {@link LineString} or {@link MultiLineString}.
-   * <p>
-   * A closed ring can either be a polygon or linestring, so return false to not allow this closed ring to be treated as
-   * a linestring.
-   */
-  public abstract boolean canBeLine();
-
   /** Returns the ID of the source that this feature came from. */
   public String getSource() {
     return source;
@@ -307,6 +286,7 @@ public abstract class SourceFeature implements WithTags {
   public final long id() {
     return id;
   }
+
 
   /** Returns true if this element has any OSM relation info. */
   public boolean hasRelationInfo() {

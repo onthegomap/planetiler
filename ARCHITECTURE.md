@@ -4,12 +4,13 @@
 
 Planetiler builds a map in 3 phases:
 
-1. [Process Input Files](#1-process-input-files) according to
-   the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) and write vector tile features
-   to intermediate files on disk
+1. [Process Input Files](#1-process-input-files) according to the [Profile](#profiles) and write vector tile features to
+   intermediate files on disk
 2. [Sort Features](#2-sort-features) by tile ID
 3. [Emit Vector Tiles](#3-emit-vector-tiles) by iterating through sorted features to group by tile ID, encoding, and
    writing to the output MBTiles file
+
+User-defined [profiles](#profiles) customize the behavior of each part of this pipeline.
 
 ## 1) Process Input Files
 
@@ -28,7 +29,8 @@ from each input source:
     - nodes: store node latitude/longitude locations in-memory or on disk
       using [LongLongMap](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/LongLongMap.java)
     - ways: nothing
-    - relations: call `preprocessOsmRelation` on the profile and store information returned for each relation of
+    - relations: call `preprocessOsmRelation` on the [profile](#profiles) and store information returned for each
+      relation of
       interest, along with relation member IDs in-memory using
       a [LongLongMultimap](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/LongLongMultimap.java).
   - pass 2:
@@ -46,11 +48,9 @@ from each input source:
       then emit a polygon source feature with the reconstructed geometry if successful
 
 Then, for each [SourceFeature](planetiler-core/src/main/java/com/onthegomap/planetiler/reader/SourceFeature.java),
-generate vector tile features according to
-the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) in a worker thread (default 1 per
-core):
+generate vector tile features according to the [profile](#profiles) in a worker thread (default 1 per core):
 
-- Call `processFeature` method on the profile for each source feature
+- Call `processFeature` method on the [profile](#profiles) for each source feature
 - For every vector tile feature added to
   the [FeatureCollector](planetiler-core/src/main/java/com/onthegomap/planetiler/FeatureCollector.java):
   - Call [FeatureRenderer#accept](planetiler-core/src/main/java/com/onthegomap/planetiler/render/FeatureRenderer.java)
@@ -122,3 +122,17 @@ Finally, a single-threaded writer writes encoded vector tiles to the output MBTi
 - Iterate through finished vector tile batches until the prepared statement is full, flush to disk, then repeat
 - Then flush any remaining tiles at the end
 
+## Profiles
+
+To customize the behavior of this pipeline, custom profiles implement
+the [Profile](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) interface to override:
+
+- what vector tile features to generate from an input feature
+- what information from OpenStreetMap relations we need to save for later use
+- how to post-process vector features grouped into a tile before emitting
+
+A Java project can implement this interface and add arbitrarily complex processing when overriding the methods.
+The [custommap](planetiler-custommap) project defines
+a [ConfiguredProfile](planetiler-custommap/src/main/java/com/onthegomap/planetiler/custommap/ConfiguredProfile.java)
+implementation that loads instructions from a YAML config file to dynamically control how schemas are generated without
+needing to write or compile Java code.

@@ -8,19 +8,20 @@ sources:
 tag_mappings:
   lanes: long
 layers:
-- name: testLayer
+- id: testLayer
   features:
-  - sources:
+  - source:
     - osm
     geometry: line
-    min_zoom: 4
-    zoom_override:
-    - min: 5
-      tag:
-        highway: trunk
-    - min: 7
-      tag:
-        highway: primary
+    min_zoom:
+      default_value: 4
+      overrides:
+      - value: 5
+        if:
+          highway: trunk
+      - value: 7
+        if:
+          highway: primary
     include_when:
       highway:
     attributes:

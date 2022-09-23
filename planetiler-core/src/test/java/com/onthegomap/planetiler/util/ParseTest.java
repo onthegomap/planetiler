@@ -33,7 +33,8 @@ class ParseTest {
   @CsvSource(value = {
     "0, 0, 0",
     "false, 0, null",
-    "123, 123, 123"
+    "123, 123, 123",
+    "123.123, 123, 123",
   }, nullValues = {"null"})
   void testLong(String in, long out, Long obj) {
     assertEquals(out, Parse.parseLong(in));

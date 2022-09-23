@@ -71,10 +71,12 @@ public class Imposm3Parsers {
    *
    * @see <a href="https://wiki.openstreetmap.org/wiki/Key:oneway">OSM one-way</a>
    */
-  public static int direction(Object string) {
-    if (string == null) {
+  public static int direction(Object obj) {
+    if (obj == null) {
       return 0;
-    } else if (forwardDirections.contains(string(string))) {
+    }
+    String string = string(obj);
+    if (forwardDirections.contains(string)) {
       return 1;
     } else if ("-1".equals(string)) {
       return -1;

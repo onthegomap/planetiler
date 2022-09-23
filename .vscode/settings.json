@@ -1,11 +1,11 @@
 {
   "java.format.settings.url": "eclipse-formatter.xml",
   "java.format.settings.profile": "Planetiler",
-  "java.completion.importOrder": [
-    "#",
-    ""
-  ],
+  "java.completion.importOrder": ["#", ""],
   "java.sources.organizeImports.staticStarThreshold": 5,
   "java.sources.organizeImports.starThreshold": 999,
-  "java.saveActions.organizeImports": true
+  "java.saveActions.organizeImports": true,
+  "yaml.schemas": {
+    "./planetiler-custommap/planetiler.schema.json": "planetiler-custommap/**/*.yml"
+  }
 }

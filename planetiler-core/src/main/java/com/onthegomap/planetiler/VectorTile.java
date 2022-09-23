@@ -401,7 +401,7 @@ public class VectorTile {
   }
 
   public static VectorGeometry encodeGeometry(Geometry geometry, int scale) {
-    return new VectorGeometry(getCommands(geometry, scale), GeometryType.valueOf(geometry), scale);
+    return new VectorGeometry(getCommands(geometry, scale), GeometryType.typeOf(geometry), scale);
   }
 
   /**

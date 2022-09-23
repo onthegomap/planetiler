@@ -8,6 +8,7 @@ import static com.onthegomap.planetiler.expression.ExpressionTestUtil.featureWit
 import static com.onthegomap.planetiler.expression.MultiExpression.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
@@ -131,8 +132,9 @@ class MultiExpressionTest {
 
   private void matchFieldCheck(Index<String> index) {
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
-    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", null)));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "no")));
@@ -145,7 +147,8 @@ class MultiExpressionTest {
       entry("a", not(matchField("key")))
     )).index();
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value")));
-    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", null)));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value2", "otherkey", "othervalue")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key2", "value")));
@@ -201,6 +204,38 @@ class MultiExpressionTest {
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1")));
     assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testStartsWith() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "value%"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+  }
+
+  @Test
+  void testEndsWith() {
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAny("key", "%value"))
+    )).index();
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "value1")));
+    assertSameElements(List.of("a"), index.getMatches(featureWithTags("key", "1value")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1")));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("key", "1value1", "otherkey", "othervalue")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value", "key3", "value")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key", "no")));
     assertSameElements(List.of(), index.getMatches(featureWithTags("key2", "value")));
@@ -520,21 +555,26 @@ class MultiExpressionTest {
     Expression polygonExpression = and(matchType("polygon"), matchField("field"));
     Expression linestringExpression = and(matchType("linestring"), matchField("field"));
     Expression pointExpression = and(matchType("point"), matchField("field"));
+    Expression otherExpression = matchField("field");
     Map<String, Object> map = Map.of("field", "value");
     SourceFeature point = SimpleFeature.create(newPoint(0, 0), map);
     SourceFeature linestring = SimpleFeature.create(newLineString(0, 0, 1, 1), map);
     SourceFeature polygon = SimpleFeature.create(rectangle(0, 1), map);
+    WithTags other = WithTags.from(Map.of("field", "value"));
     var index = MultiExpression.of(List.of(
       entry("polygon", polygonExpression),
       entry("linestring", linestringExpression),
-      entry("point", pointExpression)
+      entry("point", pointExpression),
+      entry("other", otherExpression)
     )).index();
     assertTrue(pointExpression.evaluate(point, new ArrayList<>()));
     assertTrue(linestringExpression.evaluate(linestring, new ArrayList<>()));
     assertTrue(polygonExpression.evaluate(polygon, new ArrayList<>()));
+    assertTrue(otherExpression.evaluate(other, new ArrayList<>()));
     assertEquals("point", index.getOrElse(point, null));
     assertEquals("linestring", index.getOrElse(linestring, null));
     assertEquals("polygon", index.getOrElse(polygon, null));
+    assertEquals("other", index.getOrElse(other, null));
   }
 
   @Test
@@ -583,6 +623,44 @@ class MultiExpressionTest {
     });
   }
 
+  @Test
+  void testCustomExpression() {
+    Expression dontEvaluate = new Expression() {
+      @Override
+      public boolean evaluate(WithTags input, List<String> matchKeys) {
+        throw new AssertionError("should not evaluate");
+      }
+
+      @Override
+      public String generateJavaCode() {
+        return null;
+      }
+    };
+    Expression matchAbc = new Expression() {
+      @Override
+      public boolean evaluate(WithTags input, List<String> matchKeys) {
+        return input.hasTag("abc");
+      }
+
+      @Override
+      public String generateJavaCode() {
+        return null;
+      }
+    };
+    var index = MultiExpression.of(List.of(
+      entry("a", matchAbc),
+      entry("b", and(matchField("def"), dontEvaluate)),
+      entry("c", or(matchField("abc"), matchAbc))
+    )).index();
+
+    assertSameElements(List.of(), index.getMatches(featureWithTags()));
+    assertSameElements(List.of(), index.getMatches(featureWithTags("a", "1")));
+    assertSameElements(List.of("a", "c"), index.getMatches(featureWithTags("abc", "123")));
+    var bad = featureWithTags("def", "123");
+    assertThrows(AssertionError.class, () -> index.getMatches(bad));
+  }
+
+  @Test
   void testAndOrMatch() {
     var expr = and(
       or(

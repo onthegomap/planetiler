@@ -23,13 +23,12 @@ public class CacheByZoom<T> {
   /**
    * Returns a cache for {@code supplier} that can handle a min/max zoom range specified in {@code config}.
    *
-   * @param config   min/max zoom range this can handle
    * @param supplier function that will be called with each zoom-level to get the value
    * @param <T>      return type of the function
    * @return a cache for {@code supplier} by zom
    */
-  public static <T> CacheByZoom<T> create(PlanetilerConfig config, IntFunction<T> supplier) {
-    return new CacheByZoom<>(config.minzoom(), config.maxzoomForRendering(), supplier);
+  public static <T> CacheByZoom<T> create(IntFunction<T> supplier) {
+    return new CacheByZoom<>(0, PlanetilerConfig.MAX_MAXZOOM, supplier);
   }
 
   public T get(int zoom) {
