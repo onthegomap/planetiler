@@ -6,7 +6,7 @@
 
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-parent</artifactId>
-  <version>0.5-SNAPSHOT</version>
+  <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Planetiler Parent</name>
@@ -27,6 +27,7 @@
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
     <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
+    <revision>0.6-SNAPSHOT</revision>
   </properties>
 
   <scm>
@@ -387,6 +388,39 @@
                 <goals>
                   <goal>jar-no-fork</goal>
                   <goal>test-jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>flatten</id>
+      <build>
+        <plugins>
+          <!-- flatten anywhere we do <version>${revision}</version>, see https://maven.apache.org/maven-ci-friendly.html -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>flatten-maven-plugin</artifactId>
+            <version>1.3.0</version>
+            <configuration>
+              <updatePomFile>true</updatePomFile>
+              <flattenMode>resolveCiFriendliesOnly</flattenMode>
+            </configuration>
+            <executions>
+              <execution>
+                <id>flatten</id>
+                <phase>process-resources</phase>
+                <goals>
+                  <goal>flatten</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>flatten.clean</id>
+                <phase>clean</phase>
+                <goals>
+                  <goal>clean</goal>
                 </goals>
               </execution>
             </executions>

@@ -1,6 +1,7 @@
 .DS_Store
 
 target/
+.flattened-pom.xml
 *.jar
 !.mvn/wrapper/*.jar
 *.log

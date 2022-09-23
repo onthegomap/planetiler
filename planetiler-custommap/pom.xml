@@ -9,7 +9,7 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <dependencies>
