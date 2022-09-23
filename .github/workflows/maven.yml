@@ -41,6 +41,8 @@ jobs:
           - os: ubuntu-latest
             jdk: 18
           - os: ubuntu-latest
+            jdk: 19
+          - os: ubuntu-latest
             jdk: 17
             args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
     runs-on: ${{ matrix.os }}
