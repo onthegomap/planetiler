@@ -8,7 +8,7 @@ file as the first argument:
 java -jar planetiler.jar schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
 docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest /data/schema.yml
-````
+```
 
 Schema files are in [YAML 1.2](https://yaml.org) format and this page and
 accompanying [JSON schema](planetiler.schema.json) describe the required format and available
@@ -319,22 +319,29 @@ Scripts are parsed and evaluated inside a "context" that defines the variables a
 nested, so each child context can also access the variables from its parent.
 
 > ##### root context
+>
 > defines no variables
-> > ##### process feature context
-> > Context available when processing an input feature, for example testing whether to include it from `include_when`.
-> > Available variables:
-> > - `feature.tags` - map with key/value tags from the input feature
-> > - `feature.id` - numeric ID of the input feature
-> > - `feature.source` - string source ID this feature came from
-> > - `feature.source_layer` - optional layer within the source the feature came from
-> > > ##### post-match context
-> > > Context available after a feature has matched, for example computing an attribute value. Adds variables:
-> > > - `match_key` - string tag that triggered a match to include the feature in this layer
-> > > - `match_value` - the tag value associated with that key
-> > > > ##### configure attribute context
-> > > > Context available after the value of an attribute has been computed, for example: set min zoom to render an
-> > > > attribute. Adds variables:
-> > > > - `value` the value that was computed for this key
+>
+>> ##### process feature context
+>>
+>> Context available when processing an input feature, for example testing whether to include it from `include_when`.
+>> Available variables:
+>> - `feature.tags` - map with key/value tags from the input feature
+>> - `feature.id` - numeric ID of the input feature
+>> - `feature.source` - string source ID this feature came from
+>> - `feature.source_layer` - optional layer within the source the feature came from
+>>
+>>> ##### post-match context
+>>>
+>>> Context available after a feature has matched, for example computing an attribute value. Adds variables:
+>>> - `match_key` - string tag that triggered a match to include the feature in this layer
+>>> - `match_value` - the tag value associated with that key
+>>>
+>>>> ##### configure attribute context
+>>>>
+>>>> Context available after the value of an attribute has been computed, for example: set min zoom to render an
+>>>> attribute. Adds variables:
+>>>> - `value` the value that was computed for this key
 
 #### Built-In Functions
 
