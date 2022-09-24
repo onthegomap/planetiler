@@ -1,0 +1,816 @@
+examples:
+- name: ocean polygons
+  input:
+    source: ocean
+    geometry: polygon
+    tags:
+      x: 1
+      y: 2
+  output:
+    layer: ocean
+    geometry: polygon
+    min_zoom: 0
+    tags: # no tags
+
+- name: natural=glacier
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      natural: glacier
+      name: The glacier
+      name:en: The glacier (en)
+      name:de: The glacier (de)
+  output:
+  - layer: water_polygons
+    geometry: polygon
+    min_zoom: 4
+    tags:
+      kind: glacier
+  - layer: water_polygons_labels
+    geometry: point
+    min_zoom: 14
+    tags:
+      kind: glacier
+      name: The glacier
+      name_en: The glacier (en)
+      name_de: The glacier (de)
+
+- name: waterway=dock
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      waterway: dock
+  output:
+    layer: water_polygons
+    geometry: polygon
+    min_zoom: 10
+    tags:
+      kind: dock
+
+- name: waterway=canal linestring
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: canal
+      name: The Canal
+      name:en: The Canal (en)
+      name:de: The Canal (de)
+  output:
+  - layer: water_lines
+    geometry: line
+    min_zoom: 9
+    tags:
+      kind: canal
+  - layer: water_line_labels
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: canal
+      name: The Canal
+      name_en: The Canal (en)
+      name_de: The Canal (de)
+
+- name: waterway=stream linestring
+  input:
+    source: osm
+    geometry: line
+    tags:
+      waterway: stream
+      name: The Stream
+      name:en: The Stream (en)
+      name:de: The Stream (de)
+  output:
+  - layer: water_lines
+    geometry: line
+    min_zoom: 14
+    tags:
+      kind: stream
+  - layer: water_line_labels
+    geometry: line
+    min_zoom: 14
+    tags:
+      kind: stream
+      name: The Stream
+      name_en: The Stream (en)
+      name_de: The Stream (de)
+
+- name: landuse=grass
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      landuse: grass
+  output:
+  - layer: land
+    geometry: polygon
+    min_zoom: 11
+    tags:
+      kind: grass
+
+- name: natural=wood
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      natural: wood
+  output:
+  - layer: land
+    geometry: polygon
+    min_zoom: 7
+    tags:
+      kind: wood
+
+- name: landuse=forest override kind to wood
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      landuse: forest
+  output:
+  - layer: land
+    geometry: polygon
+    min_zoom: 7
+    tags:
+      kind: wood
+
+- name: amenity=parking
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      amenity: parking
+  output:
+  - layer: sites
+    geometry: polygon
+    min_zoom: 14
+    tags:
+      kind: parking
+
+- name: building=yes
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      building: yes
+  output:
+  - layer: buildings
+    geometry: polygon
+    min_zoom: 14
+
+- name: building=house
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      building: house
+  output:
+  - layer: buildings
+    geometry: polygon
+    min_zoom: 14
+
+- name: address polygon with house number
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      addr:housenumber: 123
+  output:
+  - layer: addresses
+    geometry: point
+    min_zoom: 14
+    tags:
+      number: 123
+
+- name: address point with house name
+  input:
+    source: osm
+    geometry: point
+    tags:
+      addr:housename: the 123 house
+  output:
+  - layer: addresses
+    geometry: point
+    min_zoom: 14
+    tags:
+      name: the 123 house
+
+- name: B27 highway
+  input:
+    source: osm
+    geometry: line
+    tags:
+      change:lanes:backward: no
+      change:lanes:forward: not_left|not_right
+      embankment: yes
+      highway: primary
+      lanes: 3
+      lanes:backward: 1
+      lanes:forward: 2
+      maxspeed: 100
+      overtaking:backward: no
+      priority_road: designated
+      ref: B 27
+      sidewalk: no
+      source:maxspeed: DE:rural
+      surface: asphalt
+      zone:traffic: DE:rural
+  output:
+  - layer: streets
+    geometry: line
+    min_zoom: 8
+    tags:
+      bridge: false
+      kind: primary
+      link: false
+      rail: false
+      surface: asphalt
+      tunnel: false
+  - layer: street_labels
+    geometry: line
+    min_zoom: 12
+    allow_extra_tags: false
+    tags:
+      kind: primary
+      ref: B 27
+      ref_rows: 1
+      ref_cols: 4
+
+- name: B39A link
+  input:
+    source: osm
+    geometry: line
+    tags:
+      cycleway:right: no
+      destination: Löwenstein;Obersulm;Ellhofen;Breitenauer See
+      destination:colour: ;;;brown
+      foot: no
+      hazard: traffic_signals
+      highway: primary_link
+      lanes: 1
+      lit: no
+      maxspeed: 50
+      oneway: yes
+      ref: B 39;B 39A
+      sidewalk: no
+      surface: asphalt
+      turn: right
+  output:
+  - layer: streets
+    geometry: line
+    min_zoom: 8
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: primary
+      link: true
+      rail: false
+      surface: asphalt
+      tunnel: false
+  - layer: street_labels
+    geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
+    tags:
+      kind: primary
+      ref: "B 39\nB 39A"
+      ref_rows: 2
+      ref_cols: 5
+
+- name: rail with service
+  input:
+    source: osm
+    geometry: line
+    tags:
+      railway: rail
+      service: service_value
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 8
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: rail
+      link: false
+      rail: true
+      tunnel: false
+      service: service_value
+
+- name: narrow_gauge without service
+  input:
+    source: osm
+    geometry: line
+    tags:
+      railway: narrow_gauge
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 10
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: narrow_gauge
+      link: false
+      rail: true
+      tunnel: false
+
+- name: 'track with grade'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: track
+      tracktype: grade2
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 13
+    at_zoom: 11
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: track
+      link: false
+      rail: false
+      tracktype: grade2
+      tunnel: false
+
+- name: 'named path'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: path
+      name: Name
+      name:en: English Name
+      name:de: German Name
+  output:
+  - layer: streets
+    geometry: line
+    tags:
+      kind: path
+  - layer: street_labels
+    geometry: line
+    tags:
+      kind: path
+      name: Name
+      name_en: English Name
+      name_de: German Name
+
+- name: 'motorway attributes drop below z11'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: motorway
+      tracktype: grade2
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 5
+    at_zoom: 10
+    allow_extra_tags: false
+    tags:
+      kind: motorway
+
+- name: 'rail attributes drop below z11'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      railway: rail
+      service: primary
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 8
+    at_zoom: 10
+    allow_extra_tags: false
+    tags:
+      kind: rail
+
+- name: 'path bridge'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: path
+      bridge: yes
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 13
+    tags:
+      bridge: true
+      kind: path
+      tunnel: false
+
+- name: 'pedestrian tunnel'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: pedestrian
+      tunnel: yes
+  output:
+    layer: streets
+    geometry: line
+    tags:
+      bridge: false
+      kind: pedestrian
+      tunnel: true
+
+- name: 'horse'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: track
+      horse: definitely
+  output:
+    layer: streets
+    geometry: line
+    tags:
+      kind: track
+      horse: definitely
+
+- name: 'bicycle'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      highway: track
+      bicycle: definitely
+  output:
+    layer: streets
+    geometry: line
+    tags:
+      kind: track
+      bicycle: definitely
+
+- name: 'aeroway=taxiway'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      aeroway: taxiway
+      ref: N
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 13
+    tags:
+      kind: taxiway
+
+- name: 'aeroway=runway'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      aeroway: runway
+      ref: 07/25
+      surface: concrete:lanes
+  output:
+    layer: streets
+    geometry: line
+    min_zoom: 11
+    tags:
+      kind: runway
+      surface: concrete:lanes
+
+- name: 'pedestrian polygon'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      area: yes
+      highway: pedestrian
+      lit: yes
+      surface: paving_stones
+      name: 'Name'
+      name:en: 'Name (en)'
+  output:
+  - layer: street_polygons
+    geometry: polygon
+    min_zoom: 14
+    allow_extra_tags: false
+    tags:
+      bridge: false
+      kind: pedestrian
+      rail: false
+      surface: paving_stones
+      tunnel: false
+  - layer: street_polygons_labels
+    geometry: point
+    min_zoom: 14
+    allow_extra_tags: false
+    tags:
+      kind: pedestrian
+      name: 'Name'
+      name_en: 'Name (en)'
+
+- name: 'ignore pedestrian polygon without area=yes'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      highway: pedestrian
+      name: 'Name'
+      name:en: 'Name (en)'
+  output: [ ]
+
+- name: 'pedestrian polygon bridge'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      area: yes
+      highway: service
+      bridge: yes
+  output:
+    layer: street_polygons
+    geometry: polygon
+    min_zoom: 14
+    tags:
+      kind: service
+      bridge: true
+
+- name: 'motorway junction'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      highway: motorway_junction
+      name: 'Name'
+      ref: 'ref'
+  output:
+    layer: street_labels_points
+    geometry: point
+    min_zoom: 12
+    tags:
+      kind: motorway_junction
+      name: 'Name'
+      ref: 'ref'
+
+- name: 'gondola'
+  input:
+    source: osm
+    geometry: line
+    tags:
+      aerialway: gondola
+      name: 'Name'
+  output:
+    layer: aerialways
+    geometry: line
+    min_zoom: 12
+    tags:
+      kind: gondola
+
+- name: 'train station point'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      railway: station
+      name: 'Name'
+  output:
+    layer: public_transport
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      kind: station
+      name: 'Name'
+
+- name: 'airport polygon'
+  input:
+    source: osm
+    geometry: polygon
+    tags:
+      aeroway: aerodrome
+      name: 'Name'
+      iata: eye eight a
+  output:
+    layer: public_transport
+    geometry: point
+    allow_extra_tags: false
+    tags:
+      kind: aerodrome
+      name: 'Name'
+      iata: eye eight a
+
+- name: 'unnamed hamlet'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: hamlet
+  output: [ ]
+
+- name: 'boundary_labels'
+  input:
+    source: admin_points
+    geometry: point
+    tags:
+      WAY_AREA: 10.5
+      ADMIN_LEVEL: 2
+      NAME: Name
+      NAME_EN: ''
+      NAME_DE: Name (de)
+  output:
+    layer: boundary_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 5
+    tags:
+      way_area: 10.5
+      admin_level: 2
+      name: Name
+      name_de: Name (de)
+
+- name: 'boundary_labels z4'
+  input:
+    source: admin_points
+    geometry: point
+    tags:
+      WAY_AREA: 1e7
+      ADMIN_LEVEL: 2
+      NAME: name
+  output:
+    layer: boundary_labels
+    geometry: point
+    min_zoom: 4
+    tags:
+      way_area: 1e7
+      admin_level: 2
+
+- name: 'boundary_labels z3'
+  input:
+    source: admin_points
+    geometry: point
+    tags:
+      WAY_AREA: 7e7
+      ADMIN_LEVEL: 2
+      NAME: name
+  output:
+    layer: boundary_labels
+    geometry: point
+    min_zoom: 3
+    tags:
+      way_area: 7e7
+      admin_level: 2
+
+- name: 'boundary_labels z2'
+  input:
+    source: admin_points
+    geometry: point
+    tags:
+      WAY_AREA: 2e8
+      ADMIN_LEVEL: '2'
+      NAME: name
+  output:
+    layer: boundary_labels
+    geometry: point
+    min_zoom: 2
+    tags:
+      way_area: 2e8
+      admin_level: 2
+
+- name: 'boundary_labels admin_level=4 z3'
+  input:
+    source: admin_points
+    geometry: point
+    tags:
+      WAY_AREA: 7e7
+      ADMIN_LEVEL: 4
+      NAME: name
+  output:
+    layer: boundary_labels
+    geometry: point
+    min_zoom: 3
+    tags:
+      way_area: 7e7
+      admin_level: 4
+
+- name: 'country boundary'
+  input:
+    source: osm
+    geometry: line
+    # TODO from relation
+    tags:
+      boundary: administrative
+      admin_level: '2'
+      maritime: yes
+  output:
+    layer: boundaries
+    geometry: line
+    min_zoom: 0
+    tags:
+      maritime: true
+      admin_level: 2
+
+- name: 'state boundary'
+  input:
+    source: osm
+    geometry: line
+    # TODO from relation
+    tags:
+      boundary: administrative
+      admin_level: 4
+  output:
+    layer: boundaries
+    geometry: line
+    min_zoom: 7
+    tags:
+      maritime: false
+      admin_level: 4
+
+# TODO take min admin level
+
+- name: 'hamlet'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: hamlet
+      name: 'Name'
+  output:
+    layer: place_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 10
+    tags:
+      kind: hamlet
+      name: 'Name'
+      population: 50
+
+- name: 'city with population'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: city
+      name: 'Name'
+      population: '1300'
+  output:
+    layer: place_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 6
+    tags:
+      kind: city
+      name: 'Name'
+      population: 1300
+
+- name: 'state capital'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: city
+      capital: '4'
+      name: 'Name'
+  output:
+    layer: place_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 4
+    tags:
+      kind: state_capital
+      name: 'Name'
+      population: 100000
+
+- name: 'capital'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: city
+      capital: yes
+      name: 'Name'
+  output:
+    layer: place_labels
+    geometry: point
+    allow_extra_tags: false
+    min_zoom: 4
+    tags:
+      kind: capital
+      name: 'Name'
+      population: 100000
+
+- name: 'population with comma'
+  input:
+    source: osm
+    geometry: point
+    tags:
+      place: city
+      population: 123,123
+      name: 'Name'
+  output:
+    layer: place_labels
+    geometry: point
+    tags:
+      kind: city
+      population: 123123

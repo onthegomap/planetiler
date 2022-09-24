@@ -231,7 +231,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private Feature(String layer, Geometry geom, long sourceId) {
       this.layer = layer;
       this.geom = geom;
-      this.geometryType = GeometryType.valueOf(geom);
+      this.geometryType = GeometryType.typeOf(geom);
       this.sourceId = sourceId;
     }
 
@@ -634,7 +634,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         return attrs;
       }
       if (attrCache == null) {
-        attrCache = CacheByZoom.create(config, this::computeAttrsAtZoom);
+        attrCache = CacheByZoom.create(this::computeAttrsAtZoom);
       }
       return attrCache.get(zoom);
     }

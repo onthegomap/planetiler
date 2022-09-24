@@ -1,5 +1,9 @@
 package com.onthegomap.planetiler.stats;
 
+import static com.onthegomap.planetiler.util.AnsiColors.blue;
+import static com.onthegomap.planetiler.util.AnsiColors.green;
+import static com.onthegomap.planetiler.util.AnsiColors.red;
+import static com.onthegomap.planetiler.util.AnsiColors.yellow;
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
 import static com.onthegomap.planetiler.util.Format.padLeft;
 import static com.onthegomap.planetiler.util.Format.padRight;
@@ -39,35 +43,9 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class ProgressLoggers {
-
-  private static final String COLOR_RESET = "\u001B[0m";
-  private static final String FG_RED = "\u001B[31m";
-  private static final String FG_GREEN = "\u001B[32m";
-  private static final String FG_YELLOW = "\u001B[33m";
-  private static final String FG_BLUE = "\u001B[34m";
   private static final Logger LOGGER = LoggerFactory.getLogger(ProgressLoggers.class);
   private final List<Object> loggers = new ArrayList<>();
   private final Format format;
-
-  private static String fg(String fg, String string) {
-    return fg + string + COLOR_RESET;
-  }
-
-  private static String red(String string) {
-    return fg(FG_RED, string);
-  }
-
-  private static String green(String string) {
-    return fg(FG_GREEN, string);
-  }
-
-  private static String yellow(String string) {
-    return fg(FG_YELLOW, string);
-  }
-
-  private static String blue(String string) {
-    return fg(FG_BLUE, string);
-  }
 
   private ProgressLoggers(Locale locale) {
     this.format = Format.forLocale(locale);

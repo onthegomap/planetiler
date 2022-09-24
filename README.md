@@ -138,9 +138,22 @@ Learn more about working with submodules [here](https://git-scm.com/book/en/v2/G
 
 See [PLANET.md](PLANET.md).
 
-## Examples
+## Generating Custom Vector Tiles
 
-See the [planetiler-examples](planetiler-examples) project.
+If you want to customize the OpenMapTiles schema or generate an mbtiles file with OpenMapTiles + extra layers, then
+fork https://github.com/openmaptiles/planetiler-openmaptiles make changes there, and run directly from that repo. It
+is a standalone Java project with a dependency on Planetiler.
+
+If you want to generate a separate mbtiles file with overlay layers or a full custom basemap, then:
+
+- For simple schemas, run a recent planetiler jar or docker image with a custom schema defined in a yaml
+  configuration file. See [planetiler-custommap](planetiler-custommap) for details.
+- For complex schemas (or if you prefer working in Java), create a new Java project
+  that [depends on Planetiler](#use-as-a-library). See the [planetiler-examples](planetiler-examples) project for a
+  working example.
+
+If you want to customize how planetiler works internally, then fork this project, build from source, and
+consider [contributing](#contributing) your change back for others to use!
 
 ## Benchmarks
 
@@ -198,6 +211,7 @@ download regularly-updated tilesets.
 - Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
   elements map to vector tile features, and post-process generated tiles
   using [JTS geometry utilities](https://github.com/locationtech/jts)
+- [YAML config file format](planetiler-custommap) that lets you create custom schemas without writing Java code
 - Merge nearby lines or polygons with the same tags before emitting vector tiles
 - Automatically fixes self-intersecting polygons
 - Built-in OpenMapTiles profile based on [OpenMapTiles](https://openmaptiles.org/) v3.13.1
@@ -224,7 +238,25 @@ Planetiler can be used as a maven-style dependency in a Java project using the s
 
 ### Maven
 
-Add this dependency to your java project:
+Add this repository block to your `pom.xml`:
+
+```xml
+<repositories>
+  <repository>
+    <id>osgeo</id>
+    <name>OSGeo Release Repository</name>
+    <url>https://repo.osgeo.org/repository/release/</url>
+    <snapshots>
+      <enabled>false</enabled>
+    </snapshots>
+    <releases>
+      <enabled>true</enabled>
+    </releases>
+  </repository>
+</repositories>
+```
+
+Then add the following dependency:
 
 ```xml
 <dependency>
@@ -236,7 +268,7 @@ Add this dependency to your java project:
 
 ### Gradle
 
-Set up your repositories block as follows:
+Set up your repositories block::
 
 ```groovy
 mavenCentral()
@@ -245,7 +277,7 @@ maven {
 }
 ```
 
-Set up your dependencies block as follows:
+Set up your dependencies block:
 
 ```groovy
 implementation 'com.onthegomap.planetiler:planetiler-core:<version>'
@@ -292,6 +324,9 @@ Planetiler is made possible by these awesome open source projects:
 - [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis) for Java utilities to parse OpenStreetMap data
 - [JNR-FFI](https://github.com/jnr/jnr-ffi) for utilities to access low-level system utilities to improve memory-mapped
   file performance.
+- [cel-java](https://github.com/projectnessie/cel-java) for the Java implementation of
+  Google's [Common Expression Language](https://github.com/google/cel-spec) that powers dynamic expressions embedded in
+  schema config files.
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

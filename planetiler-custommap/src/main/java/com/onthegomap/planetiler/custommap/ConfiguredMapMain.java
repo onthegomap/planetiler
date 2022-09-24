@@ -1,19 +1,15 @@
 package com.onthegomap.planetiler.custommap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.DataSource;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * Main driver to create maps configured by a YAML file.
@@ -22,9 +18,6 @@ import org.yaml.snakeyaml.Yaml;
  * the map generation process.
  */
 public class ConfiguredMapMain {
-
-  private static final Yaml yaml = new Yaml();
-  private static final ObjectMapper mapper = new ObjectMapper();
 
   /*
    * Main entrypoint
@@ -37,11 +30,24 @@ public class ConfiguredMapMain {
     var dataDir = Path.of("data");
     var sourcesDir = dataDir.resolve("sources");
 
-    var schemaFile = args.inputFile(
+    var schemaFile = args.getString(
       "schema",
-      "Location of YML-format schema definition file");
+      "Location of YML-format schema definition file"
+    );
 
-    var config = loadConfig(schemaFile);
+    var path = Path.of(schemaFile);
+    SchemaConfig config;
+    if (Files.exists(path)) {
+      config = SchemaConfig.load(path);
+    } else {
+      // if the file doesn't exist, check if it's bundled in the jar
+      schemaFile = schemaFile.startsWith("/samples/") ? schemaFile : "/samples/" + schemaFile;
+      if (ConfiguredMapMain.class.getResource(schemaFile) != null) {
+        config = YAML.loadResource(schemaFile, SchemaConfig.class);
+      } else {
+        throw new IllegalArgumentException("Schema file not found: " + schemaFile);
+      }
+    }
 
     var planetiler = Planetiler.create(args)
       .setProfile(new ConfiguredProfile(config));
@@ -53,13 +59,6 @@ public class ConfiguredMapMain {
 
     planetiler.overwriteOutput("mbtiles", Path.of("data", "output.mbtiles"))
       .run();
-  }
-
-  static SchemaConfig loadConfig(Path schemaFile) throws IOException {
-    try (var schemaStream = Files.newInputStream(schemaFile)) {
-      Map<String, Object> parsed = yaml.load(schemaStream);
-      return mapper.convertValue(parsed, SchemaConfig.class);
-    }
   }
 
   private static void configureSource(Planetiler planetiler, Path sourcesDir, String sourceName, DataSource source)

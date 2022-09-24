@@ -1,6 +1,7 @@
 .DS_Store
 
 target/
+.flattened-pom.xml
 *.jar
 !.mvn/wrapper/*.jar
 *.log
@@ -12,6 +13,7 @@ target/
 !.idea/codeStyles
 !.idea/vcs.xml
 !.idea/eclipseCodeFormatter.xml
+!.idea/jsonSchemas.xml
 
 # eclipse
 .classpath

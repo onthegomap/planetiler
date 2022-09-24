@@ -1,14 +1,16 @@
 package com.onthegomap.planetiler.util;
 
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
  * Utilities to parse values from strings.
  */
 public class Parse {
-
-  private Parse() {}
 
   private static final Pattern INT_SUBSTRING_PATTERN = Pattern.compile("^(-?\\d+)(\\D|$)");
   private static final Pattern TO_ROUND_INT_SUBSTRING_PATTERN = Pattern.compile("^(-?[\\d.]+)(\\D|$)");
@@ -17,13 +19,31 @@ public class Parse {
     Pattern.compile(
       "(?<value>-?[\\d.]+)\\s*((?<mi>mi)|(?<m>m|$)|(?<km>km|kilom)|(?<ft>ft|')|(?<in>in|\")|(?<nmi>nmi|international nautical mile|nautical))",
       Pattern.CASE_INSENSITIVE);
+  private static final NumberFormat PARSER = NumberFormat.getNumberInstance(Locale.ROOT);
+
+  private Parse() {}
 
   /** Returns {@code tag} as a long or null if invalid. */
   public static Long parseLongOrNull(Object tag) {
+    return tag == null ? null : tag instanceof Number number ? Long.valueOf(number.longValue()) :
+      parseLongOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as a long or null if invalid. */
+  public static Long parseLongOrNull(String tag) {
     try {
-      return tag == null ? null : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
+      return tag == null ? null : Long.parseLong(tag);
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::longValue, null);
+    }
+  }
+
+  private static <T> T retryParseNumber(Object obj, Function<Number, T> getter, T backup) {
+    // more expensive parser in case simple valueOf parse fails
+    try {
+      return getter.apply(PARSER.parse(obj.toString()));
+    } catch (ParseException e) {
+      return backup;
     }
   }
 
@@ -32,7 +52,7 @@ public class Parse {
     try {
       return tag == null ? 0 : tag instanceof Number number ? number.longValue() : Long.parseLong(tag.toString());
     } catch (NumberFormatException e) {
-      return 0;
+      return retryParseNumber(tag, Number::longValue, 0L);
     }
   }
 
@@ -64,16 +84,16 @@ public class Parse {
 
   /** Returns {@code tag} as an integer or null if invalid. */
   public static Integer parseIntOrNull(Object tag) {
-    if (tag instanceof Number num) {
-      return num.intValue();
-    }
-    if (!(tag instanceof String)) {
-      return null;
-    }
+    return tag == null ? null : tag instanceof Number number ? Integer.valueOf(number.intValue()) :
+      parseIntOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as an integer or null if invalid. */
+  public static Integer parseIntOrNull(String tag) {
     try {
-      return Integer.parseInt(tag.toString());
+      return tag == null ? null : Integer.parseInt(tag);
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::intValue, null);
     }
   }
 
@@ -101,17 +121,17 @@ public class Parse {
   }
 
   /** Returns {@code tag} as a double or null if invalid. */
-  public static Double parseDoubleOrNull(Object value) {
-    if (value instanceof Number num) {
-      return num.doubleValue();
-    }
-    if (value == null) {
-      return null;
-    }
+  public static Double parseDoubleOrNull(Object tag) {
+    return tag == null ? null : tag instanceof Number number ? Double.valueOf(number.doubleValue()) :
+      parseDoubleOrNull(tag.toString());
+  }
+
+  /** Returns {@code tag} as a double or null if invalid. */
+  public static Double parseDoubleOrNull(String tag) {
     try {
-      return Double.parseDouble(value.toString());
+      return tag == null ? null : Double.parseDouble(tag);
     } catch (NumberFormatException e) {
-      return null;
+      return retryParseNumber(tag, Number::doubleValue, null);
     }
   }
 

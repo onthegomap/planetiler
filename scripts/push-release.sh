@@ -14,4 +14,4 @@ fi
   -Djib.to.auth.password="${GITHUB_TOKEN}" \
   package jib:build --file pom.xml
 
-./mvnw -B -Dgpg.passphrase="${OSSRH_GPG_SECRET_KEY_PASSWORD}" -DskipTests -Prelease deploy
+./mvnw -B -Dgpg.passphrase="${OSSRH_GPG_SECRET_KEY_PASSWORD}" -DskipTests -Prelease -Pflatten deploy

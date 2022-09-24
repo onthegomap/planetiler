@@ -12,14 +12,14 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <properties>
     <geotools.version>27.1</geotools.version>
     <log4j.version>2.19.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.21.5</protobuf.version>
+    <protobuf.version>3.21.6</protobuf.version>
   </properties>
 
   <dependencies>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>0.9.31</version>
+      <version>0.9.32</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -61,7 +61,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.39.2.0</version>
+      <version>3.39.3.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>

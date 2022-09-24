@@ -6,13 +6,13 @@ sources:
     type: osm
     url: geofabrik:rhode-island
 layers:
-- name: testLayer
+- id: testLayer
   features:
-  - sources:
+  - source:
     - osm
     geometry: smurf
     include_when:
       natural: water
     attributes:
     - key: water
-    - constant_value: wet
+    - value: wet

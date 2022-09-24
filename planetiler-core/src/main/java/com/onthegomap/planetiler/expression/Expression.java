@@ -1,10 +1,11 @@
 package com.onthegomap.planetiler.expression;
 
-import com.onthegomap.planetiler.reader.SourceFeature;
+import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
+
+import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -13,6 +14,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,18 +30,18 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-public interface Expression {
+// TODO rename to BooleanExpression
+public interface Expression extends Simplifiable<Expression> {
   Logger LOGGER = LoggerFactory.getLogger(Expression.class);
 
   String LINESTRING_TYPE = "linestring";
   String POINT_TYPE = "point";
   String POLYGON_TYPE = "polygon";
-  String RELATION_MEMBER_TYPE = "relation_member";
+  String UNKNOWN_GEOMETRY_TYPE = "unknown_type";
 
-  Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, RELATION_MEMBER_TYPE);
+  Set<String> supportedTypes = Set.of(LINESTRING_TYPE, POINT_TYPE, POLYGON_TYPE, UNKNOWN_GEOMETRY_TYPE);
   Expression TRUE = new Constant(true, "TRUE");
   Expression FALSE = new Constant(false, "FALSE");
-  BiFunction<WithTags, String, Object> GET_TAG = WithTags::getTag;
 
   List<String> dummyList = new NoopList<>();
 
@@ -78,7 +80,7 @@ public interface Expression {
    * {@code values} can contain exact matches, "%text%" to match any value containing "text", or "" to match any value.
    */
   static MatchAny matchAny(String field, List<?> values) {
-    return new MatchAny(field, GET_TAG, values);
+    return MatchAny.from(field, GET_TAG, values);
   }
 
   /**
@@ -99,7 +101,7 @@ public interface Expression {
    */
   static MatchAny matchAnyTyped(String field, BiFunction<WithTags, String, Object> typeGetter,
     List<?> values) {
-    return new MatchAny(field, typeGetter, values);
+    return MatchAny.from(field, typeGetter, values);
   }
 
   /** Returns an expression that evaluates to true if the element has any value for tag {@code field}. */
@@ -127,80 +129,6 @@ public interface Expression {
 
   private static String generateJavaCodeList(List<Expression> items) {
     return items.stream().map(Expression::generateJavaCode).collect(Collectors.joining(", "));
-  }
-
-  private static Expression simplify(Expression initial) {
-    // iteratively simplify the expression until we reach a fixed point and start seeing
-    // an expression that's already been seen before
-    Expression simplified = initial;
-    Set<Expression> seen = new HashSet<>();
-    seen.add(simplified);
-    while (true) {
-      simplified = simplifyOnce(simplified);
-      if (seen.contains(simplified)) {
-        return simplified;
-      }
-      if (seen.size() > 1000) {
-        throw new IllegalStateException("Infinite loop while simplifying expression " + initial);
-      }
-      seen.add(simplified);
-    }
-  }
-
-  private static Expression simplifyOnce(Expression expression) {
-    if (expression instanceof Not not) {
-      if (not.child instanceof Or or) {
-        return and(or.children.stream().<Expression>map(Expression::not).toList());
-      } else if (not.child instanceof And and) {
-        return or(and.children.stream().<Expression>map(Expression::not).toList());
-      } else if (not.child instanceof Not not2) {
-        return not2.child;
-      } else if (not.child == TRUE) {
-        return FALSE;
-      } else if (not.child == FALSE) {
-        return TRUE;
-      } else if (not.child instanceof MatchAny any && any.values.equals(List.of(""))) {
-        return matchField(any.field);
-      }
-      return not;
-    } else if (expression instanceof Or or) {
-      if (or.children.isEmpty()) {
-        return FALSE;
-      }
-      if (or.children.size() == 1) {
-        return simplifyOnce(or.children.get(0));
-      }
-      if (or.children.contains(TRUE)) {
-        return TRUE;
-      }
-      return or(or.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
-        .filter(child -> child != FALSE) // or() == or(FALSE) == or(FALSE, FALSE) == FALSE, so safe to remove all here
-        .map(Expression::simplifyOnce).toList());
-    } else if (expression instanceof And and) {
-      if (and.children.isEmpty()) {
-        return TRUE;
-      }
-      if (and.children.size() == 1) {
-        return simplifyOnce(and.children.get(0));
-      }
-      if (and.children.contains(FALSE)) {
-        return FALSE;
-      }
-      return and(and.children.stream()
-        // hoist children
-        .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
-        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
-        .map(Expression::simplifyOnce).toList());
-    } else {
-      return expression;
-    }
-  }
-
-  /** Returns an equivalent, simplified copy of this expression but does not modify {@code this}. */
-  default Expression simplify() {
-    return simplify(this);
   }
 
   /** Returns a copy of this expression where every nested instance of {@code a} is replaced with {@code b}. */
@@ -251,8 +179,6 @@ public interface Expression {
 
   //A list that silently drops all additions
   class NoopList<T> extends ArrayList<T> {
-    private static final long serialVersionUID = 1L;
-
     @Override
     public boolean add(T t) {
       return true;
@@ -302,6 +228,25 @@ public interface Expression {
       }
       return true;
     }
+
+    @Override
+    public Expression simplifyOnce() {
+      if (children.isEmpty()) {
+        return TRUE;
+      }
+      if (children.size() == 1) {
+        return children.get(0).simplifyOnce();
+      }
+      if (children.contains(FALSE)) {
+        return FALSE;
+      }
+      return and(children.stream()
+        // hoist children
+        .flatMap(child -> child instanceof And childAnd ? childAnd.children.stream() : Stream.of(child))
+        .filter(child -> child != TRUE) // and() == and(TRUE) == and(TRUE, TRUE) == TRUE, so safe to remove all here
+        .distinct()
+        .map(Simplifiable::simplifyOnce).toList());
+    }
   }
 
   record Or(List<Expression> children) implements Expression {
@@ -338,6 +283,24 @@ public interface Expression {
       return Objects.hash(children);
     }
 
+    @Override
+    public Expression simplifyOnce() {
+      if (children.isEmpty()) {
+        return FALSE;
+      }
+      if (children.size() == 1) {
+        return children.get(0).simplifyOnce();
+      }
+      if (children.contains(TRUE)) {
+        return TRUE;
+      }
+      return or(children.stream()
+        // hoist children
+        .flatMap(child -> child instanceof Or childOr ? childOr.children.stream() : Stream.of(child))
+        .filter(child -> child != FALSE) // or() == or(FALSE) == or(FALSE, FALSE) == FALSE, so safe to remove all here
+        .distinct()
+        .map(Simplifiable::simplifyOnce).toList());
+    }
   }
 
   record Not(Expression child) implements Expression {
@@ -351,6 +314,24 @@ public interface Expression {
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       return !child.evaluate(input, new ArrayList<>());
     }
+
+    @Override
+    public Expression simplifyOnce() {
+      if (child instanceof Or or) {
+        return and(or.children.stream().<Expression>map(Expression::not).toList());
+      } else if (child instanceof And and) {
+        return or(and.children.stream().<Expression>map(Expression::not).toList());
+      } else if (child instanceof Not not2) {
+        return not2.child;
+      } else if (child == TRUE) {
+        return FALSE;
+      } else if (child == FALSE) {
+        return TRUE;
+      } else if (child instanceof MatchAny any && any.values.equals(List.of(""))) {
+        return matchField(any.field);
+      }
+      return this;
+    }
   }
 
   /**
@@ -359,35 +340,78 @@ public interface Expression {
    *
    * @param values           all raw string values that were initially provided
    * @param exactMatches     the input {@code values} that should be treated as exact matches
-   * @param wildcards        the input {@code values} that should be treated as wildcards
+   * @param pattern          regular expression that the value must match, or null
    * @param matchWhenMissing if {@code values} contained ""
    */
   record MatchAny(
-    String field, List<?> values, Set<String> exactMatches, List<String> wildcards, boolean matchWhenMissing,
+    String field, List<?> values, Set<String> exactMatches,
+    Pattern pattern,
+    boolean matchWhenMissing,
     BiFunction<WithTags, String, Object> valueGetter
   ) implements Expression {
 
-    private static final Pattern containsPattern = Pattern.compile("^%(.*)%$");
+    static MatchAny from(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
+      List<String> exactMatches = new ArrayList<>();
+      List<String> patterns = new ArrayList<>();
 
-    MatchAny(String field, BiFunction<WithTags, String, Object> valueGetter, List<?> values) {
-      this(field, values,
-        values.stream().map(Object::toString).filter(v -> !v.contains("%")).collect(Collectors.toSet()),
-        values.stream().map(Object::toString).filter(v -> v.contains("%")).map(val -> {
-          var matcher = containsPattern.matcher(val);
-          if (!matcher.matches()) {
-            throw new IllegalArgumentException("wildcards must start/end with %: " + val);
+      for (var value : values) {
+        if (value != null) {
+          String string = value.toString();
+          if (string.matches("^.*(?<!\\\\)%.*$")) {
+            patterns.add(wildcardToRegex(string));
+          } else {
+            exactMatches.add(unescape(string));
           }
-          return matcher.group(1);
-        }).toList(),
-        values.contains(""),
+        }
+      }
+      boolean matchWhenMissing = values.stream().anyMatch(v -> v == null || "".equals(v));
+
+      return new MatchAny(field, values,
+        Set.copyOf(exactMatches),
+        patterns.isEmpty() ? null : Pattern.compile("(" + Strings.join(patterns, '|') + ")"),
+        matchWhenMissing,
         valueGetter
       );
+    }
+
+    private static String wildcardToRegex(String string) {
+      StringBuilder regex = new StringBuilder("^");
+      StringBuilder token = new StringBuilder();
+      while (!string.isEmpty()) {
+        if (string.startsWith("\\%")) {
+          if (!token.isEmpty()) {
+            regex.append(Pattern.quote(token.toString()));
+          }
+          token.setLength(0);
+          regex.append("%");
+          string = string.replaceFirst("^\\\\%", "");
+        } else if (string.startsWith("%")) {
+          if (!token.isEmpty()) {
+            regex.append(Pattern.quote(token.toString()));
+          }
+          token.setLength(0);
+          regex.append(".*");
+          string = string.replaceFirst("^%+", "");
+        } else {
+          token.append(string.charAt(0));
+          string = string.substring(1);
+        }
+      }
+      if (!token.isEmpty()) {
+        regex.append(Pattern.quote(token.toString()));
+      }
+      regex.append('$');
+      return regex.toString();
+    }
+
+    private static String unescape(String input) {
+      return input.replace("\\%", "%");
     }
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
       Object value = valueGetter.apply(input, field);
-      if (value == null) {
+      if (value == null || "".equals(value)) {
         return matchWhenMissing;
       } else {
         String str = value.toString();
@@ -395,14 +419,17 @@ public interface Expression {
           matchKeys.add(field);
           return true;
         }
-        for (String target : wildcards) {
-          if (str.contains(target)) {
-            matchKeys.add(field);
-            return true;
-          }
+        if (pattern != null && pattern.matcher(str).matches()) {
+          matchKeys.add(field);
+          return true;
         }
         return false;
       }
+    }
+
+    @Override
+    public Expression simplifyOnce() {
+      return isMatchAnything() ? matchField(field) : this;
     }
 
     @Override
@@ -424,6 +451,31 @@ public interface Expression {
       }
       return "matchAny(" + Format.quote(field) + ", " + String.join(", ", valueStrings) + ")";
     }
+
+    public boolean isMatchAnything() {
+      return !matchWhenMissing && exactMatches.isEmpty() && (pattern != null && pattern.toString().equals("(^.*$)"));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o || (o instanceof MatchAny matchAny &&
+        matchWhenMissing == matchAny.matchWhenMissing &&
+        Objects.equals(field, matchAny.field) &&
+        Objects.equals(values, matchAny.values) &&
+        Objects.equals(exactMatches, matchAny.exactMatches) &&
+        // Patterns for the same input string are not equal
+        Objects.equals(patternString(), matchAny.patternString()) &&
+        Objects.equals(valueGetter, matchAny.valueGetter));
+    }
+
+    private String patternString() {
+      return pattern == null ? null : pattern.pattern();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(field, values, exactMatches, patternString(), matchWhenMissing, valueGetter);
+    }
   }
 
   /** Evaluates to true if an input element contains any value for {@code field} tag. */
@@ -436,7 +488,8 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input.hasTag(field)) {
+      Object value = input.getTag(field);
+      if (value != null && !"".equals(value)) {
         matchKeys.add(field);
         return true;
       }
@@ -456,12 +509,11 @@ public interface Expression {
 
     @Override
     public boolean evaluate(WithTags input, List<String> matchKeys) {
-      if (input instanceof SourceFeature sourceFeature) {
+      if (input instanceof WithGeometryType withGeom) {
         return switch (type) {
-          case LINESTRING_TYPE -> sourceFeature.canBeLine();
-          case POLYGON_TYPE -> sourceFeature.canBePolygon();
-          case POINT_TYPE -> sourceFeature.isPoint();
-          case RELATION_MEMBER_TYPE -> sourceFeature.hasRelationInfo();
+          case LINESTRING_TYPE -> withGeom.canBeLine();
+          case POLYGON_TYPE -> withGeom.canBePolygon();
+          case POINT_TYPE -> withGeom.isPoint();
           default -> false;
         };
       } else {

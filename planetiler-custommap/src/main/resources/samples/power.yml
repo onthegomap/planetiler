@@ -7,10 +7,9 @@ sources:
     type: osm
     url: geofabrik:new-jersey
 layers:
-- name: power
+- id: power
   features:
-  - sources:
-    - osm
+  - source: osm
     geometry: point
     min_zoom: 13
     include_when:
@@ -21,8 +20,7 @@ layers:
     - key: ref
     - key: height
     - key: operator
-  - sources:
-    - osm
+  - source: osm
     geometry: line
     min_zoom: 7
     include_when:

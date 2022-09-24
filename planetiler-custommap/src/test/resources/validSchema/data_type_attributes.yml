@@ -8,22 +8,26 @@ sources:
 tag_mappings:
   b_type: boolean
   l_type: long
+  i_type: integer
   d_type: direction
   s_type: string
-  intermittent:
-    output: is_intermittent
+  double_type: double
+  is_intermittent:
+    input: intermittent
     type: boolean
   bridge:
     type: boolean
 layers:
-- name: testLayer
+- id: testLayer
   features:
-  - sources:
+  - source:
     - osm
     geometry: line
     attributes:
     - key: b_type
     - key: l_type
+    - key: i_type
+    - key: double_type
     - key: d_type
     - key: s_type
     - key: intermittent

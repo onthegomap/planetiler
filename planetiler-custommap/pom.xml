@@ -9,7 +9,7 @@
   <parent>
     <groupId>com.onthegomap.planetiler</groupId>
     <artifactId>planetiler-parent</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <dependencies>
@@ -19,12 +19,16 @@
       <version>${project.parent.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.yaml</groupId>
-      <artifactId>snakeyaml</artifactId>
+      <groupId>org.snakeyaml</groupId>
+      <artifactId>snakeyaml-engine</artifactId>
     </dependency>
     <dependency>
       <groupId>org.commonmark</groupId>
       <artifactId>commonmark</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.cel</groupId>
+      <artifactId>cel-tools</artifactId>
     </dependency>
 
     <dependency>
@@ -35,6 +39,18 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.projectnessie.cel</groupId>
+        <artifactId>cel-bom</artifactId>
+        <version>0.3.10</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
