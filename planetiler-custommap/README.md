@@ -195,7 +195,8 @@ A string enum that defines how to map from an input. Allowed values:
 
 Expressions let you define how to dynamically compute a value (attribute value, min zoom, etc.) at runtime. You can
 structure data-heavy expressions in YAML (ie. [match](#match-expression) or [coalesce](#coalesce-expression)) or
-simpler expressions that require more flexibility as an [inline script](#inline-script) using `${ expression }` syntax.
+simpler expressions that require more flexibility as an [inline script](#inline-script-expression)
+using `${ expression }` syntax.
 
 ### Constant Value Expression
 
@@ -296,7 +297,7 @@ value:
   type: direction
 ```
 
-### Inline Script
+### Inline Script Expression
 
 Use `${ expression }` syntax to compute a value dynamically at runtime using an
 embedded [Common Expression Language (CEL)](https://github.com/google/cel-spec) script.
@@ -395,11 +396,11 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
 ## Boolean Expression
 
 A boolean expression evaluates to true or false for a given input feature. It can be specified as
-a [tag-based boolean expression](#tag-based-boolean-expressions),
+a [structured boolean expression](#structured-boolean-expression),
 a [complex boolean expression](#complex-boolean-expressions), or
 an [inline script](#inline-boolean-expression-script).
 
-### Tag-Based Boolean Expressions
+### Structured Boolean Expression
 
 Boolean expressions can be specified as a map from key to value or list of values. For example:
 
@@ -459,7 +460,7 @@ attributes:
 
 ### Complex Boolean Expressions
 
-The [tag-based boolean expressions](#tag-based-boolean-expressions) above match when _any_ of the tag conditions are
+The [structured boolean expressions](#structured-boolean-expression) above match when _any_ of the tag conditions are
 true, but to match only when all of them are true, you can nest them under an `__all__` key:
 
 ```yaml
@@ -501,8 +502,8 @@ __all__:
 
 ### Inline Boolean Expression Script
 
-You can also specify boolean logic with an [inline script](#inline-script) that evaluates to `true` or `false` using
-the `${ expression }` syntax. For example:
+You can also specify boolean logic with an [inline script](#inline-script-expression) that evaluates to `true`
+or `false` using the `${ expression }` syntax. For example:
 
 ```yaml
 # set the `min_zoom` attribute to:
@@ -517,10 +518,11 @@ min_zoom:
 
 :warning: If you use an expression script in `include_when`, it will get evaluated against every input element
 and will not set the `match_key` or `match_value` variables. When possible,
-use [structured tag expressions](#tag-based-boolean-expressions) which are optimized for runtime matching performance.
+use [structured boolean expressions](#structured-boolean-expression) which are optimized for runtime matching
+performance.
 
 You can, however combine a post-filter in an `__all__` block which will only get evaluated if
-the [structured tag expressions](#tag-based-boolean-expressions) matches first:
+the [structured boolean expressions](#structured-boolean-expression) matches first:
 
 ```yaml
 # Include a feature when place=city or place=town
