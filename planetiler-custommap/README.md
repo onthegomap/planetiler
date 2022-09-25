@@ -10,9 +10,9 @@ java -jar planetiler.jar schema.yml
 docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest /data/schema.yml
 ```
 
-Schema files are in [YAML 1.2](https://yaml.org) format and this page and
-accompanying [JSON schema](planetiler.schema.json) describe the required format and available
-options. See the [samples](src/main/resources/samples) directory for working examples.
+Schema files are in [YAML 1.2](https://yaml.org) format and support [anchors and aliases](#anchors-and-aliases) for
+reusing chunks. This page and accompanying [JSON schema](planetiler.schema.json) describe the required format and
+available options. See the [samples](src/main/resources/samples) directory for working examples.
 
 :construction: The configuration schema is under active development so the format may change between releases.
 Only a subset of the Java API is currently exposed so for more complex schemas you should switch to the Java API (see
@@ -34,7 +34,7 @@ The root of the schema has the following attributes:
   relative path to a file with those examples in it. Run planetiler with `verify schema_file.yml` to see
   if they work as expected.
 - `definitions` - An unparsed spot where you can
-  define [anchor labels](https://en.wikipedia.org/wiki/YAML#Advanced_components) to be used in other parts of the
+  define [anchor labels](#anchors-and-aliases) to be used in other parts of the
   schema
 
 For example:
@@ -47,7 +47,6 @@ sources: { ... }
 tag_mappings: { ... }
 layers: [...]
 examples: [...]
-definitions: # anything ...
 ```
 
 ## Source
@@ -586,3 +585,25 @@ output:
 ```
 
 See [shortbread.spec.yml](src/main/resources/samples/shortbread.spec.yml) for more examples.
+
+## Anchors and Aliases
+
+Planetiler configs let you define YAML anchors with the `&` prefix and use them later with the `*` prefix:
+
+```yaml
+# add attributes to a feature, and also define name_en and name_de anchors that can be reused later
+attributes:
+- &name_en
+  key: name_en
+  tag_value: name:en
+- &name_de
+  key: name_de
+  tag_value: name:de
+
+# reuse name_en and name_de attributes on another feature
+attributes:
+- *name_en
+- *name_de
+```
+
+This can be useful to avoid copy/pasting config, and to make it easier to make changes in bulk.
