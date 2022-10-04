@@ -33,7 +33,7 @@ The root of the schema has the following attributes:
 - `examples` - A list of [Test Case](#test-case) input features and the vector tile features they should map to, or a
   relative path to a file with those examples in it. Run planetiler with `verify schema_file.yml` to see
   if they work as expected.
-- `args` - Set default values for arguments that can be reference later in the config and overridden from the
+- `args` - Set default values for arguments that can be referenced later in the config and overridden from the
   command-line or environmental variables. See [Arguments](#arguments).
 - `definitions` - An unparsed spot where you can
   define [anchor labels](#anchors-and-aliases) to be used in other parts of the
@@ -96,7 +96,7 @@ tag_mappings:
 
 ## Arguments
 
-A map from argument name to its definition. Arguments can be reference later in the config and
+A map from argument name to its definition. Arguments can be referenced later in the config and
 overridden from the command-line or environmental variables. Argument definitions can either be an object with these
 properties, or just the default value:
 
