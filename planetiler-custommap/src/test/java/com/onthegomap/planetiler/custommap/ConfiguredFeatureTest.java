@@ -81,14 +81,14 @@ class ConfiguredFeatureTest {
   private Profile loadConfig(Function<String, Path> pathFunction, String filename) {
     var staticAttributeConfig = pathFunction.apply(filename);
     var schema = SchemaConfig.load(staticAttributeConfig);
-    var root = ArgumentParser.buildRootContext(planetilerConfig.arguments(), schema.args());
+    var root = Contexts.buildRootContext(planetilerConfig.arguments(), schema.args());
     planetilerConfig = root.config();
     return new ConfiguredProfile(schema, root);
   }
 
   private ConfiguredProfile loadConfig(String config) {
     var schema = SchemaConfig.load(config);
-    var root = ArgumentParser.buildRootContext(planetilerConfig.arguments(), schema.args());
+    var root = Contexts.buildRootContext(planetilerConfig.arguments(), schema.args());
     planetilerConfig = root.config();
     return new ConfiguredProfile(schema, root);
   }

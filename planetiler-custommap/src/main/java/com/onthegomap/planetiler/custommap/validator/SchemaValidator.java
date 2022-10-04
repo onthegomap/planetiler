@@ -5,8 +5,8 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.custommap.ArgumentParser;
 import com.onthegomap.planetiler.custommap.ConfiguredProfile;
+import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.YAML;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.geo.GeometryType;
@@ -177,7 +177,7 @@ public class SchemaValidator {
    * {@code specification}.
    */
   public static Result validate(SchemaConfig schema, SchemaSpecification specification) {
-    var context = ArgumentParser.buildRootContext(Arguments.of().silence(), schema.args());
+    var context = Contexts.buildRootContext(Arguments.of().silence(), schema.args());
     return validate(new ConfiguredProfile(schema, context), specification, context.config());
   }
 

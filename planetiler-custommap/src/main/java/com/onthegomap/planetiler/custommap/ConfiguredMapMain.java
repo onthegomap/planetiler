@@ -44,7 +44,7 @@ public class ConfiguredMapMain {
     }
 
     // use default argument values from config file as fallback if not set from command-line or env vars
-    Contexts.Root rootContext = ArgumentParser.buildRootContext(arguments, schema.args());
+    Contexts.Root rootContext = Contexts.buildRootContext(arguments, schema.args());
 
     var planetiler = Planetiler.create(rootContext.arguments());
     var profile = new ConfiguredProfile(schema, rootContext);

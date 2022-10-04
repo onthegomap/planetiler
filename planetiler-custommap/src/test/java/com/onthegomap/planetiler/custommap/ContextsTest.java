@@ -9,30 +9,30 @@ import com.onthegomap.planetiler.custommap.expression.ParseException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class ArgumentParserTest {
+class ContextsTest {
 
   @Test
   void testParseEmptyArgs() {
     Map<String, String> cliArgs = Map.of();
     Map<String, Object> schemaArgs = Map.of();
-    ArgumentParser.buildRootContext(Arguments.of(cliArgs), schemaArgs);
+    Contexts.buildRootContext(Arguments.of(cliArgs), schemaArgs);
   }
 
   @Test
   void setPlanetilerConfigThroughCli() {
     Map<String, String> cliArgs = Map.of("threads", "9999");
     Map<String, Object> schemaArgs = Map.of("threads", "8888");
-    var result = ArgumentParser.buildRootContext(Arguments.of(cliArgs), schemaArgs);
+    var result = Contexts.buildRootContext(Arguments.of(cliArgs), schemaArgs);
     assertEquals(9999, result.config().threads());
   }
 
   @Test
   void setPlanetilerConfigThroughSchemaArgs() {
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(Map.of()),
       Map.of("threads", "8888")
     ).config().threads());
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(Map.of()),
       Map.of("threads", 8888)
     ).config().threads());
@@ -40,7 +40,7 @@ class ArgumentParserTest {
 
   @Test
   void configDefinesDefaultArgumentValue() {
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(Map.of()),
       Map.of(
         "arg", 8888
@@ -50,7 +50,7 @@ class ArgumentParserTest {
 
   @Test
   void overrideDefaultArgFromConfig() {
-    assertEquals(9999, ArgumentParser.buildRootContext(
+    assertEquals(9999, Contexts.buildRootContext(
       Arguments.of(Map.of("arg", "9999")),
       Map.of(
         "arg", 8888
@@ -60,7 +60,7 @@ class ArgumentParserTest {
 
   @Test
   void defineArgTypeInConfig() {
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(),
       Map.of(
         "arg", Map.of(
@@ -73,26 +73,26 @@ class ArgumentParserTest {
 
   @Test
   void implyTypeFromDefaultValue() {
-    assertEquals("8888", ArgumentParser.buildRootContext(
+    assertEquals("8888", Contexts.buildRootContext(
       Arguments.of(),
       Map.of(
         "arg", "8888"
       )
     ).argument("arg"));
-    assertEquals("9999", ArgumentParser.buildRootContext(
+    assertEquals("9999", Contexts.buildRootContext(
       Arguments.of("arg", "9999"),
       Map.of(
         "arg", "8888"
       )
     ).argument("arg"));
 
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(),
       Map.of(
         "arg", 8888
       )
     ).argument("arg"));
-    assertEquals(9999, ArgumentParser.buildRootContext(
+    assertEquals(9999, Contexts.buildRootContext(
       Arguments.of("arg", "9999"),
       Map.of(
         "arg", 8888
@@ -102,7 +102,7 @@ class ArgumentParserTest {
 
   @Test
   void computeDefaultValueUsingExpression() {
-    assertEquals(2, ArgumentParser.buildRootContext(
+    assertEquals(2, Contexts.buildRootContext(
       Arguments.of(),
       Map.of(
         "arg", Map.of(
@@ -115,7 +115,7 @@ class ArgumentParserTest {
 
   @Test
   void implyTypeFromExpressionValue() {
-    assertEquals(2L, ArgumentParser.buildRootContext(
+    assertEquals(2L, Contexts.buildRootContext(
       Arguments.of(),
       Map.of(
         "arg", "${ 1+1 }"
@@ -129,15 +129,15 @@ class ArgumentParserTest {
       "arg1", 1,
       "arg2", "${ args.arg1 + 1}"
     );
-    assertEquals(2L, ArgumentParser.buildRootContext(
+    assertEquals(2L, Contexts.buildRootContext(
       Arguments.of(),
       configArgs
     ).argument("arg2"));
-    assertEquals(3L, ArgumentParser.buildRootContext(
+    assertEquals(3L, Contexts.buildRootContext(
       Arguments.of(Map.of("arg1", "2")),
       configArgs
     ).argument("arg2"));
-    assertEquals(10L, ArgumentParser.buildRootContext(
+    assertEquals(10L, Contexts.buildRootContext(
       Arguments.of(Map.of("arg2", "10")),
       configArgs
     ).argument("arg2"));
@@ -150,7 +150,7 @@ class ArgumentParserTest {
       "arg2", "${ args.arg1 + 1}",
       "arg3", "${ args.arg2 + 1}"
     );
-    assertEquals(3L, ArgumentParser.buildRootContext(
+    assertEquals(3L, Contexts.buildRootContext(
       Arguments.of(),
       configArgs
     ).argument("arg3"));
@@ -167,12 +167,12 @@ class ArgumentParserTest {
       "arg3", "${ args.arg2 + 1}"
     );
     var empty = Arguments.of();
-    assertThrows(ParseException.class, () -> ArgumentParser.buildRootContext(
+    assertThrows(ParseException.class, () -> Contexts.buildRootContext(
       empty,
       configArgs
     ));
     // but if you break the chain it's OK?
-    assertEquals(3L, ArgumentParser.buildRootContext(
+    assertEquals(3L, Contexts.buildRootContext(
       Arguments.of(Map.of("arg1", "1")),
       configArgs
     ).argument("arg3"));
@@ -180,7 +180,7 @@ class ArgumentParserTest {
 
   @Test
   void setPlanetilerConfigFromOtherArg() {
-    assertEquals(8888, ArgumentParser.buildRootContext(
+    assertEquals(8888, Contexts.buildRootContext(
       Arguments.of(Map.of()),
       Map.of(
         "other", "8888",
@@ -198,7 +198,7 @@ class ArgumentParserTest {
         "type", "string"
       )
     );
-    assertThrows(ParseException.class, () -> ArgumentParser.buildRootContext(fromCli, fromConfig));
+    assertThrows(ParseException.class, () -> Contexts.buildRootContext(fromCli, fromConfig));
   }
 
   @Test
@@ -211,13 +211,13 @@ class ArgumentParserTest {
         "description", "desc"
       )
     );
-    assertThrows(ParseException.class, () -> ArgumentParser.buildRootContext(argsWithoutValue, fromConfig));
-    assertEquals(3, ArgumentParser.buildRootContext(argsWithValue, fromConfig).argument("arg"));
+    assertThrows(ParseException.class, () -> Contexts.buildRootContext(argsWithoutValue, fromConfig));
+    assertEquals(3, Contexts.buildRootContext(argsWithValue, fromConfig).argument("arg"));
   }
 
   @Test
   void setPlanetilerConfigFromOtherPlanetilerConfig() {
-    var root = ArgumentParser.buildRootContext(
+    var root = Contexts.buildRootContext(
       Arguments.of(Map.of()),
       Map.of(
         "mmap", "${ args.threads < 1 }"

@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.custommap.ArgumentParser;
 import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.TagValueProducer;
 import com.onthegomap.planetiler.custommap.TestContexts;
@@ -347,7 +346,7 @@ class ConfigExpressionTest {
   @Test
   void testSimplifyGetArg() {
     var args = Arguments.of(Map.of("arg", "12"));
-    var root = ArgumentParser.buildRootContext(args, Map.of());
+    var root = Contexts.buildRootContext(args, Map.of());
     var context = signature(root.description(), Integer.class);
     assertEquals(constOf(12),
       getArg(

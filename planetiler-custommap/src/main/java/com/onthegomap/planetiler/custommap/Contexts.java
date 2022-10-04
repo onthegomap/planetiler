@@ -6,20 +6,28 @@ import com.google.api.expr.v1alpha1.Type;
 import com.google.protobuf.NullValue;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.custommap.expression.ParseException;
 import com.onthegomap.planetiler.custommap.expression.ScriptContext;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
+import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
+import com.onthegomap.planetiler.util.Try;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.projectnessie.cel.checker.Decls;
 import org.projectnessie.cel.common.types.NullT;
 import org.projectnessie.cel.common.types.pb.ProtoTypeRegistry;
+import org.projectnessie.cel.common.types.ref.TypeAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper objects that provide all available inputs to different parts of planetiler schema configs at runtime.
@@ -28,25 +36,116 @@ import org.projectnessie.cel.common.types.pb.ProtoTypeRegistry;
  * that all global variables from a parent context are also available to its child context.
  */
 public class Contexts {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Contexts.class);
 
   private static Object wrapNullable(Object nullable) {
     return nullable == null ? NullT.NullValue : nullable;
   }
 
-  public static Root root(Arguments args, Map<String, Object> parsedArgs) {
-    return new Root(args, parsedArgs);
+  public static Root emptyRoot() {
+    return new Root(Arguments.of().silence(), Map.of());
   }
 
-  public static Root emptyRoot() {
-    return root(Arguments.of().silence(), Map.of());
+  /**
+   * Returns a {@link Root} context built from {@code schemaArgs} argument definitions and {@code origArguments}
+   * arguments provided from the command-line/environment.
+   * <p>
+   * Arguments may depend on the value of other arguments so this iteratively evaluates the arguments until their values
+   * settle.
+   *
+   * @throws ParseException if the argument definitions are malformed, or if there's an infinite loop
+   */
+  public static Contexts.Root buildRootContext(Arguments origArguments, Map<String, Object> schemaArgs) {
+    boolean loggingEnabled = !origArguments.silenced();
+    origArguments.silence();
+    Map<String, String> argDescriptions = new LinkedHashMap<>();
+    Map<String, Object> unparsedSchemaArgs = new HashMap<>(schemaArgs);
+    Map<String, Object> parsedSchemaArgs = new HashMap<>(origArguments.toMap());
+    Contexts.Root result = new Root(origArguments, parsedSchemaArgs);
+    Arguments arguments = origArguments;
+    int iters = 0;
+    // arguments may reference the value of other arguments, so continue parsing until they all succeed...
+    while (!unparsedSchemaArgs.isEmpty()) {
+      final var root = result;
+      final var args = arguments;
+      Map<String, Exception> failures = new HashMap<>();
+
+      Map.copyOf(unparsedSchemaArgs).forEach((key, value) -> {
+        boolean builtin = root.builtInArgs.contains(key);
+        String description;
+        Object defaultValueObject;
+        DataType type = null;
+        if (value instanceof Map<?, ?> map) {
+          if (builtin) {
+            throw new ParseException("Cannot override built-in argument: " + key);
+          }
+          var typeObject = map.get("type");
+          if (typeObject != null) {
+            type = DataType.from(Objects.toString(typeObject));
+          }
+          var descriptionObject = map.get("description");
+          description = descriptionObject == null ? "no description provided" : descriptionObject.toString();
+          defaultValueObject = map.get("default");
+          if (type != null) {
+            var fromArgs = args.getString(key, description, null);
+            if (fromArgs != null) {
+              parsedSchemaArgs.put(key, type.convertFrom(fromArgs));
+            }
+          }
+        } else {
+          defaultValueObject = value;
+          description = "no description provided";
+        }
+        argDescriptions.put(key, description);
+        Try<Object> defaultValue = ConfigExpressionParser.tryStaticEvaluate(root, defaultValueObject, Object.class);
+        if (defaultValue.isSuccess()) {
+          Object raw = defaultValue.get();
+          String asString = Objects.toString(raw);
+          if (type == null) {
+            type = DataType.typeOf(raw);
+          }
+          var stringResult = args.getString(key, description, asString);
+          Object castedResult = type.convertFrom(stringResult);
+          if (stringResult == null) {
+            throw new ParseException("Missing required parameter: " + key + "(" + description + ")");
+          } else if (castedResult == null) {
+            throw new ParseException("Cannot convert value for " + key + " to " + type.id() + ": " + stringResult);
+          }
+          parsedSchemaArgs.put(key, castedResult);
+          unparsedSchemaArgs.remove(key);
+        } else {
+          failures.put(key, defaultValue.exception());
+        }
+      });
+
+      arguments = origArguments.orElse(Arguments.of(parsedSchemaArgs.entrySet().stream().collect(Collectors.toMap(
+        Map.Entry::getKey,
+        e -> Objects.toString(e.getValue()))
+      )));
+      result = new Root(arguments, parsedSchemaArgs);
+      if (iters++ > 100) {
+        failures
+          .forEach(
+            (key, failure) -> LOGGER.error("Error computing {}:\n{}", key,
+              ExceptionUtils.getRootCause(failure).toString().indent(4)));
+        throw new ParseException("Infinite loop while processing arguments: " + unparsedSchemaArgs.keySet());
+      }
+    }
+    var finalArguments = loggingEnabled ? arguments.withExactlyOnceLogging() : arguments.silence();
+    if (loggingEnabled) {
+      argDescriptions.forEach((key, description) -> finalArguments.getString(key, description, null));
+    }
+    return new Root(finalArguments, parsedSchemaArgs);
   }
 
   /**
    * Root context available everywhere in a planetiler schema config.
+   * <p>
+   * Holds argument values parsed from the schema config and command-line args.
    */
   public static final class Root implements ScriptContext {
-
-    private Arguments arguments;
+    private static final TypeAdapter TYPE_ADAPTER = ProtoTypeRegistry.newRegistry();
+    private final Arguments arguments;
     private final PlanetilerConfig config;
     private final ScriptEnvironment<Root> description;
     private final Map<String, Object> bindings = new HashMap<>();
@@ -124,7 +223,7 @@ public class Contexts {
         bindings.put("args." + k, v);
         argMap.put(k, v);
       });
-      bindings.put("args", ProtoTypeRegistry.newRegistry().nativeToValue(argMap));
+      bindings.put("args", TYPE_ADAPTER.nativeToValue(argMap));
       description = ScriptEnvironment.root(this).forInput(Root.class)
         .withDeclarations(
           args.entrySet().stream()
@@ -144,17 +243,11 @@ public class Contexts {
       } else if (value instanceof Boolean b) {
         builder.setBoolValue(b);
         type = Decls.Bool;
-      } else if (value instanceof Integer i) {
-        builder.setInt64Value(i);
+      } else if (value instanceof Long || value instanceof Integer) {
+        builder.setInt64Value(((Number) value).longValue());
         type = Decls.Int;
-      } else if (value instanceof Long i) {
-        builder.setInt64Value(i);
-        type = Decls.Int;
-      } else if (value instanceof Double d) {
-        builder.setDoubleValue(d);
-        type = Decls.Double;
-      } else if (value instanceof Float f) {
-        builder.setDoubleValue(f);
+      } else if (value instanceof Double || value instanceof Float) {
+        builder.setDoubleValue(((Number) value).doubleValue());
         type = Decls.Double;
       } else if (value == null) {
         builder.setNullValue(NullValue.NULL_VALUE);

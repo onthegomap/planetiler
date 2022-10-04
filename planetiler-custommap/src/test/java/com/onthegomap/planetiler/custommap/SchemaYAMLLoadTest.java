@@ -34,7 +34,7 @@ class SchemaYAMLLoadTest {
 
     for (Path schemaFile : schemaFiles) {
       var schemaConfig = SchemaConfig.load(schemaFile);
-      var root = ArgumentParser.buildRootContext(Arguments.of(), schemaConfig.args());
+      var root = Contexts.buildRootContext(Arguments.of(), schemaConfig.args());
       assertNotNull(schemaConfig, () -> "Failed to unmarshall " + schemaFile.toString());
       new ConfiguredProfile(schemaConfig, root);
     }

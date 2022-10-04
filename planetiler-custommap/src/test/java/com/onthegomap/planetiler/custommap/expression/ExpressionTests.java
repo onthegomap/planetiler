@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.custommap.ArgumentParser;
+import com.onthegomap.planetiler.custommap.Contexts;
 import java.util.Map;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -68,7 +68,7 @@ class ExpressionTests {
   void testExpression(String in, String expected, String type) {
     Map<String, Object> configFromSchema = Map.of("arg_from_config", 1, "overridden_arg_from_config", 3);
     Map<String, String> configFromCli = Map.of("arg_from_cli", "2", "overridden_arg_from_config", "4");
-    var context = ArgumentParser.buildRootContext(
+    var context = Contexts.buildRootContext(
       Arguments.of(configFromCli),
       configFromSchema
     );
