@@ -32,13 +32,21 @@ public enum DataType implements BiFunction<WithTags, String, Object> {
     this(id, (d, k) -> parser.apply(d.getTag(k)), parser);
   }
 
-  @Override
-  public Object apply(WithTags withTags, String string) {
-    return this.getter.apply(withTags, string);
-  }
-
-  public Object convertFrom(Object value) {
-    return this.parser.apply(value);
+  /** Returns the data type associated with {@code value}, or {@link #GET_TAG} as a fallback. */
+  public static DataType typeOf(Object value) {
+    if (value instanceof String) {
+      return GET_STRING;
+    } else if (value instanceof Integer) {
+      return GET_INT;
+    } else if (value instanceof Long) {
+      return GET_LONG;
+    } else if (value instanceof Double) {
+      return GET_DOUBLE;
+    } else if (value instanceof Boolean) {
+      return GET_BOOLEAN;
+    } else {
+      return GET_TAG;
+    }
   }
 
   /** Returns the data type associated with {@code id}, or {@link #GET_TAG} as a fallback. */
@@ -49,6 +57,15 @@ public enum DataType implements BiFunction<WithTags, String, Object> {
       }
     }
     return GET_TAG;
+  }
+
+  @Override
+  public Object apply(WithTags withTags, String string) {
+    return this.getter.apply(withTags, string);
+  }
+
+  public Object convertFrom(Object value) {
+    return this.parser.apply(value);
   }
 
   public String id() {

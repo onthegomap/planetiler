@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.custommap;
 import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,7 @@ class BooleanExpressionParserTest {
 
   private static void assertParse(String yaml, Expression parsed) {
     Object expression = YAML.load(yaml, Object.class);
-    var actual = BooleanExpressionParser.parse(expression, TVP, ScriptEnvironment.root());
+    var actual = BooleanExpressionParser.parse(expression, TVP, TestContexts.ROOT_CONTEXT);
     assertEquals(
       parsed.simplify().generateJavaCode(),
       actual.simplify().generateJavaCode()

@@ -45,10 +45,11 @@
           },
           "url": {
             "description": "Location to download the file from. For geofabrik named areas, use `geofabrik:` prefixes, for example `geofabrik:rhode-island`.",
-            "type": "string"
+            "$ref": "#/$defs/expression"
           },
           "local_path": {
-            "description": "Local path to the file to use, inferred from `url` if missing"
+            "description": "Local path to the file to use, inferred from `url` if missing",
+            "$ref": "#/$defs/expression"
           }
         },
         "anyOf": [
@@ -109,6 +110,246 @@
             }
           }
         }
+      }
+    },
+    "args": {
+      "description": "Set default values for built-in command-line arguments or expose new command-line arguments.",
+      "type": "object",
+      "properties": {
+        "threads": {
+          "description": "Default number of threads to use."
+        },
+        "write_threads": {
+          "description": "Default number of threads to use when writing temp features"
+        },
+        "process_threads": {
+          "description": "Default number of threads to use when processing input features"
+        },
+        "feature_read_threads": {
+          "description": "Default number of threads to use when reading features at tile write time"
+        },
+        "minzoom": {
+          "description": "Minimum tile zoom level to emit"
+        },
+        "maxzoom": {
+          "description": "Maximum tile zoom level to emit"
+        },
+        "render_maxzoom": {
+          "description": "Maximum rendering zoom level up to"
+        },
+        "skip_mbtiles_index_creation": {
+          "description": "Skip adding index to mbtiles file",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "optimize_db": {
+          "description": "Vacuum analyze mbtiles file after writing",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "emit_tiles_in_order": {
+          "description": "Emit vector tiles in index order",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "force": {
+          "description": "Overwriting output file and ignore warnings",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "gzip_temp": {
+          "description": "Gzip temporary feature storage (uses more CPU, but less disk space)",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "mmap_temp": {
+          "description": "Use memory-mapped IO for temp feature files",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "sort_max_readers": {
+          "description": "Maximum number of concurrent read threads to use when sorting chunks"
+        },
+        "sort_max_writers": {
+          "description": "Maximum number of concurrent write threads to use when sorting chunks"
+        },
+        "nodemap_type": {
+          "description": "Type of node location map",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "enum": [
+                "array",
+                "sparsearray",
+                "sortedtable",
+                "noop"
+              ]
+            }
+          ]
+        },
+        "nodemap_storage": {
+          "description": "Storage for node location map",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "enum": [
+                "ram",
+                "mmap",
+                "direct"
+              ]
+            }
+          ]
+        },
+        "nodemap_madvise": {
+          "description": "Use linux madvise(random) for node locations",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "multipolygon_geometry_storage": {
+          "description": "Storage for multipolygon geometries",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "enum": [
+                "ram",
+                "mmap",
+                "direct"
+              ]
+            }
+          ]
+        },
+        "multipolygon_geometry_madvise": {
+          "description": "Use linux madvise(random) for multiplygon geometries",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "http_user_agent": {
+          "description": "User-Agent header to set when downloading files over HTTP"
+        },
+        "http_retries": {
+          "description": "Retries to use when downloading files over HTTP"
+        },
+        "download_chunk_size_mb": {
+          "description": "Size of file chunks to download in parallel in megabytes"
+        },
+        "download_threads": {
+          "description": "Number of parallel threads to use when downloading each file"
+        },
+        "min_feature_size_at_max_zoom": {
+          "description": "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming"
+        },
+        "min_feature_size": {
+          "description": "Default value for the minimum size in tile pixels of features to emit below the maximum zoom level"
+        },
+        "simplify_tolerance_at_max_zoom": {
+          "description": "Default value for the tile pixel tolerance to use when simplifying features at the maximum zoom level to allow for overzooming"
+        },
+        "simplify_tolerance": {
+          "description": "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level"
+        },
+        "compact_db": {
+          "description": "Reduce the DB size by separating and deduping the tile data",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "skip_filled_tiles": {
+          "description": "Skip writing tiles containing only polygon fills to the output",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "tile_warning_size_mb": {
+          "description": "Maximum size in megabytes of a tile to emit a warning about"
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "default": {
+                "description": "Default value for this argument (can be an expression).",
+                "$ref": "#/$defs/expression"
+              },
+              "type": {
+                "description": "Data type of this argument.",
+                "$ref": "#/$defs/datatype"
+              },
+              "description": {
+                "description": "Description for this argument.",
+                "type": "string"
+              }
+            }
+          }
+        ]
       }
     },
     "examples": {
@@ -207,6 +448,9 @@
         },
         {
           "$ref": "#/$defs/expression_tag_value"
+        },
+        {
+          "$ref": "#/$defs/expression_arg_value"
         },
         {
           "$ref": "#/$defs/expression_value"
@@ -317,6 +561,9 @@
           "$ref": "#/$defs/expression_tag_value"
         },
         {
+          "$ref": "#/$defs/expression_arg_value"
+        },
+        {
           "$ref": "#/$defs/expression_value"
         },
         {
@@ -361,6 +608,15 @@
       "properties": {
         "tag_value": {
           "description": "Value of the attribute in the tile, as copied from the value of the specified tag key. If neither constantValue nor tagValue are specified, the default behavior is to set the tag value equal to the input value (pass-through)",
+          "$ref": "#/$defs/expression"
+        }
+      }
+    },
+    "expression_arg_value": {
+      "type": "object",
+      "properties": {
+        "arg_value": {
+          "description": "Returns the value associated with an argument",
           "$ref": "#/$defs/expression"
         }
       }

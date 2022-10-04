@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.custommap.configschema.AttributeDefinition;
 import com.onthegomap.planetiler.custommap.configschema.FeatureGeometry;
 import com.onthegomap.planetiler.custommap.configschema.FeatureItem;
+import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -34,9 +35,13 @@ public class ConfiguredFeature {
   private final TagValueProducer tagValueProducer;
   private final List<BiConsumer<Contexts.FeaturePostMatch, Feature>> featureProcessors;
   private final Set<String> sources;
+  private final ScriptEnvironment<Contexts.ProcessFeature> processFeatureContext;
+  private final ScriptEnvironment<Contexts.FeatureAttribute> featureAttributeContext;
+  private ScriptEnvironment<Contexts.FeaturePostMatch> featurePostMatchContext;
 
 
-  public ConfiguredFeature(String layer, TagValueProducer tagValueProducer, FeatureItem feature) {
+  public ConfiguredFeature(String layer, TagValueProducer tagValueProducer, FeatureItem feature,
+    Contexts.Root rootContext) {
     sources = Set.copyOf(feature.source());
 
     FeatureGeometry geometryType = feature.geometry();
@@ -46,6 +51,9 @@ public class ConfiguredFeature {
 
     //Factory to treat OSM tag values as specific data type values
     this.tagValueProducer = tagValueProducer;
+    processFeatureContext = Contexts.ProcessFeature.description(rootContext);
+    featurePostMatchContext = Contexts.FeaturePostMatch.description(rootContext);
+    featureAttributeContext = Contexts.FeatureAttribute.description(rootContext);
 
     //Test to determine whether this feature is included based on tagging
     Expression filter;
@@ -53,13 +61,15 @@ public class ConfiguredFeature {
       filter = Expression.TRUE;
     } else {
       filter =
-        BooleanExpressionParser.parse(feature.includeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION);
+        BooleanExpressionParser.parse(feature.includeWhen(), tagValueProducer,
+          processFeatureContext);
     }
     if (feature.excludeWhen() != null) {
       filter = Expression.and(
         filter,
         Expression.not(
-          BooleanExpressionParser.parse(feature.excludeWhen(), tagValueProducer, Contexts.ProcessFeature.DESCRIPTION))
+          BooleanExpressionParser.parse(feature.excludeWhen(), tagValueProducer,
+            processFeatureContext))
       );
     }
     tagTest = filter;
@@ -86,7 +96,7 @@ public class ConfiguredFeature {
     var expression = ConfigExpressionParser.parse(
       input,
       tagValueProducer,
-      Contexts.FeaturePostMatch.DESCRIPTION,
+      featurePostMatchContext,
       clazz
     );
     if (expression.equals(constOf(null))) {
@@ -140,12 +150,14 @@ public class ConfiguredFeature {
         value.put("value", attribute.value());
       } else if (attribute.tagValue() != null) {
         value.put("tag_value", attribute.tagValue());
+      } else if (attribute.argValue() != null) {
+        value.put("arg_value", attribute.argValue());
       } else {
         value.put("tag_value", attribute.key());
       }
     }
 
-    return ConfigExpressionParser.parse(value, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION, Object.class);
+    return ConfigExpressionParser.parse(value, tagValueProducer, featurePostMatchContext, Object.class);
   }
 
   /**
@@ -160,7 +172,7 @@ public class ConfiguredFeature {
     Double minTilePercent, Object rawMinZoom, Map<Object, Integer> minZoomByValue) {
 
     var result = ConfigExpressionParser.parse(rawMinZoom, tagValueProducer,
-      Contexts.FeatureAttribute.DESCRIPTION, Integer.class);
+      featureAttributeContext, Integer.class);
 
     if ((result.equals(constOf(0)) ||
       result.equals(constOf(null))) && minZoomByValue.isEmpty()) {
@@ -206,9 +218,11 @@ public class ConfiguredFeature {
     var attributeTest =
       Expression.and(
         attrIncludeWhen == null ? Expression.TRUE :
-          BooleanExpressionParser.parse(attrIncludeWhen, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION),
+          BooleanExpressionParser.parse(attrIncludeWhen, tagValueProducer,
+            featurePostMatchContext),
         attrExcludeWhen == null ? Expression.TRUE :
-          not(BooleanExpressionParser.parse(attrExcludeWhen, tagValueProducer, Contexts.FeaturePostMatch.DESCRIPTION))
+          not(BooleanExpressionParser.parse(attrExcludeWhen, tagValueProducer,
+            featurePostMatchContext))
       ).simplify();
 
     var minTileCoverage = attrIncludeWhen == null ? null : attribute.minTileCoverSize();

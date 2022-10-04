@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.util;
 
+import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+
 /**
  * A container for the result of an operation that may succeed or fail.
  *
@@ -45,12 +47,35 @@ public interface Try<T> {
     return null;
   }
 
-  record Success<T> (T get) implements Try<T> {}
+  /** If success, then tries to cast the result to {@code clazz}, turning into a failure if not possible. */
+  default <O> Try<O> cast(Class<O> clazz) {
+    return map(clazz::cast);
+  }
+
+  /**
+   * If this is a success, then maps the value through {@code fn}, returning the new value in a {@link Success} if
+   * successful, or {@link Failure} if the mapping function threw an exception.
+   */
+  <O> Try<O> map(FunctionThatThrows<T, O> fn);
+
+  record Success<T> (T get) implements Try<T> {
+
+    @Override
+    public <O> Try<O> map(FunctionThatThrows<T, O> fn) {
+      return Try.apply(() -> fn.apply(get));
+    }
+  }
   record Failure<T> (@Override Exception exception) implements Try<T> {
 
     @Override
     public T get() {
-      throw new IllegalStateException(exception);
+      return throwFatalException(exception);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <O> Try<O> map(FunctionThatThrows<T, O> fn) {
+      return (Try<O>) this;
     }
   }
 

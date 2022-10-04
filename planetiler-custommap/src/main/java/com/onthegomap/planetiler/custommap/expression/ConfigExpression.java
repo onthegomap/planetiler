@@ -45,6 +45,11 @@ public interface ConfigExpression<I extends ScriptContext, O>
     return new GetTag<>(signature, tag);
   }
 
+  static <I extends ScriptContext, O> ConfigExpression<I, O> getArg(Signature<I, O> signature,
+    ConfigExpression<I, String> tag) {
+    return new GetArg<>(signature, tag);
+  }
+
   static <I extends ScriptContext, O> ConfigExpression<I, O> cast(Signature<I, O> signature,
     ConfigExpression<I, ?> input, DataType dataType) {
     return new Cast<>(signature, input, dataType);
@@ -163,13 +168,16 @@ public interface ConfigExpression<I extends ScriptContext, O>
         default -> {
           var result = children.stream()
             .flatMap(
-              child -> child instanceof Coalesce<I, O> childCoalesce ? childCoalesce.children.stream() :
+              child -> child instanceof Coalesce<?, ?> childCoalesce ? childCoalesce.children.stream() :
                 Stream.of(child))
             .filter(child -> !child.equals(constOf(null)))
             .distinct()
             .toList();
-          var indexOfFirstConst = result.stream().takeWhile(d -> !(d instanceof ConfigExpression.Const<I, O>)).count();
-          yield coalesce(result.stream().limit(indexOfFirstConst + 1).toList());
+          var indexOfFirstConst = result.stream().takeWhile(d -> !(d instanceof ConfigExpression.Const<?, ?>)).count();
+          yield coalesce(result.stream().map(d -> {
+            @SuppressWarnings("unchecked") ConfigExpression<I, O> casted = (ConfigExpression<I, O>) d;
+            return casted;
+          }).limit(indexOfFirstConst + 1).toList());
         }
       };
     }
@@ -207,6 +215,29 @@ public interface ConfigExpression<I extends ScriptContext, O>
     @Override
     public ConfigExpression<I, O> simplifyOnce() {
       return new GetTag<>(signature, tag.simplifyOnce());
+    }
+  }
+
+  /** An expression that returns the value associated a given argument at runtime. */
+  record GetArg<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    ConfigExpression<I, String> arg
+  ) implements ConfigExpression<I, O> {
+
+    @Override
+    public O apply(I i) {
+      return TypeConversion.convert(i.argument(arg.apply(i)), signature.out);
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      var key = arg.simplifyOnce();
+      if (key instanceof ConfigExpression.Const<I, String> constKey) {
+        var rawResult = signature.in.root().argument(constKey.value);
+        return constOf(TypeConversion.convert(rawResult, signature.out));
+      } else {
+        return new GetArg<>(signature, key);
+      }
     }
   }
 

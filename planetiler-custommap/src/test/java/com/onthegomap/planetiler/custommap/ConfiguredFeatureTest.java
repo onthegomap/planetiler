@@ -9,13 +9,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -26,6 +29,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfiguredFeatureTest {
+  private PlanetilerConfig planetilerConfig = PlanetilerConfig.defaults();
 
   private static final Function<String, Path> TEST_RESOURCE = TestConfigurableUtils::pathToTestResource;
   private static final Function<String, Path> SAMPLE_RESOURCE = TestConfigurableUtils::pathToSample;
@@ -74,32 +78,35 @@ class ConfiguredFeatureTest {
     "bridge", "yes"
   );
 
-  private static Profile loadConfig(Function<String, Path> pathFunction, String filename) {
+  private Profile loadConfig(Function<String, Path> pathFunction, String filename) {
     var staticAttributeConfig = pathFunction.apply(filename);
     var schema = SchemaConfig.load(staticAttributeConfig);
-    return new ConfiguredProfile(schema);
+    var root = Contexts.buildRootContext(planetilerConfig.arguments(), schema.args());
+    planetilerConfig = root.config();
+    return new ConfiguredProfile(schema, root);
   }
 
-  private static Profile loadConfig(String config) {
+  private ConfiguredProfile loadConfig(String config) {
     var schema = SchemaConfig.load(config);
-    return new ConfiguredProfile(schema);
+    var root = Contexts.buildRootContext(planetilerConfig.arguments(), schema.args());
+    planetilerConfig = root.config();
+    return new ConfiguredProfile(schema, root);
   }
 
-  private static void testFeature(Function<String, Path> pathFunction, String schemaFilename, SourceFeature sf,
+  private void testFeature(Function<String, Path> pathFunction, String schemaFilename, SourceFeature sf,
     Consumer<Feature> test, int expectedMatchCount) {
     var profile = loadConfig(pathFunction, schemaFilename);
     testFeature(sf, test, expectedMatchCount, profile);
   }
 
-  private static void testFeature(String config, SourceFeature sf, Consumer<Feature> test, int expectedMatchCount) {
+  private void testFeature(String config, SourceFeature sf, Consumer<Feature> test, int expectedMatchCount) {
     var profile = loadConfig(config);
     testFeature(sf, test, expectedMatchCount, profile);
   }
 
 
-  private static void testFeature(SourceFeature sf, Consumer<Feature> test, int expectedMatchCount, Profile profile) {
-    var config = PlanetilerConfig.defaults();
-    var factory = new FeatureCollector.Factory(config, Stats.inMemory());
+  private void testFeature(SourceFeature sf, Consumer<Feature> test, int expectedMatchCount, Profile profile) {
+    var factory = new FeatureCollector.Factory(planetilerConfig, Stats.inMemory());
     var fc = factory.get(sf);
 
     profile.processFeature(sf, fc);
@@ -114,14 +121,14 @@ class ConfiguredFeatureTest {
     assertEquals(expectedMatchCount, length.get(), "Wrong number of features generated");
   }
 
-  private static void testPolygon(String config, Map<String, Object> tags,
+  private void testPolygon(String config, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(config, sf, test, expectedMatchCount);
   }
 
-  private static void testPoint(String config, Map<String, Object> tags,
+  private void testPoint(String config, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPoint(0, 0), tags, "osm", null, 1, emptyList());
@@ -129,21 +136,21 @@ class ConfiguredFeatureTest {
   }
 
 
-  private static void testLinestring(String config,
+  private void testLinestring(String config,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(config, sf, test, expectedMatchCount);
   }
 
-  private static void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
+  private void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
   }
 
-  private static void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
+  private void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
@@ -783,5 +790,236 @@ class ConfiguredFeatureTest {
 
   private void testInvalidSchema(String filename, String message) {
     assertThrows(RuntimeException.class, () -> loadConfig(TEST_INVALID_RESOURCE, filename), message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "arg_value: argument",
+    "value: '${ args.argument }'",
+    "value: '${ args[\"argument\"] }'",
+  })
+  void testUseArgumentNotDefined(String string) {
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of(
+      "argument", "value"
+    )));
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            %s
+      """.formatted(string);
+
+    testPoint(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals("value", feature.getAttrsAtZoom(14).get("key"));
+    }, 1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "arg_value: threads",
+    "value: '${ args.threads }'",
+    "value: '${ args[\"threads\"] }'",
+  })
+  void testOverrideArgument(String string) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      args:
+        threads: 2
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          include_when:
+            natural: water
+          attributes:
+          - key: key
+            type: integer
+            %s
+      """.formatted(string);
+
+    testPoint(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(2, feature.getAttrsAtZoom(14).get("key"));
+    }, 1);
+  }
+
+  @Test
+  void testDefineArgument() {
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of(
+      "custom_overridden_arg", "test2",
+      "custom_simple_overridden_int_arg", "3"
+    )));
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      args:
+        custom_int_arg:
+          type: integer
+          description: test arg out
+          default: 12
+        custom_boolean_arg:
+          type: boolean
+          description: test boolean arg out
+          default: true
+        custom_overridden_arg:
+          default: test
+        custom_simple_string_arg: value
+        custom_simple_int_arg: 1
+        custom_simple_double_arg: 1.5
+        custom_simple_bool_arg: true
+        custom_simple_overridden_int_arg: 2
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          include_when:
+            natural: water
+          attributes:
+          - key: int
+            value: '${ args.custom_int_arg }'
+          - key: bool
+            value: '${ args["custom_boolean_arg"] }'
+          - key: overridden
+            arg_value: custom_overridden_arg
+          - key: custom_simple_string_arg
+            arg_value: custom_simple_string_arg
+          - key: custom_simple_int_arg
+            arg_value: custom_simple_int_arg
+          - key: custom_simple_bool_arg
+            arg_value: custom_simple_bool_arg
+          - key: custom_simple_overridden_int_arg
+            arg_value: custom_simple_overridden_int_arg
+          - key: custom_simple_double_arg
+            arg_value: custom_simple_double_arg
+          - key: custom_simple_int_arg_as_string
+            arg_value: custom_simple_int_arg
+            type: string
+      """;
+
+    testPoint(config, Map.of(
+      "natural", "water"
+    ), feature -> {
+      assertEquals(12L, feature.getAttrsAtZoom(14).get("int"));
+      assertEquals(true, feature.getAttrsAtZoom(14).get("bool"));
+      assertEquals("test2", feature.getAttrsAtZoom(14).get("overridden"));
+
+      assertEquals("value", feature.getAttrsAtZoom(14).get("custom_simple_string_arg"));
+      assertEquals(1, feature.getAttrsAtZoom(14).get("custom_simple_int_arg"));
+      assertEquals("1", feature.getAttrsAtZoom(14).get("custom_simple_int_arg_as_string"));
+      assertEquals(1.5, feature.getAttrsAtZoom(14).get("custom_simple_double_arg"));
+      assertEquals(true, feature.getAttrsAtZoom(14).get("custom_simple_bool_arg"));
+      assertEquals(3, feature.getAttrsAtZoom(14).get("custom_simple_overridden_int_arg"));
+    }, 1);
+  }
+
+  @Test
+  void testDefineArgumentsUsingExpressions() {
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of(
+      "custom_overridden_arg", "test2",
+      "custom_simple_overridden_int_arg", "3"
+    )));
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      args:
+        arg1:
+          type: long
+          description: test arg out
+          default: '${ 2 - 1 }'
+        arg2: '${ 2 - 1 }'
+        arg3:
+          default: '${ 2 - 1 }'
+        arg4: ${ args.arg3 + 1 }
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+          attributes:
+          - key: arg1
+            arg_value: arg1
+          - key: arg2
+            arg_value: arg2
+          - key: arg3
+            arg_value: arg3
+          - key: arg4
+            arg_value: arg4
+      """;
+
+    testPoint(config, Map.of(), feature -> {
+      assertEquals(1L, feature.getAttrsAtZoom(14).get("arg1"));
+      assertEquals(1L, feature.getAttrsAtZoom(14).get("arg2"));
+      assertEquals(1L, feature.getAttrsAtZoom(14).get("arg3"));
+      assertEquals(2L, feature.getAttrsAtZoom(14).get("arg4"));
+    }, 1);
+  }
+
+  @Test
+  void testUseArgumentInSourceUrlPath() {
+    var config = """
+      args:
+        area: rhode-island
+        url: '${ "geofabrik:" + args.area }'
+      sources:
+        osm:
+          type: osm
+          url: '${ args.url }'
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of(
+      "area", "boston"
+    )));
+    assertEquals(List.of(new Source(
+      "osm",
+      DataSourceType.OSM,
+      "geofabrik:boston",
+      null
+    )), loadConfig(config).sources());
+
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(List.of(new Source(
+      "osm",
+      DataSourceType.OSM,
+      "geofabrik:rhode-island",
+      null
+    )), loadConfig(config).sources());
+
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals("geofabrik_rhode_island.osm.pbf", loadConfig(config).sources().get(0).defaultFileUrl());
+
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of(
+      "url", "https://example.com/file.osm.pbf"
+    )));
+    assertEquals("example.com_file.osm.pbf", loadConfig(config).sources().get(0).defaultFileUrl());
   }
 }

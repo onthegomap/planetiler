@@ -91,16 +91,22 @@ public class Timers {
   }
 
   public Finishable startTimer(String name) {
+    return startTimer(name, true);
+  }
+
+  public Finishable startTimer(String name, boolean logStart) {
     Timer timer = Timer.start();
     Stage stage = new Stage(timer);
     timers.put(name, stage);
     Stage last = currentStage.getAndSet(stage);
-    LOGGER.info("");
-    LOGGER.info("Starting...");
+    if (logStart) {
+      LOGGER.info("");
+      LOGGER.info("Starting...");
+    }
     return () -> {
-      LOGGER.info("Finished in " + timers.get(name).timer.stop());
+      LOGGER.info("Finished in {}", timers.get(name).timer.stop());
       for (var details : getStageDetails(name, true)) {
-        LOGGER.info("  " + details);
+        LOGGER.info("  {}", details);
       }
       currentStage.set(last);
     };

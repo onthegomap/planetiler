@@ -17,7 +17,8 @@ public record SchemaConfig(
   Object definitions,
   @JsonProperty("tag_mappings") Map<String, Object> inputMappings,
   Collection<FeatureLayer> layers,
-  Object examples
+  Object examples,
+  Map<String, Object> args
 ) {
 
   private static final String DEFAULT_ATTRIBUTION = """
@@ -27,6 +28,11 @@ public record SchemaConfig(
   @Override
   public String attribution() {
     return attribution == null ? DEFAULT_ATTRIBUTION : attribution;
+  }
+
+  @Override
+  public Map<String, Object> args() {
+    return args == null ? Map.of() : args;
   }
 
   public static SchemaConfig load(Path path) {

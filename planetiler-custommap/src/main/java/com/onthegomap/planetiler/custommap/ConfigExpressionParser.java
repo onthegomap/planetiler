@@ -10,6 +10,8 @@ import com.onthegomap.planetiler.custommap.expression.ScriptContext;
 import com.onthegomap.planetiler.custommap.expression.ScriptEnvironment;
 import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.expression.MultiExpression;
+import com.onthegomap.planetiler.util.Memoized;
+import com.onthegomap.planetiler.util.Try;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,6 +30,8 @@ import java.util.stream.Stream;
  */
 public class ConfigExpressionParser<I extends ScriptContext> {
 
+  private static final Memoized<EvaluateInput, ?> MEMOIZED = Memoized.memoize(arg -> ConfigExpressionParser
+    .parse(arg.expression, TagValueProducer.EMPTY, arg.root.description(), arg.clazz).apply(arg.root));
   private final TagValueProducer tagValueProducer;
   private final ScriptEnvironment<I> input;
 
@@ -48,6 +52,17 @@ public class ConfigExpressionParser<I extends ScriptContext> {
   public static <I extends ScriptContext, O> ConfigExpression<I, O> parse(Object object,
     TagValueProducer tagValueProducer, ScriptEnvironment<I> context, Class<O> outputClass) {
     return new ConfigExpressionParser<>(tagValueProducer, context).parse(object, outputClass).simplify();
+  }
+
+  /**
+   * Attempts to evaluate {@code expression} from a yaml config, using only globally-available environmental variables
+   * from the {@code root} context.
+   */
+  public static <T> Try<T> tryStaticEvaluate(Contexts.Root root, Object expression, Class<T> resultType) {
+    if (expression == null) {
+      return Try.success(null);
+    }
+    return MEMOIZED.tryApply(new EvaluateInput(root, expression, resultType), resultType);
   }
 
   private <O> ConfigExpression<I, O> parse(Object object, Class<O> output) {
@@ -82,6 +97,9 @@ public class ConfigExpressionParser<I extends ScriptContext> {
         } else if (keys.equals(Set.of("tag_value"))) {
           var tagProducer = parse(map.get("tag_value"), String.class);
           return getTag(signature(output), tagProducer);
+        } else if (keys.equals(Set.of("arg_value"))) {
+          var keyProducer = parse(map.get("arg_value"), String.class);
+          return getArg(signature(output), keyProducer);
         } else if (keys.equals(Set.of("value"))) {
           return parse(map.get("value"), output);
         }
@@ -134,4 +152,6 @@ public class ConfigExpressionParser<I extends ScriptContext> {
   private <O> Signature<I, O> signature(Class<O> outputClass) {
     return new Signature<>(input, outputClass);
   }
+
+  private record EvaluateInput(Contexts.Root root, Object expression, Class<?> clazz) {}
 }

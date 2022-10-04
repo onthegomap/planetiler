@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,12 +24,10 @@ class SchemaValidatorTest {
 
   record Result(SchemaValidator.Result output, String cliOutput) {}
 
-  Result validate(String schema, String spec) throws IOException {
-    var args = Arguments.of();
+  private Result validate(String schema, String spec) throws IOException {
     var result = SchemaValidator.validate(
       SchemaConfig.load(schema),
-      SchemaSpecification.load(spec),
-      args
+      SchemaSpecification.load(spec)
     );
     for (var example : result.results()) {
       if (example.issues().isFailure()) {
@@ -39,30 +36,29 @@ class SchemaValidatorTest {
     }
     // also exercise the cli writer and return what it would have printed to stdout
     var cliOutput = validateCli(Files.writeString(tmpDir.resolve("schema"),
-      schema + "\nexamples: " + Files.writeString(tmpDir.resolve("spec.yml"), spec)), args);
+      schema + "\nexamples: " + Files.writeString(tmpDir.resolve("spec.yml"), spec)));
 
     // also test the case where the examples are embedded in the schema itself
     assertEquals(
       cliOutput,
-      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\n" + spec), args)
+      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\n" + spec))
     );
 
     // also test where examples points to a relative path (written in previous step)
     assertEquals(
       cliOutput,
-      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\nexamples: spec.yml"), args)
+      validateCli(Files.writeString(tmpDir.resolve("schema"), schema + "\nexamples: spec.yml"))
     );
     return new Result(result, cliOutput);
   }
 
-  private String validateCli(Path path, Arguments args) {
+  private String validateCli(Path path) {
     try (
       var baos = new ByteArrayOutputStream();
       var printStream = new PrintStream(baos, true, StandardCharsets.UTF_8)
     ) {
       SchemaValidator.validateFromCli(
         path,
-        args,
         printStream
       );
       return baos.toString(StandardCharsets.UTF_8);
@@ -179,5 +175,46 @@ class SchemaValidatorTest {
         """
     );
     assertFalse(results.output.ok(), results.toString());
+  }
+
+  @Test
+  void testValidationWiresInArguments() throws IOException {
+    var results = validate(
+      """
+        sources:
+          osm:
+            type: osm
+            url: geofabrik:rhode-island
+        args:
+          key: default_value
+        layers:
+        - id: water
+          features:
+          - source: osm
+            geometry: polygon
+            include_when:
+              natural: water
+            attributes:
+            - key: from_arg
+              arg_value: key
+            - key: threads
+              value: '${ args.threads + 1 }'
+        """,
+      """
+        examples:
+        - name: test output
+          input:
+            source: osm
+            geometry: polygon
+            tags:
+              natural: water
+          output:
+            layer: water
+            tags:
+              from_arg: default_value
+              threads: %s
+        """.formatted(1 + Math.max(Runtime.getRuntime().availableProcessors(), 2))
+    );
+    assertTrue(results.output.ok(), results.toString());
   }
 }

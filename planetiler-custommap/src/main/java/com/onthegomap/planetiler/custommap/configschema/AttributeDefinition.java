@@ -14,6 +14,7 @@ public record AttributeDefinition(
   // pass-through to value expression
   @JsonProperty("value") Object value,
   @JsonProperty("tag_value") String tagValue,
+  @JsonProperty("arg_value") String argValue,
   Object type,
   Object coalesce
 ) {}

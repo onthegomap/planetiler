@@ -33,6 +33,8 @@ The root of the schema has the following attributes:
 - `examples` - A list of [Test Case](#test-case) input features and the vector tile features they should map to, or a
   relative path to a file with those examples in it. Run planetiler with `verify schema_file.yml` to see
   if they work as expected.
+- `args` - Set default values for arguments that can be referenced later in the config and overridden from the
+  command-line or environmental variables. See [Arguments](#arguments).
 - `definitions` - An unparsed spot where you can
   define [anchor labels](#anchors-and-aliases) to be used in other parts of the
   schema
@@ -46,6 +48,7 @@ attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&
 sources: { ... }
 tag_mappings: { ... }
 layers: [...]
+args: { ... }
 examples: [...]
 ```
 
@@ -55,10 +58,12 @@ A description that tells planetiler how to read geospatial objects with tags fro
 
 - `type` - Enum representing the file format of the data source, one
   of [`osm`](https://wiki.openstreetmap.org/wiki/PBF_Format) or [`shapefile`](https://en.wikipedia.org/wiki/Shapefile)
-- `local_path` - Local path to the file to use, inferred from `url` if missing
+- `local_path` - Local path to the file to use, inferred from `url` if missing. Can be a string
+  or [expression](#expression) that can reference [argument values](#arguments).
 - `url` - Location to download the file from if not present at `local_path`.
-  For [geofabrik](https://download.geofabrik.de/) named areas, use `geofabrik:`
-  prefixes, for example `geofabrik:rhode-island`.
+  For [geofabrik](https://download.geofabrik.de/) named areas, use `geofabrik:`  prefixes, for
+  example `geofabrik:rhode-island`. Can be a string or [expression](#expression) that can
+  reference [argument values](#arguments).
 
 For example:
 
@@ -88,6 +93,101 @@ tag_mappings:
     input: population
     type: integer
 ```
+
+## Arguments
+
+A map from argument name to its definition. Arguments can be referenced later in the config and
+overridden from the command-line or environmental variables. Argument definitions can either be an object with these
+properties, or just the default value:
+
+- `default` - Default value for the argument. Can be an [expression](#expression) that references other arguments.
+- `description` - Description of the argument to print when parsing it.
+- `type` - [Data type](#data-type) to use when parsing the value. If missing, then inferred from the default value.
+
+For example:
+
+```yaml
+# Define an "area" argument with default value "switzerland"
+# and a "path" argument that defaults to the area with .osm.pbf extension
+args:
+  area:
+    description: Geofabrik area to download
+    default: switzerland
+  osm_local_path: '${ args.area + ".osm.pbf" }'
+
+# Use the value of the "area" and "path" arguments to construct the source definition
+sources:
+  osm:
+    type: osm
+    url: '${ "geofabrik:" + args.area }'
+    local_path: '${ args.osm_local_path }'
+```
+
+You can pass in `--area=france` from the command line to set download URL to `geofabrik:france` and local path
+to `france.osm.pbf`. Planetiler searches for argument values in this order:
+
+1. Command-line arguments `--area=france`
+2. JVM Properties with "planetiler." prefix: `java -Dplanetiler.area=france ...`
+3. Environmental variables with "PLANETILER_" prefix: `PLANETILER_AREA=france java ...`
+4. Default value from the config
+
+Argument values are available from the [`args` variable](#root-context) in
+an [inline script expression](#inline-script-expression) or the [`arg_value` expression](#argument-value-expression).
+
+### Built-in arguments
+
+`args` can also be used to set the default value for built-in arguments that control planetiler's behavior:
+
+<!--
+to regenerate:
+
+cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.properties | to_entries[] | "- `" + .key + "` - " + .value.description' | pbcopy
+-->
+- `threads` - Default number of threads to use.
+- `write_threads` - Default number of threads to use when writing temp features
+- `process_threads` - Default number of threads to use when processing input features
+- `feature_read_threads` - Default number of threads to use when reading features at tile write time
+- `minzoom` - Minimum tile zoom level to emit
+- `maxzoom` - Maximum tile zoom level to emit
+- `render_maxzoom` - Maximum rendering zoom level up to
+- `skip_mbtiles_index_creation` - Skip adding index to mbtiles file
+- `optimize_db` - Vacuum analyze mbtiles file after writing
+- `emit_tiles_in_order` - Emit vector tiles in index order
+- `force` - Overwriting output file and ignore warnings
+- `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
+- `mmap_temp` - Use memory-mapped IO for temp feature files
+- `sort_max_readers` - Maximum number of concurrent read threads to use when sorting chunks
+- `sort_max_writers` - Maximum number of concurrent write threads to use when sorting chunks
+- `nodemap_type` - Type of node location map
+- `nodemap_storage` - Storage for node location map
+- `nodemap_madvise` - Use linux madvise(random) for node locations
+- `multipolygon_geometry_storage` - Storage for multipolygon geometries
+- `multipolygon_geometry_madvise` - Use linux madvise(random) for multiplygon geometries
+- `http_user_agent` - User-Agent header to set when downloading files over HTTP
+- `http_retries` - Retries to use when downloading files over HTTP
+- `download_chunk_size_mb` - Size of file chunks to download in parallel in megabytes
+- `download_threads` - Number of parallel threads to use when downloading each file
+- `min_feature_size_at_max_zoom` - Default value for the minimum size in tile pixels of features to emit at the maximum
+  zoom level to allow for overzooming
+- `min_feature_size` - Default value for the minimum size in tile pixels of features to emit below the maximum zoom
+  level
+- `simplify_tolerance_at_max_zoom` - Default value for the tile pixel tolerance to use when simplifying features at the
+  maximum zoom level to allow for overzooming
+- `simplify_tolerance` - Default value for the tile pixel tolerance to use when simplifying features below the maximum
+  zoom level
+- `compact_db` - Reduce the DB size by separating and deduping the tile data
+- `skip_filled_tiles` - Skip writing tiles containing only polygon fills to the output
+- `tile_warning_size_mb` - Maximum size in megabytes of a tile to emit a warning about
+
+For example:
+
+```yaml
+# Tell planetiler to download sources using 10 threads
+args:
+  download_threads: 10
+```
+
+Built-in arguments can also be accessed from the config file if desired: `${ args.download_threads }`.
 
 ## Layer
 
@@ -167,6 +267,8 @@ To define the value, use one of:
 - `coalesce` - A [Coalesce Expression](#coalesce-expression) that sets this attribute to the first non-null match from a
   list of expressions.
 - `tag_value` - A [Tag Value Expression](#tag-value-expression) that sets this attribute to the value for a tag.
+- `arg_value` - An [Argument Value Expression](#argument-value-expression) that sets this attribute to the value for a
+  tag.
 
 For example:
 
@@ -215,6 +317,17 @@ Use `tag_value:` to return the value for each feature's tag at runtime:
 # return value for "natural" tag
 value:
   tag_value: natural
+```
+
+### Argument Value Expression
+
+Use `arg_value:` to return the value of an argument set in the [Arguments](#arguments) section, or overridden from the
+command-line or environment.
+
+```yaml
+# return value for "attr_value" argument
+value:
+  arg_value: attr_value
 ```
 
 ### Coalesce Expression
@@ -321,8 +434,11 @@ nested, so each child context can also access the variables from its parent.
 
 > ##### root context
 >
-> defines no variables
+> Available variables:
+> - `args` - a map from [argument](#arguments) name to value, see also [built-in arguments](#built-in-arguments) that
 >
+>> are always available.
+>>
 >> ##### process feature context
 >>
 >> Context available when processing an input feature, for example testing whether to include it from `include_when`.

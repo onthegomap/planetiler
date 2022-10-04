@@ -16,6 +16,7 @@ DRY_RUN=""
 VERSION="latest"
 DOCKER_DIR="$(pwd)/data"
 TASK="openmaptiles"
+BUILD="true"
 
 # Parse args into env vars
 while [[ $# -gt 0 ]]; do
@@ -25,6 +26,7 @@ while [[ $# -gt 0 ]]; do
     --dockerdir) DOCKER_DIR="$2"; shift ;;
     --jar) METHOD="jar" ;;
     --build|--source) METHOD="build" ;;
+    --skipbuild) METHOD="build"; BUILD="false" ;;
     --version=*) VERSION="${1#*=}" ;;
     --version) VERSION="$2"; shift ;;
 
@@ -134,8 +136,10 @@ case $METHOD in
     run "$JAVA" "${JVM_ARGS}" -jar planetiler.jar "${PLANETILER_ARGS[@]}"
     ;;
   build)
-    echo "Building planetiler..."
-    run ./mvnw -q -DskipTests --projects planetiler-dist -am clean package
+    if [ "$BUILD" == "true" ]; then
+      echo "Building planetiler..."
+      run ./mvnw -q -DskipTests --projects planetiler-dist -am clean package
+    fi
     run "$JAVA" "${JVM_ARGS}" -jar planetiler-dist/target/*with-deps.jar "${PLANETILER_ARGS[@]}"
     ;;
 esac
