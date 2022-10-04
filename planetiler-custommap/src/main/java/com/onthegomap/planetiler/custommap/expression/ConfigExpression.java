@@ -168,13 +168,16 @@ public interface ConfigExpression<I extends ScriptContext, O>
         default -> {
           var result = children.stream()
             .flatMap(
-              child -> child instanceof Coalesce<I, O> childCoalesce ? childCoalesce.children.stream() :
+              child -> child instanceof Coalesce<?, ?> childCoalesce ? childCoalesce.children.stream() :
                 Stream.of(child))
             .filter(child -> !child.equals(constOf(null)))
             .distinct()
             .toList();
-          var indexOfFirstConst = result.stream().takeWhile(d -> !(d instanceof ConfigExpression.Const<I, O>)).count();
-          yield coalesce(result.stream().limit(indexOfFirstConst + 1).toList());
+          var indexOfFirstConst = result.stream().takeWhile(d -> !(d instanceof ConfigExpression.Const<?, ?>)).count();
+          yield coalesce(result.stream().map(d -> {
+            @SuppressWarnings("unchecked") ConfigExpression<I, O> casted = (ConfigExpression<I, O>) d;
+            return casted;
+          }).limit(indexOfFirstConst + 1).toList());
         }
       };
     }

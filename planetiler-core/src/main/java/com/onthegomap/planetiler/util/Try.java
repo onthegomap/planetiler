@@ -52,6 +52,10 @@ public interface Try<T> {
     return map(clazz::cast);
   }
 
+  /**
+   * If this is a success, then maps the value through {@code fn}, returning the new value in a {@link Success} if
+   * successful, or {@link Failure} if the mapping function threw an exception.
+   */
   <O> Try<O> map(FunctionThatThrows<T, O> fn);
 
   record Success<T> (T get) implements Try<T> {

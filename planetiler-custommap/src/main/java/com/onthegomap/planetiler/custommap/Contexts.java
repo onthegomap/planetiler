@@ -26,6 +26,7 @@ import org.projectnessie.cel.checker.Decls;
 import org.projectnessie.cel.common.types.NullT;
 import org.projectnessie.cel.common.types.pb.ProtoTypeRegistry;
 import org.projectnessie.cel.common.types.ref.TypeAdapter;
+import org.projectnessie.cel.common.types.ref.Val;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,8 +149,8 @@ public class Contexts {
     private final Arguments arguments;
     private final PlanetilerConfig config;
     private final ScriptEnvironment<Root> description;
-    private final Map<String, Object> bindings = new HashMap<>();
-    private final Map<String, Object> argMap;
+    private final Map<String, Val> bindings = new HashMap<>();
+    private final Map<String, Object> argumentValues = new HashMap<>();
     public final Set<String> builtInArgs;
 
     public Arguments arguments() {
@@ -162,71 +163,66 @@ public class Contexts {
 
     @Override
     public boolean equals(Object o) {
-      return this == o || (o instanceof Root root && argMap.equals(root.argMap));
+      return this == o || (o instanceof Root root && argumentValues.equals(root.argumentValues));
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(argMap);
+      return Objects.hash(argumentValues);
     }
 
     @Override
     public Object argument(String key) {
-      return argMap.get(key);
+      return argumentValues.get(key);
     }
 
-    private Root(Arguments arguments, Map<String, Object> parsedArgs) {
+    private Root(Arguments arguments, Map<String, Object> schemaArgs) {
       this.arguments = arguments;
       this.config = PlanetilerConfig.from(arguments);
-      Map<String, Object> args = new LinkedHashMap<>();
-      args.put("threads", config.threads());
-      args.put("write_threads", config.featureWriteThreads());
-      args.put("process_threads", config.featureProcessThreads());
-      args.put("feature_read_threads", config.featureReadThreads());
+      argumentValues.put("threads", config.threads());
+      argumentValues.put("write_threads", config.featureWriteThreads());
+      argumentValues.put("process_threads", config.featureProcessThreads());
+      argumentValues.put("feature_read_threads", config.featureReadThreads());
       //      args.put("loginterval", config.logInterval());
-      args.put("minzoom", config.minzoom());
-      args.put("maxzoom", config.maxzoom());
-      args.put("render_maxzoom", config.maxzoomForRendering());
-      args.put("skip_mbtiles_index_creation", config.skipIndexCreation());
-      args.put("optimize_db", config.optimizeDb());
-      args.put("emit_tiles_in_order", config.emitTilesInOrder());
-      args.put("force", config.force());
-      args.put("gzip_temp", config.gzipTempStorage());
-      args.put("mmap_temp", config.mmapTempStorage());
-      args.put("sort_max_readers", config.sortMaxReaders());
-      args.put("sort_max_writers", config.sortMaxWriters());
-      args.put("nodemap_type", config.nodeMapType());
-      args.put("nodemap_storage", config.nodeMapStorage());
-      args.put("nodemap_madvise", config.nodeMapMadvise());
-      args.put("multipolygon_geometry_storage", config.multipolygonGeometryStorage());
-      args.put("multipolygon_geometry_madvise", config.multipolygonGeometryMadvise());
-      args.put("http_user_agent", config.httpUserAgent());
+      argumentValues.put("minzoom", config.minzoom());
+      argumentValues.put("maxzoom", config.maxzoom());
+      argumentValues.put("render_maxzoom", config.maxzoomForRendering());
+      argumentValues.put("skip_mbtiles_index_creation", config.skipIndexCreation());
+      argumentValues.put("optimize_db", config.optimizeDb());
+      argumentValues.put("emit_tiles_in_order", config.emitTilesInOrder());
+      argumentValues.put("force", config.force());
+      argumentValues.put("gzip_temp", config.gzipTempStorage());
+      argumentValues.put("mmap_temp", config.mmapTempStorage());
+      argumentValues.put("sort_max_readers", config.sortMaxReaders());
+      argumentValues.put("sort_max_writers", config.sortMaxWriters());
+      argumentValues.put("nodemap_type", config.nodeMapType());
+      argumentValues.put("nodemap_storage", config.nodeMapStorage());
+      argumentValues.put("nodemap_madvise", config.nodeMapMadvise());
+      argumentValues.put("multipolygon_geometry_storage", config.multipolygonGeometryStorage());
+      argumentValues.put("multipolygon_geometry_madvise", config.multipolygonGeometryMadvise());
+      argumentValues.put("http_user_agent", config.httpUserAgent());
       //      args.put("http_timeout", config.httpTimeout());
-      args.put("http_retries", config.httpRetries());
-      args.put("download_chunk_size_mb", config.downloadChunkSizeMB());
-      args.put("download_threads", config.downloadThreads());
-      args.put("min_feature_size_at_max_zoom", config.minFeatureSizeAtMaxZoom());
-      args.put("min_feature_size", config.minFeatureSizeBelowMaxZoom());
-      args.put("simplify_tolerance_at_max_zoom", config.simplifyToleranceAtMaxZoom());
-      args.put("simplify_tolerance", config.simplifyToleranceBelowMaxZoom());
-      args.put("compact_db", config.compactDb());
-      args.put("skip_filled_tiles", config.skipFilledTiles());
-      args.put("tile_warning_size_mb", config.tileWarningSizeBytes());
-      builtInArgs = Set.copyOf(args.keySet());
-      parsedArgs.forEach((k, v) -> {
-        if (!args.containsKey(k)) {
-          args.put(k, v);
-        }
-      });
-      argMap = new HashMap<>(config.arguments().toMap());
-      args.forEach((k, v) -> {
-        bindings.put("args." + k, v);
-        argMap.put(k, v);
-      });
-      bindings.put("args", TYPE_ADAPTER.nativeToValue(argMap));
+      argumentValues.put("http_retries", config.httpRetries());
+      argumentValues.put("download_chunk_size_mb", config.downloadChunkSizeMB());
+      argumentValues.put("download_threads", config.downloadThreads());
+      argumentValues.put("min_feature_size_at_max_zoom", config.minFeatureSizeAtMaxZoom());
+      argumentValues.put("min_feature_size", config.minFeatureSizeBelowMaxZoom());
+      argumentValues.put("simplify_tolerance_at_max_zoom", config.simplifyToleranceAtMaxZoom());
+      argumentValues.put("simplify_tolerance", config.simplifyToleranceBelowMaxZoom());
+      argumentValues.put("compact_db", config.compactDb());
+      argumentValues.put("skip_filled_tiles", config.skipFilledTiles());
+      argumentValues.put("tile_warning_size_mb", config.tileWarningSizeBytes());
+      builtInArgs = Set.copyOf(argumentValues.keySet());
+
+      schemaArgs.forEach(argumentValues::putIfAbsent);
+      config.arguments().toMap().forEach(argumentValues::putIfAbsent);
+
+      argumentValues.forEach((k, v) -> bindings.put("args." + k, TYPE_ADAPTER.nativeToValue(v)));
+      bindings.put("args", TYPE_ADAPTER.nativeToValue(this.argumentValues));
+
       description = ScriptEnvironment.root(this).forInput(Root.class)
         .withDeclarations(
-          args.entrySet().stream()
+          argumentValues.entrySet().stream()
             .map(entry -> decl(entry.getKey(), entry.getValue()))
             .toList()
         ).withDeclarations(

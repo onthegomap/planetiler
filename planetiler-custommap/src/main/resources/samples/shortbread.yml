@@ -3,7 +3,6 @@ schema_description: A basic, lean, general-purpose vector tile schema for OpenSt
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
 examples: shortbread.spec.yml
 args:
-
   area:
     description: Geofabrik area to download
     default: massachusetts

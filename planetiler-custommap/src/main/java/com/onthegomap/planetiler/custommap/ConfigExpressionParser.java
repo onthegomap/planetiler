@@ -30,8 +30,8 @@ import java.util.stream.Stream;
  */
 public class ConfigExpressionParser<I extends ScriptContext> {
 
-  private static final Memoized<EvaluateInput, ?> MEMOIZED = Memoized.memoize(input -> ConfigExpressionParser
-    .parse(input.expression, TagValueProducer.EMPTY, input.root.description(), input.clazz).apply(input.root));
+  private static final Memoized<EvaluateInput, ?> MEMOIZED = Memoized.memoize(arg -> ConfigExpressionParser
+    .parse(arg.expression, TagValueProducer.EMPTY, arg.root.description(), arg.clazz).apply(arg.root));
   private final TagValueProducer tagValueProducer;
   private final ScriptEnvironment<I> input;
 

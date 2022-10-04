@@ -96,9 +96,9 @@ tag_mappings:
 
 ## Arguments
 
-A map from argument name to its default value. Arguments can be reference later in the config and overridden from the
-command-line or environmental variables. Arguments definitions can either be an object with these properties, or just
-the default value:
+A map from argument name to its definition. Arguments can be reference later in the config and
+overridden from the command-line or environmental variables. Argument definitions can either be an object with these
+properties, or just the default value:
 
 - `default` - Default value for the argument. Can be an [expression](#expression) that references other arguments.
 - `description` - Description of the argument to print when parsing it.
@@ -108,20 +108,23 @@ For example:
 
 ```yaml
 # Define an "area" argument with default value "switzerland"
+# and a "path" argument that defaults to the area with .osm.pbf extension
 args:
   area:
     description: Geofabrik area to download
     default: switzerland
+  osm_local_path: '${ args.area + ".osm.pbf" }'
 
-# Use the value of the "area" argument to construct the download URL
+# Use the value of the "area" and "path" arguments to construct the source definition
 sources:
   osm:
     type: osm
     url: '${ "geofabrik:" + args.area }'
+    local_path: '${ args.osm_local_path }'
 ```
 
-You can set the download URL to "geofabrik:france" by passing in `--area=france` from the command line. Planetiler
-searches for argument values in this order:
+You can pass in `--area=france` from the command line to set download URL to `geofabrik:france` and local path
+to `france.osm.pbf`. Planetiler searches for argument values in this order:
 
 1. Command-line arguments `--area=france`
 2. JVM Properties with "planetiler." prefix: `java -Dplanetiler.area=france ...`
@@ -133,7 +136,7 @@ an [inline script expression](#inline-script-expression) or the [`arg_value` exp
 
 ### Built-in arguments
 
-This can also be used to set the default value for built-in arguments that control planetiler's behavior:
+`args` can also be used to set the default value for built-in arguments that control planetiler's behavior:
 
 <!--
 to regenerate:
@@ -179,12 +182,12 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 For example:
 
 ```yaml
+# Tell planetiler to download sources using 10 threads
 args:
-  # Tell planetiler to download sources using 10 threads
   download_threads: 10
 ```
 
-Built-in arguments can be accessed from the config file if desired: `${ args.download_threads }`.
+Built-in arguments can also be accessed from the config file if desired: `${ args.download_threads }`.
 
 ## Layer
 
@@ -433,8 +436,9 @@ nested, so each child context can also access the variables from its parent.
 >
 > Available variables:
 > - `args` - a map from [argument](#arguments) name to value, see also [built-in arguments](#built-in-arguments) that
-> are always available.
 >
+>> are always available.
+>>
 >> ##### process feature context
 >>
 >> Context available when processing an input feature, for example testing whether to include it from `include_when`.
