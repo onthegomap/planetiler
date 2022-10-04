@@ -1,12 +1,10 @@
 package com.onthegomap.planetiler.custommap.expression;
 
-import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.TypeConversion;
 import com.onthegomap.planetiler.custommap.expression.stdlib.PlanetilerStdLib;
+import com.onthegomap.planetiler.util.Memoized;
 import com.onthegomap.planetiler.util.Try;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.projectnessie.cel.extension.StringsLib;
 import org.projectnessie.cel.tools.Script;
@@ -23,6 +21,8 @@ import org.projectnessie.cel.tools.ScriptHost;
 public class ConfigExpressionScript<I extends ScriptContext, O> implements ConfigExpression<I, O> {
   private static final Pattern EXPRESSION_PATTERN = Pattern.compile("^\\s*\\$\\{(.*)}\\s*$");
   private static final Pattern ESCAPED_EXPRESSION_PATTERN = Pattern.compile("^\\s*\\\\+\\$\\{(.*)}\\s*$");
+  private static final Memoized<ConfigExpressionScript<?, ?>, ?> staticEvaluationCache =
+    Memoized.memoize(ConfigExpressionScript::doStaticEvaluate);
   private final Script script;
   private final Class<O> returnType;
   private final String scriptText;
@@ -107,9 +107,6 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
       if (!description.declarations().isEmpty()) {
         scriptBuilder.withDeclarations(description.declarations());
       }
-      if (!description.types().isEmpty()) {
-        scriptBuilder.withTypes(description.types());
-      }
       var script = scriptBuilder.build();
 
       return new ConfigExpressionScript<>(string, script, description, expected);
@@ -132,16 +129,15 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
     // ignore the parsed script object
     return this == o || (o instanceof ConfigExpressionScript<?, ?> config &&
       returnType.equals(config.returnType) &&
-      scriptText.equals(config.scriptText));
+      scriptText.equals(config.scriptText) &&
+      descriptor.equals(config.descriptor));
   }
 
   @Override
   public int hashCode() {
     // ignore the parsed script object
-    return Objects.hash(returnType, scriptText);
+    return Objects.hash(returnType, scriptText, descriptor);
   }
-
-  private static final Map<ConfigExpressionScript<?, ?>, Boolean> staticEvaluationCache = new ConcurrentHashMap<>();
 
   /**
    * Attempts to parse and evaluate this script in an environment with no variables.
@@ -152,19 +148,12 @@ public class ConfigExpressionScript<I extends ScriptContext, O> implements Confi
   public Try<O> tryStaticEvaluate() {
     // type checking can be expensive when run hundreds of times simplifying expressions iteratively and it never
     // changes for a given script and input environment, so cache results between calls.
-    boolean canStaticEvaluate =
-      staticEvaluationCache.computeIfAbsent(this, config -> config.doTryStaticEvaluate().isSuccess());
-    if (canStaticEvaluate) {
-      return doTryStaticEvaluate();
-    } else {
-      return Try.failure(new IllegalStateException());
-    }
+    return staticEvaluationCache.tryApply(this, returnType);
   }
 
-  private Try<O> doTryStaticEvaluate() {
-    return Try
-      .apply(
-        () -> ConfigExpressionScript.parse(scriptText, Contexts.Root.DESCRIPTION, returnType).apply(Contexts.root()));
+  private O doStaticEvaluate() {
+    return ConfigExpressionScript.parse(scriptText, descriptor.root().description(), returnType)
+      .apply(descriptor.root());
   }
 
   @Override

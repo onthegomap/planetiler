@@ -95,8 +95,7 @@ public class Planetiler {
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
     stats = arguments.getStats();
-    overallTimer = stats.startStage("overall");
-    LogUtil.clearStage();
+    overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
@@ -113,16 +112,6 @@ public class Planetiler {
   /** Returns a new empty runner that will get configuration from {@code arguments}. */
   public static Planetiler create(Arguments arguments) {
     return new Planetiler(arguments);
-  }
-
-  /**
-   * Returns a new empty runner that will get configuration from {@code arguments} to the main method, JVM properties,
-   * environmental variables, or a config file specified in {@code config} argument.
-   *
-   * @param arguments array of string arguments provided to {@code public static void main(String[] args)} entrypoint
-   */
-  public static Planetiler create(String... arguments) {
-    return new Planetiler(Arguments.fromArgsOrConfigFile(arguments));
   }
 
   /**

@@ -63,4 +63,13 @@ class DataTypeTest {
     assertEquals(0, DataType.from("direction").convertFrom("no"));
     assertEquals(0, DataType.from("direction").convertFrom("false"));
   }
+
+  @Test
+  void testTypeOf() {
+    assertEquals(DataType.GET_DOUBLE, DataType.typeOf(1.5));
+    assertEquals(DataType.GET_LONG, DataType.typeOf(1L));
+    assertEquals(DataType.GET_INT, DataType.typeOf(1));
+    assertEquals(DataType.GET_BOOLEAN, DataType.typeOf(true));
+    assertEquals(DataType.GET_STRING, DataType.typeOf("string"));
+  }
 }

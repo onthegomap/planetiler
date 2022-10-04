@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.custommap.TestContexts.ROOT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -16,7 +17,7 @@ class TagValueProducerTest {
     assertEquals(expected, tvp.valueForKey(wrapped, key));
     assertEquals(expected, tvp.valueGetterForKey(key).apply(wrapped, key));
     assertEquals(expected, tvp.valueProducerForKey(key)
-      .apply(new Contexts.ProcessFeature(SimpleFeature.create(GeoUtils.EMPTY_GEOMETRY, tags), tvp)
+      .apply(ROOT.createProcessFeatureContext(SimpleFeature.create(GeoUtils.EMPTY_GEOMETRY, tags), tvp)
         .createPostMatchContext(List.of())));
   }
 

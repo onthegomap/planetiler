@@ -1,6 +1,9 @@
 package com.onthegomap.planetiler.custommap.expression;
 
 import static com.onthegomap.planetiler.TestUtils.newPoint;
+import static com.onthegomap.planetiler.custommap.TestContexts.FEATURE_POST_MATCH;
+import static com.onthegomap.planetiler.custommap.TestContexts.PROCESS_FEATURE;
+import static com.onthegomap.planetiler.custommap.TestContexts.ROOT_CONTEXT;
 import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.*;
 import static com.onthegomap.planetiler.expression.Expression.matchAny;
 import static com.onthegomap.planetiler.expression.Expression.or;
@@ -8,8 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.custommap.ArgumentParser;
 import com.onthegomap.planetiler.custommap.Contexts;
 import com.onthegomap.planetiler.custommap.TagValueProducer;
+import com.onthegomap.planetiler.custommap.TestContexts;
 import com.onthegomap.planetiler.expression.DataType;
 import com.onthegomap.planetiler.expression.Expression;
 import com.onthegomap.planetiler.expression.MultiExpression;
@@ -19,10 +25,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ConfigExpressionTest {
-  private static final ConfigExpression.Signature<Contexts.Root, Integer> ROOT =
-    signature(Contexts.Root.DESCRIPTION, Integer.class);
+  private static final ConfigExpression.Signature<Contexts.Root, Integer> ROOT = signature(ROOT_CONTEXT, Integer.class);
   private static final ConfigExpression.Signature<Contexts.ProcessFeature, Integer> FEATURE_SIGNATURE =
-    signature(Contexts.ProcessFeature.DESCRIPTION, Integer.class);
+    signature(PROCESS_FEATURE, Integer.class);
 
   @Test
   void testConst() {
@@ -32,7 +37,7 @@ class ConfigExpressionTest {
   @Test
   void testVariable() {
     var feature = SimpleFeature.create(newPoint(0, 0), Map.of("a", "b", "c", 1), "source", "source_layer", 99);
-    var context = new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of()));
+    var context = TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of()));
     // simple match
     assertEquals("source", variable(FEATURE_SIGNATURE.withOutput(String.class), "feature.source").apply(context));
     assertEquals("source_layer",
@@ -45,32 +50,32 @@ class ConfigExpressionTest {
 
   @Test
   void testCoalesce() {
-    assertNull(coalesce(List.of()).apply(Contexts.root()));
+    assertNull(coalesce(List.of()).apply(TestContexts.ROOT));
     assertNull(coalesce(
       List.of(
         constOf(null)
-      )).apply(Contexts.root()));
+      )).apply(TestContexts.ROOT));
     assertEquals(2, coalesce(
       List.of(
         constOf(null),
         constOf(2)
-      )).apply(Contexts.root()));
+      )).apply(TestContexts.ROOT));
     assertEquals(1, coalesce(
       List.of(
         constOf(1),
         constOf(2)
-      )).apply(Contexts.root()));
+      )).apply(TestContexts.ROOT));
   }
 
   @Test
   void testDynamic() {
-    assertEquals(1, script(ROOT, "5 - 4").apply(Contexts.root()));
+    assertEquals(1, script(ROOT, "5 - 4").apply(TestContexts.ROOT));
   }
 
   @Test
   void testMatch() {
     var feature = SimpleFeature.create(newPoint(0, 0), Map.of("a", "b", "c", 1));
-    var context = new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of()));
+    var context = TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of()));
     // simple match
     assertEquals(2, match(FEATURE_SIGNATURE, MultiExpression.of(List.of(
       MultiExpression.entry(constOf(1),
@@ -280,33 +285,30 @@ class ConfigExpressionTest {
     assertEquals(
       "123",
       getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")).apply(
-        new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of())))
+        TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of())))
     );
 
     assertEquals(
       123,
       getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc"))
-        .apply(new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of("abc", "integer"))))
+        .apply(TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of("abc", "integer"))))
     );
 
     assertEquals(
       123,
-      getTag(signature(Contexts.FeaturePostMatch.DESCRIPTION, Object.class), constOf("abc"))
-        .apply(new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of("abc", "integer")))
+      getTag(signature(FEATURE_POST_MATCH, Object.class), constOf("abc"))
+        .apply(TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of("abc", "integer")))
           .createPostMatchContext(List.of()))
     );
 
-    assertEquals(
-      null,
-      getTag(signature(Contexts.Root.DESCRIPTION, Object.class), constOf("abc"))
-        .apply(Contexts.root())
-    );
+    assertNull(getTag(signature(ROOT_CONTEXT, Object.class), constOf("abc"))
+      .apply(TestContexts.ROOT));
   }
 
   @Test
   void testCastGetTag() {
     var feature = SimpleFeature.create(newPoint(0, 0), Map.of("abc", "123"), "source", "source_layer", 99);
-    var context = new Contexts.ProcessFeature(feature, new TagValueProducer(Map.of()));
+    var context = TestContexts.ROOT.createProcessFeatureContext(feature, new TagValueProducer(Map.of()));
     var expression = cast(
       FEATURE_SIGNATURE.withOutput(Integer.class),
       getTag(FEATURE_SIGNATURE.withOutput(Object.class), constOf("abc")),
@@ -328,7 +330,7 @@ class ConfigExpressionTest {
       constOf("123"),
       DataType.GET_INT
     );
-    assertEquals(123, expression.apply(Contexts.root()));
+    assertEquals(123, expression.apply(TestContexts.ROOT));
   }
 
   @Test
@@ -338,6 +340,33 @@ class ConfigExpressionTest {
         ROOT.withOutput(Integer.class),
         constOf("123"),
         DataType.GET_INT
+      ).simplify()
+    );
+  }
+
+  @Test
+  void testSimplifyGetArg() {
+    var args = Arguments.of(Map.of("arg", "12"));
+    var root = ArgumentParser.buildRootContext(args, Map.of());
+    var context = signature(root.description(), Integer.class);
+    assertEquals(constOf(12),
+      getArg(
+        context,
+        constOf("arg")
+      ).simplify()
+    );
+
+    assertEquals(constOf(12),
+      script(
+        context,
+        "args.arg"
+      ).simplify()
+    );
+
+    assertEquals(constOf(12),
+      script(
+        context,
+        "args['arg']"
       ).simplify()
     );
   }

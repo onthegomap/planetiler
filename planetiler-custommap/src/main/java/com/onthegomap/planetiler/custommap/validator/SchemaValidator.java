@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.custommap.ArgumentParser;
 import com.onthegomap.planetiler.custommap.ConfiguredProfile;
 import com.onthegomap.planetiler.custommap.YAML;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
@@ -55,13 +56,13 @@ public class SchemaValidator {
 
     PrintStream output = System.out;
     output.println("OK");
-    var paths = validateFromCli(schema, arguments, output);
+    var paths = validateFromCli(schema, output);
 
     if (watch) {
       output.println();
       output.println("Watching filesystem for changes...");
       var watcher = FileWatcher.newWatcher(paths.toArray(Path[]::new));
-      watcher.pollForChanges(Duration.ofMillis(300), changed -> validateFromCli(schema, arguments, output));
+      watcher.pollForChanges(Duration.ofMillis(300), changed -> validateFromCli(schema, output));
     }
   }
 
@@ -69,32 +70,32 @@ public class SchemaValidator {
     return t != null && (cause.isInstance(t) || hasCause(t.getCause(), cause));
   }
 
-  static Set<Path> validateFromCli(Path schema, Arguments args, PrintStream output) {
+  static Set<Path> validateFromCli(Path schemaPath, PrintStream output) {
     Set<Path> pathsToWatch = new HashSet<>();
-    pathsToWatch.add(schema);
+    pathsToWatch.add(schemaPath);
     output.println();
     output.println("Validating...");
     output.println();
     SchemaValidator.Result result;
     try {
-      var parsedSchema = SchemaConfig.load(schema);
-      var examples = parsedSchema.examples();
+      var schema = SchemaConfig.load(schemaPath);
+      var examples = schema.examples();
       // examples can either be embedded in the yaml file, or referenced
       SchemaSpecification spec;
       if (examples instanceof String s) {
         var path = Path.of(s);
         if (!path.isAbsolute()) {
-          path = schema.resolveSibling(path);
+          path = schemaPath.resolveSibling(path);
         }
         // if referenced, make sure we watch that file for changes
         pathsToWatch.add(path);
         spec = SchemaSpecification.load(path);
       } else if (examples != null) {
-        spec = YAML.convertValue(parsedSchema, SchemaSpecification.class);
+        spec = YAML.convertValue(schema, SchemaSpecification.class);
       } else {
         spec = new SchemaSpecification(List.of());
       }
-      result = validate(parsedSchema, spec, args);
+      result = validate(schema, spec);
     } catch (Exception exception) {
       Throwable rootCause = ExceptionUtils.getRootCause(exception);
       if (hasCause(exception, com.onthegomap.planetiler.custommap.expression.ParseException.class)) {
@@ -175,13 +176,14 @@ public class SchemaValidator {
    * Returns the result of validating the profile defined by {@code schema} against the examples in
    * {@code specification}.
    */
-  public static Result validate(SchemaConfig schema, SchemaSpecification specification, Arguments args) {
-    return validate(new ConfiguredProfile(schema), specification, args);
+  public static Result validate(SchemaConfig schema, SchemaSpecification specification) {
+    var context = ArgumentParser.buildRootContext(Arguments.of().silence(), schema.args());
+    return validate(new ConfiguredProfile(schema, context), specification, context.config());
   }
 
   /** Returns the result of validating {@code profile} against the examples in {@code specification}. */
-  public static Result validate(Profile profile, SchemaSpecification specification, Arguments args) {
-    var featureCollectorFactory = new FeatureCollector.Factory(PlanetilerConfig.from(args.silence()), Stats.inMemory());
+  public static Result validate(Profile profile, SchemaSpecification specification, PlanetilerConfig config) {
+    var featureCollectorFactory = new FeatureCollector.Factory(config, Stats.inMemory());
     return new Result(specification.examples().stream().map(example -> new ExampleResult(example, Try.apply(() -> {
       List<String> issues = new ArrayList<>();
       var input = example.input();

@@ -22,4 +22,8 @@ public interface ScriptContext extends Function<String, Object>, WithTags {
   default TagValueProducer tagValueProducer() {
     return TagValueProducer.EMPTY;
   }
+
+  default Object argument(String key) {
+    return null;
+  }
 }

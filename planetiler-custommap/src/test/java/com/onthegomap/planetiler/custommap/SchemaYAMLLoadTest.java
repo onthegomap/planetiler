@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.custommap;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,8 +34,9 @@ class SchemaYAMLLoadTest {
 
     for (Path schemaFile : schemaFiles) {
       var schemaConfig = SchemaConfig.load(schemaFile);
+      var root = ArgumentParser.buildRootContext(Arguments.of(), schemaConfig.args());
       assertNotNull(schemaConfig, () -> "Failed to unmarshall " + schemaFile.toString());
-      assertNotNull(new ConfiguredProfile(schemaConfig), () -> "Failed to load profile from " + schemaFile.toString());
+      new ConfiguredProfile(schemaConfig, root);
     }
   }
 }

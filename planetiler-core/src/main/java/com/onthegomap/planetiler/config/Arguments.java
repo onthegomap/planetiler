@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
@@ -8,13 +10,15 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
@@ -29,11 +33,22 @@ public class Arguments {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Arguments.class);
 
-  private final Function<String, String> provider;
+  private final UnaryOperator<String> provider;
+  private final Supplier<? extends Collection<String>> keys;
   private boolean silent = false;
 
-  private Arguments(UnaryOperator<String> provider) {
+  private Arguments(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys) {
     this.provider = provider;
+    this.keys = keys;
+  }
+
+  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
+    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
+    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
+      String reversed = reverse.apply(key);
+      return key.equalsIgnoreCase(reversed) ? Stream.empty() : Stream.of(reversed);
+    }).toList();
+    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
   }
 
   /**
@@ -42,7 +57,17 @@ public class Arguments {
    * For example to set {@code key=value}: {@code java -Dplanetiler.key=value -jar ...}
    */
   public static Arguments fromJvmProperties() {
-    return new Arguments(key -> System.getProperty("planetiler." + key));
+    return fromJvmProperties(
+      System::getProperty,
+      () -> System.getProperties().stringPropertyNames()
+    );
+  }
+
+  static Arguments fromJvmProperties(UnaryOperator<String> getter, Supplier<? extends Collection<String>> keys) {
+    return from(getter, keys,
+      key -> "planetiler." + key.toLowerCase(Locale.ROOT),
+      key -> key.replaceFirst("^planetiler\\.", "").toLowerCase(Locale.ROOT)
+    );
   }
 
   /**
@@ -51,7 +76,27 @@ public class Arguments {
    * For example to set {@code key=value}: {@code PLANETILER_KEY=value java -jar ...}
    */
   public static Arguments fromEnvironment() {
-    return new Arguments(key -> System.getenv("PLANETILER_" + key.toUpperCase(Locale.ROOT)));
+    return fromEnvironment(
+      System::getenv,
+      () -> System.getenv().keySet()
+    );
+  }
+
+  static Arguments fromEnvironment(UnaryOperator<String> getter, Supplier<Set<String>> keys) {
+    return from(getter, keys,
+      key -> "PLANETILER_" + key.toUpperCase(Locale.ROOT),
+      key -> key.replaceFirst("^PLANETILER_", "").toLowerCase(Locale.ROOT)
+    );
+  }
+
+  /**
+   * Returns arguments parsed from a {@link Properties} object.
+   */
+  public static Arguments from(Properties properties) {
+    return new Arguments(
+      properties::getProperty,
+      properties::stringPropertyNames
+    );
   }
 
   /**
@@ -97,7 +142,7 @@ public class Arguments {
     Properties properties = new Properties();
     try (var reader = Files.newBufferedReader(path)) {
       properties.load(reader);
-      return new Arguments(properties::getProperty);
+      return from(properties);
     } catch (IOException e) {
       throw new IllegalArgumentException("Unable to load config file: " + path, e);
     }
@@ -147,7 +192,7 @@ public class Arguments {
   }
 
   public static Arguments of(Map<String, String> map) {
-    return new Arguments(map::get);
+    return new Arguments(map::get, map::keySet);
   }
 
   /** Shorthand for {@link #of(Map)} which constructs the map from a list of key/value pairs. */
@@ -177,10 +222,20 @@ public class Arguments {
    * @return arguments instance that checks {@code this} first and if a match is not found then {@code other}
    */
   public Arguments orElse(Arguments other) {
-    return new Arguments(key -> {
-      String ourResult = get(key);
-      return ourResult != null ? ourResult : other.get(key);
-    });
+    var result = new Arguments(
+      key -> {
+        String ourResult = get(key);
+        return ourResult != null ? ourResult : other.get(key);
+      },
+      () -> Stream.concat(
+        other.keys.get().stream(),
+        keys.get().stream()
+      ).distinct().toList()
+    );
+    if (silent) {
+      result.silence();
+    }
+    return result;
   }
 
   String getArg(String key) {
@@ -218,7 +273,7 @@ public class Arguments {
     return result;
   }
 
-  private void logArgValue(String key, String description, Object result) {
+  protected void logArgValue(String key, String description, Object result) {
     if (!silent) {
       LOGGER.debug("argument: {}={} ({})", key, result, description);
     }
@@ -332,13 +387,13 @@ public class Arguments {
   public Stats getStats() {
     String prometheus = getArg("pushgateway");
     if (prometheus != null && !prometheus.isBlank()) {
-      LOGGER.info("Using prometheus push gateway stats");
+      LOGGER.info("argument: stats=use prometheus push gateway stats");
       String job = getString("pushgateway.job", "prometheus pushgateway job ID", "planetiler");
       Duration interval = getDuration("pushgateway.interval", "how often to send stats to prometheus push gateway",
         "15s");
       return Stats.prometheusPushGateway(prometheus, job, interval);
     } else {
-      LOGGER.info("Using in-memory stats");
+      LOGGER.info("argument: stats=use in-memory stats");
       return Stats.inMemory();
     }
   }
@@ -389,5 +444,36 @@ public class Arguments {
     long parsed = Long.parseLong(value);
     logArgValue(key, description, parsed);
     return parsed;
+  }
+
+  /**
+   * Returns a map from all the arguments provided to their values.
+   */
+  public Map<String, String> toMap() {
+    Map<String, String> result = new HashMap<>();
+    for (var key : keys.get()) {
+      result.put(key, get(key));
+    }
+    return result;
+  }
+
+  /** Returns a copy of this {@code Arguments} instance that logs each extracted argument value exactly once. */
+  public Arguments withExactlyOnceLogging() {
+    Multiset<String> logged = HashMultiset.create();
+    return new Arguments(this.provider, this.keys) {
+      @Override
+      protected void logArgValue(String key, String description, Object result) {
+        int count = logged.add(key, 1);
+        if (count == 0) {
+          super.logArgValue(key, description, result);
+        } else if (count == 3000) {
+          LOGGER.warn("Too many requests for argument '{}', result should be cached", key);
+        }
+      }
+    };
+  }
+
+  public boolean silenced() {
+    return silent;
   }
 }

@@ -45,6 +45,11 @@ public interface ConfigExpression<I extends ScriptContext, O>
     return new GetTag<>(signature, tag);
   }
 
+  static <I extends ScriptContext, O> ConfigExpression<I, O> getArg(Signature<I, O> signature,
+    ConfigExpression<I, String> tag) {
+    return new GetArg<>(signature, tag);
+  }
+
   static <I extends ScriptContext, O> ConfigExpression<I, O> cast(Signature<I, O> signature,
     ConfigExpression<I, ?> input, DataType dataType) {
     return new Cast<>(signature, input, dataType);
@@ -207,6 +212,29 @@ public interface ConfigExpression<I extends ScriptContext, O>
     @Override
     public ConfigExpression<I, O> simplifyOnce() {
       return new GetTag<>(signature, tag.simplifyOnce());
+    }
+  }
+
+  /** An expression that returns the value associated a given argument at runtime. */
+  record GetArg<I extends ScriptContext, O> (
+    Signature<I, O> signature,
+    ConfigExpression<I, String> arg
+  ) implements ConfigExpression<I, O> {
+
+    @Override
+    public O apply(I i) {
+      return TypeConversion.convert(i.argument(arg.apply(i)), signature.out);
+    }
+
+    @Override
+    public ConfigExpression<I, O> simplifyOnce() {
+      var key = arg.simplifyOnce();
+      if (key instanceof ConfigExpression.Const<I, String> constKey) {
+        var rawResult = signature.in.root().argument(constKey.value);
+        return constOf(TypeConversion.convert(rawResult, signature.out));
+      } else {
+        return new GetArg<>(signature, key);
+      }
     }
   }
 

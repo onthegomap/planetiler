@@ -2,6 +2,14 @@ schema_name: Shortbread
 schema_description: A basic, lean, general-purpose vector tile schema for OpenStreetMap data. See https://shortbread.geofabrik.de/
 attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
 examples: shortbread.spec.yml
+args:
+
+  area:
+    description: Geofabrik area to download
+    default: massachusetts
+  osm_url:
+    description: OSM URL to download
+    default: '${ "geofabrik:" + args.area }'
 sources:
   ocean:
     type: shapefile
@@ -11,7 +19,7 @@ sources:
     url: https://shortbread.geofabrik.de/shapefiles/admin-points-4326.zip
   osm:
     type: osm
-    url: geofabrik:massachusetts
+    url: '${ args.osm_url }'
 definitions:
   # TODO let attribute definitions set multiple keys so you can just use `- *names`
   attributes:

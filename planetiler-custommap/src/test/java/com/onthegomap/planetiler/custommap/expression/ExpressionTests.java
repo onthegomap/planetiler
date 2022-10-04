@@ -3,6 +3,9 @@ package com.onthegomap.planetiler.custommap.expression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.custommap.ArgumentParser;
+import java.util.Map;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -52,10 +55,25 @@ class ExpressionTests {
     "min([1.1, 2.2, 3.3])|1.1|double",
     "max([1])|1|long",
     "min([1])|1|long",
+
+    "args.arg_from_config|1|long",
+    "args.arg_from_config + 1|2|long",
+    "args[\"arg_from_config\"]|1|long",
+    "args[\"arg_from_config\"] + 1|2|long",
+    "args.overridden_arg_from_config|4|long",
+    "args[\"overridden_arg_from_config\"] + 1|5|long",
+    "args.arg_from_cli|2|string",
+    "args[\"arg_from_cli\"]|2|string",
   }, delimiter = '|')
   void testExpression(String in, String expected, String type) {
-    var expression = ConfigExpressionScript.parse(in, ScriptEnvironment.root());
-    var result = expression.apply(ScriptContext.empty());
+    Map<String, Object> configFromSchema = Map.of("arg_from_config", 1, "overridden_arg_from_config", 3);
+    Map<String, String> configFromCli = Map.of("arg_from_cli", "2", "overridden_arg_from_config", "4");
+    var context = ArgumentParser.buildRootContext(
+      Arguments.of(configFromCli),
+      configFromSchema
+    );
+    var expression = ConfigExpressionScript.parse(in, context.description());
+    var result = expression.apply(context);
     switch (type) {
       case "long" -> assertEquals(Long.valueOf(expected), result);
       case "double" -> assertEquals(Double.valueOf(expected), result);

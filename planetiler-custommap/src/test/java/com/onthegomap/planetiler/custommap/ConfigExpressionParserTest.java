@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.custommap;
 
+import static com.onthegomap.planetiler.custommap.TestContexts.PROCESS_FEATURE;
 import static com.onthegomap.planetiler.custommap.expression.ConfigExpression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -16,7 +17,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ConfigExpressionParserTest {
   private static final TagValueProducer TVP = new TagValueProducer(Map.of());
   private static final ConfigExpression.Signature<Contexts.ProcessFeature, Object> FEATURE_SIGNATURE =
-    signature(Contexts.ProcessFeature.DESCRIPTION, Object.class);
+    signature(PROCESS_FEATURE, Object.class);
 
   private static <O> void assertParse(String yaml, ConfigExpression<?, ?> parsed, Class<O> clazz) {
     Object expression = YAML.load(yaml, Object.class);

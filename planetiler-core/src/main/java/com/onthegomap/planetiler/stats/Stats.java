@@ -62,11 +62,31 @@ public interface Stats extends AutoCloseable {
    * Also sets the "stage" prefix that shows up in the logs to {@code name}.
    */
   default Timers.Finishable startStage(String name) {
-    LogUtil.setStage(name);
-    var timer = timers().startTimer(name);
+    return startStage(name, true);
+  }
+
+  /**
+   * Same as {@link #startStage(String)} except does not log that it started, or set the logging prefix.
+   */
+  default Timers.Finishable startStageQuietly(String name) {
+    return startStage(name, false);
+  }
+
+  /**
+   * Records that a long-running task with {@code name} has started and returns a handle to call when finished.
+   * <p>
+   * Also sets the "stage" prefix that shows up in the logs to {@code name} if {@code log} is true.
+   */
+  default Timers.Finishable startStage(String name, boolean log) {
+    if (log) {
+      LogUtil.setStage(name);
+    }
+    var timer = timers().startTimer(name, log);
     return () -> {
       timer.stop();
-      LogUtil.clearStage();
+      if (log) {
+        LogUtil.clearStage();
+      }
     };
   }
 
