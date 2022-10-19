@@ -25,14 +25,14 @@ package com.onthegomap.planetiler.collection;
  * "https://github.com/graphhopper/graphhopper/blob/master/core/src/main/java/com/graphhopper/coll/MinHeapWithUpdate.java">GraphHopper</a>
  * and modified to extract a common interface for subclass implementations.
  */
-public interface LongMinHeap {
+public interface SortableFeatureMinHeap {
   /**
    * Returns a new min-heap where each element has 4 children backed by elements in an array.
    * <p>
    * This is slightly faster than a traditional binary min heap due to a shallower, more cache-friendly memory layout.
    */
-  static LongMinHeap newArrayHeap(int elements) {
-    return new ArrayLongMinHeap(elements);
+  static SortableFeatureMinHeap newArrayHeap(int elements) {
+    return new ArraySortableFeatureMinHeap(elements);
   }
 
   int size();
@@ -44,7 +44,7 @@ public interface LongMinHeap {
    * push the same id twice (unless it was polled/removed before). To update the value of an id contained in the heap
    * use the {@link #update} method.
    */
-  void push(int id, long value);
+  void push(int id, SortableFeature value);
 
   /**
    * @return true if the heap contains an element with the given id
@@ -55,20 +55,20 @@ public interface LongMinHeap {
    * Updates the element with the given id. The complexity of this method is O(log(N)), just like push/poll. Its illegal
    * to update elements that are not contained in the heap. Use {@link #contains} to check the existence of an id.
    */
-  void update(int id, long value);
+  void update(int id, SortableFeature value);
 
   /**
    * Updates the weight of the head element in the heap, pushing it down and bubbling up the new min element if
    * necessary.
    */
-  void updateHead(long value);
+  void updateHead(SortableFeature value);
 
   /**
    * @return the id of the next element to be polled, i.e. the same as calling poll() without removing the element
    */
   int peekId();
 
-  long peekValue();
+  SortableFeature peekValue();
 
   /**
    * Extracts the element with minimum value from the heap

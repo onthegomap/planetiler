@@ -9,19 +9,19 @@ import java.util.function.Supplier;
 /**
  * A utility for merging sorted lists of items with a {@code long} key to sort by.
  */
-public class LongMerger {
+public class SortableFeatureMerger {
   // Has a general-purpose KWayMerge implementation using a min heap and specialized (faster)
   // TwoWayMerge/ThreeWayMerge implementations when a small number of lists are being merged.
 
-  private LongMerger() {}
+  private SortableFeatureMerger() {}
 
   /** Merges sorted items from {@link Supplier Suppliers} that return {@code null} when there are no items left. */
-  public static <T extends HasLongSortKey> Iterator<T> mergeSuppliers(List<? extends Supplier<T>> suppliers) {
+  public static <T extends SortableFeature> Iterator<T> mergeSuppliers(List<? extends Supplier<T>> suppliers) {
     return mergeIterators(suppliers.stream().map(SupplierIterator::new).toList());
   }
 
   /** Merges sorted iterators into a combined iterator over all the items. */
-  public static <T extends HasLongSortKey> Iterator<T> mergeIterators(List<? extends Iterator<T>> iterators) {
+  public static <T extends SortableFeature> Iterator<T> mergeIterators(List<? extends Iterator<T>> iterators) {
     return switch (iterators.size()) {
       case 0 -> Collections.emptyIterator();
       case 1 -> iterators.get(0);
@@ -31,7 +31,7 @@ public class LongMerger {
     };
   }
 
-  private static class TwoWayMerge<T extends HasLongSortKey> implements Iterator<T> {
+  private static class TwoWayMerge<T extends SortableFeature> implements Iterator<T> {
     T a, b;
     long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE;
     final Iterator<T> inputA, inputB;
@@ -82,7 +82,7 @@ public class LongMerger {
     }
   }
 
-  private static class ThreeWayMerge<T extends HasLongSortKey> implements Iterator<T> {
+  private static class ThreeWayMerge<T extends SortableFeature> implements Iterator<T> {
     T a, b, c;
     long ak = Long.MAX_VALUE, bk = Long.MAX_VALUE, ck = Long.MAX_VALUE;
     final Iterator<T> inputA, inputB, inputC;
@@ -163,23 +163,23 @@ public class LongMerger {
     }
   }
 
-  private static class KWayMerge<T extends HasLongSortKey> implements Iterator<T> {
+  private static class KWayMerge<T extends SortableFeature> implements Iterator<T> {
     private final T[] items;
     private final Iterator<T>[] iterators;
-    private final LongMinHeap heap;
+    private final SortableFeatureMinHeap heap;
 
     @SuppressWarnings("unchecked")
     KWayMerge(List<? extends Iterator<T>> inputIterators) {
       this.iterators = new Iterator[inputIterators.size()];
-      this.items = (T[]) new HasLongSortKey[inputIterators.size()];
-      this.heap = LongMinHeap.newArrayHeap(inputIterators.size());
+      this.items = (T[]) new SortableFeature[inputIterators.size()];
+      this.heap = SortableFeatureMinHeap.newArrayHeap(inputIterators.size());
       int outIdx = 0;
       for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {
           var item = iter.next();
           items[outIdx] = item;
           iterators[outIdx] = iter;
-          heap.push(outIdx++, item.key());
+          heap.push(outIdx++, item);
         }
       }
     }
@@ -200,7 +200,7 @@ public class LongMerger {
       if (iterator.hasNext()) {
         T next = iterator.next();
         items[id] = next;
-        heap.updateHead(next.key());
+        heap.updateHead(next);
       } else {
         items[id] = null;
         heap.poll();

@@ -37,52 +37,56 @@ import org.junit.jupiter.api.Test;
  * and modified to use long instead of float values, use stable random seed for reproducibility, and to use new
  * implementations.
  */
-class LongMinHeapTest {
+class ArraySortableFeatureMinHeapTest {
 
-  protected LongMinHeap heap;
+  protected SortableFeatureMinHeap heap;
 
   void create(int capacity) {
-    heap = LongMinHeap.newArrayHeap(capacity);
+    heap = SortableFeatureMinHeap.newArrayHeap(capacity);
+  }
+
+  private SortableFeature newEntry(long i) {
+    return new SortableFeature(i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
   @Test
   void outOfRange() {
     create(4);
-    assertThrows(IllegalArgumentException.class, () -> heap.push(4, 12L));
-    assertThrows(IllegalArgumentException.class, () -> heap.push(-1, 12L));
+    assertThrows(IllegalArgumentException.class, () -> heap.push(4, newEntry(12L)));
+    assertThrows(IllegalArgumentException.class, () -> heap.push(-1, newEntry(12L)));
   }
 
   @Test
   void tooManyElements() {
     create(3);
-    heap.push(1, 1L);
-    heap.push(2, 1L);
-    heap.push(0, 1L);
+    heap.push(1, newEntry(1L));
+    heap.push(2, newEntry(1L));
+    heap.push(0, newEntry(1L));
     // pushing element 1 again is not allowed (but this is not checked explicitly). however pushing more elements
     // than 3 is already an error
-    assertThrows(IllegalStateException.class, () -> heap.push(1, 1L));
-    assertThrows(IllegalStateException.class, () -> heap.push(2, 61L));
+    assertThrows(IllegalStateException.class, () -> heap.push(1, newEntry(1L)));
+    assertThrows(IllegalStateException.class, () -> heap.push(2, newEntry(61L)));
   }
 
   @Test
   void duplicateElements() {
     create(5);
-    heap.push(1, 2L);
-    heap.push(0, 4L);
-    heap.push(2, 1L);
+    heap.push(1, newEntry(2L));
+    heap.push(0, newEntry(4L));
+    heap.push(2, newEntry(1L));
     assertEquals(2, heap.poll());
     // pushing 2 again is ok because it was polled before
-    heap.push(2, 6L);
+    heap.push(2, newEntry(6L));
     // but now its not ok to push it again
-    assertThrows(IllegalStateException.class, () -> heap.push(2, 4L));
+    assertThrows(IllegalStateException.class, () -> heap.push(2, newEntry(4L)));
   }
 
   @Test
   void testContains() {
     create(4);
-    heap.push(1, 1L);
-    heap.push(2, 7L);
-    heap.push(0, 5L);
+    heap.push(1, newEntry(1L));
+    heap.push(2, newEntry(7L));
+    heap.push(0, newEntry(5L));
     assertFalse(heap.contains(3));
     assertTrue(heap.contains(1));
     assertEquals(1, heap.poll());
@@ -92,8 +96,8 @@ class LongMinHeapTest {
   @Test
   void containsAfterClear() {
     create(4);
-    heap.push(1, 1L);
-    heap.push(2, 1L);
+    heap.push(1, newEntry(1L));
+    heap.push(2, newEntry(1L));
     assertEquals(2, heap.size());
     heap.clear();
     assertFalse(heap.contains(0));
@@ -107,9 +111,9 @@ class LongMinHeapTest {
     create(10);
     assertEquals(0, heap.size());
     assertTrue(heap.isEmpty());
-    heap.push(9, 36L);
-    heap.push(5, 23L);
-    heap.push(3, 23L);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(23L));
+    heap.push(3, newEntry(23L));
     assertEquals(3, heap.size());
     assertFalse(heap.isEmpty());
   }
@@ -118,14 +122,14 @@ class LongMinHeapTest {
   void testClear() {
     create(5);
     assertTrue(heap.isEmpty());
-    heap.push(3, 12L);
-    heap.push(4, 3L);
+    heap.push(3, newEntry(12L));
+    heap.push(4, newEntry(3L));
     assertEquals(2, heap.size());
     heap.clear();
     assertTrue(heap.isEmpty());
 
-    heap.push(4, 63L);
-    heap.push(1, 21L);
+    heap.push(4, newEntry(63L));
+    heap.push(1, newEntry(21L));
     assertEquals(2, heap.size());
     assertEquals(1, heap.peekId());
     assertEquals(21L, heap.peekValue());
@@ -138,8 +142,8 @@ class LongMinHeapTest {
   void testPush() {
     create(5);
 
-    heap.push(4, 63L);
-    heap.push(1, 21L);
+    heap.push(4, newEntry(63L));
+    heap.push(1, newEntry(21L));
     assertEquals(2, heap.size());
     assertEquals(1, heap.peekId());
     assertEquals(21L, heap.peekValue());
@@ -151,10 +155,10 @@ class LongMinHeapTest {
   @Test
   void testPeek() {
     create(5);
-    heap.push(4, -16L);
-    heap.push(2, 13L);
-    heap.push(1, -51L);
-    heap.push(3, 4L);
+    heap.push(4, newEntry(-16L));
+    heap.push(2, newEntry(13L));
+    heap.push(1, newEntry(-51L));
+    heap.push(3, newEntry(4L));
     assertEquals(1, heap.peekId());
     assertEquals(-51L, heap.peekValue());
   }
@@ -162,9 +166,9 @@ class LongMinHeapTest {
   @Test
   void pushAndPoll() {
     create(10);
-    heap.push(9, 36L);
-    heap.push(5, 23L);
-    heap.push(3, 23L);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(23L));
+    heap.push(3, newEntry(23L));
     assertEquals(3, heap.size());
     heap.poll();
     assertEquals(2, heap.size());
@@ -176,11 +180,11 @@ class LongMinHeapTest {
   @Test
   void pollSorted() {
     create(10);
-    heap.push(9, 36L);
-    heap.push(5, 21L);
-    heap.push(3, 23L);
-    heap.push(8, 57L);
-    heap.push(7, 22L);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(21L));
+    heap.push(3, newEntry(23L));
+    heap.push(8, newEntry(57L));
+    heap.push(7, newEntry(22L));
     IntArrayList polled = new IntArrayList();
     while (!heap.isEmpty()) {
       polled.add(heap.poll());
@@ -194,19 +198,19 @@ class LongMinHeapTest {
     assertTrue(heap.isEmpty());
     assertEquals(0, heap.size());
 
-    heap.push(9, 36L);
+    heap.push(9, newEntry(36L));
     assertFalse(heap.isEmpty());
     assertEquals(1, heap.size());
 
-    heap.push(5, 21L);
+    heap.push(5, newEntry(21L));
     assertFalse(heap.isEmpty());
     assertEquals(2, heap.size());
 
-    heap.push(3, 23L);
+    heap.push(3, newEntry(23L));
     assertFalse(heap.isEmpty());
     assertEquals(3, heap.size());
 
-    heap.push(8, 57L);
+    heap.push(8, newEntry(57L));
     assertFalse(heap.isEmpty());
     assertEquals(4, heap.size());
 
@@ -230,9 +234,9 @@ class LongMinHeapTest {
   @Test
   void clear() {
     create(10);
-    heap.push(9, 36L);
-    heap.push(5, 21L);
-    heap.push(3, 23L);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(21L));
+    heap.push(3, newEntry(23L));
     heap.clear();
     assertTrue(heap.isEmpty());
     assertEquals(0, heap.size());
@@ -242,7 +246,7 @@ class LongMinHeapTest {
   void poll100Ascending() {
     create(100);
     for (int i = 1; i < 100; i++) {
-      heap.push(i, i);
+      heap.push(i, newEntry(i));
     }
     for (int i = 1; i < 100; i++) {
       assertEquals(i, heap.poll());
@@ -253,7 +257,7 @@ class LongMinHeapTest {
   void poll100Descending() {
     create(100);
     for (int i = 99; i >= 1; i--) {
-      heap.push(i, i);
+      heap.push(i, newEntry(i));
     }
     for (int i = 1; i < 100; i++) {
       assertEquals(i, heap.poll());
@@ -263,14 +267,14 @@ class LongMinHeapTest {
   @Test
   void update() {
     create(10);
-    heap.push(9, 36L);
-    heap.push(5, 21L);
-    heap.push(3, 23L);
-    heap.update(3, 1L);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(21L));
+    heap.push(3, newEntry(23L));
+    heap.update(3, newEntry(1L));
     assertEquals(3, heap.peekId());
-    heap.update(3, 100L);
+    heap.update(3, newEntry(100L));
     assertEquals(5, heap.peekId());
-    heap.update(9, -13L);
+    heap.update(9, newEntry(-13L));
     assertEquals(9, heap.peekId());
     assertEquals(-13L, heap.peekValue());
     IntArrayList polled = new IntArrayList();
@@ -283,14 +287,14 @@ class LongMinHeapTest {
   @Test
   void updateHead() {
     create(10);
-    heap.push(1, 1);
-    heap.push(2, 2);
-    heap.push(3, 3);
-    heap.push(4, 4);
-    heap.push(5, 5);
-    heap.updateHead(6);
-    heap.updateHead(7);
-    heap.updateHead(8);
+    heap.push(1, newEntry(1));
+    heap.push(2, newEntry(2));
+    heap.push(3, newEntry(3));
+    heap.push(4, newEntry(4));
+    heap.push(5, newEntry(5));
+    heap.updateHead(newEntry(6));
+    heap.updateHead(newEntry(7));
+    heap.updateHead(newEntry(8));
 
     IntArrayList polled = new IntArrayList();
     while (!heap.isEmpty()) {
@@ -303,21 +307,23 @@ class LongMinHeapTest {
   void randomPushsThenPolls() {
     Random rnd = new Random(0);
     int size = 1 + rnd.nextInt(100);
-    PriorityQueue<Entry> pq = new PriorityQueue<>(size);
+    PriorityQueue<SortableFeature> pq = new PriorityQueue<>(size);
     create(size);
     IntSet set = new IntHashSet();
     while (pq.size() < size) {
       int id = rnd.nextInt(size);
       if (!set.add(id))
         continue;
-      long val = (long) (Long.MAX_VALUE * rnd.nextFloat());
-      pq.add(new Entry(id, val));
-      heap.push(id, val);
+      long key = (long) (Long.MAX_VALUE * rnd.nextFloat());
+      byte[] value = new byte[]{(byte) id, (byte) (id + 1)};
+      SortableFeature sf = new SortableFeature(key, value);
+      pq.add(sf);
+      heap.push(id, sf);
     }
     while (!pq.isEmpty()) {
-      Entry entry = pq.poll();
-      assertEquals(entry.val, heap.peekValue());
-      assertEquals(entry.id, heap.poll());
+      SortableFeature entry = pq.poll();
+      assertEquals(entry, heap.peekValue());
+      assertEquals(entry.value()[0], (byte) heap.poll());
       assertEquals(pq.size(), heap.size());
     }
   }
@@ -326,7 +332,7 @@ class LongMinHeapTest {
   void randomPushsAndPolls() {
     Random rnd = new Random(0);
     int size = 1 + rnd.nextInt(100);
-    PriorityQueue<Entry> pq = new PriorityQueue<>(size);
+    PriorityQueue<SortableFeature> pq = new PriorityQueue<>(size);
     create(size);
     IntSet set = new IntHashSet();
     int pushCount = 0;
@@ -336,34 +342,21 @@ class LongMinHeapTest {
         int id = rnd.nextInt(size);
         if (!set.add(id))
           continue;
-        long val = (long) (Long.MAX_VALUE * rnd.nextFloat());
-        pq.add(new Entry(id, val));
-        heap.push(id, val);
+        long key = (long) (Long.MAX_VALUE * rnd.nextFloat());
+        byte[] value = new byte[]{(byte) id, (byte) (id + 1)};
+        SortableFeature sf = new SortableFeature(key, value);
+        heap.push(id, sf);
         pushCount++;
       } else {
-        Entry entry = pq.poll();
+        SortableFeature entry = pq.poll();
         assert entry != null;
-        assertEquals(entry.val, heap.peekValue());
-        assertEquals(entry.id, heap.poll());
+        assertEquals(entry, heap.peekValue());
+        int id = heap.poll();
+        assertEquals(entry.value()[0], (byte) id);
         assertEquals(pq.size(), heap.size());
-        set.removeAll(entry.id);
+        set.removeAll(id);
       }
     }
     assertTrue(pushCount > 0);
-  }
-
-  static class Entry implements Comparable<Entry> {
-    int id;
-    long val;
-
-    public Entry(int id, long val) {
-      this.id = id;
-      this.val = val;
-    }
-
-    @Override
-    public int compareTo(Entry o) {
-      return Long.compare(val, o.val);
-    }
   }
 }
