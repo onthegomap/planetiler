@@ -132,7 +132,7 @@ class ArraySortableFeatureMinHeapTest {
     heap.push(1, newEntry(21L));
     assertEquals(2, heap.size());
     assertEquals(1, heap.peekId());
-    assertEquals(21L, heap.peekValue());
+    assertEquals(newEntry(21L), heap.peekValue());
     assertEquals(1, heap.poll());
     assertEquals(4, heap.poll());
     assertTrue(heap.isEmpty());
@@ -146,7 +146,7 @@ class ArraySortableFeatureMinHeapTest {
     heap.push(1, newEntry(21L));
     assertEquals(2, heap.size());
     assertEquals(1, heap.peekId());
-    assertEquals(21L, heap.peekValue());
+    assertEquals(newEntry(21L), heap.peekValue());
     assertEquals(1, heap.poll());
     assertEquals(4, heap.poll());
     assertTrue(heap.isEmpty());
@@ -160,7 +160,7 @@ class ArraySortableFeatureMinHeapTest {
     heap.push(1, newEntry(-51L));
     heap.push(3, newEntry(4L));
     assertEquals(1, heap.peekId());
-    assertEquals(-51L, heap.peekValue());
+    assertEquals(newEntry(-51L), heap.peekValue());
   }
 
   @Test
@@ -276,7 +276,7 @@ class ArraySortableFeatureMinHeapTest {
     assertEquals(5, heap.peekId());
     heap.update(9, newEntry(-13L));
     assertEquals(9, heap.peekId());
-    assertEquals(-13L, heap.peekValue());
+    assertEquals(newEntry(-13L), heap.peekValue());
     IntArrayList polled = new IntArrayList();
     while (!heap.isEmpty()) {
       polled.add(heap.poll());

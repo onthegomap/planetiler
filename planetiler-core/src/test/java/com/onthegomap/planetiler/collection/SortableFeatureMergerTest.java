@@ -14,19 +14,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class SortableFeatureMergerTest {
-  record Item(long key) implements HasLongSortKey {}
-  record ItemList(List<Item> items) {}
+  //record Item(long key) implements HasLongSortKey {}
+  record ItemList(List<SortableFeature> items) {}
 
-  private static ItemList list(long... items) {
-    return new ItemList(LongStream.of(items).mapToObj(Item::new).toList());
+  private static SortableFeature newItem(long i) {
+    return new SortableFeature(i, new byte[]{(byte) i, (byte) (i + 1)});
   }
 
-  private static List<Long> merge(ItemList... lists) {
-    List<Long> list = new ArrayList<>();
-    var iter = LongMerger.mergeIterators(Stream.of(lists)
+  private static ItemList list(long... items) {
+    return new ItemList(LongStream.of(items).mapToObj(i -> newItem(i)).toList());
+  }
+
+  private static List<SortableFeature> merge(ItemList... lists) {
+    List<SortableFeature> list = new ArrayList<>();
+    var iter = SortableFeatureMerger.mergeIterators(Stream.of(lists)
       .map(d -> d.items.iterator())
       .toList());
-    iter.forEachRemaining(item -> list.add(item.key));
+    iter.forEachRemaining(item -> list.add(item));
     assertThrows(NoSuchElementException.class, iter::next);
     return list;
   }
@@ -38,10 +42,10 @@ class SortableFeatureMergerTest {
 
   @Test
   void testMergeSupplier() {
-    List<Long> list = new ArrayList<>();
-    var iter = LongMerger.mergeSuppliers(Stream.of(new ItemList[]{list(1, 2)})
+    List<SortableFeature> list = new ArrayList<>();
+    var iter = SortableFeatureMerger.mergeSuppliers(Stream.of(new ItemList[]{list(1, 2)})
       .map(d -> d.items.iterator())
-      .<Supplier<Item>>map(d -> () -> {
+      .<Supplier<SortableFeature>>map(d -> () -> {
         try {
           return d.next();
         } catch (NoSuchElementException e) {
@@ -49,16 +53,16 @@ class SortableFeatureMergerTest {
         }
       })
       .toList());
-    iter.forEachRemaining(item -> list.add(item.key));
+    iter.forEachRemaining(item -> list.add(item));
     assertThrows(NoSuchElementException.class, iter::next);
-    assertEquals(List.of(1L, 2L), list);
+    assertEquals(List.of(newItem(1L), newItem(2L)), list);
   }
 
   @Test
   void testMerge1() {
     assertEquals(List.of(), merge(list()));
-    assertEquals(List.of(1L), merge(list(1)));
-    assertEquals(List.of(1L, 2L), merge(list(1, 2)));
+    assertEquals(List.of(newItem(1L)), merge(list(1)));
+    assertEquals(List.of(newItem(1L), newItem(2L)), merge(list(1, 2)));
   }
 
   @ParameterizedTest
@@ -76,11 +80,11 @@ class SortableFeatureMergerTest {
     var listA = list(parse(a));
     var listB = list(parse(b));
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listA, listB)
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listA)
     );
   }
@@ -102,32 +106,32 @@ class SortableFeatureMergerTest {
     var listB = list(parse(b));
     var listC = list(parse(c));
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listA, listB, listC),
       "ABC"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listA, listC, listB),
       "ACB"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listA, listC),
       "BAC"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listC, listA),
       "BCA"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listC, listA, listB),
       "CAB"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listC, listB, listA),
       "CBA"
     );
@@ -152,22 +156,22 @@ class SortableFeatureMergerTest {
     var listD = list(parse(d));
 
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listA, listB, listC, listD),
       "ABCD"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listA, listC, listD),
       "BACD"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listC, listA, listD),
       "BCAD"
     );
     assertEquals(
-      LongStream.of(parse(output)).boxed().toList(),
+      LongStream.of(parse(output)).boxed().map(l -> newItem(l)).toList(),
       merge(listB, listC, listD, listA),
       "BCDA"
     );
