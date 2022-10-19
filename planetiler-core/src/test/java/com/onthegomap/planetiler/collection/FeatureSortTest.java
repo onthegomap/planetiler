@@ -26,6 +26,9 @@ class FeatureSortTest {
     return new SortableFeature(Long.MIN_VALUE + i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
+  private SortableFeature newEntry(int id, byte byteSeed) {
+    return new SortableFeature(Long.MIN_VALUE + id, new byte[]{byteSeed, (byte) (1 + byteSeed)});
+  }
 
   private FeatureSort newSorter(int workers, int chunkSizeLimit, boolean gzip, boolean mmap) {
     return new ExternalMergeSort(tmpDir, workers, chunkSizeLimit, gzip, mmap, true, true, config,
@@ -69,6 +72,35 @@ class FeatureSortTest {
   }
 
   @Test
+  void testFourItemsFourChunks() {
+    FeatureSort sorter = newSorter(1, 0, false, false);
+    var writer = sorter.writerForThread();
+    writer.accept(newEntry(4));
+    writer.accept(newEntry(3));
+    writer.accept(newEntry(2));
+    writer.accept(newEntry(1));
+    sorter.sort();
+    assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testFourItemsWithSameKeyDifferentBytesFourChunks() {
+    int ITEMS = 4;
+    SortableFeature[] sf = new SortableFeature[ITEMS];
+    for (int i = 0; i < ITEMS; i++) {
+      sf[i] = newEntry(1, (byte) i);
+    }
+
+    FeatureSort sorter = newSorter(1, 0, false, false);
+    var writer = sorter.writerForThread();
+    for (int i = ITEMS - 1; i >= 0; i--) {
+      writer.accept(sf[i]); // feed to writer in reverse order on purpose
+    }
+    sorter.sort();
+    assertEquals(List.of(sf), sorter.toList());
+  }
+
+  @Test
   void testTwoWorkers() {
     FeatureSort sorter = newSorter(2, 0, false, false);
     var writer = sorter.writerForThread();
@@ -91,6 +123,26 @@ class FeatureSortTest {
     writer2.accept(newEntry(1));
     sorter.sort();
     assertEquals(List.of(newEntry(1), newEntry(2), newEntry(3), newEntry(4)), sorter.toList());
+  }
+
+  @Test
+  void testTwoWritersItemsWithSameKeyDifferentBytes() {
+    int ITEMS = 8;
+    SortableFeature[] sf = new SortableFeature[ITEMS];
+    for (int i = 0; i < ITEMS; i++) {
+      sf[i] = newEntry(1, (byte) i);
+    }
+
+    FeatureSort sorter = newSorter(2, 0, false, false);
+    var writer1 = sorter.writerForThread();
+    var writer2 = sorter.writerForThread();
+    for (int i = ITEMS - 1; i >= 0; i -= 2) {
+      // feed to writer in reverse order on purpose
+      writer2.accept(sf[i]);
+      writer1.accept(sf[i - 1]);
+    }
+    sorter.sort();
+    assertEquals(List.of(sf), sorter.toList());
   }
 
   @Test
