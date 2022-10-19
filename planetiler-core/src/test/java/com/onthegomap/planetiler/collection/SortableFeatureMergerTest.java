@@ -14,7 +14,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class SortableFeatureMergerTest {
-  //record Item(long key) implements HasLongSortKey {}
   record ItemList(List<SortableFeature> items) {}
 
   private static SortableFeature newItem(long i) {
