@@ -94,7 +94,7 @@ class FeatureSortTest {
     FeatureSort sorter = newSorter(1, 0, false, false);
     var writer = sorter.writerForThread();
     for (int i = ITEMS - 1; i >= 0; i--) {
-      writer.accept(sf[i]); // feed to writer in reverse order on purpose
+      writer.accept(sf[i]);
     }
     sorter.sort();
     assertEquals(List.of(sf), sorter.toList());
@@ -137,7 +137,6 @@ class FeatureSortTest {
     var writer1 = sorter.writerForThread();
     var writer2 = sorter.writerForThread();
     for (int i = ITEMS - 1; i >= 0; i -= 2) {
-      // feed to writer in reverse order on purpose
       writer2.accept(sf[i]);
       writer1.accept(sf[i - 1]);
     }
