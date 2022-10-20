@@ -184,13 +184,9 @@ class ArraySortableFeatureMinHeap implements SortableFeatureMinHeap {
     return sf.value();
   }
 
-  private boolean isLessThanParent(byte[] val, byte[] parent) {
-    return Arrays.compare(val, parent) < 0;
-  }
-
   private boolean isLessThanParent(int index, int parent, long val, long parentValue) {
     if (val == parentValue) {
-      return isLessThanParent(getValue(sortableFeatures[index]), getValue(sortableFeatures[parent]));
+      return Arrays.compare(getValue(sortableFeatures[index]), getValue(sortableFeatures[parent])) < 0;
     }
     return val < parentValue;
   }
