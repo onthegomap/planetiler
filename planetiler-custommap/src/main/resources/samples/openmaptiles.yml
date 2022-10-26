@@ -1,0 +1,42 @@
+schema_name: OpenMapTiles
+schema_description: '??'
+attribution: '??'
+args:
+  area:
+    description: Geofabrik area to download
+    default: monaco
+  osm_url:
+    description: OSM URL to download
+    default: '${ "geofabrik:" + args.area }'
+sources:
+  osm:
+    type: osm
+    url: '${ args.osm_url }'
+
+layers:
+
+- id: buildings
+  features:
+  - source: osm
+    geometry: polygon
+    min_zoom: 14
+    include_when:
+      building: __any__
+    exclude_when:
+      building: no
+
+- id: landuse
+  features:
+  - source: osm
+    geometry: polygon
+    include_when:
+      amenity:
+      landuse:
+      leisure:
+      wetland:
+      place:
+      waterway:
+    min_zoom: 11
+    attributes:
+    - key: class
+      value: '${match_value}'
