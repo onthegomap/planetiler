@@ -25,6 +25,8 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import de.westemeyer.version.model.Artifact;
+import de.westemeyer.version.service.ArtifactVersionCollector;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -439,6 +441,13 @@ public class Planetiler {
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
+    if (arguments.getBoolean("version", "show version then exit", false)) {
+      for (Artifact artifact : ArtifactVersionCollector.findArtifactsByGroupId("com.onthegomap.planetiler", true)) {
+        LOGGER.info(String.format("module: %s - version: %s", artifact.getArtifactId(), artifact.getVersion()));
+      }
+      System.exit(0);
+    }
+
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
     }
