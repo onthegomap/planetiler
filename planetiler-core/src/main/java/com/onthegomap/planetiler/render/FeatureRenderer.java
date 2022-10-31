@@ -12,10 +12,10 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
@@ -201,7 +201,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
         // if profile wants the original number of points that the simplified but untiled geometry started with
-        attrs = new HashMap<>(attrs);
+        attrs = new TreeMap<>(attrs);
         attrs.put(numPointsAttr, geom.getNumPoints());
       }
       writeTileFeatures(z, id, feature, sliced, attrs);

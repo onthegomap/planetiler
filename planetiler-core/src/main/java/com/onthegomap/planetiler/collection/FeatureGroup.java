@@ -21,11 +21,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -208,7 +208,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       packer.packByte(encodeGeomTypeAndScale(vectorTileFeature.geometry()));
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
-      for (Map.Entry<String, Object> entry : attrs.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+      for (Map.Entry<String, Object> entry : attrs.entrySet()) {
         if (entry.getValue() != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
           Object value = entry.getValue();
@@ -421,7 +421,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         GeometryType geomType = decodeGeomType(geomTypeAndScale);
         int scale = decodeScale(geomTypeAndScale);
         int mapSize = unpacker.unpackMapHeader();
-        Map<String, Object> attrs = new HashMap<>(mapSize);
+        Map<String, Object> attrs = new TreeMap<>();
         for (int i = 0; i < mapSize; i++) {
           String key = commonValueStrings.decode(unpacker.unpackInt());
           Value v = unpacker.unpackValue();
