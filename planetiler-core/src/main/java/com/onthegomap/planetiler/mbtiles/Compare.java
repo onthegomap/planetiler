@@ -10,9 +10,9 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.nio.file.Path;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
@@ -129,7 +129,7 @@ public class Compare {
   ) {
     static VectorTileFeatureForCmp fromActualFeature(VectorTile.Feature f) {
       try {
-        var attrs = new HashMap<>(f.attrs());
+        var attrs = new TreeMap<>(f.attrs());
         attrs.remove("rank");
         return new VectorTileFeatureForCmp(f.layer(), f.geometry().decode().norm(), attrs, f.group());
       } catch (GeometryException e) {

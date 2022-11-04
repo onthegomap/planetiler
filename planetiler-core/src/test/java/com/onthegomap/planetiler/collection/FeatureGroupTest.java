@@ -116,6 +116,8 @@ class FeatureGroupTest {
     put(2, "layer", Map.of("a", 1.5d, "b", "string"), newPoint(5, 6));
     put(1, "layer", Map.of("a", 1, "b", 2L), newPoint(1, 2));
     put(1, "layer2", Map.of("c", 3d, "d", true), newPoint(3, 4));
+    // special case: it will have (as SortableFeature) same key as previous
+    put(1, "layer2", Map.of("c", 2d, "d", false), newPoint(5, 6));
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
@@ -123,7 +125,8 @@ class FeatureGroupTest {
           new Feature(Map.of("a", 1L, "b", 2L), newPoint(1, 2))
         ),
         "layer2", List.of(
-          new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4))
+          new Feature(Map.of("c", 3d, "d", true), newPoint(3, 4)),
+          new Feature(Map.of("c", 2d, "d", false), newPoint(5, 6))
         )
       )), 2, new TreeMap<>(Map.of(
         "layer", List.of(
@@ -192,21 +195,30 @@ class FeatureGroupTest {
   void testLimitPoints() {
     int x = 5, y = 6;
     putWithGroup(
-      1, "layer", Map.of("id", 3), newPoint(x, y), 2, 1, 2
+      1, "layer", Map.of("id", 3), newPoint(x, y), 2, 1, 3
     );
     putWithGroup(
-      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
+      1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 3
     );
     putWithGroup(
-      1, "layer", Map.of("id", 1), newPoint(1, 2), 0, 1, 2
+      1, "layer", Map.of("id", 1), newPoint(1, 2), 0, 1, 3
+    );
+    // special case: it will have (as SortableFeature) same key as id=1
+    putWithGroup(
+      1, "layer", Map.of("id", 4), newPoint(5, 6), 0, 1, 3
+    );
+    // special case: it will have (as SortableFeature) same key as id=2
+    putWithGroup(
+      1, "layer", Map.of("id", 5), newPoint(5, 6), 1, 1, 3
     );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
-          // id=3 omitted because past limit
+          // id=3 and id=5 omitted because past limit
           // sorted by sortKey ascending
           new Feature(Map.of("id", 1L), newPoint(1, 2)),
+          new Feature(Map.of("id", 4L), newPoint(5, 6)),
           new Feature(Map.of("id", 2L), newPoint(3, 4))
         )
       )))), getFeatures());
@@ -224,12 +236,22 @@ class FeatureGroupTest {
     putWithGroup(
       1, "layer", Map.of("id", 2), newPoint(3, 4), 1, 1, 2
     );
+    // special case: it will have (as SortableFeature) same key as id=1
+    putWithGroup(
+      1, "layer", Map.of("id", 4), newPoint(1, 2), 2, 1, 2
+    );
+    // special case: it will have (as SortableFeature) same key as id=3
+    putWithGroup(
+      1, "layer", Map.of("id", 5), newPoint(x, y), 0, 2, 2
+    );
     sorter.sort();
     assertEquals(new TreeMap<>(Map.of(
       1, new TreeMap<>(Map.of(
         "layer", List.of(
+          // id=4 omitted because past limit (given same key but different/higher value in SortableFeature.value will be pushed down)
           // ordered by sort key
           new Feature(Map.of("id", 3L), newPoint(x, y)),
+          new Feature(Map.of("id", 5L), newPoint(x, y)),
           new Feature(Map.of("id", 2L), newPoint(3, 4)),
           new Feature(Map.of("id", 1L), newPoint(1, 2))
         )

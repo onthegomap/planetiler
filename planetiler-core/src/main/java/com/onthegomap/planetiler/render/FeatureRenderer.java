@@ -12,11 +12,10 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -40,8 +39,6 @@ import org.slf4j.LoggerFactory;
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
 
-  // generate globally-unique IDs shared by all vector tile features representing the same source feature
-  private static final AtomicLong idGenerator = new AtomicLong(0);
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
@@ -95,7 +92,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
-    long id = idGenerator.incrementAndGet();
+    long id = feature.getSourceId();
     boolean hasLabelGrid = feature.hasLabelGrid();
     Coordinate[] coords = new Coordinate[origCoords.length];
     for (int i = 0; i < origCoords.length; i++) {
@@ -173,7 +170,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
-    long id = idGenerator.incrementAndGet();
+    long id = feature.getSourceId();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     String numPointsAttr = feature.getNumPointsAttr();
@@ -201,7 +198,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
         // if profile wants the original number of points that the simplified but untiled geometry started with
-        attrs = new HashMap<>(attrs);
+        attrs = new TreeMap<>(attrs);
         attrs.put(numPointsAttr, geom.getNumPoints());
       }
       writeTileFeatures(z, id, feature, sliced, attrs);

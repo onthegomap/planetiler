@@ -28,10 +28,10 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -367,7 +367,7 @@ public class VectorTile {
 
         for (VectorTileProto.Tile.Feature feature : layer.getFeaturesList()) {
           int tagsCount = feature.getTagsCount();
-          Map<String, Object> attrs = new HashMap<>(tagsCount / 2);
+          Map<String, Object> attrs = new TreeMap<>();
           int tagIdx = 0;
           while (tagIdx < feature.getTagsCount()) {
             String key = keys.get(feature.getTags(tagIdx++));
