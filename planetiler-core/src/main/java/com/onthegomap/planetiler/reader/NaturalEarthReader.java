@@ -147,11 +147,14 @@ public class NaturalEarthReader extends SimpleReader {
           ResultSet rs = statement.executeQuery("SELECT * FROM %s;".formatted(table));
           String[] column = new String[rs.getMetaData().getColumnCount()];
           int geometryColumn = -1;
+          int neIdColumn = -1;
           for (int c = 0; c < column.length; c++) {
             String name = rs.getMetaData().getColumnName(c + 1);
             column[c] = name;
             if ("GEOMETRY".equals(name)) {
               geometryColumn = c;
+            } else if ("ne_id".equals(name)) {
+              neIdColumn = c;
             }
           }
           if (geometryColumn >= 0) {
@@ -161,10 +164,17 @@ public class NaturalEarthReader extends SimpleReader {
                 continue;
               }
 
+              long neId;
+              if (neIdColumn >= 0) {
+                neId = rs.getLong(neIdColumn + 1);
+              } else {
+                neId = id++;
+              }
+
               // create the feature and pass to next stage
               Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
               SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, new HashMap<>(column.length - 1),
-                sourceName, table, id);
+                sourceName, table, neId);
               for (int c = 0; c < column.length; c++) {
                 if (c != geometryColumn) {
                   Object value = rs.getObject(c + 1);
