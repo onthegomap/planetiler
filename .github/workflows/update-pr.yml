@@ -28,7 +28,6 @@ jobs:
           run_id: ${{ github.event.workflow_run.id }}
           name: build-info
           path: build-info
-          repo: onthegomap/planetiler
       - name: 'Get build info'
         id: build_info
         run: echo "::set-output name=pr_number::$(cat build-info/pull_request_number)"
