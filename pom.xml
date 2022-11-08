@@ -129,7 +129,7 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>4.8.0</version>
+        <version>4.8.1</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
@@ -243,7 +243,7 @@
         <plugin>
           <groupId>io.github.zlika</groupId>
           <artifactId>reproducible-build-maven-plugin</artifactId>
-          <version>0.15</version>
+          <version>0.16</version>
           <executions>
             <execution>
               <id>run-when-packaged</id>
