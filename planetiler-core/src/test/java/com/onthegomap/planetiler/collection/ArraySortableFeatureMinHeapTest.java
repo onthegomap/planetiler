@@ -49,6 +49,10 @@ class ArraySortableFeatureMinHeapTest {
     return new SortableFeature(i, new byte[]{(byte) i, (byte) (1 + i)});
   }
 
+  private SortableFeature newEntry(long i, byte[] v) {
+    return new SortableFeature(i, v);
+  }
+
   @Test
   void outOfRange() {
     create(4);
@@ -274,6 +278,51 @@ class ArraySortableFeatureMinHeapTest {
     assertEquals(3, heap.peekId());
     heap.update(3, newEntry(100L));
     assertEquals(5, heap.peekId());
+    heap.update(9, newEntry(-13L));
+    assertEquals(9, heap.peekId());
+    assertEquals(newEntry(-13L), heap.peekValue());
+    IntArrayList polled = new IntArrayList();
+    while (!heap.isEmpty()) {
+      polled.add(heap.poll());
+    }
+    assertEquals(IntArrayList.from(9, 5, 3), polled);
+  }
+
+  @Test
+  void updateWithEqualKeys() {
+    create(10);
+    heap.push(9, newEntry(36L));
+    heap.push(5, newEntry(21L, new byte[]{(byte) 1, (byte) 2}));
+    heap.push(3, newEntry(23L));
+    heap.update(3, newEntry(1L));
+    assertEquals(3, heap.peekId());
+    heap.update(3, newEntry(100L));
+    assertEquals(5, heap.peekId());
+    // until here same as update() test, now some "key collisions"
+
+    // prepare for hitting entry id=5 with sortable feature which has same ID but different value
+    heap.update(9, newEntry(21L, new byte[]{(byte) 100, (byte) 200}));
+    assertEquals(5, heap.peekId());
+
+    // hit "percolate up", NOT replacing item id=5
+    heap.update(9, newEntry(21L, new byte[]{(byte) 10, (byte) 20}));
+    assertEquals(5, heap.peekId());
+
+    // hit "percolate down"
+    heap.update(9, newEntry(21L, new byte[]{(byte) 20, (byte) 30}));
+    assertEquals(5, heap.peekId());
+
+    // hit "percolate up", still NOT replacing item id=5
+    heap.update(9, newEntry(21L, new byte[]{(byte) 5, (byte) 10}));
+    assertEquals(5, heap.peekId());
+
+    // hit "percolate up" one last time, now replacing item id=5
+    SortableFeature SF = newEntry(21L, new byte[]{(byte) 0, (byte) 0});
+    heap.update(9, SF);
+    assertEquals(9, heap.peekId());
+    assertEquals(SF, heap.peekValue());
+
+    // and from now on again same as update() test
     heap.update(9, newEntry(-13L));
     assertEquals(9, heap.peekId());
     assertEquals(newEntry(-13L), heap.peekValue());
