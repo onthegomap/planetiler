@@ -366,7 +366,6 @@ public class VectorTile {
         }
 
         for (VectorTileProto.Tile.Feature feature : layer.getFeaturesList()) {
-          int tagsCount = feature.getTagsCount();
           Map<String, Object> attrs = new TreeMap<>();
           int tagIdx = 0;
           while (tagIdx < feature.getTagsCount()) {
