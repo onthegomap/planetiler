@@ -441,10 +441,10 @@ public class Planetiler {
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
+    for (Artifact artifact : ArtifactVersionCollector.findArtifactsByGroupId("com.onthegomap.planetiler", true)) {
+      LOGGER.info("module: {} - version: {}", artifact.getArtifactId(), artifact.getVersion());
+    }
     if (arguments.getBoolean("version", "show version then exit", false)) {
-      for (Artifact artifact : ArtifactVersionCollector.findArtifactsByGroupId("com.onthegomap.planetiler", true)) {
-        LOGGER.info(String.format("module: %s - version: %s", artifact.getArtifactId(), artifact.getVersion()));
-      }
       System.exit(0);
     }
 
