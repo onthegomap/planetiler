@@ -41,7 +41,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
-      <version>2.2.12</version>
+      <version>2.2.13</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>
