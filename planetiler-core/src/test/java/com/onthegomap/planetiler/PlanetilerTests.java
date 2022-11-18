@@ -1661,6 +1661,7 @@ class PlanetilerTests {
       .addOsmSource("osm", tempOsm)
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .addShapefileDirectorySource("shapefiledir", TestUtils.pathToResource(""), "shapefile*.zip")
       .setOutput("mbtiles", mbtiles)
       .run();
 

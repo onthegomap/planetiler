@@ -25,7 +25,9 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -249,6 +251,49 @@ public class Planetiler {
   public Planetiler addShapefileSource(String name, Path defaultPath, String defaultUrl) {
     return addShapefileSource(null, name, defaultPath, defaultUrl);
   }
+
+  /**
+   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
+   * {@param globPattern} using an explicit projection.
+   *
+   * @param projection  the Coordinate Reference System authority code to use, parsed with
+   *                    {@link org.geotools.referencing.CRS#decode(String)}
+   * @param name        string to use in stats and logs to identify this stage
+   * @param basePath    path to the directory containing shapefiles to process
+   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @return this runner instance for chaining
+   * @see ShapefileReader
+   */
+  public Planetiler addShapefileDirectorySource(String projection, String name, Path basePath, String globPattern) {
+    Path dirPath = getPath(name, "shapefile directory", basePath, null);
+    return addStage(name, "Process all features matching " + dirPath + "/" + globPattern, ifSourceUsed(name, () -> {
+      var pathMatcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
+
+      try (var dirWalker = Files.walk(dirPath)) {
+        WorkerPipeline.start(name, stats)
+          .readFrom("reader", dirWalker.filter(pathMatcher::matches)::iterator)
+          .addBuffer("read_queue", 1000)
+          .sinkToConsumer("process", config.featureProcessThreads(),
+            path -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats))
+          .await();
+      }
+    }));
+  }
+
+  /**
+   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
+   * {@param globPattern}.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param basePath    path to the directory containing shapefiles to process
+   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @return this runner instance for chaining
+   * @see ShapefileReader
+   */
+  public Planetiler addShapefileDirectorySource(String name, Path basePath, String globPattern) {
+    return addShapefileDirectorySource(null, name, basePath, globPattern);
+  }
+
 
   /**
    * Adds a new ESRI shapefile source that will be processed with an explicit projection when {@link #run()} is called.
