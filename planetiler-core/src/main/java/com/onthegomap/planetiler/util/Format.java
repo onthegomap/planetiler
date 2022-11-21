@@ -17,7 +17,15 @@ import org.locationtech.jts.geom.Coordinate;
 public class Format {
 
   public static final Locale DEFAULT_LOCALE = Locale.getDefault(Locale.Category.FORMAT);
-  public static final ConcurrentMap<Locale, Format> instances = new ConcurrentHashMap<>();
+
+  // `NumberFormat` instances are not thread safe, so we need to wrap them inside a `ThreadLocal`.
+  //
+  // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+  // values when a task is finished and are not re-used.
+  @SuppressWarnings("java:S5164")
+  private static final ThreadLocal<ConcurrentMap<Locale, Format>> instances = ThreadLocal.withInitial(
+    ConcurrentHashMap::new);
+
   private final NumberFormat pf;
   private final NumberFormat nf;
   private final NumberFormat intF;
@@ -32,11 +40,7 @@ public class Format {
   }
 
   public static Format forLocale(Locale locale) {
-    Format format = instances.get(locale);
-    if (format == null) {
-      format = instances.computeIfAbsent(locale, Format::new);
-    }
-    return format;
+    return instances.get().computeIfAbsent(locale, Format::new);
   }
 
   public static Format defaultInstance() {
