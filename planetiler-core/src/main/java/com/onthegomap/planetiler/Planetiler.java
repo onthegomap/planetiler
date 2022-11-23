@@ -25,13 +25,18 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
-import de.westemeyer.version.model.Artifact;
-import de.westemeyer.version.service.ArtifactVersionCollector;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.function.Function;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -441,13 +446,10 @@ public class Planetiler {
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
-    for (Artifact artifact : ArtifactVersionCollector.findArtifactsByGroupId("com.onthegomap.planetiler", true)) {
-      LOGGER.info("module: {} - version: {}", artifact.getArtifactId(), artifact.getVersion());
-    }
     if (arguments.getBoolean("version", "show version then exit", false)) {
+      printVersionInfoFromManifest();
       System.exit(0);
     }
-
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
     }
@@ -550,6 +552,33 @@ public class Planetiler {
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
+  }
+
+  public static void printVersionInfoFromManifest() {
+    Enumeration<java.net.URL> urlsOfManifests;
+    try {
+      urlsOfManifests = Thread.currentThread().getContextClassLoader().getResources(JarFile.MANIFEST_NAME);
+      while (urlsOfManifests.hasMoreElements()) {
+        try {
+          URL url = urlsOfManifests.nextElement();
+          InputStream inputStream = url.openStream();
+          if (inputStream != null) {
+            LOGGER.debug("Reading manifest from url: {}", url);
+            Manifest manifest = new Manifest(inputStream);
+            Attributes mainAttributes = manifest.getMainAttributes();
+            LOGGER.info("Implementation-Version: {}", mainAttributes.getValue("Implementation-Version"));
+            LOGGER.info("Implementation-Build: {}", mainAttributes.getValue("Implementation-Build"));
+            LOGGER.info("Implementation-Vendor: {}", mainAttributes.getValue("Implementation-Vendor"));
+            LOGGER.info("Implementation-Timestamp: {}", mainAttributes.getValue("Implementation-Timestamp"));
+            LOGGER.info("Implementation-Title: {}", mainAttributes.getValue("Implementation-Title"));
+          }
+        } catch (Exception e) {
+          // Silently ignore wrong manifests on classpath?
+        }
+      }
+    } catch (IOException e1) {
+      // Silently ignore wrong manifests on classpath?
+    }
   }
 
   private void checkDiskSpace() {

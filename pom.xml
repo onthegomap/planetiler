@@ -161,16 +161,32 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>de.westemeyer</groupId>
-        <artifactId>artifact-version-maven-plugin</artifactId>
-        <version>1.1.0</version>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
+        <version>3.0.0</version>
         <executions>
           <execution>
+            <phase>validate</phase>
             <goals>
-              <goal>generate-service</goal>
+              <goal>create</goal>
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+            </manifest>
+            <manifestEntries>
+              <Implementation-Build>${buildNumber}</Implementation-Build>
+              <Implementation-Timestamp>${maven.build.timestamp}</Implementation-Timestamp>
+            </manifestEntries>
+          </archive>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
