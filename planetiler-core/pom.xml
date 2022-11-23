@@ -16,7 +16,7 @@
   </parent>
 
   <properties>
-    <geotools.version>27.2</geotools.version>
+    <geotools.version>28.0</geotools.version>
     <log4j.version>2.19.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <protobuf.version>3.21.9</protobuf.version>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>0.9.33</version>
+      <version>0.9.35</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -41,7 +41,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
-      <version>2.2.12</version>
+      <version>2.2.13</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>
@@ -61,7 +61,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.39.3.0</version>
+      <version>3.39.4.1</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>
@@ -182,7 +182,7 @@
       <extension>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.7.0</version>
+        <version>1.7.1</version>
       </extension>
     </extensions>
 
