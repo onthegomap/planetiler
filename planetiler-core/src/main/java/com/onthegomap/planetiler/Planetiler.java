@@ -557,9 +557,9 @@ public class Planetiler {
       parsed.load(properties);
       LOGGER.info("Planetiler build git hash: {}", parsed.getProperty("githash"));
       LOGGER.info("Planetiler build version: {}", parsed.getProperty("version"));
-      var version = parsed.getProperty("timestamp");
-      if (version != null && !version.isBlank() && version.matches("^\\d+$")) {
-        var time = Instant.ofEpochMilli(Long.parseLong(version));
+      var epochMs = parsed.getProperty("timestamp");
+      if (epochMs != null && !epochMs.isBlank() && epochMs.matches("^\\d+$")) {
+        var time = Instant.ofEpochMilli(Long.parseLong(epochMs));
         LOGGER.info("Planetiler build timestamp: {}", time);
       }
     } catch (IOException e) {
