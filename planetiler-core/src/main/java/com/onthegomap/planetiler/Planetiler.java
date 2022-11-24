@@ -563,14 +563,18 @@ public class Planetiler {
           URL url = urlsOfManifests.nextElement();
           InputStream inputStream = url.openStream();
           if (inputStream != null) {
-            LOGGER.debug("Reading manifest from url: {}", url);
-            Manifest manifest = new Manifest(inputStream);
-            Attributes mainAttributes = manifest.getMainAttributes();
-            LOGGER.info("Implementation-Version: {}", mainAttributes.getValue("Implementation-Version"));
-            LOGGER.info("Implementation-Build: {}", mainAttributes.getValue("Implementation-Build"));
-            LOGGER.info("Implementation-Vendor: {}", mainAttributes.getValue("Implementation-Vendor"));
-            LOGGER.info("Implementation-Timestamp: {}", mainAttributes.getValue("Implementation-Timestamp"));
-            LOGGER.info("Implementation-Title: {}", mainAttributes.getValue("Implementation-Title"));
+            try {
+              LOGGER.debug("Reading manifest from url: {}", url);
+              Manifest manifest = new Manifest(inputStream);
+              Attributes mainAttributes = manifest.getMainAttributes();
+              LOGGER.info("Implementation-Version: {}", mainAttributes.getValue("Implementation-Version"));
+              LOGGER.info("Implementation-Build: {}", mainAttributes.getValue("Implementation-Build"));
+              LOGGER.info("Implementation-Vendor: {}", mainAttributes.getValue("Implementation-Vendor"));
+              LOGGER.info("Implementation-Timestamp: {}", mainAttributes.getValue("Implementation-Timestamp"));
+              LOGGER.info("Implementation-Title: {}", mainAttributes.getValue("Implementation-Title"));
+            } finally {
+              inputStream.close();
+            }
           }
         } catch (Exception e) {
           // Silently ignore wrong manifests on classpath?
