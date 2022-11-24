@@ -26,17 +26,13 @@ import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Function;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -446,8 +442,9 @@ public class Planetiler {
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
-    if (arguments.getBoolean("version", "show version then exit", false)) {
-      printVersionInfoFromManifest();
+    var showVersion = arguments.getBoolean("version", "show version then exit", false);
+    printVersionInfoFromManifest();
+    if (showVersion) {
       System.exit(0);
     }
     if (profile() == null) {
@@ -555,33 +552,18 @@ public class Planetiler {
   }
 
   public static void printVersionInfoFromManifest() {
-    Enumeration<java.net.URL> urlsOfManifests;
-    try {
-      urlsOfManifests = Thread.currentThread().getContextClassLoader().getResources(JarFile.MANIFEST_NAME);
-      while (urlsOfManifests.hasMoreElements()) {
-        try {
-          URL url = urlsOfManifests.nextElement();
-          InputStream inputStream = url.openStream();
-          if (inputStream != null) {
-            try {
-              LOGGER.debug("Reading manifest from url: {}", url);
-              Manifest manifest = new Manifest(inputStream);
-              Attributes mainAttributes = manifest.getMainAttributes();
-              LOGGER.info("Implementation-Version: {}", mainAttributes.getValue("Implementation-Version"));
-              LOGGER.info("Implementation-Build: {}", mainAttributes.getValue("Implementation-Build"));
-              LOGGER.info("Implementation-Vendor: {}", mainAttributes.getValue("Implementation-Vendor"));
-              LOGGER.info("Implementation-Timestamp: {}", mainAttributes.getValue("Implementation-Timestamp"));
-              LOGGER.info("Implementation-Title: {}", mainAttributes.getValue("Implementation-Title"));
-            } finally {
-              inputStream.close();
-            }
-          }
-        } catch (Exception e) {
-          // Silently ignore wrong manifests on classpath?
-        }
+    try (var properties = Planetiler.class.getResourceAsStream("/buildinfo.properties")) {
+      var parsed = new Properties();
+      parsed.load(properties);
+      LOGGER.info("Planetiler build git hash: {}", parsed.getProperty("githash"));
+      LOGGER.info("Planetiler build version: {}", parsed.getProperty("version"));
+      var version = parsed.getProperty("timestamp");
+      if (version != null && !version.isBlank() && version.matches("^\\d+$")) {
+        var time = Instant.ofEpochMilli(Long.parseLong(version));
+        LOGGER.info("Planetiler build timestamp: {}", time);
       }
-    } catch (IOException e1) {
-      // Silently ignore wrong manifests on classpath?
+    } catch (IOException e) {
+      LOGGER.error("Error getting build properties");
     }
   }
 
