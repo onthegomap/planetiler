@@ -28,6 +28,7 @@
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
     <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
     <revision>0.6-SNAPSHOT</revision>
+    <timestamp>${maven.build.timestamp}</timestamp>
   </properties>
 
   <scm>
@@ -160,6 +161,19 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>validate</phase>
+            <goals>
+              <goal>create</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>

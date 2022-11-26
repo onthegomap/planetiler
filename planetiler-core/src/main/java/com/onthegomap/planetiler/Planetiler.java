@@ -25,10 +25,13 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -439,6 +442,11 @@ public class Planetiler {
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
+    var showVersion = arguments.getBoolean("version", "show version then exit", false);
+    printVersionInfoFromManifest();
+    if (showVersion) {
+      System.exit(0);
+    }
     if (profile() == null) {
       throw new IllegalArgumentException("No profile specified");
     }
@@ -541,6 +549,22 @@ public class Planetiler {
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
+  }
+
+  public static void printVersionInfoFromManifest() {
+    try (var properties = Planetiler.class.getResourceAsStream("/buildinfo.properties")) {
+      var parsed = new Properties();
+      parsed.load(properties);
+      LOGGER.info("Planetiler build git hash: {}", parsed.getProperty("githash"));
+      LOGGER.info("Planetiler build version: {}", parsed.getProperty("version"));
+      var epochMs = parsed.getProperty("timestamp");
+      if (epochMs != null && !epochMs.isBlank() && epochMs.matches("^\\d+$")) {
+        var time = Instant.ofEpochMilli(Long.parseLong(epochMs));
+        LOGGER.info("Planetiler build timestamp: {}", time);
+      }
+    } catch (IOException e) {
+      LOGGER.error("Error getting build properties");
+    }
   }
 
   private void checkDiskSpace() {
