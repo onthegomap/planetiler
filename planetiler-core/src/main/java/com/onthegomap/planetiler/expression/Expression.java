@@ -117,7 +117,6 @@ public interface Expression extends Simplifiable<Expression> {
    * <li>"linestring"</li>
    * <li>"point"</li>
    * <li>"polygon"</li>
-   * <li>"relation_member"</li>
    * </ul>
    */
   static MatchType matchType(String type) {
