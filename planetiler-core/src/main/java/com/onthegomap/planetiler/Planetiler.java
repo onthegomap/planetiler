@@ -89,7 +89,6 @@ public class Planetiler {
   private Translations translations;
   private Path wikidataNamesFile;
   private boolean useWikidata = false;
-  private boolean preferWikidata = true;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
 

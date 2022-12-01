@@ -50,6 +50,8 @@ public class Translations {
 
   /**
    * Mutates this translation instance to add {@code provider} which will be used before all other providers.
+   *
+   * @deprecated
    */
   @Deprecated(forRemoval = true)
   public Translations addTranslationProvider(TranslationProvider provider) {
