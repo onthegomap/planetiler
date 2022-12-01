@@ -391,6 +391,7 @@ public class MbtilesWriter {
       sumSize += totalSize;
       sumCount += totalCount;
       long maxSize = maxTileSizesByZoom[z].get();
+      maxMax = Math.max(maxMax, maxSize);
       LOGGER.debug("z{} avg:{} max:{}",
         z,
         format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
