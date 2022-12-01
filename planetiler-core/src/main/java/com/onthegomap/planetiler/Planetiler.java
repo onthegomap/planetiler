@@ -506,7 +506,7 @@ public class Planetiler {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
     if (useWikidata) {
-      translations().addTranslationProvider(Wikidata.load(wikidataNamesFile));
+      translations().addFallbackTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
     if (onlyDownloadSources || onlyFetchWikidata) {
       return; // exit only if just fetching wikidata or downloading sources
