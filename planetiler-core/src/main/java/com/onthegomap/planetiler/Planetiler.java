@@ -89,6 +89,7 @@ public class Planetiler {
   private Translations translations;
   private Path wikidataNamesFile;
   private boolean useWikidata = false;
+  private boolean preferWikidata = true;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
 
@@ -363,6 +364,8 @@ public class Planetiler {
       onlyFetchWikidata || arguments.getBoolean("fetch_wikidata", "fetch wikidata translations then continue",
         fetchWikidata);
     useWikidata = fetchWikidata || arguments.getBoolean("use_wikidata", "use wikidata translations", true);
+    preferWikidata =
+      arguments.getBoolean("prefer_wikidata", "prefer wikidata translations over OSM when both are present", true);
     wikidataNamesFile = arguments.file("wikidata_cache", "wikidata cache file", defaultWikidataCache);
     return this;
   }
@@ -498,7 +501,7 @@ public class Planetiler {
       Wikidata.fetch(osmInputFile(), wikidataNamesFile, config(), profile(), stats());
     }
     if (useWikidata) {
-      translations().addTranslationProvider(Wikidata.load(wikidataNamesFile));
+      translations().addFallbackTranslationProvider(Wikidata.load(wikidataNamesFile));
     }
     if (onlyDownloadSources || onlyFetchWikidata) {
       return; // exit only if just fetching wikidata or downloading sources
