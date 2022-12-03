@@ -267,11 +267,13 @@ public class Planetiler {
   public Planetiler addShapefileDirectorySource(String projection, String name, Path basePath, String globPattern) {
     Path dirPath = getPath(name, "shapefile directory", basePath, null);
     return addStage(name, "Process all features matching " + dirPath + "/" + globPattern, ifSourceUsed(name, () -> {
-      var pathMatcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
+      var globMatcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
 
       try (var dirWalker = Files.walk(dirPath)) {
+        var pathStream = dirWalker.filter(path -> globMatcher.matches(path.getFileName()));
+
         WorkerPipeline.start(name, stats)
-          .readFrom("reader", dirWalker.filter(pathMatcher::matches)::iterator)
+          .readFrom("reader", pathStream::iterator)
           .addBuffer("read_queue", 1000)
           .sinkToConsumer("process", config.featureProcessThreads(),
             path -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats))
