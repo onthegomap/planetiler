@@ -76,7 +76,7 @@ public class NaturalEarthReader extends SimpleReader {
   public static void process(String sourceName, Path input, Path tmpDir, FeatureGroup writer, PlanetilerConfig config,
     Profile profile, Stats stats) {
     try (var reader = new NaturalEarthReader(sourceName, input, tmpDir, profile, stats)) {
-      reader.process(writer, config);
+      reader.process(writer, config, true);
     }
   }
 

@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -258,42 +259,53 @@ public class Planetiler {
    *
    * @param projection  the Coordinate Reference System authority code to use, parsed with
    *                    {@link org.geotools.referencing.CRS#decode(String)}
-   * @param name        string to use in stats and logs to identify this stage
+   * @param sourceName  string to use in stats and logs to identify this stage
    * @param basePath    path to the directory containing shapefiles to process
    * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
    * @return this runner instance for chaining
    * @see ShapefileReader
    */
-  public Planetiler addShapefileDirectorySource(String projection, String name, Path basePath, String globPattern) {
-    Path dirPath = getPath(name, "shapefile directory", basePath, null);
-    return addStage(name, "Process all features matching " + dirPath + "/" + globPattern, ifSourceUsed(name, () -> {
-      var globMatcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
+  public Planetiler addShapefileDirectorySource(String projection, String sourceName, Path basePath,
+    String globPattern) {
+    Path dirPath = getPath(sourceName, "shapefile directory", basePath, null);
+    PathMatcher matcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
 
-      try (var dirWalker = Files.walk(dirPath)) {
-        var pathStream = dirWalker.filter(path -> globMatcher.matches(path.getFileName()));
+    return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
+      ifSourceUsed(sourceName, () -> {
+        // Since we process many files in parallel, we create a parent timer at the top level.
+        var timer = stats.startStage(sourceName);
 
-        WorkerPipeline.start(name, stats)
-          .readFrom("reader", pathStream::iterator)
-          .addBuffer("read_queue", 1000)
-          .sinkToConsumer("process", config.featureProcessThreads(),
-            path -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats))
-          .await();
-      }
-    }));
+        try (var dirWalker = Files.walk(dirPath)) {
+          var pathStream = dirWalker.filter(path -> matcher.matches(path.getFileName()));
+
+          WorkerPipeline.start(sourceName, stats)
+            .readFrom("reader", pathStream::iterator)
+            .addBuffer("read_queue", 1000)
+            .sinkToConsumer("process", config.featureProcessThreads(), path -> {
+              LogUtil.setStage(sourceName, path.getFileName().toString());
+              ShapefileReader.processWithProjection(projection, sourceName, path, featureGroup, config, profile, stats,
+                false);
+              LogUtil.clearStage();
+            })
+            .await();
+
+          timer.stop();
+        }
+      }));
   }
 
   /**
    * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
    * {@param globPattern}.
    *
-   * @param name        string to use in stats and logs to identify this stage
+   * @param sourceName  string to use in stats and logs to identify this stage
    * @param basePath    path to the directory containing shapefiles to process
    * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
    * @return this runner instance for chaining
    * @see ShapefileReader
    */
-  public Planetiler addShapefileDirectorySource(String name, Path basePath, String globPattern) {
-    return addShapefileDirectorySource(null, name, basePath, globPattern);
+  public Planetiler addShapefileDirectorySource(String sourceName, Path basePath, String globPattern) {
+    return addShapefileDirectorySource(null, sourceName, basePath, globPattern);
   }
 
 
@@ -322,7 +334,8 @@ public class Planetiler {
     Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
       ifSourceUsed(name,
-        () -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats)));
+        () -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats,
+          true)));
   }
 
   /**

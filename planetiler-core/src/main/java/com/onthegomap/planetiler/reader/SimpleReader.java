@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * multi-pass processing.
  * <p>
  * Implementations provide features through {@link #read()} and {@link #getCount()} and this class handles processing
- * them in parallel according to the profile in {@link #process(FeatureGroup, PlanetilerConfig)}.
+ * them in parallel according to the profile in {@link #process(FeatureGroup, PlanetilerConfig, boolean)}.
  */
 public abstract class SimpleReader implements Closeable {
 
@@ -43,11 +43,12 @@ public abstract class SimpleReader implements Closeable {
   /**
    * Renders map features for all elements from this data source based on the mapping logic defined in {@code profile}.
    *
-   * @param writer consumer for rendered features
-   * @param config user-defined parameters controlling number of threads and log interval
+   * @param writer   consumer for rendered features
+   * @param config   user-defined parameters controlling number of threads and log interval
+   * @param logStage whether to start a new logging stage when processing this source
    */
-  public final void process(FeatureGroup writer, PlanetilerConfig config) {
-    var timer = stats.startStage(sourceName);
+  public final void process(FeatureGroup writer, PlanetilerConfig config, boolean logStage) {
+    var timer = stats.startStage(sourceName, logStage);
     long featureCount = getCount();
     int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();

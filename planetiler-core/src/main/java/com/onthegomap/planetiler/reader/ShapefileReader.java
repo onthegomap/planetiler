@@ -87,12 +87,13 @@ public class ShapefileReader extends SimpleReader implements Closeable {
    * @param config           user-defined parameters controlling number of threads and log interval
    * @param profile          logic that defines what map features to emit for each source feature
    * @param stats            to keep track of counters and timings
+   * @param logStage         whether to start a new logging stage for this shapefile
    * @throws IllegalArgumentException if a problem occurs reading the input file
    */
   public static void processWithProjection(String sourceProjection, String sourceName, Path input, FeatureGroup writer,
-    PlanetilerConfig config, Profile profile, Stats stats) {
+    PlanetilerConfig config, Profile profile, Stats stats, boolean logStage) {
     try (var reader = new ShapefileReader(sourceProjection, sourceName, input, profile, stats)) {
-      reader.process(writer, config);
+      reader.process(writer, config, logStage);
     }
   }
 
@@ -111,7 +112,7 @@ public class ShapefileReader extends SimpleReader implements Closeable {
   public static void process(String sourceName, Path input, FeatureGroup writer, PlanetilerConfig config,
     Profile profile,
     Stats stats) {
-    processWithProjection(null, sourceName, input, writer, config, profile, stats);
+    processWithProjection(null, sourceName, input, writer, config, profile, stats, true);
   }
 
   private static URI findShpFile(Path path, Stream<Path> walkStream) {

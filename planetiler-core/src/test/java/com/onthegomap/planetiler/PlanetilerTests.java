@@ -108,7 +108,7 @@ class PlanetilerTests {
 
       @Override
       public void close() {}
-    }.process(featureGroup, config);
+    }.process(featureGroup, config, true);
   }
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
