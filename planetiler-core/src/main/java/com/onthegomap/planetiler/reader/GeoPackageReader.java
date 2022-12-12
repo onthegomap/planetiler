@@ -83,7 +83,7 @@ public class GeoPackageReader extends SimpleReader implements Closeable {
   public static void process(String sourceName, Path input, FeatureGroup writer,
     PlanetilerConfig config, Profile profile, Stats stats) {
     try (var reader = new GeoPackageReader(sourceName, input, profile, stats)) {
-      reader.process(writer, config, true);
+      reader.process(writer, config);
     }
   }
 
