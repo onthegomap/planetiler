@@ -10,8 +10,9 @@ import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
-import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Envelope;
@@ -23,33 +24,37 @@ import org.slf4j.LoggerFactory;
  * can be read in a single pass, like {@link ShapefileReader} but not {@link OsmReader} which requires complex
  * multi-pass processing.
  * <p>
- * Implementations provide features through {@link #read()} and {@link #getCount()} and this class handles processing
- * them in parallel according to the profile in {@link #process(FeatureGroup, PlanetilerConfig, boolean)}.
+ * Implementations provide features through {@link #readPath(Path, Consumer)}} and {@link #getCountForPath(Path)}} and
+ * this class handles processing them in parallel according to the profile in
+ * {@link #process(FeatureGroup, PlanetilerConfig)}.
  */
-public abstract class SimpleReader implements Closeable {
+public abstract class SimpleReader<F extends SourceFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SimpleReader.class);
 
+  protected final AtomicLong id = new AtomicLong(0);
   protected final Stats stats;
   protected final String sourceName;
-  private final Profile profile;
+  protected final Profile profile;
+  protected final List<Path> sourcePaths;
 
-  protected SimpleReader(Profile profile, Stats stats, String sourceName) {
+  protected SimpleReader(Profile profile, Stats stats, String sourceName, List<Path> sourcePaths) {
     this.stats = stats;
     this.profile = profile;
     this.sourceName = sourceName;
+    this.sourcePaths = sourcePaths;
   }
 
   /**
    * Renders map features for all elements from this data source based on the mapping logic defined in {@code profile}.
    *
-   * @param writer   consumer for rendered features
-   * @param config   user-defined parameters controlling number of threads and log interval
-   * @param logStage whether to start a new logging stage when processing this source
+   * @param writer consumer for rendered features
+   * @param config user-defined parameters controlling number of threads and log interval
    */
-  public final void process(FeatureGroup writer, PlanetilerConfig config, boolean logStage) {
-    var timer = stats.startStage(sourceName, logStage);
+  public final void process(FeatureGroup writer, PlanetilerConfig config) {
+    var timer = stats.startStage(sourceName);
     long featureCount = getCount();
+    int readThreads = config.featureReadThreads();
     int writeThreads = config.featureWriteThreads();
     int processThreads = config.featureProcessThreads();
     Envelope latLonBounds = config.bounds().latLon();
@@ -57,8 +62,10 @@ public abstract class SimpleReader implements Closeable {
     AtomicLong featuresWritten = new AtomicLong(0);
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
-      .fromGenerator("read", read())
-      .addBuffer("read_queue", 1000)
+      .readFrom("source_paths", sourcePaths)
+      .addBuffer("read_queue", 1000, 1)
+      .addWorker("read", readThreads, read())
+      .addBuffer("process_queue", 1000, 1)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
@@ -126,8 +133,25 @@ public abstract class SimpleReader implements Closeable {
   }
 
   /** Returns the number of features to be read from this source to use for displaying progress. */
-  public abstract long getCount();
+  public long getCount() {
+    long numFeatures = 0;
+    for (var path : sourcePaths) {
+      numFeatures += getCountForPath(path);
+    }
+    return numFeatures;
+  }
+
+  /** Returns the number of features to be read from a single path to use for displaying progress. */
+  public abstract long getCountForPath(Path path);
 
   /** Returns a source that initiates a {@link WorkerPipeline} with elements from this data provider. */
-  public abstract WorkerPipeline.SourceStep<? extends SourceFeature> read();
+  public abstract void readPath(Path path, Consumer<F> next) throws Exception;
+
+  public WorkerPipeline.WorkerStep<Path, F> read() {
+    return (paths, consumer) -> {
+      for (var path : paths) {
+        readPath(path, consumer);
+      }
+    };
+  }
 }

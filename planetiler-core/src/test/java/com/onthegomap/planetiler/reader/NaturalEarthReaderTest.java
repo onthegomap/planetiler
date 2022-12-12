@@ -32,7 +32,8 @@ class NaturalEarthReaderTest {
 
         List<Geometry> points = new ArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
-          .fromGenerator("naturalearth", reader.read())
+          .readFromTiny("source_paths", reader.sourcePaths)
+          .addWorker("naturalearth", 1, reader.read())
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {
             Object elevation = elem.getTag("elevation");

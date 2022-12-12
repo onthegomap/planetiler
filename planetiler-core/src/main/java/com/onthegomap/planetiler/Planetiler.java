@@ -25,7 +25,6 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
-import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -272,24 +271,9 @@ public class Planetiler {
 
     return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
       ifSourceUsed(sourceName, () -> {
-        // Since we process many files in parallel, we create a parent timer at the top level.
-        var timer = stats.startStage(sourceName);
-
         try (var dirWalker = Files.walk(dirPath)) {
-          var pathStream = dirWalker.filter(path -> matcher.matches(path.getFileName()));
-
-          WorkerPipeline.start(sourceName, stats)
-            .readFrom("reader", pathStream::iterator)
-            .addBuffer("read_queue", 1000)
-            .sinkToConsumer("process", config.featureProcessThreads(), path -> {
-              LogUtil.setStage(sourceName, path.getFileName().toString());
-              ShapefileReader.processWithProjection(projection, sourceName, path, featureGroup, config, profile, stats,
-                false);
-              LogUtil.clearStage();
-            })
-            .await();
-
-          timer.stop();
+          List<Path> paths = dirWalker.filter(path -> matcher.matches(path.getFileName())).toList();
+          ShapefileReader.processWithProjection(projection, sourceName, paths, featureGroup, config, profile, stats);
         }
       }));
   }
@@ -334,8 +318,8 @@ public class Planetiler {
     Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
       ifSourceUsed(name,
-        () -> ShapefileReader.processWithProjection(projection, name, path, featureGroup, config, profile, stats,
-          true)));
+        () -> ShapefileReader.processWithProjection(projection, name, List.of(path), featureGroup, config, profile,
+          stats)));
   }
 
   /**

@@ -22,7 +22,6 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,21 +93,17 @@ class PlanetilerTests {
 
   private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
     List<? extends SourceFeature> features) {
-    new SimpleReader(profile, stats, "test") {
-
+    new SimpleReader(profile, stats, "test", List.of(Path.of("test-path"))) {
       @Override
-      public long getCount() {
+      public long getCountForPath(Path path) {
         return features.size();
       }
 
       @Override
-      public WorkerPipeline.SourceStep<SourceFeature> read() {
-        return features::forEach;
+      public void readPath(Path path, Consumer next) {
+        features.forEach(next);
       }
-
-      @Override
-      public void close() {}
-    }.process(featureGroup, config, true);
+    }.process(featureGroup, config);
   }
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
