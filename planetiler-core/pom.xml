@@ -138,6 +138,11 @@
       <artifactId>guava</artifactId>
       <version>31.1-jre</version>
     </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-geopkg</artifactId>
+      <version>${geotools.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
