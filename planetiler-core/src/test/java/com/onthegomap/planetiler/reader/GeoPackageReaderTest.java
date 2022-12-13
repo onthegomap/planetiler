@@ -3,14 +3,15 @@ package com.onthegomap.planetiler.reader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.locationtech.jts.geom.Geometry;
@@ -25,19 +26,15 @@ class GeoPackageReaderTest {
 
   private static void testReadGeoPackage(Path path) {
     try (
-      var reader = new GeoPackageReader(
-        "test",
-        path,
-        new Profile.NullProfile(),
-        Stats.inMemory()
-      )
+      var reader = new GeoPackageReader("test", path)
     ) {
       for (int i = 1; i <= 2; i++) {
-        assertEquals(86, reader.getCount());
+        assertEquals(86, reader.getFeatureCount());
         List<Geometry> points = new ArrayList<>();
         List<String> names = new ArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
-          .fromGenerator("geopackage", reader.read())
+          .readFromTiny("files", List.of(Path.of("dummy-path")))
+          .addWorker("geopackage", 1, (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next))
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {
             assertTrue(elem.getTag("name") instanceof String);

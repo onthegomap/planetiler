@@ -347,7 +347,7 @@ public class Planetiler {
     Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
       ifSourceUsed(name,
-        () -> GeoPackageReader.process(name, path, featureGroup, config, profile, stats)));
+        () -> GeoPackageReader.process(name, List.of(path), featureGroup, config, profile, stats)));
   }
 
 
