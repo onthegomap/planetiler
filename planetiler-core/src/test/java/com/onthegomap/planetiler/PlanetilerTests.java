@@ -1663,6 +1663,7 @@ class PlanetilerTests {
       .addOsmSource("osm", tempOsm)
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg"), null)
       .setOutput("mbtiles", mbtiles)
       .run();
 
@@ -1733,6 +1734,7 @@ class PlanetilerTests {
       .addOsmSource("osm", TestUtils.pathToResource("monaco-latest.osm.pbf"))
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
+      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg"), null)
       .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
       .run();
   }

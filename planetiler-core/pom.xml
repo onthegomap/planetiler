@@ -20,6 +20,7 @@
     <log4j.version>2.19.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <protobuf.version>3.21.12</protobuf.version>
+    <geopackage.version>6.6.0</geopackage.version>
   </properties>
 
   <dependencies>
@@ -139,9 +140,9 @@
       <version>31.1-jre</version>
     </dependency>
     <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-geopkg</artifactId>
-      <version>${geotools.version}</version>
+      <groupId>mil.nga.geopackage</groupId>
+      <artifactId>geopackage</artifactId>
+      <version>${geopackage.version}</version>
     </dependency>
   </dependencies>
 

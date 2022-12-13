@@ -21,10 +21,8 @@ class GeoPackageReaderTest {
   @Test
   @Timeout(30)
   void testReadGeoPackage() {
-    testReadGeoPackage(TestUtils.pathToResource("geopackage.gpkg"));
-  }
+    Path path = TestUtils.pathToResource("geopackage.gpkg");
 
-  private static void testReadGeoPackage(Path path) {
     try (
       var reader = new GeoPackageReader("test", path)
     ) {
