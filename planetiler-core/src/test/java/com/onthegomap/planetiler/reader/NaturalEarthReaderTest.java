@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,14 +27,16 @@ class NaturalEarthReaderTest {
   @Timeout(30)
   void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
     var path = TestUtils.pathToResource(filename);
-    try (var reader = new NaturalEarthReader("test", path, tempDir, new Profile.NullProfile(), Stats.inMemory())) {
+    try (var reader = new NaturalEarthReader("test", path, tempDir)) {
       for (int i = 1; i <= 2; i++) {
-        assertEquals(7_679, reader.getCount(), "iter " + i);
+        assertEquals(7_679, reader.getFeatureCount(), "iter " + i);
 
         List<Geometry> points = new ArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
-          .readFromTiny("source_paths", reader.sourcePaths)
-          .addWorker("naturalearth", 1, reader.read())
+          .readFromTiny("source_paths", List.of(path))
+          .addWorker("naturalearth", 1,
+            (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next)
+          )
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {
             Object elevation = elem.getTag("elevation");

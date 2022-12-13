@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -91,19 +92,25 @@ class PlanetilerTests {
     return elem;
   }
 
-  private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
-    List<? extends SourceFeature> features) {
-    new SimpleReader(profile, stats, "test", List.of(Path.of("test-path"))) {
-      @Override
-      public long getCountForPath(Path path) {
-        return features.size();
-      }
+  private <F extends SourceFeature> void processReaderFeatures(FeatureGroup featureGroup, Profile profile,
+    PlanetilerConfig config, List<F> features) {
+    SourceFeatureProcessor.processFiles(
+      "test",
+      List.of(Path.of("dummy-path")), path -> new SimpleReader<F>("test") {
+        @Override
+        public long getFeatureCount() {
+          return features.size();
+        }
 
-      @Override
-      public void readPath(Path path, Consumer next) {
-        features.forEach(next);
-      }
-    }.process(featureGroup, config);
+        @Override
+        public void readFeatures(Consumer<F> next) {
+          features.forEach(next);
+        }
+
+        @Override
+        public void close() { /* pass */ }
+      }, featureGroup, config, profile, stats
+    );
   }
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,

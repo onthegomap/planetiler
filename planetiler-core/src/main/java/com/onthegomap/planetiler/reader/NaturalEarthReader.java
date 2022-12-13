@@ -9,7 +9,6 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.LogUtil;
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -35,10 +34,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see <a href="https://www.naturalearthdata.com/">Natural Earth</a>
  */
-public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements Closeable {
+public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
 
   private static final Pattern VALID_TABLE_NAME = Pattern.compile("ne_[a-z0-9_]+", Pattern.CASE_INSENSITIVE);
   private static final Logger LOGGER = LoggerFactory.getLogger(NaturalEarthReader.class);
+
   private final Connection conn;
   private Path extracted;
 
@@ -51,8 +51,9 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
     }
   }
 
-  NaturalEarthReader(String sourceName, Path input, Path tmpDir, Profile profile, Stats stats) {
-    super(profile, stats, sourceName, List.of(input));
+  NaturalEarthReader(String sourceName, Path input, Path tmpDir) {
+    super(sourceName);
+
     LogUtil.setStage(sourceName);
     try {
       conn = open(input, tmpDir);
@@ -66,7 +67,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
    * on the mapping logic defined in {@code profile}.
    *
    * @param sourceName string ID for this reader to use in logs and stats
-   * @param input      path to the sqlite or zip file
+   * @param sourcePath path to the sqlite or zip file
    * @param tmpDir     directory to extract the sqlite file into (if input is a zip file)
    * @param writer     consumer for rendered features
    * @param config     user-defined parameters controlling number of threads and log interval
@@ -74,11 +75,14 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
    * @param stats      to keep track of counters and timings
    * @throws IllegalArgumentException if a problem occurs reading the input file
    */
-  public static void process(String sourceName, Path input, Path tmpDir, FeatureGroup writer,
+  public static void process(String sourceName, Path sourcePath, Path tmpDir, FeatureGroup writer,
     PlanetilerConfig config, Profile profile, Stats stats) {
-    try (var reader = new NaturalEarthReader(sourceName, input, tmpDir, profile, stats)) {
-      reader.process(writer, config);
-    }
+    SourceFeatureProcessor.processFiles(
+      sourceName,
+      List.of(sourcePath),
+      path -> new NaturalEarthReader(sourceName, path, tmpDir),
+      writer, config, profile, stats
+    );
   }
 
   /** Returns a JDBC connection to the sqlite file. Input can be the sqlite file itself or a zip file containing it. */
@@ -117,7 +121,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
   }
 
   @Override
-  public long getCountForPath(Path path) {
+  public long getFeatureCount() {
     long numFeatures = 0;
     for (String table : tableNames()) {
       try (
@@ -134,7 +138,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
   }
 
   @Override
-  public void readPath(Path path, Consumer<SimpleFeature> next) throws Exception {
+  public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
     // pass every element in every table through the profile
     var tables = tableNames();
     for (int i = 0; i < tables.size(); i++) {
@@ -163,7 +167,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> implements C
             // create the feature and pass to next stage
             Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
             SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, new HashMap<>(column.length - 1),
-              sourceName, table, id.incrementAndGet());
+              sourceName, table, featureId.incrementAndGet());
             for (int c = 0; c < column.length; c++) {
               if (c != geometryColumn) {
                 Object value = rs.getObject(c + 1);
