@@ -1736,6 +1736,13 @@ class PlanetilerTests {
       // 2x the number of features.
       assertEquals(2 * fileCount, dirCount);
     }
+
+    // Tests will fail on Windows if we leave non-empty directories in tempDir
+    try (var walk = Files.walk(shpDirPath)) {
+      for (var path : walk.filter(Files::isRegularFile).toList()) {
+        Files.delete(path);
+      }
+    }
   }
 
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
