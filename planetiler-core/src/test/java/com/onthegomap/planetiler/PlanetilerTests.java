@@ -1688,11 +1688,7 @@ class PlanetilerTests {
 
   @Test
   void testPlanetilerRunnerShapefile() throws Exception {
-    Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path mbtiles = tempDir.resolve("output.mbtiles");
-    Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
-    Files.copy(originalOsm, tempOsm);
-
     Path originalShp = TestUtils.pathToResource("shapefile.zip");
 
     // Create some duplicates so the directory source can read multiple files
@@ -1700,7 +1696,7 @@ class PlanetilerTests {
     Files.copy(originalShp, tempDir.resolve("and-this.shp.zip"));
     Files.copy(originalShp, tempDir.resolve("but-not-this.zip"));
 
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("tempdata")))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
