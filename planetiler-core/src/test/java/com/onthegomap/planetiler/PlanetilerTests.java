@@ -1689,14 +1689,9 @@ class PlanetilerTests {
   @Test
   void testPlanetilerRunnerShapefile() throws Exception {
     Path mbtiles = tempDir.resolve("output.mbtiles");
-    Path originalShp = TestUtils.pathToResource("shapefile.zip");
+    Path resourceDir = TestUtils.pathToResource("");
 
-    // Create some duplicates so the directory source can read multiple files
-    Files.copy(originalShp, tempDir.resolve("match-this.shp.zip"));
-    Files.copy(originalShp, tempDir.resolve("and-this.shp.zip"));
-    Files.copy(originalShp, tempDir.resolve("but-not-this.zip"));
-
-    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("tempdata")))
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
       .setProfile(new Profile.NullProfile() {
         @Override
         public void processFeature(SourceFeature source, FeatureCollector features) {
@@ -1705,8 +1700,8 @@ class PlanetilerTests {
             .setAttr("source", source.getSource());
         }
       })
-      .addShapefileDirectorySource("shapefile-dir", tempDir, "*.shp.zip")
-      .addShapefileSource("shapefile", originalShp)
+      .addShapefileDirectorySource("shapefile-dir", resourceDir, "shape*.zip")
+      .addShapefileSource("shapefile", resourceDir.resolve("shapefile.zip"))
       .setOutput("mbtiles", mbtiles)
       .run();
 
