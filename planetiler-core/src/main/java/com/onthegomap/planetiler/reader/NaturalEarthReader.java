@@ -139,6 +139,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
+    long id = 0;
     // pass every element in every table through the profile
     var tables = tableNames();
     for (int i = 0; i < tables.size(); i++) {
@@ -167,7 +168,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
             // create the feature and pass to next stage
             Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
             SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, new HashMap<>(column.length - 1),
-              sourceName, table, featureId.incrementAndGet());
+              sourceName, table, ++id);
             for (int c = 0; c < column.length; c++) {
               if (c != geometryColumn) {
                 Object value = rs.getObject(c + 1);

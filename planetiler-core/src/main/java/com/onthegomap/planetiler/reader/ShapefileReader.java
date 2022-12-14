@@ -138,6 +138,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws TransformException {
+    long id = 0;
     try (var iter = inputSource.features()) {
       while (iter.hasNext()) {
         org.opengis.feature.simple.SimpleFeature feature = iter.next();
@@ -148,7 +149,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
         }
         if (latLonGeometry != null) {
           SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
-            sourceName, null, featureId.incrementAndGet());
+            sourceName, null, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));
           }

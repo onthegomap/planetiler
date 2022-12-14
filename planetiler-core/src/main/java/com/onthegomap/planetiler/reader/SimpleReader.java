@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import java.io.Closeable;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 
@@ -15,8 +14,6 @@ import java.util.function.Consumer;
  */
 public abstract class SimpleReader<F extends SourceFeature> implements Closeable {
 
-  /** Shared monotonically increasing counter to assign unique IDs to features of the same source */
-  protected static AtomicLong featureId = new AtomicLong(0L);
   protected final String sourceName;
 
   protected SimpleReader(String sourceName) {
