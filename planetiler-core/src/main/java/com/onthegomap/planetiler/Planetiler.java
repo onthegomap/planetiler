@@ -271,9 +271,10 @@ public class Planetiler {
 
     return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
       ifSourceUsed(sourceName, () -> {
-        try (var walk = Files.walk(dirPath)) {
-          var sourcePaths = walk.filter(path -> matcher.matches(path.getFileName()));
-
+        try (
+          var walk = Files.walk(dirPath);
+          var sourcePaths = walk.filter(path -> matcher.matches(path.getFileName()))
+        ) {
           ShapefileReader.processWithProjection(projection, sourceName, sourcePaths.toList(), featureGroup, config,
             profile, stats);
         }
