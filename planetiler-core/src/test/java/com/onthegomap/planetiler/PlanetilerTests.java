@@ -96,7 +96,7 @@ class PlanetilerTests {
     PlanetilerConfig config, List<F> features) {
     SourceFeatureProcessor.processFiles(
       "test",
-      List.of(Path.of("dummy-path")), path -> new SimpleReader<F>("test") {
+      List.of(Path.of("mock-path")), path -> new SimpleReader<F>("test") {
         @Override
         public long getFeatureCount() {
           return features.size();
@@ -1663,7 +1663,6 @@ class PlanetilerTests {
       .addOsmSource("osm", tempOsm)
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
-      .addShapefileDirectorySource("shapefiledir", TestUtils.pathToResource(""), "shapefile*.zip")
       .setOutput("mbtiles", mbtiles)
       .run();
 
@@ -1684,6 +1683,58 @@ class PlanetilerTests {
 
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
+    }
+  }
+
+  @Test
+  void testPlanetilerRunnerShapefile() throws Exception {
+    Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
+    Files.copy(originalOsm, tempOsm);
+
+    Path originalShp = TestUtils.pathToResource("shapefile.zip");
+    Path shpDirPath = tempDir.resolve("shp-dir/");
+
+    Files.createDirectory(shpDirPath);
+
+    // Create some duplicates so the directory source can read multiple files
+    Files.copy(originalShp, shpDirPath.resolve("match-this.shp.zip"));
+    Files.copy(originalShp, shpDirPath.resolve("and-this.shp.zip"));
+    Files.copy(originalShp, shpDirPath.resolve("but-not-this.zip"));
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.point("stations")
+            .setZoomRange(0, 14)
+            .setAttr("source", source.getSource());
+        }
+      })
+      .addShapefileDirectorySource("shapefile-dir", shpDirPath, "*.shp.zip")
+      .addShapefileSource("shapefile", originalShp)
+      .setOutput("mbtiles", mbtiles)
+      .run();
+
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      long fileCount = 0;
+      long dirCount = 0;
+      var tileMap = TestUtils.getTileMap(db);
+      for (var tile : tileMap.values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+
+          switch ((String) feature.attrs().get("source")) {
+            case "shapefile" -> fileCount++;
+            case "shapefile-dir" -> dirCount++;
+          }
+        }
+      }
+
+      // Input file was copied twice into test directory, directory source should have
+      // 2x the number of features.
+      assertEquals(2 * fileCount, dirCount);
     }
   }
 

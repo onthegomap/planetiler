@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * This class coordinates reading and processing of one or more Path objects that are grouped under a single source
  * name.
  * <p>
- * The paths will be processed in parallel according to the the {@link #profile} using {@link SimpleReader} objects
+ * The paths will be processed in parallel according to the {@link #profile} using {@link SimpleReader} objects
  * constructed by {@link #readerFactory}.
  */
 public class SourceFeatureProcessor<F extends SourceFeature> {
@@ -59,8 +59,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
    */
   public static <F extends SourceFeature> void processFiles(
     String sourceName, List<Path> sourcePaths, Function<Path, SimpleReader<F>> readerFactory, FeatureGroup writer,
-    PlanetilerConfig config,
-    Profile profile, Stats stats) {
+    PlanetilerConfig config, Profile profile, Stats stats) {
 
     var processor = new SourceFeatureProcessor<>(sourceName, readerFactory, profile, stats);
     processor.processFiles(sourcePaths, writer, config);
@@ -154,7 +153,7 @@ public class SourceFeatureProcessor<F extends SourceFeature> {
     );
   }
 
-  private long getFeatureCount(List<Path> sourcePaths) {
+  protected long getFeatureCount(List<Path> sourcePaths) {
     long featureCount = 0;
     for (var path : sourcePaths) {
       try (var reader = readerFactory.apply(path)) {
