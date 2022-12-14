@@ -1694,14 +1694,11 @@ class PlanetilerTests {
     Files.copy(originalOsm, tempOsm);
 
     Path originalShp = TestUtils.pathToResource("shapefile.zip");
-    Path shpDirPath = tempDir.resolve("shp-dir/");
-
-    Files.createDirectory(shpDirPath);
 
     // Create some duplicates so the directory source can read multiple files
-    Files.copy(originalShp, shpDirPath.resolve("match-this.shp.zip"));
-    Files.copy(originalShp, shpDirPath.resolve("and-this.shp.zip"));
-    Files.copy(originalShp, shpDirPath.resolve("but-not-this.zip"));
+    Files.copy(originalShp, tempDir.resolve("match-this.shp.zip"));
+    Files.copy(originalShp, tempDir.resolve("and-this.shp.zip"));
+    Files.copy(originalShp, tempDir.resolve("but-not-this.zip"));
 
     Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
       .setProfile(new Profile.NullProfile() {
@@ -1712,7 +1709,7 @@ class PlanetilerTests {
             .setAttr("source", source.getSource());
         }
       })
-      .addShapefileDirectorySource("shapefile-dir", shpDirPath, "*.shp.zip")
+      .addShapefileDirectorySource("shapefile-dir", tempDir, "*.shp.zip")
       .addShapefileSource("shapefile", originalShp)
       .setOutput("mbtiles", mbtiles)
       .run();
@@ -1735,13 +1732,6 @@ class PlanetilerTests {
       // Input file was copied twice into test directory, directory source should have
       // 2x the number of features.
       assertEquals(2 * fileCount, dirCount);
-    }
-
-    // Tests will fail on Windows if we leave non-empty directories in tempDir
-    try (var walk = Files.walk(shpDirPath)) {
-      for (var path : walk.filter(Files::isRegularFile).toList()) {
-        Files.delete(path);
-      }
     }
   }
 
