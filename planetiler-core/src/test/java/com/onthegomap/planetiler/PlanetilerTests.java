@@ -1722,6 +1722,7 @@ class PlanetilerTests {
 
       // Input file was copied twice into test directory, directory source should have
       // 2x the number of features.
+      assertTrue(fileCount > 0);
       assertEquals(2 * fileCount, dirCount);
     }
   }
