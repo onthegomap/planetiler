@@ -68,6 +68,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
     CoordinateReferenceSystem lonLatCRS = CRS.decode("EPSG:4326");
+    long id = 0;
 
     for (var featureName : geoPackage.getFeatureTables()) {
       FeatureDao features = geoPackage.getFeatureDao(featureName);
@@ -86,7 +87,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         Geometry lonLatGeom = (transform.isIdentity()) ? featureGeom : JTS.transform(featureGeom, transform);
 
         SimpleFeature geom = SimpleFeature.create(lonLatGeom, new HashMap<>(),
-          sourceName, featureName, featureId.incrementAndGet());
+          sourceName, featureName, ++id);
 
         var columns = feature.getColumns();
         for (int i = 0; i < columns.columnCount(); ++i) {
