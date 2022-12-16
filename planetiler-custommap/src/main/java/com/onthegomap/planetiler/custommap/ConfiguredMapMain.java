@@ -71,6 +71,7 @@ public class ConfiguredMapMain {
     switch (sourceType) {
       case OSM -> planetiler.addOsmSource(source.id(), localPath, source.url());
       case SHAPEFILE -> planetiler.addShapefileSource(source.id(), localPath, source.url());
+      case GEOPACKAGE -> planetiler.addGeoPackageSource(source.id(), localPath, source.url());
       default -> throw new IllegalArgumentException("Unhandled source type for " + source.id() + ": " + sourceType);
     }
   }

@@ -6,5 +6,7 @@ public enum DataSourceType {
   @JsonProperty("osm")
   OSM,
   @JsonProperty("shapefile")
-  SHAPEFILE
+  SHAPEFILE,
+  @JsonProperty("geopackage")
+  GEOPACKAGE
 }
