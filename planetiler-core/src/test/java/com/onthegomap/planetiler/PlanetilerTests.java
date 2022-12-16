@@ -1728,6 +1728,45 @@ class PlanetilerTests {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "",
+    "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
+  })
+  void testPlanetilerRunnerGeoPackage(String args) throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+
+    Planetiler.create(Arguments.fromArgs((args + " --tmpdir=" + tempDir.resolve("data")).split("\\s+")))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.point("stations")
+            .setZoomRange(0, 14)
+            .setAttr("name", source.getString("name"));
+        }
+      })
+      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg"), null)
+      .setOutput("mbtiles", mbtiles)
+      .run();
+
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      Set<String> uniqueNames = new HashSet<>();
+      long featureCount = 0;
+      var tileMap = TestUtils.getTileMap(db);
+      for (var tile : tileMap.values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+          featureCount++;
+          uniqueNames.add((String) feature.attrs().get("name"));
+        }
+      }
+
+      assertTrue(featureCount > 0);
+      assertEquals(86, uniqueNames.size());
+      assertTrue(uniqueNames.contains("Van Dörn Street"));
+    }
+  }
+
   private void runWithProfile(Path tempDir, Profile profile, boolean force) throws Exception {
     Planetiler.create(Arguments.of("tmpdir", tempDir, "force", Boolean.toString(force)))
       .setProfile(profile)
