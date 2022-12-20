@@ -25,11 +25,13 @@ Build the configurable Planetiler profile locally with:
 ```
 
 To build the `shortbread.yml` configurable schema from the samples folder, run:
+
 ```bash
 java -cp target/*with-deps.jar com.onthegomap.planetiler.custommap.ConfiguredMapMain --download --schema src/main/resources/samples/shortbread.yml
 ```
 
 Inspect the generated tiles with:
+
 ```bash
 docker run --rm -it -v "$(pwd)/data":/data -p 8080:8080 maptiler/tileserver-gl -p 8080
 ```
