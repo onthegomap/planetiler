@@ -28,7 +28,7 @@ import java.util.List;
  */
 public class BikeRouteOverlay implements Profile {
   /*
-   * The processing happens in 4 steps:
+   * The processing happens in 3 steps:
    * 1. On the first pass through the input file, store relevant information from OSM bike route relations
    * 2. On the second pass, emit linestrings for each OSM way contained in one of those relations
    * 3. Before storing each finished tile, Merge linestrings in each tile with the same tags and touching endpoints
