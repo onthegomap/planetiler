@@ -132,6 +132,7 @@ layers:
   - source: osm
     geometry: line
     # TODO get min admin level from relations
+    min_pixel_size: 0.0
     min_zoom:
       default_value: 7
       overrides:
@@ -379,6 +380,7 @@ layers:
   features:
   - source: osm
     geometry: line
+    min_pixel_size: 0.0
     min_zoom:
       default_value: 13
       overrides:
