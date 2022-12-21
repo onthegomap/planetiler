@@ -328,7 +328,10 @@ public class Planetiler {
     Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
       ifSourceUsed(name, () -> {
-        var sourcePaths = FileUtils.hasExtension(path, "zip") ? globMatchPath(path, "*.shp") : List.of(path);
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip") || Files.isDirectory(path)) {
+          sourcePaths = globMatchPath(path, "*.shp");
+        }
 
         ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
       }));
