@@ -541,7 +541,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   @Override
   public long estimateMemoryUsageBytes() {
     long size = 0;
-    size += waysInMultipolygon.serializedSizeInBytes();
+    size += waysInMultipolygon == null ? 0 : waysInMultipolygon.serializedSizeInBytes();
     // multipolygonWayGeometries is reported separately
     size += estimateSize(wayToRelations);
     size += estimateSize(relationInfo);

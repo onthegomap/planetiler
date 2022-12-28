@@ -45,14 +45,25 @@ public class Translations {
    * @param languages the set of 2-letter language codes to limit output translations to
    */
   public static Translations defaultProvider(List<String> languages) {
-    return nullProvider(languages).addTranslationProvider(new OsmTranslationProvider());
+    return nullProvider(languages).addFallbackTranslationProvider(new OsmTranslationProvider());
+  }
+
+  /**
+   * Mutates this translation instance to add {@code provider} which will be used before all other providers.
+   *
+   * @deprecated
+   */
+  @Deprecated(forRemoval = true)
+  public Translations addTranslationProvider(TranslationProvider provider) {
+    providers.add(0, provider);
+    return this;
   }
 
   /**
    * Mutates this translation instance to add {@code provider} which will be used only if all existing providers fail to
    * produce a translation for a given language.
    */
-  public Translations addTranslationProvider(TranslationProvider provider) {
+  public Translations addFallbackTranslationProvider(TranslationProvider provider) {
     providers.add(provider);
     return this;
   }
@@ -75,7 +86,7 @@ public class Translations {
         for (var entry : translations.entrySet()) {
           String key = entry.getKey();
           if (languageSet.contains(key)) {
-            output.put(key.startsWith("name:") ? key : "name:" + key, entry.getValue());
+            output.putIfAbsent(key.startsWith("name:") ? key : "name:" + key, entry.getValue());
           }
         }
       }

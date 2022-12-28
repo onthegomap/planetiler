@@ -16,8 +16,7 @@ To set up your local development environment:
   - [Windows installer](https://adoptium.net/installation.html#windows-msi)
   - [macOS installer](https://adoptium.net/installation.html#macos-pkg) (or `brew install --cask temurin`,
     or `port install openjdk17-temurin`)
-  - [Linux installer](https://github.com/adoptium/website-v2/blob/main/src/asciidoc-pages/installation/linux.adoc)
-    (or `apt-get install openjdk-17-jdk`)
+  - [Linux installer](https://adoptium.net/installation/linux/) (or `apt-get install openjdk-17-jdk`)
 - Build and run the tests ([mvnw](https://github.com/takari/maven-wrapper) automatically downloads maven the first time
   you run it):
   - on mac/linux: `./mvnw clean test`

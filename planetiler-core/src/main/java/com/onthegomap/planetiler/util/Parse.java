@@ -19,7 +19,11 @@ public class Parse {
     Pattern.compile(
       "(?<value>-?[\\d.]+)\\s*((?<mi>mi)|(?<m>m|$)|(?<km>km|kilom)|(?<ft>ft|')|(?<in>in|\")|(?<nmi>nmi|international nautical mile|nautical))",
       Pattern.CASE_INSENSITIVE);
-  private static final NumberFormat PARSER = NumberFormat.getNumberInstance(Locale.ROOT);
+  // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
+  // values when a task is finished and are not re-used.
+  @SuppressWarnings("java:S5164")
+  private static final ThreadLocal<NumberFormat> PARSER =
+    ThreadLocal.withInitial(() -> NumberFormat.getNumberInstance(Locale.ROOT));
 
   private Parse() {}
 
@@ -41,7 +45,7 @@ public class Parse {
   private static <T> T retryParseNumber(Object obj, Function<Number, T> getter, T backup) {
     // more expensive parser in case simple valueOf parse fails
     try {
-      return getter.apply(PARSER.parse(obj.toString()));
+      return getter.apply(PARSER.get().parse(obj.toString()));
     } catch (ParseException e) {
       return backup;
     }

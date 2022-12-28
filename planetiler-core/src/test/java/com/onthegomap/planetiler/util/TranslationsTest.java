@@ -21,12 +21,13 @@ class TranslationsTest {
   }
 
   @Test
-  void testTwoProviders() {
+  void testTwoProvidersPrefersFirst() {
     var translations = Translations.defaultProvider(List.of("en", "es", "de"))
-      .addTranslationProvider(elem -> Map.of("name:de", "de2", "name:en", "en2"));
-    assertEquals(Map.of("name:en", "en2", "name:es", "es1", "name:de", "de2"),
+      .addFallbackTranslationProvider(elem -> Map.of("name:de", "de2", "name:en", "en2"));
+    assertEquals(Map.of("name:en", "en1", "name:es", "es1", "name:de", "de2"),
       translations.getTranslations(Map.of("name:en", "en1", "name:es", "es1")));
   }
+
 
   @Test
   void testTransliterate() {
