@@ -17,12 +17,12 @@ import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.SourceFeatureProcessor;
 import com.onthegomap.planetiler.reader.osm.OsmBlockSource;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,23 +92,25 @@ class PlanetilerTests {
     return elem;
   }
 
-  private void processReaderFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
-    List<? extends SourceFeature> features) {
-    new SimpleReader(profile, stats, "test") {
+  private <F extends SourceFeature> void processReaderFeatures(FeatureGroup featureGroup, Profile profile,
+    PlanetilerConfig config, List<F> features) {
+    SourceFeatureProcessor.processFiles(
+      "test",
+      List.of(Path.of("mock-path")), path -> new SimpleReader<F>("test") {
+        @Override
+        public long getFeatureCount() {
+          return features.size();
+        }
 
-      @Override
-      public long getCount() {
-        return features.size();
-      }
+        @Override
+        public void readFeatures(Consumer<F> next) {
+          features.forEach(next);
+        }
 
-      @Override
-      public WorkerPipeline.SourceStep<SourceFeature> read() {
-        return features::forEach;
-      }
-
-      @Override
-      public void close() {}
-    }.process(featureGroup, config);
+        @Override
+        public void close() { /* pass */ }
+      }, featureGroup, config, profile, stats
+    );
   }
 
   private void processOsmFeatures(FeatureGroup featureGroup, Profile profile, PlanetilerConfig config,
@@ -1681,6 +1683,47 @@ class PlanetilerTests {
 
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
+    }
+  }
+
+  @Test
+  void testPlanetilerRunnerShapefile() throws Exception {
+    Path mbtiles = tempDir.resolve("output.mbtiles");
+    Path resourceDir = TestUtils.pathToResource("");
+
+    Planetiler.create(Arguments.fromArgs("--tmpdir=" + tempDir.resolve("data")))
+      .setProfile(new Profile.NullProfile() {
+        @Override
+        public void processFeature(SourceFeature source, FeatureCollector features) {
+          features.point("stations")
+            .setZoomRange(0, 14)
+            .setAttr("source", source.getSource());
+        }
+      })
+      .addShapefileDirectorySource("shapefile-dir", resourceDir, "shape*.zip")
+      .addShapefileSource("shapefile", resourceDir.resolve("shapefile.zip"))
+      .setOutput("mbtiles", mbtiles)
+      .run();
+
+    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+      long fileCount = 0;
+      long dirCount = 0;
+      var tileMap = TestUtils.getTileMap(db);
+      for (var tile : tileMap.values()) {
+        for (var feature : tile) {
+          feature.geometry().validate();
+
+          switch ((String) feature.attrs().get("source")) {
+            case "shapefile" -> fileCount++;
+            case "shapefile-dir" -> dirCount++;
+          }
+        }
+      }
+
+      // Input file was copied twice into test directory, directory source should have
+      // 2x the number of features.
+      assertTrue(fileCount > 0);
+      assertEquals(2 * fileCount, dirCount);
     }
   }
 
