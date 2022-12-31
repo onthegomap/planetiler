@@ -26,18 +26,14 @@ import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -296,7 +292,8 @@ public class Planetiler {
 
     return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
       ifSourceUsed(sourceName, () -> {
-        var sourcePaths = globMatchPath(basePath, globPattern, zipPath -> globMatchPath(zipPath, "*.shp"));
+        var sourcePaths = FileUtils.walkPathWithPattern(basePath, globPattern,
+          zipPath -> FileUtils.walkPathWithPattern(zipPath, "*.shp"));
         ShapefileReader.processWithProjection(projection, sourceName, sourcePaths, featureGroup, config,
           profile, stats);
       }));
@@ -330,7 +327,7 @@ public class Planetiler {
       ifSourceUsed(name, () -> {
         List<Path> sourcePaths = List.of(path);
         if (FileUtils.hasExtension(path, "zip") || Files.isDirectory(path)) {
-          sourcePaths = globMatchPath(path, "*.shp");
+          sourcePaths = FileUtils.walkPathWithPattern(path, "*.shp");
         }
 
         ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
@@ -761,50 +758,6 @@ public class Planetiler {
       if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
         throw new IllegalArgumentException(inputPath.path + " does not exist");
       }
-    }
-  }
-
-  // Helper for globMatchPath which will not recurse into zip files.
-  private List<Path> globMatchPath(Path basePath, String pattern) {
-    try {
-      return globMatchPath(basePath, pattern, zipPath -> List.of());
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  /**
-   * Returns a list of paths matching {@param pattern} within {@param basePath}, which may be either a ZIP archive or a
-   * directory.
-   * <p/>
-   * When {@param basePath} is a directory, the additional {@param onZipFile} function will be called whenever a ZIP
-   * archive matching {@param pattern} is found. This allows a different pattern to be used within the archive.
-   */
-  private List<Path> globMatchPath(Path basePath, String pattern, Function<Path, List<Path>> onZipFile)
-    throws IOException {
-    PathMatcher matcher = basePath.getFileSystem().getPathMatcher("glob:" + pattern);
-    if (FileUtils.hasExtension(basePath, "zip")) {
-      try (
-        var zipFs = FileSystems.newFileSystem(basePath);
-        var walkStream = FileUtils.walkFileSystem(zipFs)
-      ) {
-        return walkStream
-          .filter(p -> p.getFileName() != null && matcher.matches(p.getFileName()))
-          .toList();
-      }
-    } else if (Files.isDirectory(basePath)) {
-      try (
-        var walk = Files.walk(basePath);
-        var walkStream = walk.filter(path -> matcher.matches(path.getFileName()))
-      ) {
-        return walkStream
-          // Recurse into any ZIP files we find walking through the directory.
-          .flatMap(path -> FileUtils.hasExtension(path, "zip") ? onZipFile.apply(path).stream() : Stream.of(path)
-          )
-          .toList();
-      }
-    } else {
-      throw new IllegalArgumentException("No files matching " + basePath + "/" + pattern);
     }
   }
 
