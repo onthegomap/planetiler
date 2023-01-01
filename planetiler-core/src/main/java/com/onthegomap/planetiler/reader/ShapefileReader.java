@@ -4,17 +4,12 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
@@ -96,34 +91,9 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
     );
   }
 
-  private static URI findShpFile(Path path, Stream<Path> walkStream) {
-    return walkStream
-      .filter(z -> FileUtils.hasExtension(z, "shp"))
-      .findFirst()
-      .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path))
-      .toUri();
-  }
-
   private ShapefileDataStore open(Path path) {
     try {
-      URI uri;
-      if (Files.isDirectory(path)) {
-        try (var walkStream = Files.walk(path)) {
-          uri = findShpFile(path, walkStream);
-        }
-      } else if (FileUtils.hasExtension(path, "zip")) {
-        try (
-          var zipFs = FileSystems.newFileSystem(path);
-          var walkStream = FileUtils.walkFileSystem(zipFs)
-        ) {
-          uri = findShpFile(path, walkStream);
-        }
-      } else if (FileUtils.hasExtension(path, "shp")) {
-        uri = path.toUri();
-      } else {
-        throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");
-      }
-      var store = new ShapefileDataStore(uri.toURL());
+      var store = new ShapefileDataStore(path.toUri().toURL());
       store.setTryCPGFile(true);
       return store;
     } catch (IOException e) {

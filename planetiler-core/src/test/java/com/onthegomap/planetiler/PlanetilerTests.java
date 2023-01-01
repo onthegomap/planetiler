@@ -1700,14 +1700,17 @@ class PlanetilerTests {
             .setAttr("source", source.getSource());
         }
       })
-      .addShapefileDirectorySource("shapefile-dir", resourceDir, "shape*.zip")
+      // Match *.shp within [shapefile.zip, shapefile-copy.zip]
+      .addShapefileGlobSource("shapefile-glob", resourceDir, "shape*.zip")
+      // Match *.shp within shapefile.zip
+      .addShapefileGlobSource("shapefile-glob-zip", resourceDir.resolve("shapefile.zip"), "*.shp")
+      // Match *.shp within shapefile.zip
       .addShapefileSource("shapefile", resourceDir.resolve("shapefile.zip"))
       .setOutput("mbtiles", mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
-      long fileCount = 0;
-      long dirCount = 0;
+      long fileCount = 0, globCount = 0, globZipCount = 0;
       var tileMap = TestUtils.getTileMap(db);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
@@ -1715,15 +1718,17 @@ class PlanetilerTests {
 
           switch ((String) feature.attrs().get("source")) {
             case "shapefile" -> fileCount++;
-            case "shapefile-dir" -> dirCount++;
+            case "shapefile-glob" -> globCount++;
+            case "shapefile-glob-zip" -> globZipCount++;
           }
         }
       }
 
-      // Input file was copied twice into test directory, directory source should have
-      // 2x the number of features.
       assertTrue(fileCount > 0);
-      assertEquals(2 * fileCount, dirCount);
+      // `shapefile` and `shapefile-glob-zip` both match only one file.
+      assertEquals(fileCount, globZipCount);
+      // `shapefile-glob` matches two input files, should have 2x number of features of `shapefile`.
+      assertEquals(2 * fileCount, globCount);
     }
   }
 

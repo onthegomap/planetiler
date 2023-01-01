@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -253,46 +252,51 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
-   * {@param globPattern} using an explicit projection.
+   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
+   * {@param globPattern}. {@param basePath} may be a directory or ZIP archive.
+   *
+   * @param sourceName  string to use in stats and logs to identify this stage
+   * @param basePath    path to the directory containing shapefiles to process
+   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @return this runner instance for chaining
+   * @see ShapefileReader
+   */
+  public Planetiler addShapefileGlobSource(String sourceName, Path basePath, String globPattern) {
+    return addShapefileGlobSource(null, sourceName, basePath, globPattern, null);
+  }
+
+  /**
+   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
+   * {@param globPattern} using an explicit projection. {@param basePath} may be a directory or ZIP archive.
+   * <p>
+   * If {@param globPattern} matches a ZIP archive, all files ending in {@code .shp} within the archive will be used for
+   * this source.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
    *
    * @param projection  the Coordinate Reference System authority code to use, parsed with
    *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory containing shapefiles to process
+   * @param basePath    path to the directory or zip file containing shapefiles to process
    * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    */
-  public Planetiler addShapefileDirectorySource(String projection, String sourceName, Path basePath,
-    String globPattern) {
-    Path dirPath = getPath(sourceName, "shapefile directory", basePath, null);
-    PathMatcher matcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
+  public Planetiler addShapefileGlobSource(String projection, String sourceName, Path basePath,
+    String globPattern, String defaultUrl) {
+    Path dirPath = getPath(sourceName, "shapefile glob", basePath, defaultUrl);
 
     return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
       ifSourceUsed(sourceName, () -> {
-        try (
-          var walk = Files.walk(dirPath);
-          var sourcePaths = walk.filter(path -> matcher.matches(path.getFileName()))
-        ) {
-          ShapefileReader.processWithProjection(projection, sourceName, sourcePaths.toList(), featureGroup, config,
-            profile, stats);
-        }
+        var sourcePaths = FileUtils.walkPathWithPattern(basePath, globPattern,
+          zipPath -> FileUtils.walkPathWithPattern(zipPath, "*.shp"));
+        ShapefileReader.processWithProjection(projection, sourceName, sourcePaths, featureGroup, config,
+          profile, stats);
       }));
-  }
-
-  /**
-   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
-   * {@param globPattern}.
-   *
-   * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory containing shapefiles to process
-   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
-   * @return this runner instance for chaining
-   * @see ShapefileReader
-   */
-  public Planetiler addShapefileDirectorySource(String sourceName, Path basePath, String globPattern) {
-    return addShapefileDirectorySource(null, sourceName, basePath, globPattern);
   }
 
 
@@ -320,9 +324,14 @@ public class Planetiler {
   public Planetiler addShapefileSource(String projection, String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
-      ifSourceUsed(name,
-        () -> ShapefileReader.processWithProjection(projection, name, List.of(path), featureGroup, config, profile,
-          stats)));
+      ifSourceUsed(name, () -> {
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip") || Files.isDirectory(path)) {
+          sourcePaths = FileUtils.walkPathWithPattern(path, "*.shp");
+        }
+
+        ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
+      }));
   }
 
   /**

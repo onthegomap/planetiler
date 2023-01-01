@@ -29,16 +29,9 @@ class ShapefileReaderTest {
 
   @Test
   @Timeout(30)
-  void testReadShapefile() {
-    testReadShapefile(TestUtils.pathToResource("shapefile.zip"));
-  }
-
-  @Test
-  @Timeout(30)
   @DisabledOnOs(OS.WINDOWS) // the zip file doesn't fully close, which causes trouble running test on windows
   void testReadShapefileExtracted() throws IOException {
     var extracted = TestUtils.extractPathToResource(tempDir, "shapefile.zip");
-    testReadShapefile(extracted);
     try (var fs = FileSystems.newFileSystem(extracted)) {
       var path = fs.getPath("shapefile", "stations.shp");
       testReadShapefile(path);
@@ -50,7 +43,6 @@ class ShapefileReaderTest {
   void testReadShapefileUnzipped() throws IOException {
     var dest = tempDir.resolve("shapefile.zip");
     FileUtils.unzipResource("/shapefile.zip", dest);
-    testReadShapefile(dest);
     testReadShapefile(dest.resolve("shapefile").resolve("stations.shp"));
   }
 
