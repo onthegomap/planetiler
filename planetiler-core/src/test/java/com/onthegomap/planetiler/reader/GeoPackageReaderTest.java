@@ -7,21 +7,31 @@ import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Geometry;
 
 class GeoPackageReaderTest {
+  @TempDir
+  static Path tmpDir;
 
   @Test
   @Timeout(30)
-  void testReadGeoPackage() {
-    Path path = TestUtils.pathToResource("geopackage.gpkg");
+  void testReadGeoPackage() throws IOException {
+    Path path = tmpDir.resolve("geopackage.gpkg");
+    Path zipPath = TestUtils.pathToResource("geopackage.gpkg.zip");
+    try (var stream = Files.newInputStream(zipPath)) {
+      FileUtils.unzip(stream, tmpDir);
+    }
 
     try (
       var reader = new GeoPackageReader("test", path)
