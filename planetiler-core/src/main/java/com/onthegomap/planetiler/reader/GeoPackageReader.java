@@ -74,8 +74,14 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     for (var featureName : geoPackage.getFeatureTables()) {
       FeatureDao features = geoPackage.getFeatureDao(featureName);
 
+      // If left unset (e.g. in NaturalEarth's data), assume latlon
+      long srsId = features.getSrsId();
+      if (srsId == 0) {
+        srsId = 4326;
+      }
+
       MathTransform transform = CRS.findMathTransform(
-        CRS.decode("EPSG:" + features.getSrsId()),
+        CRS.decode("EPSG:" + srsId),
         latLonCRS);
 
       for (var feature : features.queryForAll()) {

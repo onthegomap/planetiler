@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
 import java.util.List;
@@ -50,6 +51,19 @@ public class FileUtils {
       });
   }
 
+  /** Returns a stream that lists all files in {@param fileSystem} matching {@param matcher} */
+  static Stream<Path> walkFileSystemWithMatcher(FileSystem fileSystem, PathMatcher matcher) {
+    try (var walk = FileUtils.walkFileSystem(fileSystem)) {
+      return walk
+        .filter(Files::isRegularFile)
+        .filter(p -> matcher.matches(p.getFileName()));
+    }
+  }
+
+  static PathMatcher createGlobMatcher(FileSystem fs, String pattern) {
+    return fs.getPathMatcher("glob:" + pattern);
+  }
+
   /**
    * Returns list of paths matching {@param pattern} within {@param basePath}.
    * <p>
@@ -60,19 +74,13 @@ public class FileUtils {
    * @param pattern     pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
    * @param walkZipFile callback function to recurse into matching {@code .zip} files.
    */
-  public static List<Path> walkPathWithPattern(Path basePath, String pattern,
-    Function<Path, List<Path>> walkZipFile) {
-    PathMatcher matcher = basePath.getFileSystem().getPathMatcher("glob:" + pattern);
+  public static List<Path> walkPathWithPattern(Path basePath, String pattern, Function<Path, List<Path>> walkZipFile) {
+    PathMatcher matcher = createGlobMatcher(basePath.getFileSystem(), pattern);
 
     try {
       if (FileUtils.hasExtension(basePath, "zip")) {
-        try (
-          var zipFs = FileSystems.newFileSystem(basePath);
-          var walkStream = FileUtils.walkFileSystem(zipFs)
-        ) {
-          return walkStream
-            .filter(p -> p.getFileName() != null && matcher.matches(p.getFileName()))
-            .toList();
+        try (var zipFs = FileSystems.newFileSystem(basePath)) {
+          return walkFileSystemWithMatcher(zipFs, matcher).toList();
         }
       } else if (Files.isDirectory(basePath)) {
         try (var walk = Files.walk(basePath)) {
@@ -312,6 +320,31 @@ public class FileUtils {
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Unzips files from {@param zipPath} matching the glob {@param pattern} to {@param tmpLocation}. Extracted files will
+   * be deleted when the JVM exits.
+   *
+   * @return list of paths to extracted files
+   */
+  public static List<Path> unzipMatchingFiles(Path zipPath, String pattern, Path tmpLocation) throws IOException {
+    PathMatcher matcher = createGlobMatcher(zipPath.getFileSystem(), pattern);
+
+    try (var zipFs = FileSystems.newFileSystem(zipPath)) {
+      return walkFileSystemWithMatcher(zipFs, matcher)
+        .map(path -> {
+          try {
+            Path unzippedPath = tmpLocation.resolve(path.getFileName().toString());
+            Files.copy(path, unzippedPath, StandardCopyOption.REPLACE_EXISTING);
+            unzippedPath.toFile().deleteOnExit();
+            return unzippedPath;
+          } catch (IOException e) {
+            throw new UncheckedIOException(e);
+          }
+        })
+        .toList();
     }
   }
 }

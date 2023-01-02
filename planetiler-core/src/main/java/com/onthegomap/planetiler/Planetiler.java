@@ -350,6 +350,9 @@ public class Planetiler {
    * <p>
    * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
    * override the download URL set {@code name_url=http://url/of/file.gpkg}.
+   * <p>
+   * If given a path to a ZIP file containing one or more GeoPackages, each {@code .gpkg} file within will be extracted
+   * to a temporary directory at runtime.
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
@@ -362,8 +365,18 @@ public class Planetiler {
   public Planetiler addGeoPackageSource(String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
-      ifSourceUsed(name,
-        () -> GeoPackageReader.process(name, List.of(path), featureGroup, config, profile, stats)));
+      ifSourceUsed(name, () -> {
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip")) {
+          sourcePaths = FileUtils.unzipMatchingFiles(path, "*.gpkg", tmpDir);
+        }
+
+        if (sourcePaths.isEmpty()) {
+          throw new IllegalArgumentException("No .gpkg files found in " + path);
+        }
+
+        GeoPackageReader.process(name, sourcePaths, featureGroup, config, profile, stats);
+      }));
   }
 
 
@@ -373,12 +386,14 @@ public class Planetiler {
    * To override the location of the {@code sqlite} file, set {@code name_path=newpath.zip} in the arguments and to
    * override the download URL set {@code name_url=http://url/of/natural_earth.zip}.
    *
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
    * @return this runner instance for chaining
    * @see NaturalEarthReader
    */
+  @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath) {
     return addNaturalEarthSource(name, defaultPath, null);
   }
@@ -392,6 +407,8 @@ public class Planetiler {
    * To override the location of the {@code sqlite} file, set {@code name_path=newpath.zip} in the arguments and to
    * override the download URL set {@code name_url=http://url/of/natural_earth.zip}.
    *
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
+   *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
@@ -401,6 +418,7 @@ public class Planetiler {
    * @see NaturalEarthReader
    * @see Downloader
    */
+  @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "sqlite db", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
