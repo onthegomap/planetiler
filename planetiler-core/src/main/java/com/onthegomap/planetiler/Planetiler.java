@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
+import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -25,14 +26,11 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
-import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +93,7 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
+  private MbtilesMetadata mbtilesMetadata;
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -175,6 +174,10 @@ public class Planetiler {
         name + "_pass2: Process OpenStreetMap nodes, ways, then relations"
       ),
       ifSourceUsed(name, () -> {
+        var header = osmInputFile.getHeader();
+        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationseq", header.osmosisReplicationSequenceNumber());
+        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
@@ -499,7 +502,12 @@ public class Planetiler {
    */
   public void run() throws Exception {
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
-    printVersionInfoFromManifest();
+    var buildInfo = BuildInfo.get();
+    if (buildInfo != null && LOGGER.isInfoEnabled()) {
+      LOGGER.info("Planetiler build git hash: {}", buildInfo.githash());
+      LOGGER.info("Planetiler build version: {}", buildInfo.version());
+      LOGGER.info("Planetiler build timestamp: {}", buildInfo.buildTimeString());
+    }
     if (showVersion) {
       System.exit(0);
     }
@@ -516,7 +524,7 @@ public class Planetiler {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
-    MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
+    mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
@@ -605,22 +613,6 @@ public class Planetiler {
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
-  }
-
-  public static void printVersionInfoFromManifest() {
-    try (var properties = Planetiler.class.getResourceAsStream("/buildinfo.properties")) {
-      var parsed = new Properties();
-      parsed.load(properties);
-      LOGGER.info("Planetiler build git hash: {}", parsed.getProperty("githash"));
-      LOGGER.info("Planetiler build version: {}", parsed.getProperty("version"));
-      var epochMs = parsed.getProperty("timestamp");
-      if (epochMs != null && !epochMs.isBlank() && epochMs.matches("^\\d+$")) {
-        var time = Instant.ofEpochMilli(Long.parseLong(epochMs));
-        LOGGER.info("Planetiler build timestamp: {}", time);
-      }
-    } catch (IOException e) {
-      LOGGER.error("Error getting build properties");
-    }
   }
 
   private void checkDiskSpace() {

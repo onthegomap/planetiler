@@ -23,6 +23,7 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.BuildInfo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -247,6 +248,9 @@ class PlanetilerTests {
       "maxzoom", "14",
       "center", "0,0,0",
       "bounds", "-180,-85.05113,180,85.05113"
+    ), results.metadata);
+    assertSubmap(Map.of(
+      "planetiler:version", BuildInfo.get().version()
     ), results.metadata);
     assertSameJson(
       """
@@ -1683,6 +1687,12 @@ class PlanetilerTests {
 
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
+      assertSubmap(Map.of(
+        "planetiler:version", BuildInfo.get().version(),
+        "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",
+        "planetiler:osm:osmosisreplicationseq", "2947",
+        "planetiler:osm:osmosisreplicationurl", "http://download.geofabrik.de/europe/monaco-updates"
+      ), db.metadata().getAll());
     }
   }
 

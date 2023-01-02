@@ -326,7 +326,7 @@ public class MbtilesWriter {
       db.createTablesWithIndexes();
     }
 
-    db.metadata()
+    var metadata = db.metadata()
       .setName(mbtilesMetadata.name())
       .setFormat("pbf")
       .setDescription(mbtilesMetadata.description())
@@ -337,6 +337,10 @@ public class MbtilesWriter {
       .setMinzoom(config.minzoom())
       .setMaxzoom(config.maxzoom())
       .setJson(layerStats.getTileStats());
+
+    for (var entry : mbtilesMetadata.planetilerSpecific().entrySet()) {
+      metadata.setMetadata(entry.getKey(), entry.getValue());
+    }
 
     TileCoord lastTile = null;
     Timer time = null;
