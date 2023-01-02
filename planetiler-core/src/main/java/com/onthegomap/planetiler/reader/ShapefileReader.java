@@ -37,10 +37,12 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
   private final FeatureCollection<SimpleFeatureType, org.opengis.feature.simple.SimpleFeature> inputSource;
   private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
+  private final String layer;
   private MathTransform transformToLatLon;
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input) {
     super(sourceName);
+    this.layer = input.getFileName().toString().replaceAll("\\.shp$", "");
     dataStore = open(input);
     try {
       String typeName = dataStore.getTypeNames()[0];
@@ -119,7 +121,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
         }
         if (latLonGeometry != null) {
           SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
-            sourceName, null, ++id);
+            sourceName, layer, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));
           }

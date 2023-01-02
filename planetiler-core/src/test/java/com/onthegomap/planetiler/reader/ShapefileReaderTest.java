@@ -1,7 +1,6 @@
 package com.onthegomap.planetiler.reader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
@@ -47,29 +46,30 @@ class ShapefileReaderTest {
   }
 
   private static void testReadShapefile(Path path) {
-    var reader = new ShapefileReader(null, "test", path);
+    try (var reader = new ShapefileReader(null, "test", path)) {
 
-    for (int i = 1; i <= 2; i++) {
-      assertEquals(86, reader.getFeatureCount());
-      List<Geometry> points = new ArrayList<>();
-      List<String> names = new ArrayList<>();
-      WorkerPipeline.start("test", Stats.inMemory())
-        .readFromTiny("files", List.of(path))
-        .addWorker("reader", 1, (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next))
-        .addBuffer("reader_queue", 100, 1)
-        .sinkToConsumer("counter", 1, elem -> {
-          assertTrue(elem.getTag("name") instanceof String);
-          assertEquals("test", elem.getSource());
-          assertNull(elem.getSourceLayer());
-          points.add(elem.latLonGeometry());
-          names.add(elem.getTag("name").toString());
-        }).await();
-      assertEquals(86, points.size());
-      assertTrue(names.contains("Van Dörn Street"));
-      var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
-      var centroid = gc.getCentroid();
-      assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
-      assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);
+      for (int i = 1; i <= 2; i++) {
+        assertEquals(86, reader.getFeatureCount());
+        List<Geometry> points = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        WorkerPipeline.start("test", Stats.inMemory())
+          .readFromTiny("files", List.of(path))
+          .addWorker("reader", 1, (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next))
+          .addBuffer("reader_queue", 100, 1)
+          .sinkToConsumer("counter", 1, elem -> {
+            assertTrue(elem.getTag("name") instanceof String);
+            assertEquals("test", elem.getSource());
+            assertEquals("stations", elem.getSourceLayer());
+            points.add(elem.latLonGeometry());
+            names.add(elem.getTag("name").toString());
+          }).await();
+        assertEquals(86, points.size());
+        assertTrue(names.contains("Van Dörn Street"));
+        var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
+        var centroid = gc.getCentroid();
+        assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
+        assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);
+      }
     }
   }
 }

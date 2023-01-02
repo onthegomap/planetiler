@@ -1707,7 +1707,8 @@ class PlanetilerTests {
         public void processFeature(SourceFeature source, FeatureCollector features) {
           features.point("stations")
             .setZoomRange(0, 14)
-            .setAttr("source", source.getSource());
+            .setAttr("source", source.getSource())
+            .setAttr("layer", source.getSourceLayer());
         }
       })
       // Match *.shp within [shapefile.zip, shapefile-copy.zip]
@@ -1725,7 +1726,7 @@ class PlanetilerTests {
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
-
+          assertEquals("stations", feature.attrs().get("layer"));
           switch ((String) feature.attrs().get("source")) {
             case "shapefile" -> fileCount++;
             case "shapefile-glob" -> globCount++;
