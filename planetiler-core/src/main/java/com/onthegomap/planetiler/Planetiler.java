@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -336,6 +337,31 @@ public class Planetiler {
         ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
       }));
   }
+
+  /**
+   * Adds a new OGC GeoPackage source that will be processed when {@link #run()} is called.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
+   * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
+   * override the download URL set {@code name_url=http://url/of/file.gpkg}.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
+   *                    name_url} argument is not set
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   * @see Downloader
+   */
+  public Planetiler addGeoPackageSource(String name, Path defaultPath, String defaultUrl) {
+    Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
+    return addStage(name, "Process features in " + path,
+      ifSourceUsed(name,
+        () -> GeoPackageReader.process(name, List.of(path), featureGroup, config, profile, stats)));
+  }
+
 
   /**
    * Adds a new Natural Earth sqlite file source that will be processed when {@link #run()} is called.
