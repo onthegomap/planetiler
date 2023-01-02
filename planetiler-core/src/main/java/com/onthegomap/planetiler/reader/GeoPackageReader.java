@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import mil.nga.geopackage.GeoPackage;
 import mil.nga.geopackage.GeoPackageManager;
+import mil.nga.geopackage.features.user.FeatureColumns;
 import mil.nga.geopackage.features.user.FeatureDao;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
 import org.geotools.geometry.jts.JTS;
@@ -86,10 +87,10 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         Geometry featureGeom = (new WKBReader()).read(geometryData.getWkb());
         Geometry latLonGeom = (transform.isIdentity()) ? featureGeom : JTS.transform(featureGeom, transform);
 
-        SimpleFeature geom = SimpleFeature.create(latLonGeom, new HashMap<>(),
+        FeatureColumns columns = feature.getColumns();
+        SimpleFeature geom = SimpleFeature.create(latLonGeom, new HashMap<>(columns.columnCount()),
           sourceName, featureName, ++id);
 
-        var columns = feature.getColumns();
         for (int i = 0; i < columns.columnCount(); ++i) {
           if (i != columns.getGeometryIndex()) {
             geom.setTag(columns.getColumnName(i), feature.getValue(i));
