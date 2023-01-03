@@ -83,7 +83,7 @@
           "description": "Max zoom level that the output feature appears in",
           "type": "integer"
         },
-        "min_pixel_size": {
+        "min_size": {
           "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map",
           "type": "double"
         },
