@@ -1,6 +1,11 @@
 package com.onthegomap.planetiler.geo;
 
+import clipper2.Clipper;
+import clipper2.core.FillRule;
+import clipper2.core.Path64;
+import clipper2.core.Paths64;
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.reader.osm.OsmMultipolygon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -276,12 +281,67 @@ public class GeoUtils {
     return points.size() == 1 ? points.get(0) : createMultiPoint(points);
   }
 
+  public static Path64 toClipper2(CoordinateSequence seq) {
+    int[] result = new int[seq.size() * 2];
+    for (int i = 0; i < seq.size(); i++) {
+      result[i * 2] = (int) Math.round(seq.getX(i) * 4096d / 256d);
+      result[i * 2 + 1] = (int) Math.round(seq.getY(i) * 4096d / 256d);
+    }
+    return Clipper.MakePath(result);
+  }
+
+  public static void toClipper2(Geometry geom, Paths64 result) {
+    if (geom instanceof Polygon p) {
+      result.add(toClipper2(p.getExteriorRing().getCoordinateSequence()));
+      for (int i = 0; i < p.getNumInteriorRing(); i++) {
+        result.add(toClipper2(p.getInteriorRingN(i).getCoordinateSequence()));
+      }
+    } else if (geom instanceof MultiPolygon p) {
+      for (int i = 0; i < p.getNumGeometries(); i++) {
+        toClipper2(p.getGeometryN(i), result);
+      }
+    } else {
+      throw new IllegalArgumentException("Unhandled " + geom.getGeometryType());
+    }
+  }
+
+  public static Paths64 toClipper2(Geometry geom) {
+    var result = new Paths64();
+    toClipper2(geom, result);
+    return result;
+  }
+
+  public static Geometry fromClipper2(Paths64 geom) {
+    if (geom.isEmpty())
+      return EMPTY_GEOMETRY;
+    List<CoordinateSequence> seqs = new ArrayList<>(geom.size());
+    int j = 0;
+    for (var path : geom) {
+      double[] result = new double[path.size() * 2 + 2];
+      for (int i = 0; i < path.size(); i++) {
+        var point = path.get(i);
+        result[i * 2] = point.x * 256d / 4096d;
+        result[i * 2 + 1] = point.y * 256d / 4096d;
+      }
+      result[result.length - 2] = result[0];
+      result[result.length - 1] = result[1];
+      seqs.add(new PackedCoordinateSequence.Double(result, 2, 0));
+    }
+    try {
+      return OsmMultipolygon.build(seqs);
+    } catch (GeometryException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
   public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISION);
+    var clipper = toClipper2(geom);
+    var result = Clipper.Union(clipper, FillRule.NonZero);
+    return fromClipper2(result);
   }
 
   /**

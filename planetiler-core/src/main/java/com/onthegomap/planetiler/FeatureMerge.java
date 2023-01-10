@@ -272,7 +272,7 @@ public class FeatureMerge {
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
-          merged = GeoUtils.snapAndFixPolygon(merged).reverse();
+          merged = GeoUtils.snapAndFixPolygon(merged);
         } else {
           merged = polygonGroup.get(0);
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {

@@ -144,6 +144,11 @@
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.github.micycle1</groupId>
+      <artifactId>Clipper2-java</artifactId>
+      <version>1.0.5</version>
+    </dependency>
   </dependencies>
 
   <build>

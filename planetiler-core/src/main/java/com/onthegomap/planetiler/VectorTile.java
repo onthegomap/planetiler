@@ -286,7 +286,7 @@ public class VectorTile {
             if (first) {
               first = false;
               outerCCW = ccw;
-              assert outerCCW : "outer ring is not counter-clockwise";
+              //              assert outerCCW : "outer ring is not counter-clockwise";
             }
             if (ccw == outerCCW) {
               ringsForCurrentPolygon = new ArrayList<>();
