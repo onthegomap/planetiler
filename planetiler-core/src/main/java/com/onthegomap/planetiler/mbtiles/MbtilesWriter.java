@@ -16,6 +16,7 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
@@ -289,8 +290,8 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (compactDb && en.likelyToBeDuplicate()) {
-            tileDataHash = tileFeatures.generateContentHash();
+          if (compactDb && en.likelyToBeDuplicate() && bytes != null) {
+            tileDataHash = generateContentHash(bytes);
           } else {
             tileDataHash = null;
           }
@@ -410,6 +411,17 @@ public class MbtilesWriter {
 
   private long tilesEmitted() {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
+  }
+
+  /**
+   * Generates a hash over encoded and compressed tile.
+   * <p>
+   * Used as an optimization to avoid writing the same (mostly ocean) tiles over and over again.
+   */
+  public static long generateContentHash(byte[] bytes) {
+    long hash = Hashing.FNV1_64_INIT;
+    hash = Hashing.fnv1a64(hash, bytes);
+    return hash;
   }
 
   /**

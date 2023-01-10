@@ -111,8 +111,7 @@ class BikeRouteOverlayTest {
           "ref", "EV8"
         ), GeoUtils.WORLD_LAT_LON_BOUNDS, 25, LineString.class);
 
-      // FIXME: we would like to have 0 duplicates
-      TestUtils.assertTileDuplicates(mbtiles, 5);
+      TestUtils.assertTileDuplicates(mbtiles, 0);
     }
   }
 }
