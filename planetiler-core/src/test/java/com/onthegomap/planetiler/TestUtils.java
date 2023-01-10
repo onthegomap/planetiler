@@ -27,10 +27,12 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -42,6 +44,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -682,6 +685,35 @@ public class TestUtils {
         fail(String.join(System.lineSeparator(), failures));
       }
     } catch (GeometryException | IOException e) {
+      fail(e);
+    }
+  }
+
+  public static void assertTileDuplicates(Mbtiles db, int expected) {
+    try {
+      Connection connection = (Connection) FieldUtils.readField(db, "connection", true);
+      Statement statement = connection.createStatement();
+      ResultSet rs = statement.executeQuery("SELECT tile_data FROM tiles_data");
+      ArrayList<byte[]> tilesList = new ArrayList<>();
+      while (rs.next()) {
+        tilesList.add(rs.getBytes("tile_data"));
+      }
+
+      var tiles = tilesList.toArray(new byte[0][0]);
+      Set<Integer> dups = new HashSet<>();
+      for (int i = 0; i < tiles.length; i++) {
+        for (int j = i + 1; j < tiles.length; j++) {
+          if (Arrays.equals(tiles[i], tiles[j])) {
+            if (!dups.contains(j)) {
+              dups.add(j);
+            }
+          }
+        }
+      }
+
+      int dupCount = dups.size();
+      assertEquals(expected, dupCount, "%d duplicates expected, %d found".formatted(expected, dupCount));
+    } catch (IllegalAccessException | SQLException e) {
       fail(e);
     }
   }
