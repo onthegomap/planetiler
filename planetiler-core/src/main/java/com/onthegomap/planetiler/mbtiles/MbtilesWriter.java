@@ -289,7 +289,7 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (compactDb && en.containsOnlyFillsOrEdges()) {
+          if (compactDb && en.likelyToBeDuplicate()) {
             tileDataHash = tileFeatures.generateContentHash();
           } else {
             tileDataHash = null;

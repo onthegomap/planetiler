@@ -523,6 +523,19 @@ public class VectorTile {
     return !empty;
   }
 
+  public boolean likelyToBeDuplicate() {
+    if (layers.size() <= 0) {
+      return true;
+    } else if (layers.size() == 1 && layers.values().stream().findFirst().get().encodedFeatures.isEmpty()) {
+      return true;
+    }
+    var result = containsOnlyFillsOrEdges();
+    if (result) {
+      return true;
+    }
+    return result;
+  }
+
   private enum Command {
     MOVE_TO(1),
     LINE_TO(2),
