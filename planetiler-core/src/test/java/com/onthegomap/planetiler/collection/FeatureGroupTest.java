@@ -365,16 +365,16 @@ class FeatureGroupTest {
     put(args1);
     sorter.sort();
     var iter = features.iterator();
-    var tile0_hash = MbtilesWriter.generateContentHash(
+    var tileHash0 = MbtilesWriter.generateContentHash(
       Gzip.gzip(iter.next().getVectorTileEncoder().encode())
     );
-    var tile1_hash = MbtilesWriter.generateContentHash(
+    var tileHash1 = MbtilesWriter.generateContentHash(
       Gzip.gzip(iter.next().getVectorTileEncoder().encode())
     );
     if (expectSame) {
-      assertEquals(tile0_hash, tile1_hash);
+      assertEquals(tileHash0, tileHash1);
     } else {
-      assertNotEquals(tile0_hash, tile1_hash);
+      assertNotEquals(tileHash0, tileHash1);
     }
   }
 

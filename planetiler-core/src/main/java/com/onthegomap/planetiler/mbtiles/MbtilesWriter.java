@@ -290,7 +290,7 @@ public class MbtilesWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (compactDb && en.likelyToBeDuplicate() && bytes != null) {
+          if (compactDb && en.likelyToBeDuplicated() && bytes != null) {
             tileDataHash = generateContentHash(bytes);
           } else {
             tileDataHash = null;
@@ -419,9 +419,7 @@ public class MbtilesWriter {
    * Used as an optimization to avoid writing the same (mostly ocean) tiles over and over again.
    */
   public static long generateContentHash(byte[] bytes) {
-    long hash = Hashing.FNV1_64_INIT;
-    hash = Hashing.fnv1a64(hash, bytes);
-    return hash;
+    return Hashing.fnv1a64(bytes);
   }
 
   /**

@@ -523,17 +523,22 @@ public class VectorTile {
     return !empty;
   }
 
-  public boolean likelyToBeDuplicate() {
-    if (layers.size() <= 0) {
-      return true;
-    } else if (layers.size() == 1 && layers.values().stream().findFirst().get().encodedFeatures.isEmpty()) {
-      return true;
-    }
-    var result = containsOnlyFillsOrEdges();
-    if (result) {
-      return true;
-    }
-    return result;
+  /**
+   * Determine whether a tile is likely to be a duplicate of some other tile hence it makes sense to calculate a hash
+   * for it.
+   * <p>
+   * Deduplication code is aiming for a balance between filtering-out all duplicates and not spending too much CPU on
+   * hash calculations: calculating hashes for all tiles costs too much CPU, not calculating hashes at all means
+   * generating mbtiles which are too big. This method is responsible for achieving that balance.
+   * <p>
+   * Current understanding is, that for the whole planet, there are 267m total tiles and 38m unique tiles. The
+   * {@link #containsOnlyFills()} heuristic catches >99.9% of repeated tiles and cuts down the number of tile hashes we
+   * need to track by 98% (38m to 735k). So it is considered a good tradeoff.
+   *
+   * @return {@code true} if the tile might have duplicates hence we want to calculate a hash for it
+   */
+  public boolean likelyToBeDuplicated() {
+    return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFills();
   }
 
   private enum Command {
