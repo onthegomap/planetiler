@@ -532,13 +532,13 @@ public class VectorTile {
    * generating mbtiles which are too big. This method is responsible for achieving that balance.
    * <p>
    * Current understanding is, that for the whole planet, there are 267m total tiles and 38m unique tiles. The
-   * {@link #containsOnlyFills()} heuristic catches >99.9% of repeated tiles and cuts down the number of tile hashes we
-   * need to track by 98% (38m to 735k). So it is considered a good tradeoff.
+   * {@link #containsOnlyFillsOrEdges()} heuristic catches >99.9% of repeated tiles and cuts down the number of tile
+   * hashes we need to track by 98% (38m to 735k). So it is considered a good tradeoff.
    *
    * @return {@code true} if the tile might have duplicates hence we want to calculate a hash for it
    */
   public boolean likelyToBeDuplicated() {
-    return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFills();
+    return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFillsOrEdges();
   }
 
   private enum Command {
