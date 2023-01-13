@@ -280,11 +280,11 @@ class PlanetilerTests {
     );
     assertEquals(Map.of(), results.tiles);
     assertSubmap(Map.of(
-      "name", "mbtiles_name",
-      "description", "mbtiles_description",
-      "attribution", "mbtiles_attribution",
-      "version", "mbtiles_version",
-      "type", "mbtiles_type"
+      "name", "override_name",
+      "description", "override_description",
+      "attribution", "override_attribution",
+      "version", "override_version",
+      "type", "override_type"
     ), results.metadata);
   }
 

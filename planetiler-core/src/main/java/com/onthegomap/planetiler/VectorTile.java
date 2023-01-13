@@ -529,7 +529,7 @@ public class VectorTile {
    * <p>
    * Deduplication code is aiming for a balance between filtering-out all duplicates and not spending too much CPU on
    * hash calculations: calculating hashes for all tiles costs too much CPU, not calculating hashes at all means
-   * generating mbtiles which are too big. This method is responsible for achieving that balance.
+   * generating archives which are too big. This method is responsible for achieving that balance.
    * <p>
    * Current understanding is, that for the whole planet, there are 267m total tiles and 38m unique tiles. The
    * {@link #containsOnlyFillsOrEdges()} heuristic catches >99.9% of repeated tiles and cuts down the number of tile
@@ -561,7 +561,7 @@ public class VectorTile {
    * To encode extra precision in intermediate feature geometries, the geometry contained in {@code commands} is scaled
    * to a tile extent of {@code EXTENT * 2^scale}, so when the {@code scale == 0} the extent is {@link #EXTENT} and when
    * {@code scale == 2} the extent is 4x{@link #EXTENT}. Geometries must be scaled back to 0 using {@link #unscale()}
-   * before outputting to mbtiles.
+   * before outputting to the archive.
    */
   public record VectorGeometry(int[] commands, GeometryType geomType, int scale) {
 
@@ -627,7 +627,7 @@ public class VectorTile {
       return decodeCommands(geomType, commands, scale);
     }
 
-    /** Returns this encoded geometry, scaled back to 0, so it is safe to emit to mbtiles output. */
+    /** Returns this encoded geometry, scaled back to 0, so it is safe to emit to archive output. */
     public VectorGeometry unscale() {
       return scale == 0 ? this : new VectorGeometry(VectorTile.unscale(commands, scale, geomType), geomType, 0);
     }

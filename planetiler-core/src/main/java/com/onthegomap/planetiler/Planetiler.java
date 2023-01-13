@@ -492,30 +492,29 @@ public class Planetiler {
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Fails if the file already exists.
+   * Sets the location of the output archive to write rendered tiles to. Fails if the archive already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments.
    *
    * @param argument the argument key to check for an override to {@code fallback}
    * @param fallback the fallback value if {@code argument} is not set in arguments
    * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @see TileArchiveWriter
    */
   public Planetiler setOutput(String argument, Path fallback) {
-    this.output = arguments.file(argument, "mbtiles output file", fallback);
+    this.output = arguments.file(argument, "output tile archive", fallback);
     return this;
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Overwrites file if it already
-   * exists.
+   * Sets the location of the output archive to write rendered tiles to. Overwrites file if it already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments.
    *
    * @param argument the argument key to check for an override to {@code fallback}
    * @param fallback the fallback value if {@code argument} is not set in arguments
    * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @see TileArchiveWriter
    */
   public Planetiler overwriteOutput(String argument, Path fallback) {
     this.overwrite = true;
@@ -524,7 +523,7 @@ public class Planetiler {
 
   /**
    * Reads all elements from all sourced that have been added, generates map features according to the profile, and
-   * writes the rendered tiles to the output mbtiles file.
+   * writes the rendered tiles to the output archive.
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
    * @throws Exception                if an error occurs while processing
@@ -582,7 +581,7 @@ public class Planetiler {
         }
       }
       LOGGER.info("  sort: Sort rendered features by tile ID");
-      LOGGER.info("  mbtiles: Encode each tile and write to {}", output);
+      LOGGER.info("  archive: Encode each tile and write to {}", output);
     }
 
     // in case any temp files are left from a previous run...
@@ -619,7 +618,7 @@ public class Planetiler {
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);
     stats.monitorFile("multipolygons", multipolygonPath);
-    stats.monitorFile("mbtiles", output);
+    stats.monitorFile("archive", output);
 
     for (Stage stage : stages) {
       stage.task.run();
@@ -668,7 +667,7 @@ public class Planetiler {
     readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
-    writePhase.addDisk(output, outputSize, "mbtiles output");
+    writePhase.addDisk(output, outputSize, "archive output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {

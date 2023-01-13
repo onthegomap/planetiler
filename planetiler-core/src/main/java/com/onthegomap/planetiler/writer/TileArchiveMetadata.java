@@ -6,7 +6,7 @@ import com.onthegomap.planetiler.util.BuildInfo;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Controls information that tile writers will write to the archive */
+/** Controls information that {@link TileArchiveWriter} will write to the archive metadata. */
 public record TileArchiveMetadata(
   String name,
   String description,

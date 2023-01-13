@@ -7,7 +7,6 @@ import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
@@ -40,8 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to an
- * {@link Mbtiles} file.
+ * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
+ * {@link TileArchive}.
  */
 public class TileArchiveWriter {
 
@@ -79,19 +78,19 @@ public class TileArchiveWriter {
     maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> new LongAccumulator(Long::max, 0))
       .toArray(LongAccumulator[]::new);
-    memoizedTiles = stats.longCounter("tileset_memoized_tiles");
-    featuresProcessed = stats.longCounter("tileset_features_processed");
+    memoizedTiles = stats.longCounter("archive_memoized_tiles");
+    featuresProcessed = stats.longCounter("archive_features_processed");
     Map<String, LongSupplier> countsByZoom = new LinkedHashMap<>();
     for (int zoom = config.minzoom(); zoom <= config.maxzoom(); zoom++) {
       countsByZoom.put(Integer.toString(zoom), tilesByZoom[zoom]);
     }
-    stats.counter("tileset_tiles_written", "zoom", () -> countsByZoom);
+    stats.counter("archive_tiles_written", "zoom", () -> countsByZoom);
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
   public static void writeOutput(FeatureGroup features, TileArchive output, DiskBacked fileSize,
     TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
-    var timer = stats.startStage("tileset");
+    var timer = stats.startStage("archive");
 
     int readThreads = config.featureReadThreads();
     int threads = config.threads();
@@ -115,7 +114,7 @@ public class TileArchiveWriter {
     TileArchiveWriter writer = new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata, stats,
       features.layerStats());
 
-    var pipeline = WorkerPipeline.start("tileset", stats);
+    var pipeline = WorkerPipeline.start("archive", stats);
 
     // a larger tile queue size helps keep cores busy, but needs a lot of RAM
     // 5k works fine with 100GB of RAM, so adjust the queue size down from there
@@ -132,7 +131,7 @@ public class TileArchiveWriter {
        * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
        * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
        */
-      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("tileset_writer_queue", queueSize, 1, stats);
+      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
         .<TileBatch>fromGenerator(secondStageName, next -> {
           var writerEnqueuer = writerQueue.threadLocalWriter();

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.OptionalLong;
 
+// TODO: exists for compatibility reasons
 public record TileEncodingResult(
   TileCoord coord,
   byte[] tileData,

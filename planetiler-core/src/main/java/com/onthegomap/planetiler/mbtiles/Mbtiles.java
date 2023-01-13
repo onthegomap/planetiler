@@ -330,7 +330,7 @@ public final class Mbtiles implements Closeable, TileArchive {
     }
   }
 
-  // exists for compatibility purposes
+  // TODO: exists for compatibility purposes
   public TileArchive.TileWriter newBatchedTileWriter() {
     return newTileWriter();
   }
@@ -714,7 +714,7 @@ public final class Mbtiles implements Closeable, TileArchive {
       tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
     }
 
-    // TODO exists for compatibility purposes
+    // TODO: exists for compatibility purposes
     @Override
     public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
       tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
@@ -761,7 +761,7 @@ public final class Mbtiles implements Closeable, TileArchive {
       batchedTileShallowTableWriter.write(new TileShallowEntry(encodingResult.coord(), tileDataId));
     }
 
-    // TODO exists for compatibility purposes
+    // TODO: exists for compatibility purposes
     @Override
     public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
       write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));

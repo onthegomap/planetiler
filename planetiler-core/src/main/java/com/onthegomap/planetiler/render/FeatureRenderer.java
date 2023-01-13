@@ -239,7 +239,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
           // Store lines with extra precision (2^scale) in intermediate feature storage so that
           // rounding does not introduce artificial endpoint intersections and confuse line merge
           // post-processing.  Features need to be "unscaled" in FeatureGroup after line merging,
-          // and before emitting to output mbtiles.
+          // and before emitting to the output archive.
           scale = Math.max(config.maxzoom(), 14) - zoom;
           // need 14 bits to represent tile coordinates (4096 * 2 for buffer * 2 for zigzag encoding)
           // so cap the scale factor to avoid overflowing 32-bit integer space
