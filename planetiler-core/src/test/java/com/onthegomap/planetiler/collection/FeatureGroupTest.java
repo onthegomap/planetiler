@@ -12,11 +12,11 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
 import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -365,10 +365,10 @@ class FeatureGroupTest {
     put(args1);
     sorter.sort();
     var iter = features.iterator();
-    var tileHash0 = MbtilesWriter.generateContentHash(
+    var tileHash0 = TileArchiveWriter.generateContentHash(
       Gzip.gzip(iter.next().getVectorTileEncoder().encode())
     );
-    var tileHash1 = MbtilesWriter.generateContentHash(
+    var tileHash1 = TileArchiveWriter.generateContentHash(
       Gzip.gzip(iter.next().getVectorTileEncoder().encode())
     );
     if (expectSame) {

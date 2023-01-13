@@ -1,20 +1,19 @@
-package com.onthegomap.planetiler.mbtiles;
+package com.onthegomap.planetiler.writer;
 
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
@@ -22,7 +21,6 @@ import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,14 +43,14 @@ import org.slf4j.LoggerFactory;
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to an
  * {@link Mbtiles} file.
  */
-public class MbtilesWriter {
+public class TileArchiveWriter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MbtilesWriter.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveWriter.class);
   private static final long MAX_FEATURES_PER_BATCH = 10_000;
   private static final long MAX_TILES_PER_BATCH = 1_000;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
-  private final Mbtiles db;
+  private final TileArchive archive;
   private final PlanetilerConfig config;
   private final Stats stats;
   private final LayerStats layerStats;
@@ -61,14 +59,15 @@ public class MbtilesWriter {
   private final LongAccumulator[] maxTileSizesByZoom;
   private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
-  private final MbtilesMetadata mbtilesMetadata;
+  private final TileArchiveMetadata tileArchiveMetadata;
 
-  private MbtilesWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, Mbtiles db, PlanetilerConfig config,
-    MbtilesMetadata mbtilesMetadata, Stats stats, LayerStats layerStats) {
+  private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, TileArchive archive,
+    PlanetilerConfig config,
+    TileArchiveMetadata tileArchiveMetadata, Stats stats, LayerStats layerStats) {
     this.inputTiles = inputTiles;
-    this.db = db;
+    this.archive = archive;
     this.config = config;
-    this.mbtilesMetadata = mbtilesMetadata;
+    this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
     this.layerStats = layerStats;
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
@@ -80,29 +79,19 @@ public class MbtilesWriter {
     maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> new LongAccumulator(Long::max, 0))
       .toArray(LongAccumulator[]::new);
-    memoizedTiles = stats.longCounter("mbtiles_memoized_tiles");
-    featuresProcessed = stats.longCounter("mbtiles_features_processed");
+    memoizedTiles = stats.longCounter("tileset_memoized_tiles");
+    featuresProcessed = stats.longCounter("tileset_features_processed");
     Map<String, LongSupplier> countsByZoom = new LinkedHashMap<>();
     for (int zoom = config.minzoom(); zoom <= config.maxzoom(); zoom++) {
       countsByZoom.put(Integer.toString(zoom), tilesByZoom[zoom]);
     }
-    stats.counter("mbtiles_tiles_written", "zoom", () -> countsByZoom);
-  }
-
-  /** Reads all {@code features}, encodes them in parallel, and writes to {@code outputPath}. */
-  public static void writeOutput(FeatureGroup features, Path outputPath, MbtilesMetadata mbtilesMetadata,
-    PlanetilerConfig config, Stats stats) {
-    try (Mbtiles output = Mbtiles.newWriteToFileDatabase(outputPath, config.compactDb())) {
-      writeOutput(features, output, () -> FileUtils.fileSize(outputPath), mbtilesMetadata, config, stats);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to write to " + outputPath, e);
-    }
+    stats.counter("tileset_tiles_written", "zoom", () -> countsByZoom);
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, Mbtiles output, DiskBacked fileSize,
-    MbtilesMetadata mbtilesMetadata, PlanetilerConfig config, Stats stats) {
-    var timer = stats.startStage("mbtiles");
+  public static void writeOutput(FeatureGroup features, TileArchive output, DiskBacked fileSize,
+    TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
+    var timer = stats.startStage("tileset");
 
     int readThreads = config.featureReadThreads();
     int threads = config.threads();
@@ -123,10 +112,10 @@ public class MbtilesWriter {
       readWorker = reader.readWorker();
     }
 
-    MbtilesWriter writer = new MbtilesWriter(inputTiles, output, config, mbtilesMetadata, stats,
+    TileArchiveWriter writer = new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata, stats,
       features.layerStats());
 
-    var pipeline = WorkerPipeline.start("mbtiles", stats);
+    var pipeline = WorkerPipeline.start("tileset", stats);
 
     // a larger tile queue size helps keep cores busy, but needs a lot of RAM
     // 5k works fine with 100GB of RAM, so adjust the queue size down from there
@@ -143,7 +132,7 @@ public class MbtilesWriter {
        * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
        * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
        */
-      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("mbtiles_writer_queue", queueSize, 1, stats);
+      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("tileset_writer_queue", queueSize, 1, stats);
       encodeBranch = pipeline
         .<TileBatch>fromGenerator(secondStageName, next -> {
           var writerEnqueuer = writerQueue.threadLocalWriter();
@@ -317,36 +306,12 @@ public class MbtilesWriter {
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
 
-    if (config.skipIndexCreation()) {
-      db.createTablesWithoutIndexes();
-      if (LOGGER.isInfoEnabled()) {
-        LOGGER.info("Skipping index creation. Add later by executing: {}",
-          String.join(" ; ", db.getManualIndexCreationStatements()));
-      }
-    } else {
-      db.createTablesWithIndexes();
-    }
-
-    var metadata = db.metadata()
-      .setName(mbtilesMetadata.name())
-      .setFormat("pbf")
-      .setDescription(mbtilesMetadata.description())
-      .setAttribution(mbtilesMetadata.attribution())
-      .setVersion(mbtilesMetadata.version())
-      .setType(mbtilesMetadata.type())
-      .setBoundsAndCenter(config.bounds().latLon())
-      .setMinzoom(config.minzoom())
-      .setMaxzoom(config.maxzoom())
-      .setJson(layerStats.getTileStats());
-
-    for (var entry : mbtilesMetadata.planetilerSpecific().entrySet()) {
-      metadata.setMetadata(entry.getKey(), entry.getValue());
-    }
+    archive.initialize(config, tileArchiveMetadata, layerStats);
 
     TileCoord lastTile = null;
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
-    try (var batchedTileWriter = db.newBatchedTileWriter()) {
+    try (var tileWriter = archive.newTileWriter()) {
       for (TileBatch batch : tileBatches) {
         Queue<TileEncodingResult> encodedTiles = batch.out.get();
         TileEncodingResult encodedTile;
@@ -365,23 +330,22 @@ public class MbtilesWriter {
             time = Timer.start();
             currentZ = z;
           }
-          batchedTileWriter.write(encodedTile);
+          tileWriter.write(encodedTile);
 
           stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
           tilesByZoom[z].inc();
         }
         lastTileWritten.set(lastTile);
       }
-      batchedTileWriter.printStats();
+      tileWriter.printStats();
     }
 
     if (time != null) {
       LOGGER.info("Finished z{} in {}", currentZ, time.stop());
     }
 
-    if (config.optimizeDb()) {
-      db.vacuumAnalyze();
-    }
+
+    archive.finish(config);
   }
 
   private void printTileStats() {

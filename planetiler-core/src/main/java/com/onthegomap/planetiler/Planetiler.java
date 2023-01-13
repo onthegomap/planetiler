@@ -4,9 +4,8 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -27,6 +26,9 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import com.onthegomap.planetiler.writer.TileArchiveMetadata;
+import com.onthegomap.planetiler.writer.TileArchiveWriter;
+import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,7 +96,7 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
-  private MbtilesMetadata mbtilesMetadata;
+  private TileArchiveMetadata tileArchiveMetadata;
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -176,9 +178,10 @@ public class Planetiler {
       ),
       ifSourceUsed(name, () -> {
         var header = osmInputFile.getHeader();
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationseq", header.osmosisReplicationSequenceNumber());
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationseq",
+          header.osmosisReplicationSequenceNumber());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
@@ -550,7 +553,7 @@ public class Planetiler {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
-    mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
+    tileArchiveMetadata = new TileArchiveMetadata(profile, config.arguments());
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
@@ -633,7 +636,13 @@ public class Planetiler {
 
     featureGroup.prepare();
 
-    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
+    try (Mbtiles archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+      TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
+        config,
+        stats);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to write to " + output, e);
+    }
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");

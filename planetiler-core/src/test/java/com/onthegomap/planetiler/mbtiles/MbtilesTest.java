@@ -7,6 +7,7 @@ import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.sql.SQLException;
@@ -45,7 +46,7 @@ class MbtilesTest {
 
       assertNull(db.getTile(0, 0, 0));
       Set<Mbtiles.TileEntry> expected = new TreeSet<>();
-      try (var writer = db.newBatchedTileWriter()) {
+      try (var writer = db.newTileWriter()) {
         for (int i = 0; i < howMany; i++) {
           var dataHash = i - (i % 2);
           var dataBase = howMany + dataHash;

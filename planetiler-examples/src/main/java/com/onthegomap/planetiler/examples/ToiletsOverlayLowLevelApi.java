@@ -6,13 +6,14 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.writer.TileArchiveMetadata;
+import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +56,7 @@ public class ToiletsOverlayLowLevelApi {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.fromJvmProperties());
 
     // extract mbtiles metadata from profile
-    MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile);
+    TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile);
 
     // overwrite output each time
     FileUtils.deleteFile(output);
@@ -109,7 +110,12 @@ public class ToiletsOverlayLowLevelApi {
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.
-    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
+    try (Mbtiles db = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+      TileArchiveWriter.writeOutput(featureGroup, db, () -> FileUtils.fileSize(output), tileArchiveMetadata, config,
+        stats);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to write to " + output, e);
+    }
 
     // dump recorded timings at the end
     stats.printSummary();
