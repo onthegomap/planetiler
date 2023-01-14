@@ -110,6 +110,8 @@ class BikeRouteOverlayTest {
           "name", "EuroVelo 8 - Mediterranean Route - part Monaco",
           "ref", "EV8"
         ), GeoUtils.WORLD_LAT_LON_BOUNDS, 25, LineString.class);
+
+      TestUtils.assertTileDuplicates(mbtiles, 0);
     }
   }
 }

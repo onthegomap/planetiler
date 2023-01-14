@@ -12,9 +12,12 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.Gzip;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -356,17 +359,22 @@ class FeatureGroupTest {
 
   @ParameterizedTest(name = "{0}")
   @ArgumentsSource(SameFeatureGroupTestArgs.class)
-  void testGenerateContentHash(String testName, boolean expectSame, PuTileArgs args0, PuTileArgs args1) {
+  void testGenerateContentHash(String testName, boolean expectSame, PuTileArgs args0, PuTileArgs args1)
+    throws IOException {
     put(args0);
     put(args1);
     sorter.sort();
     var iter = features.iterator();
-    var tile0 = iter.next();
-    var tile1 = iter.next();
+    var tileHash0 = MbtilesWriter.generateContentHash(
+      Gzip.gzip(iter.next().getVectorTileEncoder().encode())
+    );
+    var tileHash1 = MbtilesWriter.generateContentHash(
+      Gzip.gzip(iter.next().getVectorTileEncoder().encode())
+    );
     if (expectSame) {
-      assertEquals(tile0.generateContentHash(), tile1.generateContentHash());
+      assertEquals(tileHash0, tileHash1);
     } else {
-      assertNotEquals(tile0.generateContentHash(), tile1.generateContentHash());
+      assertNotEquals(tileHash0, tileHash1);
     }
   }
 
