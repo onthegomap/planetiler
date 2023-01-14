@@ -207,6 +207,7 @@ download regularly-updated tilesets.
 
 - Supports [Natural Earth](https://www.naturalearthdata.com/),
   OpenStreetMap [.osm.pbf](https://wiki.openstreetmap.org/wiki/PBF_Format),
+  [`geopackage`](https://www.geopackage.org/),
   and [Esri Shapefiles](https://en.wikipedia.org/wiki/Shapefile) data sources
 - Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
   elements map to vector tile features, and post-process generated tiles
