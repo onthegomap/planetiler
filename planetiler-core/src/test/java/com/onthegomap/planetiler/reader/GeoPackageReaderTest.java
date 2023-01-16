@@ -33,10 +33,13 @@ class GeoPackageReaderTest {
       FileUtils.unzip(stream, tmpDir);
     }
 
-    try (
-      var reader = new GeoPackageReader("test", path)
-    ) {
-      for (int i = 1; i <= 2; i++) {
+    var projections = new String[]{null, "EPSG:4326"};
+
+    var iter = 1;
+    for (var proj : projections) {
+      try (
+        var reader = new GeoPackageReader(proj, "test", path, tmpDir)
+      ) {
         assertEquals(86, reader.getFeatureCount());
         List<Geometry> points = new ArrayList<>();
         List<String> names = new ArrayList<>();
@@ -55,9 +58,11 @@ class GeoPackageReaderTest {
         assertTrue(names.contains("Van Dörn Street"));
         var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
         var centroid = gc.getCentroid();
-        assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
-        assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);
+        assertEquals(-77.0297995, centroid.getX(), 5, "iter " + iter);
+        assertEquals(38.9119684, centroid.getY(), 5, "iter " + iter);
       }
+
+      iter += 1;
     }
   }
 }

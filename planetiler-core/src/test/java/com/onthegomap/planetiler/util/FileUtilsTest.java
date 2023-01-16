@@ -142,18 +142,4 @@ class FileUtilsTest {
       List.of("/shapefile/stations.shp", "/shapefile/stations.shx"),
       matchingPaths.stream().map(Path::toString).sorted().toList());
   }
-
-  @Test
-  void testUnzipMatchingFiles() throws IOException {
-    Path zipPath = TestUtils.pathToResource("shapefile.zip");
-    List<Path> expectedPaths = List.of(tmpDir.resolve("stations.shp"), tmpDir.resolve("stations.shx"));
-
-    var extractedPaths = FileUtils.unzipMatchingFiles(zipPath, "stations.sh[px]", tmpDir);
-
-    assertEquals(expectedPaths, extractedPaths.stream().sorted().toList());
-
-    for (var path : expectedPaths) {
-      assertTrue(Files.exists(path), "missing expected file: " + path);
-    }
-  }
 }
