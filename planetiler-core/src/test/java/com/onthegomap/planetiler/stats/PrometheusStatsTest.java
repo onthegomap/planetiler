@@ -91,8 +91,8 @@ class PrometheusStatsTest {
     PrometheusStats stats = new PrometheusStats("job");
     stats.wroteTile(0, 10);
     stats.wroteTile(0, 10_000);
-    assertContainsStat("^planetiler_mbtiles_tile_written_bytes_bucket\\{.*le=\"1000\\..* 1", stats);
-    assertContainsStat("^planetiler_mbtiles_tile_written_bytes_bucket\\{.*le=\"10000\\..* 2", stats);
+    assertContainsStat("^planetiler_archive_tile_written_bytes_bucket\\{.*le=\"1000\\..* 1", stats);
+    assertContainsStat("^planetiler_archive_tile_written_bytes_bucket\\{.*le=\"10000\\..* 2", stats);
   }
 
   @Test

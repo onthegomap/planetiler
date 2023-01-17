@@ -7,10 +7,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.Format;
-import java.io.Closeable;
+import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.writer.TileArchive;
+import com.onthegomap.planetiler.writer.TileArchiveMetadata;
+import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -46,7 +50,7 @@ import org.sqlite.SQLiteConfig;
  *
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
-public final class Mbtiles implements Closeable {
+public final class Mbtiles implements TileArchive {
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
@@ -142,6 +146,42 @@ public final class Mbtiles implements Closeable {
       return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + path, throwables);
+    }
+  }
+
+  @Override
+  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
+    if (config.skipIndexCreation()) {
+      createTablesWithoutIndexes();
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("Skipping index creation. Add later by executing: {}",
+          String.join(" ; ", getManualIndexCreationStatements()));
+      }
+    } else {
+      createTablesWithIndexes();
+    }
+
+    var metadata = metadata()
+      .setName(tileArchiveMetadata.name())
+      .setFormat("pbf")
+      .setDescription(tileArchiveMetadata.description())
+      .setAttribution(tileArchiveMetadata.attribution())
+      .setVersion(tileArchiveMetadata.version())
+      .setType(tileArchiveMetadata.type())
+      .setBoundsAndCenter(config.bounds().latLon())
+      .setMinzoom(config.minzoom())
+      .setMaxzoom(config.maxzoom())
+      .setJson(layerStats.getTileStats());
+
+    for (var entry : tileArchiveMetadata.planetilerSpecific().entrySet()) {
+      metadata.setMetadata(entry.getKey(), entry.getValue());
+    }
+  }
+
+  @Override
+  public void finish(PlanetilerConfig config) {
+    if (config.optimizeDb()) {
+      vacuumAnalyze();
     }
   }
 
@@ -281,12 +321,17 @@ public final class Mbtiles implements Closeable {
   }
 
   /** Returns a writer that queues up inserts into the tile database(s) into large batches before executing them. */
-  public BatchedTileWriter newBatchedTileWriter() {
+  public TileArchive.TileWriter newTileWriter() {
     if (compactDb) {
       return new BatchedCompactTileWriter();
     } else {
       return new BatchedNonCompactTileWriter();
     }
+  }
+
+  // TODO: exists for compatibility purposes
+  public TileArchive.TileWriter newBatchedTileWriter() {
+    return newTileWriter();
   }
 
   /** Returns the contents of the metadata table. */
@@ -659,25 +704,18 @@ public final class Mbtiles implements Closeable {
     }
   }
 
-
-  /**
-   * A high-throughput writer that accepts new tiles and queues up the writes to execute them in fewer large-batches.
-   */
-  public interface BatchedTileWriter extends AutoCloseable {
-    void write(TileEncodingResult encodingResult);
-
-    @Override
-    void close();
-
-    default void printStats() {}
-  }
-
-  private class BatchedNonCompactTileWriter implements BatchedTileWriter {
+  private class BatchedNonCompactTileWriter implements TileWriter {
 
     private final BatchedTileTableWriter tableWriter = new BatchedTileTableWriter();
 
     @Override
     public void write(TileEncodingResult encodingResult) {
+      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
+    }
+
+    // TODO: exists for compatibility purposes
+    @Override
+    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
       tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
     }
 
@@ -688,7 +726,7 @@ public final class Mbtiles implements Closeable {
 
   }
 
-  private class BatchedCompactTileWriter implements BatchedTileWriter {
+  private class BatchedCompactTileWriter implements TileWriter {
 
     private final BatchedTileShallowTableWriter batchedTileShallowTableWriter = new BatchedTileShallowTableWriter();
     private final BatchedTileDataTableWriter batchedTileDataTableWriter = new BatchedTileDataTableWriter();
@@ -720,6 +758,12 @@ public final class Mbtiles implements Closeable {
         batchedTileDataTableWriter.write(new TileDataEntry(tileDataId, encodingResult.tileData()));
       }
       batchedTileShallowTableWriter.write(new TileShallowEntry(encodingResult.coord(), tileDataId));
+    }
+
+    // TODO: exists for compatibility purposes
+    @Override
+    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
+      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
     }
 
     @Override

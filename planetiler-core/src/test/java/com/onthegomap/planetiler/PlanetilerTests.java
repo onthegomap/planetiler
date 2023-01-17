@@ -7,13 +7,11 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -24,6 +22,8 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.writer.TileArchiveMetadata;
+import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -141,7 +141,8 @@ class PlanetilerTests {
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {
-      MbtilesWriter.writeOutput(featureGroup, db, () -> 0L, new MbtilesMetadata(profile, config.arguments()), config,
+      TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config.arguments()),
+        config,
         stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
@@ -267,11 +268,11 @@ class PlanetilerTests {
   void testOverrideMetadata() throws Exception {
     var results = runWithReaderFeatures(
       Map.of(
-        "mbtiles_name", "mbtiles_name",
-        "mbtiles_description", "mbtiles_description",
-        "mbtiles_attribution", "mbtiles_attribution",
-        "mbtiles_version", "mbtiles_version",
-        "mbtiles_type", "mbtiles_type"
+        "mbtiles_name", "override_name",
+        "mbtiles_description", "override_description",
+        "mbtiles_attribution", "override_attribution",
+        "mbtiles_version", "override_version",
+        "mbtiles_type", "override_type"
       ),
       List.of(),
       (sourceFeature, features) -> {
@@ -279,11 +280,11 @@ class PlanetilerTests {
     );
     assertEquals(Map.of(), results.tiles);
     assertSubmap(Map.of(
-      "name", "mbtiles_name",
-      "description", "mbtiles_description",
-      "attribution", "mbtiles_attribution",
-      "version", "mbtiles_version",
-      "type", "mbtiles_type"
+      "name", "override_name",
+      "description", "override_description",
+      "attribution", "override_attribution",
+      "version", "override_version",
+      "type", "override_type"
     ), results.metadata);
   }
 

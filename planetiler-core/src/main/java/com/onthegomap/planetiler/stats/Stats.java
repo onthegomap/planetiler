@@ -99,7 +99,7 @@ public interface Stats extends AutoCloseable {
   /** Records that an input element was processed and emitted some output features in {@code layer}. */
   void processedElement(String elemType, String layer);
 
-  /** Records that a tile has been written to the mbtiles output where compressed size is {@code bytes}. */
+  /** Records that a tile has been written to the archive output where compressed size is {@code bytes}. */
   void wroteTile(int zoom, int bytes);
 
   /** Returns the timers for all stages started with {@link #startStage(String)}. */

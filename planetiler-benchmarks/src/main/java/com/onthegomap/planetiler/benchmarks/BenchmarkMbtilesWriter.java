@@ -5,8 +5,8 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
-import com.onthegomap.planetiler.mbtiles.Mbtiles.BatchedTileWriter;
-import com.onthegomap.planetiler.mbtiles.TileEncodingResult;
+import com.onthegomap.planetiler.writer.TileArchive.TileWriter;
+import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -74,7 +74,7 @@ public class BenchmarkMbtilesWriter {
           mbtiles.createTablesWithIndexes();
         }
 
-        try (var writer = mbtiles.newBatchedTileWriter()) {
+        try (var writer = mbtiles.newTileWriter()) {
           Stopwatch sw = Stopwatch.createStarted();
           writeTiles(writer, tilesToWrite, distinctTilesInPercent, distinctTileData, dupeTileData, dupeSpreadInPercent);
           sw.stop();
@@ -92,7 +92,7 @@ public class BenchmarkMbtilesWriter {
   }
 
 
-  private static void writeTiles(BatchedTileWriter writer, int tilesToWrite, int distinctTilesInPercent,
+  private static void writeTiles(TileWriter writer, int tilesToWrite, int distinctTilesInPercent,
     byte[] distinctTileData, byte[] dupeTileData, int dupeSpreadInPercent) {
 
     int dupesToWrite = (int) Math.round(tilesToWrite * (100 - distinctTilesInPercent) / 100.0);

@@ -1,13 +1,13 @@
-package com.onthegomap.planetiler.config;
+package com.onthegomap.planetiler.writer;
 
 import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.util.BuildInfo;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Controls information that {@link MbtilesWriter} will write to the mbtiles metadata table. */
-public record MbtilesMetadata(
+/** Controls information that {@link TileArchiveWriter} will write to the archive metadata. */
+public record TileArchiveMetadata(
   String name,
   String description,
   String attribution,
@@ -16,7 +16,7 @@ public record MbtilesMetadata(
   Map<String, String> planetilerSpecific
 ) {
 
-  public MbtilesMetadata(Profile profile) {
+  public TileArchiveMetadata(Profile profile) {
     this(
       profile.name(),
       profile.description(),
@@ -27,13 +27,13 @@ public record MbtilesMetadata(
     );
   }
 
-  public MbtilesMetadata(Profile profile, Arguments args) {
+  public TileArchiveMetadata(Profile profile, Arguments args) {
     this(
-      args.getString("mbtiles_name", "'name' attribute for mbtiles metadata", profile.name()),
-      args.getString("mbtiles_description", "'description' attribute for mbtiles metadata", profile.description()),
-      args.getString("mbtiles_attribution", "'attribution' attribute for mbtiles metadata", profile.attribution()),
-      args.getString("mbtiles_version", "'version' attribute for mbtiles metadata", profile.version()),
-      args.getString("mbtiles_type", "'type' attribute for mbtiles metadata",
+      args.getString("mbtiles_name", "'name' attribute for tileset metadata", profile.name()),
+      args.getString("mbtiles_description", "'description' attribute for tileset metadata", profile.description()),
+      args.getString("mbtiles_attribution", "'attribution' attribute for tileset metadata", profile.attribution()),
+      args.getString("mbtiles_version", "'version' attribute for tileset metadata", profile.version()),
+      args.getString("mbtiles_type", "'type' attribute for tileset metadata",
         profile.isOverlay() ? "overlay" : "baselayer"),
       mapWithBuildInfo()
     );
@@ -56,7 +56,7 @@ public record MbtilesMetadata(
     return result;
   }
 
-  public MbtilesMetadata set(String key, Object value) {
+  public TileArchiveMetadata set(String key, Object value) {
     if (key != null && value != null) {
       planetilerSpecific.put(key, value.toString());
     }

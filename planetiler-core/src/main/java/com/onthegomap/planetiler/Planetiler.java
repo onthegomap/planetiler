@@ -4,9 +4,8 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -27,6 +26,10 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import com.onthegomap.planetiler.writer.TileArchive;
+import com.onthegomap.planetiler.writer.TileArchiveMetadata;
+import com.onthegomap.planetiler.writer.TileArchiveWriter;
+import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,7 +97,7 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
-  private MbtilesMetadata mbtilesMetadata;
+  private TileArchiveMetadata tileArchiveMetadata;
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
@@ -176,9 +179,10 @@ public class Planetiler {
       ),
       ifSourceUsed(name, () -> {
         var header = osmInputFile.getHeader();
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationseq", header.osmosisReplicationSequenceNumber());
-        mbtilesMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationseq",
+          header.osmosisReplicationSequenceNumber());
+        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
@@ -489,30 +493,29 @@ public class Planetiler {
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Fails if the file already exists.
+   * Sets the location of the output archive to write rendered tiles to. Fails if the archive already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments.
    *
    * @param argument the argument key to check for an override to {@code fallback}
    * @param fallback the fallback value if {@code argument} is not set in arguments
    * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @see TileArchiveWriter
    */
   public Planetiler setOutput(String argument, Path fallback) {
-    this.output = arguments.file(argument, "mbtiles output file", fallback);
+    this.output = arguments.file(argument, "output tile archive", fallback);
     return this;
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Overwrites file if it already
-   * exists.
+   * Sets the location of the output archive to write rendered tiles to. Overwrites file if it already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments.
    *
    * @param argument the argument key to check for an override to {@code fallback}
    * @param fallback the fallback value if {@code argument} is not set in arguments
    * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @see TileArchiveWriter
    */
   public Planetiler overwriteOutput(String argument, Path fallback) {
     this.overwrite = true;
@@ -521,7 +524,7 @@ public class Planetiler {
 
   /**
    * Reads all elements from all sourced that have been added, generates map features according to the profile, and
-   * writes the rendered tiles to the output mbtiles file.
+   * writes the rendered tiles to the output archive.
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
    * @throws Exception                if an error occurs while processing
@@ -550,7 +553,7 @@ public class Planetiler {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
-    mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
+    tileArchiveMetadata = new TileArchiveMetadata(profile, config.arguments());
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
@@ -579,7 +582,7 @@ public class Planetiler {
         }
       }
       LOGGER.info("  sort: Sort rendered features by tile ID");
-      LOGGER.info("  mbtiles: Encode each tile and write to {}", output);
+      LOGGER.info("  archive: Encode each tile and write to {}", output);
     }
 
     // in case any temp files are left from a previous run...
@@ -616,7 +619,7 @@ public class Planetiler {
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);
     stats.monitorFile("multipolygons", multipolygonPath);
-    stats.monitorFile("mbtiles", output);
+    stats.monitorFile("archive", output);
 
     for (Stage stage : stages) {
       stage.task.run();
@@ -633,7 +636,13 @@ public class Planetiler {
 
     featureGroup.prepare();
 
-    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
+    try (TileArchive archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+      TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
+        config,
+        stats);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to write to " + output, e);
+    }
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");
@@ -659,7 +668,7 @@ public class Planetiler {
     readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
-    writePhase.addDisk(output, outputSize, "mbtiles output");
+    writePhase.addDisk(output, outputSize, "archive output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {
