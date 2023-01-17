@@ -2,13 +2,16 @@ package com.onthegomap.planetiler.writer;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.util.LayerStats;
+import java.io.Closeable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A TileArchive is a on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive
  * format.
  */
-public interface TileArchive {
-  public interface TileWriter extends AutoCloseable {
+@NotThreadSafe
+public interface TileArchive extends Closeable {
+  interface TileWriter extends Closeable {
     void write(TileEncodingResult encodingResult);
 
     // TODO: exists for compatibility reasons

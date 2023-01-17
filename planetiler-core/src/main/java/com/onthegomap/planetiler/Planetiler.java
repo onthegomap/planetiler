@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
+import com.onthegomap.planetiler.writer.TileArchive;
 import com.onthegomap.planetiler.writer.TileArchiveMetadata;
 import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
@@ -635,7 +636,7 @@ public class Planetiler {
 
     featureGroup.prepare();
 
-    try (Mbtiles archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+    try (TileArchive archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
       TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
         config,
         stats);
