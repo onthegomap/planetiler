@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.writer;
 
+import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
@@ -23,6 +24,11 @@ public interface TileArchive extends Closeable {
     default void printStats() {}
   }
 
+
+  /**
+   * specify the preferred insertion order for this archive, e.g. TMS or HILBERT. See {@link FeatureGroup.TileOrder}.
+   */
+  FeatureGroup.TileOrder preferredTileOrder();
 
   /**
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any

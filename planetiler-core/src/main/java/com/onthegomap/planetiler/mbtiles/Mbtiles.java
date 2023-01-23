@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -92,6 +93,12 @@ public final class Mbtiles implements TileArchive {
   private final Connection connection;
   private PreparedStatement getTileStatement = null;
   private final boolean compactDb;
+
+  /** Inserts will be ordered to match the MBTiles index (TMS) */
+  @Override
+  public FeatureGroup.TileOrder preferredTileOrder() {
+    return FeatureGroup.TileOrder.TMS;
+  }
 
   private Mbtiles(Connection connection, boolean compactDb) {
     this.connection = connection;
