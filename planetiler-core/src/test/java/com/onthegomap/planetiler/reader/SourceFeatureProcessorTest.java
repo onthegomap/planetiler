@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -68,7 +69,7 @@ class SourceFeatureProcessorTest {
   void testProcessMultipleInputs() {
     var profile = new Profile.NullProfile();
     var stats = Stats.inMemory();
-    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(FeatureGroup.TileOrder.TMS, profile, stats);
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
 
     var emittedFeatures = new ArrayList<SimpleFeature>();
     var paths = List.of(

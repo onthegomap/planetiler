@@ -11,6 +11,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
@@ -137,7 +138,7 @@ class PlanetilerTests {
     Profile profile
   ) throws Exception {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.of(args));
-    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(FeatureGroup.TileOrder.TMS, profile, stats);
+    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {

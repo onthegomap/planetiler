@@ -7,10 +7,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.writer.TileArchive;
@@ -96,8 +96,8 @@ public final class Mbtiles implements TileArchive {
 
   /** Inserts will be ordered to match the MBTiles index (TMS) */
   @Override
-  public FeatureGroup.TileOrder preferredTileOrder() {
-    return FeatureGroup.TileOrder.TMS;
+  public TileOrder tileOrder() {
+    return TileOrder.TMS;
   }
 
   private Mbtiles(Connection connection, boolean compactDb) {

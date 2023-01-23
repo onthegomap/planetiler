@@ -194,7 +194,8 @@ public class TileArchiveWriter {
     } else {
       blurb = "%d/%d/%d (z%d %s) %s".formatted(
         lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), Format.defaultInstance().percent(lastTile.progressOnLevel(config.bounds().tileExtents())),
+        lastTile.z(),
+        Format.defaultInstance().percent(lastTile.progressOnLevel(archive.tileOrder(), config.bounds().tileExtents())),
         lastTile.getDebugUrl()
       );
     }

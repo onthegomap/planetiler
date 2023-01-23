@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -74,7 +75,7 @@ public class ToiletsOverlayLowLevelApi {
      * option too.
      */
     FeatureGroup featureGroup = FeatureGroup.newDiskBackedFeatureGroup(
-      FeatureGroup.TileOrder.TMS,
+      TileOrder.TMS,
       tmpDir.resolve("feature.db"),
       profile, config, stats
     );

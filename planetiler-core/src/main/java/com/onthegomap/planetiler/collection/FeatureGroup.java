@@ -7,12 +7,12 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
@@ -63,16 +63,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
 
-  public enum TileOrder {
-    TMS(0),
-    HILBERT(1);
-
-    private final int number;
-
-    private TileOrder(int number) {
-      this.number = number;
-    }
-  }
 
   FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, Stats stats) {
     this.sorter = sorter;
@@ -216,17 +206,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonLayerStrings.encode(vectorTileFeature.layer());
 
-    int encoded;
-    TileCoord tileCoord = feature.tile();
-    if (this.tileOrder == TileOrder.HILBERT) {
-      encoded = TileCoord.startIndexForZoom(tileCoord.z()) +
-        Hilbert.hilbertXYToIndex(tileCoord.z(), tileCoord.x(), tileCoord.y());
-    } else {
-      encoded = tileCoord.encoded();
-    }
 
     return encodeKey(
-      encoded,
+      this.tileOrder.encode(feature.tile()),
       encodedLayer,
       feature.sortKey(),
       feature.group().isPresent()
@@ -377,13 +359,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     private byte lastLayer = Byte.MAX_VALUE;
 
     private TileFeatures(int lastTileId) {
-      if (tileOrder == TileOrder.HILBERT) {
-        int z = TileCoord.zoomForIndex(lastTileId);
-        long xy = Hilbert.hilbertPositionToXY(z, lastTileId - TileCoord.startIndexForZoom(z));
-        this.tileCoord = TileCoord.ofXYZ(Hilbert.extractX(xy), Hilbert.extractY(xy), z);
-      } else {
-        this.tileCoord = TileCoord.decode(lastTileId);
-      }
+      this.tileCoord = tileOrder.decode(lastTileId);
     }
 
     private static void unscale(List<VectorTile.Feature> features) {

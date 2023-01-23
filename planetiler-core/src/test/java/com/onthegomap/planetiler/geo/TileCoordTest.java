@@ -68,7 +68,8 @@ class TileCoordTest {
   })
   void testTileProgressOnLevel(int x, int y, int z, double p) {
     double progress =
-      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
+      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileOrder.TMS,
+        TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }
 }

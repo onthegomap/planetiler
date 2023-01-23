@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
@@ -41,7 +42,7 @@ class FeatureGroupTest {
   private final FeatureSort sorter = FeatureSort.newInMemory();
 
   private FeatureGroup features =
-    new FeatureGroup(sorter, FeatureGroup.TileOrder.TMS, new Profile.NullProfile(), Stats.inMemory());
+    new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile(), Stats.inMemory());
   private CloseableConsumer<SortableFeature> featureWriter = features.writerForThread();
 
   @Test
@@ -267,7 +268,7 @@ class FeatureGroupTest {
 
   @Test
   void testProfileChangesGeometry() {
-    features = new FeatureGroup(sorter, FeatureGroup.TileOrder.TMS, new Profile.NullProfile() {
+    features = new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile() {
       @Override
       public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
         Collections.reverse(items);
@@ -297,7 +298,7 @@ class FeatureGroupTest {
 
   @Test
   void testHilbertOrdering() {
-    features = new FeatureGroup(sorter, FeatureGroup.TileOrder.HILBERT, new Profile.NullProfile() {}, Stats.inMemory());
+    features = new FeatureGroup(sorter, TileOrder.HILBERT, new Profile.NullProfile() {}, Stats.inMemory());
     featureWriter = features.writerForThread();
 
     // TMS tile IDs at zoom level 1:

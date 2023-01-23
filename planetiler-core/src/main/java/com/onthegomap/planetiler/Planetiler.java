@@ -617,7 +617,7 @@ public class Planetiler {
 
     try (TileArchive archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
       featureGroup =
-        FeatureGroup.newDiskBackedFeatureGroup(archive.preferredTileOrder(), featureDbPath, profile, config, stats);
+        FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats);
       stats.monitorFile("nodes", nodeDbPath);
       stats.monitorFile("features", featureDbPath);
       stats.monitorFile("multipolygons", multipolygonPath);

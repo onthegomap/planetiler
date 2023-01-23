@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.geo;
 import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.Hilbert;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -65,6 +66,12 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), z);
   }
 
+  public static TileCoord hilbertDecode(int encoded) {
+    int z = TileCoord.zoomForIndex(encoded);
+    long xy = Hilbert.hilbertPositionToXY(z, encoded - TileCoord.startIndexForZoom(z));
+    return TileCoord.ofXYZ(Hilbert.extractX(xy), Hilbert.extractY(xy), z);
+  }
+
   /** Returns the tile containing a latitude/longitude coordinate at a given zoom level. */
   public static TileCoord aroundLngLat(double lng, double lat, int zoom) {
     double factor = 1 << zoom;
@@ -101,7 +108,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return "{x=" + x + " y=" + y + " z=" + z + '}';
   }
 
-  public double progressOnLevel(TileExtents extents) {
+  public double progressOnLevel(TileOrder order, TileExtents extents) {
     // approximate percent complete within a bounding box by computing what % of the way through the columns we are
     // (for hilbert ordering, we probably won't be able to reflect the bounding box)
     var zoomBounds = extents.getForZoom(z);
@@ -135,6 +142,11 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     double x = GeoUtils.getWorldX(lng) * factor;
     double y = GeoUtils.getWorldY(lat) * factor;
     return new CoordinateXY((x - Math.floor(x)) * 256, (y - Math.floor(y)) * 256);
+  }
+
+  public int hilbertEncoded() {
+    return startIndexForZoom(this.z) +
+      Hilbert.hilbertXYToIndex(this.z, this.x, this.y);
   }
 
   public static long tmsPositionToXY(int z, int pos) {
