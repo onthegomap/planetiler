@@ -38,7 +38,7 @@ class TileCoordTest {
     "32767,0,15,1431655764",
     "32767,32767,15,1431622997"
   })
-  void testTileOrder(int x, int y, int z, int i) {
+  void testTileCoordEncode(int x, int y, int z, int i) {
     int encoded = TileCoord.ofXYZ(x, y, z).encoded();
     assertEquals(i, encoded);
     TileCoord decoded = TileCoord.decode(i);
@@ -57,6 +57,39 @@ class TileCoordTest {
       }
       last = encoded;
     }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0",
+    "0,0,1,1",
+    "0,1,1,2",
+    "1,1,1,3",
+    "1,0,1,4",
+    "0,0,2,5",
+    "1,0,2,6",
+    "1,1,2,7",
+    "0,1,2,8",
+    "0,2,2,9",
+    "0,3,2,10",
+    "1,3,2,11",
+    "1,2,2,12",
+    "2,2,2,13",
+    "2,3,2,14",
+    "3,3,2,15",
+    "3,2,2,16",
+    "3,1,2,17",
+    "2,1,2,18",
+    "2,0,2,19",
+    "3,0,2,20"
+  })
+  void testTileCoordHilbert(int x, int y, int z, int i) {
+    int encoded = TileCoord.ofXYZ(x, y, z).hilbertEncoded();
+    assertEquals(i, encoded);
+    TileCoord decoded = TileCoord.hilbertDecode(i);
+    assertEquals(decoded.x(), x, "x");
+    assertEquals(decoded.y(), y, "y");
+    assertEquals(decoded.z(), z, "z");
   }
 
   @ParameterizedTest
