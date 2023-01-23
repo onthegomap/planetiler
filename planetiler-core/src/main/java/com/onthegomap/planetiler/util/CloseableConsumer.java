@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 @FunctionalInterface
-public interface CloseableConusmer<T> extends Consumer<T>, Closeable {
+public interface CloseableConsumer<T> extends Consumer<T>, Closeable {
 
   @Override
   default void close() throws IOException {}

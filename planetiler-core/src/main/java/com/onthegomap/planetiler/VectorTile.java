@@ -554,7 +554,7 @@ public class VectorTile {
   }
 
   /**
-   * A vector tile encoded as a list of commands according to the
+   * A vector geometry encoded as a list of commands according to the
    * <a href="https://github.com/mapbox/vector-tile-spec/tree/master/2.1#43-geometry-encoding">vector tile
    * specification</a>.
    * <p>
