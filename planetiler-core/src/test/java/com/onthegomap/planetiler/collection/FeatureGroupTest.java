@@ -14,7 +14,7 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
@@ -40,7 +40,7 @@ class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
   private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), Stats.inMemory());
-  private CloseableConusmer<SortableFeature> featureWriter = features.writerForThread();
+  private CloseableConsumer<SortableFeature> featureWriter = features.writerForThread();
 
   @Test
   void testEmpty() {

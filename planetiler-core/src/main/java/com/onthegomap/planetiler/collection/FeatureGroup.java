@@ -9,7 +9,7 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.LayerStats;
@@ -243,7 +243,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   }
 
   /** Returns a new feature writer that can be used for a single thread. */
-  public CloseableConusmer<SortableFeature> writerForThread() {
+  public CloseableConsumer<SortableFeature> writerForThread() {
     return sorter.writerForThread();
   }
 

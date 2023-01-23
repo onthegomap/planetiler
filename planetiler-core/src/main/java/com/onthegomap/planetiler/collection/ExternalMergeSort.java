@@ -9,7 +9,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.BinPack;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
-import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
@@ -138,7 +138,7 @@ class ExternalMergeSort implements FeatureSort {
   }
 
   @Override
-  public CloseableConusmer<SortableFeature> writerForThread() {
+  public CloseableConsumer<SortableFeature> writerForThread() {
     return new ThreadLocalWriter();
   }
 
@@ -396,7 +396,7 @@ class ExternalMergeSort implements FeatureSort {
 
   /** Writer that a single thread can use to write features independent of writers used in other threads. */
   @NotThreadSafe
-  private class ThreadLocalWriter implements CloseableConusmer<SortableFeature> {
+  private class ThreadLocalWriter implements CloseableConsumer<SortableFeature> {
 
     private Chunk currentChunk;
 
