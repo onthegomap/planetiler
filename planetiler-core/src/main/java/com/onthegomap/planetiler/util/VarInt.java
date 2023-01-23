@@ -24,7 +24,12 @@ package com.onthegomap.planetiler.util;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-
+/**
+ * Encode and decode Protocol Buffer-style VarInts.
+ * <p>
+ * getVarLong and putVarLong are adapted from <a href=
+ * "https://github.com/bazelbuild/bazel/blob/master/src/main/java/com/google/devtools/build/lib/util/VarInt.java">Bazel</a>.
+ */
 public class VarInt {
   private VarInt() {}
 
