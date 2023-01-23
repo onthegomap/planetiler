@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
+import com.onthegomap.planetiler.util.Hilbert;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
@@ -60,27 +61,55 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final Stats stats;
   private final LayerStats layerStats = new LayerStats();
   private volatile boolean prepared = false;
+  private final TileOrder tileOrder;
 
-  FeatureGroup(FeatureSort sorter, Profile profile, Stats stats) {
+  public enum TileOrder {
+    TMS(0),
+    HILBERT(1);
+
+    private final int number;
+
+    private TileOrder(int number) {
+      this.number = number;
+    }
+  }
+
+  FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, Stats stats) {
     this.sorter = sorter;
+    this.tileOrder = tileOrder;
     this.profile = profile;
     this.stats = stats;
   }
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
-  public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
-    return new FeatureGroup(FeatureSort.newInMemory(), profile, stats);
+  public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, Stats stats) {
+    return new FeatureGroup(FeatureSort.newInMemory(), tileOrder, profile, stats);
   }
 
   /**
    * Returns a feature grouper that writes all elements to disk in chunks, sorts each chunk, then reads back in order
    * from those chunks. Suitable for making maps up to planet-scale.
    */
+  public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
+    PlanetilerConfig config,
+    Stats stats) {
+    return new FeatureGroup(
+      new ExternalMergeSort(tempDir, config, stats),
+      tileOrder, profile, stats
+    );
+  }
+
+  /** backwards compatibility **/
+  public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
+    return new FeatureGroup(FeatureSort.newInMemory(), TileOrder.TMS, profile, stats);
+  }
+
+  /** backwards compatibility **/
   public static FeatureGroup newDiskBackedFeatureGroup(Path tempDir, Profile profile, PlanetilerConfig config,
     Stats stats) {
     return new FeatureGroup(
       new ExternalMergeSort(tempDir, config, stats),
-      profile, stats
+      TileOrder.TMS, profile, stats
     );
   }
 
@@ -186,8 +215,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private long encodeKey(RenderedFeature feature) {
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonLayerStrings.encode(vectorTileFeature.layer());
+
+    int encoded;
+    TileCoord tileCoord = feature.tile();
+    if (this.tileOrder == TileOrder.HILBERT) {
+      encoded = TileCoord.startIndexForZoom(tileCoord.z()) +
+        Hilbert.hilbertXYToIndex(tileCoord.z(), tileCoord.x(), tileCoord.y());
+    } else {
+      encoded = tileCoord.encoded();
+    }
+
     return encodeKey(
-      feature.tile().encoded(),
+      encoded,
       encodedLayer,
       feature.sortKey(),
       feature.group().isPresent()
@@ -337,8 +376,14 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     private LongLongHashMap counts = null;
     private byte lastLayer = Byte.MAX_VALUE;
 
-    private TileFeatures(int tileCoord) {
-      this.tileCoord = TileCoord.decode(tileCoord);
+    private TileFeatures(int lastTileId) {
+      if (tileOrder == TileOrder.HILBERT) {
+        int z = TileCoord.zoomForIndex(lastTileId);
+        long xy = Hilbert.hilbertPositionToXY(z, lastTileId - TileCoord.startIndexForZoom(z));
+        this.tileCoord = TileCoord.ofXYZ(Hilbert.extractX(xy), Hilbert.extractY(xy), z);
+      } else {
+        this.tileCoord = TileCoord.decode(lastTileId);
+      }
     }
 
     private static void unscale(List<VectorTile.Feature> features) {

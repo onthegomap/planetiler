@@ -615,7 +615,8 @@ public class Planetiler {
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
 
-    featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
+    featureGroup =
+      FeatureGroup.newDiskBackedFeatureGroup(FeatureGroup.TileOrder.TMS, featureDbPath, profile, config, stats);
     stats.monitorFile("nodes", nodeDbPath);
     stats.monitorFile("features", featureDbPath);
     stats.monitorFile("multipolygons", multipolygonPath);

@@ -74,6 +74,7 @@ public class ToiletsOverlayLowLevelApi {
      * option too.
      */
     FeatureGroup featureGroup = FeatureGroup.newDiskBackedFeatureGroup(
+      FeatureGroup.TileOrder.TMS,
       tmpDir.resolve("feature.db"),
       profile, config, stats
     );

@@ -137,7 +137,7 @@ class PlanetilerTests {
     Profile profile
   ) throws Exception {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.of(args));
-    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
+    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(FeatureGroup.TileOrder.TMS, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {

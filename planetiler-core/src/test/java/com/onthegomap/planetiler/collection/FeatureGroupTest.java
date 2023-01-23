@@ -39,7 +39,9 @@ import org.locationtech.jts.geom.Geometry;
 class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
-  private FeatureGroup features = new FeatureGroup(sorter, new Profile.NullProfile(), Stats.inMemory());
+
+  private FeatureGroup features =
+    new FeatureGroup(sorter, FeatureGroup.TileOrder.TMS, new Profile.NullProfile(), Stats.inMemory());
   private CloseableConsumer<SortableFeature> featureWriter = features.writerForThread();
 
   @Test
@@ -265,7 +267,7 @@ class FeatureGroupTest {
 
   @Test
   void testProfileChangesGeometry() {
-    features = new FeatureGroup(sorter, new Profile.NullProfile() {
+    features = new FeatureGroup(sorter, FeatureGroup.TileOrder.TMS, new Profile.NullProfile() {
       @Override
       public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) {
         Collections.reverse(items);
@@ -291,6 +293,45 @@ class FeatureGroupTest {
           new Feature(Map.of("id", 1L), newPoint(1, 2))
         )
       )), getFeatures());
+  }
+
+  @Test
+  void testHilbertOrdering() {
+    features = new FeatureGroup(sorter, FeatureGroup.TileOrder.HILBERT, new Profile.NullProfile() {}, Stats.inMemory());
+    featureWriter = features.writerForThread();
+
+    // TMS tile IDs at zoom level 1:
+    // 2 4
+    // 1 3
+
+    put(
+      1, "layer", Map.of("id", 1), newPoint(0, 0)
+    );
+    put(
+      2, "layer", Map.of("id", 2), newPoint(0, 0)
+    );
+    put(
+      3, "layer", Map.of("id", 3), newPoint(0, 0)
+    );
+    put(
+      4, "layer", Map.of("id", 4), newPoint(0, 0)
+    );
+
+    // calls sort()
+    var iter = features.iterator();
+
+    var tile = iter.next().tileCoord();
+    assertEquals(0, tile.x());
+    assertEquals(0, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(0, tile.x());
+    assertEquals(1, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(1, tile.x());
+    assertEquals(1, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(1, tile.x());
+    assertEquals(0, tile.y());
   }
 
   @TestFactory

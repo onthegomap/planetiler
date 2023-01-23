@@ -68,7 +68,7 @@ class SourceFeatureProcessorTest {
   void testProcessMultipleInputs() {
     var profile = new Profile.NullProfile();
     var stats = Stats.inMemory();
-    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(FeatureGroup.TileOrder.TMS, profile, stats);
 
     var emittedFeatures = new ArrayList<SimpleFeature>();
     var paths = List.of(
