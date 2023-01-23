@@ -14,16 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/**
- * Encode and decode Protocol Buffer-style VarInts.
- * Adapted from <a href="https://github.com/bazelbuild/bazel/blob/master/src/main/java/com/google/devtools/build/lib/util/VarInt.java">Bazel</a>,
- * with only the methods related to 64-bit Longs.
- */
 package com.onthegomap.planetiler.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+
 /**
  * Encode and decode Protocol Buffer-style VarInts.
  * <p>
