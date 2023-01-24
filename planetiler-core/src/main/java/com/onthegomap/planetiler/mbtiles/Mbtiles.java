@@ -27,13 +27,10 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -171,7 +168,7 @@ public final class Mbtiles implements TileArchive {
       .setBoundsAndCenter(config.bounds().latLon())
       .setMinzoom(config.minzoom())
       .setMaxzoom(config.maxzoom())
-      .setJson(layerStats.getTileStats());
+      .setJson(new MetadataJson(layerStats.getTileStats()));
 
     for (var entry : tileArchiveMetadata.planetilerSpecific().entrySet()) {
       metadata.setMetadata(entry.getKey(), entry.getValue());
@@ -400,10 +397,10 @@ public final class Mbtiles implements TileArchive {
    *      schema</a>
    */
   public record MetadataJson(
-    @JsonProperty("vector_layers") List<VectorLayer> vectorLayers
+    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers
   ) {
 
-    public MetadataJson(VectorLayer... layers) {
+    public MetadataJson(LayerStats.VectorLayer... layers) {
       this(List.of(layers));
     }
 
@@ -420,55 +417,6 @@ public final class Mbtiles implements TileArchive {
         return objectMapper.writeValueAsString(this);
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException("Unable to encode as string: " + this, e);
-      }
-    }
-
-    public enum FieldType {
-      @JsonProperty("Number")
-      NUMBER,
-      @JsonProperty("Boolean")
-      BOOLEAN,
-      @JsonProperty("String")
-      STRING;
-
-      /**
-       * Per the spec: attributes whose type varies between features SHOULD be listed as "String"
-       */
-      public static FieldType merge(FieldType oldValue, FieldType newValue) {
-        return oldValue != newValue ? STRING : newValue;
-      }
-    }
-
-    public record VectorLayer(
-      @JsonProperty("id") String id,
-      @JsonProperty("fields") Map<String, FieldType> fields,
-      @JsonProperty("description") Optional<String> description,
-      @JsonProperty("minzoom") OptionalInt minzoom,
-      @JsonProperty("maxzoom") OptionalInt maxzoom
-    ) {
-
-      public VectorLayer(String id, Map<String, FieldType> fields) {
-        this(id, fields, Optional.empty(), OptionalInt.empty(), OptionalInt.empty());
-      }
-
-      public VectorLayer(String id, Map<String, FieldType> fields, int minzoom, int maxzoom) {
-        this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom));
-      }
-
-      public static VectorLayer forLayer(String id) {
-        return new VectorLayer(id, new HashMap<>());
-      }
-
-      public VectorLayer withDescription(String newDescription) {
-        return new VectorLayer(id, fields, Optional.of(newDescription), minzoom, maxzoom);
-      }
-
-      public VectorLayer withMinzoom(int newMinzoom) {
-        return new VectorLayer(id, fields, description, OptionalInt.of(newMinzoom), maxzoom);
-      }
-
-      public VectorLayer withMaxzoom(int newMaxzoom) {
-        return new VectorLayer(id, fields, description, minzoom, OptionalInt.of(newMaxzoom));
       }
     }
   }
