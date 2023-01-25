@@ -16,12 +16,12 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Tracks the type and zoom range of vector tile attributes that have been emitted by layer to populate the
- * {@code vector_layers} attribute in the archive output metadata. Matches the MBTiles spec, but can be reused by other
- * {@link TileArchive} formats.
+ * Tracks the feature attributes and zoom range of each layer to populate the archive output metadata.
  * <p>
- * To minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
+ * Matches the MBTiles spec for {@code vector_layers}, but can be reused by other {@link TileArchive} formats. To
+ * minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
  * thread-local handler that can update stats without contention.
+ * </p>
  *
  * @see Mbtiles.MetadataJson
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles spec</a>
