@@ -101,7 +101,7 @@ class TileCoordTest {
   })
   void testTileProgressOnLevelTMS(int x, int y, int z, double p) {
     double progress =
-      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileOrder.TMS,
+      TileOrder.TMS.progressOnLevel(TileCoord.ofXYZ(x, y, z),
         TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }
@@ -111,11 +111,12 @@ class TileCoordTest {
     "0,0,1,0",
     "0,1,1,0.25",
     "1,1,1,0.5",
-    "0,0,2,0"
+    "0,0,2,0",
+    "2,2,2,0.5",
   })
   void testTileProgressOnLevelHilbert(int x, int y, int z, double p) {
     double progress =
-      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileOrder.HILBERT,
+      TileOrder.HILBERT.progressOnLevel(TileCoord.ofXYZ(x, y, z),
         TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }

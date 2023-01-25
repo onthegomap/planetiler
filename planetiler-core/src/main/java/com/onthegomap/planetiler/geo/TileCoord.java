@@ -109,16 +109,14 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     return "{x=" + x + " y=" + y + " z=" + z + '}';
   }
 
-  public double progressOnLevel(TileOrder order, TileExtents extents) {
-    if (order == TileOrder.TMS) {
-      // approximate percent complete within a bounding box by computing what % of the way through the columns we are
-      var zoomBounds = extents.getForZoom(z);
-      return 1d * (x - zoomBounds.minX()) / (zoomBounds.maxX() - zoomBounds.minX());
-    } else {
-      // this assumes extents is the whole world, so will be wrong when tiling a limited bbox
-      // we could improve this by making TileExtents store an exact set of all encoded coordinates.
-      return 1d * Hilbert.hilbertXYToIndex(this.z, this.x, this.y) / (2 << this.z);
-    }
+  public double progressOnLevel(TileExtents extents) {
+    // approximate percent complete within a bounding box by computing what % of the way through the columns we are
+    var zoomBounds = extents.getForZoom(z);
+    return 1d * (x - zoomBounds.minX()) / (zoomBounds.maxX() - zoomBounds.minX());
+  }
+
+  public double hilbertProgressOnLevel(TileExtents extents) {
+    return 1d * Hilbert.hilbertXYToIndex(this.z, this.x, this.y) / (1 << 2 * this.z);
   }
 
   @Override
