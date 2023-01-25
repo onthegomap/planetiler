@@ -335,6 +335,45 @@ class FeatureGroupTest {
     assertEquals(0, tile.y());
   }
 
+  @Test
+  void testTMSOrdering() {
+    features = new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile() {}, Stats.inMemory());
+    featureWriter = features.writerForThread();
+
+    // TMS tile IDs at zoom level 1:
+    // 2 4
+    // 1 3
+
+    put(
+      1, "layer", Map.of("id", 1), newPoint(0, 0)
+    );
+    put(
+      2, "layer", Map.of("id", 2), newPoint(0, 0)
+    );
+    put(
+      3, "layer", Map.of("id", 3), newPoint(0, 0)
+    );
+    put(
+      4, "layer", Map.of("id", 4), newPoint(0, 0)
+    );
+
+    // calls sort()
+    var iter = features.iterator();
+
+    var tile = iter.next().tileCoord();
+    assertEquals(0, tile.x());
+    assertEquals(1, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(0, tile.x());
+    assertEquals(0, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(1, tile.x());
+    assertEquals(1, tile.y());
+    tile = iter.next().tileCoord();
+    assertEquals(1, tile.x());
+    assertEquals(0, tile.y());
+  }
+
   @TestFactory
   List<DynamicTest> testEncodeLongKey() {
     List<TileCoord> tiles = List.of(

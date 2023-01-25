@@ -99,9 +99,23 @@ class TileCoordTest {
     "1,1,1,0.5",
     "0,3,2,0"
   })
-  void testTileProgressOnLevel(int x, int y, int z, double p) {
+  void testTileProgressOnLevelTMS(int x, int y, int z, double p) {
     double progress =
       TileCoord.ofXYZ(x, y, z).progressOnLevel(TileOrder.TMS,
+        TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
+    assertEquals(p, progress);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,1,0",
+    "0,1,1,0.25",
+    "1,1,1,0.5",
+    "0,0,2,0"
+  })
+  void testTileProgressOnLevelHilbert(int x, int y, int z, double p) {
+    double progress =
+      TileCoord.ofXYZ(x, y, z).progressOnLevel(TileOrder.HILBERT,
         TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }

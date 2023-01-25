@@ -26,7 +26,7 @@ public interface TileArchive extends Closeable {
 
 
   /**
-   * specify the preferred insertion order for this archive, e.g. TMS or HILBERT. See {@link TileOrder}.
+   * Specify the preferred insertion order for this archive, e.g. {@link TileOrder#TMS} or {@link TileOrder#HILBERT}.
    */
   TileOrder tileOrder();
 

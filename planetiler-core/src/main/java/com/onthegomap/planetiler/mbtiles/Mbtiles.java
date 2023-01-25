@@ -94,7 +94,6 @@ public final class Mbtiles implements TileArchive {
   private PreparedStatement getTileStatement = null;
   private final boolean compactDb;
 
-  /** Inserts will be ordered to match the MBTiles index (TMS) */
   @Override
   public TileOrder tileOrder() {
     return TileOrder.TMS;
