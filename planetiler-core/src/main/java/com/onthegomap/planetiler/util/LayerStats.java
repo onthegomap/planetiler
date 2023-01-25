@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.render.RenderedFeature;
+import com.onthegomap.planetiler.writer.TileArchive;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,8 +16,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * Tracks the type and zoom range of vector tile attributes that have been emitted by layer to populate the {@code json}
- * attribute in the mbtiles output metadata.
+ * Tracks the type and zoom range of vector tile attributes that have been emitted by layer to populate the
+ * {@code vector_layers} attribute in the archive output metadata. Matches the MBTiles spec, but can be reused by other
+ * {@link TileArchive} formats.
  * <p>
  * To minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
  * thread-local handler that can update stats without contention.
@@ -39,7 +41,7 @@ public class LayerStats implements Consumer<RenderedFeature> {
   private final ThreadLocal<ThreadLocalHandler> layerStats = ThreadLocal
     .withInitial(ThreadLocalHandler::new);
 
-  /** Returns stats on all features that have been emitted for the {@code json} mbtiles metadata value. */
+  /** Returns stats on all features that have been emitted as a list of {@link VectorLayer} objects. */
   public List<VectorLayer> getTileStats() {
     Map<String, StatsForLayer> layers = new TreeMap<>();
     for (var threadLocal : threadLocals) {
@@ -70,7 +72,7 @@ public class LayerStats implements Consumer<RenderedFeature> {
     STRING;
 
     /**
-     * Per the spec: attributes whose type varies between features SHOULD be listed as "String"
+     * Per the MBTiles spec: attributes whose type varies between features SHOULD be listed as "String"
      */
     public static FieldType merge(FieldType oldValue, FieldType newValue) {
       return oldValue != newValue ? STRING : newValue;
