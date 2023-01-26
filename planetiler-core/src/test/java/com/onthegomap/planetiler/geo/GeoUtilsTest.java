@@ -206,12 +206,30 @@ class GeoUtilsTest {
   }
 
   @Test
-  void testBarelyConcaveRectangle() {
+  void testBarelyConcaveTriangle() {
     assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
       0.51, 0.5,
+      0, 0
+    ));
+  }
+
+  @Test
+  void testAllowVerySmallConcavity() {
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.5001, 0.5,
+      0, 0
+    ));
+    assertConvex(true, newLinearRing(
+      0, 0,
+      1, 0,
+      1, 1,
+      0.5, 0.4999,
       0, 0
     ));
   }
@@ -295,7 +313,11 @@ class GeoUtilsTest {
         LinearRing flipped = flip ? (LinearRing) AffineTransformation.scaleInstance(-1, 1).transform(rotated) : rotated;
         for (boolean reverse : new boolean[]{false, true}) {
           LinearRing reversed = reverse ? flipped.reverse() : flipped;
-          assertEquals(isConvex, isConvex(reversed), "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
+          for (double scale : new double[]{1, 1e-2, 1 / Math.pow(2, 14) / 4096}) {
+            LinearRing scaled = (LinearRing) AffineTransformation.scaleInstance(scale, scale).transform(reversed);
+            assertEquals(isConvex, isConvex(scaled),
+              "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse + " scale=" + scale);
+          }
         }
       }
     }
