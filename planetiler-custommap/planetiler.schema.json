@@ -40,7 +40,8 @@
             "description": "File format of the data source",
             "enum": [
               "osm",
-              "shapefile"
+              "shapefile",
+              "geopackage"
             ]
           },
           "url": {

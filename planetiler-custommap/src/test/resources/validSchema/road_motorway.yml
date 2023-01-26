@@ -9,6 +9,9 @@ sources:
   osm:
     type: osm
     url: geofabrik:rhode-island
+  gpkg:
+    type: geopackage
+    url: https://example.com/geopackage.gpkg.zip
 tag_mappings:
   bridge: boolean # input=bridge, output=bridge, type=boolean
   layer: long

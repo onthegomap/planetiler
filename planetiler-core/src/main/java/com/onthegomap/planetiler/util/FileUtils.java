@@ -5,12 +5,16 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -22,6 +26,7 @@ import org.slf4j.LoggerFactory;
  * Convenience methods for working with files on disk.
  */
 public class FileUtils {
+
   private static final Format FORMAT = Format.defaultInstance();
   // Prevent zip-bomb attack, see https://rules.sonarsource.com/java/RSPEC-5042
   private static final int ZIP_THRESHOLD_ENTRIES = 10_000;
@@ -43,6 +48,61 @@ public class FileUtils {
           return Stream.empty();
         }
       });
+  }
+
+  /**
+   * Returns list of paths matching {@param pattern} within {@param basePath}.
+   * <p>
+   * If {@param basePath} is a directory, then {@param walkZipFile} will be invoked for each matching {@code .zip} file
+   * found. This function should return paths of interest within the zip file.
+   *
+   * @param basePath    file path to recursively walk, either a directory or ZIP archive.
+   * @param pattern     pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @param walkZipFile callback function to recurse into matching {@code .zip} files.
+   */
+  public static List<Path> walkPathWithPattern(Path basePath, String pattern,
+    Function<Path, List<Path>> walkZipFile) {
+    PathMatcher matcher = basePath.getFileSystem().getPathMatcher("glob:" + pattern);
+
+    try {
+      if (FileUtils.hasExtension(basePath, "zip")) {
+        try (
+          var zipFs = FileSystems.newFileSystem(basePath);
+          var walkStream = FileUtils.walkFileSystem(zipFs)
+        ) {
+          return walkStream
+            .filter(p -> p.getFileName() != null && matcher.matches(p.getFileName()))
+            .toList();
+        }
+      } else if (Files.isDirectory(basePath)) {
+        try (var walk = Files.walk(basePath)) {
+          return walk
+            .filter(path -> matcher.matches(path.getFileName()))
+            .flatMap(path -> {
+              if (FileUtils.hasExtension(path, "zip")) {
+                return walkZipFile.apply(path).stream();
+              } else {
+                return Stream.of(path);
+              }
+            })
+            .toList();
+        }
+      } else {
+        throw new IllegalArgumentException("No files matching " + basePath + "/" + pattern);
+      }
+    } catch (IOException exc) {
+      throw new UncheckedIOException(exc);
+    }
+  }
+
+  /**
+   * Returns list of paths matching {@param pattern} within {@param basePath}.
+   *
+   * @param basePath file path to recursively walk, either a directory or ZIP archive.
+   * @param pattern  pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   */
+  public static List<Path> walkPathWithPattern(Path basePath, String pattern) {
+    return walkPathWithPattern(basePath, pattern, zipPath -> List.of(zipPath));
   }
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
@@ -194,6 +254,31 @@ public class FileUtils {
   }
 
   /**
+   * Copies bytes from {@code input} to {@code destPath}, ensuring that the size is limited to a reasonable value.
+   *
+   * @throws UncheckedIOException if an IO exception occurs
+   */
+  public static void safeCopy(InputStream inputStream, Path destPath) {
+    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      int totalSize = 0;
+
+      int nBytes;
+      byte[] buffer = new byte[2048];
+      while ((nBytes = inputStream.read(buffer)) > 0) {
+        outputStream.write(buffer, 0, nBytes);
+        totalSize += nBytes;
+
+        if (totalSize > ZIP_THRESHOLD_SIZE) {
+          throw new IOException("The uncompressed data size " + FORMAT.storage(totalSize) +
+            "B is too much for the application resource capacity");
+        }
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
    * Unzips a zip file from an input stream to {@code destDir}.
    *
    * @throws UncheckedIOException if an IO exception occurs
@@ -244,7 +329,7 @@ public class FileUtils {
             }
 
             if (totalEntryArchive > ZIP_THRESHOLD_ENTRIES) {
-              throw new IOException("Too much entries in this archive " + FORMAT.integer(totalEntryArchive) +
+              throw new IOException("Too many entries in this archive " + FORMAT.integer(totalEntryArchive) +
                 ", can lead to inodes exhaustion of the system");
             }
           }

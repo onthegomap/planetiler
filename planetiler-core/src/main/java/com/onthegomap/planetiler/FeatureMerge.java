@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A collection of utilities for merging features with the same attributes in a rendered tile from
  * {@link Profile#postProcessLayerFeatures(String, int, List)} immediately before a tile is written to the output
- * mbtiles file.
+ * archive.
  * <p>
  * Unlike postgis-based solutions that have a full view of all features after they are loaded into the database, the
  * planetiler engine only sees a single input feature at a time while processing source features, then only has

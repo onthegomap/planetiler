@@ -152,7 +152,7 @@ class PrometheusStats implements Stats {
   }
 
   private final Histogram tilesWrittenBytes = Histogram
-    .build(BASE + "mbtiles_tile_written_bytes", "Written tile sizes by zoom level")
+    .build(BASE + "archive_tile_written_bytes", "Written tile sizes by zoom level")
     .buckets(1_000, 10_000, 100_000, 500_000)
     .labelNames("zoom")
     .register(registry);

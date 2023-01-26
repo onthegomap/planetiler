@@ -9,10 +9,9 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
@@ -244,7 +243,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   }
 
   /** Returns a new feature writer that can be used for a single thread. */
-  public CloseableConusmer<SortableFeature> writerForThread() {
+  public CloseableConsumer<SortableFeature> writerForThread() {
     return sorter.writerForThread();
   }
 
@@ -366,22 +365,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
     public TileCoord tileCoord() {
       return tileCoord;
-    }
-
-    /**
-     * Generates a hash over the feature's relevant data: layer, geometry, and attributes. The coordinates are
-     * <b>not</b> part of the hash.
-     * <p>
-     * Used as an optimization to avoid writing the same (ocean) tiles over and over again.
-     */
-    public long generateContentHash() {
-      long hash = Hashing.FNV1_64_INIT;
-      for (var feature : entries) {
-        byte layerId = extractLayerIdFromKey(feature.key());
-        hash = Hashing.fnv1a64(hash, layerId);
-        hash = Hashing.fnv1a64(hash, feature.value());
-      }
-      return hash;
     }
 
     /**

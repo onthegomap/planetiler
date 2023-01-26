@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.collection;
 
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.CloseableConusmer;
+import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
@@ -45,7 +45,7 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
       }
 
       @Override
-      public CloseableConusmer<SortableFeature> writerForThread() {
+      public CloseableConsumer<SortableFeature> writerForThread() {
         return list::add;
       }
 
@@ -94,7 +94,7 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
    * Returns a new writer that can be used to write features from a single thread independent of writers used from other
    * threads.
    */
-  CloseableConusmer<SortableFeature> writerForThread();
+  CloseableConsumer<SortableFeature> writerForThread();
 
   @Override
   default Iterator<SortableFeature> iterator() {

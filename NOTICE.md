@@ -25,6 +25,7 @@ The `planetiler-core` module includes the following software:
   - com.github.jnr:jnr-ffi (Apache license)
   - org.roaringbitmap:RoaringBitmap (Apache license)
   - org.projectnessie.cel:cel-tools (Apache license)
+  - mil.nga.geopackage:geopackage (MIT license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -40,6 +41,7 @@ The `planetiler-core` module includes the following software:
     from [github.com/rawrunprotected/hilbert_curves](https://github.com/rawrunprotected/hilbert_curves) (Public Domain)
   - `osmformat.proto` and `fileformat.proto` (generates `Osmformat.java` and `Fileformat.java`)
     from [openstreetmap/OSM-binary](https://github.com/openstreetmap/OSM-binary/tree/master/osmpbf) (MIT License)
+  - `VarInt` from [Bazel](https://github.com/bazelbuild/bazel) (Apache license)
 - Maven Dependencies:
   - org.yaml:snakeyaml (Apache license)
   - org.snakeyaml:snakeyaml-engine (Apache license)
