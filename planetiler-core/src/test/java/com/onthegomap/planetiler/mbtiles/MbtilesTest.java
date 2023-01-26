@@ -7,6 +7,7 @@ import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -204,17 +205,17 @@ class MbtilesTest {
   @Test
   void testFullMetadataJson() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(
-      new Mbtiles.MetadataJson.VectorLayer(
+      new LayerStats.VectorLayer(
         "full",
         Map.of(
-          "NUMBER_FIELD", Mbtiles.MetadataJson.FieldType.NUMBER,
-          "STRING_FIELD", Mbtiles.MetadataJson.FieldType.STRING,
-          "boolean field", Mbtiles.MetadataJson.FieldType.BOOLEAN
+          "NUMBER_FIELD", LayerStats.FieldType.NUMBER,
+          "STRING_FIELD", LayerStats.FieldType.STRING,
+          "boolean field", LayerStats.FieldType.BOOLEAN
         )
       ).withDescription("full description")
         .withMinzoom(0)
         .withMaxzoom(5),
-      new Mbtiles.MetadataJson.VectorLayer(
+      new LayerStats.VectorLayer(
         "partial",
         Map.of()
       )

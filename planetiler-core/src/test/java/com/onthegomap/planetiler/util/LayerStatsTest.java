@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.render.RenderedFeature;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ class LayerStatsTest {
 
   @Test
   void testEmptyLayerStats() {
-    assertEquals(new Mbtiles.MetadataJson(), layerStats.getTileStats());
+    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{}), layerStats.getTileStats());
   }
 
   @Test
@@ -33,13 +33,13 @@ class LayerStatsTest {
       1,
       Optional.empty()
     ));
-    assertEquals(new Mbtiles.MetadataJson(
-      new Mbtiles.MetadataJson.VectorLayer("layer1", Map.of(
-        "a", Mbtiles.MetadataJson.FieldType.NUMBER,
-        "b", Mbtiles.MetadataJson.FieldType.STRING,
-        "c", Mbtiles.MetadataJson.FieldType.BOOLEAN
+    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
+      new LayerStats.VectorLayer("layer1", Map.of(
+        "a", LayerStats.FieldType.NUMBER,
+        "b", LayerStats.FieldType.STRING,
+        "c", LayerStats.FieldType.BOOLEAN
       ), 3, 3)
-    ), layerStats.getTileStats());
+    }), layerStats.getTileStats());
   }
 
   @Test
@@ -77,15 +77,15 @@ class LayerStatsTest {
       1,
       Optional.empty()
     ));
-    assertEquals(new Mbtiles.MetadataJson(
-      new Mbtiles.MetadataJson.VectorLayer("layer1", Map.of(
+    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
+      new LayerStats.VectorLayer("layer1", Map.of(
       ), 3, 3),
-      new Mbtiles.MetadataJson.VectorLayer("layer2", Map.of(
-        "a", Mbtiles.MetadataJson.FieldType.NUMBER,
-        "b", Mbtiles.MetadataJson.FieldType.BOOLEAN,
-        "c", Mbtiles.MetadataJson.FieldType.STRING
+      new LayerStats.VectorLayer("layer2", Map.of(
+        "a", LayerStats.FieldType.NUMBER,
+        "b", LayerStats.FieldType.BOOLEAN,
+        "c", LayerStats.FieldType.STRING
       ), 1, 4)
-    ), layerStats.getTileStats());
+    }), layerStats.getTileStats());
   }
 
   @Test
@@ -116,10 +116,10 @@ class LayerStatsTest {
     t2.start();
     t1.join();
     t2.join();
-    assertEquals(new Mbtiles.MetadataJson(
-      new Mbtiles.MetadataJson.VectorLayer("layer1", Map.of(
-        "a", Mbtiles.MetadataJson.FieldType.STRING
+    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
+      new LayerStats.VectorLayer("layer1", Map.of(
+        "a", LayerStats.FieldType.STRING
       ), 3, 4)
-    ), layerStats.getTileStats());
+    }), layerStats.getTileStats());
   }
 }
