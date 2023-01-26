@@ -254,6 +254,31 @@ public class FileUtils {
   }
 
   /**
+   * Copies bytes from {@code input} to {@code destPath}, ensuring that the size is limited to a reasonable value.
+   *
+   * @throws UncheckedIOException if an IO exception occurs
+   */
+  public static void safeCopy(InputStream inputStream, Path destPath) {
+    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      int totalSize = 0;
+
+      int nBytes;
+      byte[] buffer = new byte[2048];
+      while ((nBytes = inputStream.read(buffer)) > 0) {
+        outputStream.write(buffer, 0, nBytes);
+        totalSize += nBytes;
+
+        if (totalSize > ZIP_THRESHOLD_SIZE) {
+          throw new IOException("The uncompressed data size " + FORMAT.storage(totalSize) +
+            "B is too much for the application resource capacity");
+        }
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
    * Unzips a zip file from an input stream to {@code destDir}.
    *
    * @throws UncheckedIOException if an IO exception occurs
@@ -304,7 +329,7 @@ public class FileUtils {
             }
 
             if (totalEntryArchive > ZIP_THRESHOLD_ENTRIES) {
-              throw new IOException("Too much entries in this archive " + FORMAT.integer(totalEntryArchive) +
+              throw new IOException("Too many entries in this archive " + FORMAT.integer(totalEntryArchive) +
                 ", can lead to inodes exhaustion of the system");
             }
           }

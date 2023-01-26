@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -88,6 +90,14 @@ class FileUtilsTest {
       "UTF8",
       Files.readString(dest.resolve("shapefile").resolve("stations.cpg"))
     );
+  }
+
+  @Test
+  void testSafeCopy() throws IOException {
+    var dest = tmpDir.resolve("unzipped");
+    String input = "a1".repeat(1200);
+    FileUtils.safeCopy(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)), dest);
+    assertEquals(input, Files.readString(dest));
   }
 
   @Test
