@@ -117,7 +117,7 @@ class GeoUtilsTest {
 
   @Test
   void testIsConvexTriangle() {
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       0, 1,
@@ -127,7 +127,7 @@ class GeoUtilsTest {
 
   @Test
   void testIsConvexRectangle() {
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -138,21 +138,21 @@ class GeoUtilsTest {
 
   @Test
   void testBarelyConvexRectangle() {
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
       0.5, 0.5,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
       0.4, 0.4,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -163,7 +163,7 @@ class GeoUtilsTest {
 
   @Test
   void testConcaveRectangleDoublePoints() {
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       0, 0,
       1, 0,
@@ -171,7 +171,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 0,
@@ -179,7 +179,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -187,7 +187,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -195,7 +195,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -207,7 +207,7 @@ class GeoUtilsTest {
 
   @Test
   void testBarelyConcaveRectangle() {
-    assertConcave(false, newLinearRing(
+    assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -218,7 +218,7 @@ class GeoUtilsTest {
 
   @Test
   void test5PointsConcave() {
-    assertConcave(false, newLinearRing(
+    assertConvex(false, newLinearRing(
       0, 0,
       0.5, 0.1,
       1, 0,
@@ -226,7 +226,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(false, newLinearRing(
+    assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
       0.9, 0.5,
@@ -234,7 +234,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(false, newLinearRing(
+    assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -242,7 +242,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(false, newLinearRing(
+    assertConvex(false, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -254,7 +254,7 @@ class GeoUtilsTest {
 
   @Test
   void test5PointsColinear() {
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       0.5, 0,
       1, 0,
@@ -262,7 +262,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 0.5,
@@ -270,7 +270,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -278,7 +278,7 @@ class GeoUtilsTest {
       0, 1,
       0, 0
     ));
-    assertConcave(true, newLinearRing(
+    assertConvex(true, newLinearRing(
       0, 0,
       1, 0,
       1, 1,
@@ -288,17 +288,14 @@ class GeoUtilsTest {
     ));
   }
 
-  private static void assertConcave(boolean isConcave, LinearRing ring) {
+  private static void assertConvex(boolean isConvex, LinearRing ring) {
     for (double rotation : new double[]{0, 90, 180, 270}) {
       LinearRing rotated = (LinearRing) AffineTransformation.rotationInstance(Math.toRadians(rotation)).transform(ring);
       for (boolean flip : new boolean[]{false, true}) {
         LinearRing flipped = flip ? (LinearRing) AffineTransformation.scaleInstance(-1, 1).transform(rotated) : rotated;
         for (boolean reverse : new boolean[]{false, true}) {
           LinearRing reversed = reverse ? flipped.reverse() : flipped;
-          assertEquals(isConcave, isConcave(reversed),
-            "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
-          assertEquals(!isConcave, isConvex(reversed),
-            "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
+          assertEquals(isConvex, isConvex(reversed), "rotation=" + rotation + " flip=" + flip + " reverse=" + reverse);
         }
       }
     }
