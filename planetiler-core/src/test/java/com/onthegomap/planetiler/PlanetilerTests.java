@@ -1749,9 +1749,11 @@ class PlanetilerTests {
   @ValueSource(strings = {
     "",
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
+    "--input-file=geopackage.gpkg"
   })
   void testPlanetilerRunnerGeoPackage(String args) throws Exception {
     Path mbtiles = tempDir.resolve("output.mbtiles");
+    String inputFile = Arguments.fromArgs(args).getString("input-file", "", "geopackage.gpkg.zip");
 
     Planetiler.create(Arguments.fromArgs((args + " --tmpdir=" + tempDir.resolve("data")).split("\\s+")))
       .setProfile(new Profile.NullProfile() {
@@ -1762,7 +1764,7 @@ class PlanetilerTests {
             .setAttr("name", source.getString("name"));
         }
       })
-      .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
+      .addGeoPackageSource("geopackage", TestUtils.pathToResource(inputFile), null)
       .setOutput("mbtiles", mbtiles)
       .run();
 
