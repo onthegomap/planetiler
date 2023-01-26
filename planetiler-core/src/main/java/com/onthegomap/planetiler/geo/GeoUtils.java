@@ -408,8 +408,11 @@ public class GeoUtils {
    * {@code ring}, ignoring repeated and collinear points.
    */
   public static boolean isConvex(LinearRing ring) {
+    double threshold = 1e-3;
+    double minPointsToCheck = 10;
     CoordinateSequence seq = ring.getCoordinateSequence();
-    if (seq.size() <= 3) {
+    int size = seq.size();
+    if (size <= 3) {
       return false;
     }
 
@@ -418,7 +421,7 @@ public class GeoUtils {
     double c0y = seq.getY(0);
     double c1x = Double.NaN, c1y = Double.NaN;
     int i;
-    for (i = 1; i < seq.size(); i++) {
+    for (i = 1; i < size; i++) {
       c1x = seq.getX(i);
       c1y = seq.getY(i);
       if (c1x != c0x || c1y != c0y) {
@@ -429,29 +432,39 @@ public class GeoUtils {
     double dx1 = c1x - c0x;
     double dy1 = c1y - c0y;
 
-    int sign = 0;
+    double negZ = 1e-20, posZ = 1e-20;
 
-    for (; i < seq.size(); i++) {
-      double c2x = seq.getX(i);
-      double c2y = seq.getY(i);
+    // need to wrap around to make sure the triangle formed by last and first points does not change sign
+    for (; i <= size + 1; i++) {
+      // first and last point should be the same, so skip index 0
+      int idx = i < size ? i : (i + 1 - size);
+      double c2x = seq.getX(idx);
+      double c2y = seq.getY(idx);
 
       double dx2 = c2x - c1x;
       double dy2 = c2y - c1y;
       double z = dx1 * dy2 - dy1 * dx2;
 
-      // if z == 0 (with small delta to account for rounding errors) then keep skipping
-      // points to ignore repeated or collinear points
-      if (Math.abs(z) < 1e-10) {
-        continue;
+      double absZ = Math.abs(z);
+
+      // look for sign changes in the triangles formed by sequential points
+      // but, we want to allow for rounding errors and small concavities relative to the overall shape
+      // so track the largest positive and negative threshold for triangle area and compare them once we
+      // have enough points
+      boolean check = i >= minPointsToCheck;
+      if (z < 0 && absZ > negZ) {
+        negZ = absZ;
+      } else if (z > 0 && absZ > posZ) {
+        posZ = absZ;
+      } else if (i > minPointsToCheck) { // always check at i=minPointsToCheck
+        check = false;
       }
 
-      int s = z >= 0d ? 1 : -1;
-      if (sign == 0) {
-        // on the first non-repeated, non-collinear points, store sign of the area for comparison
-        sign = s;
-      } else if (sign != s) {
-        // the sign of this triangle has changed, not convex
-        return false;
+      if (check) {
+        double ratio = negZ < posZ ? negZ / posZ : posZ / negZ;
+        if (ratio > threshold) {
+          return false;
+        }
       }
 
       c1x = c2x;
@@ -459,7 +472,7 @@ public class GeoUtils {
       dx1 = dx2;
       dy1 = dy2;
     }
-    return true;
+    return (negZ < posZ ? negZ / posZ : posZ / negZ) < threshold;
   }
 
   /**
