@@ -403,20 +403,11 @@ public class GeoUtils {
     return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
   }
 
-
-  /**
-   * Returns {@code false} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
-   * {@code ring}, ignoring repeated and collinear points.
-   */
-  public static boolean isConvex(LinearRing ring) {
-    return !isConcave(ring);
-  }
-
   /**
    * Returns {@code true} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
    * {@code ring}, ignoring repeated and collinear points.
    */
-  public static boolean isConcave(LinearRing ring) {
+  public static boolean isConvex(LinearRing ring) {
     CoordinateSequence seq = ring.getCoordinateSequence();
     if (seq.size() <= 3) {
       return false;
