@@ -451,16 +451,16 @@ public class GeoUtils {
       // but, we want to allow for rounding errors and small concavities relative to the overall shape
       // so track the largest positive and negative threshold for triangle area and compare them once we
       // have enough points
-      boolean check = i >= minPointsToCheck;
+      boolean extendedBounds = false;
       if (z < 0 && absZ > negZ) {
         negZ = absZ;
+        extendedBounds = true;
       } else if (z > 0 && absZ > posZ) {
         posZ = absZ;
-      } else if (i > minPointsToCheck) { // always check at i=minPointsToCheck
-        check = false;
+        extendedBounds = true;
       }
 
-      if (check) {
+      if (i == minPointsToCheck || (i > minPointsToCheck && extendedBounds)) {
         double ratio = negZ < posZ ? negZ / posZ : posZ / negZ;
         if (ratio > threshold) {
           return false;
