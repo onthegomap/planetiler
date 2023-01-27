@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
@@ -60,27 +61,45 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final Stats stats;
   private final LayerStats layerStats = new LayerStats();
   private volatile boolean prepared = false;
+  private final TileOrder tileOrder;
 
-  FeatureGroup(FeatureSort sorter, Profile profile, Stats stats) {
+
+  FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, Stats stats) {
     this.sorter = sorter;
+    this.tileOrder = tileOrder;
     this.profile = profile;
     this.stats = stats;
   }
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
-  public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
-    return new FeatureGroup(FeatureSort.newInMemory(), profile, stats);
+  public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, Stats stats) {
+    return new FeatureGroup(FeatureSort.newInMemory(), tileOrder, profile, stats);
   }
 
   /**
    * Returns a feature grouper that writes all elements to disk in chunks, sorts each chunk, then reads back in order
    * from those chunks. Suitable for making maps up to planet-scale.
    */
+  public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
+    PlanetilerConfig config,
+    Stats stats) {
+    return new FeatureGroup(
+      new ExternalMergeSort(tempDir, config, stats),
+      tileOrder, profile, stats
+    );
+  }
+
+  /** backwards compatibility **/
+  public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
+    return new FeatureGroup(FeatureSort.newInMemory(), TileOrder.TMS, profile, stats);
+  }
+
+  /** backwards compatibility **/
   public static FeatureGroup newDiskBackedFeatureGroup(Path tempDir, Profile profile, PlanetilerConfig config,
     Stats stats) {
     return new FeatureGroup(
       new ExternalMergeSort(tempDir, config, stats),
-      profile, stats
+      TileOrder.TMS, profile, stats
     );
   }
 
@@ -186,8 +205,10 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private long encodeKey(RenderedFeature feature) {
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonLayerStrings.encode(vectorTileFeature.layer());
+
+
     return encodeKey(
-      feature.tile().encoded(),
+      this.tileOrder.encode(feature.tile()),
       encodedLayer,
       feature.sortKey(),
       feature.group().isPresent()
@@ -337,8 +358,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     private LongLongHashMap counts = null;
     private byte lastLayer = Byte.MAX_VALUE;
 
-    private TileFeatures(int tileCoord) {
-      this.tileCoord = TileCoord.decode(tileCoord);
+    private TileFeatures(int lastTileId) {
+      this.tileCoord = tileOrder.decode(lastTileId);
     }
 
     private static void unscale(List<VectorTile.Feature> features) {

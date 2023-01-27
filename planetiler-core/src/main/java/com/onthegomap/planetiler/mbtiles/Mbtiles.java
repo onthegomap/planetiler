@@ -10,6 +10,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.writer.TileArchive;
@@ -89,6 +90,11 @@ public final class Mbtiles implements TileArchive {
   private final Connection connection;
   private PreparedStatement getTileStatement = null;
   private final boolean compactDb;
+
+  @Override
+  public TileOrder tileOrder() {
+    return TileOrder.TMS;
+  }
 
   private Mbtiles(Connection connection, boolean compactDb) {
     this.connection = connection;

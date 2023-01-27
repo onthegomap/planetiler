@@ -658,28 +658,29 @@ public class Planetiler {
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
 
-    featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
-    stats.monitorFile("nodes", nodeDbPath);
-    stats.monitorFile("features", featureDbPath);
-    stats.monitorFile("multipolygons", multipolygonPath);
-    stats.monitorFile("archive", output);
-
-    for (Stage stage : stages) {
-      stage.task.run();
-    }
-
-    LOGGER.info("Deleting node.db to make room for output file");
-    profile.release();
-    for (var inputPath : inputPaths) {
-      if (inputPath.freeAfterReading()) {
-        LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
-        FileUtils.delete(inputPath.path());
-      }
-    }
-
-    featureGroup.prepare();
-
     try (TileArchive archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+      featureGroup =
+        FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats);
+      stats.monitorFile("nodes", nodeDbPath);
+      stats.monitorFile("features", featureDbPath);
+      stats.monitorFile("multipolygons", multipolygonPath);
+      stats.monitorFile("archive", output);
+
+      for (Stage stage : stages) {
+        stage.task.run();
+      }
+
+      LOGGER.info("Deleting node.db to make room for output file");
+      profile.release();
+      for (var inputPath : inputPaths) {
+        if (inputPath.freeAfterReading()) {
+          LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
+          FileUtils.delete(inputPath.path());
+        }
+      }
+
+      featureGroup.prepare();
+
       TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
         config,
         stats);
