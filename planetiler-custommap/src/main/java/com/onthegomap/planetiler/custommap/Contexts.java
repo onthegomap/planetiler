@@ -189,7 +189,6 @@ public class Contexts {
       argumentValues.put("render_maxzoom", config.maxzoomForRendering());
       argumentValues.put("skip_mbtiles_index_creation", config.skipIndexCreation());
       argumentValues.put("optimize_db", config.optimizeDb());
-      argumentValues.put("emit_tiles_in_order", config.emitTilesInOrder());
       argumentValues.put("force", config.force());
       argumentValues.put("gzip_temp", config.gzipTempStorage());
       argumentValues.put("mmap_temp", config.mmapTempStorage());

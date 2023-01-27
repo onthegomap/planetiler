@@ -153,7 +153,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `render_maxzoom` - Maximum rendering zoom level up to
 - `skip_mbtiles_index_creation` - Skip adding index to mbtiles file
 - `optimize_db` - Vacuum analyze mbtiles file after writing
-- `emit_tiles_in_order` - Emit vector tiles in index order
 - `force` - Overwriting output file and ignore warnings
 - `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files

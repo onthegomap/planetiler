@@ -125,44 +125,30 @@ public class TileArchiveWriter {
     );
 
     WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
-    if (config.emitTilesInOrder()) {
-      /*
-       * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
-       * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
-       * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
-       */
-      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
-      encodeBranch = pipeline
-        .<TileBatch>fromGenerator(secondStageName, next -> {
-          var writerEnqueuer = writerQueue.threadLocalWriter();
-          writer.readFeaturesAndBatch(batch -> {
-            next.accept(batch);
-            writerEnqueuer.accept(batch); // also send immediately to writer
-          });
-          writerQueue.close();
-          // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        }, 1)
-        .addBuffer("reader_queue", queueSize)
-        .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
-      // the tile writer will wait on the result of each batch to ensure tiles are written in order
-      writeBranch = pipeline.readFromQueue(writerQueue)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
-    } else {
-      /*
-       * If we don't need to emit tiles in order, just send the features to the encoder, and when it finishes with
-       * a tile send that to the writer.
-       */
-      encodeBranch = pipeline
+    /*
+     * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
+     * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
+     * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
+     */
+    WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
+    encodeBranch = pipeline
+      .<TileBatch>fromGenerator(secondStageName, next -> {
+        var writerEnqueuer = writerQueue.threadLocalWriter();
+        writer.readFeaturesAndBatch(batch -> {
+          next.accept(batch);
+          writerEnqueuer.accept(batch); // also send immediately to writer
+        });
+        writerQueue.close();
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator(secondStageName, writer::readFeaturesAndBatch, 1)
-        .addBuffer("reader_queue", queueSize)
-        .addWorker("encoder", processThreads, writer::tileEncoder)
-        .addBuffer("writer_queue", queueSize)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
-    }
+      }, 1)
+      .addBuffer("reader_queue", queueSize)
+      .sinkTo("encode", processThreads, writer::tileEncoderSink);
+
+    // the tile writer will wait on the result of each batch to ensure tiles are written in order
+    writeBranch = pipeline.readFromQueue(writerQueue)
+      // use only 1 thread since tileWriter needs to be single-threaded
+      .sinkTo("write", 1, writer::tileWriter);
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)

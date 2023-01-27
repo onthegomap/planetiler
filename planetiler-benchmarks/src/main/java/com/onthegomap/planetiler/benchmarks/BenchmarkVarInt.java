@@ -2,10 +2,10 @@ package com.onthegomap.planetiler.benchmarks;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
+import com.carrotsearch.hppc.ByteArrayList;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.VarInt;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -13,10 +13,10 @@ public class BenchmarkVarInt {
 
   public static void main(String[] args) throws IOException {
 
-    long num = 80000000;
+    long num = 100000000;
 
     for (int i = 0; i < 3; i++) {
-      ByteArrayOutputStream stream = new ByteArrayOutputStream();
+      ByteArrayList stream = new ByteArrayList();
       var timer = Timer.start();
 
       long sum = 0;
@@ -26,7 +26,7 @@ public class BenchmarkVarInt {
         sum += l;
       }
 
-      ByteBuffer buf = ByteBuffer.wrap(stream.toByteArray());
+      ByteBuffer buf = ByteBuffer.wrap(stream.toArray());
 
       long acc = 0;
       for (long l = 0; l < num; l++) {
