@@ -91,8 +91,8 @@ public class VarInt {
   /**
    * Encodes a long integer in a variable-length encoding, 7 bits per byte.
    *
-   * @param v            the value to encode
-   * @param byteArrayList the OutputStream to add the encoded value
+   * @param v             the value to encode
+   * @param byteArrayList the bytes to add the encoded value
    */
   public static void putVarLong(long v, ByteArrayList byteArrayList) {
     while (true) {
