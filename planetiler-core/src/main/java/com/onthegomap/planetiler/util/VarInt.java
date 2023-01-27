@@ -16,8 +16,7 @@ limitations under the License.
 
 package com.onthegomap.planetiler.util;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import com.carrotsearch.hppc.ByteArrayList;
 import java.nio.ByteBuffer;
 
 /**
@@ -28,15 +27,6 @@ import java.nio.ByteBuffer;
  */
 public class VarInt {
   private VarInt() {}
-
-  public static int varLongSize(long v) {
-    int result = 0;
-    do {
-      result++;
-      v >>>= 7;
-    } while (v != 0);
-    return result;
-  }
 
   /**
    * Reads an up to 64 bit long varint from the current position of the given ByteBuffer and returns the decoded value
@@ -98,28 +88,21 @@ public class VarInt {
     return result;
   }
 
-  public static void putVarLong(long v, ByteBuffer sink) {
+  /**
+   * Encodes a long integer in a variable-length encoding, 7 bits per byte.
+   *
+   * @param v            the value to encode
+   * @param outputStream the OutputStream to add the encoded value
+   */
+  public static void putVarLong(long v, ByteArrayList byteArrayList) {
     while (true) {
       int bits = ((int) v) & 0x7f;
       v >>>= 7;
       if (v == 0) {
-        sink.put((byte) bits);
+        byteArrayList.add((byte) bits);
         return;
       }
-      sink.put((byte) (bits | 0x80));
+      byteArrayList.add((byte) (bits | 0x80));
     }
-  }
-
-  /**
-   * Encodes a long integer in a variable-length encoding, 7 bits per byte.
-   * 
-   * @param v            the value to encode
-   * @param outputStream the OutputStream to add the encoded value
-   */
-  public static void putVarLong(long v, OutputStream outputStream) throws IOException {
-    byte[] bytes = new byte[varLongSize(v)];
-    ByteBuffer sink = ByteBuffer.wrap(bytes);
-    putVarLong(v, sink);
-    outputStream.write(bytes);
   }
 }

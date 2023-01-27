@@ -2,7 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.ByteArrayOutputStream;
+import com.carrotsearch.hppc.ByteArrayList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
@@ -11,12 +11,12 @@ class VarIntTest {
 
   @Test
   void testRoundTrip() throws IOException {
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    VarInt.putVarLong(0, stream);
-    VarInt.putVarLong(1, stream);
-    VarInt.putVarLong(Long.MAX_VALUE, stream);
-    VarInt.putVarLong(Long.MIN_VALUE, stream);
-    ByteBuffer output = ByteBuffer.wrap(stream.toByteArray());
+    ByteArrayList dir = new ByteArrayList();
+    VarInt.putVarLong(0, dir);
+    VarInt.putVarLong(1, dir);
+    VarInt.putVarLong(Long.MAX_VALUE, dir);
+    VarInt.putVarLong(Long.MIN_VALUE, dir);
+    ByteBuffer output = ByteBuffer.wrap(dir.toArray());
     assertEquals(0, VarInt.getVarLong(output));
     assertEquals(1, VarInt.getVarLong(output));
     assertEquals(Long.MAX_VALUE, VarInt.getVarLong(output));
