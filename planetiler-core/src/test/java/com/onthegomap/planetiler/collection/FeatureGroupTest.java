@@ -301,9 +301,9 @@ class FeatureGroupTest {
     features = new FeatureGroup(sorter, TileOrder.HILBERT, new Profile.NullProfile() {}, Stats.inMemory());
     featureWriter = features.writerForThread();
 
-    // TMS tile IDs at zoom level 1:
-    // 2 4
-    // 1 3
+    // Hilbert tile IDs at zoom level 1:
+    // 1 4
+    // 2 3
 
     put(
       1, "layer", Map.of("id", 1), newPoint(0, 0)
