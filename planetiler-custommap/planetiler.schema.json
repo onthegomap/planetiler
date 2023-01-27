@@ -160,17 +160,6 @@
             }
           ]
         },
-        "emit_tiles_in_order": {
-          "description": "Emit vector tiles in index order",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
         "force": {
           "description": "Overwriting output file and ignore warnings",
           "anyOf": [
