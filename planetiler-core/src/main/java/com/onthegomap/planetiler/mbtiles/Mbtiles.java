@@ -490,7 +490,7 @@ public final class Mbtiles implements TileArchive {
   private class TileCoordIterator implements CloseableIterator<TileCoord> {
     private final Statement statement;
     private final ResultSet rs;
-    private boolean hasNext;
+    private boolean hasNext = false;
 
     private TileCoordIterator() {
       try {
@@ -499,11 +499,12 @@ public final class Mbtiles implements TileArchive {
           "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
         );
         hasNext = rs.next();
+      } catch (SQLException e) {
+        throw new FileFormatException("Could not read tile coordinates from mbtiles file", e);
+      } finally {
         if (!hasNext) {
           close();
         }
-      } catch (SQLException e) {
-        throw new FileFormatException("Could not read tile coordinates from mbtiles file", e);
       }
     }
 
