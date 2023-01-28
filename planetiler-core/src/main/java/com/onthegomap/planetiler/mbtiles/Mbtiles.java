@@ -537,7 +537,7 @@ public final class Mbtiles implements TileArchive {
         }
         return result;
       } catch (SQLException e) {
-        throw new IllegalStateException("Could not read close mbtiles file", e);
+        throw new IllegalStateException("Could not read mbtiles file", e);
       }
     }
   }
