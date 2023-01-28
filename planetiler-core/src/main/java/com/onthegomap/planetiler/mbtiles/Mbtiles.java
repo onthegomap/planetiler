@@ -709,12 +709,6 @@ public final class Mbtiles implements TileArchive {
       tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
     }
 
-    // TODO: exists for compatibility purposes
-    @Override
-    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
-    }
-
     @Override
     public void close() {
       tableWriter.close();
@@ -754,12 +748,6 @@ public final class Mbtiles implements TileArchive {
         batchedTileDataTableWriter.write(new TileDataEntry(tileDataId, encodingResult.tileData()));
       }
       batchedTileShallowTableWriter.write(new TileShallowEntry(encodingResult.coord(), tileDataId));
-    }
-
-    // TODO: exists for compatibility purposes
-    @Override
-    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
     }
 
     @Override
