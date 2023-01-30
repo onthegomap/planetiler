@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.config;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
+import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -40,6 +41,7 @@ public record PlanetilerConfig(
   int httpRetries,
   long downloadChunkSizeMB,
   int downloadThreads,
+  double downloadMaxBandwidth,
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
@@ -148,6 +150,8 @@ public record PlanetilerConfig(
       arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 1),
       arguments.getLong("download_chunk_size_mb", "Size of file chunks to download in parallel in megabytes", 100),
       arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
+      Parse.bandwidth(arguments.getString("download_max_bandwidth",
+        "Maximum bandwidth to consume when downloading files", "")),
       arguments.getDouble("min_feature_size_at_max_zoom",
         "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
         256d / 4096),

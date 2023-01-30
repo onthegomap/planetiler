@@ -204,6 +204,7 @@ public class Contexts {
       argumentValues.put("http_retries", config.httpRetries());
       argumentValues.put("download_chunk_size_mb", config.downloadChunkSizeMB());
       argumentValues.put("download_threads", config.downloadThreads());
+      argumentValues.put("download_max_bandwidth", config.downloadMaxBandwidth());
       argumentValues.put("min_feature_size_at_max_zoom", config.minFeatureSizeAtMaxZoom());
       argumentValues.put("min_feature_size", config.minFeatureSizeBelowMaxZoom());
       argumentValues.put("simplify_tolerance_at_max_zoom", config.simplifyToleranceAtMaxZoom());
