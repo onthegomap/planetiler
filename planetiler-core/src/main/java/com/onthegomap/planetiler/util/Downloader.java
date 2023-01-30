@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import static com.google.common.net.HttpHeaders.*;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
@@ -75,8 +76,10 @@ public class Downloader {
   private final Stats stats;
   private final long chunkSizeBytes;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
+  private final RateLimiter rateLimiter;
 
   Downloader(PlanetilerConfig config, Stats stats, long chunkSizeBytes) {
+    this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
     this.chunkSizeBytes = chunkSizeBytes;
     this.config = config;
     this.stats = stats;
@@ -304,7 +307,7 @@ public class Downloader {
               try (
                 var inputStream = (ranges || range.start > 0) ? openStreamRange(canonicalUrl, range.start, range.end) :
                   openStream(canonicalUrl);
-                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress)
+                var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress, rateLimiter)
               ) {
                 // ensure this file has been allocated up to the start of this block
                 fileChannel.write(ByteBuffer.allocate(1), range.start);
@@ -355,12 +358,16 @@ public class Downloader {
   /**
    * Wrapper for a {@link ReadableByteChannel} that captures progress information.
    */
-  private record ProgressChannel(ReadableByteChannel inner, AtomicLong progress) implements ReadableByteChannel {
+  private record ProgressChannel(ReadableByteChannel inner, AtomicLong progress, RateLimiter rateLimiter)
+    implements ReadableByteChannel {
 
     @Override
     public int read(ByteBuffer dst) throws IOException {
       int n = inner.read(dst);
       if (n > 0) {
+        if (rateLimiter != null) {
+          rateLimiter.acquire(n);
+        }
         progress.addAndGet(n);
       }
       return n;

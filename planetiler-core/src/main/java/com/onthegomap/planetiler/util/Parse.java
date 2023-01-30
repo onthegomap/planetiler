@@ -19,6 +19,10 @@ public class Parse {
     Pattern.compile(
       "(?<value>-?[\\d.]+)\\s*((?<mi>mi)|(?<m>m|$)|(?<km>km|kilom)|(?<ft>ft|')|(?<in>in|\")|(?<nmi>nmi|international nautical mile|nautical))",
       Pattern.CASE_INSENSITIVE);
+  private static final Pattern NUMBER_WITH_UNIT =
+    Pattern.compile(
+      "(?<value>-?[\\d.]+)\\s*(?<unit>[^.\\d]*)",
+      Pattern.CASE_INSENSITIVE);
   // Ignore warnings about not removing thread local values since planetiler uses dedicated worker threads that release
   // values when a task is finished and are not re-used.
   @SuppressWarnings("java:S5164")
@@ -164,7 +168,7 @@ public class Parse {
   /**
    * Parses {@code tag} as a measure of distance with unit, converted to a round number of meters or {@code null} if
    * invalid.
-   *
+   * <p>
    * See <a href="https://wiki.openstreetmap.org/wiki/Map_features/Units">Map features/Units</a> for the list of
    * supported units.
    */
@@ -204,5 +208,48 @@ public class Parse {
       }
     }
     return null;
+  }
+
+  /**
+   * Parses a string containing bandwidth, with units of kbps, mb/s, kib/s, etc.
+   * <p>
+   * Returned value is in units of bytes per second, or 0 if no limit specified.
+   */
+  public static double bandwidth(Object tag) {
+    if (tag != null) {
+      if (tag instanceof Number num) {
+        return num.doubleValue();
+      }
+      var str = tag.toString();
+      var matcher = NUMBER_WITH_UNIT.matcher(str);
+      if (matcher.find()) {
+        try {
+          double value = Double.parseDouble(matcher.group("value"));
+          String unit = matcher.group("unit").toLowerCase(Locale.ROOT).replaceAll("\\s", "");
+          double multiplier = switch (unit) {
+            case "b/s", "" -> 1;
+            case "kb/s" -> 1_000;
+            case "mb/s" -> 1_000_000;
+            case "gb/s" -> 1_000_000_000;
+            case "bps" -> 1d / 8;
+            case "kbps" -> 1_000d / 8;
+            case "mbps" -> 1_000_000d / 8;
+            case "gbps" -> 1_000_000_000d / 8;
+            case "kib/s" -> 1 << 10;
+            case "mib/s" -> 1 << 20;
+            case "gib/s" -> 1 << 30;
+            default -> throw new IllegalArgumentException("Unable to parse bandwidth: " + tag);
+          };
+          double result = value * multiplier;
+          if (result < 0) {
+            throw new IllegalArgumentException("Unable to parse bandwidth: " + tag);
+          }
+          return result;
+        } catch (NumberFormatException e) {
+          throw new IllegalArgumentException("Unable to parse bandwidth: " + tag);
+        }
+      }
+    }
+    return 0;
   }
 }

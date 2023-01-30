@@ -140,4 +140,28 @@ class ParseTest {
   void testParseInvalidJvmSize(String input) {
     assertThrows(IllegalArgumentException.class, () -> Parse.jvmMemoryStringToBytes(input));
   }
+
+  @ParameterizedTest
+  @CsvSource(value = {
+    "0, 0",
+    "1, 1",
+    "999999999999, 999999999999",
+    "2b/s, 2",
+    "2kib/s, 2048",
+    "4mib/s, 4194304",
+    "8GiB/s, 8589934592",
+    "2kb/s, 2000",
+    "4mb/s, 4000000",
+    "8Gb/s, 8000000000",
+    "2bps, 0.25",
+    "8bps, 1",
+    "16bps, 2",
+    "8kbps, 1000",
+    "8mbps, 1000000",
+    "8gbps, 1000000000",
+    "garbage, 0"
+  }, nullValues = {"null"})
+  void testParseBandwidth(String input, double expectedOutput) {
+    assertEquals(expectedOutput, Parse.bandwidth(input));
+  }
 }
