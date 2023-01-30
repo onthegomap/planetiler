@@ -71,7 +71,7 @@ public final class Pmtiles {
     NONE,
     GZIP;
 
-    public static Compression FromByte(byte val) {
+    public static Compression fromByte(byte val) {
       return switch (val) {
         case 1 -> NONE;
         case 2 -> GZIP;
@@ -84,7 +84,7 @@ public final class Pmtiles {
     UNKNOWN,
     MVT;
 
-    public static TileType FromByte(byte val) {
+    public static TileType fromByte(byte val) {
       return switch (val) {
         case 1 -> MVT;
         default -> UNKNOWN;
@@ -172,9 +172,9 @@ public final class Pmtiles {
       header.numTileEntries = buffer.getLong();
       header.numTileContents = buffer.getLong();
       header.clustered = (buffer.get() == 0x1);
-      header.internalCompression = Compression.FromByte(buffer.get());
-      header.tileCompression = Compression.FromByte(buffer.get());
-      header.tileType = TileType.FromByte(buffer.get());
+      header.internalCompression = Compression.fromByte(buffer.get());
+      header.tileCompression = Compression.fromByte(buffer.get());
+      header.tileType = TileType.fromByte(buffer.get());
       header.minZoom = buffer.get();
       header.maxZoom = buffer.get();
       header.minLonE7 = buffer.getInt();
@@ -199,7 +199,7 @@ public final class Pmtiles {
   public static byte[] serializeDirectory(ObjectArrayList<Entry> slice, int start, int end) {
     ByteArrayList dir = new ByteArrayList();
 
-    VarInt.putVarLong(end - start, dir);
+    VarInt.putVarLong((long) end - start, dir);
 
     long lastId = 0;
     for (int i = start; i < end; i++) {
@@ -228,25 +228,25 @@ public final class Pmtiles {
 
   public static ObjectArrayList<Entry> deserializeDirectory(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
-    int num_entries = (int) VarInt.getVarLong(buffer);
-    ObjectArrayList<Entry> result = new ObjectArrayList<>(num_entries);
+    int numEntries = (int) VarInt.getVarLong(buffer);
+    ObjectArrayList<Entry> result = new ObjectArrayList<>(numEntries);
 
-    long last_id = 0;
-    for (int i = 0; i < num_entries; i++) {
-      long tile_id = last_id + VarInt.getVarLong(buffer);
-      result.add(new Entry(tile_id, 0, 0, 0));
-      last_id = tile_id;
+    long lastId = 0;
+    for (int i = 0; i < numEntries; i++) {
+      long tileId = lastId + VarInt.getVarLong(buffer);
+      result.add(new Entry(tileId, 0, 0, 0));
+      lastId = tileId;
     }
 
-    for (int i = 0; i < num_entries; i++) {
+    for (int i = 0; i < numEntries; i++) {
       result.get(i).runLength = (int) VarInt.getVarLong(buffer);
     }
 
-    for (int i = 0; i < num_entries; i++) {
+    for (int i = 0; i < numEntries; i++) {
       result.get(i).length = (int) VarInt.getVarLong(buffer);
     }
 
-    for (int i = 0; i < num_entries; i++) {
+    for (int i = 0; i < numEntries; i++) {
       long tmp = VarInt.getVarLong(buffer);
       if (i > 0 && tmp == 0) {
         result.get(i).offset = result.get(i - 1).offset + result.get(i - 1).length;

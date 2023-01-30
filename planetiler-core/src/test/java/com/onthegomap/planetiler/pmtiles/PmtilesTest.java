@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.carrotsearch.hppc.ObjectArrayList;
 import org.junit.jupiter.api.Test;
 
-public class PmtilesTest {
+class PmtilesTest {
 
   @Test
   void testRoundtripHeader() {
@@ -83,5 +83,18 @@ public class PmtilesTest {
 
     ObjectArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
     assertEquals(in, out);
+  }
+
+  @Test
+  void testRoundtripDirectorySlice() {
+    ObjectArrayList<Pmtiles.Entry> in = new ObjectArrayList<>();
+
+    // make sure there are cases of contiguous entries and non-contiguous entries.
+    in.add(new Pmtiles.Entry(0, 0, 1, 0));
+    in.add(new Pmtiles.Entry(1, 1, 1, 1));
+    in.add(new Pmtiles.Entry(2, 3, 1, 1));
+
+    ObjectArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 1, 2));
+    assertEquals(1, out.size());
   }
 }
