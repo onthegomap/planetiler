@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.pmtiles;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.carrotsearch.hppc.ObjectArrayList;
+import com.onthegomap.planetiler.reader.FileFormatException;
 import org.junit.jupiter.api.Test;
 
 class PmtilesTest {
@@ -61,6 +63,12 @@ class PmtilesTest {
     assertEquals(in.centerZoom, out.centerZoom);
     assertEquals(in.centerLonE7, out.centerLonE7);
     assertEquals(in.centerLatE7, out.centerLatE7);
+  }
+
+  @Test
+  void testBadHeader() {
+    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[0]));
+    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[127]));
   }
 
   @Test
