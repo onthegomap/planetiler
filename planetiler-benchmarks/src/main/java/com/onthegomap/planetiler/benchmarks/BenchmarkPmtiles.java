@@ -23,7 +23,7 @@ public class BenchmarkPmtiles {
 
       long offset = 0;
       for (int j = 0; j < num; j++) {
-        int len = random.nextInt(200, 64000);
+        int len = 200 + random.nextInt(64000);
         entries.add(new Pmtiles.Entry(j, offset, len, 1));
         offset += len;
       }
