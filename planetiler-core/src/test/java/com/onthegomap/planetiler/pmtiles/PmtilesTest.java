@@ -3,8 +3,8 @@ package com.onthegomap.planetiler.pmtiles;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.carrotsearch.hppc.ObjectArrayList;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 
 class PmtilesTest {
@@ -73,36 +73,36 @@ class PmtilesTest {
 
   @Test
   void testRoundtripDirectoryMinimal() {
-    ObjectArrayList<Pmtiles.Entry> in = new ObjectArrayList<>();
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
     in.add(new Pmtiles.Entry(0, 0, 1, 1));
 
-    ObjectArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
+    ArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySimple() {
-    ObjectArrayList<Pmtiles.Entry> in = new ObjectArrayList<>();
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
     in.add(new Pmtiles.Entry(0, 0, 1, 0));
     in.add(new Pmtiles.Entry(1, 1, 1, 1));
     in.add(new Pmtiles.Entry(2, 3, 1, 1));
 
-    ObjectArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
+    ArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySlice() {
-    ObjectArrayList<Pmtiles.Entry> in = new ObjectArrayList<>();
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
     in.add(new Pmtiles.Entry(0, 0, 1, 0));
     in.add(new Pmtiles.Entry(1, 1, 1, 1));
     in.add(new Pmtiles.Entry(2, 3, 1, 1));
 
-    ObjectArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 1, 2));
+    ArrayList<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 1, 2));
     assertEquals(1, out.size());
   }
 }

@@ -2,24 +2,24 @@ package com.onthegomap.planetiler.benchmarks;
 
 import static io.prometheus.client.Collector.NANOSECONDS_PER_SECOND;
 
-import com.carrotsearch.hppc.ObjectArrayList;
 import com.onthegomap.planetiler.pmtiles.Pmtiles;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.Format;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class BenchmarkPmtiles {
 
   public static void main(String[] args) throws IOException {
 
-    long num = 40_000_000;
+    long num = 60_000_000;
 
     var random = new Random(0);
 
     for (int i = 0; i < 3; i++) {
 
-      var entries = new ObjectArrayList<Pmtiles.Entry>();
+      var entries = new ArrayList<Pmtiles.Entry>();
 
       long offset = 0;
       for (int j = 0; j < num; j++) {

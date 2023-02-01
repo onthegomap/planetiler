@@ -1,13 +1,13 @@
 package com.onthegomap.planetiler.pmtiles;
 
 import com.carrotsearch.hppc.ByteArrayList;
-import com.carrotsearch.hppc.ObjectArrayList;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.VarInt;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Objects;
 
 /**
@@ -241,7 +241,7 @@ public final class Pmtiles {
    * @param end   the end index, exclusive.
    * @return
    */
-  public static byte[] serializeDirectory(ObjectArrayList<Entry> slice, int start, int end) {
+  public static byte[] serializeDirectory(ArrayList<Entry> slice, int start, int end) {
     ByteArrayList dir = new ByteArrayList();
 
     VarInt.putVarLong((long) end - start, dir);
@@ -271,10 +271,10 @@ public final class Pmtiles {
     return dir.toArray();
   }
 
-  public static ObjectArrayList<Entry> deserializeDirectory(byte[] bytes) {
+  public static ArrayList<Entry> deserializeDirectory(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
     int numEntries = (int) VarInt.getVarLong(buffer);
-    ObjectArrayList<Entry> result = new ObjectArrayList<>(numEntries);
+    ArrayList<Entry> result = new ArrayList<>(numEntries);
 
     long lastId = 0;
     for (int i = 0; i < numEntries; i++) {
