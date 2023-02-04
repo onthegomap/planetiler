@@ -1,22 +1,22 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
-import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * A TileArchive is an on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based
- * archive format.
+ * Write API for an on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive
+ * format.
  * <p>
- * Implementing classes should be thread-safe for reading, but can assume writing happens from a single thread.
+ * See {@link ReadableTileArchive} for the read API.
  */
 @NotThreadSafe
-public interface TileArchive extends Closeable {
+public interface WriteableTileArchive extends Closeable {
+
   interface TileWriter extends Closeable {
+
     void write(TileEncodingResult encodingResult);
 
     // TODO: exists for compatibility reasons
@@ -54,12 +54,5 @@ public interface TileArchive extends Closeable {
    */
   void finish(PlanetilerConfig config);
 
-
-  default byte[] getTile(TileCoord coord) {
-    return getTile(coord.x(), coord.y(), coord.z());
-  }
-
-  byte[] getTile(int x, int y, int z);
-
-  CloseableIterator<TileCoord> getAllTileCoords();
+  // TODO update archive metadata
 }

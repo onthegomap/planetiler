@@ -1,13 +1,14 @@
 package com.onthegomap.planetiler.geo;
 
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import java.util.function.IntFunction;
 import java.util.function.ToDoubleBiFunction;
 import java.util.function.ToIntFunction;
 
 /**
  * Controls the sort order of {@link com.onthegomap.planetiler.collection.FeatureGroup}, which determines the ordering
- * of {@link com.onthegomap.planetiler.writer.TileEncodingResult}s when written to
- * {@link com.onthegomap.planetiler.writer.TileArchive.TileWriter}.
+ * of {@link com.onthegomap.planetiler.archive.TileEncodingResult}s when written to
+ * {@link WriteableTileArchive.TileWriter}.
  */
 public enum TileOrder {
   TMS(TileCoord::encoded, TileCoord::decode, TileCoord::progressOnLevel),

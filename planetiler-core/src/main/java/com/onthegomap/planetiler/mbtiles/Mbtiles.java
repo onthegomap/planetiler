@@ -7,6 +7,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -15,9 +19,6 @@ import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
-import com.onthegomap.planetiler.writer.TileArchive;
-import com.onthegomap.planetiler.writer.TileArchiveMetadata;
-import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -51,7 +52,7 @@ import org.sqlite.SQLiteConfig;
  *
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
-public final class Mbtiles implements TileArchive {
+public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
@@ -327,7 +328,7 @@ public final class Mbtiles implements TileArchive {
   }
 
   /** Returns a writer that queues up inserts into the tile database(s) into large batches before executing them. */
-  public TileArchive.TileWriter newTileWriter() {
+  public WriteableTileArchive.TileWriter newTileWriter() {
     if (compactDb) {
       return new BatchedCompactTileWriter();
     } else {
@@ -336,7 +337,7 @@ public final class Mbtiles implements TileArchive {
   }
 
   // TODO: exists for compatibility purposes
-  public TileArchive.TileWriter newBatchedTileWriter() {
+  public WriteableTileArchive.TileWriter newBatchedTileWriter() {
     return newTileWriter();
   }
 

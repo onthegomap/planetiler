@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
- * {@link TileArchive}.
+ * {@link WriteableTileArchive}.
  */
 public class TileArchiveWriter {
 
@@ -49,7 +49,7 @@ public class TileArchiveWriter {
   private static final long MAX_TILES_PER_BATCH = 1_000;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
-  private final TileArchive archive;
+  private final WriteableTileArchive archive;
   private final PlanetilerConfig config;
   private final Stats stats;
   private final LayerStats layerStats;
@@ -60,7 +60,7 @@ public class TileArchiveWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
 
-  private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, TileArchive archive,
+  private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config,
     TileArchiveMetadata tileArchiveMetadata, Stats stats, LayerStats layerStats) {
     this.inputTiles = inputTiles;
@@ -88,7 +88,7 @@ public class TileArchiveWriter {
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, TileArchive output, DiskBacked fileSize,
+  public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
     TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 

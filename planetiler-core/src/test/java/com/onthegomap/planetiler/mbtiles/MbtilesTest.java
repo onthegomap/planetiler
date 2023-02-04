@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerStats;
-import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.sql.SQLException;
