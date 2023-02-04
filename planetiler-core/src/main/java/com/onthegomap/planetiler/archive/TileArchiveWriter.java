@@ -335,28 +335,30 @@ public class TileArchiveWriter {
   }
 
   private void printTileStats() {
-    Format format = Format.defaultInstance();
-    LOGGER.debug("Tile stats:");
-    long sumSize = 0;
-    long sumCount = 0;
-    long maxMax = 0;
-    for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
-      long totalCount = tilesByZoom[z].get();
-      long totalSize = totalTileSizesByZoom[z].get();
-      sumSize += totalSize;
-      sumCount += totalCount;
-      long maxSize = maxTileSizesByZoom[z].get();
-      maxMax = Math.max(maxMax, maxSize);
-      LOGGER.debug("z{} avg:{} max:{}",
-        z,
-        format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
-        format.storage(maxSize, false));
+    if (LOGGER.isDebugEnabled()) {
+      Format format = Format.defaultInstance();
+      LOGGER.debug("Tile stats:");
+      long sumSize = 0;
+      long sumCount = 0;
+      long maxMax = 0;
+      for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
+        long totalCount = tilesByZoom[z].get();
+        long totalSize = totalTileSizesByZoom[z].get();
+        sumSize += totalSize;
+        sumCount += totalCount;
+        long maxSize = maxTileSizesByZoom[z].get();
+        maxMax = Math.max(maxMax, maxSize);
+        LOGGER.debug("z{} avg:{} max:{}",
+          z,
+          format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
+          format.storage(maxSize, false));
+      }
+      LOGGER.debug("all avg:{} max:{}",
+        format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
+        format.storage(maxMax, false));
+      LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
+      LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
     }
-    LOGGER.debug("all avg:{} max:{}",
-      format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
-      format.storage(maxMax, false));
-    LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
-    LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
   }
 
   private long tilesEmitted() {
