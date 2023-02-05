@@ -58,7 +58,7 @@ The `planetiler-core` module includes the following software:
 
 ## Data
 
-| source                     | license                                                                                                                              | used as default | included in repo |
+|           source           |                                                               license                                                                | used as default | included in repo |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------|------------------|
 | OpenStreetMap (OSM) data   | [ODBL](https://www.openstreetmap.org/copyright)                                                                                      | yes             | yes              |
 | Natural Earth              | [public domain](https://www.naturalearthdata.com/about/terms-of-use/)                                                                | yes             | yes              |
