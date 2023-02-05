@@ -1,23 +1,69 @@
 package com.onthegomap.planetiler.pmtiles;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+
 import com.carrotsearch.hppc.ByteArrayList;
+import com.carrotsearch.hppc.LongLongHashMap;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.collection.Hppc;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.util.Format;
+import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.VarInt;
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
+import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
+import org.locationtech.jts.geom.Envelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PMTiles is a single-file tile archive format designed for efficient access on cloud storage.
  *
  * @see <a href="https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md">PMTiles Specification</a>
  */
-public final class Pmtiles {
+public final class Pmtiles implements WriteableTileArchive {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Pmtiles.class);
+  private static final ObjectMapper objectMapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
+
+  private final FileChannel out;
+  private long currentOffset = 0;
+  private long numUnhashedTiles = 0;
+  private long numAddressedTiles = 0;
+  private LayerStats layerStats;
+  private TileArchiveMetadata tileArchiveMetadata;
+  final LongLongHashMap hashToOffset = Hppc.newLongLongHashMap();
+  private boolean isClustered = true;
+  final ArrayList<Entry> entries = new ArrayList<>();
+
   static final int HEADER_LEN = 127;
+  static final int INIT_SECTION = 16384;
 
   public static final class Entry implements Comparable<Entry> {
     private long tileId;
@@ -323,5 +369,242 @@ public final class Pmtiles {
       }
     }
     return result;
+  }
+
+  // stores name, attribution, created_at, planetiler build SHA, etc. in JSON metadata.
+  public record JsonMetadata(
+    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
+    @JsonAnyGetter Map<String, String> otherMetadata
+  ) {
+
+    public byte[] toBytes() {
+      try {
+        return objectMapper.writeValueAsBytes(this);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to encode as string: " + this, e);
+      }
+    }
+  }
+
+  public record Directories(byte[] root, byte[] leaves, int numLeaves) {}
+
+  private static Directories buildRootLeaves(List<Entry> subEntries, int leafSize) throws IOException {
+    ArrayList<Entry> root_entries = new ArrayList<Entry>();
+    ByteArrayList leavesOutputStream = new ByteArrayList();
+    int leaves_len = 0;
+    int num_leaves = 0;
+
+    for (int i = 0; i < subEntries.size(); i += leafSize) {
+      num_leaves++;
+      int end = i + leafSize;
+      if (i + leafSize > subEntries.size()) {
+        end = subEntries.size();
+      }
+      byte[] leaf_bytes = serializeDirectory(subEntries, i, end);
+      leaf_bytes = Gzip.gzip(leaf_bytes);
+      root_entries.add(new Entry(subEntries.get(i).tileId, leaves_len, leaf_bytes.length, 0));
+      leavesOutputStream.add(leaf_bytes);
+      leaves_len += leaf_bytes.length;
+    }
+
+    byte[] root_bytes = serializeDirectory(root_entries, 0, root_entries.size());
+    root_bytes = Gzip.gzip(root_bytes);
+
+    return new Directories(root_bytes, leavesOutputStream.toArray(), num_leaves);
+  }
+
+  /**
+   * Serialize all entries into bytes, adaptively choosing the # of leaf directories to ensure the header+root fits in
+   * 16 KB.
+   *
+   * @param entries a sorted ObjectArrayList of all entries in the tileset.
+   * @return byte arrays of the root and all leaf directories, and the # of leaves.
+   * @throws IOException
+   */
+  public static Directories makeRootLeaves(ArrayList<Entry> entries) throws IOException {
+    if (entries.size() < 16384) { // coarse heuristic to short circuit
+      byte[] test_bytes = serializeDirectory(entries, 0, entries.size());
+      test_bytes = Gzip.gzip(test_bytes);
+
+      if (test_bytes.length < INIT_SECTION - HEADER_LEN) {
+        return new Directories(test_bytes, new byte[0], 0);
+      }
+    }
+
+    int leaf_size = (int) Math.max(entries.size() / 3_500d, 4096);
+
+    while (true) {
+      LOGGER.info("Leaf size:\t" + leaf_size);
+      Directories temp = buildRootLeaves(entries, leaf_size);
+      if (temp.root.length < INIT_SECTION - HEADER_LEN) {
+        return temp;
+      }
+      leaf_size *= 1.2;
+    }
+  }
+
+  private Pmtiles(Path path) throws IOException {
+    this.out = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+    out.write(ByteBuffer.wrap(new byte[INIT_SECTION]));
+  }
+
+  public static Pmtiles newWriteToFile(Path path) throws IOException {
+    return new Pmtiles(path);
+  }
+
+  @Override
+  public TileOrder tileOrder() {
+    return TileOrder.HILBERT;
+  }
+
+  @Override
+  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
+    this.layerStats = layerStats;
+    this.tileArchiveMetadata = tileArchiveMetadata;
+  }
+
+  @Override
+  public void finish(PlanetilerConfig config) {
+    if (!isClustered) {
+      Collections.sort(entries);
+    }
+    try {
+      Directories archiveDirs = makeRootLeaves(entries);
+      byte[] json_s = new JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
+      json_s = Gzip.gzip(json_s);
+
+      Envelope envelope = config.bounds().latLon();
+
+      Header header = new Header(
+        (byte) 3,
+        HEADER_LEN,
+        archiveDirs.root.length,
+        INIT_SECTION + currentOffset,
+        json_s.length,
+        INIT_SECTION + currentOffset + json_s.length,
+        archiveDirs.leaves.length,
+        INIT_SECTION,
+        currentOffset,
+        numAddressedTiles,
+        entries.size(),
+        hashToOffset.size() + numUnhashedTiles,
+        isClustered,
+        Compression.GZIP,
+        Compression.GZIP,
+        TileType.MVT,
+        (byte) config.minzoom(),
+        (byte) config.maxzoom(),
+        (int) (envelope.getMinX() * 10_000_000),
+        (int) (envelope.getMinY() * 10_000_000),
+        (int) (envelope.getMaxX() * 10_000_000),
+        (int) (envelope.getMaxY() * 10_000_000),
+        (byte) Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope)),
+        (int) ((envelope.getMinX() + envelope.getMaxX()) / 2 * 10_000_000),
+        (int) ((envelope.getMinY() + envelope.getMaxY()) / 2 * 10_000_000)
+      );
+
+      out.write(ByteBuffer.wrap(json_s));
+      out.write(ByteBuffer.wrap(archiveDirs.leaves));
+
+      out.position(0);
+      out.write(ByteBuffer.wrap(header.toBytes()));
+      out.write(ByteBuffer.wrap(archiveDirs.root));
+
+      Format format = Format.defaultInstance();
+
+      LOGGER.info("# addressed tiles:\t" + numAddressedTiles);
+      LOGGER.info("# of tile entries:\t" + entries.size());
+      LOGGER.info("# of tile contents:\t" + (hashToOffset.size() + numUnhashedTiles));
+      LOGGER.info("Root directory:\t" + format.storage(archiveDirs.root.length, false) + "B");
+
+      LOGGER.info("# leaves:\t" + archiveDirs.numLeaves);
+      if (archiveDirs.numLeaves > 0) {
+        LOGGER.info("Leaf directories:\t" + format.storage(archiveDirs.leaves.length, false) + "B");
+        LOGGER
+          .info("Avg leaf size:\t" + format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false) + "B");
+      }
+
+      LOGGER
+        .info("Total dir bytes:\t" + format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false) + "B");
+      double tot = archiveDirs.root.length + archiveDirs.leaves.length;
+      LOGGER.info("Average bytes per addressed tile:\t" + tot / numAddressedTiles);
+    } catch (IOException e) {
+      LOGGER.error(e.getMessage());
+    }
+  }
+
+  @Override
+  public void close() throws IOException {
+    out.close();
+  }
+
+  private class DeduplicatingTileWriter implements TileWriter {
+
+    @Override
+    public void write(TileEncodingResult encodingResult) {
+      numAddressedTiles++;
+      boolean writeData;
+      long offset;
+      OptionalLong tileDataHashOpt = encodingResult.tileDataHash();
+      var data = encodingResult.tileData();
+      TileCoord coord = encodingResult.coord();
+
+      long tile_id = coord.hilbertEncoded();
+      Entry last_entry = null;
+
+      if (entries.size() > 0) {
+        last_entry = entries.get(entries.size() - 1);
+        if (tile_id < last_entry.tileId) {
+          isClustered = false;
+        } else if (tile_id == last_entry.tileId) {
+          LOGGER.error("Duplicate tile detected in writer");
+        }
+      }
+
+      if (tileDataHashOpt.isPresent()) {
+        long tileDataHash = tileDataHashOpt.getAsLong();
+        if (hashToOffset.containsKey(tileDataHash)) {
+          offset = hashToOffset.get(tileDataHash);
+          writeData = false;
+          if (last_entry != null && last_entry.tileId + last_entry.runLength == tile_id &&
+            last_entry.offset == offset) {
+            entries.get(entries.size() - 1).runLength = last_entry.runLength + 1;
+          } else {
+            entries.add(new Entry(tile_id, offset, data.length, 1));
+          }
+        } else {
+          hashToOffset.put(tileDataHash, currentOffset);
+          entries.add(new Entry(tile_id, currentOffset, data.length, 1));
+          writeData = true;
+        }
+      } else {
+        numUnhashedTiles++;
+        entries.add(new Entry(tile_id, currentOffset, data.length, 1));
+        writeData = true;
+      }
+
+      if (writeData) {
+        try {
+          out.write(ByteBuffer.wrap(data));
+        } catch (IOException e) {
+          LOGGER.error("I/O error when writing tile to archive");
+        }
+        currentOffset += data.length;
+      }
+    }
+
+    @Override
+    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
+      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
+    }
+
+    @Override
+    public void close() {
+
+    }
+  }
+
+  public WriteableTileArchive.TileWriter newTileWriter() {
+    return new DeduplicatingTileWriter();
   }
 }
