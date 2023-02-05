@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -100,11 +101,12 @@ public final class Pmtiles {
     }
 
     public static Compression fromByte(byte b) {
-      return switch (b) {
-        case 1 -> NONE;
-        case 2 -> GZIP;
-        default -> UNKNOWN;
-      };
+      for (var entry : values()) {
+        if (entry.value == b) {
+          return entry;
+        }
+      }
+      return UNKNOWN;
     }
   }
 
@@ -122,42 +124,42 @@ public final class Pmtiles {
       return this.value;
     }
 
-    public static TileType fromByte(byte val) {
-      return switch (val) {
-        case 1 -> MVT;
-        default -> UNKNOWN;
-      };
+    public static TileType fromByte(byte b) {
+      for (var entry : values()) {
+        if (entry.value == b) {
+          return entry;
+        }
+      }
+      return UNKNOWN;
     }
   }
 
-  public static class Header {
-    byte specVersion;
-    long rootDirOffset;
-    long rootDirLength;
-    long jsonMetadataOffset;
-    long jsonMetadataLength;
-    long leafDirectoriesOffset;
-    long leafDirectoriesLength;
-    long tileDataOffset;
-    long tileDataLength;
-    long numAddressedTiles;
-    long numTileEntries;
-    long numTileContents;
-    boolean clustered;
-    Compression internalCompression;
-    Compression tileCompression;
-    TileType tileType;
-    byte minZoom;
-    byte maxZoom;
-
-    // Store a decimal longitude as a signed 32-bit integer by multiplying by 10,000,000.
-    int minLonE7;
-    int minLatE7;
-    int maxLonE7;
-    int maxLatE7;
-    byte centerZoom;
-    int centerLonE7;
-    int centerLatE7;
+  public record Header(
+    byte specVersion,
+    long rootDirOffset,
+    long rootDirLength,
+    long jsonMetadataOffset,
+    long jsonMetadataLength,
+    long leafDirectoriesOffset,
+    long leafDirectoriesLength,
+    long tileDataOffset,
+    long tileDataLength,
+    long numAddressedTiles,
+    long numTileEntries,
+    long numTileContents,
+    boolean clustered,
+    Compression internalCompression,
+    Compression tileCompression,
+    TileType tileType,
+    byte minZoom,
+    byte maxZoom,
+    int minLonE7, // Store a decimal longitude as a signed 32-bit integer by multiplying by 10,000,000.
+    int minLatE7,
+    int maxLonE7,
+    int maxLatE7,
+    byte centerZoom,
+    int centerLonE7,
+    int centerLatE7) {
 
     public byte[] toBytes() {
       ByteBuffer buf = ByteBuffer.allocate(HEADER_LEN).order(ByteOrder.LITTLE_ENDIAN);
@@ -193,7 +195,6 @@ public final class Pmtiles {
 
     public static Header fromBytes(byte[] bytes) {
       ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-      Header header = new Header();
       byte[] magic = new byte[7];
 
       try {
@@ -201,32 +202,59 @@ public final class Pmtiles {
         if (!(new String(magic, StandardCharsets.UTF_8).equals("PMTiles"))) {
           throw new FileFormatException("Incorrect magic number for PMTiles archive.");
         }
-        header.specVersion = buffer.get();
-        header.rootDirOffset = buffer.getLong();
-        header.rootDirLength = buffer.getLong();
-        header.jsonMetadataOffset = buffer.getLong();
-        header.jsonMetadataLength = buffer.getLong();
-        header.leafDirectoriesOffset = buffer.getLong();
-        header.leafDirectoriesLength = buffer.getLong();
-        header.tileDataOffset = buffer.getLong();
-        header.tileDataLength = buffer.getLong();
-        header.numAddressedTiles = buffer.getLong();
-        header.numTileEntries = buffer.getLong();
-        header.numTileContents = buffer.getLong();
-        header.clustered = (buffer.get() == 0x1);
-        header.internalCompression = Compression.fromByte(buffer.get());
-        header.tileCompression = Compression.fromByte(buffer.get());
-        header.tileType = TileType.fromByte(buffer.get());
-        header.minZoom = buffer.get();
-        header.maxZoom = buffer.get();
-        header.minLonE7 = buffer.getInt();
-        header.minLatE7 = buffer.getInt();
-        header.maxLonE7 = buffer.getInt();
-        header.maxLatE7 = buffer.getInt();
-        header.centerZoom = buffer.get();
-        header.centerLonE7 = buffer.getInt();
-        header.centerLatE7 = buffer.getInt();
-        return header;
+
+        byte specVersion = buffer.get();
+        long rootDirOffset = buffer.getLong();
+        long rootDirLength = buffer.getLong();
+        long jsonMetadataOffset = buffer.getLong();
+        long jsonMetadataLength = buffer.getLong();
+        long leafDirectoriesOffset = buffer.getLong();
+        long leafDirectoriesLength = buffer.getLong();
+        long tileDataOffset = buffer.getLong();
+        long tileDataLength = buffer.getLong();
+        long numAddressedTiles = buffer.getLong();
+        long numTileEntries = buffer.getLong();
+        long numTileContents = buffer.getLong();
+        boolean clustered = (buffer.get() == 0x1);
+        Compression internalCompression = Compression.fromByte(buffer.get());
+        Compression tileCompression = Compression.fromByte(buffer.get());
+        TileType tileType = TileType.fromByte(buffer.get());
+        byte minZoom = buffer.get();
+        byte maxZoom = buffer.get();
+        int minLonE7 = buffer.getInt();
+        int minLatE7 = buffer.getInt();
+        int maxLonE7 = buffer.getInt();
+        int maxLatE7 = buffer.getInt();
+        byte centerZoom = buffer.get();
+        int centerLonE7 = buffer.getInt();
+        int centerLatE7 = buffer.getInt();
+        return new Header(
+          specVersion,
+          rootDirOffset,
+          rootDirLength,
+          jsonMetadataOffset,
+          jsonMetadataLength,
+          leafDirectoriesOffset,
+          leafDirectoriesLength,
+          tileDataOffset,
+          tileDataLength,
+          numAddressedTiles,
+          numTileEntries,
+          numTileContents,
+          clustered,
+          internalCompression,
+          tileCompression,
+          tileType,
+          minZoom,
+          maxZoom,
+          minLonE7,
+          minLatE7,
+          maxLonE7,
+          maxLatE7,
+          centerZoom,
+          centerLonE7,
+          centerLatE7
+        );
       } catch (BufferUnderflowException e) {
         throw new FileFormatException("Failed to read enough bytes for PMTiles header.");
       }
@@ -239,9 +267,9 @@ public final class Pmtiles {
    * @param slice a list of entries sorted by ascending {@code tileId} with size > 0.
    * @param start the start index to serialize, inclusive.
    * @param end   the end index, exclusive.
-   * @return
+   * @return the uncompressed bytes of the directory.
    */
-  public static byte[] serializeDirectory(ArrayList<Entry> slice, int start, int end) {
+  public static byte[] serializeDirectory(List<Entry> slice, int start, int end) {
     ByteArrayList dir = new ByteArrayList();
 
     VarInt.putVarLong((long) end - start, dir);
@@ -271,7 +299,7 @@ public final class Pmtiles {
     return dir.toArray();
   }
 
-  public static ArrayList<Entry> deserializeDirectory(byte[] bytes) {
+  public static List<Entry> deserializeDirectory(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
     int numEntries = (int) VarInt.getVarLong(buffer);
     ArrayList<Entry> result = new ArrayList<>(numEntries);
