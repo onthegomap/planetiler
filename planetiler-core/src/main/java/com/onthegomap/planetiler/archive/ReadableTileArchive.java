@@ -29,7 +29,7 @@ public interface ReadableTileArchive extends Closeable {
    *
    * <pre>
    * {@code
-   * try (var iter = archive.getAllTileCoord()) {
+   * try (var iter = archive.getAllTileCoords()) {
    *   while (iter.hasNext()) {
    *     var coord = iter.next();
    *     ...
