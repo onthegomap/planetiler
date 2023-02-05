@@ -43,7 +43,6 @@ The `planetiler-core` module includes the following software:
     from [openstreetmap/OSM-binary](https://github.com/openstreetmap/OSM-binary/tree/master/osmpbf) (MIT License)
   - `VarInt` from [Bazel](https://github.com/bazelbuild/bazel) (Apache license)
 - Maven Dependencies:
-  - org.yaml:snakeyaml (Apache license)
   - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
 - Code adapted from OpenMapTiles (BSD 3-Clause License):
@@ -59,7 +58,7 @@ The `planetiler-core` module includes the following software:
 
 ## Data
 
-|           source           |                                                               license                                                                | used as default | included in repo |
+| source                     | license                                                                                                                              | used as default | included in repo |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------|------------------|
 | OpenStreetMap (OSM) data   | [ODBL](https://www.openstreetmap.org/copyright)                                                                                      | yes             | yes              |
 | Natural Earth              | [public domain](https://www.naturalearthdata.com/about/terms-of-use/)                                                                | yes             | yes              |
