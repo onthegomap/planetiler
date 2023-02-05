@@ -3,6 +3,8 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileArchiveWriter;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
@@ -23,8 +25,6 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.BuildInfo;
-import com.onthegomap.planetiler.writer.TileArchiveMetadata;
-import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

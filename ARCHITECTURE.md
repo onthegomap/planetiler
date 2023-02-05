@@ -96,7 +96,8 @@ of the intermediate features using a worker thread per core:
 
 ## 3) Emit Vector Tiles
 
-[TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/writer/TileArchiveWriter.java) is the main driver.
+[TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/archive/TileArchiveWriter.java) is the main
+driver.
 First, a single-threaded reader reads features from disk:
 
 - [ExternalMergeSort](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/ExternalMergeSort.java) emits
@@ -104,7 +105,8 @@ First, a single-threaded reader reads features from disk:
 - [FeatureGroup](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/FeatureGroup.java) collects
   consecutive features in the same tile into a `TileFeatures` instance, dropping features in the same group over the
   grouping limit to limit point label density
-- Then [TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/writer/TileArchiveWriter.java) groups tiles
+- Then [TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/archive/TileArchiveWriter.java)
+  groups tiles
   into variable-sized batches for workers to process (complex tiles get their own batch to ensure workers stay busy
   while the writer thread waits for finished tiles in order)
 

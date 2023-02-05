@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;

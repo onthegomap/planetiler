@@ -1,9 +1,9 @@
 package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.render.RenderedFeature;
-import com.onthegomap.planetiler.writer.TileArchive;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +18,8 @@ import javax.annotation.concurrent.ThreadSafe;
 /**
  * Tracks the feature attributes and zoom range of each layer to populate the archive output metadata.
  * <p>
- * Matches the MBTiles spec for {@code vector_layers}, but can be reused by other {@link TileArchive} formats. To
- * minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
+ * Matches the MBTiles spec for {@code vector_layers}, but can be reused by other {@link WriteableTileArchive} formats.
+ * To minimize overhead of stat collection, each updating thread should call {@link #handlerForThread()} first to get a
  * thread-local handler that can update stats without contention.
  * </p>
  *

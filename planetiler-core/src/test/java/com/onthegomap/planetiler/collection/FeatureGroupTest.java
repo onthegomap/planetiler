@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.archive.TileArchiveWriter;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
@@ -17,7 +18,6 @@ import com.onthegomap.planetiler.render.RenderedFeature;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.Gzip;
-import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

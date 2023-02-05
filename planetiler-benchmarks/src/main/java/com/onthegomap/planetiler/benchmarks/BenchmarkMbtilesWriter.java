@@ -1,12 +1,12 @@
 package com.onthegomap.planetiler.benchmarks;
 
 import com.google.common.base.Stopwatch;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.WriteableTileArchive.TileWriter;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
-import com.onthegomap.planetiler.writer.TileArchive.TileWriter;
-import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
