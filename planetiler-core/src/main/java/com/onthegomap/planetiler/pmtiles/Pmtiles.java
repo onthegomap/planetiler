@@ -32,19 +32,19 @@ public final class Pmtiles {
       this.runLength = runLength;
     }
 
-    public long getTileId() {
+    public long tileId() {
       return tileId;
     }
 
-    public long getOffset() {
+    public long offset() {
       return offset;
     }
 
-    public long getLength() {
+    public long length() {
       return length;
     }
 
-    public long getRunLength() {
+    public long runLength() {
       return runLength;
     }
 
