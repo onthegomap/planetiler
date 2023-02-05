@@ -95,11 +95,6 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>1.33</version>
-      </dependency>
-      <dependency>
         <groupId>org.snakeyaml</groupId>
         <artifactId>snakeyaml-engine</artifactId>
         <version>2.6</version>
