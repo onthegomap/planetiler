@@ -15,17 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Ensure code formatted with mvn spotless:apply
-        run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: 17
+        distribution: 'temurin'
+        cache: 'maven'
+    - name: Ensure code formatted with mvn spotless:apply
+      run: ./mvnw -DskipTests --batch-mode -no-transfer-progress spotless:check
 
   build:
     name: Java ${{ matrix.jdk }} / ${{ matrix.os }} ${{ matrix.args }}
@@ -36,33 +36,33 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         jdk: [ 17 ]
         include:
-          - os: ubuntu-latest
-            jdk: 16
-          - os: ubuntu-latest
-            jdk: 18
-          - os: ubuntu-latest
-            jdk: 17
-            args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
+        - os: ubuntu-latest
+          jdk: 17
+          args: "-DargLine='-Duser.language=fr -Duser.country=FR'"
+        - os: ubuntu-latest
+          jdk: 18
+        - os: ubuntu-latest
+          jdk: 19
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Set up JDK ${{ matrix.jdk }}
-        uses: actions/setup-java@v3
-        with:
-          java-version: ${{ matrix.jdk }}
-          distribution: 'temurin'
-          cache: 'maven'
-      # Skip spotless since that gets checked in a separate task
-      - name: Build with mvnw (linux/mac)
-        if: ${{ !contains(matrix.os, 'windows') }}
-        run: ./mvnw ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
-      - name: Build with mvnw.cmd (windows)
-        if: ${{ contains(matrix.os, 'windows') }}
-        run: mvnw.cmd ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
-        shell: cmd
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up JDK ${{ matrix.jdk }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.jdk }}
+        distribution: 'temurin'
+        cache: 'maven'
+    # Skip spotless since that gets checked in a separate task
+    - name: Build with mvnw (linux/mac)
+      if: ${{ !contains(matrix.os, 'windows') }}
+      run: ./mvnw ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
+    - name: Build with mvnw.cmd (windows)
+      if: ${{ contains(matrix.os, 'windows') }}
+      run: mvnw.cmd ${{matrix.args}} -Dspotless.check.skip --batch-mode -no-transfer-progress package verify jib:buildTar --file pom.xml
+      shell: cmd
 
   examples:
     name: Example project
@@ -70,85 +70,85 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-      - name: Build and test
-        run: mvn --batch-mode -no-transfer-progress package --file standalone.pom.xml
-        working-directory: planetiler-examples
-      - name: Find jar
-        run: mv target/*with-deps.jar ./run.jar
-        working-directory: planetiler-examples
-      - name: Run
-        run: java -jar run.jar --osm-path=../planetiler-core/src/test/resources/monaco-latest.osm.pbf --mbtiles=data/out.mbtiles
-        working-directory: planetiler-examples
-      - name: Verify
-        run: java -cp run.jar com.onthegomap.planetiler.mbtiles.Verify data/out.mbtiles
-        working-directory: planetiler-examples
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: 17
+        distribution: 'temurin'
+    - name: Build and test
+      run: mvn --batch-mode -no-transfer-progress package --file standalone.pom.xml
+      working-directory: planetiler-examples
+    - name: Find jar
+      run: mv target/*with-deps.jar ./run.jar
+      working-directory: planetiler-examples
+    - name: Run
+      run: java -jar run.jar --osm-path=../planetiler-core/src/test/resources/monaco-latest.osm.pbf --mbtiles=data/out.mbtiles
+      working-directory: planetiler-examples
+    - name: Verify
+      run: java -cp run.jar com.onthegomap.planetiler.mbtiles.Verify data/out.mbtiles
+      working-directory: planetiler-examples
 
   run:
     name: Build / Run
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Cache data/sources
-        uses: ./.github/cache-sources-action
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-          cache: 'maven'
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Cache data/sources
+      uses: ./.github/cache-sources-action
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: 17
+        distribution: 'temurin'
+        cache: 'maven'
 
-      - name: Build this branch
-        run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
+    - name: Build this branch
+      run: ./mvnw -DskipTests -Dimage.version=CI_ONLY --batch-mode -no-transfer-progress package jib:dockerBuild --file pom.xml
 
-      - name: 'Upload artifact'
-        uses: actions/upload-artifact@v3
-        with:
-          name: planetiler-build
-          path: planetiler-dist/target/*with-deps.jar
+    - name: 'Upload artifact'
+      uses: actions/upload-artifact@v3
+      with:
+        name: planetiler-build
+        path: planetiler-dist/target/*with-deps.jar
 
-      - name: Download data (java)
-        run: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
+    - name: Download data (java)
+      run: java -jar planetiler-dist/target/*with-deps.jar --only-download --area=monaco
 
-      - name: Download wikidata (java)
-        run: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
+    - name: Download wikidata (java)
+      run: java -jar planetiler-dist/target/*with-deps.jar --only-fetch-wikidata --area=monaco
 
-      - name: Verify build
-        run: ./scripts/test-release.sh CI_ONLY
-        env:
-          SKIP_EXAMPLE_PROJECT: true
+    - name: Verify build
+      run: ./scripts/test-release.sh CI_ONLY
+      env:
+        SKIP_EXAMPLE_PROJECT: true
 
   quickstart:
     name: Quickstart script
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Cache data/sources
-        uses: ./.github/cache-sources-action
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-          cache: 'maven'
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Cache data/sources
+      uses: ./.github/cache-sources-action
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: 17
+        distribution: 'temurin'
+        cache: 'maven'
 
-      - name: quickstart.sh --build
-        run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
-      - name: quickstart.sh --jar
-        run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
-      # run docker last since it creates temp dirs with root user
-      - name: quickstart.sh --docker
-        run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
+    - name: quickstart.sh --build
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
+    - name: quickstart.sh --jar
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
+    # run docker last since it creates temp dirs with root user
+    - name: quickstart.sh --docker
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
