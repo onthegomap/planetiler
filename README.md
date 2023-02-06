@@ -32,7 +32,7 @@ the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetma
 To generate a map of an area using the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles),
 you will need:
 
-- Java 16+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
+- Java 17+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
 - at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
 - at least 0.5x as much free RAM as the input `.osm.pbf` file size
 
@@ -159,7 +159,7 @@ consider [contributing](#contributing) your change back for others to use!
 
 Some example runtimes for the OpenMapTiles profile (excluding downloading resources):
 
-|                                                                   Input                                                                   | Version |             Machine             |              Time               | mbtiles size |                                                          Logs                                                          |
+| Input                                                                                                                                     | Version | Machine                         | Time                            | mbtiles size | Logs                                                                                                                   |
 |-------------------------------------------------------------------------------------------------------------------------------------------|---------|---------------------------------|---------------------------------|--------------|------------------------------------------------------------------------------------------------------------------------|
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB)                                                                                            | 0.5.0   | c2d-standard-112 (112cpu/448GB) | 37m cpu:48h5m gc:3m45s avg:76.9 | 79GB         | [logs](planet-logs/v0.5.0-planet-c2d-standard-112.txt)                                                                 |
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB)                                                                                            | 0.5.0   | c6gd.16xlarge (64cpu/128GB)     | 53m cpu:41h58m avg:47.1         | 79GB         | [logs](planet-logs/v0.5.0-planet-c6gd-128gb.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb.nps)         |
@@ -170,7 +170,7 @@ Some example runtimes for the OpenMapTiles profile (excluding downloading resour
 
 Merging nearby buildings at z13 is very expensive, when run with `--building-merge-z13=false`:
 
-|                     Input                      | Version |                         Machine                          |           Time           | mbtiles size |                                                                            Logs                                                                            |
+| Input                                          | Version | Machine                                                  | Time                     | mbtiles size | Logs                                                                                                                                                       |
 |------------------------------------------------|---------|----------------------------------------------------------|--------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c2d-standard-112 (112cpu/448GB)                          | 26m cpu:27h47m avg:63.9  | 79GB         | [logs](planet-logs/v0.5.0-planet-c2d-standard-112-no-z13-building-merge.txt)                                                                               |
 | s3://osm-pds/2022/planet-220530.osm.pbf (69GB) | 0.5.0   | c6gd.16xlarge (64cpu/128GB)                              | 39m cpu:27h4m avg:42.1   | 79GB         | [logs](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.txt), [VisualVM Profile](planet-logs/v0.5.0-planet-c6gd-128gb-no-z13-building-merge.nps) |

@@ -116,7 +116,7 @@ function check_java_version() {
     else
       OUTPUT="$($JAVA -jar "$1" --help 2>&1 || echo OK)"
       if [[ "$OUTPUT" =~ "UnsupportedClassVersionError" ]]; then
-        echo "Wrong version of java installed, need at least 16 but found:"
+        echo "Wrong version of java installed, need at least 17 but found:"
         $JAVA --version
         exit 1
       fi
