@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.reader.FlatGeobufReader;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -403,6 +404,27 @@ public class Planetiler {
    */
   public Planetiler addGeoPackageSource(String name, Path defaultPath, String defaultUrl) {
     return addGeoPackageSource(null, name, defaultPath, defaultUrl);
+  }
+
+  public Planetiler addFlatGeobufSource(String name, Path defaultPath, String defaultUrl) {
+    return addFlatGeobufSource(null, name, defaultPath, defaultUrl);
+  }
+
+  public Planetiler addFlatGeobufSource(String projection, String name, Path defaultPath, String defaultUrl) {
+    Path path = getPath(name, "flatgeobuf", defaultPath, defaultUrl);
+    return addStage(name, "Process features in " + path,
+      ifSourceUsed(name, () -> {
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip")) {
+          sourcePaths = FileUtils.walkPathWithPattern(path, "*.fgb");
+        }
+
+        if (sourcePaths.isEmpty()) {
+          throw new IllegalArgumentException("No .fgb files found in " + path);
+        }
+
+        FlatGeobufReader.process(projection, name, sourcePaths, featureGroup, config, profile, stats);
+      }));
   }
 
   /**

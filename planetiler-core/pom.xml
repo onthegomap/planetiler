@@ -30,6 +30,11 @@
       <version>0.9.1</version>
     </dependency>
     <dependency>
+      <groupId>org.wololo</groupId>
+      <artifactId>flatgeobuf</artifactId>
+      <version>3.24.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
       <version>0.9.39</version>
