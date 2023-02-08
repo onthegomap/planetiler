@@ -30,7 +30,7 @@ public class BenchmarkPmtiles {
 
       var timer = Timer.start();
 
-      var result = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(entries, 0, entries.size()));
+      var result = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(entries));
       assert (result.size() == entries.size());
 
       System.err.println(

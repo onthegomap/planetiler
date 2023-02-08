@@ -105,7 +105,7 @@ class PmtilesTest {
     ArrayList<Pmtiles.Entry> in = new ArrayList<>();
     in.add(new Pmtiles.Entry(0, 0, 1, 1));
 
-    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
+    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in));
     assertEquals(in, out);
   }
 
@@ -118,7 +118,9 @@ class PmtilesTest {
     in.add(new Pmtiles.Entry(1, 1, 1, 1));
     in.add(new Pmtiles.Entry(2, 3, 1, 1));
 
-    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
+    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in));
+    assertEquals(in, out);
+    out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
     assertEquals(in, out);
   }
 

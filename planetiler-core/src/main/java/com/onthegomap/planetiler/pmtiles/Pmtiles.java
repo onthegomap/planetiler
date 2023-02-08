@@ -19,7 +19,7 @@ import java.util.Objects;
 public final class Pmtiles {
   static final int HEADER_LEN = 127;
 
-  public static class Entry implements Comparable<Entry> {
+  public static final class Entry implements Comparable<Entry> {
     private long tileId;
     private long offset;
     private int length;
@@ -50,28 +50,11 @@ public final class Pmtiles {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      Entry that = (Entry) o;
-
-      if (tileId != that.tileId) {
-        return false;
-      }
-
-      if (offset != that.offset) {
-        return false;
-      }
-
-      if (length != that.length) {
-        return false;
-      }
-
-      return runLength == that.runLength;
+      return this == o || (o instanceof Entry other &&
+        tileId == other.tileId &&
+        offset == other.offset &&
+        length == other.length &&
+        runLength == other.runLength);
     }
 
     @Override
@@ -262,7 +245,7 @@ public final class Pmtiles {
   }
 
   /**
-   * Convert a directory of entries to bytes.
+   * Convert a range of entries from a directory to bytes.
    *
    * @param slice a list of entries sorted by ascending {@code tileId} with size > 0.
    * @param start the start index to serialize, inclusive.
@@ -270,30 +253,42 @@ public final class Pmtiles {
    * @return the uncompressed bytes of the directory.
    */
   public static byte[] serializeDirectory(List<Entry> slice, int start, int end) {
+    return serializeDirectory(start == 0 && end == slice.size() ? slice : slice.subList(start, end));
+  }
+
+  /**
+   * Convert a directory of entries to bytes.
+   *
+   * @param slice a list of entries sorted by ascending {@code tileId} with size > 0.
+   * @return the uncompressed bytes of the directory.
+   */
+  public static byte[] serializeDirectory(List<Entry> slice) {
     ByteArrayList dir = new ByteArrayList();
 
-    VarInt.putVarLong((long) end - start, dir);
+    VarInt.putVarLong(slice.size(), dir);
 
     long lastId = 0;
-    for (int i = start; i < end; i++) {
-      VarInt.putVarLong(slice.get(i).tileId - lastId, dir);
-      lastId = slice.get(i).tileId;
+    for (var entry : slice) {
+      VarInt.putVarLong(entry.tileId - lastId, dir);
+      lastId = entry.tileId;
     }
 
-    for (int i = start; i < end; i++) {
-      VarInt.putVarLong(slice.get(i).runLength, dir);
+    for (var entry : slice) {
+      VarInt.putVarLong(entry.runLength, dir);
     }
 
-    for (int i = start; i < end; i++) {
-      VarInt.putVarLong(slice.get(i).length, dir);
+    for (var entry : slice) {
+      VarInt.putVarLong(entry.length, dir);
     }
 
-    for (int i = start; i < end; i++) {
-      if (i > start && slice.get(i).offset == slice.get(i - 1).offset + slice.get(i - 1).length) {
+    Pmtiles.Entry last = null;
+    for (var entry : slice) {
+      if (last != null && entry.offset == last.offset + last.length) {
         VarInt.putVarLong(0, dir);
       } else {
-        VarInt.putVarLong(slice.get(i).offset + 1, dir);
+        VarInt.putVarLong(entry.offset + 1, dir);
       }
+      last = entry;
     }
 
     return dir.toArray();
