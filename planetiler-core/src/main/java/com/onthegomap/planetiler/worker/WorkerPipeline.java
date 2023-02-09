@@ -281,7 +281,7 @@ public record WorkerPipeline<T> (
      * Runs {@code threads} simultaneous worker threads that consume items from previous step and invoke {@code
      * consumer.accept} for each one.
      */
-    public WorkerPipeline<O> sinkToConsumer(String name, int threads, Consumer<O> consumer) {
+    public WorkerPipeline<O> sinkToConsumer(String name, int threads, ConsumerThatThrows<O> consumer) {
       return sinkTo(name, threads, (prev) -> {
         for (O item : prev) {
           consumer.accept(item);

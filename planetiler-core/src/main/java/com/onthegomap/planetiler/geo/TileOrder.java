@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
+import com.onthegomap.planetiler.config.Bounds;
+import java.util.Iterator;
 import java.util.function.IntFunction;
 import java.util.function.ToDoubleBiFunction;
 import java.util.function.ToIntFunction;
@@ -35,5 +37,35 @@ public enum TileOrder {
 
   public double progressOnLevel(TileCoord coord, TileExtents extents) {
     return progressOnLevel.applyAsDouble(coord, extents);
+  }
+
+  public Iterator<TileCoord> enumerate(int minzoom, int maxzoom, Bounds bounds) {
+    int end = TileCoord.startIndexForZoom(maxzoom) + (1 << (2 * maxzoom));
+    var result = new Iterator<TileCoord>() {
+      int id = TileCoord.startIndexForZoom(minzoom);
+      TileCoord next = decode(id);
+
+      @Override
+      public boolean hasNext() {
+        return id < end;
+      }
+
+      @Override
+      public TileCoord next() {
+        var result = next;
+        advance();
+        return result;
+      }
+
+      private void advance() {
+        do {
+          id++;
+        } while (id < end && !bounds.tileExtents().test(next = decode(id)));
+      }
+    };
+    if (!bounds.tileExtents().test(decode(result.id))) {
+      result.advance();
+    }
+    return result;
   }
 }

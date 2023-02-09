@@ -30,6 +30,11 @@
       <version>0.9.1</version>
     </dependency>
     <dependency>
+      <groupId>io.github.darkxanter</groupId>
+      <artifactId>webp-imageio</artifactId>
+      <version>0.2.3</version>
+    </dependency>
+    <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
       <version>0.9.39</version>
