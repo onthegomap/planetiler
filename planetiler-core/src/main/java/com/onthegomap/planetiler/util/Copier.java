@@ -1,5 +1,10 @@
 package com.onthegomap.planetiler.util;
 
+import ar.com.hjg.pngj.IImageLine;
+import ar.com.hjg.pngj.ImageLineInt;
+import ar.com.hjg.pngj.PngReader;
+import ar.com.hjg.pngj.PngWriter;
+import ar.com.hjg.pngj.chunks.ChunkCopyBehaviour;
 import com.luciad.imageio.webp.WebPWriteParam;
 import com.onthegomap.planetiler.archive.HttpArchive;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
@@ -8,7 +13,9 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,19 +53,31 @@ public class Copier {
     }
   }
 
+  // level=0 1m17s 4.6G
+  // level=1
+  // level=2 1m11s 107m
+  // level=3
+  // level=4 1m24s 83m
+  // level=5
+  // level=6 1m35s 77m
+
   public static void main(String[] args) throws IOException {
     var arguments = Arguments.fromEnvOrArgs(args).orElse(Arguments.of(Map.of(
       "minzoom", "0",
-      "maxzoom", "12",
-      "download-max-bandwidth", "500MB/s",
+      "maxzoom", "10",
+      "download-max-bandwidth", "300MB/s",
       "download-threads", "50"
     )));
+    var timer = Timer.start();
     var stats = arguments.getStats();
     var config = PlanetilerConfig.from(arguments);
     var from = arguments.getString("source", "source",
-      "https://elevation-tiles-prod.s3.amazonaws.com/v2/terrarium/{z}/{x}/{y}.png");
+      "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png");
     var to = arguments.file("dest", "output.mbtiles", Path.of("output.mbtiles"));
+    var quality = arguments.getDouble("quality", "image encode quality", 0.5);
     var format = arguments.getString("format", "format (webp/png)", "png");
+    var level = arguments.getInteger("level", "png gzip level", 4);
+    var bathymetry = arguments.getBoolean("bathymetry", "include bathymetry", false);
     FileUtils.delete(to);
     var bounds = config.bounds();
     try (
@@ -85,16 +104,18 @@ public class Copier {
           while (iter.hasNext()) {
             s.acquire();
             var coord = iter.next();
-            var item = new Item(coord, in.getTileFuture(coord.x(), coord.y(), coord.z())
-              .thenComposeAsync(bytes -> {
-                byteCounter.addAndGet(bytes.length);
-                try {
-                  return CompletableFuture.completedFuture("webp".equals(format) ? pngToWebp(bytes) : bytes);
-                } catch (Exception t) {
-                  return CompletableFuture.failedFuture(t);
-                }
-              }));
-            item.bytes.whenComplete((a, b) -> s.release());
+            var item = new Item(coord, in.getTileFuture(coord.x(), coord.y(), coord.z()).thenComposeAsync(result -> {
+              try {
+                byteCounter.addAndGet(result.length);
+                return CompletableFuture
+                  .completedFuture(
+                    "webp".equals(format) ? pngToWebp(result, quality) :
+                      stripBlue(result, level, bathymetry));
+              } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+              }
+            }));
+            item.bytes.whenComplete((ab, bb) -> s.release());
             next.accept(item);
           }
         }, 1)
@@ -133,17 +154,59 @@ public class Copier {
         .add(lastTile::get);
 
       loggers.awaitAndLog(pipeline.done(), config.logInterval());
+      LOGGER.info("{}", timer.stop());
     }
   }
 
-  private static byte[] pngToWebp(byte[] success) throws IOException {
+  private static byte[] encodeAsPng(BufferedImage result) throws IOException {
+    var baos = new ByteArrayOutputStream();
+    ImageIO.write(result, "png", baos);
+    return baos.toByteArray();
+  }
+
+  private static byte[] pngToWebp(byte[] success, double quality) throws IOException {
     var image = ImageIO.read(new ByteArrayInputStream(success));
+    return encodeAsWebp(image, quality);
+  }
+
+  private static byte[] stripBlue(byte[] bytes, int level, boolean bathymetry) {
+    boolean allLow = true;
+    PngReader pngr = new PngReader(new ByteArrayInputStream(bytes));
+    var baos = new ByteArrayOutputStream();
+    PngWriter pngw = new PngWriter(baos, pngr.imgInfo);
+    pngw.setCompLevel(level);
+    pngw.copyChunksFrom(pngr.getChunksList(), ChunkCopyBehaviour.COPY_ALL_SAFE);
+    while (pngr.hasMoreRows()) {
+      IImageLine l1 = pngr.readRow();
+      int[] scanline = ((ImageLineInt) l1).getScanline();
+      for (int j = 0; j < pngr.imgInfo.cols; j++) {
+        int red = scanline[j * 3];
+        int green = scanline[j * 3 + 1];
+        int elevation = (red * 256 + green) - 32768;
+        if (elevation < -512) {
+          scanline[j * 3] = 0;
+          scanline[j * 3 + 1] = 0;
+        } else {
+          allLow = false;
+        }
+        scanline[j * 3 + 2] = 0;
+      }
+      pngw.writeRow(l1);
+    }
+    pngr.end();
+    if (allLow && !bathymetry) {
+      return null;
+    }
+    pngw.end();
+    return baos.toByteArray();
+  }
+
+  private static byte[] encodeAsWebp(BufferedImage image, double quality) throws IOException {
     ImageWriter writer = ImageIO.getImageWritersByMIMEType("image/webp").next();
     WebPWriteParam writeParam = new WebPWriteParam(writer.getLocale());
     writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-    writeParam.setCompressionType(
-      writeParam.getCompressionTypes()[WebPWriteParam.LOSSLESS_COMPRESSION]);
-    //                  writeParam.setCompressiolsnQuality(6);
+    writeParam.setCompressionType(writeParam.getCompressionTypes()[WebPWriteParam.LOSSLESS_COMPRESSION]);
+    writeParam.setCompressionQuality((float) quality);
     var baos = new ByteArrayOutputStream();
     try (var c = new MemoryCacheImageOutputStream(baos)) {
       writer.setOutput(c);
@@ -152,3 +215,7 @@ public class Copier {
     return baos.toByteArray();
   }
 }
+// 0.1 211M 2m19
+// 0.25 205M 3m2s
+// 0.5 192M 3m37s
+// 1 191M 13m29s
