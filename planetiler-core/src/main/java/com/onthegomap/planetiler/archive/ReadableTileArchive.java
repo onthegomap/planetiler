@@ -12,12 +12,12 @@ import java.io.Closeable;
  */
 public interface ReadableTileArchive extends Closeable {
 
-  /** Returns the raw tile data associated with the tile at {@code coord}. */
+  /** Returns the raw tile data at {@code coord} or {@code null} if not found. */
   default byte[] getTile(TileCoord coord) {
     return getTile(coord.x(), coord.y(), coord.z());
   }
 
-  /** Returns the raw tile data associated with the tile at coordinate {@code x, y, z}. */
+  /** Returns the raw tile data at {@code x, y, z} or {@code null} if not found. */
   byte[] getTile(int x, int y, int z);
 
   /**
