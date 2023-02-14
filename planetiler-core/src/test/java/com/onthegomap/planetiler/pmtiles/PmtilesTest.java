@@ -1,11 +1,23 @@
 package com.onthegomap.planetiler.pmtiles;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalLong;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class PmtilesTest {
@@ -26,9 +38,9 @@ class PmtilesTest {
     long numTileEntries = 10;
     long numTileContents = 11;
     boolean clustered = true;
-    Pmtiles.Compression internalCompression = Pmtiles.Compression.GZIP;
-    Pmtiles.Compression tileCompression = Pmtiles.Compression.GZIP;
-    Pmtiles.TileType tileType = Pmtiles.TileType.MVT;
+    WriteablePmtiles.Compression internalCompression = WriteablePmtiles.Compression.GZIP;
+    WriteablePmtiles.Compression tileCompression = WriteablePmtiles.Compression.GZIP;
+    WriteablePmtiles.TileType tileType = WriteablePmtiles.TileType.MVT;
     byte minZoom = 1;
     byte maxZoom = 3;
     int minLonE7 = -10_000_000;
@@ -39,7 +51,7 @@ class PmtilesTest {
     int centerLonE7 = -5_000_000;
     int centerLatE7 = -6_000_000;
 
-    Pmtiles.Header in = new Pmtiles.Header(
+    WriteablePmtiles.Header in = new WriteablePmtiles.Header(
       specVersion,
       rootDirOffset,
       rootDirLength,
@@ -66,7 +78,7 @@ class PmtilesTest {
       centerLonE7,
       centerLatE7
     );
-    Pmtiles.Header out = Pmtiles.Header.fromBytes(in.toBytes());
+    WriteablePmtiles.Header out = WriteablePmtiles.Header.fromBytes(in.toBytes());
     assertEquals(specVersion, out.specVersion());
     assertEquals(rootDirOffset, out.rootDirOffset());
     assertEquals(rootDirLength, out.rootDirLength());
@@ -96,44 +108,69 @@ class PmtilesTest {
 
   @Test
   void testBadHeader() {
-    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[0]));
-    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[127]));
+    assertThrows(FileFormatException.class, () -> WriteablePmtiles.Header.fromBytes(new byte[0]));
+    assertThrows(FileFormatException.class, () -> WriteablePmtiles.Header.fromBytes(new byte[127]));
   }
 
   @Test
   void testRoundtripDirectoryMinimal() {
-    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
-    in.add(new Pmtiles.Entry(0, 0, 1, 1));
+    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
+    in.add(new WriteablePmtiles.Entry(0, 0, 1, 1));
 
-    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in));
+    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySimple() {
-    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
+    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
-    in.add(new Pmtiles.Entry(0, 0, 1, 0));
-    in.add(new Pmtiles.Entry(1, 1, 1, 1));
-    in.add(new Pmtiles.Entry(2, 3, 1, 1));
+    in.add(new WriteablePmtiles.Entry(0, 0, 1, 0));
+    in.add(new WriteablePmtiles.Entry(1, 1, 1, 1));
+    in.add(new WriteablePmtiles.Entry(2, 3, 1, 1));
 
-    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in));
+    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in));
     assertEquals(in, out);
-    out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 0, in.size()));
+    out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in, 0, in.size()));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySlice() {
-    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
+    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
-    in.add(new Pmtiles.Entry(0, 0, 1, 0));
-    in.add(new Pmtiles.Entry(1, 1, 1, 1));
-    in.add(new Pmtiles.Entry(2, 3, 1, 1));
+    in.add(new WriteablePmtiles.Entry(0, 0, 1, 0));
+    in.add(new WriteablePmtiles.Entry(1, 1, 1, 1));
+    in.add(new WriteablePmtiles.Entry(2, 3, 1, 1));
 
-    List<Pmtiles.Entry> out = Pmtiles.deserializeDirectory(Pmtiles.serializeDirectory(in, 1, 2));
+    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(
+      WriteablePmtiles.serializeDirectory(in, 1, 2));
     assertEquals(1, out.size());
   }
+
+  @Test
+  void testWritePmtilesSingleEntry() throws IOException {
+    var bytes = new SeekableInMemoryByteChannel(0);
+    var in = WriteablePmtiles.newWriteToMemory(bytes);
+
+    var config = PlanetilerConfig.defaults();
+    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var writer = in.newTileWriter();
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
+
+    // TODO shouldn't depend on config
+    in.finish(config);
+    var reader = new ReadablePmtiles(bytes);
+    var header = reader.getHeader();
+    assertEquals(header.numAddressedTiles(), 1);
+    assertEquals(header.numTileContents(), 1);
+    assertEquals(header.numTileEntries(), 1);
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+
+    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+    assertEquals(1, coordset.size());
+  }
+
 }

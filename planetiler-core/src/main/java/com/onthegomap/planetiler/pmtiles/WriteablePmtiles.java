@@ -21,12 +21,14 @@ import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import com.onthegomap.planetiler.util.VarInt;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -45,14 +47,14 @@ import org.slf4j.LoggerFactory;
  *
  * @see <a href="https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md">PMTiles Specification</a>
  */
-public final class Pmtiles implements WriteableTileArchive {
+public final class WriteablePmtiles implements WriteableTileArchive {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Pmtiles.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(WriteablePmtiles.class);
   private static final ObjectMapper objectMapper = new ObjectMapper()
     .registerModules(new Jdk8Module())
     .setSerializationInclusion(NON_ABSENT);
 
-  private final FileChannel out;
+  private final SeekableByteChannel out;
   private long currentOffset = 0;
   private long numUnhashedTiles = 0;
   private long numAddressedTiles = 0;
@@ -86,11 +88,11 @@ public final class Pmtiles implements WriteableTileArchive {
       return offset;
     }
 
-    public long length() {
+    public int length() {
       return length;
     }
 
-    public long runLength() {
+    public int runLength() {
       return runLength;
     }
 
@@ -327,7 +329,7 @@ public final class Pmtiles implements WriteableTileArchive {
       VarInt.putVarLong(entry.length, dir);
     }
 
-    Pmtiles.Entry last = null;
+    WriteablePmtiles.Entry last = null;
     for (var entry : slice) {
       if (last != null && entry.offset == last.offset + last.length) {
         VarInt.putVarLong(0, dir);
@@ -443,13 +445,18 @@ public final class Pmtiles implements WriteableTileArchive {
     }
   }
 
-  private Pmtiles(Path path) throws IOException {
-    this.out = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+  private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
+    this.out = channel;
     out.write(ByteBuffer.wrap(new byte[INIT_SECTION]));
   }
 
-  public static Pmtiles newWriteToFile(Path path) throws IOException {
-    return new Pmtiles(path);
+  public static WriteablePmtiles newWriteToFile(Path path) throws IOException {
+    return new WriteablePmtiles(
+      FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE));
+  }
+
+  public static WriteablePmtiles newWriteToMemory(SeekableInMemoryByteChannel bytes) throws IOException {
+    return new WriteablePmtiles(bytes);
   }
 
   @Override
