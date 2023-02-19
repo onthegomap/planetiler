@@ -5,8 +5,9 @@ import ar.com.hjg.pngj.ImageLineInt;
 import ar.com.hjg.pngj.PngReader;
 import ar.com.hjg.pngj.PngWriter;
 import ar.com.hjg.pngj.chunks.ChunkCopyBehaviour;
+import com.luciad.imageio.webp.WebP;
+import com.luciad.imageio.webp.WebPEncoderOptions;
 import com.luciad.imageio.webp.WebPWriteParam;
-import com.onthegomap.planetiler.archive.HttpArchive;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -74,19 +75,22 @@ public class Copier {
     var from = arguments.getString("source", "source",
       "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png");
     var to = arguments.file("dest", "output.mbtiles", Path.of("output.mbtiles"));
-    var quality = arguments.getDouble("quality", "image encode quality", 0.5);
+    var webpQuality = arguments.getDouble("webp-quality", "image encode quality", 0);
+    var webpMethod = arguments.getInteger("webp-method", "image encode method", 2);
     var format = arguments.getString("format", "format (webp/png)", "png");
-    var level = arguments.getInteger("level", "png gzip level", 4);
+    var pngLevel = arguments.getInteger("level", "png gzip level", -1);
     var bathymetry = arguments.getBoolean("bathymetry", "include bathymetry", false);
+    var lossless = arguments.getBoolean("lossless", "lossless compression", true);
     FileUtils.delete(to);
     var bounds = config.bounds();
     try (
-      var in = new HttpArchive(from, config);
+      var in = Mbtiles
+        .newReadOnlyDatabase(Path.of("terrarium-z11-512.mbtiles"));
       var out = Mbtiles.newWriteToFileDatabase(to, config.compactDb())
     ) {
       out.createTablesWithIndexes();
       out.metadata()
-        .setName("elevation")
+        .setName("ne2sr")
         .setFormat(format)
         .setType("baselayer")
         .setBoundsAndCenter(config.bounds().latLon())
@@ -99,24 +103,28 @@ public class Copier {
       var lastTile = new AtomicReference<>("");
       var pipeline = WorkerPipeline.start("copy", stats)
         .<Item>fromGenerator("enumerate", next -> {
-          var iter = out.tileOrder().enumerate(config.minzoom(), config.maxzoom(), bounds);
-          Semaphore s = new Semaphore(config.downloadThreads());
-          while (iter.hasNext()) {
-            s.acquire();
-            var coord = iter.next();
-            var item = new Item(coord, in.getTileFuture(coord.x(), coord.y(), coord.z()).thenComposeAsync(result -> {
-              try {
-                byteCounter.addAndGet(result.length);
-                return CompletableFuture
-                  .completedFuture(
-                    "webp".equals(format) ? pngToWebp(result, quality) :
-                      stripBlue(result, level, bathymetry));
-              } catch (Exception e) {
-                return CompletableFuture.failedFuture(e);
-              }
-            }));
-            item.bytes.whenComplete((ab, bb) -> s.release());
-            next.accept(item);
+          try (var iter = in.getAllTileCoords()) { //out.tileOrder().enumerate(config.minzoom(), config.maxzoom(), bounds);
+            Semaphore s = new Semaphore(config.downloadThreads());
+            while (iter.hasNext()) {
+              s.acquire();
+              var coord = iter.next();
+              var item = new Item(coord, CompletableFuture.completedFuture(in.getTile(coord.x(), coord.y(), coord.z()))
+                .thenComposeAsync(result -> {
+                  if (result == null)
+                    return CompletableFuture.completedFuture(null);
+                  try {
+                    byteCounter.addAndGet(result.length);
+                    return CompletableFuture
+                      .completedFuture(
+                        "webp".equals(format) ? pngToWebp2(result, webpQuality, lossless, webpMethod) :
+                          stripBlue(result, pngLevel, bathymetry));
+                  } catch (Exception e) {
+                    return CompletableFuture.failedFuture(e);
+                  }
+                }));
+              item.bytes.whenComplete((ab, bb) -> s.release());
+              next.accept(item);
+            }
           }
         }, 1)
         .addBuffer("encoded", 10_000, 1)
@@ -128,7 +136,8 @@ public class Copier {
               try {
                 var bytes = item.bytes.get();
                 if (bytes != null && bytes.length > 0) {
-                  writer.write(new TileEncodingResult(item.coord, item.bytes.get(), OptionalLong.empty()));
+                  writer.write(
+                    new TileEncodingResult(item.coord, item.bytes.get(), OptionalLong.of(Hashing.fnv1a64(bytes))));
                 }
               } catch (ExecutionException e) {
                 LOGGER.warn("Error getting {} : {}", item.coord, e.getCause().toString());
@@ -164,9 +173,30 @@ public class Copier {
     return baos.toByteArray();
   }
 
-  private static byte[] pngToWebp(byte[] success, double quality) throws IOException {
+  private static byte[] pngToWebp2(byte[] bytes, double quality, boolean lossless, int method) {
+    PngReader pngr = new PngReader(new ByteArrayInputStream(bytes));
+    byte[] imageData = new byte[3 * pngr.imgInfo.cols * pngr.imgInfo.rows];
+    int i = 0;
+    while (pngr.hasMoreRows()) {
+      IImageLine l1 = pngr.readRow();
+      int[] scanline = ((ImageLineInt) l1).getScanline();
+      for (int c = 0; c < scanline.length; c += 3) {
+        imageData[i++] = (byte) scanline[c];
+        imageData[i++] = (byte) scanline[c + 1];
+        imageData[i++] = 0;
+      }
+    }
+    pngr.end();
+    WebPEncoderOptions p = new WebPEncoderOptions();
+    p.setLossless(lossless);
+    p.setCompressionQuality((float) quality);
+    p.setMethod(method);
+    return WebP.encodeRGB(p, imageData, pngr.imgInfo.cols, pngr.imgInfo.rows, pngr.imgInfo.rows * 3);
+  }
+
+  private static byte[] pngToWebp(byte[] success, double quality, boolean lossless) throws IOException {
     var image = ImageIO.read(new ByteArrayInputStream(success));
-    return encodeAsWebp(image, quality);
+    return encodeAsWebp(image, quality, lossless);
   }
 
   private static byte[] stripBlue(byte[] bytes, int level, boolean bathymetry) {
@@ -201,11 +231,12 @@ public class Copier {
     return baos.toByteArray();
   }
 
-  private static byte[] encodeAsWebp(BufferedImage image, double quality) throws IOException {
+  private static byte[] encodeAsWebp(BufferedImage image, double quality, boolean lossless) throws IOException {
     ImageWriter writer = ImageIO.getImageWritersByMIMEType("image/webp").next();
     WebPWriteParam writeParam = new WebPWriteParam(writer.getLocale());
     writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-    writeParam.setCompressionType(writeParam.getCompressionTypes()[WebPWriteParam.LOSSLESS_COMPRESSION]);
+    writeParam.setCompressionType(writeParam.getCompressionTypes()[lossless ? WebPWriteParam.LOSSLESS_COMPRESSION :
+      WebPWriteParam.LOSSY_COMPRESSION]);
     writeParam.setCompressionQuality((float) quality);
     var baos = new ByteArrayOutputStream();
     try (var c = new MemoryCacheImageOutputStream(baos)) {
