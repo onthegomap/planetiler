@@ -586,6 +586,10 @@ public class TiledGeometry {
 
           // if this is tile is inside a fill from an outer tile, infer that fill here
           if (area && !outer && toAddTo.isEmpty()) {
+            // since we process outer shells before holes, if a hole is the first thing to intersect
+            // a tile then it must be inside a filled tile from the outer shell. If that's not the case
+            // then the geometry is invalid, so throw an exception so the caller can decide how to handle,
+            // for example fix the polygon then try again.
             if (!isFilled(x, y)) {
               throw new GeometryException("bad_polygon_fill", x + ", " + y + " is not filled!");
             }
