@@ -1649,7 +1649,7 @@ class PlanetilerTests {
 
   @Test
   void testIssue496BaseballMultipolygon() throws Exception {
-    // this generated a polygon that covered an entire z11 tile where the buffer interested the baseball field
+    // this generated a polygon that covered an entire z11 tile where the buffer intersected the baseball field
     OsmXml osmInfo = TestUtils.readOsmXml("issue_496_baseball_multipolygon.xml");
     List<OsmElement> elements = convertToOsmElements(osmInfo);
 
