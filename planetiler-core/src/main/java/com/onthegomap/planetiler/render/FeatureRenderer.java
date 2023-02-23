@@ -189,15 +189,28 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         continue;
       }
 
-      // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
-      // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
-      Geometry geom = AffineTransformation.scaleInstance(scale, scale).transform(input);
-      geom = DouglasPeuckerSimplifier.simplify(geom, tolerance);
-
-      List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       double buffer = feature.getBufferPixelsAtZoom(z) / 256;
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(z);
-      TiledGeometry sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+
+      // TODO potential optimization: iteratively simplify z+1 to get z instead of starting with original geom each time
+      // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
+      Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
+      TiledGeometry sliced;
+      Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+      List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
+      try {
+        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+      } catch (GeometryException e) {
+        try {
+          geom = GeoUtils.fixPolygon(geom);
+          groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
+          sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+        } catch (GeometryException ex) {
+          ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + z + ": " + feature);
+          // omit from this zoom level, but maybe the next will be better
+          continue;
+        }
+      }
       Map<String, Object> attrs = feature.getAttrsAtZoom(sliced.zoomLevel());
       if (numPointsAttr != null) {
         // if profile wants the original number of points that the simplified but untiled geometry started with

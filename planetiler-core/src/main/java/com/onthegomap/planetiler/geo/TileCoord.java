@@ -167,4 +167,8 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     int dim = 1 << z;
     return x * dim + (dim - 1 - y);
   }
+
+  public TileCoord parent() {
+    return ofXYZ(x / 2, y / 2, z - 1);
+  }
 }

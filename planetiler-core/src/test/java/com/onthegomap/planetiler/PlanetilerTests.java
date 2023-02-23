@@ -1597,6 +1597,24 @@ class PlanetilerTests {
   void testBadRelation() throws Exception {
     // this threw an exception in OsmMultipolygon.build
     OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
+    List<OsmElement> elements = convertToOsmElements(osmInfo);
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      elements,
+      (in, features) -> {
+        if (in.hasTag("landuse", "forest")) {
+          features.polygon("layer")
+            .setZoomRange(12, 14)
+            .setBufferPixels(4);
+        }
+      }
+    );
+
+    assertEquals(11, results.tiles.size());
+  }
+
+  private static List<OsmElement> convertToOsmElements(OsmXml osmInfo) {
     List<OsmElement> elements = new ArrayList<>();
     for (var node : orEmpty(osmInfo.nodes())) {
       elements.add(new OsmElement.Node(node.id(), node.lat(), node.lon()));
@@ -1626,20 +1644,42 @@ class PlanetilerTests {
         }, member.ref(), member.role()));
       }
     }
+    return elements;
+  }
+
+  @Test
+  void testIssue496BaseballMultipolygon() throws Exception {
+    // this generated a polygon that covered an entire z11 tile where the buffer interested the baseball field
+    OsmXml osmInfo = TestUtils.readOsmXml("issue_496_baseball_multipolygon.xml");
+    List<OsmElement> elements = convertToOsmElements(osmInfo);
 
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       elements,
       (in, features) -> {
-        if (in.hasTag("landuse", "forest")) {
-          features.polygon("layer")
-            .setZoomRange(12, 14)
-            .setBufferPixels(4);
+        if (in.hasTag("natural", "sand")) {
+          features.polygon("test")
+            .setBufferPixels(4)
+            .setPixelTolerance(0.5)
+            .setMinPixelSize(0.1)
+            .setAttr("id", in.id());
         }
       }
     );
 
-    assertEquals(11, results.tiles.size());
+    double areaAtZ14 = 20;
+
+    for (var entry : results.tiles().entrySet()) {
+      var tile = entry.getKey();
+      for (var feature : entry.getValue()) {
+        var geom = feature.geometry().geom();
+        double area = geom.getArea();
+        double expectedMaxArea = areaAtZ14 / (1 << (14 - tile.z()));
+        assertTrue(area < expectedMaxArea, "tile=" + tile + " area=" + area + " geom=" + geom);
+      }
+    }
+
+    assertEquals(8, results.tiles.size());
   }
 
   @ParameterizedTest
