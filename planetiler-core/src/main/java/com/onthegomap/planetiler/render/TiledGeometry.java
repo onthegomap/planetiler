@@ -192,6 +192,7 @@ public class TiledGeometry {
    * @param z       zoom level
    * @param extents range of tile coordinates within the bounds of the map to generate
    * @return each tile this feature touches, and the points that appear on each
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) throws GeometryException {
@@ -325,6 +326,7 @@ public class TiledGeometry {
    *                content that wraps too far west)
    * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
    *         content to the east.
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
   private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
     throws GeometryException {
