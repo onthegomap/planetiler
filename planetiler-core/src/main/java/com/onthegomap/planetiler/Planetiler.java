@@ -106,7 +106,7 @@ public class Planetiler {
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
     if (config.color() != null) {
-      AnsiColors.NO_COLOR = config.color();
+      AnsiColors.setUseColors(config.color());
     }
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);

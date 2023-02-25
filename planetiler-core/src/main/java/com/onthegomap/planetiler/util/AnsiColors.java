@@ -1,9 +1,16 @@
 package com.onthegomap.planetiler.util;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /** Utilities for styling terminal output. */
 public class AnsiColors {
   // Support NO_COLOR env var (https://no-color.org/)
-  public static boolean NO_COLOR = System.getenv("NO_COLOR") != null && !"\0".equals(System.getenv("NO_COLOR"));
+  private static final AtomicBoolean useColors =
+    new AtomicBoolean(System.getenv("NO_COLOR") == null || "\0".equals(System.getenv("NO_COLOR")));
+
+  public static void setUseColors(boolean colors) {
+    useColors.set(colors);
+  }
 
   private AnsiColors() {}
 
@@ -16,7 +23,7 @@ public class AnsiColors {
   private static final String BOLD = "\u001B[1m";
 
   private static String color(String fg, String string) {
-    return NO_COLOR ? string : (fg + string + COLOR_RESET);
+    return useColors.get() ? (fg + string + COLOR_RESET) : string;
   }
 
   public static String red(String string) {
