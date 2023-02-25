@@ -49,7 +49,8 @@ public record PlanetilerConfig(
   boolean osmLazyReads,
   boolean compactDb,
   boolean skipFilledTiles,
-  int tileWarningSizeBytes
+  int tileWarningSizeBytes,
+  Boolean color
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -175,7 +176,8 @@ public record PlanetilerConfig(
         false),
       (int) (arguments.getDouble("tile_warning_size_mb",
         "Maximum size in megabytes of a tile to emit a warning about",
-        1d) * 1024 * 1024)
+        1d) * 1024 * 1024),
+      arguments.getBooleanObject("color", "Color the terminal output")
     );
   }
 

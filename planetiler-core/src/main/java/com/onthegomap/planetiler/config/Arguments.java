@@ -354,6 +354,14 @@ public class Arguments {
     return value;
   }
 
+  /** Returns a boolean parsed from {@code key} or {@code null} if not specified. */
+  public Boolean getBooleanObject(String key, String description) {
+    var arg = getArg(key);
+    Boolean value = arg == null ? null : "true".equalsIgnoreCase(arg);
+    logArgValue(key, description, value);
+    return value;
+  }
+
   /** Returns a {@link List} parsed from {@code key} argument where values are separated by commas. */
   public List<String> getList(String key, String description, List<String> defaultValue) {
     String value = getArg(key, String.join(",", defaultValue));

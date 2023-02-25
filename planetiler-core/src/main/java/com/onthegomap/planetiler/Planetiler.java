@@ -18,6 +18,7 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
+import com.onthegomap.planetiler.util.AnsiColors;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.Downloader;
@@ -104,6 +105,9 @@ public class Planetiler {
     stats = arguments.getStats();
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
+    if (config.color() != null) {
+      AnsiColors.setUseColors(config.color());
+    }
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
