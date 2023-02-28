@@ -111,7 +111,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
       return iter.next();
     }
 
-    private void collectTileCoords(List<TileCoord> l, SeekableByteChannel c, WriteablePmtiles.Header header,
+    private void collectTileCoords(List<TileCoord> l, WriteablePmtiles.Header header,
       long dirOffset, int dirLength) throws IOException {
 
       channel.position(dirOffset);
@@ -122,7 +122,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
       var dir = WriteablePmtiles.deserializeDirectory(u);
       for (var entry : dir) {
         if (entry.runLength() == 0) {
-          collectTileCoords(l, c, header, header.leafDirectoriesOffset() + entry.offset(), entry.length());
+          collectTileCoords(l, header, header.leafDirectoriesOffset() + entry.offset(), entry.length());
         } else {
           // TODO: this will only work on z15 or less pmtiles which planetiler creates
           for (int i = (int) entry.tileId(); i < entry.tileId() + entry.runLength(); i++) {
@@ -139,7 +139,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
       try {
         var header = getHeader();
         List<TileCoord> coords = new ArrayList<>();
-        collectTileCoords(coords, channel, header, header.rootDirOffset(), (int) header.rootDirLength());
+        collectTileCoords(coords, header, header.rootDirOffset(), (int) header.rootDirLength());
         this.iter = coords.iterator();
       } catch (IOException e) {
         // todo handle

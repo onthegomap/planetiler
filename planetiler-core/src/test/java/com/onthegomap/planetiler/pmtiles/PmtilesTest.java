@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
@@ -151,6 +152,16 @@ class PmtilesTest {
   }
 
   @Test
+  void testBuildDirectoriesRootOnly() throws IOException {
+
+  }
+
+  @Test
+  void testBuildDirectoriesLeaves() throws IOException {
+
+  }
+
+  @Test
   void testWritePmtilesSingleEntry() throws IOException {
     var bytes = new SeekableInMemoryByteChannel(0);
     var in = WriteablePmtiles.newWriteToMemory(bytes);
@@ -171,6 +182,67 @@ class PmtilesTest {
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(1, coordset.size());
+  }
+
+  @Test
+  void testWritePmtilesDuplication() throws IOException {
+    var bytes = new SeekableInMemoryByteChannel(0);
+    var in = WriteablePmtiles.newWriteToMemory(bytes);
+
+    var config = PlanetilerConfig.defaults();
+    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var writer = in.newTileWriter();
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
+
+    // TODO shouldn't depend on config
+    in.finish(config);
+    var reader = new ReadablePmtiles(bytes);
+    var header = reader.getHeader();
+    assertEquals(3, header.numAddressedTiles());
+    assertEquals(1, header.numTileContents());
+    assertEquals(2, header.numTileEntries()); // z0 and z1 are contiguous
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 2));
+
+    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+    assertEquals(3, coordset.size());
+  }
+
+  @Test
+  void testWritePmtilesLeafDirectories() throws IOException {
+    var bytes = new SeekableInMemoryByteChannel(0);
+    var in = WriteablePmtiles.newWriteToMemory(bytes);
+
+    var config = PlanetilerConfig.defaults();
+    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var writer = in.newTileWriter();
+
+    int ENTRIES = 20000;
+
+    for (int i = 0; i < ENTRIES; i++) {
+      writer.write(new TileEncodingResult(TileCoord.hilbertDecode(i), ByteBuffer.allocate(4).putInt(i).array(),
+        OptionalLong.empty()));
+    }
+
+    // TODO shouldn't depend on config
+    in.finish(config);
+    var reader = new ReadablePmtiles(bytes);
+    var header = reader.getHeader();
+    assertEquals(ENTRIES, header.numAddressedTiles());
+    assertEquals(ENTRIES, header.numTileContents());
+    assertEquals(ENTRIES, header.numTileEntries());
+    assert (header.leafDirectoriesLength() > 0);
+
+    for (int i = 0; i < ENTRIES; i++) {
+      var coord = TileCoord.hilbertDecode(i);
+      assertArrayEquals(ByteBuffer.allocate(4).putInt(i).array(), reader.getTile(coord.x(), coord.y(), coord.z()));
+    }
+
+    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+    assertEquals(ENTRIES, coordset.size());
   }
 
 }
