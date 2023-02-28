@@ -436,7 +436,6 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     int leafSize = (int) Math.max(entries.size() / 3_500d, 4096);
 
     while (true) {
-      LOGGER.info("Leaf size:\t" + leafSize);
       Directories temp = buildRootLeaves(entries, leafSize);
       if (temp.root.length < INIT_SECTION - HEADER_LEN) {
         return temp;
@@ -519,22 +518,22 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
       Format format = Format.defaultInstance();
 
-      LOGGER.info("# addressed tiles:\t" + numAddressedTiles);
-      LOGGER.info("# of tile entries:\t" + entries.size());
-      LOGGER.info("# of tile contents:\t" + (hashToOffset.size() + numUnhashedTiles));
-      LOGGER.info("Root directory:\t" + format.storage(archiveDirs.root.length, false) + "B");
+      LOGGER.info("# addressed tiles: {}", numAddressedTiles);
+      LOGGER.info("# of tile entries: {}", entries.size());
+      LOGGER.info("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
+      LOGGER.info("Root directory: {}B", format.storage(archiveDirs.root.length, false));
 
-      LOGGER.info("# leaves:\t" + archiveDirs.numLeaves);
+      LOGGER.info("# leaves: {}", archiveDirs.numLeaves);
       if (archiveDirs.numLeaves > 0) {
-        LOGGER.info("Leaf directories:\t" + format.storage(archiveDirs.leaves.length, false) + "B");
+        LOGGER.info("Leaf directories: {}B", format.storage(archiveDirs.leaves.length, false));
         LOGGER
-          .info("Avg leaf size:\t" + format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false) + "B");
+          .info("Avg leaf size: {}B", format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false));
       }
 
       LOGGER
-        .info("Total dir bytes:\t" + format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false) + "B");
+        .info("Total dir bytes: {}B", format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false));
       double tot = (double) archiveDirs.root.length + archiveDirs.leaves.length;
-      LOGGER.info("Average bytes per addressed tile:\t" + tot / numAddressedTiles);
+      LOGGER.info("Average bytes per addressed tile: {}", tot / numAddressedTiles);
     } catch (IOException e) {
       LOGGER.error(e.getMessage());
     }
