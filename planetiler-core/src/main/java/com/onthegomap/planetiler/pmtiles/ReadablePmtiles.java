@@ -79,11 +79,10 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
       }
     } catch (IOException e) {
-      // todo handle
-      System.out.println(e);
+      throw new IllegalStateException("Could not get tile", e);
     }
 
-    return new byte[0];
+    return null;
   }
 
   public WriteablePmtiles.Header getHeader() throws IOException {

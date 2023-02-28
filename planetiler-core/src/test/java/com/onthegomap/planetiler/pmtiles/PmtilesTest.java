@@ -179,6 +179,7 @@ class PmtilesTest {
     assertEquals(1, header.numTileContents());
     assertEquals(1, header.numTileEntries());
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+    assertEquals(null, reader.getTile(0, 0, 1));
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(1, coordset.size());
