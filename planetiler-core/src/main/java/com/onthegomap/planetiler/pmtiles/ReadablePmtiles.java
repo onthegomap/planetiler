@@ -141,8 +141,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
         collectTileCoords(coords, header, header.rootDirOffset(), (int) header.rootDirLength());
         this.iter = coords.iterator();
       } catch (IOException e) {
-        // todo handle
-        System.out.println(e);
+        throw new IllegalStateException("Could not iterate tiles", e);
       }
     }
   }

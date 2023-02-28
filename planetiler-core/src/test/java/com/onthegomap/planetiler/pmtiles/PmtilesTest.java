@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.pmtiles;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.onthegomap.planetiler.Profile;
@@ -210,6 +211,32 @@ class PmtilesTest {
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(3, coordset.size());
+  }
+
+  @Test
+  void testWritePmtilesUnclustered() throws IOException {
+    var bytes = new SeekableInMemoryByteChannel(0);
+    var in = WriteablePmtiles.newWriteToMemory(bytes);
+
+    var config = PlanetilerConfig.defaults();
+    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var writer = in.newTileWriter();
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
+
+    // TODO shouldn't depend on config
+    in.finish(config);
+    var reader = new ReadablePmtiles(bytes);
+    var header = reader.getHeader();
+    assertEquals(2, header.numAddressedTiles());
+    assertEquals(1, header.numTileContents());
+    assertEquals(2, header.numTileEntries());
+    assertFalse(header.clustered());
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+
+    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+    assertEquals(2, coordset.size());
   }
 
   @Test
