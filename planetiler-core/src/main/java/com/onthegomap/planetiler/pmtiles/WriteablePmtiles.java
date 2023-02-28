@@ -391,28 +391,28 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   public record Directories(byte[] root, byte[] leaves, int numLeaves) {}
 
   private static Directories buildRootLeaves(List<Entry> subEntries, int leafSize) throws IOException {
-    ArrayList<Entry> root_entries = new ArrayList<Entry>();
+    ArrayList<Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
-    int leaves_len = 0;
-    int num_leaves = 0;
+    int leavesLength = 0;
+    int numLeaves = 0;
 
     for (int i = 0; i < subEntries.size(); i += leafSize) {
-      num_leaves++;
+      numLeaves++;
       int end = i + leafSize;
       if (i + leafSize > subEntries.size()) {
         end = subEntries.size();
       }
-      byte[] leaf_bytes = serializeDirectory(subEntries, i, end);
-      leaf_bytes = Gzip.gzip(leaf_bytes);
-      root_entries.add(new Entry(subEntries.get(i).tileId, leaves_len, leaf_bytes.length, 0));
-      leavesOutputStream.add(leaf_bytes);
-      leaves_len += leaf_bytes.length;
+      byte[] leafBytes = serializeDirectory(subEntries, i, end);
+      leafBytes = Gzip.gzip(leafBytes);
+      rootEntries.add(new Entry(subEntries.get(i).tileId, leavesLength, leafBytes.length, 0));
+      leavesOutputStream.add(leafBytes);
+      leavesLength += leafBytes.length;
     }
 
-    byte[] root_bytes = serializeDirectory(root_entries, 0, root_entries.size());
-    root_bytes = Gzip.gzip(root_bytes);
+    byte[] rootBytes = serializeDirectory(rootEntries, 0, rootEntries.size());
+    rootBytes = Gzip.gzip(rootBytes);
 
-    return new Directories(root_bytes, leavesOutputStream.toArray(), num_leaves);
+    return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves);
   }
 
   /**
@@ -423,25 +423,25 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
    * @throws IOException
    */
-  public static Directories makeRootLeaves(ArrayList<Entry> entries) throws IOException {
+  public static Directories makeRootLeaves(List<Entry> entries) throws IOException {
     if (entries.size() < 16384) { // coarse heuristic to short circuit
-      byte[] test_bytes = serializeDirectory(entries, 0, entries.size());
-      test_bytes = Gzip.gzip(test_bytes);
+      byte[] testBytes = serializeDirectory(entries, 0, entries.size());
+      testBytes = Gzip.gzip(testBytes);
 
-      if (test_bytes.length < INIT_SECTION - HEADER_LEN) {
-        return new Directories(test_bytes, new byte[0], 0);
+      if (testBytes.length < INIT_SECTION - HEADER_LEN) {
+        return new Directories(testBytes, new byte[0], 0);
       }
     }
 
-    int leaf_size = (int) Math.max(entries.size() / 3_500d, 4096);
+    int leafSize = (int) Math.max(entries.size() / 3_500d, 4096);
 
     while (true) {
-      LOGGER.info("Leaf size:\t" + leaf_size);
-      Directories temp = buildRootLeaves(entries, leaf_size);
+      LOGGER.info("Leaf size:\t" + leafSize);
+      Directories temp = buildRootLeaves(entries, leafSize);
       if (temp.root.length < INIT_SECTION - HEADER_LEN) {
         return temp;
       }
-      leaf_size *= 1.2;
+      leafSize *= 1.2;
     }
   }
 
@@ -477,8 +477,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
     try {
       Directories archiveDirs = makeRootLeaves(entries);
-      byte[] json_s = new JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
-      json_s = Gzip.gzip(json_s);
+      byte[] jsonBytes = new JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
+      jsonBytes = Gzip.gzip(jsonBytes);
 
       Envelope envelope = config.bounds().latLon();
 
@@ -487,8 +487,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         HEADER_LEN,
         archiveDirs.root.length,
         INIT_SECTION + currentOffset,
-        json_s.length,
-        INIT_SECTION + currentOffset + json_s.length,
+        jsonBytes.length,
+        INIT_SECTION + currentOffset + jsonBytes.length,
         archiveDirs.leaves.length,
         INIT_SECTION,
         currentOffset,
@@ -510,7 +510,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         (int) ((envelope.getMinY() + envelope.getMaxY()) / 2 * 10_000_000)
       );
 
-      out.write(ByteBuffer.wrap(json_s));
+      out.write(ByteBuffer.wrap(jsonBytes));
       out.write(ByteBuffer.wrap(archiveDirs.leaves));
 
       out.position(0);
@@ -533,7 +533,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
       LOGGER
         .info("Total dir bytes:\t" + format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false) + "B");
-      double tot = archiveDirs.root.length + archiveDirs.leaves.length;
+      double tot = (double) archiveDirs.root.length + archiveDirs.leaves.length;
       LOGGER.info("Average bytes per addressed tile:\t" + tot / numAddressedTiles);
     } catch (IOException e) {
       LOGGER.error(e.getMessage());
@@ -556,14 +556,14 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       var data = encodingResult.tileData();
       TileCoord coord = encodingResult.coord();
 
-      long tile_id = coord.hilbertEncoded();
-      Entry last_entry = null;
+      long tileId = coord.hilbertEncoded();
+      Entry lastEntry = null;
 
-      if (entries.size() > 0) {
-        last_entry = entries.get(entries.size() - 1);
-        if (tile_id < last_entry.tileId) {
+      if (!entries.isEmpty()) {
+        lastEntry = entries.get(entries.size() - 1);
+        if (tileId < lastEntry.tileId) {
           isClustered = false;
-        } else if (tile_id == last_entry.tileId) {
+        } else if (tileId == lastEntry.tileId) {
           LOGGER.error("Duplicate tile detected in writer");
         }
       }
@@ -573,20 +573,20 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         if (hashToOffset.containsKey(tileDataHash)) {
           offset = hashToOffset.get(tileDataHash);
           writeData = false;
-          if (last_entry != null && last_entry.tileId + last_entry.runLength == tile_id &&
-            last_entry.offset == offset) {
-            entries.get(entries.size() - 1).runLength = last_entry.runLength + 1;
+          if (lastEntry != null && lastEntry.tileId + lastEntry.runLength == tileId &&
+            lastEntry.offset == offset) {
+            entries.get(entries.size() - 1).runLength = lastEntry.runLength + 1;
           } else {
-            entries.add(new Entry(tile_id, offset, data.length, 1));
+            entries.add(new Entry(tileId, offset, data.length, 1));
           }
         } else {
           hashToOffset.put(tileDataHash, currentOffset);
-          entries.add(new Entry(tile_id, currentOffset, data.length, 1));
+          entries.add(new Entry(tileId, currentOffset, data.length, 1));
           writeData = true;
         }
       } else {
         numUnhashedTiles++;
-        entries.add(new Entry(tile_id, currentOffset, data.length, 1));
+        entries.add(new Entry(tileId, currentOffset, data.length, 1));
         writeData = true;
       }
 

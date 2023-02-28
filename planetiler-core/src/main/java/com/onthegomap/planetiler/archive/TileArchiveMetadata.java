@@ -64,7 +64,7 @@ public record TileArchiveMetadata(
   }
 
   public Map<String, String> getAll() {
-    var allKvs = new LinkedHashMap(planetilerSpecific);
+    var allKvs = new LinkedHashMap<String, String>(planetilerSpecific);
     allKvs.put("name", this.name);
     allKvs.put("description", this.description);
     allKvs.put("attribution", this.attribution);

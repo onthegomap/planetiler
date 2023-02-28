@@ -164,9 +164,9 @@ class PmtilesTest {
     in.finish(config);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
-    assertEquals(header.numAddressedTiles(), 1);
-    assertEquals(header.numTileContents(), 1);
-    assertEquals(header.numTileEntries(), 1);
+    assertEquals(1, header.numAddressedTiles());
+    assertEquals(1, header.numTileContents());
+    assertEquals(1, header.numTileEntries());
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
