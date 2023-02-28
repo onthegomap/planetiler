@@ -170,7 +170,7 @@ class PmtilesTest {
     var config = PlanetilerConfig.defaults();
     in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
     var writer = in.newTileWriter();
-    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
     // TODO shouldn't depend on config
     in.finish(config);
@@ -179,8 +179,9 @@ class PmtilesTest {
     assertEquals(1, header.numAddressedTiles());
     assertEquals(1, header.numTileContents());
     assertEquals(1, header.numTileEntries());
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
-    assertEquals(null, reader.getTile(0, 0, 1));
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+    assertEquals(null, reader.getTile(0, 0, 0));
+    assertEquals(null, reader.getTile(0, 0, 2));
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(1, coordset.size());

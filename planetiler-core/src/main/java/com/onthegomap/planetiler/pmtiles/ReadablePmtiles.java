@@ -59,9 +59,12 @@ public class ReadablePmtiles implements ReadableTileArchive {
         var buf = ByteBuffer.allocate((int) dirLength);
         this.channel.read(buf);
 
-        // TODO check compression type
-        byte[] u = Gzip.gunzip(buf.array());
-        var dir = WriteablePmtiles.deserializeDirectory(u);
+        byte[] dirBytes = buf.array();
+        if (header.internalCompression() == WriteablePmtiles.Compression.GZIP) {
+          dirBytes = Gzip.gunzip(dirBytes);
+        }
+
+        var dir = WriteablePmtiles.deserializeDirectory(dirBytes);
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {
