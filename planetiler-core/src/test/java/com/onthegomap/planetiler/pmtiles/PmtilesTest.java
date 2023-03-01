@@ -15,12 +15,15 @@ import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class PmtilesTest {
 
@@ -172,7 +175,6 @@ class PmtilesTest {
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
-    // TODO shouldn't depend on config
     in.finish(config);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
@@ -188,6 +190,20 @@ class PmtilesTest {
   }
 
   @Test
+  void testWritePmtilesToFile(@TempDir Path tempDir) throws IOException {
+    var in = WriteablePmtiles.newWriteToFile(tempDir.resolve("tmp.pmtiles"));
+
+    var config = PlanetilerConfig.defaults();
+    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var writer = in.newTileWriter();
+    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
+
+    in.finish(config);
+    var reader = new ReadablePmtiles(FileChannel.open(tempDir.resolve("tmp.pmtiles")));
+    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+  }
+
+  @Test
   void testWritePmtilesDuplication() throws IOException {
     var bytes = new SeekableInMemoryByteChannel(0);
     var in = WriteablePmtiles.newWriteToMemory(bytes);
@@ -199,7 +215,6 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
-    // TODO shouldn't depend on config
     in.finish(config);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
@@ -225,7 +240,6 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
-    // TODO shouldn't depend on config
     in.finish(config);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
@@ -256,7 +270,6 @@ class PmtilesTest {
         OptionalLong.empty()));
     }
 
-    // TODO shouldn't depend on config
     in.finish(config);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();

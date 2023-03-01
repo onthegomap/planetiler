@@ -373,7 +373,11 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     return result;
   }
 
-  // stores name, attribution, created_at, planetiler build SHA, etc. in JSON metadata.
+  /**
+   * Arbitrary application-specific JSON metadata in the archive.
+   * <p>
+   * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
+   */
   public record JsonMetadata(
     @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
     @JsonAnyGetter Map<String, String> otherMetadata
@@ -416,8 +420,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   /**
-   * Serialize all entries into bytes, adaptively choosing the # of leaf directories to ensure the header+root fits in
-   * 16 KB.
+   * Serialize all entries into bytes, choosing the # of leaf directories to ensure the header+root fits in 16 KB.
    *
    * @param entries a sorted ObjectArrayList of all entries in the tileset.
    * @return byte arrays of the root and all leaf directories, and the # of leaves.

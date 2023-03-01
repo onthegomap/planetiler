@@ -32,7 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * When this channel is used for writing an internal buffer grows to accommodate incoming data. The natural size limit
  * is the value of {@link Integer#MAX_VALUE} and it is not possible to {@link #position(long) set the position} or
  * {@link #truncate truncate} to a value bigger than that. Internal buffer can be accessed via
- * {@link SeekableInMemoryByteChannel#array()}.
+ * {@link SeekableInMemoryByteChannel#array()}. Adapted from <a href=
+ * "https://commons.apache.org/proper/commons-compress/jacoco/org.apache.commons.compress.utils/SeekableInMemoryByteChannel.java.html">Apache
+ * Commons Compress</a>.
  * </p>
  *
  * @since 1.13

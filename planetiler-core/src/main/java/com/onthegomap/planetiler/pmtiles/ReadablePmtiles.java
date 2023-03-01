@@ -18,6 +18,12 @@ public class ReadablePmtiles implements ReadableTileArchive {
     this.channel = channel;
   }
 
+  /**
+   * Finds the relevant entry for a tileId in a list of entries.
+   * <p>
+   * If there is an exact match for tileId, return that. Else if the tileId matches an entry's tileId + runLength,
+   * return that. Else if the preceding entry is a directory (runLength = 0), return that. Else return null.
+   */
   public static WriteablePmtiles.Entry findTile(List<WriteablePmtiles.Entry> entries, long tileId) {
     int m = 0;
     int n = entries.size() - 1;
@@ -44,7 +50,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return null;
   }
 
-  // this is very inefficient
   @Override
   public byte[] getTile(int x, int y, int z) {
     try {
@@ -134,9 +139,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
       }
     }
 
-    // TODO: this is an inefficient method
-    // that iterates through all directories upfront
-    // can be replaced by a better implementation later
     private TileCoordIterator() {
       try {
         var header = getHeader();
