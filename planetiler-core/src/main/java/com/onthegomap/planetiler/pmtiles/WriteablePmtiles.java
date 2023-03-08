@@ -112,6 +112,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   private static Directories buildRootLeaves(List<Pmtiles.Entry> subEntries, int leafSize) throws IOException {
+    LOGGER.info("Building directories with {} entries per leaf...", leafSize);
     ArrayList<Pmtiles.Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
     int leavesLength = 0;
@@ -132,6 +133,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
     byte[] rootBytes = Pmtiles.directoryToBytes(rootEntries);
     rootBytes = Gzip.gzip(rootBytes);
+
+    LOGGER.info("Built directories with {} leaves, {}B root directory", rootEntries.size(), rootBytes.length);
 
     return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves);
   }
@@ -194,7 +197,9 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   @Override
   public void finish(PlanetilerConfig config) {
     if (!isClustered) {
+      LOGGER.info("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);
+      LOGGER.info("Done sorting.");
     }
     try {
       Directories archiveDirs = makeRootLeaves(entries);
@@ -231,9 +236,12 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         (int) ((envelope.getMinY() + envelope.getMaxY()) / 2 * 10_000_000)
       );
 
+      LOGGER.info("Writing metadata and leaf directories...");
+
       out.write(ByteBuffer.wrap(jsonBytes));
       out.write(ByteBuffer.wrap(archiveDirs.leaves));
 
+      LOGGER.info("Writing header...");
       out.position(0);
       out.write(ByteBuffer.wrap(header.toBytes()));
       out.write(ByteBuffer.wrap(archiveDirs.root));
