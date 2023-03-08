@@ -130,7 +130,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       leavesLength += leafBytes.length;
     }
 
-    byte[] rootBytes = Pmtiles.directoryToBytes(rootEntries, 0, rootEntries.size());
+    byte[] rootBytes = Pmtiles.directoryToBytes(rootEntries);
     rootBytes = Gzip.gzip(rootBytes);
 
     return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves);

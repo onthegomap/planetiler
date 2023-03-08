@@ -1,10 +1,6 @@
 package com.onthegomap.planetiler.pmtiles;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -183,8 +179,8 @@ class PmtilesTest {
     assertEquals(1, header.numTileContents());
     assertEquals(1, header.numTileEntries());
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
-    assertEquals(null, reader.getTile(0, 0, 0));
-    assertEquals(null, reader.getTile(0, 0, 2));
+    assertNull(reader.getTile(0, 0, 0));
+    assertNull(reader.getTile(0, 0, 2));
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(1, coordset.size());
@@ -281,7 +277,8 @@ class PmtilesTest {
 
     for (int i = 0; i < ENTRIES; i++) {
       var coord = TileCoord.hilbertDecode(i);
-      assertArrayEquals(ByteBuffer.allocate(4).putInt(i).array(), reader.getTile(coord.x(), coord.y(), coord.z()));
+      assertArrayEquals(ByteBuffer.allocate(4).putInt(i).array(), reader.getTile(coord.x(), coord.y(), coord.z()),
+        "tileCoord=%s did not match".formatted(coord.toString()));
     }
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
