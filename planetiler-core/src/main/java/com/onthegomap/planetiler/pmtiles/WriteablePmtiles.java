@@ -411,6 +411,15 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       result = 31 * result + Arrays.hashCode(leaves);
       return result;
     }
+
+    @Override
+    public String toString() {
+      return "Directories{" +
+        "root=" + Arrays.toString(root) +
+        ", leaves=" + Arrays.toString(leaves) +
+        ", numLeaves=" + numLeaves +
+        '}';
+    }
   }
 
   private static Directories buildRootLeaves(List<Entry> subEntries, int leafSize) throws IOException {
@@ -446,8 +455,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @throws IOException
    */
   private static Directories makeRootLeaves(List<Entry> entries) throws IOException {
-    int MAX_ENTRIES_ROOT_ONLY = 16384;
-    if (entries.size() < MAX_ENTRIES_ROOT_ONLY) {
+    int maxEntriesRootOnly = 16384;
+    if (entries.size() < maxEntriesRootOnly) {
       byte[] testBytes = serializeDirectory(entries, 0, entries.size());
       testBytes = Gzip.gzip(testBytes);
 

@@ -14,7 +14,6 @@ import java.util.List;
 public class ReadablePmtiles implements ReadableTileArchive {
   private SeekableByteChannel channel;
 
-  @SuppressWarnings("java:S1168")
   public ReadablePmtiles(SeekableByteChannel channel) {
     this.channel = channel;
   }
@@ -46,6 +45,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
   }
 
   @Override
+  @SuppressWarnings("java:S1168")
   public byte[] getTile(int x, int y, int z) {
     try {
       var tileId = TileCoord.ofXYZ(x, y, z).hilbertEncoded();
