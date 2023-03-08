@@ -24,6 +24,7 @@ import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import com.onthegomap.planetiler.util.VarInt;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -426,7 +427,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
    * @throws IOException
    */
-  public static Directories makeRootLeaves(List<Entry> entries) throws IOException {
+  private static Directories makeRootLeaves(List<Entry> entries) throws IOException {
     if (entries.size() < 16384) { // coarse heuristic to short circuit
       byte[] testBytes = serializeDirectory(entries, 0, entries.size());
       testBytes = Gzip.gzip(testBytes);
@@ -449,7 +450,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
   private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
     this.out = channel;
-    out.write(ByteBuffer.wrap(new byte[INIT_SECTION]));
+    out.write(ByteBuffer.allocate(INIT_SECTION));
   }
 
   public static WriteablePmtiles newWriteToFile(Path path) throws IOException {
@@ -521,22 +522,24 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
       Format format = Format.defaultInstance();
 
-      LOGGER.info("# addressed tiles: {}", numAddressedTiles);
-      LOGGER.info("# of tile entries: {}", entries.size());
-      LOGGER.info("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
-      LOGGER.info("Root directory: {}B", format.storage(archiveDirs.root.length, false));
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info("# addressed tiles: {}", numAddressedTiles);
+        LOGGER.info("# of tile entries: {}", entries.size());
+        LOGGER.info("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
+        LOGGER.info("Root directory: {}B", format.storage(archiveDirs.root.length, false));
 
-      LOGGER.info("# leaves: {}", archiveDirs.numLeaves);
-      if (archiveDirs.numLeaves > 0) {
-        LOGGER.info("Leaf directories: {}B", format.storage(archiveDirs.leaves.length, false));
+        LOGGER.info("# leaves: {}", archiveDirs.numLeaves);
+        if (archiveDirs.numLeaves > 0) {
+          LOGGER.info("Leaf directories: {}B", format.storage(archiveDirs.leaves.length, false));
+          LOGGER
+            .info("Avg leaf size: {}B", format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false));
+        }
+
         LOGGER
-          .info("Avg leaf size: {}B", format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false));
+          .info("Total dir bytes: {}B", format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false));
+        double tot = (double) archiveDirs.root.length + archiveDirs.leaves.length;
+        LOGGER.info("Average bytes per addressed tile: {}", tot / numAddressedTiles);
       }
-
-      LOGGER
-        .info("Total dir bytes: {}B", format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false));
-      double tot = (double) archiveDirs.root.length + archiveDirs.leaves.length;
-      LOGGER.info("Average bytes per addressed tile: {}", tot / numAddressedTiles);
     } catch (IOException e) {
       LOGGER.error(e.getMessage());
     }
@@ -596,15 +599,10 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         try {
           out.write(ByteBuffer.wrap(data));
         } catch (IOException e) {
-          LOGGER.error("I/O error when writing tile to archive");
+          throw new UncheckedIOException(e);
         }
         currentOffset += data.length;
       }
-    }
-
-    @Override
-    public void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
     }
 
     @Override

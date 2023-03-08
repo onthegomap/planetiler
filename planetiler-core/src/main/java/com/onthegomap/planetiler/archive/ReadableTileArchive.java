@@ -10,6 +10,7 @@ import java.io.Closeable;
  * <p>
  * See {@link WriteableTileArchive} for the write API.
  */
+@SuppressWarnings("java:S1168")
 public interface ReadableTileArchive extends Closeable {
 
   /** Returns the raw tile data associated with the tile at {@code coord}. */

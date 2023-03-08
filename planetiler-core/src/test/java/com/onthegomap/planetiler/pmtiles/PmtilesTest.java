@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -276,7 +277,7 @@ class PmtilesTest {
     assertEquals(ENTRIES, header.numAddressedTiles());
     assertEquals(ENTRIES, header.numTileContents());
     assertEquals(ENTRIES, header.numTileEntries());
-    assert (header.leafDirectoriesLength() > 0);
+    assertTrue(header.leafDirectoriesLength() > 0);
 
     for (int i = 0; i < ENTRIES; i++) {
       var coord = TileCoord.hilbertDecode(i);

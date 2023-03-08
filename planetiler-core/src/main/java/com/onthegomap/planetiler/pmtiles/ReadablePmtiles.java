@@ -40,10 +40,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
 
     if (n >= 0) {
-      if (entries.get(n).runLength() == 0) {
-        return entries.get(n);
-      }
-      if (tileId - entries.get(n).tileId() < entries.get(n).runLength()) {
+      if (entries.get(n).runLength() == 0 || tileId - entries.get(n).tileId() < entries.get(n).runLength()) {
         return entries.get(n);
       }
     }
@@ -158,6 +155,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
   @Override
   public void close() throws IOException {
-    // no cleanup required
+    channel.close();
   }
 }
