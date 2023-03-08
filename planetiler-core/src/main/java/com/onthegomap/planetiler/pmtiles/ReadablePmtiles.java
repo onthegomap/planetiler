@@ -24,7 +24,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
    * If there is an exact match for tileId, return that. Else if the tileId matches an entry's tileId + runLength,
    * return that. Else if the preceding entry is a directory (runLength = 0), return that. Else return null.
    */
-  public static WriteablePmtiles.Entry findTile(List<WriteablePmtiles.Entry> entries, long tileId) {
+  public static Pmtiles.Entry findTile(List<Pmtiles.Entry> entries, long tileId) {
     int m = 0;
     int n = entries.size() - 1;
     while (m <= n) {
@@ -60,11 +60,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
         this.channel.read(buf);
 
         byte[] dirBytes = buf.array();
-        if (header.internalCompression() == WriteablePmtiles.Compression.GZIP) {
+        if (header.internalCompression() == Pmtiles.Compression.GZIP) {
           dirBytes = Gzip.gunzip(dirBytes);
         }
 
-        var dir = WriteablePmtiles.deserializeDirectory(dirBytes);
+        var dir = Pmtiles.directoryFromBytes(dirBytes);
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {
@@ -88,11 +88,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return null;
   }
 
-  public WriteablePmtiles.Header getHeader() throws IOException {
+  public Pmtiles.Header getHeader() throws IOException {
     this.channel.position(0);
     var buf = ByteBuffer.allocate(127);
     this.channel.read(buf);
-    return WriteablePmtiles.Header.fromBytes(buf.array());
+    return Pmtiles.Header.fromBytes(buf.array());
   }
 
   private class TileCoordIterator implements CloseableIterator<TileCoord> {
@@ -113,7 +113,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
       return iter.next();
     }
 
-    private void collectTileCoords(List<TileCoord> l, WriteablePmtiles.Header header,
+    private void collectTileCoords(List<TileCoord> l, Pmtiles.Header header,
       long dirOffset, int dirLength) throws IOException {
 
       channel.position(dirOffset);
@@ -121,7 +121,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
       channel.read(buf);
       // TODO check compression type
       byte[] u = Gzip.gunzip(buf.array());
-      var dir = WriteablePmtiles.deserializeDirectory(u);
+      var dir = Pmtiles.directoryFromBytes(u);
       for (var entry : dir) {
         if (entry.runLength() == 0) {
           collectTileCoords(l, header, header.leafDirectoriesOffset() + entry.offset(), entry.length());

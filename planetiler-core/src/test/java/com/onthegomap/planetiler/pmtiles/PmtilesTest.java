@@ -44,9 +44,9 @@ class PmtilesTest {
     long numTileEntries = 10;
     long numTileContents = 11;
     boolean clustered = true;
-    WriteablePmtiles.Compression internalCompression = WriteablePmtiles.Compression.GZIP;
-    WriteablePmtiles.Compression tileCompression = WriteablePmtiles.Compression.GZIP;
-    WriteablePmtiles.TileType tileType = WriteablePmtiles.TileType.MVT;
+    Pmtiles.Compression internalCompression = Pmtiles.Compression.GZIP;
+    Pmtiles.Compression tileCompression = Pmtiles.Compression.GZIP;
+    Pmtiles.TileType tileType = Pmtiles.TileType.MVT;
     byte minZoom = 1;
     byte maxZoom = 3;
     int minLonE7 = -10_000_000;
@@ -57,7 +57,7 @@ class PmtilesTest {
     int centerLonE7 = -5_000_000;
     int centerLatE7 = -6_000_000;
 
-    WriteablePmtiles.Header in = new WriteablePmtiles.Header(
+    Pmtiles.Header in = new Pmtiles.Header(
       specVersion,
       rootDirOffset,
       rootDirLength,
@@ -84,7 +84,7 @@ class PmtilesTest {
       centerLonE7,
       centerLatE7
     );
-    WriteablePmtiles.Header out = WriteablePmtiles.Header.fromBytes(in.toBytes());
+    Pmtiles.Header out = Pmtiles.Header.fromBytes(in.toBytes());
     assertEquals(specVersion, out.specVersion());
     assertEquals(rootDirOffset, out.rootDirOffset());
     assertEquals(rootDirLength, out.rootDirLength());
@@ -114,45 +114,45 @@ class PmtilesTest {
 
   @Test
   void testBadHeader() {
-    assertThrows(FileFormatException.class, () -> WriteablePmtiles.Header.fromBytes(new byte[0]));
-    assertThrows(FileFormatException.class, () -> WriteablePmtiles.Header.fromBytes(new byte[127]));
+    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[0]));
+    assertThrows(FileFormatException.class, () -> Pmtiles.Header.fromBytes(new byte[127]));
   }
 
   @Test
   void testRoundtripDirectoryMinimal() {
-    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
-    in.add(new WriteablePmtiles.Entry(0, 0, 1, 1));
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
+    in.add(new Pmtiles.Entry(0, 0, 1, 1));
 
-    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in));
+    List<Pmtiles.Entry> out = Pmtiles.directoryFromBytes(Pmtiles.directoryToBytes(in));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySimple() {
-    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
-    in.add(new WriteablePmtiles.Entry(0, 0, 1, 0));
-    in.add(new WriteablePmtiles.Entry(1, 1, 1, 1));
-    in.add(new WriteablePmtiles.Entry(2, 3, 1, 1));
+    in.add(new Pmtiles.Entry(0, 0, 1, 0));
+    in.add(new Pmtiles.Entry(1, 1, 1, 1));
+    in.add(new Pmtiles.Entry(2, 3, 1, 1));
 
-    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in));
+    List<Pmtiles.Entry> out = Pmtiles.directoryFromBytes(Pmtiles.directoryToBytes(in));
     assertEquals(in, out);
-    out = WriteablePmtiles.deserializeDirectory(WriteablePmtiles.serializeDirectory(in, 0, in.size()));
+    out = Pmtiles.directoryFromBytes(Pmtiles.directoryToBytes(in, 0, in.size()));
     assertEquals(in, out);
   }
 
   @Test
   void testRoundtripDirectorySlice() {
-    ArrayList<WriteablePmtiles.Entry> in = new ArrayList<>();
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
 
     // make sure there are cases of contiguous entries and non-contiguous entries.
-    in.add(new WriteablePmtiles.Entry(0, 0, 1, 0));
-    in.add(new WriteablePmtiles.Entry(1, 1, 1, 1));
-    in.add(new WriteablePmtiles.Entry(2, 3, 1, 1));
+    in.add(new Pmtiles.Entry(0, 0, 1, 0));
+    in.add(new Pmtiles.Entry(1, 1, 1, 1));
+    in.add(new Pmtiles.Entry(2, 3, 1, 1));
 
-    List<WriteablePmtiles.Entry> out = WriteablePmtiles.deserializeDirectory(
-      WriteablePmtiles.serializeDirectory(in, 1, 2));
+    List<Pmtiles.Entry> out = Pmtiles.directoryFromBytes(
+      Pmtiles.directoryToBytes(in, 1, 2));
     assertEquals(1, out.size());
   }
 
