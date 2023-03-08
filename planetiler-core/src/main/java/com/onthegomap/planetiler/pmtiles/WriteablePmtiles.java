@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -393,7 +394,24 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
   }
 
-  public record Directories(byte[] root, byte[] leaves, int numLeaves) {}
+  public record Directories(byte[] root, byte[] leaves, int numLeaves) {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof Directories that &&
+        numLeaves == that.numLeaves &&
+        Arrays.equals(root, that.root) &&
+        Arrays.equals(leaves, that.leaves);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(numLeaves);
+      result = 31 * result + Arrays.hashCode(root);
+      result = 31 * result + Arrays.hashCode(leaves);
+      return result;
+    }
+  }
 
   private static Directories buildRootLeaves(List<Entry> subEntries, int leafSize) throws IOException {
     ArrayList<Entry> rootEntries = new ArrayList<>();
@@ -428,7 +446,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @throws IOException
    */
   private static Directories makeRootLeaves(List<Entry> entries) throws IOException {
-    if (entries.size() < 16384) { // coarse heuristic to short circuit
+    int MAX_ENTRIES_ROOT_ONLY = 16384;
+    if (entries.size() < MAX_ENTRIES_ROOT_ONLY) {
       byte[] testBytes = serializeDirectory(entries, 0, entries.size());
       testBytes = Gzip.gzip(testBytes);
 
@@ -437,7 +456,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       }
     }
 
-    int leafSize = (int) Math.max(entries.size() / 3_500d, 4096);
+    double estimatedLeafSize = entries.size() / 3_500d;
+    int leafSize = (int) Math.max(estimatedLeafSize, 4096);
 
     while (true) {
       Directories temp = buildRootLeaves(entries, leafSize);
@@ -607,7 +627,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
     @Override
     public void close() {
-
+      // no cleanup needed.
     }
   }
 

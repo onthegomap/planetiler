@@ -14,6 +14,7 @@ import java.util.List;
 public class ReadablePmtiles implements ReadableTileArchive {
   private SeekableByteChannel channel;
 
+  @SuppressWarnings("java:S1168")
   public ReadablePmtiles(SeekableByteChannel channel) {
     this.channel = channel;
   }
@@ -38,11 +39,8 @@ public class ReadablePmtiles implements ReadableTileArchive {
         return entries.get(k);
       }
     }
-
-    if (n >= 0) {
-      if (entries.get(n).runLength() == 0 || tileId - entries.get(n).tileId() < entries.get(n).runLength()) {
-        return entries.get(n);
-      }
+    if (n >= 0 && (entries.get(n).runLength() == 0 || tileId - entries.get(n).tileId() < entries.get(n).runLength())) {
+      return entries.get(n);
     }
     return null;
   }
