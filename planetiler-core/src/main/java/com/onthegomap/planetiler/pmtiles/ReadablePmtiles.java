@@ -21,7 +21,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
     this.header = Pmtiles.Header.fromBytes(getBytes(0, 127));
   }
 
-  private byte[] getBytes(long start, int length) throws IOException {
+  private synchronized byte[] getBytes(long start, int length) throws IOException {
     channel.position(start);
     var buf = ByteBuffer.allocate(length);
     channel.read(buf);

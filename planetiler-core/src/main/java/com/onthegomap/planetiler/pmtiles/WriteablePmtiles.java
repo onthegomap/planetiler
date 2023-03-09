@@ -246,21 +246,20 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   private class DeduplicatingTileWriter implements TileWriter {
+    Pmtiles.Entry lastEntry = null;
 
     @Override
     public void write(TileEncodingResult encodingResult) {
       numAddressedTiles++;
-      boolean writeData;
+      boolean writeTileData;
       long offset;
       OptionalLong tileDataHashOpt = encodingResult.tileDataHash();
       var data = encodingResult.tileData();
       TileCoord coord = encodingResult.coord();
 
       long tileId = coord.hilbertEncoded();
-      Pmtiles.Entry lastEntry = null;
 
       if (!entries.isEmpty()) {
-        lastEntry = entries.get(entries.size() - 1);
         if (tileId < lastEntry.tileId()) {
           isClustered = false;
         } else if (tileId == lastEntry.tileId()) {
@@ -272,25 +271,28 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         long tileDataHash = tileDataHashOpt.getAsLong();
         if (hashToOffset.containsKey(tileDataHash)) {
           offset = hashToOffset.get(tileDataHash);
-          writeData = false;
+          writeTileData = false;
           if (lastEntry != null && lastEntry.tileId() + lastEntry.runLength() == tileId &&
             lastEntry.offset() == offset) {
-            entries.get(entries.size() - 1).runLength = lastEntry.runLength() + 1;
-          } else {
-            entries.add(new Pmtiles.Entry(tileId, offset, data.length, 1));
+            lastEntry.runLength++;
+            return;
           }
         } else {
           hashToOffset.put(tileDataHash, currentOffset);
-          entries.add(new Pmtiles.Entry(tileId, currentOffset, data.length, 1));
-          writeData = true;
+          offset = currentOffset;
+          writeTileData = true;
         }
       } else {
         numUnhashedTiles++;
-        entries.add(new Pmtiles.Entry(tileId, currentOffset, data.length, 1));
-        writeData = true;
+        offset = currentOffset;
+        writeTileData = true;
       }
 
-      if (writeData) {
+      var newEntry = new Pmtiles.Entry(tileId, offset, data.length, 1);
+      entries.add(newEntry);
+      lastEntry = newEntry;
+
+      if (writeTileData) {
         try {
           out.write(ByteBuffer.wrap(data));
         } catch (IOException e) {
