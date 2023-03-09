@@ -203,12 +203,12 @@ class PmtilesTest {
     var reader = new ReadablePmtiles(FileChannel.open(tempDir.resolve("tmp.pmtiles")));
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
 
-    //    var metadata = reader.getJsonMetadata();
-    //    assertEquals("MyName", metadata.otherMetadata().get("name"));
-    //    assertEquals("MyDescription", metadata.otherMetadata().get("description"));
-    //    assertEquals("MyAttribution", metadata.otherMetadata().get("attribution"));
-    //    assertEquals("MyVersion", metadata.otherMetadata().get("version"));
-    //    assertEquals("type", metadata.otherMetadata().get("baselayer"));
+    var metadata = reader.getJsonMetadata();
+    assertEquals("MyName", metadata.otherMetadata().get("name"));
+    assertEquals("MyDescription", metadata.otherMetadata().get("description"));
+    assertEquals("MyAttribution", metadata.otherMetadata().get("attribution"));
+    assertEquals("MyVersion", metadata.otherMetadata().get("version"));
+    assertEquals("baselayer", metadata.otherMetadata().get("type"));
   }
 
   @Test

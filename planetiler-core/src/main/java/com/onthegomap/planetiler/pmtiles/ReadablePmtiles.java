@@ -151,7 +151,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
-    List<Pmtiles.Entry> rootDir = null;
+    List<Pmtiles.Entry> rootDir;
     try {
       rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
       return new TileCoordIterator(getTileCoords(rootDir));
