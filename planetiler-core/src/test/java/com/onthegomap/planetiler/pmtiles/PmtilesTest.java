@@ -303,6 +303,11 @@ class PmtilesTest {
 
     Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
     assertEquals(ENTRIES, coordset.size());
+
+    for (int i = 0; i < ENTRIES; i++) {
+      var coord = TileCoord.hilbertDecode(i);
+      assertTrue(coordset.contains(coord), "tileCoord=%s not in result".formatted(coord.toString()));
+    }
   }
 
 }
