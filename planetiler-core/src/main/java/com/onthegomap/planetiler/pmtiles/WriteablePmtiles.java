@@ -1,14 +1,7 @@
 package com.onthegomap.planetiler.pmtiles;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
-
 import com.carrotsearch.hppc.ByteArrayList;
 import com.carrotsearch.hppc.LongLongHashMap;
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
@@ -32,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalLong;
 import org.locationtech.jts.geom.Envelope;
@@ -47,9 +39,6 @@ import org.slf4j.LoggerFactory;
 public final class WriteablePmtiles implements WriteableTileArchive {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WriteablePmtiles.class);
-  private static final ObjectMapper objectMapper = new ObjectMapper()
-    .registerModules(new Jdk8Module())
-    .setSerializationInclusion(NON_ABSENT);
 
   private final SeekableByteChannel out;
   private long currentOffset = 0;
@@ -61,27 +50,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   private boolean isClustered = true;
   final ArrayList<Pmtiles.Entry> entries = new ArrayList<>();
 
-
   static final int INIT_SECTION = 16384;
-
-  /**
-   * Arbitrary application-specific JSON metadata in the archive.
-   * <p>
-   * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
-   */
-  public record JsonMetadata(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
-    @JsonAnyGetter Map<String, String> otherMetadata
-  ) {
-
-    public byte[] toBytes() {
-      try {
-        return objectMapper.writeValueAsBytes(this);
-      } catch (JsonProcessingException e) {
-        throw new IllegalArgumentException("Unable to encode as string: " + this, e);
-      }
-    }
-  }
 
   public record Directories(byte[] root, byte[] leaves, int numLeaves) {
 
@@ -203,7 +172,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
     try {
       Directories archiveDirs = makeRootLeaves(entries);
-      byte[] jsonBytes = new JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
+      byte[] jsonBytes = new Pmtiles.JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
       jsonBytes = Gzip.gzip(jsonBytes);
 
       Envelope envelope = config.bounds().latLon();

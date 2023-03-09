@@ -12,10 +12,20 @@ import java.util.Iterator;
 import java.util.List;
 
 public class ReadablePmtiles implements ReadableTileArchive {
-  private SeekableByteChannel channel;
+  final private SeekableByteChannel channel;
+  final private Pmtiles.Header header;
 
-  public ReadablePmtiles(SeekableByteChannel channel) {
+  public ReadablePmtiles(SeekableByteChannel channel) throws IOException {
     this.channel = channel;
+
+    this.header = Pmtiles.Header.fromBytes(getBytes(0, 127));
+  }
+
+  private byte[] getBytes(long start, int length) throws IOException {
+    channel.position(start);
+    var buf = ByteBuffer.allocate(length);
+    channel.read(buf);
+    return buf.array();
   }
 
   /**
@@ -49,17 +59,12 @@ public class ReadablePmtiles implements ReadableTileArchive {
   public byte[] getTile(int x, int y, int z) {
     try {
       var tileId = TileCoord.ofXYZ(x, y, z).hilbertEncoded();
-      var header = getHeader();
 
       long dirOffset = header.rootDirOffset();
-      long dirLength = header.rootDirLength();
+      int dirLength = (int) header.rootDirLength();
 
       for (int depth = 0; depth <= 3; depth++) {
-        this.channel.position(dirOffset);
-        var buf = ByteBuffer.allocate((int) dirLength);
-        this.channel.read(buf);
-
-        byte[] dirBytes = buf.array();
+        byte[] dirBytes = getBytes(dirOffset, dirLength);
         if (header.internalCompression() == Pmtiles.Compression.GZIP) {
           dirBytes = Gzip.gunzip(dirBytes);
         }
@@ -68,10 +73,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {
-            var buf2 = ByteBuffer.allocate(entry.length());
-            this.channel.position(header.tileDataOffset() + entry.offset());
-            this.channel.read(buf2);
-            return buf2.array();
+            return getBytes(header.tileDataOffset() + entry.offset(), entry.length());
           } else {
             dirOffset = header.leafDirectoriesOffset() + entry.offset();
             dirLength = entry.length();
@@ -88,11 +90,16 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return null;
   }
 
-  public Pmtiles.Header getHeader() throws IOException {
-    this.channel.position(0);
-    var buf = ByteBuffer.allocate(127);
-    this.channel.read(buf);
-    return Pmtiles.Header.fromBytes(buf.array());
+  public Pmtiles.Header getHeader() {
+    return header;
+  }
+
+  public Pmtiles.JsonMetadata getJsonMetadata() throws IOException {
+    var buf = getBytes(header.jsonMetadataOffset(), (int) header.jsonMetadataLength());
+    if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+      buf = Gzip.gunzip(buf);
+    }
+    return Pmtiles.JsonMetadata.fromBytes(buf);
   }
 
   private class TileCoordIterator implements CloseableIterator<TileCoord> {
@@ -115,13 +122,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
     private void collectTileCoords(List<TileCoord> l, Pmtiles.Header header,
       long dirOffset, int dirLength) throws IOException {
-
-      channel.position(dirOffset);
-      var buf = ByteBuffer.allocate(dirLength);
-      channel.read(buf);
-      // TODO check compression type
-      byte[] u = Gzip.gunzip(buf.array());
-      var dir = Pmtiles.directoryFromBytes(u);
+      var buf = getBytes(dirOffset, dirLength);
+      if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+        buf = Gzip.gunzip(buf);
+      }
+      var dir = Pmtiles.directoryFromBytes(buf);
       for (var entry : dir) {
         if (entry.runLength() == 0) {
           collectTileCoords(l, header, header.leafDirectoriesOffset() + entry.offset(), entry.length());
@@ -136,7 +141,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
     private TileCoordIterator() {
       try {
-        var header = getHeader();
         List<TileCoord> coords = new ArrayList<>();
         collectTileCoords(coords, header, header.rootDirOffset(), (int) header.rootDirLength());
         this.iter = coords.iterator();

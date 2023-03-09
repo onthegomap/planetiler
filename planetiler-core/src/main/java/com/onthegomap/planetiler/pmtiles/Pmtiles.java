@@ -1,14 +1,25 @@
 package com.onthegomap.planetiler.pmtiles;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+
 import com.carrotsearch.hppc.ByteArrayList;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.VarInt;
+import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class Pmtiles {
@@ -319,5 +330,37 @@ public class Pmtiles {
       }
     }
     return result;
+  }
+
+  private static final ObjectMapper objectMapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
+
+  /**
+   * Arbitrary application-specific JSON metadata in the archive.
+   * <p>
+   * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
+   */
+  public record JsonMetadata(
+    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
+    @JsonAnyGetter @JsonAnySetter Map<String, String> otherMetadata
+  ) {
+
+    public byte[] toBytes() {
+
+      try {
+        return objectMapper.writeValueAsBytes(this);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to encode as string: " + this, e);
+      }
+    }
+
+    public static JsonMetadata fromBytes(byte[] bytes) {
+      try {
+        return objectMapper.readValue(bytes, JsonMetadata.class);
+      } catch (IOException e) {
+        throw new IllegalStateException("Invalid metadata json: " + bytes, e);
+      }
+    }
   }
 }

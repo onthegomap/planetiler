@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.pmtiles;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -15,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -187,17 +189,35 @@ class PmtilesTest {
   }
 
   @Test
-  void testWritePmtilesToFile(@TempDir Path tempDir) throws IOException {
+  void testWritePmtilesToFileWithMetadata(@TempDir Path tempDir) throws IOException {
     var in = WriteablePmtiles.newWriteToFile(tempDir.resolve("tmp.pmtiles"));
 
     var config = PlanetilerConfig.defaults();
-    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    in.initialize(config,
+      new TileArchiveMetadata("MyName", "MyDescription", "MyAttribution", "MyVersion", "baselayer", new HashMap<>()),
+      new LayerStats());
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
     in.finish(config);
     var reader = new ReadablePmtiles(FileChannel.open(tempDir.resolve("tmp.pmtiles")));
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+
+    //    var metadata = reader.getJsonMetadata();
+    //    assertEquals("MyName", metadata.otherMetadata().get("name"));
+    //    assertEquals("MyDescription", metadata.otherMetadata().get("description"));
+    //    assertEquals("MyAttribution", metadata.otherMetadata().get("attribution"));
+    //    assertEquals("MyVersion", metadata.otherMetadata().get("version"));
+    //    assertEquals("type", metadata.otherMetadata().get("baselayer"));
+  }
+
+  @Test
+  void testReadPmtilesFromTippecanoe() throws IOException {
+    // '{"type":"Polygon","coordinates":[[[0,0],[0,1],[1,1],[1,0],[0,0]]]}' | ./tippecanoe -zg -o box1degree.pmtiles
+    var reader = new ReadablePmtiles(FileChannel.open(TestUtils.pathToResource("box1degree.pmtiles")));
+    var header = reader.getHeader();
+    assertTrue(header.maxZoom() <= 15);
+    assertNotNull(reader.getTile(0, 0, 0));
   }
 
   @Test
