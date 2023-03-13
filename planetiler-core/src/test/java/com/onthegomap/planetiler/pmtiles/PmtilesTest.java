@@ -200,16 +200,18 @@ class PmtilesTest {
 
   @Test
   void testWritePmtilesToFileWithMetadata(@TempDir Path tempDir) throws IOException {
-    var in = WriteablePmtiles.newWriteToFile(tempDir.resolve("tmp.pmtiles"));
 
-    var config = PlanetilerConfig.defaults();
-    in.initialize(config,
-      new TileArchiveMetadata("MyName", "MyDescription", "MyAttribution", "MyVersion", "baselayer", new HashMap<>()),
-      new LayerStats());
-    var writer = in.newTileWriter();
-    writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
+    try (var in = WriteablePmtiles.newWriteToFile(tempDir.resolve("tmp.pmtiles"))) {
+      var config = PlanetilerConfig.defaults();
+      in.initialize(config,
+        new TileArchiveMetadata("MyName", "MyDescription", "MyAttribution", "MyVersion", "baselayer", new HashMap<>()),
+        new LayerStats());
+      var writer = in.newTileWriter();
+      writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
-    in.finish(config);
+      in.finish(config);
+    }
+
     var reader = new ReadablePmtiles(FileChannel.open(tempDir.resolve("tmp.pmtiles")));
     assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
 

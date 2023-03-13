@@ -19,7 +19,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
   public ReadablePmtiles(SeekableByteChannel channel) throws IOException {
     this.channel = channel;
 
-    this.header = Pmtiles.Header.fromBytes(getBytes(0, 127));
+    this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
   }
 
   private synchronized byte[] getBytes(long start, int length) throws IOException {

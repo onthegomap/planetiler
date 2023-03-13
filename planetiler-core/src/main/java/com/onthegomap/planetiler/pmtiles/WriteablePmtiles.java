@@ -38,55 +38,26 @@ import org.slf4j.LoggerFactory;
  */
 public final class WriteablePmtiles implements WriteableTileArchive {
 
+  static final int INIT_SECTION = 16384;
   private static final Logger LOGGER = LoggerFactory.getLogger(WriteablePmtiles.class);
-
+  final LongLongHashMap hashToOffset = Hppc.newLongLongHashMap();
+  final ArrayList<Pmtiles.Entry> entries = new ArrayList<>();
   private final SeekableByteChannel out;
   private long currentOffset = 0;
   private long numUnhashedTiles = 0;
   private long numAddressedTiles = 0;
   private LayerStats layerStats;
   private TileArchiveMetadata tileArchiveMetadata;
-  final LongLongHashMap hashToOffset = Hppc.newLongLongHashMap();
   private boolean isClustered = true;
-  final ArrayList<Pmtiles.Entry> entries = new ArrayList<>();
 
-  static final int INIT_SECTION = 16384;
-
-  public record Directories(byte[] root, byte[] leaves, int numLeaves, int leafSize, int numAttempts) {
-
-    @Override
-    public boolean equals(Object o) {
-      return o instanceof Directories that &&
-        numLeaves == that.numLeaves &&
-        Arrays.equals(root, that.root) &&
-        Arrays.equals(leaves, that.leaves) &&
-        leafSize == that.leafSize &&
-        numAttempts == that.numAttempts;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = Objects.hash(numLeaves, leafSize, numAttempts);
-      result = 31 * result + Arrays.hashCode(root);
-      result = 31 * result + Arrays.hashCode(leaves);
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "Directories{" +
-        "root=" + Arrays.toString(root) +
-        ", leaves=" + Arrays.toString(leaves) +
-        ", numLeaves=" + numLeaves +
-        ", leafSize=" + leafSize +
-        ", numAttempts=" + numAttempts +
-        '}';
-    }
+  private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
+    this.out = channel;
+    out.write(ByteBuffer.allocate(INIT_SECTION));
   }
 
   private static Directories makeDirectoriesWithLeaves(List<Pmtiles.Entry> subEntries, int leafSize, int attemptNum)
     throws IOException {
-    LOGGER.info("Building directories with {} entries per leaf...", leafSize);
+    LOGGER.info("Building directories with {} entries per leaf, attempt {}...", leafSize, attemptNum);
     ArrayList<Pmtiles.Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
     int leavesLength = 0;
@@ -118,7 +89,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    *
    * @param entries a sorted ObjectArrayList of all entries in the tileset.
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
-   * @throws IOException
+   * @throws IOException if compression fails
    */
   protected static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
     int maxEntriesRootOnly = 16384;
@@ -142,11 +113,6 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       }
       leafSize *= 1.2;
     }
-  }
-
-  private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
-    this.out = channel;
-    out.write(ByteBuffer.allocate(INIT_SECTION));
   }
 
   public static WriteablePmtiles newWriteToFile(Path path) throws IOException {
@@ -251,6 +217,42 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     out.close();
   }
 
+  public WriteableTileArchive.TileWriter newTileWriter() {
+    return new DeduplicatingTileWriter();
+  }
+
+  public record Directories(byte[] root, byte[] leaves, int numLeaves, int leafSize, int numAttempts) {
+
+    @Override
+    public boolean equals(Object o) {
+      return o instanceof Directories that &&
+        numLeaves == that.numLeaves &&
+        Arrays.equals(root, that.root) &&
+        Arrays.equals(leaves, that.leaves) &&
+        leafSize == that.leafSize &&
+        numAttempts == that.numAttempts;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(numLeaves, leafSize, numAttempts);
+      result = 31 * result + Arrays.hashCode(root);
+      result = 31 * result + Arrays.hashCode(leaves);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "Directories{" +
+        "root=" + Arrays.toString(root) +
+        ", leaves=" + Arrays.toString(leaves) +
+        ", numLeaves=" + numLeaves +
+        ", leafSize=" + leafSize +
+        ", numAttempts=" + numAttempts +
+        '}';
+    }
+  }
+
   private class DeduplicatingTileWriter implements TileWriter {
     Pmtiles.Entry lastEntry = null;
 
@@ -312,9 +314,5 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     public void close() {
       // no cleanup needed.
     }
-  }
-
-  public WriteableTileArchive.TileWriter newTileWriter() {
-    return new DeduplicatingTileWriter();
   }
 }
