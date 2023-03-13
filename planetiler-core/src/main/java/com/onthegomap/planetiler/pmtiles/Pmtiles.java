@@ -1,73 +1,30 @@
 package com.onthegomap.planetiler.pmtiles;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+
 import com.carrotsearch.hppc.ByteArrayList;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.reader.FileFormatException;
+import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.VarInt;
+import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
-/**
- * PMTiles is a single-file tile archive format designed for efficient access on cloud storage.
- *
- * @see <a href="https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md">PMTiles Specification</a>
- */
-public final class Pmtiles {
-  static final int HEADER_LEN = 127;
-
-  public static final class Entry implements Comparable<Entry> {
-    private long tileId;
-    private long offset;
-    private int length;
-    private int runLength;
-
-    public Entry(long tileId, long offset, int length, int runLength) {
-      this.tileId = tileId;
-      this.offset = offset;
-      this.length = length;
-      this.runLength = runLength;
-    }
-
-    public long tileId() {
-      return tileId;
-    }
-
-    public long offset() {
-      return offset;
-    }
-
-    public long length() {
-      return length;
-    }
-
-    public long runLength() {
-      return runLength;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      return this == o || (o instanceof Entry other &&
-        tileId == other.tileId &&
-        offset == other.offset &&
-        length == other.length &&
-        runLength == other.runLength);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(tileId, offset, length, runLength);
-    }
-
-    @Override
-    public int compareTo(Entry that) {
-      return Long.compare(this.tileId, that.tileId);
-    }
-  }
-
+public class Pmtiles {
   public enum Compression {
     UNKNOWN((byte) 0),
     NONE((byte) 1),
@@ -116,6 +73,8 @@ public final class Pmtiles {
       return UNKNOWN;
     }
   }
+
+  static final int HEADER_LEN = 127;
 
   public record Header(
     byte specVersion,
@@ -244,6 +203,56 @@ public final class Pmtiles {
     }
   }
 
+  public static final class Entry implements Comparable<Entry> {
+    private long tileId;
+    private long offset;
+    private int length;
+    protected int runLength;
+
+    public Entry(long tileId, long offset, int length, int runLength) {
+      this.tileId = tileId;
+      this.offset = offset;
+      this.length = length;
+      this.runLength = runLength;
+    }
+
+    public long tileId() {
+      return tileId;
+    }
+
+    public long offset() {
+      return offset;
+    }
+
+    public int length() {
+      return length;
+    }
+
+    public int runLength() {
+      return runLength;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o || (o instanceof Entry other &&
+        tileId == other.tileId &&
+        offset == other.offset &&
+        length == other.length &&
+        runLength == other.runLength);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(tileId, offset, length, runLength);
+    }
+
+    @Override
+    public int compareTo(Entry that) {
+      return Long.compare(this.tileId, that.tileId);
+    }
+  }
+
+
   /**
    * Convert a range of entries from a directory to bytes.
    *
@@ -252,8 +261,8 @@ public final class Pmtiles {
    * @param end   the end index, exclusive.
    * @return the uncompressed bytes of the directory.
    */
-  public static byte[] serializeDirectory(List<Entry> slice, int start, int end) {
-    return serializeDirectory(start == 0 && end == slice.size() ? slice : slice.subList(start, end));
+  public static byte[] directoryToBytes(List<Entry> slice, int start, int end) {
+    return directoryToBytes(start == 0 && end == slice.size() ? slice : slice.subList(start, end));
   }
 
   /**
@@ -262,7 +271,7 @@ public final class Pmtiles {
    * @param slice a list of entries sorted by ascending {@code tileId} with size > 0.
    * @return the uncompressed bytes of the directory.
    */
-  public static byte[] serializeDirectory(List<Entry> slice) {
+  public static byte[] directoryToBytes(List<Entry> slice) {
     ByteArrayList dir = new ByteArrayList();
 
     VarInt.putVarLong(slice.size(), dir);
@@ -281,7 +290,7 @@ public final class Pmtiles {
       VarInt.putVarLong(entry.length, dir);
     }
 
-    Pmtiles.Entry last = null;
+    Entry last = null;
     for (var entry : slice) {
       if (last != null && entry.offset == last.offset + last.length) {
         VarInt.putVarLong(0, dir);
@@ -294,7 +303,7 @@ public final class Pmtiles {
     return dir.toArray();
   }
 
-  public static List<Entry> deserializeDirectory(byte[] bytes) {
+  public static List<Entry> directoryFromBytes(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
     int numEntries = (int) VarInt.getVarLong(buffer);
     ArrayList<Entry> result = new ArrayList<>(numEntries);
@@ -323,5 +332,42 @@ public final class Pmtiles {
       }
     }
     return result;
+  }
+
+  private static final ObjectMapper objectMapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
+
+  /**
+   * Arbitrary application-specific JSON metadata in the archive.
+   * <p>
+   * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
+   */
+  public record JsonMetadata(
+    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
+    @JsonAnyGetter @JsonAnySetter Map<String, String> otherMetadata
+  ) {
+
+    @JsonCreator
+    JsonMetadata(@JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers) {
+      this(vectorLayers, new HashMap<>());
+    }
+
+    public byte[] toBytes() {
+
+      try {
+        return objectMapper.writeValueAsBytes(this);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException("Unable to encode as string: " + this, e);
+      }
+    }
+
+    public static JsonMetadata fromBytes(byte[] bytes) {
+      try {
+        return objectMapper.readValue(bytes, JsonMetadata.class);
+      } catch (IOException e) {
+        throw new IllegalStateException("Invalid metadata json: " + bytes, e);
+      }
+    }
   }
 }
