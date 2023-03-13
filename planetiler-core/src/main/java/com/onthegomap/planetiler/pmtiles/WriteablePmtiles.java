@@ -52,19 +52,21 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
   static final int INIT_SECTION = 16384;
 
-  public record Directories(byte[] root, byte[] leaves, int numLeaves) {
+  public record Directories(byte[] root, byte[] leaves, int numLeaves, int leafSize, int numAttempts) {
 
     @Override
     public boolean equals(Object o) {
       return o instanceof Directories that &&
         numLeaves == that.numLeaves &&
         Arrays.equals(root, that.root) &&
-        Arrays.equals(leaves, that.leaves);
+        Arrays.equals(leaves, that.leaves) &&
+        leafSize == that.leafSize &&
+        numAttempts == that.numAttempts;
     }
 
     @Override
     public int hashCode() {
-      int result = Objects.hash(numLeaves);
+      int result = Objects.hash(numLeaves, leafSize, numAttempts);
       result = 31 * result + Arrays.hashCode(root);
       result = 31 * result + Arrays.hashCode(leaves);
       return result;
@@ -76,11 +78,14 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         "root=" + Arrays.toString(root) +
         ", leaves=" + Arrays.toString(leaves) +
         ", numLeaves=" + numLeaves +
+        ", leafSize=" + leafSize +
+        ", numAttempts=" + numAttempts +
         '}';
     }
   }
 
-  private static Directories buildRootLeaves(List<Pmtiles.Entry> subEntries, int leafSize) throws IOException {
+  private static Directories makeDirectoriesWithLeaves(List<Pmtiles.Entry> subEntries, int leafSize, int attemptNum)
+    throws IOException {
     LOGGER.info("Building directories with {} entries per leaf...", leafSize);
     ArrayList<Pmtiles.Entry> rootEntries = new ArrayList<>();
     ByteArrayList leavesOutputStream = new ByteArrayList();
@@ -105,7 +110,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
     LOGGER.info("Built directories with {} leaves, {}B root directory", rootEntries.size(), rootBytes.length);
 
-    return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves);
+    return new Directories(rootBytes, leavesOutputStream.toArray(), numLeaves, leafSize, attemptNum);
   }
 
   /**
@@ -115,14 +120,15 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
    * @throws IOException
    */
-  private static Directories makeRootLeaves(List<Pmtiles.Entry> entries) throws IOException {
+  protected static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
     int maxEntriesRootOnly = 16384;
+    int attemptNum = 1;
     if (entries.size() < maxEntriesRootOnly) {
       byte[] testBytes = Pmtiles.directoryToBytes(entries, 0, entries.size());
       testBytes = Gzip.gzip(testBytes);
 
       if (testBytes.length < INIT_SECTION - Pmtiles.HEADER_LEN) {
-        return new Directories(testBytes, new byte[0], 0);
+        return new Directories(testBytes, new byte[0], 0, 0, attemptNum);
       }
     }
 
@@ -130,7 +136,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     int leafSize = (int) Math.max(estimatedLeafSize, 4096);
 
     while (true) {
-      Directories temp = buildRootLeaves(entries, leafSize);
+      Directories temp = makeDirectoriesWithLeaves(entries, leafSize, attemptNum++);
       if (temp.root.length < INIT_SECTION - Pmtiles.HEADER_LEN) {
         return temp;
       }
@@ -171,7 +177,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       LOGGER.info("Done sorting.");
     }
     try {
-      Directories archiveDirs = makeRootLeaves(entries);
+      Directories directories = makeDirectories(entries);
       byte[] jsonBytes = new Pmtiles.JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
       jsonBytes = Gzip.gzip(jsonBytes);
 
@@ -180,11 +186,11 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       Pmtiles.Header header = new Pmtiles.Header(
         (byte) 3,
         Pmtiles.HEADER_LEN,
-        archiveDirs.root.length,
+        directories.root.length,
         INIT_SECTION + currentOffset,
         jsonBytes.length,
         INIT_SECTION + currentOffset + jsonBytes.length,
-        archiveDirs.leaves.length,
+        directories.leaves.length,
         INIT_SECTION,
         currentOffset,
         numAddressedTiles,
@@ -208,12 +214,12 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       LOGGER.info("Writing metadata and leaf directories...");
 
       out.write(ByteBuffer.wrap(jsonBytes));
-      out.write(ByteBuffer.wrap(archiveDirs.leaves));
+      out.write(ByteBuffer.wrap(directories.leaves));
 
       LOGGER.info("Writing header...");
       out.position(0);
       out.write(ByteBuffer.wrap(header.toBytes()));
-      out.write(ByteBuffer.wrap(archiveDirs.root));
+      out.write(ByteBuffer.wrap(directories.root));
 
       Format format = Format.defaultInstance();
 
@@ -221,18 +227,18 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         LOGGER.info("# addressed tiles: {}", numAddressedTiles);
         LOGGER.info("# of tile entries: {}", entries.size());
         LOGGER.info("# of tile contents: {}", (hashToOffset.size() + numUnhashedTiles));
-        LOGGER.info("Root directory: {}B", format.storage(archiveDirs.root.length, false));
+        LOGGER.info("Root directory: {}B", format.storage(directories.root.length, false));
 
-        LOGGER.info("# leaves: {}", archiveDirs.numLeaves);
-        if (archiveDirs.numLeaves > 0) {
-          LOGGER.info("Leaf directories: {}B", format.storage(archiveDirs.leaves.length, false));
+        LOGGER.info("# leaves: {}", directories.numLeaves);
+        if (directories.numLeaves > 0) {
+          LOGGER.info("Leaf directories: {}B", format.storage(directories.leaves.length, false));
           LOGGER
-            .info("Avg leaf size: {}B", format.storage(archiveDirs.leaves.length / archiveDirs.numLeaves, false));
+            .info("Avg leaf size: {}B", format.storage(directories.leaves.length / directories.numLeaves, false));
         }
 
         LOGGER
-          .info("Total dir bytes: {}B", format.storage(archiveDirs.root.length + archiveDirs.leaves.length, false));
-        double tot = (double) archiveDirs.root.length + archiveDirs.leaves.length;
+          .info("Total dir bytes: {}B", format.storage(directories.root.length + directories.leaves.length, false));
+        double tot = (double) directories.root.length + directories.leaves.length;
         LOGGER.info("Average bytes per addressed tile: {}", tot / numAddressedTiles);
       }
     } catch (IOException e) {

@@ -156,12 +156,22 @@ class PmtilesTest {
 
   @Test
   void testBuildDirectoriesRootOnly() throws IOException {
-
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
+    for (int i = 0; i < 1000; i++) {
+      in.add(new Pmtiles.Entry(i, i * 100, 100, 1));
+    }
+    var result = WriteablePmtiles.makeDirectories(in);
+    assertEquals(1, result.numAttempts());
   }
 
   @Test
-  void testBuildDirectoriesLeaves() throws IOException {
-
+  void testBuildDirectoriesLeavesNotTooSmall() throws IOException {
+    ArrayList<Pmtiles.Entry> in = new ArrayList<>();
+    for (int i = 0; i < 100000; i++) {
+      in.add(new Pmtiles.Entry(i, i * 100, 100, 1));
+    }
+    var result = WriteablePmtiles.makeDirectories(in);
+    assertTrue(result.leafSize() >= 4096, "entries in leaf: " + result.leafSize());
   }
 
   @Test
