@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.pmtiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -221,6 +222,17 @@ class PmtilesTest {
     assertEquals("MyAttribution", metadata.otherMetadata().get("attribution"));
     assertEquals("MyVersion", metadata.otherMetadata().get("version"));
     assertEquals("baselayer", metadata.otherMetadata().get("type"));
+  }
+
+  @Test
+  void testPmtilesMetadataTopLevelKeys() throws IOException {
+    var hashMap = new HashMap<String, String>();
+    hashMap.put("testkey", "testvalue");
+    var metadata = new Pmtiles.JsonMetadata(List.of(), hashMap);
+    var bytes = metadata.toBytes();
+    ObjectMapper mapper = new ObjectMapper();
+    var node = mapper.readTree(bytes);
+    assertEquals("testvalue", node.get("testkey").asText());
   }
 
   @Test
