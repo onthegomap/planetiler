@@ -1,21 +1,28 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * A TileArchive is a on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive
+ * Write API for an on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive
  * format.
+ * <p>
+ * See {@link ReadableTileArchive} for the read API.
  */
 @NotThreadSafe
-public interface TileArchive extends Closeable {
+public interface WriteableTileArchive extends Closeable {
+
   interface TileWriter extends Closeable {
+
     void write(TileEncodingResult encodingResult);
 
     // TODO: exists for compatibility reasons
-    void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult);
+    default void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
+      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
+    }
 
     @Override
     void close();
@@ -23,6 +30,11 @@ public interface TileArchive extends Closeable {
     default void printStats() {}
   }
 
+
+  /**
+   * Specify the preferred insertion order for this archive, e.g. {@link TileOrder#TMS} or {@link TileOrder#HILBERT}.
+   */
+  TileOrder tileOrder();
 
   /**
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any
@@ -41,4 +53,6 @@ public interface TileArchive extends Closeable {
    * disk.
    */
   void finish(PlanetilerConfig config);
+
+  // TODO update archive metadata
 }

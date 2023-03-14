@@ -4,7 +4,7 @@ This is a minimal example project that shows how to create custom maps with Plan
 
 Requirements:
 
-- Java 16+ (see [CONTIRBUTING.md](../CONTRIBUTING.md))
+- Java 17+ (see [CONTIRBUTING.md](../CONTRIBUTING.md))
   - on mac: `brew install --cask temurin`
 - [Maven](https://maven.apache.org/install.html)
   - on mac: `brew install maven`

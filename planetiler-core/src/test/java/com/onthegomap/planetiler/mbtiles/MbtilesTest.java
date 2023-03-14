@@ -5,15 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerStats;
-import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -69,7 +68,7 @@ class MbtilesTest {
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
       assertEquals(expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
-        new HashSet<>(db.getAllTileCoords()));
+        db.getAllTileCoords().stream().collect(Collectors.toSet()));
       for (var expectedEntry : expected) {
         var tile = expectedEntry.tile();
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());

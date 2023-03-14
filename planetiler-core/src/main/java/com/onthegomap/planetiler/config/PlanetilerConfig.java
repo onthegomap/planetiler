@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.config;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
+import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -25,7 +26,6 @@ public record PlanetilerConfig(
   int maxzoomForRendering,
   boolean skipIndexCreation,
   boolean optimizeDb,
-  boolean emitTilesInOrder,
   boolean force,
   boolean gzipTempStorage,
   boolean mmapTempStorage,
@@ -41,6 +41,7 @@ public record PlanetilerConfig(
   int httpRetries,
   long downloadChunkSizeMB,
   int downloadThreads,
+  double downloadMaxBandwidth,
   double minFeatureSizeAtMaxZoom,
   double minFeatureSizeBelowMaxZoom,
   double simplifyToleranceAtMaxZoom,
@@ -48,7 +49,8 @@ public record PlanetilerConfig(
   boolean osmLazyReads,
   boolean compactDb,
   boolean skipFilledTiles,
-  int tileWarningSizeBytes
+  int tileWarningSizeBytes,
+  Boolean color
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -125,7 +127,6 @@ public record PlanetilerConfig(
       renderMaxzoom,
       arguments.getBoolean("skip_mbtiles_index_creation", "skip adding index to mbtiles file", false),
       arguments.getBoolean("optimize_db", "Vacuum analyze mbtiles after writing", false),
-      arguments.getBoolean("emit_tiles_in_order", "emit tiles in index order", true),
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
@@ -150,6 +151,8 @@ public record PlanetilerConfig(
       arguments.getInteger("http_retries", "Retries to use when downloading files over HTTP", 1),
       arguments.getLong("download_chunk_size_mb", "Size of file chunks to download in parallel in megabytes", 100),
       arguments.getInteger("download_threads", "Number of parallel threads to use when downloading each file", 1),
+      Parse.bandwidth(arguments.getString("download_max_bandwidth",
+        "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc.", "")),
       arguments.getDouble("min_feature_size_at_max_zoom",
         "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming",
         256d / 4096),
@@ -173,7 +176,8 @@ public record PlanetilerConfig(
         false),
       (int) (arguments.getDouble("tile_warning_size_mb",
         "Maximum size in megabytes of a tile to emit a warning about",
-        1d) * 1024 * 1024)
+        1d) * 1024 * 1024),
+      arguments.getBooleanObject("color", "Color the terminal output")
     );
   }
 

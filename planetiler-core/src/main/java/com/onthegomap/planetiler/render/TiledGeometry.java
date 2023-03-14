@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.cursors.IntObjectCursor;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.IntRangeSet;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
@@ -130,7 +131,7 @@ public class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   public static TiledGeometry sliceIntoTiles(Geometry scaledGeom, double minSize, double buffer, int z,
-    TileExtents.ForZoom extents) {
+    TileExtents.ForZoom extents) throws GeometryException {
 
     if (scaledGeom.isEmpty()) {
       // ignore
@@ -161,7 +162,8 @@ public class TiledGeometry {
    * @param extents    The tile extents for this zoom level.
    * @return A {@link CoveredTiles} instance for the tiles that are covered by this geometry.
    */
-  public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents) {
+  public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents)
+    throws GeometryException {
     if (scaledGeom.isEmpty()) {
       return new CoveredTiles(new RoaringBitmap(), zoom);
     } else if (scaledGeom instanceof Puntal || scaledGeom instanceof Polygonal || scaledGeom instanceof Lineal) {
@@ -190,9 +192,10 @@ public class TiledGeometry {
    * @param z       zoom level
    * @param extents range of tile coordinates within the bounds of the map to generate
    * @return each tile this feature touches, and the points that appear on each
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents) {
+    TileExtents.ForZoom extents) throws GeometryException {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
@@ -323,8 +326,10 @@ public class TiledGeometry {
    *                content that wraps too far west)
    * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
    *         content to the east.
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
-  private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset) {
+  private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
+    throws GeometryException {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
     for (List<CoordinateSequence> group : groups) {
       Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
@@ -494,7 +499,7 @@ public class TiledGeometry {
    * polygon.
    */
   private IntRangeSet sliceY(CoordinateSequence stripeSegment, int x, boolean outer,
-    Map<TileCoord, List<CoordinateSequence>> inProgressShapes) {
+    Map<TileCoord, List<CoordinateSequence>> inProgressShapes) throws GeometryException {
     if (stripeSegment.size() == 0) {
       return null;
     }
@@ -583,6 +588,13 @@ public class TiledGeometry {
 
           // if this is tile is inside a fill from an outer tile, infer that fill here
           if (area && !outer && toAddTo.isEmpty()) {
+            // since we process outer shells before holes, if a hole is the first thing to intersect
+            // a tile then it must be inside a filled tile from the outer shell. If that's not the case
+            // then the geometry is invalid, so throw an exception so the caller can decide how to handle,
+            // for example fix the polygon then try again.
+            if (!isFilled(x, y)) {
+              throw new GeometryException("bad_polygon_fill", x + ", " + y + " is not filled!");
+            }
             toAddTo.add(fill(buffer));
           }
           toAddTo.add(slice);
@@ -690,6 +702,17 @@ public class TiledGeometry {
     if (existing != null) {
       existing.removeAll(yRange);
     }
+  }
+
+  private boolean isFilled(int x, int y) {
+    if (filledRanges == null) {
+      return false;
+    }
+    var filledCol = filledRanges.get(x);
+    if (filledCol == null) {
+      return false;
+    }
+    return filledCol.contains(y);
   }
 
   private enum Direction {

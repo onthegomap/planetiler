@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.writer.TileEncodingResult;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

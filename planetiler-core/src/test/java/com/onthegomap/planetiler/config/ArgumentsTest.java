@@ -279,4 +279,18 @@ class ArgumentsTest {
     assertEquals("value1", args.getString("key1", ""));
     assertThrows(ExpectedException.class, args::toMap);
   }
+
+  @Test
+  void testBooleanObject() {
+    Map<String, String> env = Map.of(
+      "BOOL_TRUE", "true",
+      "BOOL_FALSE", "false",
+      "BOOL_NO", "no"
+    );
+    Arguments args = Arguments.of(env);
+    assertNull(args.getBooleanObject("BOOL_NULL", "test"));
+    assertEquals(true, args.getBooleanObject("BOOL_TRUE", "test"));
+    assertEquals(false, args.getBooleanObject("BOOL_FALSE", "test"));
+    assertEquals(false, args.getBooleanObject("BOOL_NO", "test"));
+  }
 }

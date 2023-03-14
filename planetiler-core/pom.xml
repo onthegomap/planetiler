@@ -16,10 +16,10 @@
   </parent>
 
   <properties>
-    <geotools.version>28.1</geotools.version>
-    <log4j.version>2.19.0</log4j.version>
+    <geotools.version>28.2</geotools.version>
+    <log4j.version>2.20.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.21.12</protobuf.version>
+    <protobuf.version>3.22.2</protobuf.version>
     <geopackage.version>6.6.1</geopackage.version>
   </properties>
 
@@ -32,7 +32,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>0.9.38</version>
+      <version>0.9.39</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -62,7 +62,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.40.0.0</version>
+      <version>3.41.0.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>

@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
@@ -61,5 +61,15 @@ public record TileArchiveMetadata(
       planetilerSpecific.put(key, value.toString());
     }
     return this;
+  }
+
+  public Map<String, String> getAll() {
+    var allKvs = new LinkedHashMap<String, String>(planetilerSpecific);
+    allKvs.put("name", this.name);
+    allKvs.put("description", this.description);
+    allKvs.put("attribution", this.attribution);
+    allKvs.put("version", this.version);
+    allKvs.put("type", this.type);
+    return allKvs;
   }
 }

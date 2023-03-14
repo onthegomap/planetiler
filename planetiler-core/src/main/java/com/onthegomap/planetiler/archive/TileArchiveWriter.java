@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.writer;
+package com.onthegomap.planetiler.archive;
 
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
- * {@link TileArchive}.
+ * {@link WriteableTileArchive}.
  */
 public class TileArchiveWriter {
 
@@ -49,7 +49,7 @@ public class TileArchiveWriter {
   private static final long MAX_TILES_PER_BATCH = 1_000;
   private final Counter.Readable featuresProcessed;
   private final Counter memoizedTiles;
-  private final TileArchive archive;
+  private final WriteableTileArchive archive;
   private final PlanetilerConfig config;
   private final Stats stats;
   private final LayerStats layerStats;
@@ -60,7 +60,7 @@ public class TileArchiveWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
 
-  private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, TileArchive archive,
+  private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config,
     TileArchiveMetadata tileArchiveMetadata, Stats stats, LayerStats layerStats) {
     this.inputTiles = inputTiles;
@@ -88,7 +88,7 @@ public class TileArchiveWriter {
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, TileArchive output, DiskBacked fileSize,
+  public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
     TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 
@@ -125,44 +125,30 @@ public class TileArchiveWriter {
     );
 
     WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
-    if (config.emitTilesInOrder()) {
-      /*
-       * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
-       * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
-       * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
-       */
-      WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
-      encodeBranch = pipeline
-        .<TileBatch>fromGenerator(secondStageName, next -> {
-          var writerEnqueuer = writerQueue.threadLocalWriter();
-          writer.readFeaturesAndBatch(batch -> {
-            next.accept(batch);
-            writerEnqueuer.accept(batch); // also send immediately to writer
-          });
-          writerQueue.close();
-          // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        }, 1)
-        .addBuffer("reader_queue", queueSize)
-        .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
-      // the tile writer will wait on the result of each batch to ensure tiles are written in order
-      writeBranch = pipeline.readFromQueue(writerQueue)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
-    } else {
-      /*
-       * If we don't need to emit tiles in order, just send the features to the encoder, and when it finishes with
-       * a tile send that to the writer.
-       */
-      encodeBranch = pipeline
+    /*
+     * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
+     * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
+     * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
+     */
+    WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
+    encodeBranch = pipeline
+      .<TileBatch>fromGenerator(secondStageName, next -> {
+        var writerEnqueuer = writerQueue.threadLocalWriter();
+        writer.readFeaturesAndBatch(batch -> {
+          next.accept(batch);
+          writerEnqueuer.accept(batch); // also send immediately to writer
+        });
+        writerQueue.close();
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
-        .fromGenerator(secondStageName, writer::readFeaturesAndBatch, 1)
-        .addBuffer("reader_queue", queueSize)
-        .addWorker("encoder", processThreads, writer::tileEncoder)
-        .addBuffer("writer_queue", queueSize)
-        // use only 1 thread since tileWriter needs to be single-threaded
-        .sinkTo("write", 1, writer::tileWriter);
-    }
+      }, 1)
+      .addBuffer("reader_queue", queueSize)
+      .sinkTo("encode", processThreads, writer::tileEncoderSink);
+
+    // the tile writer will wait on the result of each batch to ensure tiles are written in order
+    writeBranch = pipeline.readFromQueue(writerQueue)
+      // use only 1 thread since tileWriter needs to be single-threaded
+      .sinkTo("write", 1, writer::tileWriter);
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
@@ -194,7 +180,8 @@ public class TileArchiveWriter {
     } else {
       blurb = "%d/%d/%d (z%d %s) %s".formatted(
         lastTile.z(), lastTile.x(), lastTile.y(),
-        lastTile.z(), Format.defaultInstance().percent(lastTile.progressOnLevel(config.bounds().tileExtents())),
+        lastTile.z(),
+        Format.defaultInstance().percent(archive.tileOrder().progressOnLevel(lastTile, config.bounds().tileExtents())),
         lastTile.getDebugUrl()
       );
     }
@@ -348,28 +335,30 @@ public class TileArchiveWriter {
   }
 
   private void printTileStats() {
-    Format format = Format.defaultInstance();
-    LOGGER.debug("Tile stats:");
-    long sumSize = 0;
-    long sumCount = 0;
-    long maxMax = 0;
-    for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
-      long totalCount = tilesByZoom[z].get();
-      long totalSize = totalTileSizesByZoom[z].get();
-      sumSize += totalSize;
-      sumCount += totalCount;
-      long maxSize = maxTileSizesByZoom[z].get();
-      maxMax = Math.max(maxMax, maxSize);
-      LOGGER.debug("z{} avg:{} max:{}",
-        z,
-        format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
-        format.storage(maxSize, false));
+    if (LOGGER.isDebugEnabled()) {
+      Format format = Format.defaultInstance();
+      LOGGER.debug("Tile stats:");
+      long sumSize = 0;
+      long sumCount = 0;
+      long maxMax = 0;
+      for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
+        long totalCount = tilesByZoom[z].get();
+        long totalSize = totalTileSizesByZoom[z].get();
+        sumSize += totalSize;
+        sumCount += totalCount;
+        long maxSize = maxTileSizesByZoom[z].get();
+        maxMax = Math.max(maxMax, maxSize);
+        LOGGER.debug("z{} avg:{} max:{}",
+          z,
+          format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
+          format.storage(maxSize, false));
+      }
+      LOGGER.debug("all avg:{} max:{}",
+        format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
+        format.storage(maxMax, false));
+      LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
+      LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
     }
-    LOGGER.debug("all avg:{} max:{}",
-      format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
-      format.storage(maxMax, false));
-    LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
-    LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
   }
 
   private long tilesEmitted() {

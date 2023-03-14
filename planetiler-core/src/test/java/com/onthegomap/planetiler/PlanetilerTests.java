@@ -3,6 +3,8 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileArchiveWriter;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
@@ -11,6 +13,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
@@ -22,8 +25,6 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.BuildInfo;
-import com.onthegomap.planetiler.writer.TileArchiveMetadata;
-import com.onthegomap.planetiler.writer.TileArchiveWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -137,7 +138,7 @@ class PlanetilerTests {
     Profile profile
   ) throws Exception {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.of(args));
-    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(profile, stats);
+    FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {
@@ -1596,6 +1597,24 @@ class PlanetilerTests {
   void testBadRelation() throws Exception {
     // this threw an exception in OsmMultipolygon.build
     OsmXml osmInfo = TestUtils.readOsmXml("bad_spain_relation.xml");
+    List<OsmElement> elements = convertToOsmElements(osmInfo);
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      elements,
+      (in, features) -> {
+        if (in.hasTag("landuse", "forest")) {
+          features.polygon("layer")
+            .setZoomRange(12, 14)
+            .setBufferPixels(4);
+        }
+      }
+    );
+
+    assertEquals(11, results.tiles.size());
+  }
+
+  private static List<OsmElement> convertToOsmElements(OsmXml osmInfo) {
     List<OsmElement> elements = new ArrayList<>();
     for (var node : orEmpty(osmInfo.nodes())) {
       elements.add(new OsmElement.Node(node.id(), node.lat(), node.lon()));
@@ -1625,20 +1644,42 @@ class PlanetilerTests {
         }, member.ref(), member.role()));
       }
     }
+    return elements;
+  }
+
+  @Test
+  void testIssue496BaseballMultipolygon() throws Exception {
+    // this generated a polygon that covered an entire z11 tile where the buffer intersected the baseball field
+    OsmXml osmInfo = TestUtils.readOsmXml("issue_496_baseball_multipolygon.xml");
+    List<OsmElement> elements = convertToOsmElements(osmInfo);
 
     var results = runWithOsmElements(
       Map.of("threads", "1"),
       elements,
       (in, features) -> {
-        if (in.hasTag("landuse", "forest")) {
-          features.polygon("layer")
-            .setZoomRange(12, 14)
-            .setBufferPixels(4);
+        if (in.hasTag("natural", "sand")) {
+          features.polygon("test")
+            .setBufferPixels(4)
+            .setPixelTolerance(0.5)
+            .setMinPixelSize(0.1)
+            .setAttr("id", in.id());
         }
       }
     );
 
-    assertEquals(11, results.tiles.size());
+    double areaAtZ14 = 20;
+
+    for (var entry : results.tiles().entrySet()) {
+      var tile = entry.getKey();
+      for (var feature : entry.getValue()) {
+        var geom = feature.geometry().geom();
+        double area = geom.getArea();
+        double expectedMaxArea = areaAtZ14 / (1 << (14 - tile.z()));
+        assertTrue(area < expectedMaxArea, "tile=" + tile + " area=" + area + " geom=" + geom);
+      }
+    }
+
+    assertEquals(8, results.tiles.size());
   }
 
   @ParameterizedTest

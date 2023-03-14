@@ -32,7 +32,7 @@ the [OpenStreetMap Americana Project](https://github.com/ZeLonewolf/openstreetma
 To generate a map of an area using the [OpenMapTiles profile](https://github.com/openmaptiles/planetiler-openmaptiles),
 you will need:
 
-- Java 16+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
+- Java 17+ (see [CONTRIBUTING.md](CONTRIBUTING.md)) or [Docker](https://docs.docker.com/get-docker/)
 - at least 1GB of free disk space plus 5-10x the size of the `.osm.pbf` file
 - at least 0.5x as much free RAM as the input `.osm.pbf` file size
 
