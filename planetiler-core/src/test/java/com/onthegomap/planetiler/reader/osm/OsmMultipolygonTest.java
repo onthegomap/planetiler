@@ -35,6 +35,7 @@ import org.junit.jupiter.api.TestFactory;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.MultiPolygon;
 
 /**
  * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon_test.go
@@ -107,7 +108,7 @@ class OsmMultipolygonTest {
     return new Node(id++, x, y);
   }
 
-  private void testBuildMultipolygon(List<List<Node>> ways, Geometry expected) throws GeometryException {
+  private void testBuildMultipolygon(List<List<Node>> ways, Geometry expected, boolean withOrdering) throws GeometryException {
     Map<Long, Coordinate> coords = new HashMap<>();
     List<LongArrayList> rings = new ArrayList<>();
     for (List<Node> way : ways) {
@@ -121,6 +122,13 @@ class OsmMultipolygonTest {
     OsmReader.NodeLocationProvider nodeLocs = coords::get;
     Geometry actual = OsmMultipolygon.build(rings, nodeLocs, 0);
     assertSameNormalizedFeature(expected, actual);
+    if (withOrdering) {
+      assertEquals(expected.toString(), actual.toString());
+    }
+  }
+
+  private void testBuildMultipolygon(List<List<Node>> ways, Geometry expected) throws GeometryException {
+    testBuildMultipolygon(ways, expected, false);
   }
 
   @Test
@@ -219,6 +227,21 @@ class OsmMultipolygonTest {
         rectangleCoordList(0, 10),
         List.of(rectangleCoordList(2, 8))
       )
+    );
+  }
+
+  @Test
+  void testSimplePolygonOrdering() throws GeometryException {
+    testBuildMultipolygon(
+      List.of(
+        rectangleNodes(8, 10),
+        rectangleNodes(0, 7)
+      ),
+      newMultiPolygon(
+        rectangle(0, 7),
+        rectangle(8, 10)
+      ),
+      true
     );
   }
 

@@ -182,6 +182,7 @@ public class OsmMultipolygon {
         return shells.iterator().next().toPolygon();
       } else {
         Polygon[] finished = shells.stream()
+          .sorted(BY_AREA_DESCENDING)
           .map(Ring::toPolygon)
           .toArray(Polygon[]::new);
         return GeoUtils.JTS_FACTORY.createMultiPolygon(finished);
