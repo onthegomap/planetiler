@@ -35,7 +35,6 @@ import org.junit.jupiter.api.TestFactory;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.MultiPolygon;
 
 /**
  * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon_test.go
@@ -108,7 +107,8 @@ class OsmMultipolygonTest {
     return new Node(id++, x, y);
   }
 
-  private void testBuildMultipolygon(List<List<Node>> ways, Geometry expected, boolean withOrdering) throws GeometryException {
+  private void testBuildMultipolygon(List<List<Node>> ways, Geometry expected, boolean withOrdering)
+    throws GeometryException {
     Map<Long, Coordinate> coords = new HashMap<>();
     List<LongArrayList> rings = new ArrayList<>();
     for (List<Node> way : ways) {
