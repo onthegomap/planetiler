@@ -231,7 +231,7 @@ class OsmMultipolygonTest {
   }
 
   @Test
-  void testSimplePolygonOrdering() throws GeometryException {
+  void testSimpleMutltipolygonOrdering() throws GeometryException {
     testBuildMultipolygon(
       List.of(
         rectangleNodes(8, 10),
