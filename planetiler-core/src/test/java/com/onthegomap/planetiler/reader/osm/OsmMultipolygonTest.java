@@ -260,6 +260,23 @@ class OsmMultipolygonTest {
     );
   }
 
+  @Test
+  void testSimplePolygonWithMultipleHolesOrdering() throws GeometryException {
+    testBuildMultipolygon(
+      List.of(
+        rectangleNodes(0, 10),
+        rectangleNodes(3, 5),
+        rectangleNodes(1, 2),
+        rectangleNodes(6, 9)
+      ),
+      newPolygon(
+        rectangleCoordList(0, 10),
+        List.of(rectangleCoordList(6, 9), rectangleCoordList(3, 5), rectangleCoordList(1, 2))
+      ),
+      true
+    );
+  }
+
   public List<Node> rectangleNodes(double xMin, double yMin, double xMax, double yMax) {
     var startEnd = node(xMin, yMin);
     return List.of(startEnd, node(xMax, yMin), node(xMax, yMax), node(xMin, yMax), startEnd);
