@@ -414,7 +414,7 @@ public class TestUtils {
   public static Map<String, Object> toMap(FeatureCollector.Feature feature, int zoom) {
     TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
     Geometry geom = feature.getGeometry();
-    result.put("_source_id", feature.getSourceId());
+    result.put("_id", feature.getId());
     result.put("_minzoom", feature.getMinZoom());
     result.put("_maxzoom", feature.getMaxZoom());
     result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));

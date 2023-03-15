@@ -127,7 +127,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
         Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
-        encodeAndEmitFeature(feature, feature.getSourceId(), attrs, tile, geom, groupInfo, 0);
+        encodeAndEmitFeature(feature, feature.getId(), attrs, tile, geom, groupInfo, 0);
         emitted++;
       }
       stats.emittedFeatures(zoom, feature.getLayer(), emitted);
@@ -211,7 +211,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         attrs = new HashMap<>(attrs);
         attrs.put(numPointsAttr, geom.getNumPoints());
       }
-      writeTileFeatures(z, feature.getSourceId(), feature, sliced, attrs);
+      writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
     }
 
     stats.processedElement(area ? "polygon" : "line", feature.getLayer());

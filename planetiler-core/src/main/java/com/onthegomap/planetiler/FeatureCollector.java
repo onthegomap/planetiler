@@ -201,7 +201,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private final Geometry geom;
     private final Map<String, Object> attrs = new TreeMap<>();
     private final GeometryType geometryType;
-    private long sourceId;
+    private long id;
 
     private int sortKey = 0;
 
@@ -228,20 +228,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     private String numPointsAttr = null;
 
-    private Feature(String layer, Geometry geom, long sourceId) {
+    private Feature(String layer, Geometry geom, long id) {
       this.layer = layer;
       this.geom = geom;
       this.geometryType = GeometryType.typeOf(geom);
-      this.sourceId = sourceId;
+      this.id = id;
     }
 
     /** Returns the original ID of the source feature that this feature came from (i.e. OSM node/way ID). */
-    public long getSourceId() {
-      return sourceId;
+    public long getId() {
+      return id;
     }
 
-    public Feature setSourceId(long sourceId) {
-      this.sourceId = sourceId;
+    public Feature setId(long id) {
+      this.id = id;
       return this;
     }
 

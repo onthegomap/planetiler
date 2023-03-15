@@ -59,7 +59,7 @@ class FeatureCollectorTest {
       .setBufferPixels(10d)
       .setBufferPixelOverrides(ZoomFunction.maxZoom(12, 100d))
       .setPointLabelGridSizeAndLimit(12, 100, 10)
-      .setSourceId(123456789);
+      .setId(123456789);
     assertFeatures(14, List.of(
       Map.of(
         "_layer", "layername",
@@ -71,7 +71,7 @@ class FeatureCollectorTest {
         "attr1", 2,
         "_type", "point",
         "_buffer", 10d,
-        "_source_id", 123456789L
+        "_id", 123456789L
       )
     ), collector);
     assertFeatures(12, List.of(
@@ -79,7 +79,7 @@ class FeatureCollectorTest {
         "_labelgrid_size", 100d,
         "_labelgrid_limit", 10,
         "_buffer", 100d,
-        "_source_id", 123456789L
+        "_id", 123456789L
       )
     ), collector);
 
