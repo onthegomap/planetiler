@@ -329,14 +329,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newTileWriter();
   }
 
-  /** Returns the contents of the metadata table. */
   @Override
   public TileArchiveMetadata metadata() {
     return new Metadata().get();
-  }
-
-  public Metadata metadataTable() {
-    return new Metadata();
   }
 
   /** Returns the contents of the metadata table. */
