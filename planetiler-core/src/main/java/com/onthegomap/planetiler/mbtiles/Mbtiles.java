@@ -339,6 +339,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return new Metadata();
   }
 
+  /** Returns the contents of the metadata table. */
+  public Metadata metadataTable() {
+    return new Metadata();
+  }
+
   private PreparedStatement getTileStatement() {
     if (getTileStatement == null) {
       try {
