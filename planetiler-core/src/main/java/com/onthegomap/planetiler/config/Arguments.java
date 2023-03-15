@@ -205,11 +205,22 @@ public class Arguments {
   }
 
   private String get(String key) {
-    String value = provider.apply(key);
-    if (value == null) {
-      value = provider.apply(key.replace('-', '_'));
+    String[] options = key.split("\\|");
+    String value = null;
+    for (int i = 0; i < options.length; i++) {
+      String option = options[i].strip();
+      value = provider.apply(option);
       if (value == null) {
-        value = provider.apply(key.replace('_', '-'));
+        value = provider.apply(option.replace('-', '_'));
+        if (value == null) {
+          value = provider.apply(option.replace('_', '-'));
+        }
+      }
+      if (value != null) {
+        if (i != 0) {
+          LOGGER.warn("Argument '{}' is deprecated, please switch to '{}'", option, options[0]);
+        }
+        break;
       }
     }
     return value;

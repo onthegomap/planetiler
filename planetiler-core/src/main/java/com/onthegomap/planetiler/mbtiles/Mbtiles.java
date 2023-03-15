@@ -12,13 +12,13 @@ import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -31,6 +31,8 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,7 +43,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
-import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,7 +159,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
+  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata) {
     if (config.skipIndexCreation()) {
       createTablesWithoutIndexes();
       if (LOGGER.isInfoEnabled()) {
@@ -168,21 +170,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       createTablesWithIndexes();
     }
 
-    var metadata = metadata()
-      .setName(tileArchiveMetadata.name())
-      .setFormat("pbf")
-      .setDescription(tileArchiveMetadata.description())
-      .setAttribution(tileArchiveMetadata.attribution())
-      .setVersion(tileArchiveMetadata.version())
-      .setType(tileArchiveMetadata.type())
-      .setBoundsAndCenter(config.bounds().latLon())
-      .setMinzoom(config.minzoom())
-      .setMaxzoom(config.maxzoom())
-      .setJson(new MetadataJson(layerStats.getTileStats()));
-
-    for (var entry : tileArchiveMetadata.planetilerSpecific().entrySet()) {
-      metadata.setMetadata(entry.getKey(), entry.getValue());
-    }
+    metadataTable().set(tileArchiveMetadata);
   }
 
   @Override
@@ -342,7 +330,12 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   /** Returns the contents of the metadata table. */
-  public Metadata metadata() {
+  @Override
+  public TileArchiveMetadata metadata() {
+    return new Metadata().get();
+  }
+
+  public Metadata metadataTable() {
     return new Metadata();
   }
 
@@ -390,6 +383,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#vector-tileset-metadata">MBtiles
    *      schema</a>
    */
+  // TODO add tilestats
   public record MetadataJson(
     @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers
   ) {
@@ -400,7 +394,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
     public static MetadataJson fromJson(String json) {
       try {
-        return objectMapper.readValue(json, MetadataJson.class);
+        return json == null ? null : objectMapper.readValue(json, MetadataJson.class);
       } catch (JsonProcessingException e) {
         throw new IllegalStateException("Invalid metadata json: " + json, e);
       }
@@ -805,77 +799,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       return this;
     }
 
-    public Metadata setName(String value) {
-      return setMetadata("name", value);
-    }
-
-    /** Format of the tile data, should always be pbf {@code pbf}. */
-    public Metadata setFormat(String format) {
-      return setMetadata("format", format);
-    }
-
-    public Metadata setBounds(double left, double bottom, double right, double top) {
-      return setMetadata("bounds", join(left, bottom, right, top));
-    }
-
-    public Metadata setBounds(Envelope envelope) {
-      return setBounds(envelope.getMinX(), envelope.getMinY(), envelope.getMaxX(), envelope.getMaxY());
-    }
-
-    public Metadata setCenter(double longitude, double latitude, double zoom) {
-      return setMetadata("center", join(longitude, latitude, zoom));
-    }
-
-    public Metadata setBoundsAndCenter(Envelope envelope) {
-      return setBounds(envelope).setCenter(envelope);
-    }
-
-    /** Estimate a reasonable center for the map to fit an envelope. */
-    public Metadata setCenter(Envelope envelope) {
-      Coordinate center = envelope.centre();
-      double zoom = Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope));
-      return setCenter(center.x, center.y, zoom);
-    }
-
-    public Metadata setMinzoom(int value) {
-      return setMetadata("minzoom", value);
-    }
-
-    public Metadata setMaxzoom(int maxZoom) {
-      return setMetadata("maxzoom", maxZoom);
-    }
-
-    public Metadata setAttribution(String value) {
-      return setMetadata("attribution", value);
-    }
-
-    public Metadata setDescription(String value) {
-      return setMetadata("description", value);
-    }
-
-    /** {@code overlay} or {@code baselayer}. */
-    public Metadata setType(String value) {
-      return setMetadata("type", value);
-    }
-
-    public Metadata setTypeIsOverlay() {
-      return setType("overlay");
-    }
-
-    public Metadata setTypeIsBaselayer() {
-      return setType("baselayer");
-    }
-
-    public Metadata setVersion(String value) {
-      return setMetadata("version", value);
-    }
-
-    public Metadata setJson(String value) {
-      return setMetadata("json", value);
-    }
-
     public Metadata setJson(MetadataJson value) {
-      return value == null ? this : setJson(value.toJson());
+      return value == null ? this : setMetadata("json", value.toJson());
     }
 
     public Map<String, String> getAll() {
@@ -890,10 +815,72 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
           );
         }
       } catch (SQLException throwables) {
-        LOGGER.warn("Error retrieving metadata: " + throwables);
+        LOGGER.warn("Error retrieving metadata: {}", throwables.toString());
         LOGGER.trace("Error retrieving metadata details: ", throwables);
       }
       return result;
+    }
+
+    public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
+      var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
+
+      setMetadata(TileArchiveMetadata.FORMAT, tileArchiveMetadata.format());
+      setMetadata(TileArchiveMetadata.CENTER, join(
+        tileArchiveMetadata.center().x,
+        tileArchiveMetadata.center().y,
+        Math.ceil(tileArchiveMetadata.zoom())
+      ));
+      setMetadata(TileArchiveMetadata.BOUNDS, join(
+        tileArchiveMetadata.bounds().getMinX(),
+        tileArchiveMetadata.bounds().getMinY(),
+        tileArchiveMetadata.bounds().getMaxX(),
+        tileArchiveMetadata.bounds().getMaxY()
+      ));
+      setJson(new MetadataJson(tileArchiveMetadata.vectorLayers()));
+
+      map.remove(TileArchiveMetadata.FORMAT);
+      map.remove(TileArchiveMetadata.CENTER);
+      map.remove(TileArchiveMetadata.ZOOM);
+      map.remove(TileArchiveMetadata.BOUNDS);
+      map.remove(TileArchiveMetadata.VECTOR_LAYERS);
+
+      for (var entry : map.entrySet()) {
+        setMetadata(entry.getKey(), entry.getValue());
+      }
+      return this;
+    }
+
+    public TileArchiveMetadata get() {
+      Map<String, String> map = new HashMap<>(getAll());
+      String[] bounds = map.containsKey(TileArchiveMetadata.BOUNDS) ?
+        map.remove(TileArchiveMetadata.BOUNDS).split(",") : null;
+      String[] center = map.containsKey(TileArchiveMetadata.CENTER) ?
+        map.remove(TileArchiveMetadata.CENTER).split(",") : null;
+      var metadataJson = MetadataJson.fromJson(map.remove("json"));
+      return new TileArchiveMetadata(
+        map.remove(TileArchiveMetadata.NAME),
+        map.remove(TileArchiveMetadata.DESCRIPTION),
+        map.remove(TileArchiveMetadata.ATTRIBUTION),
+        map.remove(TileArchiveMetadata.VERSION),
+        map.remove(TileArchiveMetadata.TYPE),
+        map.remove(TileArchiveMetadata.FORMAT),
+        bounds == null ? null : new Envelope(
+          Double.parseDouble(bounds[0]),
+          Double.parseDouble(bounds[2]),
+          Double.parseDouble(bounds[1]),
+          Double.parseDouble(bounds[3])
+        ),
+        center == null ? null : new CoordinateXY(
+          Double.parseDouble(center[0]),
+          Double.parseDouble(center[1])
+        ),
+        center == null || center.length < 3 ? null : Double.parseDouble(center[2]),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MINZOOM)),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM)),
+        metadataJson == null ? null : metadataJson.vectorLayers,
+        // any left-overs:
+        map
+      );
     }
   }
 }

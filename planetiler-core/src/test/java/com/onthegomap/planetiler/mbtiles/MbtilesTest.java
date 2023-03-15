@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
-import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.IOException;
@@ -17,12 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 
 class MbtilesTest {
@@ -121,71 +121,33 @@ class MbtilesTest {
   }
 
   @Test
-  void testAddMetadata() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
+  void testRoundTripMetadata() throws IOException {
+    var metadata = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value")
+    );
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setName("name value");
-      expected.put("name", "name value");
-
-      metadata.setFormat("pbf");
-      expected.put("format", "pbf");
-
-      metadata.setAttribution("attribution value");
-      expected.put("attribution", "attribution value");
-
-      metadata.setBoundsAndCenter(GeoUtils.toLatLonBoundsBounds(new Envelope(0.25, 0.75, 0.25, 0.75)));
-      expected.put("bounds", "-90,-66.51326,90,66.51326");
-      expected.put("center", "0,0,1");
-
-      metadata.setDescription("description value");
-      expected.put("description", "description value");
-
-      metadata.setMinzoom(1);
-      expected.put("minzoom", "1");
-
-      metadata.setMaxzoom(13);
-      expected.put("maxzoom", "13");
-
-      metadata.setVersion("1.2.3");
-      expected.put("version", "1.2.3");
-
-      metadata.setTypeIsBaselayer();
-      expected.put("type", "baselayer");
-
-      assertEquals(expected, metadata.getAll());
-    }
-  }
-
-  @Test
-  void testAddMetadataWorldBounds() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setBoundsAndCenter(GeoUtils.WORLD_LAT_LON_BOUNDS);
-      expected.put("bounds", "-180,-85.05113,180,85.05113");
-      expected.put("center", "0,0,0");
-
-      assertEquals(expected, metadata.getAll());
-    }
-  }
-
-  @Test
-  void testAddMetadataSmallBounds() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setBoundsAndCenter(new Envelope(-73.6632, -69.7598, 41.1274, 43.0185));
-      expected.put("bounds", "-73.6632,41.1274,-69.7598,43.0185");
-      expected.put("center", "-71.7115,42.07295,7");
-
-      assertEquals(expected, metadata.getAll());
+      db.createTablesWithoutIndexes();
+      var metadataTable = db.metadataTable();
+      metadataTable.set(metadata);
+      assertEquals(metadata, metadataTable.get());
     }
   }
 
   private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
+      var metadata = db.createTablesWithoutIndexes().metadataTable();
       metadata.setJson(object);
       var actual = metadata.getAll().get("json");
       assertSameJson(expected, actual);

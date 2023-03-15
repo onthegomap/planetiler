@@ -40,5 +40,7 @@ public interface ReadableTileArchive extends Closeable {
    */
   CloseableIterator<TileCoord> getAllTileCoords();
 
+  TileArchiveMetadata metadata();
+
   // TODO access archive metadata
 }

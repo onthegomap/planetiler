@@ -27,7 +27,7 @@ class ToiletsOverlayLowLevelApiTest {
       dbPath
     );
     try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
-      Map<String, String> metadata = mbtiles.metadata().getAll();
+      Map<String, String> metadata = mbtiles.metadata().toMap();
       assertEquals("Toilets Overlay", metadata.get("name"));
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
 

@@ -7,12 +7,10 @@ import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Gzip;
-import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -24,10 +22,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
-import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +44,6 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   private long currentOffset = 0;
   private long numUnhashedTiles = 0;
   private long numAddressedTiles = 0;
-  private LayerStats layerStats;
   private TileArchiveMetadata tileArchiveMetadata;
   private boolean isClustered = true;
 
@@ -130,13 +127,12 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
-    this.layerStats = layerStats;
+  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata) {
     this.tileArchiveMetadata = tileArchiveMetadata;
   }
 
   @Override
-  public void finish(PlanetilerConfig config) {
+  public void finish(PlanetilerConfig configx) {
     if (!isClustered) {
       LOGGER.info("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);
@@ -144,10 +140,29 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
     try {
       Directories directories = makeDirectories(entries);
-      byte[] jsonBytes = new Pmtiles.JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
+      var otherMetadata = new LinkedHashMap<>(tileArchiveMetadata.toMap());
+
+      // exclude keys included in top-level header
+      otherMetadata.remove(TileArchiveMetadata.CENTER);
+      otherMetadata.remove(TileArchiveMetadata.ZOOM);
+      otherMetadata.remove(TileArchiveMetadata.BOUNDS);
+      otherMetadata.remove(TileArchiveMetadata.FORMAT);
+      otherMetadata.remove(TileArchiveMetadata.MINZOOM);
+      otherMetadata.remove(TileArchiveMetadata.MAXZOOM);
+      otherMetadata.remove(TileArchiveMetadata.VECTOR_LAYERS);
+
+      byte[] jsonBytes =
+        new Pmtiles.JsonMetadata(tileArchiveMetadata.vectorLayers(), otherMetadata).toBytes();
       jsonBytes = Gzip.gzip(jsonBytes);
 
-      Envelope envelope = config.bounds().latLon();
+      String formatString = tileArchiveMetadata.format();
+      var outputFormat = switch (formatString) {
+        case TileArchiveMetadata.MVT_FORMAT -> Pmtiles.TileType.MVT;
+        default -> {
+          LOGGER.warn("Unknown format: '{}'", formatString);
+          yield Pmtiles.TileType.UNKNOWN;
+        }
+      };
 
       Pmtiles.Header header = new Pmtiles.Header(
         (byte) 3,
@@ -165,16 +180,16 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         isClustered,
         Pmtiles.Compression.GZIP,
         Pmtiles.Compression.GZIP,
-        Pmtiles.TileType.MVT,
-        (byte) config.minzoom(),
-        (byte) config.maxzoom(),
-        (int) (envelope.getMinX() * 10_000_000),
-        (int) (envelope.getMinY() * 10_000_000),
-        (int) (envelope.getMaxX() * 10_000_000),
-        (int) (envelope.getMaxY() * 10_000_000),
-        (byte) Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope)),
-        (int) ((envelope.getMinX() + envelope.getMaxX()) / 2 * 10_000_000),
-        (int) ((envelope.getMinY() + envelope.getMaxY()) / 2 * 10_000_000)
+        outputFormat,
+        tileArchiveMetadata.minzoom().byteValue(),
+        tileArchiveMetadata.maxzoom().byteValue(),
+        (int) (tileArchiveMetadata.bounds().getMinX() * 10_000_000),
+        (int) (tileArchiveMetadata.bounds().getMinY() * 10_000_000),
+        (int) (tileArchiveMetadata.bounds().getMaxX() * 10_000_000),
+        (int) (tileArchiveMetadata.bounds().getMaxY() * 10_000_000),
+        (byte) Math.ceil(tileArchiveMetadata.zoom()),
+        (int) tileArchiveMetadata.center().x * 10_000_000,
+        (int) tileArchiveMetadata.center().y * 10_000_000
       );
 
       LOGGER.info("Writing metadata and leaf directories...");

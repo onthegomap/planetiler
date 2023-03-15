@@ -293,4 +293,17 @@ class ArgumentsTest {
     assertEquals(false, args.getBooleanObject("BOOL_FALSE", "test"));
     assertEquals(false, args.getBooleanObject("BOOL_NO", "test"));
   }
+
+  @Test
+  void testDeprecatedArgs() {
+    assertEquals("newvalue",
+      Arguments.of("oldkey", "oldvalue", "newkey", "newvalue")
+        .getString("newkey|oldkey", "key", "fallback"));
+    assertEquals("oldvalue",
+      Arguments.of("oldkey", "oldvalue")
+        .getString("newkey|oldkey", "key", "fallback"));
+    assertEquals("fallback",
+      Arguments.of()
+        .getString("newkey|oldkey", "key", "fallback"));
+  }
 }

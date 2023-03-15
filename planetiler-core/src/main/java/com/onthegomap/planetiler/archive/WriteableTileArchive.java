@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileOrder;
-import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -40,7 +39,7 @@ public interface WriteableTileArchive extends Closeable {
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any
    * required state here.
    */
-  void initialize(PlanetilerConfig config, TileArchiveMetadata metadata, LayerStats layerStats);
+  void initialize(PlanetilerConfig config, TileArchiveMetadata metadata);
 
   /**
    * Implementations should return a object that implements {@link TileWriter} The specific TileWriter returned might

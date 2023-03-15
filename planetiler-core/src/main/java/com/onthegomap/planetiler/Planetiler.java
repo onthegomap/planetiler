@@ -2,13 +2,13 @@ package com.onthegomap.planetiler;
 
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
@@ -600,7 +600,6 @@ public class Planetiler {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
-    tileArchiveMetadata = new TileArchiveMetadata(profile, config.arguments());
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
@@ -661,8 +660,9 @@ public class Planetiler {
       }
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
+    tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
-    try (WriteableTileArchive archive = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+    try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
       featureGroup =
         FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats);
       stats.monitorFile("nodes", nodeDbPath);
@@ -686,8 +686,7 @@ public class Planetiler {
       featureGroup.prepare();
 
       TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
-        config,
-        stats);
+        config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
     }

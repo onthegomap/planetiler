@@ -15,6 +15,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -199,7 +200,8 @@ public class TestUtils {
     return round(input, 1e5);
   }
 
-  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException, IOException {
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
+    throws IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
       var bytes = gunzip(tile.bytes());
@@ -218,21 +220,10 @@ public class TestUtils {
     }
   }
 
-  public static Set<Mbtiles.TileEntry> getAllTiles(Mbtiles db) throws SQLException {
-    Set<Mbtiles.TileEntry> result = new HashSet<>();
-    try (Statement statement = db.connection().createStatement()) {
-      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
-      while (rs.next()) {
-        int z = rs.getInt("zoom_level");
-        int rawy = rs.getInt("tile_row");
-        int x = rs.getInt("tile_column");
-        result.add(new Mbtiles.TileEntry(
-          TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z),
-          rs.getBytes("tile_data")
-        ));
-      }
-    }
-    return result;
+  public static Set<Mbtiles.TileEntry> getAllTiles(ReadableTileArchive db) {
+    return db.getAllTileCoords().stream()
+      .map(coord -> new Mbtiles.TileEntry(coord, db.getTile(coord)))
+      .collect(Collectors.toSet());
   }
 
   public static int getTilesDataCount(Mbtiles db) throws SQLException {

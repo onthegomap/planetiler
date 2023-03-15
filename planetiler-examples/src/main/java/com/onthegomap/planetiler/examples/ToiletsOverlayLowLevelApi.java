@@ -57,7 +57,7 @@ public class ToiletsOverlayLowLevelApi {
     PlanetilerConfig config = PlanetilerConfig.from(Arguments.fromJvmProperties());
 
     // extract mbtiles metadata from profile
-    TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile);
+    TileArchiveMetadata tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
     // overwrite output each time
     FileUtils.deleteFile(output);

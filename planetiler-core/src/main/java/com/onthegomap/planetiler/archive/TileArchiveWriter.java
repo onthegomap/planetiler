@@ -15,7 +15,6 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
-import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -52,7 +51,6 @@ public class TileArchiveWriter {
   private final WriteableTileArchive archive;
   private final PlanetilerConfig config;
   private final Stats stats;
-  private final LayerStats layerStats;
   private final Counter.Readable[] tilesByZoom;
   private final Counter.Readable[] totalTileSizesByZoom;
   private final LongAccumulator[] maxTileSizesByZoom;
@@ -61,14 +59,12 @@ public class TileArchiveWriter {
   private final TileArchiveMetadata tileArchiveMetadata;
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
-    PlanetilerConfig config,
-    TileArchiveMetadata tileArchiveMetadata, Stats stats, LayerStats layerStats) {
+    PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
     this.inputTiles = inputTiles;
     this.archive = archive;
     this.config = config;
     this.tileArchiveMetadata = tileArchiveMetadata;
     this.stats = stats;
-    this.layerStats = layerStats;
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);
@@ -111,8 +107,9 @@ public class TileArchiveWriter {
       readWorker = reader.readWorker();
     }
 
-    TileArchiveWriter writer = new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata, stats,
-      features.layerStats());
+    TileArchiveWriter writer =
+      new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata.withLayerStats(features.layerStats()
+        .getTileStats()), stats);
 
     var pipeline = WorkerPipeline.start("archive", stats);
 
@@ -292,7 +289,8 @@ public class TileArchiveWriter {
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
 
-    archive.initialize(config, tileArchiveMetadata, layerStats);
+    archive.initialize(config, tileArchiveMetadata);
+    var order = archive.tileOrder();
 
     TileCoord lastTile = null;
     Timer time = null;
@@ -303,8 +301,9 @@ public class TileArchiveWriter {
         TileEncodingResult encodedTile;
         while ((encodedTile = encodedTiles.poll()) != null) {
           TileCoord tileCoord = encodedTile.coord();
-          assert lastTile == null || lastTile.compareTo(tileCoord) < 0 : "Tiles out of order %s before %s"
-            .formatted(lastTile, tileCoord);
+          assert lastTile == null ||
+            order.encode(tileCoord) > order.encode(lastTile) : "Tiles out of order %s before %s"
+              .formatted(lastTile, tileCoord);
           lastTile = encodedTile.coord();
           int z = tileCoord.z();
           if (z != currentZ) {
