@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
@@ -39,9 +38,6 @@ import org.slf4j.LoggerFactory;
  * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
-
-  // generate globally-unique IDs shared by all vector tile features representing the same source feature
-  private static final AtomicLong idGenerator = new AtomicLong(0);
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
@@ -95,7 +91,6 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
-    long id = idGenerator.incrementAndGet();
     boolean hasLabelGrid = feature.hasLabelGrid();
     Coordinate[] coords = new Coordinate[origCoords.length];
     for (int i = 0; i < origCoords.length; i++) {
@@ -132,7 +127,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         TileCoord tile = entry.getKey();
         List<List<CoordinateSequence>> result = entry.getValue();
         Geometry geom = GeometryCoordinateSequences.reassemblePoints(result);
-        encodeAndEmitFeature(feature, id, attrs, tile, geom, groupInfo, 0);
+        encodeAndEmitFeature(feature, feature.getId(), attrs, tile, geom, groupInfo, 0);
         emitted++;
       }
       stats.emittedFeatures(zoom, feature.getLayer(), emitted);
@@ -173,7 +168,6 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
-    long id = idGenerator.incrementAndGet();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     String numPointsAttr = feature.getNumPointsAttr();
@@ -217,7 +211,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
         attrs = new HashMap<>(attrs);
         attrs.put(numPointsAttr, geom.getNumPoints());
       }
-      writeTileFeatures(z, id, feature, sliced, attrs);
+      writeTileFeatures(z, feature.getId(), feature, sliced, attrs);
     }
 
     stats.processedElement(area ? "polygon" : "line", feature.getLayer());
