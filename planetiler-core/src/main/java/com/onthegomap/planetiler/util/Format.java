@@ -8,6 +8,8 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 import org.apache.commons.text.StringEscapeUtils;
 import org.locationtech.jts.geom.Coordinate;
 
@@ -19,6 +21,26 @@ public class Format {
   public static final Locale DEFAULT_LOCALE = Locale.getDefault(Locale.Category.FORMAT);
 
   private static final ConcurrentMap<Locale, Format> instances = new ConcurrentHashMap<>();
+  @SuppressWarnings("java:S5164")
+  private static final NumberFormat latLonNF = NumberFormat.getNumberInstance(Locale.US);
+  private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
+    Map.entry(1_000L, "k"),
+    Map.entry(1_000_000L, "M"),
+    Map.entry(1_000_000_000L, "G"),
+    Map.entry(1_000_000_000_000L, "T"),
+    Map.entry(1_000_000_000_000_000L, "P")
+  ));
+  private static final NavigableMap<Long, String> NUMERIC_SUFFIXES = new TreeMap<>(Map.ofEntries(
+    Map.entry(1_000L, "k"),
+    Map.entry(1_000_000L, "M"),
+    Map.entry(1_000_000_000L, "B"),
+    Map.entry(1_000_000_000_000L, "T"),
+    Map.entry(1_000_000_000_000_000L, "Q")
+  ));
+
+  static {
+    latLonNF.setMaximumFractionDigits(5);
+  }
 
   // `NumberFormat` instances are not thread safe, so we need to wrap them inside a `ThreadLocal`.
   //
@@ -49,6 +71,10 @@ public class Format {
     });
   }
 
+  public static synchronized String joinCoordinates(double... items) {
+    return DoubleStream.of(items).mapToObj(latLonNF::format).collect(Collectors.joining(","));
+  }
+
   public static Format forLocale(Locale locale) {
     return instances.computeIfAbsent(locale, Format::new);
   }
@@ -56,21 +82,6 @@ public class Format {
   public static Format defaultInstance() {
     return forLocale(DEFAULT_LOCALE);
   }
-
-  private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
-    Map.entry(1_000L, "k"),
-    Map.entry(1_000_000L, "M"),
-    Map.entry(1_000_000_000L, "G"),
-    Map.entry(1_000_000_000_000L, "T"),
-    Map.entry(1_000_000_000_000_000L, "P")
-  ));
-  private static final NavigableMap<Long, String> NUMERIC_SUFFIXES = new TreeMap<>(Map.ofEntries(
-    Map.entry(1_000L, "k"),
-    Map.entry(1_000_000L, "M"),
-    Map.entry(1_000_000_000L, "B"),
-    Map.entry(1_000_000_000_000L, "T"),
-    Map.entry(1_000_000_000_000_000L, "Q")
-  ));
 
   public static String padRight(String str, int size) {
     StringBuilder strBuilder = new StringBuilder(str);
@@ -86,6 +97,23 @@ public class Format {
       strBuilder.insert(0, " ");
     }
     return strBuilder.toString();
+  }
+
+  /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
+  public static String quote(Object string) {
+    if (string == null) {
+      return "null";
+    }
+    return '"' + StringEscapeUtils.escapeJava(string.toString()) + '"';
+  }
+
+  /** Returns an openstreetmap.org map link for a lat/lon */
+  public static String osmDebugUrl(int zoom, Coordinate coord) {
+    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(
+      zoom,
+      coord.y,
+      coord.x
+    );
   }
 
   /** Returns a number of bytes formatted like "123" "1.2k" "240M", etc. */
@@ -160,22 +188,5 @@ public class Format {
       simplified = Duration.ofSeconds(Math.round(seconds));
     }
     return simplified.toString().replace("PT", "").toLowerCase(Locale.ROOT);
-  }
-
-  /** Returns Java code that can re-create {@code string}: {@code null} if null, or {@code "contents"} if not empty. */
-  public static String quote(Object string) {
-    if (string == null) {
-      return "null";
-    }
-    return '"' + StringEscapeUtils.escapeJava(string.toString()) + '"';
-  }
-
-  /** Returns an openstreetmap.org map link for a lat/lon */
-  public static String osmDebugUrl(int zoom, Coordinate coord) {
-    return "https://www.openstreetmap.org/#map=%d/%.5f/%.5f".formatted(
-      zoom,
-      coord.y,
-      coord.x
-    );
   }
 }

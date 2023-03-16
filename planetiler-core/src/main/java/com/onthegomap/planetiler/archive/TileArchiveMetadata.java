@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.archive;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+import static com.onthegomap.planetiler.util.Format.joinCoordinates;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -109,10 +110,10 @@ public record TileArchiveMetadata(
   public Map<String, String> toMap() {
     Map<String, String> result = new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
     if (bounds != null) {
-      result.put(BOUNDS, bounds.getMinX() + "," + bounds.getMinY() + "," + bounds.getMaxX() + "," + bounds.getMaxY());
+      result.put(BOUNDS, joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
     }
     if (center != null) {
-      result.put(CENTER, center.getX() + "," + center.getY());
+      result.put(CENTER, joinCoordinates(center.getX(), center.getY()));
     }
     if (vectorLayers != null) {
       try {

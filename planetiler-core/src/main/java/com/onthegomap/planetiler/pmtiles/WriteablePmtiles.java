@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.Format;
@@ -156,13 +157,17 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       jsonBytes = Gzip.gzip(jsonBytes);
 
       String formatString = tileArchiveMetadata.format();
-      var outputFormat = switch (formatString) {
-        case TileArchiveMetadata.MVT_FORMAT -> Pmtiles.TileType.MVT;
-        default -> {
-          LOGGER.warn("Unknown format: '{}'", formatString);
-          yield Pmtiles.TileType.UNKNOWN;
-        }
-      };
+      var outputFormat =
+        TileArchiveMetadata.MVT_FORMAT.equals(formatString) ? Pmtiles.TileType.MVT : Pmtiles.TileType.UNKNOWN;
+
+      var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
+      var center = tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
+      int zoom =
+        (int) (tileArchiveMetadata.zoom() == null ? Math.ceil(GeoUtils.getZoomFromLonLatBounds(bounds)) :
+          tileArchiveMetadata.zoom());
+      int minzoom = tileArchiveMetadata.minzoom() == null ? 0 : tileArchiveMetadata.minzoom();
+      int maxzoom =
+        tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();
 
       Pmtiles.Header header = new Pmtiles.Header(
         (byte) 3,
@@ -181,15 +186,15 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         Pmtiles.Compression.GZIP,
         Pmtiles.Compression.GZIP,
         outputFormat,
-        tileArchiveMetadata.minzoom().byteValue(),
-        tileArchiveMetadata.maxzoom().byteValue(),
-        (int) (tileArchiveMetadata.bounds().getMinX() * 10_000_000),
-        (int) (tileArchiveMetadata.bounds().getMinY() * 10_000_000),
-        (int) (tileArchiveMetadata.bounds().getMaxX() * 10_000_000),
-        (int) (tileArchiveMetadata.bounds().getMaxY() * 10_000_000),
-        (byte) Math.ceil(tileArchiveMetadata.zoom()),
-        (int) tileArchiveMetadata.center().x * 10_000_000,
-        (int) tileArchiveMetadata.center().y * 10_000_000
+        (byte) minzoom,
+        (byte) maxzoom,
+        (int) (bounds.getMinX() * 10_000_000),
+        (int) (bounds.getMinY() * 10_000_000),
+        (int) (bounds.getMaxX() * 10_000_000),
+        (int) (bounds.getMaxY() * 10_000_000),
+        (byte) zoom,
+        (int) center.x * 10_000_000,
+        (int) center.y * 10_000_000
       );
 
       LOGGER.info("Writing metadata and leaf directories...");

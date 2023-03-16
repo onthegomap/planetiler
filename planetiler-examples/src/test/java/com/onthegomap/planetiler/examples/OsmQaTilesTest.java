@@ -96,7 +96,7 @@ class OsmQaTilesTest {
       "mbtiles", dbPath.toString()
     ));
     try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
-      Map<String, String> metadata = mbtiles.metadata().toMap();
+      Map<String, String> metadata = mbtiles.metadataTable().getAll();
       assertEquals("osm qa", metadata.get("name"));
       assertContains("openstreetmap.org/copyright", metadata.get("attribution"));
 

@@ -249,8 +249,8 @@ class PlanetilerTests {
       "format", "pbf",
       "minzoom", "0",
       "maxzoom", "14",
-      "center", "0.0,0.0",
-      "bounds", "-180.0,-85.05113,180.0,85.05113"
+      "center", "0,0",
+      "bounds", "-180,-85.05113,180,85.05113"
     ), results.metadata);
     assertSubmap(Map.of(
       "planetiler:version", BuildInfo.get().version()

@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.mbtiles;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+import static com.onthegomap.planetiler.util.Format.joinCoordinates;
 
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,21 +28,18 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
@@ -768,16 +766,6 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   /** Data contained in the metadata table. */
   public class Metadata {
 
-    private static final NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-
-    static {
-      nf.setMaximumFractionDigits(5);
-    }
-
-    private static String join(double... items) {
-      return DoubleStream.of(items).mapToObj(nf::format).collect(Collectors.joining(","));
-    }
-
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
         String stringValue = value.toString();
@@ -825,17 +813,20 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
       setMetadata(TileArchiveMetadata.FORMAT, tileArchiveMetadata.format());
-      setMetadata(TileArchiveMetadata.CENTER, join(
-        tileArchiveMetadata.center().x,
-        tileArchiveMetadata.center().y,
-        Math.ceil(tileArchiveMetadata.zoom())
-      ));
-      setMetadata(TileArchiveMetadata.BOUNDS, join(
-        tileArchiveMetadata.bounds().getMinX(),
-        tileArchiveMetadata.bounds().getMinY(),
-        tileArchiveMetadata.bounds().getMaxX(),
-        tileArchiveMetadata.bounds().getMaxY()
-      ));
+      var center = tileArchiveMetadata.center();
+      var zoom = tileArchiveMetadata.zoom();
+      if (center != null) {
+        if (zoom != null) {
+          setMetadata(TileArchiveMetadata.CENTER, joinCoordinates(center.x, center.y, Math.ceil(zoom)));
+        } else {
+          setMetadata(TileArchiveMetadata.CENTER, joinCoordinates(center.x, center.y));
+        }
+      }
+      var bounds = tileArchiveMetadata.bounds();
+      if (bounds != null) {
+        setMetadata(TileArchiveMetadata.BOUNDS,
+          joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
+      }
       setJson(new MetadataJson(tileArchiveMetadata.vectorLayers()));
 
       map.remove(TileArchiveMetadata.FORMAT);

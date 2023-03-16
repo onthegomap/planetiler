@@ -285,8 +285,8 @@ public class Arguments {
   }
 
   protected void logArgValue(String key, String description, Object result) {
-    if (!silent) {
-      LOGGER.debug("argument: {}={} ({})", key, result, description);
+    if (!silent && LOGGER.isDebugEnabled()) {
+      LOGGER.debug("argument: {}={} ({})", key.replaceFirst("\\|.*$", ""), result, description);
     }
   }
 

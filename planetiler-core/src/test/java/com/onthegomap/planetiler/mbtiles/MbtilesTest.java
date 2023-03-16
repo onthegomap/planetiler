@@ -122,7 +122,7 @@ class MbtilesTest {
 
   @Test
   void testRoundTripMetadata() throws IOException {
-    var metadata = new TileArchiveMetadata(
+    roundTripMetadata(new TileArchiveMetadata(
       "MyName",
       "MyDescription",
       "MyAttribution",
@@ -136,7 +136,21 @@ class MbtilesTest {
       9,
       List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value")
-    );
+    ));
+  }
+
+  @Test
+  void testRoundTripMinimalMetadata() throws IOException {
+    var empty =
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of());
+    roundTripMetadata(empty);
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
+      db.createTablesWithoutIndexes();
+      assertEquals(empty, db.metadata());
+    }
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata metadata) throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTablesWithoutIndexes();
       var metadataTable = db.metadataTable();
