@@ -21,7 +21,7 @@ public record TileArchiveConfig(
 
   public Path getLocalPath() {
     System.err.println("getLocalPath uri=" + uri + " uri.path=" + uri.getPath());
-    return scheme == Scheme.FILE ? Path.of(uri.getPath()) : null;
+    return scheme == Scheme.FILE ? Path.of(URI.create(uri.toString().replaceAll("\\?.*$", ""))) : null;
   }
 
   public void delete() {
