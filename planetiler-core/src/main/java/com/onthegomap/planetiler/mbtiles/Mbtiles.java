@@ -867,28 +867,28 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
       var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
-      setMetadata(TileArchiveMetadata.FORMAT, tileArchiveMetadata.format());
+      setMetadata(TileArchiveMetadata.FORMAT_KEY, tileArchiveMetadata.format());
       var center = tileArchiveMetadata.center();
       var zoom = tileArchiveMetadata.zoom();
       if (center != null) {
         if (zoom != null) {
-          setMetadata(TileArchiveMetadata.CENTER, joinCoordinates(center.x, center.y, Math.ceil(zoom)));
+          setMetadata(TileArchiveMetadata.CENTER_KEY, joinCoordinates(center.x, center.y, Math.ceil(zoom)));
         } else {
-          setMetadata(TileArchiveMetadata.CENTER, joinCoordinates(center.x, center.y));
+          setMetadata(TileArchiveMetadata.CENTER_KEY, joinCoordinates(center.x, center.y));
         }
       }
       var bounds = tileArchiveMetadata.bounds();
       if (bounds != null) {
-        setMetadata(TileArchiveMetadata.BOUNDS,
+        setMetadata(TileArchiveMetadata.BOUNDS_KEY,
           joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
       }
       setJson(new MetadataJson(tileArchiveMetadata.vectorLayers()));
 
-      map.remove(TileArchiveMetadata.FORMAT);
-      map.remove(TileArchiveMetadata.CENTER);
-      map.remove(TileArchiveMetadata.ZOOM);
-      map.remove(TileArchiveMetadata.BOUNDS);
-      map.remove(TileArchiveMetadata.VECTOR_LAYERS);
+      map.remove(TileArchiveMetadata.FORMAT_KEY);
+      map.remove(TileArchiveMetadata.CENTER_KEY);
+      map.remove(TileArchiveMetadata.ZOOM_KEY);
+      map.remove(TileArchiveMetadata.BOUNDS_KEY);
+      map.remove(TileArchiveMetadata.VECTOR_LAYERS_KEY);
 
       for (var entry : map.entrySet()) {
         setMetadata(entry.getKey(), entry.getValue());
@@ -898,18 +898,18 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
     public TileArchiveMetadata get() {
       Map<String, String> map = new HashMap<>(getAll());
-      String[] bounds = map.containsKey(TileArchiveMetadata.BOUNDS) ?
-        map.remove(TileArchiveMetadata.BOUNDS).split(",") : null;
-      String[] center = map.containsKey(TileArchiveMetadata.CENTER) ?
-        map.remove(TileArchiveMetadata.CENTER).split(",") : null;
+      String[] bounds = map.containsKey(TileArchiveMetadata.BOUNDS_KEY) ?
+        map.remove(TileArchiveMetadata.BOUNDS_KEY).split(",") : null;
+      String[] center = map.containsKey(TileArchiveMetadata.CENTER_KEY) ?
+        map.remove(TileArchiveMetadata.CENTER_KEY).split(",") : null;
       var metadataJson = MetadataJson.fromJson(map.remove("json"));
       return new TileArchiveMetadata(
-        map.remove(TileArchiveMetadata.NAME),
-        map.remove(TileArchiveMetadata.DESCRIPTION),
-        map.remove(TileArchiveMetadata.ATTRIBUTION),
-        map.remove(TileArchiveMetadata.VERSION),
-        map.remove(TileArchiveMetadata.TYPE),
-        map.remove(TileArchiveMetadata.FORMAT),
+        map.remove(TileArchiveMetadata.NAME_KEY),
+        map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
+        map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
+        map.remove(TileArchiveMetadata.VERSION_KEY),
+        map.remove(TileArchiveMetadata.TYPE_KEY),
+        map.remove(TileArchiveMetadata.FORMAT_KEY),
         bounds == null ? null : new Envelope(
           Double.parseDouble(bounds[0]),
           Double.parseDouble(bounds[2]),
@@ -921,8 +921,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
           Double.parseDouble(center[1])
         ),
         center == null || center.length < 3 ? null : Double.parseDouble(center[2]),
-        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MINZOOM)),
-        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM)),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MINZOOM_KEY)),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM_KEY)),
         metadataJson == null ? null : metadataJson.vectorLayers,
         // any left-overs:
         map

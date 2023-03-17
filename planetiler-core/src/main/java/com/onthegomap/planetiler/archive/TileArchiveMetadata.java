@@ -23,33 +23,33 @@ import org.locationtech.jts.geom.Envelope;
 
 /** Controls information that {@link TileArchiveWriter} will write to the archive metadata. */
 public record TileArchiveMetadata(
-  @JsonProperty(NAME) String name,
-  @JsonProperty(DESCRIPTION) String description,
-  @JsonProperty(ATTRIBUTION) String attribution,
-  @JsonProperty(VERSION) String version,
-  @JsonProperty(TYPE) String type,
-  @JsonProperty(FORMAT) String format,
+  @JsonProperty(NAME_KEY) String name,
+  @JsonProperty(DESCRIPTION_KEY) String description,
+  @JsonProperty(ATTRIBUTION_KEY) String attribution,
+  @JsonProperty(VERSION_KEY) String version,
+  @JsonProperty(TYPE_KEY) String type,
+  @JsonProperty(FORMAT_KEY) String format,
   @JsonIgnore Envelope bounds,
   @JsonIgnore CoordinateXY center,
-  @JsonProperty(ZOOM) Double zoom,
-  @JsonProperty(MINZOOM) Integer minzoom,
-  @JsonProperty(MAXZOOM) Integer maxzoom,
+  @JsonProperty(ZOOM_KEY) Double zoom,
+  @JsonProperty(MINZOOM_KEY) Integer minzoom,
+  @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
   @JsonIgnore List<LayerStats.VectorLayer> vectorLayers,
   @JsonAnyGetter Map<String, String> others
 ) {
 
-  public static final String NAME = "name";
-  public static final String DESCRIPTION = "description";
-  public static final String ATTRIBUTION = "attribution";
-  public static final String VERSION = "version";
-  public static final String TYPE = "type";
-  public static final String FORMAT = "format";
-  public static final String BOUNDS = "bounds";
-  public static final String CENTER = "center";
-  public static final String ZOOM = "zoom";
-  public static final String MINZOOM = "minzoom";
-  public static final String MAXZOOM = "maxzoom";
-  public static final String VECTOR_LAYERS = "vector_layers";
+  public static final String NAME_KEY = "name";
+  public static final String DESCRIPTION_KEY = "description";
+  public static final String ATTRIBUTION_KEY = "attribution";
+  public static final String VERSION_KEY = "version";
+  public static final String TYPE_KEY = "type";
+  public static final String FORMAT_KEY = "format";
+  public static final String BOUNDS_KEY = "bounds";
+  public static final String CENTER_KEY = "center";
+  public static final String ZOOM_KEY = "zoom";
+  public static final String MINZOOM_KEY = "minzoom";
+  public static final String MAXZOOM_KEY = "maxzoom";
+  public static final String VECTOR_LAYERS_KEY = "vector_layers";
 
   public static final String MVT_FORMAT = "pbf";
 
@@ -59,12 +59,12 @@ public record TileArchiveMetadata(
 
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerStats.VectorLayer> vectorLayers) {
     this(
-      getString(config, NAME, profile.name()),
-      getString(config, DESCRIPTION, profile.description()),
-      getString(config, ATTRIBUTION, profile.attribution()),
-      getString(config, VERSION, profile.version()),
-      getString(config, TYPE, profile.isOverlay() ? "overlay" : "baselayer"),
-      getString(config, FORMAT, MVT_FORMAT),
+      getString(config, NAME_KEY, profile.name()),
+      getString(config, DESCRIPTION_KEY, profile.description()),
+      getString(config, ATTRIBUTION_KEY, profile.attribution()),
+      getString(config, VERSION_KEY, profile.version()),
+      getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
+      getString(config, FORMAT_KEY, MVT_FORMAT),
       config.bounds().latLon(),
       new CoordinateXY(config.bounds().latLon().centre()),
       GeoUtils.getZoomFromLonLatBounds(config.bounds().latLon()),
@@ -110,14 +110,14 @@ public record TileArchiveMetadata(
   public Map<String, String> toMap() {
     Map<String, String> result = new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
     if (bounds != null) {
-      result.put(BOUNDS, joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
+      result.put(BOUNDS_KEY, joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
     }
     if (center != null) {
-      result.put(CENTER, joinCoordinates(center.getX(), center.getY()));
+      result.put(CENTER_KEY, joinCoordinates(center.getX(), center.getY()));
     }
     if (vectorLayers != null) {
       try {
-        result.put(VECTOR_LAYERS, mapper.writeValueAsString(vectorLayers));
+        result.put(VECTOR_LAYERS_KEY, mapper.writeValueAsString(vectorLayers));
       } catch (JsonProcessingException e) {
         // ok
       }

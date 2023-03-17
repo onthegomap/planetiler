@@ -119,11 +119,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
       var jsonMetadata = getJsonMetadata();
       var map = new LinkedHashMap<>(jsonMetadata.otherMetadata());
       return new TileArchiveMetadata(
-        map.remove(TileArchiveMetadata.NAME),
-        map.remove(TileArchiveMetadata.DESCRIPTION),
-        map.remove(TileArchiveMetadata.ATTRIBUTION),
-        map.remove(TileArchiveMetadata.VERSION),
-        map.remove(TileArchiveMetadata.TYPE),
+        map.remove(TileArchiveMetadata.NAME_KEY),
+        map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
+        map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
+        map.remove(TileArchiveMetadata.VERSION_KEY),
+        map.remove(TileArchiveMetadata.TYPE_KEY),
         switch (header.tileType()) {
         case MVT -> TileArchiveMetadata.MVT_FORMAT;
         default -> null;

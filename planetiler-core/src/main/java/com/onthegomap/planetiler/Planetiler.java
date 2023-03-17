@@ -545,7 +545,7 @@ public class Planetiler {
    *
    * @deprecated Use {@link #setOutput(String)} instead
    */
-  @Deprecated
+  @Deprecated(forRemoval = true)
   public Planetiler setOutput(String argument, Path fallback) {
     this.output =
       TileArchiveConfig
@@ -573,7 +573,7 @@ public class Planetiler {
    *
    * @deprecated Use {@link #overwriteOutput(String)} instead
    */
-  @Deprecated
+  @Deprecated(forRemoval = true)
   public Planetiler overwriteOutput(String argument, Path fallback) {
     this.overwrite = true;
     return setOutput(argument, fallback);

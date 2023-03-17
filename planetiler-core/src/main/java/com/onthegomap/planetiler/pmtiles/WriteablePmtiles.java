@@ -149,13 +149,13 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       var otherMetadata = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
       // exclude keys included in top-level header
-      otherMetadata.remove(TileArchiveMetadata.CENTER);
-      otherMetadata.remove(TileArchiveMetadata.ZOOM);
-      otherMetadata.remove(TileArchiveMetadata.BOUNDS);
-      otherMetadata.remove(TileArchiveMetadata.FORMAT);
-      otherMetadata.remove(TileArchiveMetadata.MINZOOM);
-      otherMetadata.remove(TileArchiveMetadata.MAXZOOM);
-      otherMetadata.remove(TileArchiveMetadata.VECTOR_LAYERS);
+      otherMetadata.remove(TileArchiveMetadata.CENTER_KEY);
+      otherMetadata.remove(TileArchiveMetadata.ZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.BOUNDS_KEY);
+      otherMetadata.remove(TileArchiveMetadata.FORMAT_KEY);
+      otherMetadata.remove(TileArchiveMetadata.MINZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.MAXZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.VECTOR_LAYERS_KEY);
 
       byte[] jsonBytes =
         new Pmtiles.JsonMetadata(tileArchiveMetadata.vectorLayers(), otherMetadata).toBytes();
