@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * <li>then build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
  * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/toilets.mbtiles}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light data/toilets.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */

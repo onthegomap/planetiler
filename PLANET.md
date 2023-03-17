@@ -50,7 +50,7 @@ java -Xmx110g \
   --download-threads=10 --download-chunk-size-mb=1000 \
   `# Also download name translations from wikidata` \
   --fetch-wikidata \
-  --mbtiles=output.mbtiles \
+  --output=output.mbtiles \
   `# Store temporary node locations in memory` \
   --nodemap-type=array --storage=ram
 ```
@@ -67,7 +67,7 @@ java -Xmx20g \
   --download-threads=10 --download-chunk-size-mb=1000 \
   `# Also download name translations from wikidata` \
   --fetch-wikidata \
-  --mbtiles=output.mbtiles \
+  --output=output.mbtiles \
   `# Store temporary node locations at fixed positions in a memory-mapped file` \
   --nodemap-type=array --storage=mmap
 ```
@@ -103,7 +103,7 @@ java -Xmx100g \
   --download-threads=10 --download-chunk-size-mb=1000 \
   `# Also download name translations from wikidata` \
   --fetch-wikidata \
-  --mbtiles=output.mbtiles \
+  --output=output.mbtiles \
   --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee logs.txt
 ```
 

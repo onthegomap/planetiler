@@ -87,7 +87,7 @@ Using [Node.js](https://nodejs.org/en/download/):
 
 ```bash
 npm install -g tileserver-gl-light
-tileserver-gl-light --mbtiles data/output.mbtiles
+tileserver-gl-light data/output.mbtiles
 ```
 
 Or using [Docker](https://docs.docker.com/get-docker/):

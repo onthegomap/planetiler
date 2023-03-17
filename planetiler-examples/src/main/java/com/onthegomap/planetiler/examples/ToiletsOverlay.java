@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <li>then build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
  * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/output.mbtiles}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light data/output.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
