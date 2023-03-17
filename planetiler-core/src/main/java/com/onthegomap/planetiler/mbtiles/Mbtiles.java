@@ -217,7 +217,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void finish() {
+  public void finish(TileArchiveMetadata tileArchiveMetadata) {
     if (vacuumAnalyze) {
       vacuumAnalyze();
     }

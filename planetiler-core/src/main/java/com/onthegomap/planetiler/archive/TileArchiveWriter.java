@@ -328,7 +328,7 @@ public class TileArchiveWriter {
     }
 
 
-    archive.finish();
+    archive.finish(tileArchiveMetadata);
   }
 
   private void printTileStats() {

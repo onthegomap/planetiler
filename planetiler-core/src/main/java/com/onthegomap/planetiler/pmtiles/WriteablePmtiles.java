@@ -45,7 +45,6 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   private long currentOffset = 0;
   private long numUnhashedTiles = 0;
   private long numAddressedTiles = 0;
-  private TileArchiveMetadata tileArchiveMetadata;
   private boolean isClustered = true;
 
   private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
@@ -133,12 +132,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   @Override
-  public void initialize(TileArchiveMetadata tileArchiveMetadata) {
-    this.tileArchiveMetadata = tileArchiveMetadata;
-  }
-
-  @Override
-  public void finish() {
+  public void finish(TileArchiveMetadata tileArchiveMetadata) {
     if (!isClustered) {
       LOGGER.info("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);
