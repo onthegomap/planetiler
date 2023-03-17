@@ -20,6 +20,7 @@ public record TileArchiveConfig(
 ) {
 
   public Path getLocalPath() {
+    System.err.println("getLocalPath uri=" + uri + " uri.path=" + uri.getPath());
     return scheme == Scheme.FILE ? Path.of(uri.getPath()) : null;
   }
 
@@ -127,12 +128,15 @@ public record TileArchiveConfig(
   }
 
   public static TileArchiveConfig from(URI uri) {
+    System.err.println("original URI=" + uri);
     if (uri.getScheme() == null) {
       String base = Path.of(uri.getPath()).toAbsolutePath().toUri().normalize().toString();
       if (uri.getRawQuery() != null) {
         base += "?" + uri.getRawQuery();
       }
+      System.err.println("updated URI string=" + base);
       uri = URI.create(base);
+      System.err.println("updated URI=" + uri);
     }
     return new TileArchiveConfig(
       format(uri),
