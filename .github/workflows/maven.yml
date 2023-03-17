@@ -85,7 +85,7 @@ jobs:
       run: mv target/*with-deps.jar ./run.jar
       working-directory: planetiler-examples
     - name: Run
-      run: java -jar run.jar --osm-path=../planetiler-core/src/test/resources/monaco-latest.osm.pbf --mbtiles=data/out.mbtiles
+      run: java -jar run.jar --osm-path=../planetiler-core/src/test/resources/monaco-latest.osm.pbf --output=data/out.mbtiles
       working-directory: planetiler-examples
     - name: Verify
       run: java -cp run.jar com.onthegomap.planetiler.mbtiles.Verify data/out.mbtiles

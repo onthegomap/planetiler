@@ -98,7 +98,7 @@ class BikeRouteOverlayTest {
       // Override temp dir location
       "tmp", tmpDir.toString(),
       // Override output location
-      "mbtiles", dbPath.toString()
+      "output", dbPath.toString()
     ));
     try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(dbPath)) {
       Map<String, String> metadata = mbtiles.metadataTable().getAll();
