@@ -217,17 +217,19 @@ public class FileUtils {
    */
   public static void createParentDirectories(Path... paths) {
     for (var path : paths) {
-      try {
-        if (Files.isDirectory(path) && !Files.exists(path)) {
-          Files.createDirectories(path);
-        } else {
-          Path parent = path.getParent();
-          if (parent != null && !Files.exists(parent)) {
-            Files.createDirectories(parent);
+      if (path != null) {
+        try {
+          if (Files.isDirectory(path) && !Files.exists(path)) {
+            Files.createDirectories(path);
+          } else {
+            Path parent = path.getParent();
+            if (parent != null && !Files.exists(parent)) {
+              Files.createDirectories(parent);
+            }
           }
+        } catch (IOException e) {
+          throw new IllegalStateException("Unable to create parent directories " + path, e);
         }
-      } catch (IOException e) {
-        throw new IllegalStateException("Unable to create parent directories " + path, e);
       }
     }
   }

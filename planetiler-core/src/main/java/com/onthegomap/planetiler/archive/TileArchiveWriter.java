@@ -12,7 +12,6 @@ import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
-import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.worker.WorkQueue;
@@ -84,7 +83,7 @@ public class TileArchiveWriter {
   }
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
-  public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
+  public static void writeOutput(FeatureGroup features, WriteableTileArchive output, LongSupplier fileSize,
     TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 
@@ -151,7 +150,7 @@ public class TileArchiveWriter {
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
       .addFileSize(features)
       .addRateCounter("tiles", writer::tilesEmitted)
-      .addFileSize(fileSize)
+      .addFileSize(fileSize::getAsLong)
       .newLine()
       .addProcessStats()
       .newLine();

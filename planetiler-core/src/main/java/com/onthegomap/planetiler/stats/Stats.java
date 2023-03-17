@@ -43,15 +43,17 @@ public interface Stats extends AutoCloseable {
    */
   default void printSummary() {
     Format format = Format.defaultInstance();
-    Logger LOGGER = LoggerFactory.getLogger(getClass());
-    LOGGER.info("");
-    LOGGER.info("-".repeat(40));
-    timers().printSummary();
-    LOGGER.info("-".repeat(40));
-    for (var entry : monitoredFiles().entrySet()) {
-      long size = FileUtils.size(entry.getValue());
-      if (size > 0) {
-        LOGGER.info("\t" + entry.getKey() + "\t" + format.storage(size, false) + "B");
+    Logger logger = LoggerFactory.getLogger(getClass());
+    if (logger.isInfoEnabled()) {
+      logger.info("");
+      logger.info("-".repeat(40));
+      timers().printSummary();
+      logger.info("-".repeat(40));
+      for (var entry : monitoredFiles().entrySet()) {
+        long size = FileUtils.size(entry.getValue());
+        if (size > 0) {
+          logger.info("\t{}\t{}B", entry.getKey(), format.storage(size, false));
+        }
       }
     }
   }
@@ -110,7 +112,9 @@ public interface Stats extends AutoCloseable {
 
   /** Adds a stat that will track the size of a file or directory located at {@code path}. */
   default void monitorFile(String name, Path path) {
-    monitoredFiles().put(name, path);
+    if (path != null) {
+      monitoredFiles().put(name, path);
+    }
   }
 
   /** Adds a stat that will track the estimated in-memory size of {@code object}. */

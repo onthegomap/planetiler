@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
 import com.onthegomap.planetiler.archive.TileArchives;
@@ -85,7 +86,7 @@ public class Planetiler {
   private final PlanetilerConfig config;
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
-  private Path output;
+  private TileArchiveConfig output;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -550,7 +551,11 @@ public class Planetiler {
    * @see TileArchiveWriter
    */
   public Planetiler setOutput(String argument, Path fallback) {
-    this.output = arguments.file(argument, "output tile archive", fallback);
+    return setOutput(argument, fallback.toString());
+  }
+
+  public Planetiler setOutput(String argument, String fallback) {
+    this.output = TileArchiveConfig.from(arguments.getString(argument, "output tile archive", fallback));
     return this;
   }
 
@@ -606,8 +611,8 @@ public class Planetiler {
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (overwrite || config.force()) {
-      FileUtils.deleteFile(output);
-    } else if (Files.exists(output)) {
+      output.delete();
+    } else if (output.exists()) {
       throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
     }
 
@@ -634,7 +639,7 @@ public class Planetiler {
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
     Files.createDirectories(tmpDir);
-    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output);
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalPath());
 
     if (!toDownload.isEmpty()) {
       download();
@@ -668,7 +673,7 @@ public class Planetiler {
       stats.monitorFile("nodes", nodeDbPath);
       stats.monitorFile("features", featureDbPath);
       stats.monitorFile("multipolygons", multipolygonPath);
-      stats.monitorFile("archive", output);
+      stats.monitorFile("archive", output.getLocalPath());
 
       for (Stage stage : stages) {
         stage.task.run();
@@ -685,7 +690,7 @@ public class Planetiler {
 
       featureGroup.prepare();
 
-      TileArchiveWriter.writeOutput(featureGroup, archive, () -> FileUtils.fileSize(output), tileArchiveMetadata,
+      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata,
         config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
@@ -715,7 +720,7 @@ public class Planetiler {
     readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
-    writePhase.addDisk(output, outputSize, "archive output");
+    writePhase.addDisk(output.getLocalPath(), outputSize, "archive output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {
