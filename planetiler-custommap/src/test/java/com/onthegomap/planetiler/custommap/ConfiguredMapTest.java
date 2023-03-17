@@ -47,7 +47,7 @@ class ConfiguredMapTest {
       "--tmp=" + tmpDir,
 
       // Override output location
-      "--mbtiles=" + dbPath
+      "--output=" + dbPath
     );
     mbtiles = Mbtiles.newReadOnlyDatabase(dbPath);
   }
