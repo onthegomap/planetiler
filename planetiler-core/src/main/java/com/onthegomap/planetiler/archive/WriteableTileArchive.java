@@ -39,7 +39,7 @@ public interface WriteableTileArchive extends Closeable {
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any
    * required state here.
    */
-  void initialize(PlanetilerConfig config, TileArchiveMetadata metadata);
+  void initialize(TileArchiveMetadata metadata);
 
   /**
    * Implementations should return a object that implements {@link TileWriter} The specific TileWriter returned might
@@ -51,7 +51,7 @@ public interface WriteableTileArchive extends Closeable {
    * Called after all tiles are written into {@link TileWriter}. After this is called, the archive should be complete on
    * disk.
    */
-  void finish(PlanetilerConfig config);
+  void finish();
 
   // TODO update archive metadata
 }

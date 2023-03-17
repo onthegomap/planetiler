@@ -12,6 +12,7 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -46,7 +48,7 @@ public class Arguments {
     UnaryOperator<String> forward, UnaryOperator<String> reverse) {
     Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
       String reversed = reverse.apply(key);
-      return key.equalsIgnoreCase(reversed) ? Stream.empty() : Stream.of(reversed);
+      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
     }).toList();
     return new Arguments(key -> provider.apply(forward.apply(key)), keys);
   }
@@ -65,8 +67,8 @@ public class Arguments {
 
   static Arguments fromJvmProperties(UnaryOperator<String> getter, Supplier<? extends Collection<String>> keys) {
     return from(getter, keys,
-      key -> "planetiler." + key.toLowerCase(Locale.ROOT),
-      key -> key.replaceFirst("^planetiler\\.", "").toLowerCase(Locale.ROOT)
+      key -> "planetiler." + normalize(key, "."),
+      key -> normalize(key.replaceFirst("^planetiler\\.", ""), "-")
     );
   }
 
@@ -84,8 +86,8 @@ public class Arguments {
 
   static Arguments fromEnvironment(UnaryOperator<String> getter, Supplier<Set<String>> keys) {
     return from(getter, keys,
-      key -> "PLANETILER_" + key.toUpperCase(Locale.ROOT),
-      key -> key.replaceFirst("^PLANETILER_", "").toLowerCase(Locale.ROOT)
+      key -> normalize("PLANETILER_" + key, "_").toUpperCase(Locale.ROOT),
+      key -> normalize(key.replaceFirst("^PLANETILER_", ""))
     );
   }
 
@@ -191,8 +193,20 @@ public class Arguments {
       .orElse(fromEnvironment());
   }
 
+  private static String normalize(String key, String separator) {
+    return key.toLowerCase(Locale.ROOT).replaceAll("[._-]", separator);
+  }
+
+  private static String normalize(String key) {
+    return normalize(key, "-");
+  }
+
   public static Arguments of(Map<String, String> map) {
-    return new Arguments(map::get, map::keySet);
+    Map<String, String> updated = new LinkedHashMap<>();
+    for (var entry : map.entrySet()) {
+      updated.put(normalize(entry.getKey()), entry.getValue());
+    }
+    return new Arguments(updated::get, updated::keySet);
   }
 
   /** Shorthand for {@link #of(Map)} which constructs the map from a list of key/value pairs. */
@@ -209,13 +223,7 @@ public class Arguments {
     String value = null;
     for (int i = 0; i < options.length; i++) {
       String option = options[i].strip();
-      value = provider.apply(option);
-      if (value == null) {
-        value = provider.apply(option.replace('-', '_'));
-        if (value == null) {
-          value = provider.apply(option.replace('_', '-'));
-        }
-      }
+      value = provider.apply(normalize(option));
       if (value != null) {
         if (i != 0) {
           LOGGER.warn("Argument '{}' is deprecated, please switch to '{}'", option, options[0]);
@@ -476,6 +484,17 @@ public class Arguments {
     return result;
   }
 
+  /**
+   * Same as {@link #toMap()} except maps all keys to use {@code separator} as a separator.
+   */
+  public Map<String, String> toMap(String separator) {
+    Map<String, String> result = new HashMap<>();
+    for (var key : keys.get()) {
+      result.put(normalize(key, separator), get(key));
+    }
+    return result;
+  }
+
   /** Returns a copy of this {@code Arguments} instance that logs each extracted argument value exactly once. */
   public Arguments withExactlyOnceLogging() {
     Multiset<String> logged = HashMultiset.create();
@@ -494,5 +513,19 @@ public class Arguments {
 
   public boolean silenced() {
     return silent;
+  }
+
+  public Arguments copy() {
+    return new Arguments(provider, keys);
+  }
+
+  /**
+   * Returns a new arguments instance that translates requests for a {@code "key"} to {@code "prefix_key"}.
+   */
+  public Arguments withPrefix(String prefix) {
+    return from(provider, keys,
+      key -> normalize(prefix + "-" + key),
+      key -> normalize(key.replaceFirst("^" + Pattern.quote(prefix) + "[-_.]?", ""))
+    );
   }
 }

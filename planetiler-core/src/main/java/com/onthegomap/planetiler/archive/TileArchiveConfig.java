@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.archive;
 
 import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -34,6 +35,10 @@ public record TileArchiveConfig(
 
   public long size() {
     return getLocalPath() == null ? 0 : FileUtils.size(getLocalPath());
+  }
+
+  public Arguments applyFallbacks(Arguments arguments) {
+    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
   }
 
   public enum Format {

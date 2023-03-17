@@ -89,7 +89,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
    * @throws IOException if compression fails
    */
-  protected static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
+  static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
     int maxEntriesRootOnly = 16384;
     int attemptNum = 1;
     if (entries.size() < maxEntriesRootOnly) {
@@ -128,12 +128,12 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata) {
+  public void initialize(TileArchiveMetadata tileArchiveMetadata) {
     this.tileArchiveMetadata = tileArchiveMetadata;
   }
 
   @Override
-  public void finish(PlanetilerConfig configx) {
+  public void finish() {
     if (!isClustered) {
       LOGGER.info("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);

@@ -12,7 +12,7 @@ import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.OptionalLong;
-import java.util.Properties;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -54,7 +53,10 @@ import org.sqlite.SQLiteConfig;
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
 public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
+
   public static final String COMPACT_DB = "compact";
+  public static final String SKIP_INDEX_CREATION = "no_index";
+  public static final String VACUUM_ANALYZE = "vacuum_analyze";
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
@@ -95,23 +97,38 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   private final Connection connection;
   private final boolean compactDb;
+  private final boolean skipIndexCreation;
+  private final boolean vacuumAnalyze;
   private PreparedStatement getTileStatement = null;
 
-  private Mbtiles(Connection connection, boolean compactDb) {
+  private Mbtiles(Connection connection, Arguments arguments) {
     this.connection = connection;
-    this.compactDb = compactDb;
+    this.compactDb = arguments.getBoolean(
+      COMPACT_DB,
+      "mbtiles: reduce the DB size by separating and deduping the tile data",
+      true
+    );
+    this.skipIndexCreation = arguments.getBoolean(
+      SKIP_INDEX_CREATION,
+      "mbtiles: skip adding index to sqlite DB",
+      false
+    );
+    this.vacuumAnalyze = arguments.getBoolean(
+      VACUUM_ANALYZE,
+      "mbtiles: vacuum analyze sqlite DB after writing",
+      false
+    );
   }
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
   public static Mbtiles newInMemoryDatabase(boolean compactDb) {
-    return newInMemoryDatabase(Map.of(COMPACT_DB, compactDb ? "true" : "false"));
+    return newInMemoryDatabase(Arguments.of(COMPACT_DB, compactDb ? "true" : "false"));
   }
 
-  public static Mbtiles newInMemoryDatabase(Map<String, String> options) {
+  public static Mbtiles newInMemoryDatabase(Arguments options) {
     SQLiteConfig config = new SQLiteConfig();
     config.setApplicationId(MBTILES_APPLICATION_ID);
-    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options),
-      Parse.bool(options.get(COMPACT_DB)));
+    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options);
   }
 
   /** @see {@link #newInMemoryDatabase(boolean)} */
@@ -119,15 +136,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newInMemoryDatabase(true);
   }
 
-  public static Mbtiles newWriteToFileDatabase(Path path, boolean compactDb) {
-    return newWriteToFileDatabase(
-      path,
-      Map.of(COMPACT_DB, compactDb ? "true" : "false")
-    );
-  }
-
   /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
-  public static Mbtiles newWriteToFileDatabase(Path path, Map<String, String> options) {
+  public static Mbtiles newWriteToFileDatabase(Path path, Arguments options) {
+    Objects.requireNonNull(path);
     SQLiteConfig sqliteConfig = new SQLiteConfig();
     sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.OFF);
     sqliteConfig.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
@@ -136,16 +147,17 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
     sqliteConfig.setApplicationId(MBTILES_APPLICATION_ID);
     var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
-    return new Mbtiles(connection, Parse.bool(options.get(COMPACT_DB)));
+    return new Mbtiles(connection, options);
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
   public static Mbtiles newReadOnlyDatabase(Path path) {
-    return newReadOnlyDatabase(path, Map.of());
+    return newReadOnlyDatabase(path, Arguments.of());
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
-  public static Mbtiles newReadOnlyDatabase(Path path, Map<String, String> options) {
+  public static Mbtiles newReadOnlyDatabase(Path path, Arguments options) {
+    Objects.requireNonNull(path);
     SQLiteConfig config = new SQLiteConfig();
     config.setReadOnly(true);
     config.setCacheSize(100_000);
@@ -154,17 +166,21 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     // helps with 3 or more threads concurrently accessing:
     // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
     Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, options);
-    return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
+    return new Mbtiles(connection, options);
   }
 
-  private static Connection newConnection(String url, SQLiteConfig defaults, Map<String, String> options) {
+  private static Connection newConnection(String url, SQLiteConfig defaults, Arguments args) {
     try {
-      options = new LinkedHashMap<>(options);
-      options.remove(COMPACT_DB);
-      var properties = new Properties();
-      properties.putAll(defaults.toProperties());
-      properties.putAll(options);
-      return DriverManager.getConnection(url, properties);
+      args = args.copy().silence();
+      var config = new SQLiteConfig(defaults.toProperties());
+      for (var pragma : SQLiteConfig.Pragma.values()) {
+        var value = args.getString(pragma.getPragmaName(), pragma.getPragmaName(), null);
+        if (value != null) {
+          LOGGER.info("Setting custom mbtiles sqlite pragma {}={}", pragma.getPragmaName(), value);
+          config.setPragma(pragma, value);
+        }
+      }
+      return DriverManager.getConnection(url, config.toProperties());
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + url, throwables);
     }
@@ -176,8 +192,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata) {
-    if (config.skipIndexCreation()) {
+  public void initialize(TileArchiveMetadata tileArchiveMetadata) {
+    if (skipIndexCreation) {
       createTablesWithoutIndexes();
       if (LOGGER.isInfoEnabled()) {
         LOGGER.info("Skipping index creation. Add later by executing: {}",
@@ -191,8 +207,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void finish(PlanetilerConfig config) {
-    if (config.optimizeDb()) {
+  public void finish() {
+    if (vacuumAnalyze) {
       vacuumAnalyze();
     }
   }
@@ -394,6 +410,14 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return connection;
   }
 
+  public boolean skipIndexCreation() {
+    return skipIndexCreation;
+  }
+
+  public boolean compactDb() {
+    return compactDb;
+  }
+
   /**
    * Data contained in the {@code json} row of the metadata table
    *
@@ -472,6 +496,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   /** Contents of a row of the tiles_data table. */
   private record TileDataEntry(int tileDataId, byte[] tileData) {
+
     @Override
     public String toString() {
       return "TileDataEntry [tileDataId=" + tileDataId + ", tileData=" + Arrays.toString(tileData) + "]";
@@ -500,6 +525,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   /** Iterates through tile coordinates one at a time without materializing the entire list in memory. */
   private class TileCoordIterator implements CloseableIterator<TileCoord> {
+
     private final Statement statement;
     private final ResultSet rs;
     private boolean hasNext = false;

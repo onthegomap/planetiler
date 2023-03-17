@@ -142,13 +142,13 @@ class PlanetilerTests {
     FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.arguments())) {
       TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config),
         config,
         stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
-      int tileDataCount = config.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
+      int tileDataCount = db.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
       return new PlanetilerResults(tileMap, db.metadata().toMap(), tileDataCount);
     }
   }

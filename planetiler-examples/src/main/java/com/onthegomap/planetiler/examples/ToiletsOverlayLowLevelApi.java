@@ -4,13 +4,14 @@ import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileArchives;
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileOrder;
-import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.Stats;
@@ -112,7 +113,7 @@ public class ToiletsOverlayLowLevelApi {
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.
-    try (Mbtiles db = Mbtiles.newWriteToFileDatabase(output, config.compactDb())) {
+    try (WriteableTileArchive db = TileArchives.newWriter(output, config)) {
       TileArchiveWriter.writeOutput(featureGroup, db, () -> FileUtils.fileSize(output), tileArchiveMetadata, config,
         stats);
     } catch (IOException e) {

@@ -7,10 +7,12 @@ import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.IOException;
 import java.math.RoundingMode;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -33,9 +36,12 @@ class MbtilesTest {
   private static final int TILES_DATA_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 2;
 
 
-  private static void testWriteTiles(int howMany, boolean skipIndexCreation, boolean optimize, boolean compactDb)
-    throws IOException, SQLException {
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase(Map.of("compact", Boolean.toString(compactDb)))) {
+  private static void testWriteTiles(Path path, int howMany, boolean skipIndexCreation, boolean optimize,
+    boolean compactDb) throws IOException, SQLException {
+    var options = Arguments.of("compact", Boolean.toString(compactDb));
+    try (
+      Mbtiles db = path == null ? Mbtiles.newInMemoryDatabase(options) : Mbtiles.newWriteToFileDatabase(path, options)
+    ) {
       if (skipIndexCreation) {
         db.createTablesWithoutIndexes();
       } else {
@@ -82,24 +88,42 @@ class MbtilesTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 1, TILES_BATCH, TILES_BATCH + 1, 2 * TILES_BATCH, 2 * TILES_BATCH + 1})
   void testWriteTilesDifferentSizeInNonCompactMode(int howMany) throws IOException, SQLException {
-    testWriteTiles(howMany, false, false, false);
+    testWriteTiles(null, howMany, false, false, false);
   }
 
   @ParameterizedTest
   @ValueSource(ints = {0, 1, TILES_DATA_BATCH, TILES_DATA_BATCH + 1, 2 * TILES_DATA_BATCH, 2 * TILES_DATA_BATCH + 1,
     TILES_SHALLOW_BATCH, TILES_SHALLOW_BATCH + 1, 2 * TILES_SHALLOW_BATCH, 2 * TILES_SHALLOW_BATCH + 1})
   void testWriteTilesDifferentSizeInCompactMode(int howMany) throws IOException, SQLException {
-    testWriteTiles(howMany, false, false, true);
+    testWriteTiles(null, howMany, false, false, true);
   }
 
   @Test
   void testSkipIndexCreation() throws IOException, SQLException {
-    testWriteTiles(10, true, false, false);
+    testWriteTiles(null, 10, true, false, false);
   }
 
   @Test
   void testVacuumAnalyze() throws IOException, SQLException {
-    testWriteTiles(10, false, true, false);
+    testWriteTiles(null, 10, false, true, false);
+  }
+
+  @Test
+  void testWriteToFile(@TempDir Path tmpDir) throws IOException, SQLException {
+    testWriteTiles(tmpDir.resolve("archive.mbtiles"), 10, false, false, true);
+  }
+
+  @Test
+  void testCustomPragma() throws IOException, SQLException {
+    try (
+      Mbtiles db = Mbtiles.newInMemoryDatabase(Arguments.of(
+        "cache-size", "123",
+        "garbage", "456"
+      ));
+    ) {
+      int result = db.connection().createStatement().executeQuery("pragma cache_size").getInt(1);
+      assertEquals(123, result);
+    }
   }
 
   @ParameterizedTest

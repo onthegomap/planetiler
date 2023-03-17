@@ -227,7 +227,6 @@ public class TileArchiveWriter {
     byte[] lastBytes = null, lastEncoded = null;
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
-    boolean compactDb = config.compactDb();
     boolean skipFilled = config.skipFilledTiles();
 
     for (TileBatch batch : prev) {
@@ -261,7 +260,7 @@ public class TileArchiveWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (compactDb && en.likelyToBeDuplicated() && bytes != null) {
+          if (en.likelyToBeDuplicated() && bytes != null) {
             tileDataHash = generateContentHash(bytes);
           } else {
             tileDataHash = null;
@@ -288,7 +287,7 @@ public class TileArchiveWriter {
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
 
-    archive.initialize(config, tileArchiveMetadata);
+    archive.initialize(tileArchiveMetadata);
     var order = archive.tileOrder();
 
     TileCoord lastTile = null;
@@ -329,7 +328,7 @@ public class TileArchiveWriter {
     }
 
 
-    archive.finish(config);
+    archive.finish();
   }
 
   private void printTileStats() {
