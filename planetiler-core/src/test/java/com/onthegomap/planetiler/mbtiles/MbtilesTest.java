@@ -33,11 +33,9 @@ class MbtilesTest {
   private static final int TILES_DATA_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 2;
 
 
-  private static final
-
-    void testWriteTiles(int howMany, boolean skipIndexCreation, boolean optimize, boolean compactDb)
-      throws IOException, SQLException {
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
+  private static void testWriteTiles(int howMany, boolean skipIndexCreation, boolean optimize, boolean compactDb)
+    throws IOException, SQLException {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(Map.of("compact", Boolean.toString(compactDb)))) {
       if (skipIndexCreation) {
         db.createTablesWithoutIndexes();
       } else {

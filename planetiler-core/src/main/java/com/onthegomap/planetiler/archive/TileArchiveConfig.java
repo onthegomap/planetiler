@@ -98,7 +98,7 @@ public record TileArchiveConfig(
         var split = part.split("=", 2);
         result.put(
           URLDecoder.decode(split[0], StandardCharsets.UTF_8),
-          split.length == 1 ? "" : URLDecoder.decode(split[1], StandardCharsets.UTF_8)
+          split.length == 1 ? "true" : URLDecoder.decode(split[1], StandardCharsets.UTF_8)
         );
       }
     }

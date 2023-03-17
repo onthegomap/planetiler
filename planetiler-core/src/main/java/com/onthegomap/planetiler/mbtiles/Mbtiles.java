@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.OptionalLong;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -53,6 +54,7 @@ import org.sqlite.SQLiteConfig;
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
 public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
+  public static final String COMPACT_DB = "compact";
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
@@ -102,13 +104,14 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
   public static Mbtiles newInMemoryDatabase(boolean compactDb) {
-    try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:", config.toProperties()), compactDb);
-    } catch (SQLException throwables) {
-      throw new IllegalStateException("Unable to create in-memory database", throwables);
-    }
+    return newInMemoryDatabase(Map.of(COMPACT_DB, compactDb ? "true" : "false"));
+  }
+
+  public static Mbtiles newInMemoryDatabase(Map<String, String> options) {
+    SQLiteConfig config = new SQLiteConfig();
+    config.setApplicationId(MBTILES_APPLICATION_ID);
+    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options),
+      Parse.bool(options.get(COMPACT_DB)));
   }
 
   /** @see {@link #newInMemoryDatabase(boolean)} */
@@ -116,38 +119,54 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newInMemoryDatabase(true);
   }
 
-  /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
   public static Mbtiles newWriteToFileDatabase(Path path, boolean compactDb) {
-    try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setJournalMode(SQLiteConfig.JournalMode.OFF);
-      config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
-      config.setCacheSize(1_000_000); // 1GB
-      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
-      config.setTempStore(SQLiteConfig.TempStore.MEMORY);
-      config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()),
-        compactDb);
-    } catch (SQLException throwables) {
-      throw new IllegalArgumentException("Unable to open " + path, throwables);
-    }
+    return newWriteToFileDatabase(
+      path,
+      Map.of(COMPACT_DB, compactDb ? "true" : "false")
+    );
+  }
+
+  /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
+  public static Mbtiles newWriteToFileDatabase(Path path, Map<String, String> options) {
+    SQLiteConfig sqliteConfig = new SQLiteConfig();
+    sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.OFF);
+    sqliteConfig.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
+    sqliteConfig.setCacheSize(1_000_000); // 1GB
+    sqliteConfig.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+    sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
+    sqliteConfig.setApplicationId(MBTILES_APPLICATION_ID);
+    var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
+    return new Mbtiles(connection, Parse.bool(options.get(COMPACT_DB)));
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
   public static Mbtiles newReadOnlyDatabase(Path path) {
+    return newReadOnlyDatabase(path, Map.of());
+  }
+
+  /** Returns a new connection to an mbtiles file optimized for reads. */
+  public static Mbtiles newReadOnlyDatabase(Path path, Map<String, String> options) {
+    SQLiteConfig config = new SQLiteConfig();
+    config.setReadOnly(true);
+    config.setCacheSize(100_000);
+    config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+    config.setPageSize(32_768);
+    // helps with 3 or more threads concurrently accessing:
+    // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
+    Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, options);
+    return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
+  }
+
+  private static Connection newConnection(String url, SQLiteConfig defaults, Map<String, String> options) {
     try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setReadOnly(true);
-      config.setCacheSize(100_000);
-      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
-      config.setPageSize(32_768);
-      // helps with 3 or more threads concurrently accessing:
-      // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
-      Connection connection = DriverManager
-        .getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties());
-      return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
+      options = new LinkedHashMap<>(options);
+      options.remove(COMPACT_DB);
+      var properties = new Properties();
+      properties.putAll(defaults.toProperties());
+      properties.putAll(options);
+      return DriverManager.getConnection(url, properties);
     } catch (SQLException throwables) {
-      throw new IllegalArgumentException("Unable to open " + path, throwables);
+      throw new IllegalArgumentException("Unable to open " + url, throwables);
     }
   }
 
