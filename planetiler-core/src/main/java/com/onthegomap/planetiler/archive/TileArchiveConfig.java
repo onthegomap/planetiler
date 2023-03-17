@@ -20,7 +20,6 @@ public record TileArchiveConfig(
 ) {
 
   public Path getLocalPath() {
-    System.err.println("getLocalPath uri=" + uri + " uri.path=" + uri.getPath());
     return scheme == Scheme.FILE ? Path.of(URI.create(uri.toString().replaceAll("\\?.*$", ""))) : null;
   }
 
@@ -72,6 +71,14 @@ public record TileArchiveConfig(
   }
 
   public static TileArchiveConfig from(String string) {
+    // unix paths parse fine as URIs, but need to explicitly parse windows paths with backslashes
+    if (string.contains("\\")) {
+      String[] parts = string.split("\\?", 2);
+      string = Path.of(parts[0]).toUri().toString();
+      if (parts.length > 1) {
+        string += "?" + parts[1];
+      }
+    }
     return from(URI.create(string));
   }
 
@@ -128,15 +135,12 @@ public record TileArchiveConfig(
   }
 
   public static TileArchiveConfig from(URI uri) {
-    System.err.println("original URI=" + uri);
     if (uri.getScheme() == null) {
       String base = Path.of(uri.getPath()).toAbsolutePath().toUri().normalize().toString();
       if (uri.getRawQuery() != null) {
         base += "?" + uri.getRawQuery();
       }
-      System.err.println("updated URI string=" + base);
       uri = URI.create(base);
-      System.err.println("updated URI=" + uri);
     }
     return new TileArchiveConfig(
       format(uri),
