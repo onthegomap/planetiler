@@ -334,4 +334,19 @@ class ArgumentsTest {
     ), args.toMap());
     assertEquals("value1", args.getArg("key1"));
   }
+
+  @Test
+  void testSubset() {
+    var args = Arguments.of(Map.of(
+      "key_1", "val_1",
+      "key-2", "val_2",
+      "key-3", "val_3"
+    )).subset("key-1", "key-2");
+    assertEquals(Map.of(
+      "key-1", "val_1",
+      "key-2", "val_2"
+    ), args.toMap());
+    assertEquals("val_1", args.getArg("key-1"));
+    assertNull(args.getArg("key-3"));
+  }
 }

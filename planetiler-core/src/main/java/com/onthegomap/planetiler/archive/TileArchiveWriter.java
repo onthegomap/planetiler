@@ -260,7 +260,7 @@ public class TileArchiveWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (en.likelyToBeDuplicated() && bytes != null) {
+          if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
             tileDataHash = generateContentHash(bytes);
           } else {
             tileDataHash = null;

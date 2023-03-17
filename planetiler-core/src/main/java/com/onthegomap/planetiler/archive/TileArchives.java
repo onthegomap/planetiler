@@ -22,7 +22,10 @@ public class TileArchives {
     throws IOException {
     var options = archive.applyFallbacks(config.arguments());
     return switch (archive.format()) {
-      case MBTILES -> Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options);
+      case MBTILES ->
+        // pass-through legacy arguments for fallback
+        Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options.orElse(config.arguments()
+          .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
       case PMTILES -> WriteablePmtiles.newWriteToFile(archive.getLocalPath());
     };
   }

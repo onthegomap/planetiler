@@ -58,6 +58,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   public static final String SKIP_INDEX_CREATION = "no_index";
   public static final String VACUUM_ANALYZE = "vacuum_analyze";
 
+  public static final String LEGACY_COMPACT_DB = "compact_db";
+  public static final String LEGACY_SKIP_INDEX_CREATION = "skip_mbtiles_index_creation";
+  public static final String LEGACY_VACUUM_ANALYZE = "optimize_db";
+
+
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
 
@@ -104,17 +109,17 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   private Mbtiles(Connection connection, Arguments arguments) {
     this.connection = connection;
     this.compactDb = arguments.getBoolean(
-      COMPACT_DB,
+      COMPACT_DB + "|" + LEGACY_COMPACT_DB,
       "mbtiles: reduce the DB size by separating and deduping the tile data",
       true
     );
     this.skipIndexCreation = arguments.getBoolean(
-      SKIP_INDEX_CREATION,
+      SKIP_INDEX_CREATION + "|" + LEGACY_SKIP_INDEX_CREATION,
       "mbtiles: skip adding index to sqlite DB",
       false
     );
     this.vacuumAnalyze = arguments.getBoolean(
-      VACUUM_ANALYZE,
+      VACUUM_ANALYZE + "|" + LEGACY_VACUUM_ANALYZE,
       "mbtiles: vacuum analyze sqlite DB after writing",
       false
     );
@@ -184,6 +189,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + url, throwables);
     }
+  }
+
+  @Override
+  public boolean deduplicates() {
+    return compactDb;
   }
 
   @Override

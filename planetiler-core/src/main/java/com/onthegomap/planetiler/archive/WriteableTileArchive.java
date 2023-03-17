@@ -14,21 +14,12 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public interface WriteableTileArchive extends Closeable {
 
-  interface TileWriter extends Closeable {
-
-    void write(TileEncodingResult encodingResult);
-
-    // TODO: exists for compatibility reasons
-    default void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
-    }
-
-    @Override
-    void close();
-
-    default void printStats() {}
-  }
-
+  /**
+   * Returns true if this tile archive deduplicates tiles with the same content.
+   * <p>
+   * If false, then {@link TileWriter} will skip computing tile hashes.
+   */
+  boolean deduplicates();
 
   /**
    * Specify the preferred insertion order for this archive, e.g. {@link TileOrder#TMS} or {@link TileOrder#HILBERT}.
@@ -52,6 +43,21 @@ public interface WriteableTileArchive extends Closeable {
    * disk.
    */
   void finish();
+
+  interface TileWriter extends Closeable {
+
+    void write(TileEncodingResult encodingResult);
+
+    // TODO: exists for compatibility reasons
+    default void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
+      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
+    }
+
+    @Override
+    void close();
+
+    default void printStats() {}
+  }
 
   // TODO update archive metadata
 }

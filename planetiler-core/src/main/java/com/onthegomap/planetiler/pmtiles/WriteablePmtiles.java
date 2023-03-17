@@ -123,6 +123,11 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   @Override
+  public boolean deduplicates() {
+    return true;
+  }
+
+  @Override
   public TileOrder tileOrder() {
     return TileOrder.HILBERT;
   }

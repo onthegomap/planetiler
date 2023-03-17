@@ -12,6 +12,7 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -226,7 +227,7 @@ public class Arguments {
       value = provider.apply(normalize(option));
       if (value != null) {
         if (i != 0) {
-          LOGGER.warn("Argument '{}' is deprecated, please switch to '{}'", option, options[0]);
+          LOGGER.warn("Argument '{}' is deprecated", option);
         }
         break;
       }
@@ -526,6 +527,17 @@ public class Arguments {
     return from(provider, keys,
       key -> normalize(prefix + "-" + key),
       key -> normalize(key.replaceFirst("^" + Pattern.quote(prefix) + "[-_.]?", ""))
+    );
+  }
+
+  public Arguments subset(String... allowedKeys) {
+    Set<String> allowed = new HashSet<>();
+    for (String key : allowedKeys) {
+      allowed.add(normalize(key));
+    }
+    return new Arguments(
+      key -> allowed.contains(normalize(key)) ? provider.apply(key) : null,
+      () -> keys.get().stream().filter(key -> allowed.contains(normalize(key))).toList()
     );
   }
 }

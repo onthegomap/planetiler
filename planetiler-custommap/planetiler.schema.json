@@ -138,28 +138,6 @@
         "render_maxzoom": {
           "description": "Maximum rendering zoom level up to"
         },
-        "skip_mbtiles_index_creation": {
-          "description": "Skip adding index to mbtiles file",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
-        "optimize_db": {
-          "description": "Vacuum analyze mbtiles file after writing",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
         "force": {
           "description": "Overwriting output file and ignore warnings",
           "anyOf": [
@@ -293,17 +271,6 @@
         },
         "simplify_tolerance": {
           "description": "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level"
-        },
-        "compact_db": {
-          "description": "Reduce the DB size by separating and deduping the tile data",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
         },
         "skip_filled_tiles": {
           "description": "Skip writing tiles containing only polygon fills to the output",

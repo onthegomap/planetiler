@@ -541,37 +541,57 @@ public class Planetiler {
   }
 
   /**
-   * Sets the location of the output archive to write rendered tiles to. Fails if the archive already exists.
-   * <p>
-   * To override the location of the file, set {@code argument=newpath} in the arguments.
+   * Sets the location of the output archive to write rendered tiles to.
    *
-   * @param argument the argument key to check for an override to {@code fallback}
-   * @param fallback the fallback value if {@code argument} is not set in arguments
-   * @return this runner instance for chaining
-   * @see TileArchiveWriter
+   * @deprecated Use {@link #setOutput(String)} instead
    */
+  @Deprecated
   public Planetiler setOutput(String argument, Path fallback) {
-    return setOutput(argument, fallback.toString());
-  }
-
-  public Planetiler setOutput(String argument, String fallback) {
-    this.output = TileArchiveConfig.from(arguments.getString(argument, "output tile archive", fallback));
+    this.output =
+      TileArchiveConfig
+        .from(arguments.getString("output|" + argument, "output tile archive path", fallback.toString()));
     return this;
   }
 
   /**
-   * Sets the location of the output archive to write rendered tiles to. Overwrites file if it already exists.
+   * Sets the location of the output archive to write rendered tiles to. Fails if the archive already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments. To set options for the output
+   * drive add {@code output.mbtiles?arg=value} or add command-line argument {@code mbtiles_arg=value}.
    *
-   * @param argument the argument key to check for an override to {@code fallback}
-   * @param fallback the fallback value if {@code argument} is not set in arguments
+   * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see TileArchiveWriter
+   * @see TileArchiveConfig For details on URI strings
    */
+  public Planetiler setOutput(String defaultOutputUri) {
+    this.output = TileArchiveConfig.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
+    return this;
+  }
+
+  /**
+   * Sets the location of the output archive to write rendered tiles to.
+   *
+   * @deprecated Use {@link #overwriteOutput(String)} instead
+   */
+  @Deprecated
   public Planetiler overwriteOutput(String argument, Path fallback) {
     this.overwrite = true;
     return setOutput(argument, fallback);
+  }
+
+  /**
+   * Sets the location of the output archive to write rendered tiles to. Overwrites if the archive already exists.
+   * <p>
+   * To override the location of the file, set {@code argument=newpath} in the arguments. To set options for the output
+   * drive add {@code output.mbtiles?arg=value} or add command-line argument {@code mbtiles_arg=value}.
+   *
+   * @param defaultOutputUri The default output URI string to write to.
+   * @return this runner instance for chaining
+   * @see TileArchiveConfig For details on URI strings
+   */
+  public Planetiler overwriteOutput(String defaultOutputUri) {
+    this.overwrite = true;
+    return setOutput(defaultOutputUri);
   }
 
   /**
@@ -613,10 +633,10 @@ public class Planetiler {
     } else if (overwrite || config.force()) {
       output.delete();
     } else if (output.exists()) {
-      throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
+      throw new IllegalArgumentException(output.uri() + " already exists, use the --force argument to overwrite.");
     }
 
-    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output);
+    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
 
     if (!toDownload.isEmpty()) {
       LOGGER.info("  download: Download sources {}", toDownload.stream().map(d -> d.id).toList());

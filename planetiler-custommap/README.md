@@ -144,6 +144,7 @@ to regenerate:
 
 cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.properties | to_entries[] | "- `" + .key + "` - " + .value.description' | pbcopy
 -->
+
 - `threads` - Default number of threads to use.
 - `write_threads` - Default number of threads to use when writing temp features
 - `process_threads` - Default number of threads to use when processing input features
@@ -151,8 +152,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `minzoom` - Minimum tile zoom level to emit
 - `maxzoom` - Maximum tile zoom level to emit
 - `render_maxzoom` - Maximum rendering zoom level up to
-- `skip_mbtiles_index_creation` - Skip adding index to mbtiles file
-- `optimize_db` - Vacuum analyze mbtiles file after writing
 - `force` - Overwriting output file and ignore warnings
 - `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files
@@ -175,7 +174,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
   maximum zoom level to allow for overzooming
 - `simplify_tolerance` - Default value for the tile pixel tolerance to use when simplifying features below the maximum
   zoom level
-- `compact_db` - Reduce the DB size by separating and deduping the tile data
 - `skip_filled_tiles` - Skip writing tiles containing only polygon fills to the output
 - `tile_warning_size_mb` - Maximum size in megabytes of a tile to emit a warning about
 
@@ -442,7 +440,7 @@ nested, so each child context can also access the variables from its parent.
 >> ##### process feature context
 >>
 >> Context available when processing an input feature, for example testing whether to include it from `include_when`.
->> Available variables:
+> > Available variables:
 >>
 >> - `feature.tags` - map with key/value tags from the input feature
 >> - `feature.id` - numeric ID of the input feature
@@ -459,7 +457,7 @@ nested, so each child context can also access the variables from its parent.
 >>>> ##### configure attribute context
 >>>>
 >>>> Context available after the value of an attribute has been computed, for example: set min zoom to render an
->>>> attribute. Adds variables:
+> > > > attribute. Adds variables:
 >>>>
 >>>> - `value` the value that was computed for this key
 
