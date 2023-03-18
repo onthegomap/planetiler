@@ -54,6 +54,8 @@ import org.sqlite.SQLiteConfig;
  */
 public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
 
+  // Options that can be set through "file.mbtiles?compact=true" query parameters
+  // or "file.mbtiles" with "--mbtiles-compact=true" command-line flag
   public static final String COMPACT_DB = "compact";
   public static final String SKIP_INDEX_CREATION = "no_index";
   public static final String VACUUM_ANALYZE = "vacuum_analyze";
@@ -130,18 +132,22 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newInMemoryDatabase(Arguments.of(COMPACT_DB, compactDb ? "true" : "false"));
   }
 
+  /** Returns an in-memory database with extra mbtiles and pragma options set from {@code options}. */
   public static Mbtiles newInMemoryDatabase(Arguments options) {
     SQLiteConfig config = new SQLiteConfig();
     config.setApplicationId(MBTILES_APPLICATION_ID);
     return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options);
   }
 
-  /** @see {@link #newInMemoryDatabase(boolean)} */
+  /** Alias for {@link #newInMemoryDatabase(boolean)} */
   public static Mbtiles newInMemoryDatabase() {
     return newInMemoryDatabase(true);
   }
 
-  /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
+  /**
+   * Returns a new connection to an mbtiles file optimized for fast bulk writes with extra mbtiles and pragma options
+   * set from {@code options}.
+   */
   public static Mbtiles newWriteToFileDatabase(Path path, Arguments options) {
     Objects.requireNonNull(path);
     SQLiteConfig sqliteConfig = new SQLiteConfig();
@@ -160,7 +166,10 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newReadOnlyDatabase(path, Arguments.of());
   }
 
-  /** Returns a new connection to an mbtiles file optimized for reads. */
+  /**
+   * Returns a new connection to an mbtiles file optimized for reads with extra mbtiles and pragma options set from
+   * {@code options}.
+   */
   public static Mbtiles newReadOnlyDatabase(Path path, Arguments options) {
     Objects.requireNonNull(path);
     SQLiteConfig config = new SQLiteConfig();
@@ -610,7 +619,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       insertStmtTableName = tableName;
       insertStmtInsertIgnore = insertIgnore;
       insertStmtValuesPlaceHolder = columns.stream().map(c -> "?").collect(Collectors.joining(",", "(", ")"));
-      insertStmtColumnsCsv = columns.stream().collect(Collectors.joining(","));
+      insertStmtColumnsCsv = String.join(",", columns);
       batchStatement = createBatchInsertPreparedStatement(batchLimit);
     }
 
@@ -821,6 +830,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   /** Data contained in the metadata table. */
   public class Metadata {
 
+    /** Inserts a row into the metadata table that sets {@code name=value}. */
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
         String stringValue = value.toString();
@@ -842,10 +852,15 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       return this;
     }
 
+    /**
+     * Inserts a row into the metadata table that sets the value for {@code "json"} key to {@code value} serialized as a
+     * string.
+     */
     public Metadata setJson(MetadataJson value) {
       return value == null ? this : setMetadata("json", value.toJson());
     }
 
+    /** Returns all key-value pairs from the metadata table. */
     public Map<String, String> getAll() {
       TreeMap<String, String> result = new TreeMap<>();
       try (Statement statement = connection.createStatement()) {
@@ -864,6 +879,14 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       return result;
     }
 
+    /**
+     * Inserts rows into the metadata table that set all of the well-known metadata keys from
+     * {@code tileArchiveMetadata} and passes through the raw values of any options not explicitly called out in the
+     * MBTiles specification.
+     *
+     * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBTiles 1.3
+     *      specification</a>
+     */
     public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
       var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
@@ -896,6 +919,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       return this;
     }
 
+    /**
+     * Returns a {@link TileArchiveMetadata} instance parsed from all the rows in the metadata table.
+     */
     public TileArchiveMetadata get() {
       Map<String, String> map = new HashMap<>(getAll());
       String[] bounds = map.containsKey(TileArchiveMetadata.BOUNDS_KEY) ?
@@ -910,13 +936,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         map.remove(TileArchiveMetadata.VERSION_KEY),
         map.remove(TileArchiveMetadata.TYPE_KEY),
         map.remove(TileArchiveMetadata.FORMAT_KEY),
-        bounds == null ? null : new Envelope(
+        bounds == null || bounds.length < 4 ? null : new Envelope(
           Double.parseDouble(bounds[0]),
           Double.parseDouble(bounds[2]),
           Double.parseDouble(bounds[1]),
           Double.parseDouble(bounds[3])
         ),
-        center == null ? null : new CoordinateXY(
+        center == null || center.length < 2 ? null : new CoordinateXY(
           Double.parseDouble(center[0]),
           Double.parseDouble(center[1])
         ),

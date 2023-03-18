@@ -31,6 +31,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Lightweight abstraction over ways to provide key/value pair arguments to a program like jvm properties, environmental
  * variables, or a config file.
+ * <p>
+ * When looking up a key, tries to find a case-and-separator-insensitive match, for example {@code "CONFIG_OPTION"} will
+ * match {@code "config-option"} and {@code "config_option"}.
+ * <p>
+ * If you replace an option with a new value, you can read a value from the new option and fall back to old one by using
+ * {@code "new_flag|old_flag"} as the key.
  */
 public class Arguments {
 
@@ -203,6 +209,25 @@ public class Arguments {
       map.put(args[i].toString(), args[i + 1].toString());
     }
     return of(map);
+  }
+
+  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
+    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
+    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
+      String reversed = reverse.apply(key);
+      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
+    }).toList();
+    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
+  }
+
+  private static Arguments fromPrefixed(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys,
+    String prefix, String separator, boolean uppperCase) {
+    var prefixRegex = Pattern.compile("^" + Pattern.quote(normalize(prefix + separator, separator, uppperCase)),
+      Pattern.CASE_INSENSITIVE);
+    return from(provider, keys,
+      key -> normalize(prefix + separator + key, separator, uppperCase),
+      key -> normalize(prefixRegex.matcher(key).replaceFirst(""))
+    );
   }
 
   private String get(String key) {
@@ -502,25 +527,7 @@ public class Arguments {
     return fromPrefixed(provider, keys, prefix, "_", false);
   }
 
-  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
-    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
-    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
-      String reversed = reverse.apply(key);
-      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
-    }).toList();
-    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
-  }
-
-  private static Arguments fromPrefixed(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys,
-    String prefix, String separator, boolean uppperCase) {
-    var prefixRegex = Pattern.compile("^" + Pattern.quote(normalize(prefix + separator, separator, uppperCase)),
-      Pattern.CASE_INSENSITIVE);
-    return from(provider, keys,
-      key -> normalize(prefix + separator + key, separator, uppperCase),
-      key -> normalize(prefixRegex.matcher(key).replaceFirst(""))
-    );
-  }
-
+  /** Returns a view of this instance, that only supports requests for {@code allowedKeys}. */
   public Arguments subset(String... allowedKeys) {
     Set<String> allowed = new HashSet<>();
     for (String key : allowedKeys) {
