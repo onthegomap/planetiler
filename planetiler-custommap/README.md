@@ -151,8 +151,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `minzoom` - Minimum tile zoom level to emit
 - `maxzoom` - Maximum tile zoom level to emit
 - `render_maxzoom` - Maximum rendering zoom level up to
-- `skip_mbtiles_index_creation` - Skip adding index to mbtiles file
-- `optimize_db` - Vacuum analyze mbtiles file after writing
 - `force` - Overwriting output file and ignore warnings
 - `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files
@@ -175,7 +173,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
   maximum zoom level to allow for overzooming
 - `simplify_tolerance` - Default value for the tile pixel tolerance to use when simplifying features below the maximum
   zoom level
-- `compact_db` - Reduce the DB size by separating and deduping the tile data
 - `skip_filled_tiles` - Skip writing tiles containing only polygon fills to the output
 - `tile_warning_size_mb` - Maximum size in megabytes of a tile to emit a warning about
 

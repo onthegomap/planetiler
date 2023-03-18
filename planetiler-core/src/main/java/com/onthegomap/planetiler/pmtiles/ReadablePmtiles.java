@@ -1,13 +1,19 @@
 package com.onthegomap.planetiler.pmtiles;
 
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -20,6 +26,10 @@ public class ReadablePmtiles implements ReadableTileArchive {
     this.channel = channel;
 
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
+  }
+
+  public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
+    return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
   }
 
   private synchronized byte[] getBytes(long start, int length) throws IOException {
@@ -101,6 +111,34 @@ public class ReadablePmtiles implements ReadableTileArchive {
       buf = Gzip.gunzip(buf);
     }
     return Pmtiles.JsonMetadata.fromBytes(buf);
+  }
+
+  @Override
+  public TileArchiveMetadata metadata() {
+    try {
+      var jsonMetadata = getJsonMetadata();
+      var map = new LinkedHashMap<>(jsonMetadata.otherMetadata());
+      return new TileArchiveMetadata(
+        map.remove(TileArchiveMetadata.NAME_KEY),
+        map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
+        map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
+        map.remove(TileArchiveMetadata.VERSION_KEY),
+        map.remove(TileArchiveMetadata.TYPE_KEY),
+        switch (header.tileType()) {
+        case MVT -> TileArchiveMetadata.MVT_FORMAT;
+        default -> null;
+        },
+        header.bounds(),
+        header.center(),
+        (double) header.centerZoom(),
+        (int) header.minZoom(),
+        (int) header.maxZoom(),
+        jsonMetadata.vectorLayers(),
+        map
+      );
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   private static class TileCoordIterator implements CloseableIterator<TileCoord> {

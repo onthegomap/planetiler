@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 
 public class Pmtiles {
   public enum Compression {
@@ -201,6 +203,22 @@ public class Pmtiles {
         throw new FileFormatException("Failed to read enough bytes for PMTiles header.");
       }
     }
+
+    public Envelope bounds() {
+      return new Envelope(
+        minLonE7 / 1e7,
+        maxLonE7 / 1e7,
+        minLatE7 / 1e7,
+        maxLatE7 / 1e7
+      );
+    }
+
+    public CoordinateXY center() {
+      return new CoordinateXY(
+        centerLonE7 / 1e7,
+        centerLatE7 / 1e7
+      );
+    }
   }
 
   public static final class Entry implements Comparable<Entry> {
@@ -366,7 +384,7 @@ public class Pmtiles {
       try {
         return objectMapper.readValue(bytes, JsonMetadata.class);
       } catch (IOException e) {
-        throw new IllegalStateException("Invalid metadata json: " + bytes, e);
+        throw new IllegalStateException("Invalid metadata json: " + new String(bytes, StandardCharsets.UTF_8), e);
       }
     }
   }

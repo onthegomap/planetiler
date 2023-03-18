@@ -15,15 +15,16 @@ import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 
 class PmtilesTest {
 
@@ -181,11 +182,12 @@ class PmtilesTest {
     var in = WriteablePmtiles.newWriteToMemory(bytes);
 
     var config = PlanetilerConfig.defaults();
-    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
+    in.initialize(metadata);
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
-    in.finish(config);
+    in.finish(metadata);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
     assertEquals(1, header.numAddressedTiles());
@@ -200,28 +202,59 @@ class PmtilesTest {
   }
 
   @Test
-  void testWritePmtilesToFileWithMetadata(@TempDir Path tempDir) throws IOException {
+  void testRoundtripMetadata() throws IOException {
+    roundTripMetadata(new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value")
+    ));
+  }
 
-    try (var in = WriteablePmtiles.newWriteToFile(tempDir.resolve("tmp.pmtiles"))) {
-      var config = PlanetilerConfig.defaults();
-      in.initialize(config,
-        new TileArchiveMetadata("MyName", "MyDescription", "MyAttribution", "MyVersion", "baselayer", new HashMap<>()),
-        new LayerStats());
+  @Test
+  void testRoundtripMetadataMinimal() throws IOException {
+    roundTripMetadata(
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of()),
+      new TileArchiveMetadata(null, null, null, null, null, null,
+        new Envelope(-180, 180, -85.0511287, 85.0511287),
+        new CoordinateXY(0, 0),
+        0d,
+        0,
+        15,
+        null,
+        Map.of()
+      )
+    );
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata metadata) throws IOException {
+    roundTripMetadata(metadata, metadata);
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata input, TileArchiveMetadata output) throws IOException {
+    try (
+      var channel = new SeekableInMemoryByteChannel(0);
+      var in = WriteablePmtiles.newWriteToMemory(channel)
+    ) {
+      in.initialize(input);
       var writer = in.newTileWriter();
       writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
-      in.finish(config);
+      in.finish(input);
+      var reader = new ReadablePmtiles(channel);
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+
+      assertEquals(output, reader.metadata());
     }
-
-    var reader = new ReadablePmtiles(FileChannel.open(tempDir.resolve("tmp.pmtiles")));
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
-
-    var metadata = reader.getJsonMetadata();
-    assertEquals("MyName", metadata.otherMetadata().get("name"));
-    assertEquals("MyDescription", metadata.otherMetadata().get("description"));
-    assertEquals("MyAttribution", metadata.otherMetadata().get("attribution"));
-    assertEquals("MyVersion", metadata.otherMetadata().get("version"));
-    assertEquals("baselayer", metadata.otherMetadata().get("type"));
   }
 
   @Test
@@ -250,13 +283,14 @@ class PmtilesTest {
     var in = WriteablePmtiles.newWriteToMemory(bytes);
 
     var config = PlanetilerConfig.defaults();
-    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
+    in.initialize(metadata);
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
-    in.finish(config);
+    in.finish(metadata);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
     assertEquals(3, header.numAddressedTiles());
@@ -276,12 +310,13 @@ class PmtilesTest {
     var in = WriteablePmtiles.newWriteToMemory(bytes);
 
     var config = PlanetilerConfig.defaults();
-    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
+    in.initialize(metadata);
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
-    in.finish(config);
+    in.finish(metadata);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
     assertEquals(2, header.numAddressedTiles());
@@ -301,7 +336,8 @@ class PmtilesTest {
     var in = WriteablePmtiles.newWriteToMemory(bytes);
 
     var config = PlanetilerConfig.defaults();
-    in.initialize(config, new TileArchiveMetadata(new Profile.NullProfile()), new LayerStats());
+    var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
+    in.initialize(metadata);
     var writer = in.newTileWriter();
 
     int ENTRIES = 20000;
@@ -311,7 +347,7 @@ class PmtilesTest {
         OptionalLong.empty()));
     }
 
-    in.finish(config);
+    in.finish(metadata);
     var reader = new ReadablePmtiles(bytes);
     var header = reader.getHeader();
     assertEquals(ENTRIES, header.numAddressedTiles());

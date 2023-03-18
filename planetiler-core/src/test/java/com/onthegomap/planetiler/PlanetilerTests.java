@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SimpleReader;
 import com.onthegomap.planetiler.reader.SourceFeature;
@@ -141,14 +142,14 @@ class PlanetilerTests {
     FeatureGroup featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
     runner.run(featureGroup, profile, config);
     featureGroup.prepare();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.compactDb())) {
-      TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config.arguments()),
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.arguments())) {
+      TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config),
         config,
         stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
-      int tileDataCount = config.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
-      return new PlanetilerResults(tileMap, db.metadata().getAll(), tileDataCount);
+      int tileDataCount = db.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
+      return new PlanetilerResults(tileMap, db.metadata().toMap(), tileDataCount);
     }
   }
 
@@ -248,20 +249,15 @@ class PlanetilerTests {
       "format", "pbf",
       "minzoom", "0",
       "maxzoom", "14",
-      "center", "0,0,0",
+      "center", "0,0",
       "bounds", "-180,-85.05113,180,85.05113"
     ), results.metadata);
     assertSubmap(Map.of(
       "planetiler:version", BuildInfo.get().version()
     ), results.metadata);
     assertSameJson(
-      """
-        {
-          "vector_layers": [
-          ]
-        }
-        """,
-      results.metadata.get("json")
+      "[]",
+      results.metadata.get("vector_layers")
     );
   }
 
@@ -269,11 +265,11 @@ class PlanetilerTests {
   void testOverrideMetadata() throws Exception {
     var results = runWithReaderFeatures(
       Map.of(
-        "mbtiles_name", "override_name",
-        "mbtiles_description", "override_description",
-        "mbtiles_attribution", "override_attribution",
-        "mbtiles_version", "override_version",
-        "mbtiles_type", "override_type"
+        "archive_name", "override_name",
+        "archive_description", "override_description",
+        "archive_attribution", "override_attribution",
+        "archive_version", "override_version",
+        "archive_type", "override_type"
       ),
       List.of(),
       (sourceFeature, features) -> {
@@ -331,13 +327,11 @@ class PlanetilerTests {
     ), results.tiles);
     assertSameJson(
       """
-        {
-          "vector_layers": [
-            {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 15}
-          ]
-        }
+        [
+          {"id": "layer", "fields": {"name": "String", "attr": "String"}, "minzoom": 13, "maxzoom": 15}
+        ]
         """,
-      results.metadata.get("json")
+      results.metadata.get("vector_layers")
     );
   }
 
@@ -1686,13 +1680,14 @@ class PlanetilerTests {
   @ValueSource(strings = {
     "",
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
-    "--emit-tiles-in-order=false",
     "--free-osm-after-read",
     "--osm-parse-node-bounds",
+    "--output-format=pmtiles"
   })
   void testPlanetilerRunner(String args) throws Exception {
+    boolean pmtiles = args.contains("pmtiles");
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
-    Path mbtiles = tempDir.resolve("output.mbtiles");
+    Path output = tempDir.resolve(pmtiles ? "output.pmtiles" : "output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
@@ -1710,7 +1705,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .setOutput("mbtiles", mbtiles)
+      .setOutput(output)
       .run();
 
     // make sure it got deleted after write
@@ -1718,7 +1713,9 @@ class PlanetilerTests {
       assertFalse(Files.exists(tempOsm));
     }
 
-    try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
+    try (
+      var db = pmtiles ? ReadablePmtiles.newReadFromFile(output) : Mbtiles.newReadOnlyDatabase(output)
+    ) {
       int features = 0;
       var tileMap = TestUtils.getTileMap(db);
       for (var tile : tileMap.values()) {
@@ -1735,7 +1732,7 @@ class PlanetilerTests {
         "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",
         "planetiler:osm:osmosisreplicationseq", "2947",
         "planetiler:osm:osmosisreplicationurl", "http://download.geofabrik.de/europe/monaco-updates"
-      ), db.metadata().getAll());
+      ), db.metadata().toMap());
     }
   }
 
@@ -1760,7 +1757,7 @@ class PlanetilerTests {
       .addShapefileGlobSource("shapefile-glob-zip", resourceDir.resolve("shapefile.zip"), "*.shp")
       // Match *.shp within shapefile.zip
       .addShapefileSource("shapefile", resourceDir.resolve("shapefile.zip"))
-      .setOutput("mbtiles", mbtiles)
+      .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
@@ -1806,7 +1803,7 @@ class PlanetilerTests {
         }
       })
       .addGeoPackageSource("geopackage", TestUtils.pathToResource(inputFile), null)
-      .setOutput("mbtiles", mbtiles)
+      .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
@@ -1834,7 +1831,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
+      .setOutput(tempDir.resolve("output.mbtiles"))
       .run();
   }
 
@@ -1909,9 +1906,8 @@ class PlanetilerTests {
 
 
   private PlanetilerResults runForCompactTest(boolean compactDbEnabled) throws Exception {
-
     return runWithReaderFeatures(
-      Map.of("threads", "1", "compact-db", Boolean.toString(compactDbEnabled)),
+      Map.of("threads", "1", "mbtiles-compact", Boolean.toString(compactDbEnabled)),
       List.of(
         newReaderFeature(WORLD_POLYGON, Map.of())
       ),

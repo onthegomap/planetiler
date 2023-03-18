@@ -47,7 +47,7 @@ class ConfiguredMapTest {
       "--tmp=" + tmpDir,
 
       // Override output location
-      "--mbtiles=" + dbPath
+      "--output=" + dbPath
     );
     mbtiles = Mbtiles.newReadOnlyDatabase(dbPath);
   }
@@ -59,7 +59,7 @@ class ConfiguredMapTest {
 
   @Test
   void testMetadata() {
-    Map<String, String> metadata = mbtiles.metadata().getAll();
+    Map<String, String> metadata = mbtiles.metadataTable().getAll();
     assertEquals("OWG Simple Schema", metadata.get("name"));
     assertEquals("0", metadata.get("minzoom"));
     assertEquals("14", metadata.get("maxzoom"));

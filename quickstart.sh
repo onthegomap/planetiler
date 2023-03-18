@@ -102,9 +102,10 @@ if [ "$DRY_RUN" == "true" ]; then
 fi
 
 function run() {
-  echo "$ $*"
+  command="${*//&/\&}"
+  echo "$ $command"
   if [ "$DRY_RUN" != "true" ]; then
-    eval "$*"
+    eval "$command"
   fi
 }
 

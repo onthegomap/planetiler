@@ -10,7 +10,7 @@ import java.nio.file.Path;
 
 /**
  * Main driver to create maps configured by a YAML file.
- *
+ * <p>
  * Parses the config file into a {@link ConfiguredProfile}, loads sources into {@link Planetiler} runner and kicks off
  * the map generation process.
  */
@@ -54,7 +54,7 @@ public class ConfiguredMapMain {
       configureSource(planetiler, sourcesDir, source);
     }
 
-    planetiler.overwriteOutput("mbtiles", Path.of("data", "output.mbtiles")).run();
+    planetiler.overwriteOutput(Path.of("data", "output.mbtiles")).run();
   }
 
   private static void configureSource(Planetiler planetiler, Path sourcesDir, Source source) {

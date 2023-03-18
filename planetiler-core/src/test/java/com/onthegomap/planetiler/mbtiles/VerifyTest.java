@@ -45,7 +45,7 @@ class VerifyTest {
   @Test
   void testValidWithNameAndOneTile() throws IOException {
     mbtiles.createTablesWithIndexes();
-    mbtiles.metadata().setName("name");
+    mbtiles.metadataTable().setMetadata("name", "name");
     try (var writer = mbtiles.newTileWriter()) {
       VectorTile tile = new VectorTile();
       tile.addLayerFeatures("layer", List.of(new VectorTile.Feature(
@@ -62,7 +62,7 @@ class VerifyTest {
   @Test
   void testInvalidGeometry() throws IOException {
     mbtiles.createTablesWithIndexes();
-    mbtiles.metadata().setName("name");
+    mbtiles.metadataTable().setMetadata("name", "name");
     try (var writer = mbtiles.newTileWriter()) {
       VectorTile tile = new VectorTile();
       tile.addLayerFeatures("layer", List.of(new VectorTile.Feature(

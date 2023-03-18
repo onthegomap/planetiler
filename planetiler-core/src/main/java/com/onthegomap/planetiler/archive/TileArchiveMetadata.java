@@ -1,42 +1,90 @@
 package com.onthegomap.planetiler.archive;
 
-import com.onthegomap.planetiler.Profile;
-import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.util.BuildInfo;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+import static com.onthegomap.planetiler.util.Format.joinCoordinates;
 
-/** Controls information that {@link TileArchiveWriter} will write to the archive metadata. */
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.LayerStats;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Metadata associated with a tile archive. */
 public record TileArchiveMetadata(
-  String name,
-  String description,
-  String attribution,
-  String version,
-  String type,
-  Map<String, String> planetilerSpecific
+  @JsonProperty(NAME_KEY) String name,
+  @JsonProperty(DESCRIPTION_KEY) String description,
+  @JsonProperty(ATTRIBUTION_KEY) String attribution,
+  @JsonProperty(VERSION_KEY) String version,
+  @JsonProperty(TYPE_KEY) String type,
+  @JsonProperty(FORMAT_KEY) String format,
+  @JsonIgnore Envelope bounds,
+  @JsonIgnore CoordinateXY center,
+  @JsonProperty(ZOOM_KEY) Double zoom,
+  @JsonProperty(MINZOOM_KEY) Integer minzoom,
+  @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
+  @JsonIgnore List<LayerStats.VectorLayer> vectorLayers,
+  @JsonAnyGetter Map<String, String> others
 ) {
 
-  public TileArchiveMetadata(Profile profile) {
+  public static final String NAME_KEY = "name";
+  public static final String DESCRIPTION_KEY = "description";
+  public static final String ATTRIBUTION_KEY = "attribution";
+  public static final String VERSION_KEY = "version";
+  public static final String TYPE_KEY = "type";
+  public static final String FORMAT_KEY = "format";
+  public static final String BOUNDS_KEY = "bounds";
+  public static final String CENTER_KEY = "center";
+  public static final String ZOOM_KEY = "zoom";
+  public static final String MINZOOM_KEY = "minzoom";
+  public static final String MAXZOOM_KEY = "maxzoom";
+  public static final String VECTOR_LAYERS_KEY = "vector_layers";
+
+  public static final String MVT_FORMAT = "pbf";
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveMetadata.class);
+  private static final ObjectMapper mapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
+
+  public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
+    this(profile, config, null);
+  }
+
+  public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerStats.VectorLayer> vectorLayers) {
     this(
-      profile.name(),
-      profile.description(),
-      profile.attribution(),
-      profile.version(),
-      profile.isOverlay() ? "overlay" : "baselayer",
+      getString(config, NAME_KEY, profile.name()),
+      getString(config, DESCRIPTION_KEY, profile.description()),
+      getString(config, ATTRIBUTION_KEY, profile.attribution()),
+      getString(config, VERSION_KEY, profile.version()),
+      getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
+      getString(config, FORMAT_KEY, MVT_FORMAT),
+      config.bounds().latLon(),
+      new CoordinateXY(config.bounds().latLon().centre()),
+      GeoUtils.getZoomFromLonLatBounds(config.bounds().latLon()),
+      config.minzoom(),
+      config.maxzoom(),
+      vectorLayers,
       mapWithBuildInfo()
     );
   }
 
-  public TileArchiveMetadata(Profile profile, Arguments args) {
-    this(
-      args.getString("mbtiles_name", "'name' attribute for tileset metadata", profile.name()),
-      args.getString("mbtiles_description", "'description' attribute for tileset metadata", profile.description()),
-      args.getString("mbtiles_attribution", "'attribution' attribute for tileset metadata", profile.attribution()),
-      args.getString("mbtiles_version", "'version' attribute for tileset metadata", profile.version()),
-      args.getString("mbtiles_type", "'type' attribute for tileset metadata",
-        profile.isOverlay() ? "overlay" : "baselayer"),
-      mapWithBuildInfo()
-    );
+  private static String getString(PlanetilerConfig config, String key, String fallback) {
+    return config.arguments()
+      .getString("archive_" + key + "|mbtiles_" + key, "'" + key + "' attribute for tileset metadata", fallback);
   }
 
   private static Map<String, String> mapWithBuildInfo() {
@@ -56,20 +104,39 @@ public record TileArchiveMetadata(
     return result;
   }
 
-  public TileArchiveMetadata set(String key, Object value) {
+  /** Sets an extra metadata entry in {@link #others}. */
+  public TileArchiveMetadata setExtraMetadata(String key, Object value) {
     if (key != null && value != null) {
-      planetilerSpecific.put(key, value.toString());
+      others.put(key, value.toString());
     }
     return this;
   }
 
-  public Map<String, String> getAll() {
-    var allKvs = new LinkedHashMap<String, String>(planetilerSpecific);
-    allKvs.put("name", this.name);
-    allKvs.put("description", this.description);
-    allKvs.put("attribution", this.attribution);
-    allKvs.put("version", this.version);
-    allKvs.put("type", this.type);
-    return allKvs;
+  /**
+   * Returns a map with all key-value pairs from this metadata entry, including {@link #others} hoisted to top-level
+   * keys.
+   */
+  public Map<String, String> toMap() {
+    Map<String, String> result = new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
+    if (bounds != null) {
+      result.put(BOUNDS_KEY, joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
+    }
+    if (center != null) {
+      result.put(CENTER_KEY, joinCoordinates(center.getX(), center.getY()));
+    }
+    if (vectorLayers != null) {
+      try {
+        result.put(VECTOR_LAYERS_KEY, mapper.writeValueAsString(vectorLayers));
+      } catch (JsonProcessingException e) {
+        LOGGER.warn("Error encoding vector_layers as json", e);
+      }
+    }
+    return result;
+  }
+
+  /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
+  public TileArchiveMetadata withLayerStats(List<LayerStats.VectorLayer> layerStats) {
+    return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
+      maxzoom, layerStats, others);
   }
 }

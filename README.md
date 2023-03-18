@@ -8,9 +8,10 @@ or database.
 
 Vector tiles contain raw point, line, and polygon geometries that clients like [MapLibre](https://github.com/maplibre)
 can use to render custom maps in the browser, native apps, or on a server. Planetiler packages tiles into
-an [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md) (sqlite) file that can be served using
-tools like [TileServer GL](https://github.com/maptiler/tileserver-gl) or even
-[queried directly from the browser](https://github.com/phiresky/sql.js-httpvfs).
+an [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md) (sqlite)
+or [PMTiles](https://github.com/protomaps/PMTiles) file that can be served using tools
+like [TileServer GL](https://github.com/maptiler/tileserver-gl) or [Martin](https://github.com/maplibre/martin) or
+even [queried directly from the browser](https://github.com/protomaps/PMTiles/tree/main/js).
 See [awesome-vector-tiles](https://github.com/mapbox/awesome-vector-tiles) for more projects that work with data in this
 format.
 
@@ -87,7 +88,7 @@ Using [Node.js](https://nodejs.org/en/download/):
 
 ```bash
 npm install -g tileserver-gl-light
-tileserver-gl-light --mbtiles data/output.mbtiles
+tileserver-gl-light data/output.mbtiles
 ```
 
 Or using [Docker](https://docs.docker.com/get-docker/):
@@ -100,6 +101,8 @@ Then open http://localhost:8080 to view tiles.
 
 Some common arguments:
 
+- `--output` tells planetiler where to write output to, and what format to write it in. For
+  example `--output=australia.pmtiles` creates a pmtiles archive named `australia.pmtiles`.
 - `--download` downloads input sources automatically and `--only-download` exits after downloading
 - `--area=monaco` downloads a `.osm.pbf` extract from [Geofabrik](https://download.geofabrik.de/)
 - `--osm-path=path/to/file.osm.pbf` points Planetiler at an existing OSM extract on disk
@@ -209,6 +212,8 @@ download regularly-updated tilesets.
   OpenStreetMap [.osm.pbf](https://wiki.openstreetmap.org/wiki/PBF_Format),
   [`geopackage`](https://www.geopackage.org/),
   and [Esri Shapefiles](https://en.wikipedia.org/wiki/Shapefile) data sources
+- Writes to [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md) or
+  or [PMTiles](https://github.com/protomaps/PMTiles) output.
 - Java-based [Profile API](planetiler-core/src/main/java/com/onthegomap/planetiler/Profile.java) to customize how source
   elements map to vector tile features, and post-process generated tiles
   using [JTS geometry utilities](https://github.com/locationtech/jts)
@@ -328,6 +333,7 @@ Planetiler is made possible by these awesome open source projects:
 - [cel-java](https://github.com/projectnessie/cel-java) for the Java implementation of
   Google's [Common Expression Language](https://github.com/google/cel-spec) that powers dynamic expressions embedded in
   schema config files.
+- [PMTiles](https://github.com/protomaps/PMTiles) optimized tile storage format
 
 See [NOTICE.md](NOTICE.md) for a full list and license details.
 

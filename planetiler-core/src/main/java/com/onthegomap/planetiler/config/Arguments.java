@@ -12,6 +12,8 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
@@ -28,6 +31,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Lightweight abstraction over ways to provide key/value pair arguments to a program like jvm properties, environmental
  * variables, or a config file.
+ * <p>
+ * When looking up a key, tries to find a case-and-separator-insensitive match, for example {@code "CONFIG_OPTION"} will
+ * match {@code "config-option"} and {@code "config_option"}.
+ * <p>
+ * If you replace an option with a new value, you can read a value from the new option and fall back to old one by using
+ * {@code "new_flag|old_flag"} as the key.
  */
 public class Arguments {
 
@@ -40,15 +49,6 @@ public class Arguments {
   private Arguments(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys) {
     this.provider = provider;
     this.keys = keys;
-  }
-
-  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
-    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
-    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
-      String reversed = reverse.apply(key);
-      return key.equalsIgnoreCase(reversed) ? Stream.empty() : Stream.of(reversed);
-    }).toList();
-    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
   }
 
   /**
@@ -64,10 +64,7 @@ public class Arguments {
   }
 
   static Arguments fromJvmProperties(UnaryOperator<String> getter, Supplier<? extends Collection<String>> keys) {
-    return from(getter, keys,
-      key -> "planetiler." + key.toLowerCase(Locale.ROOT),
-      key -> key.replaceFirst("^planetiler\\.", "").toLowerCase(Locale.ROOT)
-    );
+    return fromPrefixed(getter, keys, "planetiler", ".", false);
   }
 
   /**
@@ -83,10 +80,7 @@ public class Arguments {
   }
 
   static Arguments fromEnvironment(UnaryOperator<String> getter, Supplier<Set<String>> keys) {
-    return from(getter, keys,
-      key -> "PLANETILER_" + key.toUpperCase(Locale.ROOT),
-      key -> key.replaceFirst("^PLANETILER_", "").toLowerCase(Locale.ROOT)
-    );
+    return fromPrefixed(getter, keys, "PLANETILER", "_", true);
   }
 
   /**
@@ -191,8 +185,21 @@ public class Arguments {
       .orElse(fromEnvironment());
   }
 
+  private static String normalize(String key, String separator, boolean upperCase) {
+    String result = key.replaceAll("[._-]", separator);
+    return upperCase ? result.toUpperCase(Locale.ROOT) : result.toLowerCase(Locale.ROOT);
+  }
+
+  private static String normalize(String key) {
+    return normalize(key, "_", false);
+  }
+
   public static Arguments of(Map<String, String> map) {
-    return new Arguments(map::get, map::keySet);
+    Map<String, String> updated = new LinkedHashMap<>();
+    for (var entry : map.entrySet()) {
+      updated.put(normalize(entry.getKey()), entry.getValue());
+    }
+    return new Arguments(updated::get, updated::keySet);
   }
 
   /** Shorthand for {@link #of(Map)} which constructs the map from a list of key/value pairs. */
@@ -204,12 +211,36 @@ public class Arguments {
     return of(map);
   }
 
+  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
+    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
+    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
+      String reversed = reverse.apply(key);
+      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
+    }).toList();
+    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
+  }
+
+  private static Arguments fromPrefixed(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys,
+    String prefix, String separator, boolean uppperCase) {
+    var prefixRegex = Pattern.compile("^" + Pattern.quote(normalize(prefix + separator, separator, uppperCase)),
+      Pattern.CASE_INSENSITIVE);
+    return from(provider, keys,
+      key -> normalize(prefix + separator + key, separator, uppperCase),
+      key -> normalize(prefixRegex.matcher(key).replaceFirst(""))
+    );
+  }
+
   private String get(String key) {
-    String value = provider.apply(key);
-    if (value == null) {
-      value = provider.apply(key.replace('-', '_'));
-      if (value == null) {
-        value = provider.apply(key.replace('_', '-'));
+    String[] options = key.split("\\|");
+    String value = null;
+    for (int i = 0; i < options.length; i++) {
+      String option = options[i].strip();
+      value = provider.apply(normalize(option));
+      if (value != null) {
+        if (i != 0) {
+          LOGGER.warn("Argument '{}' is deprecated", option);
+        }
+        break;
       }
     }
     return value;
@@ -274,8 +305,8 @@ public class Arguments {
   }
 
   protected void logArgValue(String key, String description, Object result) {
-    if (!silent) {
-      LOGGER.debug("argument: {}={} ({})", key, result, description);
+    if (!silent && LOGGER.isDebugEnabled()) {
+      LOGGER.debug("argument: {}={} ({})", key.replaceFirst("\\|.*$", ""), result, description);
     }
   }
 
@@ -460,7 +491,7 @@ public class Arguments {
   public Map<String, String> toMap() {
     Map<String, String> result = new HashMap<>();
     for (var key : keys.get()) {
-      result.put(key, get(key));
+      result.put(normalize(key), get(key));
     }
     return result;
   }
@@ -483,5 +514,28 @@ public class Arguments {
 
   public boolean silenced() {
     return silent;
+  }
+
+  public Arguments copy() {
+    return new Arguments(provider, keys);
+  }
+
+  /**
+   * Returns a new arguments instance that translates requests for a {@code "key"} to {@code "prefix_key"}.
+   */
+  public Arguments withPrefix(String prefix) {
+    return fromPrefixed(provider, keys, prefix, "_", false);
+  }
+
+  /** Returns a view of this instance, that only supports requests for {@code allowedKeys}. */
+  public Arguments subset(String... allowedKeys) {
+    Set<String> allowed = new HashSet<>();
+    for (String key : allowedKeys) {
+      allowed.add(normalize(key));
+    }
+    return new Arguments(
+      key -> allowed.contains(normalize(key)) ? provider.apply(key) : null,
+      () -> keys.get().stream().filter(key -> allowed.contains(normalize(key))).toList()
+    );
   }
 }

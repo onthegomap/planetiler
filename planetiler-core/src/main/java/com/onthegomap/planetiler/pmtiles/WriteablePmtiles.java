@@ -12,7 +12,6 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Gzip;
-import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -24,10 +23,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
-import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,8 +45,6 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   private long currentOffset = 0;
   private long numUnhashedTiles = 0;
   private long numAddressedTiles = 0;
-  private LayerStats layerStats;
-  private TileArchiveMetadata tileArchiveMetadata;
   private boolean isClustered = true;
 
   private WriteablePmtiles(SeekableByteChannel channel) throws IOException {
@@ -91,7 +88,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
    * @return byte arrays of the root and all leaf directories, and the # of leaves.
    * @throws IOException if compression fails
    */
-  protected static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
+  static Directories makeDirectories(List<Pmtiles.Entry> entries) throws IOException {
     int maxEntriesRootOnly = 16384;
     int attemptNum = 1;
     if (entries.size() < maxEntriesRootOnly) {
@@ -125,18 +122,17 @@ public final class WriteablePmtiles implements WriteableTileArchive {
   }
 
   @Override
+  public boolean deduplicates() {
+    return true;
+  }
+
+  @Override
   public TileOrder tileOrder() {
     return TileOrder.HILBERT;
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
-    this.layerStats = layerStats;
-    this.tileArchiveMetadata = tileArchiveMetadata;
-  }
-
-  @Override
-  public void finish(PlanetilerConfig config) {
+  public void finish(TileArchiveMetadata tileArchiveMetadata) {
     if (!isClustered) {
       LOGGER.info("Tile data was not written in order, sorting entries...");
       Collections.sort(entries);
@@ -144,10 +140,32 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
     try {
       Directories directories = makeDirectories(entries);
-      byte[] jsonBytes = new Pmtiles.JsonMetadata(layerStats.getTileStats(), tileArchiveMetadata.getAll()).toBytes();
+      var otherMetadata = new LinkedHashMap<>(tileArchiveMetadata.toMap());
+
+      // exclude keys included in top-level header
+      otherMetadata.remove(TileArchiveMetadata.CENTER_KEY);
+      otherMetadata.remove(TileArchiveMetadata.ZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.BOUNDS_KEY);
+      otherMetadata.remove(TileArchiveMetadata.FORMAT_KEY);
+      otherMetadata.remove(TileArchiveMetadata.MINZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.MAXZOOM_KEY);
+      otherMetadata.remove(TileArchiveMetadata.VECTOR_LAYERS_KEY);
+
+      byte[] jsonBytes =
+        new Pmtiles.JsonMetadata(tileArchiveMetadata.vectorLayers(), otherMetadata).toBytes();
       jsonBytes = Gzip.gzip(jsonBytes);
 
-      Envelope envelope = config.bounds().latLon();
+      String formatString = tileArchiveMetadata.format();
+      var outputFormat =
+        TileArchiveMetadata.MVT_FORMAT.equals(formatString) ? Pmtiles.TileType.MVT : Pmtiles.TileType.UNKNOWN;
+
+      var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
+      var center = tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
+      int zoom = (int) Math.ceil(tileArchiveMetadata.zoom() == null ? GeoUtils.getZoomFromLonLatBounds(bounds) :
+        tileArchiveMetadata.zoom());
+      int minzoom = tileArchiveMetadata.minzoom() == null ? 0 : tileArchiveMetadata.minzoom();
+      int maxzoom =
+        tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();
 
       Pmtiles.Header header = new Pmtiles.Header(
         (byte) 3,
@@ -165,16 +183,16 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         isClustered,
         Pmtiles.Compression.GZIP,
         Pmtiles.Compression.GZIP,
-        Pmtiles.TileType.MVT,
-        (byte) config.minzoom(),
-        (byte) config.maxzoom(),
-        (int) (envelope.getMinX() * 10_000_000),
-        (int) (envelope.getMinY() * 10_000_000),
-        (int) (envelope.getMaxX() * 10_000_000),
-        (int) (envelope.getMaxY() * 10_000_000),
-        (byte) Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope)),
-        (int) ((envelope.getMinX() + envelope.getMaxX()) / 2 * 10_000_000),
-        (int) ((envelope.getMinY() + envelope.getMaxY()) / 2 * 10_000_000)
+        outputFormat,
+        (byte) minzoom,
+        (byte) maxzoom,
+        (int) (bounds.getMinX() * 10_000_000),
+        (int) (bounds.getMinY() * 10_000_000),
+        (int) (bounds.getMaxX() * 10_000_000),
+        (int) (bounds.getMaxY() * 10_000_000),
+        (byte) zoom,
+        (int) center.x * 10_000_000,
+        (int) center.y * 10_000_000
       );
 
       LOGGER.info("Writing metadata and leaf directories...");
