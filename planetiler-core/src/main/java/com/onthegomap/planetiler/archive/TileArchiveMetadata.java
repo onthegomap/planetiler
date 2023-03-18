@@ -20,8 +20,10 @@ import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Controls information that {@link TileArchiveWriter} will write to the archive metadata. */
+/** Metadata associated with a tile archive. */
 public record TileArchiveMetadata(
   @JsonProperty(NAME_KEY) String name,
   @JsonProperty(DESCRIPTION_KEY) String description,
@@ -52,6 +54,11 @@ public record TileArchiveMetadata(
   public static final String VECTOR_LAYERS_KEY = "vector_layers";
 
   public static final String MVT_FORMAT = "pbf";
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveMetadata.class);
+  private static final ObjectMapper mapper = new ObjectMapper()
+    .registerModules(new Jdk8Module())
+    .setSerializationInclusion(NON_ABSENT);
 
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
     this(profile, config, null);
@@ -97,16 +104,18 @@ public record TileArchiveMetadata(
     return result;
   }
 
-  public TileArchiveMetadata set(String key, Object value) {
+  /** Sets an extra metadata entry in {@link #others}. */
+  public TileArchiveMetadata setExtraMetadata(String key, Object value) {
     if (key != null && value != null) {
       others.put(key, value.toString());
     }
     return this;
   }
-  private static final ObjectMapper mapper = new ObjectMapper()
-    .registerModules(new Jdk8Module())
-    .setSerializationInclusion(NON_ABSENT);
 
+  /**
+   * Returns a map with all key-value pairs from this metadata entry, including {@link #others} hoisted to top-level
+   * keys.
+   */
   public Map<String, String> toMap() {
     Map<String, String> result = new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
     if (bounds != null) {
@@ -119,12 +128,13 @@ public record TileArchiveMetadata(
       try {
         result.put(VECTOR_LAYERS_KEY, mapper.writeValueAsString(vectorLayers));
       } catch (JsonProcessingException e) {
-        // ok
+        LOGGER.warn("Error encoding vector_layers as json", e);
       }
     }
     return result;
   }
 
+  /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
   public TileArchiveMetadata withLayerStats(List<LayerStats.VectorLayer> layerStats) {
     return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
       maxzoom, layerStats, others);

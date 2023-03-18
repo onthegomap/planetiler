@@ -184,10 +184,11 @@ public class Planetiler {
       ),
       ifSourceUsed(name, () -> {
         var header = osmInputFile.getHeader();
-        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationtime", header.instant());
-        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationseq",
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationseq",
           header.osmosisReplicationSequenceNumber());
-        tileArchiveMetadata.set("planetiler:" + name + ":osmosisreplicationurl", header.osmosisReplicationBaseUrl());
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationurl",
+          header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());

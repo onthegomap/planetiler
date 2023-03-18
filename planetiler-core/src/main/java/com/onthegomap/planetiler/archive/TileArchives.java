@@ -7,17 +7,35 @@ import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import java.io.IOException;
 import java.nio.file.Path;
 
+/** Utilities for creating {@link ReadableTileArchive} and {@link WriteableTileArchive} instances. */
 public class TileArchives {
   private TileArchives() {}
 
+  /**
+   * Returns a new {@link WriteableTileArchive} from the string definition in {@code archive} that will be parsed with
+   * {@link TileArchiveConfig}.
+   *
+   * @throws IOException if an error occurs creating the resource.
+   */
   public static WriteableTileArchive newWriter(String archive, PlanetilerConfig config) throws IOException {
     return newWriter(TileArchiveConfig.from(archive), config);
   }
 
+  /**
+   * Returns a new {@link ReadableTileArchive} from the string definition in {@code archive} that will be parsed with
+   * {@link TileArchiveConfig}.
+   *
+   * @throws IOException if an error occurs opening the resource.
+   */
   public static ReadableTileArchive newReader(String archive, PlanetilerConfig config) throws IOException {
     return newReader(TileArchiveConfig.from(archive), config);
   }
 
+  /**
+   * Returns a new {@link WriteableTileArchive} from the string definition in {@code archive}.
+   *
+   * @throws IOException if an error occurs creating the resource.
+   */
   public static WriteableTileArchive newWriter(TileArchiveConfig archive, PlanetilerConfig config)
     throws IOException {
     var options = archive.applyFallbacks(config.arguments());
@@ -30,6 +48,11 @@ public class TileArchives {
     };
   }
 
+  /**
+   * Returns a new {@link ReadableTileArchive} from the string definition in {@code archive}.
+   *
+   * @throws IOException if an error occurs opening the resource.
+   */
   public static ReadableTileArchive newReader(TileArchiveConfig archive, PlanetilerConfig config)
     throws IOException {
     var options = archive.applyFallbacks(config.arguments());
@@ -39,10 +62,12 @@ public class TileArchives {
     };
   }
 
+  /** Alias for {@link #newReader(String, PlanetilerConfig)}. */
   public static ReadableTileArchive newReader(Path path, PlanetilerConfig config) throws IOException {
     return newReader(path.toString(), config);
   }
 
+  /** Alias for {@link #newWriter(String, PlanetilerConfig)}. */
   public static WriteableTileArchive newWriter(Path path, PlanetilerConfig config) throws IOException {
     return newWriter(path.toString(), config);
   }
