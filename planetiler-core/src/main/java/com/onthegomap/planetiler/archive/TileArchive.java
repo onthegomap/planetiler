@@ -3,7 +3,12 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
+import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.util.FileUtils;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -32,19 +37,19 @@ import java.util.Map;
  * @param uri     Full URI including scheme, location, and options
  * @param options Parsed query parameters from the definition string
  */
-public record TileArchiveConfig(
+public record TileArchive(
   Format format,
   Scheme scheme,
   URI uri,
   Map<String, String> options
 ) {
 
-  private static TileArchiveConfig.Scheme getScheme(URI uri) {
+  private static TileArchive.Scheme getScheme(URI uri) {
     String scheme = uri.getScheme();
     if (scheme == null) {
       return Scheme.FILE;
     }
-    for (var value : TileArchiveConfig.Scheme.values()) {
+    for (var value : TileArchive.Scheme.values()) {
       if (value.id().equals(scheme)) {
         return value;
       }
@@ -75,15 +80,15 @@ public record TileArchiveConfig(
     return result;
   }
 
-  private static TileArchiveConfig.Format getFormat(URI uri) {
+  private static TileArchive.Format getFormat(URI uri) {
     String format = parseQuery(uri).get("format");
     if (format == null) {
       format = getExtension(uri);
     }
     if (format == null) {
-      return TileArchiveConfig.Format.MBTILES;
+      return TileArchive.Format.MBTILES;
     }
-    for (var value : TileArchiveConfig.Format.values()) {
+    for (var value : TileArchive.Format.values()) {
       if (value.id().equals(format)) {
         return value;
       }
@@ -94,7 +99,7 @@ public record TileArchiveConfig(
   /**
    * Parses a string definition of a tileset from a URI-like string.
    */
-  public static TileArchiveConfig from(String string) {
+  public static TileArchive from(String string) {
     // unix paths parse fine as URIs, but need to explicitly parse windows paths with backslashes
     if (string.contains("\\")) {
       String[] parts = string.split("\\?", 2);
@@ -109,7 +114,7 @@ public record TileArchiveConfig(
   /**
    * Parses a string definition of a tileset from a URI.
    */
-  public static TileArchiveConfig from(URI uri) {
+  public static TileArchive from(URI uri) {
     if (uri.getScheme() == null) {
       String base = Path.of(uri.getPath()).toAbsolutePath().toUri().normalize().toString();
       if (uri.getRawQuery() != null) {
@@ -117,12 +122,78 @@ public record TileArchiveConfig(
       }
       uri = URI.create(base);
     }
-    return new TileArchiveConfig(
+    return new TileArchive(
       getFormat(uri),
       getScheme(uri),
       uri,
       parseQuery(uri)
     );
+  }
+
+  /**
+   * Returns a new {@link WriteableTileArchive} from the string definition in {@code archive} that will be parsed with
+   * {@link TileArchive}.
+   *
+   * @throws IOException if an error occurs creating the resource.
+   */
+  public static WriteableTileArchive newWriter(String archive, PlanetilerConfig config) throws IOException {
+    return from(archive).newWriter(config);
+  }
+
+  /**
+   * Returns a new {@link ReadableTileArchive} from the string definition in {@code archive} that will be parsed with
+   * {@link TileArchive}.
+   *
+   * @throws IOException if an error occurs opening the resource.
+   */
+  public static ReadableTileArchive newReader(String archive, PlanetilerConfig config) throws IOException {
+    return from(archive).newReader(config);
+  }
+
+  /** Alias for {@link #newReader(String, PlanetilerConfig)}. */
+  public static ReadableTileArchive newReader(Path path, PlanetilerConfig config) throws IOException {
+    return newReader(path.toString(), config);
+  }
+
+  /** Alias for {@link #newWriter(String, PlanetilerConfig)}. */
+  public static WriteableTileArchive newWriter(Path path, PlanetilerConfig config) throws IOException {
+    return newWriter(path.toString(), config);
+  }
+
+  /**
+   * Returns a new {@link WriteableTileArchive} from this definition.
+   *
+   * @throws IOException if an error occurs creating the resource.
+   */
+  public WriteableTileArchive newWriter(PlanetilerConfig config)
+    throws IOException {
+    Arguments settings = applyFallbacks(config.arguments());
+    return switch (format) {
+      case MBTILES ->
+        // pass-through legacy arguments for fallback
+        Mbtiles.newWriteToFileDatabase(getLocalPath(), settings.orElse(config.arguments()
+          .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
+      case PMTILES -> WriteablePmtiles.newWriteToFile(getLocalPath());
+    };
+  }
+
+  private Arguments applyFallbacks(Arguments arguments) {
+    // to resolve "option" look to "?option=value" query param or "--mbtiles-option=value" command-line arg
+    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
+  }
+
+  /**
+   * Returns a new {@link ReadableTileArchive} from this definition.
+   *
+   * @throws IOException if an error occurs opening the resource.
+   */
+  public ReadableTileArchive newReader(PlanetilerConfig config)
+    throws IOException {
+    var options = applyFallbacks(config.arguments());
+    return switch (format) {
+      case MBTILES -> Mbtiles.newReadOnlyDatabase(getLocalPath(), options);
+      case PMTILES -> ReadablePmtiles.newReadFromFile(getLocalPath());
+    };
   }
 
   /**
@@ -157,13 +228,6 @@ public record TileArchiveConfig(
     return getLocalPath() == null ? 0 : FileUtils.size(getLocalPath());
   }
 
-  /**
-   * Returns an {@link Arguments} instance that returns the value for options directly from the query parameters in the
-   * URI, or from {@code arguments} prefixed by {@code "format_"}.
-   */
-  public Arguments applyFallbacks(Arguments arguments) {
-    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
-  }
 
   public enum Format {
     MBTILES("mbtiles"),

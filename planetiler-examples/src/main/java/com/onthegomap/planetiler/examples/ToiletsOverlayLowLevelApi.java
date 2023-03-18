@@ -2,9 +2,9 @@ package com.onthegomap.planetiler.examples;
 
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.archive.TileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
-import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -113,7 +113,7 @@ public class ToiletsOverlayLowLevelApi {
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.
-    try (WriteableTileArchive db = TileArchives.newWriter(output, config)) {
+    try (WriteableTileArchive db = TileArchive.newWriter(output, config)) {
       TileArchiveWriter.writeOutput(featureGroup, db, () -> FileUtils.fileSize(output), tileArchiveMetadata, config,
         stats);
     } catch (IOException e) {

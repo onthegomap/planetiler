@@ -1,9 +1,8 @@
 package com.onthegomap.planetiler;
 
-import com.onthegomap.planetiler.archive.TileArchiveConfig;
+import com.onthegomap.planetiler.archive.TileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
-import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
@@ -86,7 +85,7 @@ public class Planetiler {
   private final PlanetilerConfig config;
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
-  private TileArchiveConfig output;
+  private TileArchive output;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -548,7 +547,7 @@ public class Planetiler {
   @Deprecated(forRemoval = true)
   public Planetiler setOutput(String argument, Path fallback) {
     this.output =
-      TileArchiveConfig
+      TileArchive
         .from(arguments.getString("output|" + argument, "output tile archive path", fallback.toString()));
     return this;
   }
@@ -561,10 +560,10 @@ public class Planetiler {
    *
    * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see TileArchiveConfig For details on URI string formats and options.
+   * @see TileArchive For details on URI string formats and options.
    */
   public Planetiler setOutput(String defaultOutputUri) {
-    this.output = TileArchiveConfig.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
+    this.output = TileArchive.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
     return this;
   }
 
@@ -592,7 +591,7 @@ public class Planetiler {
    *
    * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see TileArchiveConfig For details on URI string formats and options.
+   * @see TileArchive For details on URI string formats and options.
    */
   public Planetiler overwriteOutput(String defaultOutputUri) {
     this.overwrite = true;
@@ -698,7 +697,7 @@ public class Planetiler {
     // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
     tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
-    try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
+    try (WriteableTileArchive archive = output.newWriter(config)) {
       featureGroup =
         FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats);
       stats.monitorFile("nodes", nodeDbPath);
