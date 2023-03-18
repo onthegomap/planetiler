@@ -71,6 +71,7 @@ public class Format {
     });
   }
 
+  /** Returns a string with {@code items} rounded to 5 decimals and joined with a comma. */
   public static synchronized String joinCoordinates(double... items) {
     return DoubleStream.of(items).mapToObj(latLonNF::format).collect(Collectors.joining(","));
   }
