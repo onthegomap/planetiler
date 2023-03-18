@@ -61,7 +61,7 @@ public class Contexts {
     origArguments.silence();
     Map<String, String> argDescriptions = new LinkedHashMap<>();
     Map<String, Object> unparsedSchemaArgs = new HashMap<>(schemaArgs);
-    Map<String, Object> parsedSchemaArgs = new HashMap<>(origArguments.toMap("_"));
+    Map<String, Object> parsedSchemaArgs = new HashMap<>(origArguments.toMap());
     Contexts.Root result = new Root(origArguments, parsedSchemaArgs);
     Arguments arguments = origArguments;
     int iters = 0;

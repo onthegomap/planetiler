@@ -265,11 +265,11 @@ class PlanetilerTests {
   void testOverrideMetadata() throws Exception {
     var results = runWithReaderFeatures(
       Map.of(
-        "mbtiles_name", "override_name",
-        "mbtiles_description", "override_description",
-        "mbtiles_attribution", "override_attribution",
-        "mbtiles_version", "override_version",
-        "mbtiles_type", "override_type"
+        "archive_name", "override_name",
+        "archive_description", "override_description",
+        "archive_attribution", "override_attribution",
+        "archive_version", "override_version",
+        "archive_type", "override_type"
       ),
       List.of(),
       (sourceFeature, features) -> {
@@ -1705,7 +1705,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .setOutput("output", output)
+      .setOutput(output)
       .run();
 
     // make sure it got deleted after write
@@ -1757,7 +1757,7 @@ class PlanetilerTests {
       .addShapefileGlobSource("shapefile-glob-zip", resourceDir.resolve("shapefile.zip"), "*.shp")
       // Match *.shp within shapefile.zip
       .addShapefileSource("shapefile", resourceDir.resolve("shapefile.zip"))
-      .setOutput("mbtiles", mbtiles)
+      .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
@@ -1803,7 +1803,7 @@ class PlanetilerTests {
         }
       })
       .addGeoPackageSource("geopackage", TestUtils.pathToResource(inputFile), null)
-      .setOutput("mbtiles", mbtiles)
+      .setOutput(mbtiles)
       .run();
 
     try (Mbtiles db = Mbtiles.newReadOnlyDatabase(mbtiles)) {
@@ -1831,7 +1831,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .setOutput("mbtiles", tempDir.resolve("output.mbtiles"))
+      .setOutput(tempDir.resolve("output.mbtiles"))
       .run();
   }
 
@@ -1906,9 +1906,8 @@ class PlanetilerTests {
 
 
   private PlanetilerResults runForCompactTest(boolean compactDbEnabled) throws Exception {
-
     return runWithReaderFeatures(
-      Map.of("threads", "1", "compact-db", Boolean.toString(compactDbEnabled)),
+      Map.of("threads", "1", "mbtiles-compact", Boolean.toString(compactDbEnabled)),
       List.of(
         newReaderFeature(WORLD_POLYGON, Map.of())
       ),

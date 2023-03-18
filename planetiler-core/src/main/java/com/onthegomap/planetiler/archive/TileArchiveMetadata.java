@@ -77,7 +77,7 @@ public record TileArchiveMetadata(
 
   private static String getString(PlanetilerConfig config, String key, String fallback) {
     return config.arguments()
-      .getString("output_" + key + "|mbtiles_" + key, "'" + key + "' attribute for tileset metadata", fallback);
+      .getString("archive_" + key + "|mbtiles_" + key, "'" + key + "' attribute for tileset metadata", fallback);
   }
 
   private static Map<String, String> mapWithBuildInfo() {

@@ -568,6 +568,10 @@ public class Planetiler {
     return this;
   }
 
+  public Planetiler setOutput(Path path) {
+    return setOutput(path.toString());
+  }
+
   /**
    * Sets the location of the output archive to write rendered tiles to.
    *
@@ -592,6 +596,10 @@ public class Planetiler {
   public Planetiler overwriteOutput(String defaultOutputUri) {
     this.overwrite = true;
     return setOutput(defaultOutputUri);
+  }
+
+  public Planetiler overwriteOutput(Path defaultOutput) {
+    return overwriteOutput(defaultOutput.toString());
   }
 
   /**

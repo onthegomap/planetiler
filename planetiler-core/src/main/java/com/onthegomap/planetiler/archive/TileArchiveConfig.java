@@ -19,57 +19,6 @@ public record TileArchiveConfig(
   Map<String, String> options
 ) {
 
-  public Path getLocalPath() {
-    return scheme == Scheme.FILE ? Path.of(URI.create(uri.toString().replaceAll("\\?.*$", ""))) : null;
-  }
-
-  public void delete() {
-    if (scheme == Scheme.FILE) {
-      FileUtils.delete(getLocalPath());
-    }
-  }
-
-  public boolean exists() {
-    return getLocalPath() != null && Files.exists(getLocalPath());
-  }
-
-  public long size() {
-    return getLocalPath() == null ? 0 : FileUtils.size(getLocalPath());
-  }
-
-  public Arguments applyFallbacks(Arguments arguments) {
-    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
-  }
-
-  public enum Format {
-    MBTILES("mbtiles"),
-    PMTILES("pmtiles");
-
-    private final String id;
-
-    public String id() {
-      return id;
-    }
-
-    Format(String id) {
-      this.id = id;
-    }
-  }
-
-  public enum Scheme {
-    FILE("file");
-
-    private final String id;
-
-    public String id() {
-      return id;
-    }
-
-    Scheme(String id) {
-      this.id = id;
-    }
-  }
-
   public static TileArchiveConfig from(String string) {
     // unix paths parse fine as URIs, but need to explicitly parse windows paths with backslashes
     if (string.contains("\\")) {
@@ -148,5 +97,56 @@ public record TileArchiveConfig(
       uri,
       query(uri)
     );
+  }
+
+  public Path getLocalPath() {
+    return scheme == Scheme.FILE ? Path.of(URI.create(uri.toString().replaceAll("\\?.*$", ""))) : null;
+  }
+
+  public void delete() {
+    if (scheme == Scheme.FILE) {
+      FileUtils.delete(getLocalPath());
+    }
+  }
+
+  public boolean exists() {
+    return getLocalPath() != null && Files.exists(getLocalPath());
+  }
+
+  public long size() {
+    return getLocalPath() == null ? 0 : FileUtils.size(getLocalPath());
+  }
+
+  public Arguments applyFallbacks(Arguments arguments) {
+    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
+  }
+
+  public enum Format {
+    MBTILES("mbtiles"),
+    PMTILES("pmtiles");
+
+    private final String id;
+
+    Format(String id) {
+      this.id = id;
+    }
+
+    public String id() {
+      return id;
+    }
+  }
+
+  public enum Scheme {
+    FILE("file");
+
+    private final String id;
+
+    Scheme(String id) {
+      this.id = id;
+    }
+
+    public String id() {
+      return id;
+    }
   }
 }

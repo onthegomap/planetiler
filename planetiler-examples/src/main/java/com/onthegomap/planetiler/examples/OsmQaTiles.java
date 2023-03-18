@@ -54,7 +54,7 @@ public class OsmQaTiles implements Profile {
         Path.of("data", "sources", area + ".osm.pbf"),
         "planet".equalsIgnoreCase(area) ? "aws:latest" : ("geofabrik:" + area)
       )
-      .overwriteOutput(Path.of("data", "qa.mbtiles").toString())
+      .overwriteOutput(Path.of("data", "qa.mbtiles"))
       .run();
   }
 

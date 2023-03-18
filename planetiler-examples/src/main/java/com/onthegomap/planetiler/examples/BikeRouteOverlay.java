@@ -175,7 +175,7 @@ public class BikeRouteOverlay implements Profile {
       // override this default with osm_path="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput(Path.of("data", "bikeroutes.mbtiles").toString())
+      .overwriteOutput(Path.of("data", "bikeroutes.mbtiles"))
       .run();
   }
 }

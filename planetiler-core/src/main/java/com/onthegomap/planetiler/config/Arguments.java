@@ -199,7 +199,7 @@ public class Arguments {
   }
 
   private static String normalize(String key) {
-    return normalize(key, "-");
+    return normalize(key, "_");
   }
 
   public static Arguments of(Map<String, String> map) {
@@ -480,18 +480,7 @@ public class Arguments {
   public Map<String, String> toMap() {
     Map<String, String> result = new HashMap<>();
     for (var key : keys.get()) {
-      result.put(key, get(key));
-    }
-    return result;
-  }
-
-  /**
-   * Same as {@link #toMap()} except maps all keys to use {@code separator} as a separator.
-   */
-  public Map<String, String> toMap(String separator) {
-    Map<String, String> result = new HashMap<>();
-    for (var key : keys.get()) {
-      result.put(normalize(key, separator), get(key));
+      result.put(normalize(key), get(key));
     }
     return result;
   }
