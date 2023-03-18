@@ -152,8 +152,8 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} argument is not set
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
    *                    "geofabrik:australia" shorthand to find an extract by name from
    *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
    *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
@@ -254,8 +254,8 @@ public class Planetiler {
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
    *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    * @see Downloader
@@ -328,8 +328,8 @@ public class Planetiler {
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
    *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    * @see Downloader
@@ -363,8 +363,8 @@ public class Planetiler {
    *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see GeoPackageReader
    * @see Downloader
@@ -400,8 +400,8 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see GeoPackageReader
    * @see Downloader
@@ -416,12 +416,12 @@ public class Planetiler {
    * To override the location of the {@code sqlite} file, set {@code name_path=newpath.zip} in the arguments and to
    * override the download URL set {@code name_url=http://url/of/natural_earth.zip}.
    *
-   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
    * @return this runner instance for chaining
    * @see NaturalEarthReader
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    */
   @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath) {
@@ -437,16 +437,15 @@ public class Planetiler {
    * To override the location of the {@code sqlite} file, set {@code name_path=newpath.zip} in the arguments and to
    * override the download URL set {@code name_url=http://url/of/natural_earth.zip}.
    *
-   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
-   *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see NaturalEarthReader
    * @see Downloader
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    */
   @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath, String defaultUrl) {
@@ -561,13 +560,14 @@ public class Planetiler {
    *
    * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see TileArchiveConfig For details on URI strings
+   * @see TileArchiveConfig For details on URI string formats and options.
    */
   public Planetiler setOutput(String defaultOutputUri) {
     this.output = TileArchiveConfig.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
     return this;
   }
 
+  /** Alias for {@link #setOutput(String)} which infers the output type based on extension. */
   public Planetiler setOutput(Path path) {
     return setOutput(path.toString());
   }
@@ -591,13 +591,14 @@ public class Planetiler {
    *
    * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see TileArchiveConfig For details on URI strings
+   * @see TileArchiveConfig For details on URI string formats and options.
    */
   public Planetiler overwriteOutput(String defaultOutputUri) {
     this.overwrite = true;
     return setOutput(defaultOutputUri);
   }
 
+  /** Alias for {@link #overwriteOutput(String)} which infers the output type based on extension. */
   public Planetiler overwriteOutput(Path defaultOutput) {
     return overwriteOutput(defaultOutput.toString());
   }
@@ -693,6 +694,7 @@ public class Planetiler {
       }
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
+    // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
     tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
     try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
