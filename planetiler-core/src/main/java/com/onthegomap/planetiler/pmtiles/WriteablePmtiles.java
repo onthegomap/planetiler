@@ -161,9 +161,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
       var bounds = tileArchiveMetadata.bounds() == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : tileArchiveMetadata.bounds();
       var center = tileArchiveMetadata.center() == null ? bounds.centre() : tileArchiveMetadata.center();
-      int zoom =
-        (int) (tileArchiveMetadata.zoom() == null ? Math.ceil(GeoUtils.getZoomFromLonLatBounds(bounds)) :
-          tileArchiveMetadata.zoom());
+      int zoom = (int) Math.ceil(tileArchiveMetadata.zoom() == null ? GeoUtils.getZoomFromLonLatBounds(bounds) :
+        tileArchiveMetadata.zoom());
       int minzoom = tileArchiveMetadata.minzoom() == null ? 0 : tileArchiveMetadata.minzoom();
       int maxzoom =
         tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();
