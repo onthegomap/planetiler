@@ -45,15 +45,6 @@ public class Arguments {
     this.keys = keys;
   }
 
-  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
-    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
-    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
-      String reversed = reverse.apply(key);
-      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
-    }).toList();
-    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
-  }
-
   /**
    * Returns arguments from JVM system properties prefixed with {@code planetiler.}
    * <p>
@@ -67,10 +58,7 @@ public class Arguments {
   }
 
   static Arguments fromJvmProperties(UnaryOperator<String> getter, Supplier<? extends Collection<String>> keys) {
-    return from(getter, keys,
-      key -> "planetiler." + normalize(key, "."),
-      key -> normalize(key.replaceFirst("^planetiler\\.", ""), "-")
-    );
+    return fromPrefixed(getter, keys, "planetiler", ".", false);
   }
 
   /**
@@ -86,10 +74,7 @@ public class Arguments {
   }
 
   static Arguments fromEnvironment(UnaryOperator<String> getter, Supplier<Set<String>> keys) {
-    return from(getter, keys,
-      key -> normalize("PLANETILER_" + key, "_").toUpperCase(Locale.ROOT),
-      key -> normalize(key.replaceFirst("^PLANETILER_", ""))
-    );
+    return fromPrefixed(getter, keys, "PLANETILER", "_", true);
   }
 
   /**
@@ -194,12 +179,13 @@ public class Arguments {
       .orElse(fromEnvironment());
   }
 
-  private static String normalize(String key, String separator) {
-    return key.toLowerCase(Locale.ROOT).replaceAll("[._-]", separator);
+  private static String normalize(String key, String separator, boolean upperCase) {
+    String result = key.replaceAll("[._-]", separator);
+    return upperCase ? result.toUpperCase(Locale.ROOT) : result.toLowerCase(Locale.ROOT);
   }
 
   private static String normalize(String key) {
-    return normalize(key, "_");
+    return normalize(key, "_", false);
   }
 
   public static Arguments of(Map<String, String> map) {
@@ -513,9 +499,25 @@ public class Arguments {
    * Returns a new arguments instance that translates requests for a {@code "key"} to {@code "prefix_key"}.
    */
   public Arguments withPrefix(String prefix) {
+    return fromPrefixed(provider, keys, prefix, "_", false);
+  }
+
+  private static Arguments from(UnaryOperator<String> provider, Supplier<? extends Collection<String>> rawKeys,
+    UnaryOperator<String> forward, UnaryOperator<String> reverse) {
+    Supplier<List<String>> keys = () -> rawKeys.get().stream().flatMap(key -> {
+      String reversed = reverse.apply(key);
+      return normalize(key).equals(normalize(reversed)) ? Stream.empty() : Stream.of(reversed);
+    }).toList();
+    return new Arguments(key -> provider.apply(forward.apply(key)), keys);
+  }
+
+  private static Arguments fromPrefixed(UnaryOperator<String> provider, Supplier<? extends Collection<String>> keys,
+    String prefix, String separator, boolean uppperCase) {
+    var prefixRegex = Pattern.compile("^" + Pattern.quote(normalize(prefix + separator, separator, uppperCase)),
+      Pattern.CASE_INSENSITIVE);
     return from(provider, keys,
-      key -> normalize(prefix + "-" + key),
-      key -> normalize(key.replaceFirst("^" + Pattern.quote(prefix) + "[-_.]?", ""))
+      key -> normalize(prefix + separator + key, separator, uppperCase),
+      key -> normalize(prefixRegex.matcher(key).replaceFirst(""))
     );
   }
 
