@@ -530,7 +530,7 @@ public class Planetiler {
   }
 
   private boolean getKeepUnzipped(String name) {
-    return arguments.getBoolean("keep_" + name + "_unzipped",
+    return arguments.getBoolean(name + "_keep_unzipped",
       "keep unzipped " + name + " after reading", config.keepUnzippedSources());
   }
 
