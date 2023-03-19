@@ -172,7 +172,7 @@ public record PlanetilerConfig(
         1d) * 1024 * 1024),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", true)
+        "keep unzipped sources by default after reading", false)
     );
   }
 

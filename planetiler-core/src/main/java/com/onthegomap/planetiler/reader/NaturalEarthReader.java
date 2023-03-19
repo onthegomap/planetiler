@@ -10,6 +10,8 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.LogUtil;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,7 +60,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
 
     LogUtil.setStage(sourceName);
     try {
-      conn = open(input, keepUnzipped ? input.getParent() : tmpDir);
+      conn = open(input, tmpDir);
     } catch (IOException | SQLException e) {
       throw new IllegalArgumentException(e);
     }
@@ -98,7 +100,8 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
           .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
           .findFirst()
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));
-        extracted = unzippedDir.resolve(path.getFileName() + ".sqlite");
+        extracted = unzippedDir.resolve(URLEncoder.encode(zipEntry.toString(), StandardCharsets.UTF_8));
+        FileUtils.createParentDirectories(extracted);
         if (!keepUnzipped || FileUtils.isNewer(path, extracted)) {
           LOGGER.error("unzipping {} to {}", path.toAbsolutePath(), extracted);
           Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);

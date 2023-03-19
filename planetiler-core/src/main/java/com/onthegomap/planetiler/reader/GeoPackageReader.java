@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +53,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     }
 
     try {
-      geoPackage = openGeopackage(input, keepUnzipped ? input.getParent() : tmpDir);
+      geoPackage = openGeopackage(input, tmpDir);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -65,7 +66,9 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   private GeoPackage openGeopackage(Path input, Path unzippedDir) throws IOException {
     var inputUri = input.toUri();
     if ("jar".equals(inputUri.getScheme())) {
-      extractedPath = unzippedDir.resolve(URLEncoder.encode(inputUri.toURL().toString(), StandardCharsets.UTF_8));
+      extractedPath = keepUnzipped ? unzippedDir.resolve(URLEncoder.encode(input.toString(), StandardCharsets.UTF_8)) :
+        Files.createTempFile(unzippedDir, "", ".gpkg");
+      FileUtils.createParentDirectories(extractedPath);
       if (!keepUnzipped || FileUtils.isNewer(input, extractedPath)) {
         try (var inputStream = inputUri.toURL().openStream()) {
           FileUtils.safeCopy(inputStream, extractedPath);

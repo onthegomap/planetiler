@@ -384,8 +384,9 @@ public class Planetiler {
           throw new IllegalArgumentException("No .gpkg files found in " + path);
         }
 
-        GeoPackageReader.process(projection, name, sourcePaths, tmpDir, featureGroup, config, profile, stats,
-          keepUnzipped);
+        GeoPackageReader.process(projection, name, sourcePaths,
+          keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup, config, profile,
+          stats, keepUnzipped);
       }));
   }
 
@@ -455,7 +456,8 @@ public class Planetiler {
     Path path = getPath(name, "sqlite db", defaultPath, defaultUrl);
     boolean keepUnzipped = getKeepUnzipped(name);
     return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
-      .process(name, path, tmpDir, featureGroup, config, profile, stats, keepUnzipped)));
+      .process(name, path, keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup,
+        config, profile, stats, keepUnzipped)));
   }
 
   /**
