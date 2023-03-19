@@ -372,6 +372,7 @@ public class Planetiler {
    */
   public Planetiler addGeoPackageSource(String projection, String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
+    boolean keepUnzipped = getKeepUnzipped(name);
     return addStage(name, "Process features in " + path,
       ifSourceUsed(name, () -> {
         List<Path> sourcePaths = List.of(path);
@@ -383,7 +384,9 @@ public class Planetiler {
           throw new IllegalArgumentException("No .gpkg files found in " + path);
         }
 
-        GeoPackageReader.process(projection, name, sourcePaths, tmpDir, featureGroup, config, profile, stats);
+        GeoPackageReader.process(projection, name, sourcePaths,
+          keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup, config, profile,
+          stats, keepUnzipped);
       }));
   }
 
@@ -451,8 +454,10 @@ public class Planetiler {
   @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "sqlite db", defaultPath, defaultUrl);
+    boolean keepUnzipped = getKeepUnzipped(name);
     return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
-      .process(name, path, tmpDir.resolve("natearth.sqlite"), featureGroup, config, profile, stats)));
+      .process(name, path, keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup,
+        config, profile, stats, keepUnzipped)));
   }
 
   /**
@@ -522,6 +527,11 @@ public class Planetiler {
     }
     stages.add(stage);
     return this;
+  }
+
+  private boolean getKeepUnzipped(String name) {
+    return arguments.getBoolean(name + "_keep_unzipped",
+      "keep unzipped " + name + " after reading", config.keepUnzippedSources());
   }
 
   /** Sets the profile implementation that controls how source feature map to output map elements. */

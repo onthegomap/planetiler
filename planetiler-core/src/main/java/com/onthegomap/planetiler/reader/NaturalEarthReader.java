@@ -10,6 +10,8 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.LogUtil;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +42,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
   private static final Logger LOGGER = LoggerFactory.getLogger(NaturalEarthReader.class);
 
   private final Connection conn;
+  private final boolean keepUnzipped;
   private Path extracted;
 
   static {
@@ -51,8 +54,9 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
     }
   }
 
-  NaturalEarthReader(String sourceName, Path input, Path tmpDir) {
+  NaturalEarthReader(String sourceName, Path input, Path tmpDir, boolean keepUnzipped) {
     super(sourceName);
+    this.keepUnzipped = keepUnzipped;
 
     LogUtil.setStage(sourceName);
     try {
@@ -66,41 +70,47 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
    * Renders map features for all elements from a Natural Earth sqlite file, or zip file containing a sqlite file, based
    * on the mapping logic defined in {@code profile}.
    *
-   * @param sourceName string ID for this reader to use in logs and stats
-   * @param sourcePath path to the sqlite or zip file
-   * @param tmpDir     directory to extract the sqlite file into (if input is a zip file)
-   * @param writer     consumer for rendered features
-   * @param config     user-defined parameters controlling number of threads and log interval
-   * @param profile    logic that defines what map features to emit for each source feature
-   * @param stats      to keep track of counters and timings
+   * @param sourceName   string ID for this reader to use in logs and stats
+   * @param sourcePath   path to the sqlite or zip file
+   * @param tmpDir       directory to extract the sqlite file into (if input is a zip file).
+   * @param writer       consumer for rendered features
+   * @param config       user-defined parameters controlling number of threads and log interval
+   * @param profile      logic that defines what map features to emit for each source feature
+   * @param stats        to keep track of counters and timings
+   * @param keepUnzipped to keep unzipped files around after running (speeds up subsequent runs, but uses more disk)
    * @throws IllegalArgumentException if a problem occurs reading the input file
    */
   public static void process(String sourceName, Path sourcePath, Path tmpDir, FeatureGroup writer,
-    PlanetilerConfig config, Profile profile, Stats stats) {
+    PlanetilerConfig config, Profile profile, Stats stats, boolean keepUnzipped) {
     SourceFeatureProcessor.processFiles(
       sourceName,
       List.of(sourcePath),
-      path -> new NaturalEarthReader(sourceName, path, tmpDir),
+      path -> new NaturalEarthReader(sourceName, path, tmpDir, keepUnzipped),
       writer, config, profile, stats
     );
   }
 
   /** Returns a JDBC connection to the sqlite file. Input can be the sqlite file itself or a zip file containing it. */
-  private Connection open(Path path, Path tmpLocation) throws IOException, SQLException {
+  private Connection open(Path path, Path unzippedDir) throws IOException, SQLException {
     String uri = "jdbc:sqlite:" + path.toAbsolutePath();
     if (FileUtils.hasExtension(path, "zip")) {
-      extracted = tmpLocation;
       try (var zipFs = FileSystems.newFileSystem(path)) {
         var zipEntry = FileUtils.walkFileSystem(zipFs)
           .filter(Files::isRegularFile)
           .filter(entry -> FileUtils.hasExtension(entry, "sqlite"))
           .findFirst()
           .orElseThrow(() -> new IllegalArgumentException("No .sqlite file found inside " + path));
-        LOGGER.info("unzipping {} to {}", path.toAbsolutePath(), extracted);
-        Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
-        extracted.toFile().deleteOnExit();
+        extracted = unzippedDir.resolve(URLEncoder.encode(zipEntry.toString(), StandardCharsets.UTF_8));
+        FileUtils.createParentDirectories(extracted);
+        if (!keepUnzipped || FileUtils.isNewer(path, extracted)) {
+          LOGGER.error("unzipping {} to {}", path.toAbsolutePath(), extracted);
+          Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
+        }
+        if (!keepUnzipped) {
+          extracted.toFile().deleteOnExit();
+        }
       }
-      uri = "jdbc:sqlite:" + tmpLocation.toAbsolutePath();
+      uri = "jdbc:sqlite:" + extracted.toAbsolutePath();
     }
     return DriverManager.getConnection(uri);
   }
@@ -190,7 +200,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
     } catch (SQLException e) {
       LOGGER.error("Error closing sqlite file", e);
     }
-    if (extracted != null) {
+    if (!keepUnzipped && extracted != null) {
       FileUtils.deleteFile(extracted);
     }
   }

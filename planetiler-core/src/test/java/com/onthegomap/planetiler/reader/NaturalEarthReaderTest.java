@@ -17,17 +17,23 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
 
 class NaturalEarthReaderTest {
+  @TempDir
+  Path tempDir;
 
   @ParameterizedTest
-  @ValueSource(strings = {"natural_earth_vector.sqlite", "natural_earth_vector.sqlite.zip"})
+  @CsvSource({
+    "natural_earth_vector.sqlite,false",
+    "natural_earth_vector.sqlite.zip,false",
+    "natural_earth_vector.sqlite.zip,true",
+  })
   @Timeout(30)
-  void testReadNaturalEarth(String filename, @TempDir Path tempDir) {
+  void testReadNaturalEarth(String filename, boolean keepUnzipped) {
     var path = TestUtils.pathToResource(filename);
-    try (var reader = new NaturalEarthReader("test", path, tempDir)) {
+    try (var reader = new NaturalEarthReader("test", path, tempDir, keepUnzipped)) {
       for (int i = 1; i <= 2; i++) {
         assertEquals(7_679, reader.getFeatureCount(), "iter " + i);
 

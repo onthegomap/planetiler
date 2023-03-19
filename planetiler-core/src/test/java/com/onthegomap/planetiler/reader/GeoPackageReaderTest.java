@@ -14,18 +14,20 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 
 class GeoPackageReaderTest {
   @TempDir
   static Path tmpDir;
 
-  @Test
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
   @Timeout(30)
-  void testReadGeoPackage() throws IOException {
+  void testReadGeoPackage(boolean keepUnzipped) throws IOException {
     Path pathOutsideZip = TestUtils.pathToResource("geopackage.gpkg");
     Path zipPath = TestUtils.pathToResource("geopackage.gpkg.zip");
     Path pathInZip = FileUtils.walkPathWithPattern(zipPath, "*.gpkg").get(0);
@@ -35,7 +37,7 @@ class GeoPackageReaderTest {
     for (var path : List.of(pathOutsideZip, pathInZip)) {
       for (var proj : projections) {
         try (
-          var reader = new GeoPackageReader(proj, "test", path, tmpDir)
+          var reader = new GeoPackageReader(proj, "test", path, tmpDir, keepUnzipped)
         ) {
           for (int iter = 0; iter < 2; iter++) {
             String id = "path=" + path + " proj=" + proj + " iter=" + iter;

@@ -7,6 +7,8 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -29,12 +31,14 @@ import org.opengis.referencing.operation.MathTransform;
  */
 public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
+  private final boolean keepUnzipped;
   private Path extractedPath = null;
   private final GeoPackage geoPackage;
   private final MathTransform coordinateTransform;
 
-  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir) {
+  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped) {
     super(sourceName);
+    this.keepUnzipped = keepUnzipped;
 
     if (sourceProjection != null) {
       try {
@@ -57,14 +61,18 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
   /**
    * Create a {@link GeoPackageManager} for the given path. If {@code input} refers to a file within a ZIP archive,
-   * first extract it to a temporary location.
+   * first extract it.
    */
-  private GeoPackage openGeopackage(Path input, Path tmpDir) throws IOException {
+  private GeoPackage openGeopackage(Path input, Path unzippedDir) throws IOException {
     var inputUri = input.toUri();
     if ("jar".equals(inputUri.getScheme())) {
-      extractedPath = Files.createTempFile(tmpDir, "", ".gpkg");
-      try (var inputStream = inputUri.toURL().openStream()) {
-        FileUtils.safeCopy(inputStream, extractedPath);
+      extractedPath = keepUnzipped ? unzippedDir.resolve(URLEncoder.encode(input.toString(), StandardCharsets.UTF_8)) :
+        Files.createTempFile(unzippedDir, "", ".gpkg");
+      FileUtils.createParentDirectories(extractedPath);
+      if (!keepUnzipped || FileUtils.isNewer(input, extractedPath)) {
+        try (var inputStream = inputUri.toURL().openStream()) {
+          FileUtils.safeCopy(inputStream, extractedPath);
+        }
       }
       return GeoPackageManager.open(false, extractedPath.toFile());
     }
@@ -86,15 +94,15 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
    * @param config           user-defined parameters controlling number of threads and log interval
    * @param profile          logic that defines what map features to emit for each source feature
    * @param stats            to keep track of counters and timings
+   * @param keepUnzipped     to keep unzipped files around after running (speeds up subsequent runs, but uses more disk)
    * @throws IllegalArgumentException if a problem occurs reading the input file
    */
   public static void process(String sourceProjection, String sourceName, List<Path> sourcePaths, Path tmpDir,
-    FeatureGroup writer, PlanetilerConfig config,
-    Profile profile, Stats stats) {
+    FeatureGroup writer, PlanetilerConfig config, Profile profile, Stats stats, boolean keepUnzipped) {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir),
+      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped),
       writer, config, profile, stats
     );
   }
@@ -154,8 +162,8 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   public void close() throws IOException {
     geoPackage.close();
 
-    if (extractedPath != null) {
-      Files.deleteIfExists(extractedPath);
+    if (!keepUnzipped && extractedPath != null) {
+      FileUtils.delete(extractedPath);
     }
   }
 }
