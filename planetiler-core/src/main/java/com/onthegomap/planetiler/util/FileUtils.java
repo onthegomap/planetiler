@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -11,6 +12,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -339,6 +341,29 @@ public class FileUtils {
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  public static long getLastModifiedTime(Path path) throws IOException {
+    try {
+      FileTime time;
+      if ("jar".equals(path.toUri().getScheme())) {
+        time = Files.getLastModifiedTime(Path.of(path.getFileSystem().toString()));
+      } else {
+        time = Files.getLastModifiedTime(path);
+      }
+      return time.toMillis();
+    } catch (ClosedFileSystemException e) {
+      throw new IOException("File system closed", e);
+    }
+  }
+
+  /** Returns {@code true} if src is newer than dest, or if dest does not exist. Defaults to true if an error occurs. */
+  public static boolean isNewer(Path src, Path dest) {
+    try {
+      return Files.notExists(dest) || getLastModifiedTime(src) > getLastModifiedTime(dest);
+    } catch (IOException e) {
+      return true;
     }
   }
 }
