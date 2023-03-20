@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -253,6 +254,59 @@ class TiledGeometryTest {
       assertFalse(result.getCoveredTiles().test(3, 3));
       assertTrue(result.getCoveredTiles().test(1, 1));
       assertTrue(result.getCoveredTiles().test(9, 9));
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,false,false",
+    "90,false,false",
+    "180,false,false",
+    "270,false,false",
+    "0,true,false",
+    "0,false,true",
+    "0,true,true",
+  })
+  void testInsideComplexHole(int degrees, boolean flipX, boolean flipY) throws GeometryException {
+    MutableCoordinateSequence outer = new MutableCoordinateSequence();
+    outer.addPoint(1, 1);
+    outer.addPoint(10, 1);
+    outer.addPoint(10, 10);
+    outer.addPoint(1, 10);
+    outer.closeRing();
+    MutableCoordinateSequence inner1 = new MutableCoordinateSequence();
+    inner1.addPoint(6.5, 1.5);
+    inner1.addPoint(2, 2);
+    inner1.addPoint(2, 9);
+    inner1.addPoint(9, 9);
+    inner1.addPoint(9, 2);
+    inner1.addPoint(4.6, 2);
+    inner1.addPoint(8, 8);
+    inner1.addPoint(3, 8);
+    inner1.addPoint(4, 2);
+    inner1.closeRing();
+    MutableCoordinateSequence inner2 = new MutableCoordinateSequence();
+    inner2.addPoint(5.5, 6.5);
+    inner2.addPoint(5.5, 6.6);
+    inner2.addPoint(5.6, 6.6);
+    inner2.closeRing();
+    flipAndRotate(outer, 6, 6, flipX, flipY, degrees);
+    flipAndRotate(inner1, 6, 6, flipX, flipY, degrees);
+    flipAndRotate(inner2, 6, 6, flipX, flipY, degrees);
+
+    assertTrue(Orientation.isCCW(outer));
+    assertFalse(Orientation.isCCW(inner1));
+    assertFalse(Orientation.isCCW(inner2));
+
+    testRender(List.of(List.of(outer, inner1)));
+    testRender(List.of(List.of(outer, inner2)));
+    testRender(List.of(List.of(outer, inner1, inner2)));
+    var result = testRender(List.of(List.of(outer, inner2, inner1)));
+    if (degrees == 0 && !flipX && !flipY) {
+      var filled = StreamSupport.stream(result.getFilledTiles().spliterator(), false).collect(Collectors.toSet());
+      assertTrue(filled.contains(TileCoord.ofXYZ(5, 5, 14)));
+      assertTrue(filled.contains(TileCoord.ofXYZ(4, 6, 14)));
+      assertFalse(filled.contains(TileCoord.ofXYZ(5, 6, 14)));
     }
   }
 

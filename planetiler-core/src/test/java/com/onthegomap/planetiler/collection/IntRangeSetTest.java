@@ -151,4 +151,18 @@ class IntRangeSetTest {
     range.intersect(other);
     assertTrue(range.isEmpty());
   }
+
+  @Test
+  void testXor() {
+    IntRangeSet range = new IntRangeSet();
+    assertEquals(List.of(), getInts(range));
+    range.xor(1, 5);
+    assertEquals(List.of(1, 2, 3, 4, 5), getInts(range));
+    range.xor(1, 5);
+    assertEquals(List.of(), getInts(range));
+    range.xor(1, 5);
+    assertEquals(List.of(1, 2, 3, 4, 5), getInts(range));
+    range.xor(3, 6);
+    assertEquals(List.of(1, 2, 6), getInts(range));
+  }
 }

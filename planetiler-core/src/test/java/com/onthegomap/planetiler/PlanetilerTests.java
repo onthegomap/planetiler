@@ -733,14 +733,15 @@ class PlanetilerTests {
 
   @ParameterizedTest
   @CsvSource({
-    "chesapeake.wkb, 4077",
+    "chesapeake.wkb, 4076",
     "mdshore.wkb,    19904",
-    "njshore.wkb,    10573"
+    "njshore.wkb,    10571",
+    "kobroor.wkb,    21693"
   })
   void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
     throws Exception {
     LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
-    MultiPolygon geometry = (MultiPolygon) new WKBReader()
+    Geometry geometry = new WKBReader()
       .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
     assertNotNull(geometry);
 
@@ -1704,8 +1705,8 @@ class PlanetilerTests {
       10, 39,
       11, 125,
       12, 397,
-      13, 1161,
-      14, 3117
+      13, 1160,
+      14, 3108
     ), counts);
   }
 

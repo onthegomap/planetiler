@@ -517,7 +517,7 @@ public class TiledGeometry {
 
     // keep a record of filled tiles that we skipped because an edge of the polygon that gets processed
     // later may intersect the edge of a filled tile, and we'll need to replay all the edges we skipped
-    record SkippedSegment(Direction side, int lo, int hi) {}
+    record SkippedSegment(Direction side, int lo, int hi, boolean asc) {}
     List<SkippedSegment> skipped = null;
 
     for (int i = 0; i < stripeSegment.size() - 1; i++) {
@@ -553,23 +553,47 @@ public class TiledGeometry {
             Integer next = tileYsWithDetail.ceiling(y);
             int nextNonEdgeTile = next == null ? startEndY : Math.min(next, startEndY);
             int endSkip = nextNonEdgeTile - 1;
-            if (skipped == null) {
-              skipped = new ArrayList<>();
-            }
             // save the Y range that we skipped in case a later edge intersects a filled tile
-            skipped.add(new SkippedSegment(
-              onLeftEdge ? Direction.LEFT : Direction.RIGHT,
-              y,
-              endSkip
-            ));
+            if (endSkip >= y) {
+              if (skipped == null) {
+                skipped = new ArrayList<>();
+              }
+              var skippedSegment = new SkippedSegment(
+                onLeftEdge ? Direction.LEFT : Direction.RIGHT,
+                y,
+                endSkip,
+                by > ay
+              );
+              skipped.add(skippedSegment);
 
-            if (rightFilled == null) {
-              rightFilled = new IntRangeSet();
-              leftFilled = new IntRangeSet();
+              //              System.err.println("    " + skippedSegment);
+              if (rightFilled == null) {
+                rightFilled = new IntRangeSet();
+                leftFilled = new IntRangeSet();
+              }
+              /*
+              A tile is inside a filled region when there is an odd number of vertical edges to the left and right
+
+              for example a simple shape:
+                     ---------
+               out   |  in   | out
+               (0/2) | (1/1) | (2/0)
+                     ---------
+
+              or a more complex shape
+                     ---------       ---------
+               out   |  in   | out   | in    |
+               (0/4) | (1/3) | (2/2) | (3/1) |
+                     |       ---------       |
+                     -------------------------
+
+              So we keep track of this number by xor'ing the left and right fills repeatedly,
+              then and'ing them together at the end.
+               */
+              (onRightEdge ? rightFilled : leftFilled).xor(y, endSkip);
+
+              y = nextNonEdgeTile;
             }
-            (onRightEdge ? rightFilled : leftFilled).add(y, endSkip);
-
-            y = nextNonEdgeTile;
           }
         }
 
@@ -606,13 +630,11 @@ public class TiledGeometry {
               if (skippedSegment.lo <= y && skippedSegment.hi >= y) {
                 double top = y - buffer;
                 double bottom = y + 1 + buffer;
-                if (skippedSegment.side == Direction.LEFT) {
-                  slice.addPoint(-buffer, bottom);
-                  slice.addPoint(-buffer, top);
-                } else { // side == RIGHT
-                  slice.addPoint(1 + buffer, top);
-                  slice.addPoint(1 + buffer, bottom);
-                }
+                double start = skippedSegment.asc ? top : bottom;
+                double end = skippedSegment.asc ? bottom : top;
+                double edgeX = skippedSegment.side == Direction.LEFT ? -buffer : (1 + buffer);
+                slice.addPoint(edgeX, start);
+                slice.addPoint(edgeX, end);
               }
             }
           }

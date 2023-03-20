@@ -38,6 +38,12 @@ public class IntRangeSet implements Iterable<Integer> {
     return this;
   }
 
+  /** Mutates and returns this range set, with range {@code a} to {@code b} (inclusive) removed. */
+  public IntRangeSet remove(int a, int b) {
+    bitmap.remove(a, (long) b + 1);
+    return this;
+  }
+
   /** Mutates and returns this range set, with {@code a} removed. */
   public IntRangeSet remove(int a) {
     bitmap.remove(a);
@@ -66,6 +72,15 @@ public class IntRangeSet implements Iterable<Integer> {
 
   public boolean isEmpty() {
     return bitmap.isEmpty();
+  }
+
+  /**
+   * Mutates and returns this range set, with each element from {@code a} to {@code b} (inclusive) added if missing, and
+   * removed if present.
+   */
+  public IntRangeSet xor(int start, int end) {
+    bitmap.xor(RoaringBitmap.bitmapOfRange(start, end + 1L));
+    return this;
   }
 
   /** Iterate through all ints in this range */
