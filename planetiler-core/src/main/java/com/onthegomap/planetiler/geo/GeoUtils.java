@@ -264,6 +264,20 @@ public class GeoUtils {
     }
   }
 
+  /**
+   * More aggressive fix for self-intersections than {@link #fixPolygon(Geometry)} that expands then contracts the shape
+   * by {@code buffer}.
+   *
+   * @throws GeometryException if a robustness error occurred
+   */
+  public static Geometry fixPolygon(Geometry geom, double buffer) throws GeometryException {
+    try {
+      return geom.buffer(buffer).buffer(-buffer);
+    } catch (TopologyException e) {
+      throw new GeometryException("fix_polygon_buffer_topology_error", "robustness error fixing polygon: " + e);
+    }
+  }
+
   public static Geometry combineLineStrings(List<LineString> lineStrings) {
     return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
   }
@@ -300,8 +314,8 @@ public class GeoUtils {
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
       } catch (IllegalArgumentException e2) {
-        // give it one last try, just in case
-        geom = fixPolygon(geom);
+        // give it one last try but with more aggressive fixing, just in case (see issue #511)
+        geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
         } catch (IllegalArgumentException e3) {
