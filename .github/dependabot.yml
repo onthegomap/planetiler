@@ -14,6 +14,9 @@ updates:
       - dependencies
     ignore:
       - dependency-name: "com.graphhopper:graphhopper-reader-osm"
+      # See issue #510
+      - dependency-name: "com.github.jnr:jnr-ffi"
+        versions: [ "2.2.13" ]
   - package-ecosystem: maven
     # workaround for non-standard pom.xml filename (https://github.com/dependabot/dependabot-core/issues/4425)
     directory: "/.github/planetiler-examples-dependabot"
