@@ -22,7 +22,7 @@ public class Format {
 
   private static final ConcurrentMap<Locale, Format> instances = new ConcurrentHashMap<>();
   @SuppressWarnings("java:S5164")
-  private static final NumberFormat latLonNF = NumberFormat.getNumberInstance(Locale.US);
+  private static final NumberFormat latLonNF = NumberFormat.getIntegerInstance(Locale.US);
   private static final NavigableMap<Long, String> STORAGE_SUFFIXES = new TreeMap<>(Map.ofEntries(
     Map.entry(1_000L, "k"),
     Map.entry(1_000_000L, "M"),
@@ -40,6 +40,7 @@ public class Format {
 
   static {
     latLonNF.setMaximumFractionDigits(5);
+    latLonNF.setGroupingUsed(false);
   }
 
   // `NumberFormat` instances are not thread safe, so we need to wrap them inside a `ThreadLocal`.

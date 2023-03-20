@@ -523,7 +523,9 @@ public class TestUtils {
 
   @JacksonXmlRootElement(localName = "node")
   public record Node(
-    long id, double lat, double lon
+    long id, double lat, double lon,
+    @JacksonXmlProperty(localName = "tag")
+    @JacksonXmlElementWrapper(useWrapping = false) List<Tag> tags
   ) {}
 
   @JacksonXmlRootElement(localName = "nd")

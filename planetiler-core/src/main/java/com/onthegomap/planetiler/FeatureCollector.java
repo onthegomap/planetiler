@@ -78,7 +78,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   public Feature point(String layer) {
     try {
       if (!source.isPoint()) {
-        throw new GeometryException("feature_not_point", "not a point");
+        throw new GeometryException("feature_not_point", "not a point", true);
       }
       return geometry(layer, source.worldGeometry());
     } catch (GeometryException e) {

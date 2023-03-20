@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.util.Hilbert;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 
 /**
  * The coordinate of a <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">slippy map tile</a>.
@@ -170,5 +171,15 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
 
   public TileCoord parent() {
     return ofXYZ(x / 2, y / 2, z - 1);
+  }
+
+  public Envelope bounds() {
+    double worldWidthAtZoom = Math.pow(2, z);
+    return new Envelope(
+      GeoUtils.getWorldLon(x / worldWidthAtZoom),
+      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
+      GeoUtils.getWorldLat(y / worldWidthAtZoom),
+      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom)
+    );
   }
 }

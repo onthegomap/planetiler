@@ -77,7 +77,7 @@ class FeatureRendererTest {
 
   @Test
   void testEmptyGeometry() {
-    var feature = collector(emptyGeometry()).point("layer");
+    var feature = collector(GeoUtils.JTS_FACTORY.createPoint()).point("layer");
     assertSameNormalizedFeatures(Map.of(), renderGeometry(feature));
   }
 

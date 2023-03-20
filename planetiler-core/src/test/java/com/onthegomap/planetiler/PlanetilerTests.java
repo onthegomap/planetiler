@@ -735,12 +735,13 @@ class PlanetilerTests {
   @CsvSource({
     "chesapeake.wkb, 4076",
     "mdshore.wkb,    19904",
-    "njshore.wkb,    10571"
+    "njshore.wkb,    10571",
+    "kobroor.wkb,    21693"
   })
   void testComplexShorelinePolygons__TAKES_A_MINUTE_OR_TWO(String fileName, int expected)
     throws Exception {
     LOGGER.warn("Testing complex shoreline processing for " + fileName + " ...");
-    MultiPolygon geometry = (MultiPolygon) new WKBReader()
+    Geometry geometry = new WKBReader()
       .read(new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource(fileName))));
     assertNotNull(geometry);
 
@@ -1611,7 +1612,11 @@ class PlanetilerTests {
   private static List<OsmElement> convertToOsmElements(OsmXml osmInfo) {
     List<OsmElement> elements = new ArrayList<>();
     for (var node : orEmpty(osmInfo.nodes())) {
-      elements.add(new OsmElement.Node(node.id(), node.lat(), node.lon()));
+      var newNode = new OsmElement.Node(node.id(), node.lat(), node.lon());
+      elements.add(newNode);
+      for (var tag : orEmpty(node.tags())) {
+        newNode.setTag(tag.k(), tag.v());
+      }
     }
     for (var way : orEmpty(osmInfo.ways())) {
       var readerWay = new OsmElement.Way(way.id());
@@ -1676,13 +1681,42 @@ class PlanetilerTests {
     assertEquals(8, results.tiles.size());
   }
 
+  @Test
+  void testIssue509LenaDelta() throws Exception {
+    OsmXml osmInfo = TestUtils.readOsmXml("issue_509_lena_delta.xml");
+    List<OsmElement> elements = convertToOsmElements(osmInfo);
+
+    var results = runWithOsmElements(
+      Map.of("threads", "1"),
+      elements,
+      (in, features) -> {
+        if (in.hasTag("natural", "water")) {
+          features.polygon("water").setAttr("id", in.id()).setMinZoom(10);
+        }
+      }
+    );
+
+    Map<Integer, Integer> counts = new TreeMap<>();
+    for (var tile : results.tiles().keySet()) {
+      counts.merge(tile.z(), 1, Integer::sum);
+    }
+
+    assertEquals(Map.of(
+      10, 39,
+      11, 125,
+      12, 397,
+      13, 1160,
+      14, 3108
+    ), counts);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {
     "",
     "--write-threads=2 --process-threads=2 --feature-read-threads=2 --threads=4",
     "--free-osm-after-read",
     "--osm-parse-node-bounds",
-    "--output-format=pmtiles"
+    "--output-format=pmtiles",
   })
   void testPlanetilerRunner(String args) throws Exception {
     boolean pmtiles = args.contains("pmtiles");
