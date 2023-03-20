@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -136,5 +138,17 @@ class IntRangeSetTest {
     range2.remove(4);
     range.intersect(range2);
     assertEquals(List.of(3, 5), getInts(range));
+  }
+
+  @Test
+  void testIsEmpty() {
+    IntRangeSet range = new IntRangeSet();
+    assertTrue(range.isEmpty());
+    range.add(1, 5);
+    assertFalse(range.isEmpty());
+    var other = new IntRangeSet();
+    other.add(6, 10);
+    range.intersect(other);
+    assertTrue(range.isEmpty());
   }
 }

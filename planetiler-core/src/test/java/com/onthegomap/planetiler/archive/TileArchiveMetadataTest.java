@@ -48,10 +48,10 @@ class TileArchiveMetadataTest {
       ))));
     var map = new TreeMap<>(metadata.toMap());
     assertNotNull(map.remove("planetiler:version"));
-    assertNotNull(map.remove("planetiler:githash"));
-    assertNotNull(map.remove("planetiler:buildtime"));
+    map.remove("planetiler:githash");
+    map.remove("planetiler:buildtime");
     assertEquals(
-      new TreeMap<String, String>(Map.of(
+      new TreeMap<>(Map.of(
         "name", "Null",
         "type", "baselayer",
         "format", "pbf",

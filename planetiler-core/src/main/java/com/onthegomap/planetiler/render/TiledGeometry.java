@@ -537,8 +537,8 @@ public class TiledGeometry {
       int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + neighborBuffer));
 
       // inside a fill if one edge of the polygon runs straight down the right side or up the left side of the column
-      boolean onRightEdge = area && ax == bx && ax == rightEdge && by > ay;
-      boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
+      boolean onRightEdge = area && ax == bx && ax == rightEdge;
+      boolean onLeftEdge = area && ax == bx && ax == leftEdge;
 
       for (int y = startY; y <= endY; y++) {
         // skip over filled tiles until we get to the next tile that already has detail on it
@@ -677,7 +677,7 @@ public class TiledGeometry {
   }
 
   private void addFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {
@@ -692,7 +692,7 @@ public class TiledGeometry {
   }
 
   private void removeFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {

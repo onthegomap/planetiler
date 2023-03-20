@@ -59,6 +59,15 @@ public class IntRangeSet implements Iterable<Integer> {
     return this;
   }
 
+  @Override
+  public String toString() {
+    return bitmap.toString();
+  }
+
+  public boolean isEmpty() {
+    return bitmap.isEmpty();
+  }
+
   /** Iterate through all ints in this range */
   private record Iter(PeekableIntIterator iter) implements PrimitiveIterator.OfInt {
 
