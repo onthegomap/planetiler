@@ -103,7 +103,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
         extracted = unzippedDir.resolve(URLEncoder.encode(zipEntry.toString(), StandardCharsets.UTF_8));
         FileUtils.createParentDirectories(extracted);
         if (!keepUnzipped || FileUtils.isNewer(path, extracted)) {
-          LOGGER.error("unzipping {} to {}", path.toAbsolutePath(), extracted);
+          LOGGER.info("unzipping {} to {}", path.toAbsolutePath(), extracted);
           Files.copy(Files.newInputStream(zipEntry), extracted, StandardCopyOption.REPLACE_EXISTING);
         }
         if (!keepUnzipped) {
