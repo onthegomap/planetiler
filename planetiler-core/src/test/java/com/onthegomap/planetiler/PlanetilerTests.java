@@ -1748,7 +1748,7 @@ class PlanetilerTests {
     }
 
     try (
-      var db = pmtiles ? ReadablePmtiles.newReadFromFile(output) : Mbtiles.newReadOnlyDatabase(output)
+      var db = pmtiles ? ReadablePmtiles.newReadFromFile(output, Arguments.of()) : Mbtiles.newReadOnlyDatabase(output)
     ) {
       int features = 0;
       var tileMap = TestUtils.getTileMap(db);

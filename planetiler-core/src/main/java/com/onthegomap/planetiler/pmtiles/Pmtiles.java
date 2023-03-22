@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.MemoryEstimator;
 import com.onthegomap.planetiler.util.VarInt;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
@@ -222,10 +223,12 @@ public class Pmtiles {
   }
 
   public static final class Entry implements Comparable<Entry> {
+
+    public static final int BYTES = (int) MemoryEstimator.CLASS_HEADER_BYTES + Long.BYTES * 2 + Integer.BYTES * 2;
     private long tileId;
     private long offset;
     private int length;
-    protected int runLength;
+    int runLength;
 
     public Entry(long tileId, long offset, int length, int runLength) {
       this.tileId = tileId;

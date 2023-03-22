@@ -1,8 +1,12 @@
 package com.onthegomap.planetiler.pmtiles;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.ScannableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
@@ -22,22 +26,34 @@ import java.util.stream.Stream;
 public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchive {
   private final SeekableByteChannel channel;
   private final Pmtiles.Header header;
+  private final LoadingCache<OffsetAndLength, List<Pmtiles.Entry>> directoryCache;
 
   public ReadablePmtiles(SeekableByteChannel channel) throws IOException {
+    this(channel, Arguments.of());
+  }
+
+  public ReadablePmtiles(SeekableByteChannel channel, Arguments arguments) throws IOException {
     this.channel = channel;
-
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
+    int cacheSizeMb = arguments.getInteger("cache_size_mb", "pmtiles: cache size for directories in megabytes", 500);
+    this.directoryCache = CacheBuilder.newBuilder()
+      .maximumWeight(cacheSizeMb * 1_000_000L)
+      .weigher((OffsetAndLength k, List<Pmtiles.Entry> v) -> v.size() * (Pmtiles.Entry.BYTES + 8))
+      .build(CacheLoader.from(key -> {
+        try {
+          var buf = getBytes(key.offset, key.length);
+          if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+            buf = Gzip.gunzip(buf);
+          }
+          return Pmtiles.directoryFromBytes(buf);
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }));
   }
 
-  public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
-    return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
-  }
-
-  private synchronized byte[] getBytes(long start, int length) throws IOException {
-    channel.position(start);
-    var buf = ByteBuffer.allocate(length);
-    channel.read(buf);
-    return buf.array();
+  public static ReadableTileArchive newReadFromFile(Path path, Arguments arguments) throws IOException {
+    return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ), arguments);
   }
 
   /**
@@ -66,6 +82,13 @@ public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchiv
     return null;
   }
 
+  private synchronized byte[] getBytes(long start, int length) throws IOException {
+    channel.position(start);
+    var buf = ByteBuffer.allocate(length);
+    channel.read(buf);
+    return buf.array();
+  }
+
   @Override
   @SuppressWarnings("java:S1168")
   public byte[] getTile(int x, int y, int z) {
@@ -76,12 +99,7 @@ public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchiv
       int dirLength = (int) header.rootDirLength();
 
       for (int depth = 0; depth <= 3; depth++) {
-        byte[] dirBytes = getBytes(dirOffset, dirLength);
-        if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-          dirBytes = Gzip.gunzip(dirBytes);
-        }
-
-        var dir = Pmtiles.directoryFromBytes(dirBytes);
+        var dir = readDir(dirOffset, dirLength);
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {
@@ -142,6 +160,31 @@ public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchiv
     }
   }
 
+  private List<Pmtiles.Entry> readDir(long offset, int length) {
+    return directoryCache.getUnchecked(new OffsetAndLength(offset, length));
+  }
+
+  // Warning: this will only work on z15 or less pmtiles which planetiler creates
+  private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
+    return dir.stream().flatMap(entry -> entry.runLength() == 0 ?
+      getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
+        .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
+  }
+
+  @Override
+  public CloseableIterator<TileCoord> getAllTileCoords() {
+    List<Pmtiles.Entry> rootDir;
+    rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+    return new TileCoordIterator(getTileCoords(rootDir));
+  }
+
+  @Override
+  public void close() throws IOException {
+    channel.close();
+  }
+
+  private record OffsetAndLength(long offset, int length) {}
+
   private static class TileCoordIterator implements CloseableIterator<TileCoord> {
     private final Stream<TileCoord> stream;
     private final Iterator<TileCoord> iterator;
@@ -165,42 +208,5 @@ public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchiv
     public TileCoord next() {
       return this.iterator.next();
     }
-  }
-
-  private List<Pmtiles.Entry> readDir(long offset, int length) throws IOException {
-    var buf = getBytes(offset, length);
-    if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-      buf = Gzip.gunzip(buf);
-    }
-    return Pmtiles.directoryFromBytes(buf);
-  }
-
-  // Warning: this will only work on z15 or less pmtiles which planetiler creates
-  private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
-    return dir.stream().flatMap(entry -> {
-      try {
-        return entry.runLength() == 0 ?
-          getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
-            .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-    });
-  }
-
-  @Override
-  public CloseableIterator<TileCoord> getAllTileCoords() {
-    List<Pmtiles.Entry> rootDir;
-    try {
-      rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-      return new TileCoordIterator(getTileCoords(rootDir));
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  @Override
-  public void close() throws IOException {
-    channel.close();
   }
 }

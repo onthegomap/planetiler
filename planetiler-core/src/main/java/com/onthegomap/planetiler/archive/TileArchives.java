@@ -58,7 +58,7 @@ public class TileArchives {
     var options = archive.applyFallbacks(config.arguments());
     return switch (archive.format()) {
       case MBTILES -> Mbtiles.newReadOnlyDatabase(archive.getLocalPath(), options);
-      case PMTILES -> ReadablePmtiles.newReadFromFile(archive.getLocalPath());
+      case PMTILES -> ReadablePmtiles.newReadFromFile(archive.getLocalPath(), options);
     };
   }
 
