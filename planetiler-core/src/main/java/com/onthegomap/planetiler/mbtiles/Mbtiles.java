@@ -9,6 +9,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.ScannableTileArchive;
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
@@ -52,7 +54,7 @@ import org.sqlite.SQLiteConfig;
  *
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
-public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
+public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive, ScannableTileArchive {
 
   // Options that can be set through "file.mbtiles?compact=true" query parameters
   // or "file.mbtiles" with "--mbtiles-compact=true" command-line flag
@@ -207,7 +209,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   @Override
   public TileOrder tileOrder() {
-    return TileOrder.TMS;
+    return TileArchiveConfig.Format.MBTILES.tileOrder();
   }
 
   @Override

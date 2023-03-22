@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.pmtiles;
 
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.ScannableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class ReadablePmtiles implements ReadableTileArchive {
+public class ReadablePmtiles implements ReadableTileArchive, ScannableTileArchive {
   private final SeekableByteChannel channel;
   private final Pmtiles.Header header;
 

@@ -121,15 +121,13 @@ public class TileArchiveWriter {
       (int) (5_000d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
     );
 
-    WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
-
     /*
      * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
      * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
      * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
      */
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
-    encodeBranch = pipeline
+    WorkerPipeline<TileBatch> encodeBranch = pipeline
       .<TileBatch>fromGenerator(secondStageName, next -> {
         var writerEnqueuer = writerQueue.threadLocalWriter();
         writer.readFeaturesAndBatch(batch -> {
@@ -143,7 +141,7 @@ public class TileArchiveWriter {
       .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
-    writeBranch = pipeline.readFromQueue(writerQueue)
+    WorkerPipeline<TileBatch> writeBranch = pipeline.readFromQueue(writerQueue)
       // use only 1 thread since tileWriter needs to be single-threaded
       .sinkTo("write", 1, writer::tileWriter);
 
@@ -163,8 +161,10 @@ public class TileArchiveWriter {
       .newLine()
       .add(writer::getLastTileLogDetails);
 
-    var doneFuture = writeBranch == null ? encodeBranch.done() : joinFutures(writeBranch.done(), encodeBranch.done());
-    loggers.awaitAndLog(doneFuture, config.logInterval());
+    loggers.awaitAndLog(
+      joinFutures(writeBranch.done(), encodeBranch.done()),
+      config.logInterval()
+    );
     writer.printTileStats();
     timer.stop();
   }

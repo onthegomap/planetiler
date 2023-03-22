@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.pmtiles;
 
 import com.carrotsearch.hppc.ByteArrayList;
 import com.carrotsearch.hppc.LongLongHashMap;
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
@@ -128,7 +129,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
 
   @Override
   public TileOrder tileOrder() {
-    return TileOrder.HILBERT;
+    return TileArchiveConfig.Format.PMTILES.tileOrder();
   }
 
   @Override

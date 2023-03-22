@@ -16,6 +16,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.ScannableTileArchive;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -221,7 +222,7 @@ public class TestUtils {
   }
 
   public static Set<Mbtiles.TileEntry> getAllTiles(ReadableTileArchive db) {
-    return db.getAllTileCoords().stream()
+    return ((ScannableTileArchive) db).getAllTileCoords().stream()
       .map(coord -> new Mbtiles.TileEntry(coord, db.getTile(coord)))
       .collect(Collectors.toSet());
   }

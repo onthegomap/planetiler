@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -161,22 +162,40 @@ public record TileArchiveConfig(
    * Returns an {@link Arguments} instance that returns the value for options directly from the query parameters in the
    * URI, or from {@code arguments} prefixed by {@code "format_"}.
    */
+  public Arguments applyFallbacks(Arguments arguments, String prefix) {
+    return Arguments.of(options).orElse(arguments.withPrefix(prefix));
+  }
+
+  /**
+   * Returns an {@link Arguments} instance that returns the value for options directly from the query parameters in the
+   * URI, or from {@code arguments} prefixed by {@code "format_"}.
+   */
   public Arguments applyFallbacks(Arguments arguments) {
-    return Arguments.of(options).orElse(arguments.withPrefix(format.id));
+    return applyFallbacks(arguments, format.id);
+  }
+
+  public TileOrder tileOrder() {
+    return format.tileOrder();
   }
 
   public enum Format {
-    MBTILES("mbtiles"),
-    PMTILES("pmtiles");
+    MBTILES("mbtiles", TileOrder.TMS),
+    PMTILES("pmtiles", TileOrder.HILBERT);
 
     private final String id;
+    private final TileOrder tileOrder;
 
-    Format(String id) {
+    Format(String id, TileOrder tileOrder) {
       this.id = id;
+      this.tileOrder = tileOrder;
     }
 
     public String id() {
       return id;
+    }
+
+    public TileOrder tileOrder() {
+      return tileOrder;
     }
   }
 

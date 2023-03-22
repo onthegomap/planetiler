@@ -3,10 +3,12 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.planetiler.archive.ScannableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
@@ -35,7 +37,8 @@ class TileArchiveCopierTest {
     source = tmpDir.resolve(source).toString();
     dest = tmpDir.resolve(dest).toString();
 
-    var config = PlanetilerConfig.defaults();
+    var origConfig = PlanetilerConfig.defaults();
+    var stats = origConfig.arguments().getStats();
     var metadata = new TileArchiveMetadata(
       "MyName",
       "MyDescription",
@@ -52,7 +55,7 @@ class TileArchiveCopierTest {
       Map.of("other key", "other value")
     );
     try (
-      var writer = TileArchives.newWriter(source, config);
+      var writer = TileArchives.newWriter(source, origConfig);
     ) {
       writer.initialize(metadata);
       try (var tileWriter = writer.newTileWriter()) {
@@ -76,15 +79,21 @@ class TileArchiveCopierTest {
     }
 
     for (boolean deduplicate : new boolean[]{false, true}) {
-      String info = "deduplicates=" + deduplicate;
+      var args = Map.of(
+        "deduplicate", Boolean.toString(deduplicate)
+      );
+      String info = args.toString();
+      var config = PlanetilerConfig.from(Arguments.of(args));
       TileArchiveConfig.from(dest).delete();
-      TileArchiveCopier.copy(source, dest, config, deduplicate);
+      TileArchiveCopier.copy(source, dest, config, stats);
       try (var reader = TileArchives.newReader(dest, config)) {
         assertEquals(metadata, reader.metadata());
         assertArrayEquals(new byte[]{5, 5, 5}, reader.getTile(5, 5, 5), info);
         assertArrayEquals(new byte[]{5, 5, 6}, reader.getTile(5, 5, 6), info);
         assertArrayEquals(new byte[]{5, 5, 6}, reader.getTile(6, 5, 6), info);
-        assertEquals(3, reader.getAllTileCoords().stream().count(), info);
+        if (reader instanceof ScannableTileArchive scannable) {
+          assertEquals(3, scannable.getAllTileCoords().stream().count(), info);
+        }
       }
     }
   }
