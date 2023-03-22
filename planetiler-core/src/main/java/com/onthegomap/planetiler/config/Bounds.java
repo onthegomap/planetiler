@@ -24,7 +24,7 @@ public class Bounds {
 
   private Geometry shape;
 
-  Bounds(Envelope latLon) {
+  public Bounds(Envelope latLon) {
     set(latLon);
   }
 

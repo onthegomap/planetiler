@@ -40,8 +40,12 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     }
   }
 
-  private static int startIndexForZoom(int z) {
+  public static int startIndexForZoom(int z) {
     return ZOOM_START_INDEX[z];
+  }
+
+  public static int endIndexForZoom(int z) {
+    return ZOOM_START_INDEX[z] + (1 << z) * (1 << z) - 1;
   }
 
   private static int zoomForIndex(int idx) {
