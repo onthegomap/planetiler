@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.geotools.geometry.jts.JTS;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -94,12 +95,18 @@ public class FeatureMerge {
     return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, false);
   }
 
+  public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
+    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, resimplify, false);
+  }
+
   /**
    * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, double, double, double, boolean)}
    * except with a dynamic length limit computed by {@code lengthLimitCalculator} for the attributes of each group.
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
-    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
+    Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify,
+    boolean smooth) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -111,7 +118,8 @@ public class FeatureMerge {
       // - it doesn't need to be clipped
       // - and it can't possibly be filtered out for being too short
       // - and it does not need to be simplified
-      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 && (!resimplify || tolerance == 0)) {
+      if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 &&
+        (!resimplify || tolerance == 0 || !smooth)) {
         result.add(feature1);
       } else {
         LineMerger merger = new LineMerger();
@@ -125,13 +133,16 @@ public class FeatureMerge {
         List<LineString> outputSegments = new ArrayList<>();
         for (Object merged : merger.getMergedLineStrings()) {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
+            if (smooth) {
+              line = (LineString) JTS.smooth(line, 0.5);
+            }
             // re-simplify since some endpoints of merged segments may be unnecessary
             if (line.getNumPoints() > 2 && tolerance >= 0) {
               Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
               if (simplified instanceof LineString simpleLineString) {
                 line = simpleLineString;
               } else {
-                LOGGER.warn("line string merge simplify emitted " + simplified.getGeometryType());
+                LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
               }
             }
             if (buffer >= 0) {

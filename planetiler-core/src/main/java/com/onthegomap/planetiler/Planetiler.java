@@ -74,7 +74,7 @@ public class Planetiler {
   private final Timers.Finishable overallTimer;
   private final Arguments arguments;
   private final Stats stats;
-  private final Path tmpDir;
+  public final Path tmpDir;
   private final Path nodeDbPath;
   private final Path multipolygonPath;
   private final Path featureDbPath;
@@ -84,7 +84,8 @@ public class Planetiler {
   private Profile profile = null;
   private Function<Planetiler, Profile> profileProvider = null;
   private final PlanetilerConfig config;
-  private FeatureGroup featureGroup;
+  public FeatureGroup featureGroup;
+
   private OsmInputFile osmInputFile;
   private TileArchiveConfig output;
   private boolean overwrite = false;

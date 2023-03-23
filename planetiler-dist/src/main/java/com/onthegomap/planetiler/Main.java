@@ -4,6 +4,7 @@ import static java.util.Map.entry;
 
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
+import com.onthegomap.planetiler.contour.AsterV3;
 import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
 import com.onthegomap.planetiler.custommap.validator.SchemaValidator;
 import com.onthegomap.planetiler.examples.BikeRouteOverlay;
@@ -50,7 +51,9 @@ public class Main {
     entry("benchmark-longlongmap", LongLongMapBench::main),
 
     entry("verify-mbtiles", Verify::main),
-    entry("verify-monaco", VerifyMonaco::main)
+    entry("verify-monaco", VerifyMonaco::main),
+
+    entry("asterv3", AsterV3::main)
   );
 
   private static EntryPoint bundledSchema(String path) {

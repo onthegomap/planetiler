@@ -84,6 +84,10 @@ public interface WithTags {
     return Parse.bool(getTag(key));
   }
 
+  default Double getDouble(String key) {
+    return Parse.parseDoubleOrNull(getTag(key));
+  }
+
   /** Returns the value for {@code key}, parsed with {@link Long#parseLong(String)} - or 0 if missing or invalid. */
   default long getLong(String key) {
     return Parse.parseLong(getTag(key));
