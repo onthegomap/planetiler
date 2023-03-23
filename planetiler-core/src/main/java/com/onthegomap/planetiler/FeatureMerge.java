@@ -97,7 +97,7 @@ public class FeatureMerge {
 
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify) {
-    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, resimplify, false);
+    return mergeLineStrings(features, lengthLimitCalculator, tolerance, buffer, resimplify, 0);
   }
 
   /**
@@ -106,7 +106,7 @@ public class FeatureMerge {
    */
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     Function<Map<String, Object>, Double> lengthLimitCalculator, double tolerance, double buffer, boolean resimplify,
-    boolean smooth) {
+    double smooth) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -119,7 +119,7 @@ public class FeatureMerge {
       // - and it can't possibly be filtered out for being too short
       // - and it does not need to be simplified
       if (groupedFeatures.size() == 1 && buffer == 0d && lengthLimit == 0 &&
-        (!resimplify || tolerance == 0 || !smooth)) {
+        (!resimplify || tolerance == 0 || (smooth > 0))) {
         result.add(feature1);
       } else {
         LineMerger merger = new LineMerger();
@@ -133,8 +133,8 @@ public class FeatureMerge {
         List<LineString> outputSegments = new ArrayList<>();
         for (Object merged : merger.getMergedLineStrings()) {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
-            if (smooth) {
-              line = (LineString) JTS.smooth(line, 0.5);
+            if (smooth > 0) {
+              line = (LineString) JTS.smooth(line, 1 - smooth);
             }
             // re-simplify since some endpoints of merged segments may be unnecessary
             if (line.getNumPoints() > 2 && tolerance >= 0) {

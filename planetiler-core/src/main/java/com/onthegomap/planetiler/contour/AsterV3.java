@@ -61,6 +61,7 @@ public class AsterV3 implements Profile {
   private final int gcd;
   private final String attribute;
   private final String layer;
+  private final double smoothness;
 
   enum Unit {
     FEET(0.3048),
@@ -85,7 +86,8 @@ public class AsterV3 implements Profile {
     attribute = config.arguments().getString("attribute", "output elevation attribute name", "ele");
     String unitString = config.arguments().getString("unit", "unit (feet or meters)", "meters");
     this.unit = Unit.valueOf(unitString.toUpperCase(Locale.ROOT));
-    String levelsString = config.arguments().getString("levels", "zoom", "6:500,11:100,12:50,13:20,14:10");
+    String levelsString = config.arguments().getString("levels", "zoom", "10:200,11:100,12:50,13:20,14:10");
+    this.smoothness = config.arguments().getDouble("smoothness", "amount to smooth (0=tight 1=loose)", 0.5);
     levels = new TreeMap<>();
     for (var level : levelsString.split(",")) {
       String[] split = level.split(":");
@@ -139,7 +141,7 @@ public class AsterV3 implements Profile {
       config.tolerance(zoom),
       4,
       true,
-      true
+      smoothness
     );
   }
 
