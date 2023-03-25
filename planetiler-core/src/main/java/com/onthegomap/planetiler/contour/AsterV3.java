@@ -35,6 +35,9 @@ import java.util.TreeMap;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.gdal.gdal.DEMProcessingOptions;
+import org.gdal.gdal.Dataset;
+import org.gdal.gdal.WarpOptions;
 import org.gdal.gdal.gdal;
 import org.gdal.ogr.FieldDefn;
 import org.gdal.ogr.ogr;
@@ -49,6 +52,8 @@ import org.slf4j.LoggerFactory;
 public class AsterV3 implements Profile {
   private static final String ELE_KEY = "ele";
   private static final Logger LOGGER = LoggerFactory.getLogger(AsterV3.class);
+  private static final String SHADOW_KEY = "DN";
+  private static final String HIGLIGHT_KEY = "DNH";
 
   private final PlanetilerConfig config;
   private final Stats stats;
@@ -62,6 +67,7 @@ public class AsterV3 implements Profile {
   private final String attribute;
   private final String layer;
   private final double smoothness;
+  private final String thresholds;
 
   enum Unit {
     FEET(0.3048),
@@ -88,6 +94,7 @@ public class AsterV3 implements Profile {
     this.unit = Unit.valueOf(unitString.toUpperCase(Locale.ROOT));
     String levelsString = config.arguments().getString("levels", "zoom", "10:200,11:100,12:50,13:20,14:10");
     this.smoothness = config.arguments().getDouble("smoothness", "amount to smooth (0=tight 1=loose)", 0.5);
+    this.thresholds = config.arguments().getString("thresholds", "hillshade vector thresholds", "50,100");
     levels = new TreeMap<>();
     for (var level : levelsString.split(",")) {
       String[] split = level.split(":");
@@ -148,18 +155,43 @@ public class AsterV3 implements Profile {
   @Override
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     Coordinate coord = (Coordinate) sourceFeature.getTag("coord");
-    try {
-      Geometry line = sourceFeature.latLonGeometry();
-      Geometry clipped = null;
-      int minzoom = -1, maxzoom = -1;
-      double eleMeters = sourceFeature.getDouble(ELE_KEY);
-      long ele = (long) Math.rint(eleMeters / unit.meters);
-      for (int zoom : levels.navigableKeySet()) {
-        int level = levels.get(zoom);
-        if (ele % level == 0) {
-          minzoom = minzoom < 0 ? zoom : minzoom;
-          maxzoom = levels.higherKey(zoom) == null ? config.maxzoom() : (levels.higherKey(zoom) - 1);
-        } else {
+    if ("hillshade".equals(sourceFeature.getSourceLayer())) {
+      //      System.err.println(sourceFeature.getSourceLayer() + " : " + sourceFeature.tags());
+      if (sourceFeature.getTag(SHADOW_KEY) != null && sourceFeature.getDouble(SHADOW_KEY) == 0d) {
+        features.polygon("hillshade").setZoomRange(0, 14)
+          .setAttr("mode", "shadow")
+          .inheritAttrFromSource(SHADOW_KEY);
+      }
+    } else if ("highlight".equals(sourceFeature.getSourceLayer())) {
+      //      System.err.println(sourceFeature.getSourceLayer() + " : " + sourceFeature.tags());
+      if (sourceFeature.getTag(HIGLIGHT_KEY) != null && sourceFeature.getDouble(HIGLIGHT_KEY) > 0d) {
+        features.polygon("highlight").setZoomRange(0, 14)
+          .setAttr("mode", "highlight")
+          .inheritAttrFromSource(HIGLIGHT_KEY);
+      }
+    } else {
+      try {
+        Geometry line = sourceFeature.latLonGeometry();
+        Geometry clipped = null;
+        int minzoom = -1, maxzoom = -1;
+        double eleMeters = sourceFeature.getDouble(ELE_KEY);
+        long ele = (long) Math.rint(eleMeters / unit.meters);
+        for (int zoom : levels.navigableKeySet()) {
+          int level = levels.get(zoom);
+          if (ele % level == 0) {
+            minzoom = minzoom < 0 ? zoom : minzoom;
+            maxzoom = levels.higherKey(zoom) == null ? config.maxzoom() : (levels.higherKey(zoom) - 1);
+          } else {
+            if (minzoom >= 0) {
+              clipped = clipped != null ? clipped : GeoUtils.latLonToWorldCoords(coord.clip(line));
+              if (!clipped.isEmpty()) {
+                features.geometry(layer, clipped)
+                  .setZoomRange(minzoom, maxzoom)
+                  .setAttr(attribute, sourceFeature.getLong(ELE_KEY));
+              }
+            }
+            minzoom = maxzoom = -1;
+          }
           if (minzoom >= 0) {
             clipped = clipped != null ? clipped : GeoUtils.latLonToWorldCoords(coord.clip(line));
             if (!clipped.isEmpty()) {
@@ -168,19 +200,10 @@ public class AsterV3 implements Profile {
                 .setAttr(attribute, sourceFeature.getLong(ELE_KEY));
             }
           }
-          minzoom = maxzoom = -1;
         }
-        if (minzoom >= 0) {
-          clipped = clipped != null ? clipped : GeoUtils.latLonToWorldCoords(coord.clip(line));
-          if (!clipped.isEmpty()) {
-            features.geometry(layer, clipped)
-              .setZoomRange(minzoom, maxzoom)
-              .setAttr(attribute, sourceFeature.getLong(ELE_KEY));
-          }
-        }
+      } catch (GeometryException e) {
+        e.log(stats, "line", "line");
       }
-    } catch (GeometryException e) {
-      e.log(stats, "line", "line");
     }
   }
 
@@ -240,23 +263,26 @@ public class AsterV3 implements Profile {
             extractFromZip(coord);
             generateContours(coord);
 
-            try (var reader = new ShapefileReader(null, "aster" + coord.filename(), coord.contourPath())) {
-              reader.readFeatures(sourceFeature -> {
-                sourceFeature.setTag("coord", coord);
-                FeatureCollector features = featureCollectors.get(sourceFeature);
-                try {
-                  processFeature(sourceFeature, features);
-                  for (FeatureCollector.Feature renderable : features) {
-                    renderer.accept(renderable);
+
+            for (var path : FileUtils.walkPathWithPattern(coord.dir(), "*.shp")) {
+              //              System.err.println(path);
+              try (var reader = new ShapefileReader(null, path.getFileName().toString(), path)) {
+                reader.readFeatures(sourceFeature -> {
+                  sourceFeature.setTag("coord", coord);
+                  FeatureCollector features = featureCollectors.get(sourceFeature);
+                  try {
+                    processFeature(sourceFeature, features);
+                    for (FeatureCollector.Feature renderable : features) {
+                      renderer.accept(renderable);
+                    }
+                  } catch (Exception e) {
+                    LOGGER.error("Error processing " + sourceFeature, e);
                   }
-                } catch (Exception e) {
-                  LOGGER.error("Error processing " + sourceFeature, e);
-                }
-              });
-              tilesProcessed.incrementAndGet();
-            } finally {
-              FileUtils.deleteDirectory(coord.dir());
+                });
+              }
             }
+            tilesProcessed.incrementAndGet();
+            FileUtils.deleteDirectory(coord.dir());
           }
         }
       })
@@ -304,11 +330,23 @@ public class AsterV3 implements Profile {
     Vector<String> options = new Vector<>();
     var driver = ogr.GetDriverByName("ESRI Shapefile");
     var out = driver.CreateDataSource(dest);
-    var layer = out.CreateLayer("ele", new SpatialReference(dataset.GetProjection()), ogr.wkbLineString, null);
-    var field = new FieldDefn("ele", ogrConstants.OFTReal);
+    var layer = out.CreateLayer(ELE_KEY, new SpatialReference(dataset.GetProjection()), ogr.wkbLineString, null);
+    var hillshadeLayer =
+      out.CreateLayer("hillshade", new SpatialReference(dataset.GetProjection()), ogr.wkbPolygon, null);
+    var highlightLayer =
+      out.CreateLayer("highlight", new SpatialReference(dataset.GetProjection()), ogr.wkbPolygon, null);
+    var field = new FieldDefn(ELE_KEY, ogrConstants.OFTReal);
     field.SetWidth(12);
     field.SetPrecision(3);
     layer.CreateField(field, 0);
+    var field2 = new FieldDefn(SHADOW_KEY, ogrConstants.OFTReal);
+    field.SetWidth(12);
+    field.SetPrecision(3);
+    hillshadeLayer.CreateField(field2, 0);
+    var field3 = new FieldDefn(HIGLIGHT_KEY, ogrConstants.OFTReal);
+    field.SetWidth(12);
+    field.SetPrecision(3);
+    highlightLayer.CreateField(field3, 0);
 
     options.add("LEVEL_BASE=0");
     options.add("LEVEL_INTERVAL=" + (gcd * unit.meters));
@@ -316,6 +354,29 @@ public class AsterV3 implements Profile {
     options.add("ELEV_FIELD=" + ELE_KEY);
     options.add("NODATA=-32768");
 
+    var demOptions = new Vector<>(List.of("-multidirectional -compute_edges -s 111120".split(" ")));
+    var hillshadePath = coord.dir().resolve("hillshade.tiff");
+    var smaller = gdal.Warp(coord.dir().resolve("smaller.tiff").toString(), new Dataset[]{dataset},
+      new WarpOptions(new Vector<>(List.of("-ts 1200 1200 -r bilinear".split(" ")))));
+    Dataset hillshade = gdal.DEMProcessing(hillshadePath.toString(), smaller, "hillshade", null,
+      new DEMProcessingOptions(demOptions));
+    var band2 = hillshade.GetRasterBand(1);
+    for (int threshold : List.of(90, 120, 150)) {
+      var hillshadeVectorOptions = new Vector<>();
+      hillshadeVectorOptions.add("FIXED_LEVELS=" + threshold);
+      hillshadeVectorOptions.add("ELEV_FIELD_MIN=" + SHADOW_KEY);
+      hillshadeVectorOptions.add("POLYGONIZE=YES");
+
+      gdal.ContourGenerateEx(band2, hillshadeLayer, hillshadeVectorOptions);
+    }
+    for (int threshold : List.of(230)) {
+      var hillshadeVectorOptions = new Vector<>();
+      hillshadeVectorOptions.add("FIXED_LEVELS=" + threshold);
+      hillshadeVectorOptions.add("ELEV_FIELD_MIN=" + HIGLIGHT_KEY);
+      hillshadeVectorOptions.add("POLYGONIZE=YES");
+
+      gdal.ContourGenerateEx(band2, highlightLayer, hillshadeVectorOptions);
+    }
     gdal.ContourGenerateEx(band, layer, options);
 
     dataset.FlushCache();
