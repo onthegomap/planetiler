@@ -1,7 +1,11 @@
 package com.onthegomap.planetiler.util;
 
+import com.ibm.icu.text.Transliterator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link com.ibm.icu.text.Transliterator} that does not share any static data with other thread local
@@ -12,6 +16,8 @@ import java.lang.reflect.Method;
  * used across different threads in order to transliterate without contention.
  */
 public class ThreadLocalTransliterator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ThreadLocalTransliterator.class);
+  private static final AtomicBoolean loggedOnce = new AtomicBoolean(false);
   private final ClassLoader classLoader = DuplicateClassLoader.duplicateClassesWithPrefix("com.ibm.icu");
 
   /**
@@ -31,8 +37,14 @@ public class ThreadLocalTransliterator {
           throw new IllegalStateException(e);
         }
       };
-    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
-      throw new IllegalStateException(e);
+    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException | IllegalAccessException |
+      ExceptionInInitializerError e) {
+      if (!loggedOnce.get() && loggedOnce.compareAndSet(false, true)) {
+        LOGGER.warn("Could not get thread-local transliterator, falling back to slower shared instance: {}",
+          e.toString());
+      }
+      Transliterator t = Transliterator.getInstance(id);
+      return t::transliterate;
     }
   }
 
