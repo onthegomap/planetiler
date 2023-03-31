@@ -268,7 +268,7 @@ Then add the following dependency:
 <dependency>
   <groupId>com.onthegomap.planetiler</groupId>
   <artifactId>planetiler-core</artifactId>
-  <version>0.5.0</version>
+  <version>${planetiler.version}</version>
 </dependency>
 ```
 
