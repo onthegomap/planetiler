@@ -209,7 +209,7 @@ class TiledGeometryTest {
     List<List<CoordinateSequence>> coordinateSequences = List.of(List.of(outer, inner));
     var extent = new TileExtents.ForZoom(11, 0, 0, 1 << 11, 1 << 11, null);
     assertThrows(GeometryException.class,
-      () -> TiledGeometry.sliceIntoTiles(coordinateSequences, 0.1, true, 11, extent));
+      () -> TiledGeometry.sliceIntoTiles(coordinateSequences, 0.1, true, 11, extent, 0, 1));
   }
 
   @ParameterizedTest
@@ -384,7 +384,8 @@ class TiledGeometryTest {
   private static TiledGeometry testRender(List<List<CoordinateSequence>> coordinateSequences) throws GeometryException {
     return TiledGeometry.sliceIntoTiles(
       coordinateSequences, 0, true, 14,
-      new TileExtents.ForZoom(14, -10, -10, 1 << 14, 1 << 14, null)
+      new TileExtents.ForZoom(14, -10, -10, 1 << 14, 1 << 14, null),
+      0, 1
     );
   }
 }

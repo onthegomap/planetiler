@@ -48,7 +48,9 @@ public record PlanetilerConfig(
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
   Boolean color,
-  boolean keepUnzippedSources
+  boolean keepUnzippedSources,
+  int shard,
+  int shards
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -67,6 +69,13 @@ public record PlanetilerConfig(
     }
     if (httpRetries < 0) {
       throw new IllegalArgumentException("HTTP Retries must be >= 0, was " + httpRetries);
+    }
+    if (shards <= 0) {
+      throw new IllegalArgumentException("Illegal value for shards: " + shards);
+    }
+    if (shard < 0 || shard >= shards) {
+      throw new IllegalArgumentException(
+        "Illegal value for shard: " + shard + ", must be in range [0, " + shards + ")");
     }
   }
 
@@ -172,7 +181,9 @@ public record PlanetilerConfig(
         1d) * 1024 * 1024),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", false)
+        "keep unzipped sources by default after reading", false),
+      arguments.getInteger("shard", "Shard number", 0),
+      arguments.getInteger("shards", "Total shards", 1)
     );
   }
 

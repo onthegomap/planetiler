@@ -79,10 +79,12 @@ public class TiledGeometry {
   private final int z;
   private final boolean area;
   private final int maxTilesAtThisZoom;
+  private final int shards;
+  private final int shard;
   /** Map from X coordinate to range of Y coordinates that contain filled tiles inside this geometry */
   private Map<Integer, IntRangeSet> filledRanges = null;
 
-  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area) {
+  private TiledGeometry(TileExtents.ForZoom extents, double buffer, int z, boolean area, int shard, int shards) {
     this.extents = extents;
     this.buffer = buffer;
     // make sure we inspect neighboring tiles when a line runs along an edge
@@ -90,6 +92,8 @@ public class TiledGeometry {
     this.z = z;
     this.area = area;
     this.maxTilesAtThisZoom = 1 << z;
+    this.shard = shard;
+    this.shards = shards;
   }
 
   /**
@@ -103,8 +107,8 @@ public class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   static TiledGeometry slicePointsIntoTiles(TileExtents.ForZoom extents, double buffer, int z,
-    Coordinate[] coords) {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, false);
+    Coordinate[] coords, int shard, int shards) {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, false, shard, shards);
     for (Coordinate coord : coords) {
       result.slicePoint(coord);
     }
@@ -131,21 +135,21 @@ public class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   public static TiledGeometry sliceIntoTiles(Geometry scaledGeom, double minSize, double buffer, int z,
-    TileExtents.ForZoom extents) throws GeometryException {
+    TileExtents.ForZoom extents, int shard, int shards) throws GeometryException {
 
     if (scaledGeom.isEmpty()) {
       // ignore
-      return new TiledGeometry(extents, buffer, z, false);
+      return new TiledGeometry(extents, buffer, z, false, shard, shards);
     } else if (scaledGeom instanceof Point point) {
-      return slicePointsIntoTiles(extents, buffer, z, point.getCoordinates());
+      return slicePointsIntoTiles(extents, buffer, z, point.getCoordinates(), shard, shards);
     } else if (scaledGeom instanceof MultiPoint points) {
-      return slicePointsIntoTiles(extents, buffer, z, points.getCoordinates());
+      return slicePointsIntoTiles(extents, buffer, z, points.getCoordinates(), shard, shards);
     } else if (scaledGeom instanceof Polygon || scaledGeom instanceof MultiPolygon ||
       scaledGeom instanceof LineString ||
       scaledGeom instanceof MultiLineString) {
       var coordinateSequences = GeometryCoordinateSequences.extractGroups(scaledGeom, minSize);
       boolean area = scaledGeom instanceof Polygonal;
-      return sliceIntoTiles(coordinateSequences, buffer, area, z, extents);
+      return sliceIntoTiles(coordinateSequences, buffer, area, z, extents, shard, shards);
     } else {
       throw new UnsupportedOperationException(
         "Unsupported JTS geometry type " + scaledGeom.getClass().getSimpleName() + " " +
@@ -167,7 +171,7 @@ public class TiledGeometry {
     if (scaledGeom.isEmpty()) {
       return new CoveredTiles(new RoaringBitmap(), zoom);
     } else if (scaledGeom instanceof Puntal || scaledGeom instanceof Polygonal || scaledGeom instanceof Lineal) {
-      return sliceIntoTiles(scaledGeom, 0, 0, zoom, extents).getCoveredTiles();
+      return sliceIntoTiles(scaledGeom, 0, 0, zoom, extents, 0, 1).getCoveredTiles();
     } else if (scaledGeom instanceof GeometryCollection gc) {
       CoveredTiles result = new CoveredTiles(new RoaringBitmap(), zoom);
       for (int i = 0; i < gc.getNumGeometries(); i++) {
@@ -195,8 +199,8 @@ public class TiledGeometry {
    * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents) throws GeometryException {
-    TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
+    TileExtents.ForZoom extents, int shard, int shards) throws GeometryException {
+    TiledGeometry result = new TiledGeometry(extents, buffer, z, area, shard, shards);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);
@@ -249,6 +253,9 @@ public class TiledGeometry {
     int minY = Math.max(extents.minY(), (int) Math.floor(worldY - neighborBuffer));
     int maxY = Math.min(extents.maxY() - 1, (int) Math.floor(worldY + neighborBuffer));
     for (int x = minX; x <= maxX; x++) {
+      if (x % shards != shard) {
+        continue;
+      }
       double tileX = worldX - x;
       int wrappedX = wrapInt(x, maxTilesAtThisZoom);
       // point may end up inside bounds after wrapping
@@ -422,6 +429,9 @@ public class TiledGeometry {
 
       // for each column this segment crosses
       for (int x = startX; x <= endX; x++) {
+        if (x % shards != shard) {
+          continue;
+        }
         double axTile = ax - x;
         double bxTile = bx - x;
         MutableCoordinateSequence slice = xSlices.get(x);
@@ -573,20 +583,20 @@ public class TiledGeometry {
               }
               /*
               A tile is inside a filled region when there is an odd number of vertical edges to the left and right
-              
+
               for example a simple shape:
                      ---------
                out   |  in   | out
                (0/2) | (1/1) | (2/0)
                      ---------
-              
+
               or a more complex shape
                      ---------       ---------
                out   |  in   | out   | in    |
                (0/4) | (1/3) | (2/2) | (3/1) |
                      |       ---------       |
                      -------------------------
-              
+
               So we keep track of this number by xor'ing the left and right fills repeatedly,
               then and'ing them together at the end.
                */

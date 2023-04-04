@@ -121,7 +121,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
 
       // compute the tile coordinate of every tile these points should show up in at the given buffer size
       TileExtents.ForZoom extents = config.bounds().tileExtents().getForZoom(zoom);
-      TiledGeometry tiled = TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords);
+      TiledGeometry tiled =
+        TiledGeometry.slicePointsIntoTiles(extents, buffer, zoom, coords, config.shard(), config.shards());
       int emitted = 0;
       for (var entry : tiled.getTileData().entrySet()) {
         TileCoord tile = entry.getKey();
@@ -193,12 +194,12 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
       List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       try {
-        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+        sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, config.shard(), config.shards());
       } catch (GeometryException e) {
         try {
           geom = GeoUtils.fixPolygon(geom);
           groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
-          sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);
+          sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents, config.shard(), config.shards());
         } catch (GeometryException ex) {
           ex.log(stats, "slice_line_or_polygon", "Error slicing feature at z" + z + ": " + feature);
           // omit from this zoom level, but maybe the next will be better
