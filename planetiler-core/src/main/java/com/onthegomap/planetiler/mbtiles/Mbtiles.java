@@ -600,7 +600,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
   }
 
-  private abstract class BatchedTableWriterBase<T> implements AutoCloseable {
+  public abstract static class BatchedTableWriterBase<T> implements AutoCloseable {
 
     private static final int MAX_PARAMETERS_IN_PREPARED_STATEMENT = 999;
     private final List<T> batch;
@@ -610,10 +610,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     private final boolean insertStmtInsertIgnore;
     private final String insertStmtValuesPlaceHolder;
     private final String insertStmtColumnsCsv;
+    private final Connection connection;
     private long count = 0;
 
 
-    protected BatchedTableWriterBase(String tableName, List<String> columns, boolean insertIgnore) {
+    protected BatchedTableWriterBase(String tableName, List<String> columns, boolean insertIgnore,
+      Connection connection) {
+      this.connection = connection;
       batchLimit = MAX_PARAMETERS_IN_PREPARED_STATEMENT / columns.size();
       batch = new ArrayList<>(batchLimit);
       insertStmtTableName = tableName;
@@ -624,7 +627,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     /** Queue-up a write or flush to disk if enough are waiting. */
-    void write(T item) {
+    public void write(T item) {
       count++;
       batch.add(item);
       if (batch.size() >= batchLimit) {
@@ -692,7 +695,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     private static final List<String> COLUMNS = List.of(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA);
 
     BatchedTileTableWriter() {
-      super(TILES_TABLE, COLUMNS, false);
+      super(TILES_TABLE, COLUMNS, false, connection);
     }
 
     @Override
@@ -718,7 +721,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       List.of(TILES_SHALLOW_COL_Z, TILES_SHALLOW_COL_X, TILES_SHALLOW_COL_Y, TILES_SHALLOW_COL_DATA_ID);
 
     BatchedTileShallowTableWriter() {
-      super(TILES_SHALLOW_TABLE, COLUMNS, false);
+      super(TILES_SHALLOW_TABLE, COLUMNS, false, connection);
     }
 
     @Override
@@ -744,7 +747,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     private static final List<String> COLUMNS = List.of(TILES_DATA_COL_DATA_ID, TILES_DATA_COL_DATA);
 
     BatchedTileDataTableWriter() {
-      super(TILES_DATA_TABLE, COLUMNS, true);
+      super(TILES_DATA_TABLE, COLUMNS, true, connection);
     }
 
     @Override
