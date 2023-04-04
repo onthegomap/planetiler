@@ -218,7 +218,7 @@ public class Osm2Sqlite implements Closeable {
         version INTEGER,
         PRIMARY KEY(way_id, `order`)
       ) WITHOUT ROWID""");
-    //    execute("CREATE INDEX way_members_node_idx ON way_members (node_id)");
+    execute("CREATE INDEX way_members_node_idx ON way_members (node_id)");
     execute("""
       CREATE TABLE relation_members (
         relation_id INTEGER,
@@ -229,7 +229,7 @@ public class Osm2Sqlite implements Closeable {
         ref INTEGER,
         PRIMARY KEY(relation_id, `order`)
       ) WITHOUT ROWID""");
-    //    execute("CREATE INDEX relation_members_type_ref_idx ON relation_members (type, ref)");
+    execute("CREATE INDEX relation_members_type_ref_idx ON relation_members (type, ref)");
   }
 
   private void write(OsmElement.Node node) {
