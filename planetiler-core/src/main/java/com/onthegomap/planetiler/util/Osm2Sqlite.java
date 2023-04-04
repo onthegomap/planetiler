@@ -105,13 +105,14 @@ public class Osm2Sqlite implements Closeable {
     try (var blocks = in.get()) {
 
       // TODO iterated in order?
-      var pipeline = WorkerPipeline.start("wikidata", stats)
+      var pipeline = WorkerPipeline.start("osm2sqlite", stats)
         .fromGenerator("pbf", blocks::forEachBlock)
         .addBuffer("pbf_blocks", processThreads * 2)
         .<OsmElement>addWorker("parse", processThreads, (prev, next) -> {
           for (var block : prev) {
             for (var item : block) {
               next.accept(item);
+              blockCounter.incrementAndGet();
             }
           }
         })
@@ -130,7 +131,8 @@ public class Osm2Sqlite implements Closeable {
                 relations.incrementAndGet();
               }
             }
-            blockCounter.incrementAndGet();
+            out.execute("CREATE INDEX way_members_node_idx ON way_members (node_id)");
+            out.execute("CREATE INDEX relation_members_type_ref_idx ON relation_members (type, ref)");
           }
         });
 
@@ -218,7 +220,6 @@ public class Osm2Sqlite implements Closeable {
         version INTEGER,
         PRIMARY KEY(way_id, `order`)
       ) WITHOUT ROWID""");
-    execute("CREATE INDEX way_members_node_idx ON way_members (node_id)");
     execute("""
       CREATE TABLE relation_members (
         relation_id INTEGER,
@@ -229,7 +230,6 @@ public class Osm2Sqlite implements Closeable {
         ref INTEGER,
         PRIMARY KEY(relation_id, `order`)
       ) WITHOUT ROWID""");
-    execute("CREATE INDEX relation_members_type_ref_idx ON relation_members (type, ref)");
   }
 
   private void write(OsmElement.Node node) {
