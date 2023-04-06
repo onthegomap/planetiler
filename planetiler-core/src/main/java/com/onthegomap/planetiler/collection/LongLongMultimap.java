@@ -135,8 +135,8 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
     private static final Logger LOGGER = LoggerFactory.getLogger(SparseUnorderedBinarySearchMultimap.class);
 
     private static final LongArrayList EMPTY_LIST = new LongArrayList();
-    private final LongArrayList keys = new LongArrayList();
-    private final LongArrayList values = new LongArrayList();
+    public final LongArrayList keys = new LongArrayList();
+    public final LongArrayList values = new LongArrayList();
     private volatile boolean prepared = false;
 
     @Override
@@ -151,7 +151,7 @@ public interface LongLongMultimap extends MemoryEstimator.HasEstimate, DiskBacke
       values.add(val);
     }
 
-    private void prepare() {
+    public void prepare() {
       if (!prepared) {
         synchronized (this) {
           if (!prepared) {

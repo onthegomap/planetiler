@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * Each worker should call {@link #forWorker()} to get a handle for that worker to coordinate with others.
  */
-class OsmPhaser {
+public class OsmPhaser {
 
   private final Format FORMAT = Format.defaultInstance();
   private final Logger LOGGER = LoggerFactory.getLogger(OsmPhaser.class);
@@ -45,7 +45,7 @@ class OsmPhaser {
   /**
    * Creates a new phaser expecting a certain number of workers to register.
    */
-  OsmPhaser(int workers) {
+  public OsmPhaser(int workers) {
     phaser.bulkRegister(workers);
   }
 
@@ -163,7 +163,7 @@ class OsmPhaser {
   }
 
   /** Handle for a worker to use to coordinate with other workers processing OSM elements. */
-  class ForWorker implements AutoCloseable {
+  public class ForWorker implements AutoCloseable {
     /*
      * This worker keeps track of the current phase in not-thread-safe variables, and when the phase
      * changes coordinates with other threads through the Phaser.

@@ -22,6 +22,11 @@ public interface OsmElement extends WithTags {
 
   Info info();
 
+  default int version() {
+    var info = info();
+    return info == null ? -1 : info.version;
+  }
+
   int cost();
 
   enum Type {
@@ -54,6 +59,20 @@ public interface OsmElement extends WithTags {
     private final Info info;
     // bailed out of a record to make encodedLocation lazy since it is fairly expensive to compute
     private long encodedLocation = MISSING_LOCATION;
+
+    public Node(
+      long id,
+      Map<String, Object> tags,
+      long encodedLocation,
+      Info info
+    ) {
+      this.id = id;
+      this.tags = tags;
+      this.encodedLocation = encodedLocation;
+      this.lon = Math.round(GeoUtils.getWorldLon(GeoUtils.decodeWorldX(encodedLocation)) * 1e5) / 1e5;
+      this.lat = Math.round(GeoUtils.getWorldLat(GeoUtils.decodeWorldY(encodedLocation)) * 1e5) / 1e5;
+      this.info = info;
+    }
 
     public Node(
       long id,
@@ -210,6 +229,11 @@ public interface OsmElement extends WithTags {
   }
 
   record Info(long changeset, long timestamp, int userId, int version, String user) {
+
     private static final int COST = 2;
+
+    public static Info forVersion(int version) {
+      return new Info(0, 0, 0, version, "");
+    }
   }
 }
