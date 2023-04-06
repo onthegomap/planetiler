@@ -131,9 +131,6 @@ public class SqliteOsmMirror implements OsmMirror {
         ref INTEGER,
         PRIMARY KEY(relation_id, `order`)
       ) WITHOUT ROWID""");
-  }
-
-  private void addIndexes() {
     execute("CREATE INDEX IF NOT EXISTS way_members_node_idx ON way_members (node_id)");
     execute("CREATE INDEX IF NOT EXISTS relation_members_type_ref_idx ON relation_members (type, ref)");
   }
@@ -482,7 +479,6 @@ public class SqliteOsmMirror implements OsmMirror {
       wayMemberWriter.close();
       relationWriter.close();
       relationMemberWriter.close();
-      addIndexes();
     }
   }
 
