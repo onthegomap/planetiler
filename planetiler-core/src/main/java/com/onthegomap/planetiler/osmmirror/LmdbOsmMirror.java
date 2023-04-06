@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.osmmirror;
 
 import static org.lmdbjava.DbiFlags.MDB_CREATE;
+import static org.lmdbjava.DbiFlags.MDB_INTEGERKEY;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.Iterators;
@@ -44,13 +45,13 @@ public class LmdbOsmMirror implements OsmMirror {
       // the same process at the same time.
       .open(file.toFile());
 
-    nodes = env.openDbi("nodes", MDB_CREATE);
-    ways = env.openDbi("ways", MDB_CREATE);
-    relations = env.openDbi("relations", MDB_CREATE);
-    waysByNode = env.openDbi("waysByNode", MDB_CREATE);
-    relationsByWay = env.openDbi("relationsByWay", MDB_CREATE);
-    relationsByNode = env.openDbi("relationsByNode", MDB_CREATE);
-    relationsByRelation = env.openDbi("relationsByRelation", MDB_CREATE);
+    nodes = env.openDbi("nodes", MDB_CREATE, MDB_INTEGERKEY);
+    ways = env.openDbi("ways", MDB_CREATE, MDB_INTEGERKEY);
+    relations = env.openDbi("relations", MDB_CREATE, MDB_INTEGERKEY);
+    waysByNode = env.openDbi("waysByNode", MDB_CREATE, MDB_INTEGERKEY);
+    relationsByWay = env.openDbi("relationsByWay", MDB_CREATE, MDB_INTEGERKEY);
+    relationsByNode = env.openDbi("relationsByNode", MDB_CREATE, MDB_INTEGERKEY);
+    relationsByRelation = env.openDbi("relationsByRelation", MDB_CREATE, MDB_INTEGERKEY);
   }
 
   private static byte[] key(long id) {
@@ -197,11 +198,22 @@ public class LmdbOsmMirror implements OsmMirror {
 
   private class Bulk implements BulkWriter {
     private static final byte[] EMPTY_BYTE = new byte[0];
-    private final Txn<byte[]> txn = env.txnWrite();
+    private Txn<byte[]> txn = env.txnWrite();
+    int size = 0;
+
+    private void maybeCommit() {
+      if (size++ > 10_000) {
+        txn.commit();
+        txn.close();
+        txn = env.txnWrite();
+        size = 0;
+      }
+    }
 
     @Override
     public void putNode(Serialized.SerializedNode node) {
       nodes.put(txn, key(node.item().id()), node.bytes());
+      maybeCommit();
     }
 
     @Override
@@ -210,6 +222,7 @@ public class LmdbOsmMirror implements OsmMirror {
       for (var node : way.item().nodes()) {
         waysByNode.put(txn, key(node.value, way.item().id()), EMPTY_BYTE);
       }
+      maybeCommit();
     }
 
     @Override
@@ -222,6 +235,7 @@ public class LmdbOsmMirror implements OsmMirror {
           case RELATION -> relationsByRelation;
         }).put(txn, key(member.ref(), relation.item().id()), EMPTY_BYTE);
       }
+      maybeCommit();
     }
 
     @Override
