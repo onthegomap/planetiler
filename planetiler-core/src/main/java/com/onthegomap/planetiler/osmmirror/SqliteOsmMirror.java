@@ -1,9 +1,8 @@
 package com.onthegomap.planetiler.osmmirror;
 
-import static com.onthegomap.planetiler.osmmirror.OsmMirrorUtil.encodeTags;
-import static com.onthegomap.planetiler.osmmirror.OsmMirrorUtil.parseTags;
-
 import com.carrotsearch.hppc.LongArrayList;
+import com.carrotsearch.hppc.LongHashSet;
+import com.carrotsearch.hppc.LongSet;
 import com.google.common.collect.Iterators;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
@@ -16,7 +15,6 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -26,18 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
+// java -Xmx30g -cp planetiler-osmmirror.jar com.onthegomap.planetiler.osmmirror.OsmMirror --input data/sources/planet.osm.pbf --output planet.db --threads 10 --db sqlite 2>&1 | tee sqlite2.txt
 public class SqliteOsmMirror implements OsmMirror {
-  // TODO
-  // - try letting it finish on a cheaper machine (ran out of 450g disk at 534m ways)
-  // - try custom mapdb implementation
-  //   - nodes
-  //   - ways
-  //     - nodeToParentWay
-  //   - rels
-  //     - nodeToParentRel
-  //     - wayToParentRel
-  //     - relToParentRel
-
   private static final boolean INSERT_IGNORE = false;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteOsmMirror.class);
@@ -97,42 +85,42 @@ public class SqliteOsmMirror implements OsmMirror {
     execute("""
       CREATE TABLE IF NOT EXISTS nodes (
         id INTEGER PRIMARY KEY,
-        version INTEGER,
-        tags BLOB,
-        location INTEGER
+        data BLOB
       ) WITHOUT ROWID""");
     execute("""
       CREATE TABLE IF NOT EXISTS ways (
         id INTEGER PRIMARY KEY,
-        version INTEGER,
-        tags BLOB
+        data BLOB
       ) WITHOUT ROWID""");
     execute("""
       CREATE TABLE IF NOT EXISTS relations (
         id INTEGER PRIMARY KEY,
-        version INTEGER,
-        tags BLOB
+        data BLOB
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE IF NOT EXISTS way_members (
-        way_id INTEGER,
-        `order` INTEGER,
-        node_id INTEGER,
-        version INTEGER,
-        PRIMARY KEY(way_id, `order`)
+      CREATE TABLE IF NOT EXISTS node_to_way (
+        child_id INTEGER,
+        parent_id INTEGER,
+        PRIMARY KEY(child_id, parent_id)
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE IF NOT EXISTS relation_members (
-        relation_id INTEGER,
-        `order` INTEGER,
-        type INTEGER,
-        version INTEGER,
-        role TEXT,
-        ref INTEGER,
-        PRIMARY KEY(relation_id, `order`)
+      CREATE TABLE IF NOT EXISTS node_to_relation (
+        child_id INTEGER,
+        parent_id INTEGER,
+        PRIMARY KEY(child_id, parent_id)
       ) WITHOUT ROWID""");
-    execute("CREATE INDEX IF NOT EXISTS way_members_node_idx ON way_members (node_id)");
-    execute("CREATE INDEX IF NOT EXISTS relation_members_type_ref_idx ON relation_members (type, ref)");
+    execute("""
+      CREATE TABLE IF NOT EXISTS way_to_relation (
+        child_id INTEGER,
+        parent_id INTEGER,
+        PRIMARY KEY(child_id, parent_id)
+      ) WITHOUT ROWID""");
+    execute("""
+      CREATE TABLE IF NOT EXISTS relation_to_relation (
+        child_id INTEGER,
+        parent_id INTEGER,
+        PRIMARY KEY(child_id, parent_id)
+      ) WITHOUT ROWID""");
   }
 
   @Override
@@ -183,24 +171,7 @@ public class SqliteOsmMirror implements OsmMirror {
 
   private OsmElement.Way parseWay(ResultSet result) {
     try {
-      String nodeString = result.getString("nodes");
-      LongArrayList nodeIds;
-      if (nodeString != null && !nodeString.isBlank()) {
-        String[] nodes = result.getString("nodes").split(",");
-        long[] nodeIdArray = new long[nodes.length];
-        for (int i = 0; i < nodes.length; i++) {
-          nodeIdArray[i] = Long.parseLong(nodes[i]);
-        }
-        nodeIds = LongArrayList.from(nodeIdArray);
-      } else {
-        nodeIds = LongArrayList.from();
-      }
-      return new OsmElement.Way(
-        result.getInt("id"),
-        parseTags(result.getBytes("tags")),
-        nodeIds,
-        OsmElement.Info.forVersion(result.getInt("version"))
-      );
+      return OsmMirrorUtil.decodeWay(result.getLong("id"), result.getBytes("data"));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
@@ -208,12 +179,7 @@ public class SqliteOsmMirror implements OsmMirror {
 
   private OsmElement.Node parseNode(ResultSet result) {
     try {
-      return new OsmElement.Node(
-        result.getInt("id"),
-        parseTags(result.getBytes("tags")),
-        result.getLong("location"),
-        OsmElement.Info.forVersion(result.getInt("version"))
-      );
+      return OsmMirrorUtil.decodeNode(result.getLong("id"), result.getBytes("data"));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
@@ -221,30 +187,7 @@ public class SqliteOsmMirror implements OsmMirror {
 
   private OsmElement.Relation parseRelation(ResultSet result) {
     try {
-      String refsString = result.getString("refs");
-      List<OsmElement.Relation.Member> members;
-      if (refsString != null && !refsString.isBlank()) {
-        String[] refs = result.getString("refs").split(",");
-        String[] types = result.getString("types").split(",");
-        String[] roles = result.getString("roles").split(",");
-        members = new ArrayList<>(refs.length);
-
-        for (int i = 0; i < refs.length; i++) {
-          members.add(new OsmElement.Relation.Member(
-            OsmElement.Type.values()[Integer.parseInt(types[i])],
-            Long.parseLong(refs[i]),
-            i >= roles.length ? "" : roles[i]
-          ));
-        }
-      } else {
-        members = List.of();
-      }
-      return new OsmElement.Relation(
-        result.getInt("id"),
-        parseTags(result.getBytes("tags")),
-        members,
-        OsmElement.Info.forVersion(result.getInt("version"))
-      );
+      return OsmMirrorUtil.decodeRelation(result.getLong("id"), result.getBytes("data"));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
@@ -252,21 +195,7 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public LongArrayList getParentWaysForNode(long nodeId) {
-    try (
-      var statement = connection.prepareStatement(
-        """
-          SELECT way_id
-          FROM way_members
-          WHERE node_id=?
-          ORDER BY way_id ASC
-          """)
-    ) {
-      statement.setLong(1, nodeId);
-      var result = statement.executeQuery();
-      return parseLongList(result);
-    } catch (SQLException e) {
-      throw new IllegalStateException(e);
-    }
+    return getParents(nodeId, "node_to_way");
   }
 
   private LongArrayList parseLongList(ResultSet resultSet) {
@@ -283,19 +212,10 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public OsmElement.Way getWay(long id) {
-    try (
-      var statement = connection.prepareStatement(
-        """
-          SELECT ways.*, group_concat(way_members.node_id) nodes
-          FROM ways
-          INNER JOIN way_members on ways.id=way_members.way_id
-          WHERE ways.id=?
-          ORDER BY way_members.`order` ASC
-          """)
-    ) {
+    try (var statement = connection.prepareStatement("SELECT * FROM ways WHERE id=?")) {
       statement.setLong(1, id);
       var result = statement.executeQuery();
-      return result.next() && result.getLong("id") == id ? parseWay(result) : null;
+      return result.next() ? parseWay(result) : null;
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
@@ -303,23 +223,10 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public OsmElement.Relation getRelation(long id) {
-    try (
-      var statement = connection.prepareStatement(
-        """
-          SELECT
-            relations.*,
-            group_concat(relation_members.role) roles,
-            group_concat(relation_members.type) types,
-            group_concat(relation_members.ref) refs
-          FROM relations
-          JOIN relation_members on relations.id=relation_members.relation_id
-          WHERE relations.id=?
-          ORDER BY relation_members.`order` ASC
-          """)
-    ) {
+    try (var statement = connection.prepareStatement("SELECT * FROM relations WHERE id=?")) {
       statement.setLong(1, id);
       var result = statement.executeQuery();
-      return result.next() && result.getLong("id") == id ? parseRelation(result) : null;
+      return result.next() ? parseRelation(result) : null;
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
@@ -327,21 +234,20 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public LongArrayList getParentRelationsForNode(long nodeId) {
-    return getParentRelations(nodeId, OsmElement.Type.NODE);
+    return getParents(nodeId, "node_to_relation");
   }
 
-  private LongArrayList getParentRelations(long nodeId, OsmElement.Type type) {
+  private LongArrayList getParents(long childId, String table) {
     try (
       var statement = connection.prepareStatement(
         """
-          SELECT relation_id
-          FROM relation_members
-          WHERE ref=? AND type=?
-          ORDER BY relation_id ASC
-          """)
+          SELECT parent_id
+          FROM %s
+          WHERE child_id=?
+          ORDER BY parent_id ASC
+          """.formatted(table))
     ) {
-      statement.setLong(1, nodeId);
-      statement.setInt(2, type.ordinal());
+      statement.setLong(1, childId);
       var result = statement.executeQuery();
       return parseLongList(result);
     } catch (SQLException e) {
@@ -351,12 +257,12 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public LongArrayList getParentRelationsForWay(long nodeId) {
-    return getParentRelations(nodeId, OsmElement.Type.WAY);
+    return getParents(nodeId, "way_to_relation");
   }
 
   @Override
   public LongArrayList getParentRelationsForRelation(long nodeId) {
-    return getParentRelations(nodeId, OsmElement.Type.RELATION);
+    return getParents(nodeId, "relation_to_relation");
   }
 
   private <T> Iterator<T> resultToIterator(ResultSet resultSet, Function<ResultSet, T> parse) {
@@ -396,25 +302,8 @@ public class SqliteOsmMirror implements OsmMirror {
   public CloseableIterator<OsmElement> iterator() {
     try {
       var nodes = connection.prepareStatement("SELECT * FROM nodes ORDER BY id ASC").executeQuery();
-      var ways = connection.prepareStatement(
-        """
-          SELECT ways.*, group_concat(way_members.node_id) nodes
-          FROM ways
-          JOIN way_members on ways.id=way_members.way_id
-          GROUP BY ways.id
-          ORDER BY ways.id ASC, way_members.`order` ASC
-          """).executeQuery();
-      var relations = connection.prepareStatement("""
-          SELECT
-            relations.*,
-            group_concat(relation_members.role) roles,
-            group_concat(relation_members.type) types,
-            group_concat(relation_members.ref) refs
-          FROM relations
-          JOIN relation_members on relations.id=relation_members.relation_id
-          GROUP BY relations.id
-          ORDER BY relations.id ASC, relation_members.`order` ASC
-        """).executeQuery();
+      var ways = connection.prepareStatement("SELECT * FROM ways ORDER BY id ASC").executeQuery();
+      var relations = connection.prepareStatement("SELECT * FROM relations ORDER BY id ASC").executeQuery();
       var nodesIter = resultToIterator(nodes, this::parseNode);
       var waysIter = resultToIterator(ways, this::parseWay);
       var relsIter = resultToIterator(relations, this::parseRelation);
@@ -452,34 +341,56 @@ public class SqliteOsmMirror implements OsmMirror {
     }
   }
 
-  private record ParentChild<P> (P parent, int idx) {}
+  private record ParentChild(long child, long parent) {}
 
   private class Bulk implements BulkWriter {
-    private final NodeWriter nodeWriter = new NodeWriter(connection);
-    private final WayWriter wayWriter = new WayWriter(connection);
-    private final WayMembersWriter wayMemberWriter = new WayMembersWriter(connection);
-    private final RelationWriter relationWriter = new RelationWriter(connection);
-    private final RelationMembersWriter relationMemberWriter = new RelationMembersWriter(connection);
+    private final ElementWriter nodeWriter = new ElementWriter(connection, "nodes");
+    private final ElementWriter wayWriter = new ElementWriter(connection, "ways");
+    private final ChildToParentWriter wayMemberWriter = new ChildToParentWriter(connection, "node_to_way");
+    private final ElementWriter relationWriter = new ElementWriter(connection, "relations");
+    private final ChildToParentWriter nodeToRelWriter = new ChildToParentWriter(connection, "node_to_relation");
+    private final ChildToParentWriter wayToRelWriter = new ChildToParentWriter(connection, "way_to_relation");
+    private final ChildToParentWriter relToRelWriter = new ChildToParentWriter(connection, "relation_to_relation");
 
     @Override
-    public void putNode(OsmElement.Node node) {
+    public void putNode(Serialized.Node node) {
       nodeWriter.write(node);
     }
 
     @Override
-    public void putWay(OsmElement.Way way) {
+    public void putWay(Serialized.Way way) {
       wayWriter.write(way);
       //      TODO write way members separately, then insert in order into table in close
-      for (int i = 0; i < way.nodes().size(); i++) {
-        wayMemberWriter.write(new ParentChild<>(way, i));
+      var nodes = way.item().nodes();
+      LongSet written = new LongHashSet();
+      for (int i = 0; i < nodes.size(); i++) {
+        long id = nodes.get(i);
+        if (written.add(id)) {
+          wayMemberWriter.write(new ParentChild(nodes.get(i), way.item().id()));
+        }
       }
     }
 
     @Override
-    public void putRelation(OsmElement.Relation relation) {
+    public void putRelation(Serialized.Relation relation) {
       relationWriter.write(relation);
-      for (int i = 0; i < relation.members().size(); i++) {
-        relationMemberWriter.write(new ParentChild<>(relation, i));
+      LongHashSet nodes = new LongHashSet();
+      LongHashSet ways = new LongHashSet();
+      LongHashSet rels = new LongHashSet();
+      for (int i = 0; i < relation.item().members().size(); i++) {
+        var member = relation.item().members().get(i);
+        var set = (switch (member.type()) {
+          case NODE -> nodes;
+          case WAY -> ways;
+          case RELATION -> rels;
+        });
+        if (set.add(member.ref())) {
+          (switch (member.type()) {
+            case NODE -> nodeToRelWriter;
+            case WAY -> wayToRelWriter;
+            case RELATION -> relToRelWriter;
+          }).write(new ParentChild(member.ref(), relation.item().id()));
+        }
       }
     }
 
@@ -490,91 +401,37 @@ public class SqliteOsmMirror implements OsmMirror {
       wayWriter.close();
       wayMemberWriter.close();
       relationWriter.close();
-      relationMemberWriter.close();
+      nodeToRelWriter.close();
+      wayToRelWriter.close();
+      relToRelWriter.close();
     }
   }
 
-  private class NodeWriter extends Mbtiles.BatchedTableWriterBase<OsmElement.Node> {
-    NodeWriter(Connection conn) {
-      super("nodes", List.of("id", "version", "tags", "location"), INSERT_IGNORE, conn);
-    }
-
-    @Override
-    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, OsmElement.Node item)
-      throws SQLException {
-      statement.setLong(positionOffset++, item.id());
-      statement.setInt(positionOffset++, item.info().version());
-      statement.setBytes(positionOffset++, encodeTags(item.tags()));
-      statement.setLong(positionOffset++, item.encodedLocation());
-      return positionOffset;
-    }
-  }
-
-  private class WayWriter extends Mbtiles.BatchedTableWriterBase<OsmElement.Way> {
-    WayWriter(Connection conn) {
-      super("ways", List.of("id", "version", "tags"), INSERT_IGNORE, conn);
-    }
-
-    @Override
-    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, OsmElement.Way item)
-      throws SQLException {
-      statement.setLong(positionOffset++, item.id());
-      statement.setInt(positionOffset++, item.info().version());
-      statement.setBytes(positionOffset++, encodeTags(item.tags()));
-      return positionOffset;
-    }
-  }
-
-  private class RelationWriter extends Mbtiles.BatchedTableWriterBase<OsmElement.Relation> {
-    RelationWriter(Connection conn) {
-      super("relations", List.of("id", "version", "tags"), INSERT_IGNORE, conn);
-    }
-
-    @Override
-    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, OsmElement.Relation item)
-      throws SQLException {
-      statement.setLong(positionOffset++, item.id());
-      statement.setInt(positionOffset++, item.info().version());
-      statement.setBytes(positionOffset++, encodeTags(item.tags()));
-      return positionOffset;
-    }
-  }
-
-  private class RelationMembersWriter
-    extends Mbtiles.BatchedTableWriterBase<ParentChild<OsmElement.Relation>> {
-    RelationMembersWriter(Connection conn) {
-      super("relation_members", List.of("relation_id", "`order`", "type", "version", "role", "ref"), INSERT_IGNORE,
-        conn);
+  private class ElementWriter extends Mbtiles.BatchedTableWriterBase<Serialized<? extends OsmElement>> {
+    ElementWriter(Connection conn, String table) {
+      super(table, List.of("id", "data"), INSERT_IGNORE, conn);
     }
 
     @Override
     protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement,
-      ParentChild<OsmElement.Relation> item) throws SQLException {
-      var relation = item.parent;
-      var member = item.parent.members().get(item.idx);
-      statement.setLong(positionOffset++, relation.id());
-      statement.setInt(positionOffset++, item.idx);
-      statement.setInt(positionOffset++, member.type().ordinal());
-      statement.setInt(positionOffset++, relation.info().version());
-      statement.setString(positionOffset++, member.role());
-      statement.setLong(positionOffset++, member.ref());
+      Serialized<? extends OsmElement> item)
+      throws SQLException {
+      statement.setLong(positionOffset++, item.item().id());
+      statement.setBytes(positionOffset++, item.bytes());
       return positionOffset;
     }
   }
 
-  private class WayMembersWriter extends Mbtiles.BatchedTableWriterBase<ParentChild<OsmElement.Way>> {
-    WayMembersWriter(Connection conn) {
-      super("way_members", List.of("way_id", "`order`", "node_id", "version"), INSERT_IGNORE, conn);
+  private class ChildToParentWriter extends Mbtiles.BatchedTableWriterBase<ParentChild> {
+    ChildToParentWriter(Connection conn, String table) {
+      super(table, List.of("child_id", "parent_id"), INSERT_IGNORE, conn);
     }
 
     @Override
     protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement,
-      ParentChild<OsmElement.Way> item) throws SQLException {
-      var way = item.parent;
-      statement.setLong(positionOffset++, way.id());
-      statement.setInt(positionOffset++, item.idx);
-      statement.setLong(positionOffset++, way.nodes().get(item.idx));
-      statement.setInt(positionOffset++, way.info().version());
+      ParentChild item) throws SQLException {
+      statement.setLong(positionOffset++, item.child());
+      statement.setLong(positionOffset++, item.parent());
       return positionOffset;
     }
   }

@@ -11,17 +11,17 @@ public class DummyOsmMirror implements OsmMirror {
   private class Bulk implements BulkWriter {
 
     @Override
-    public void putNode(OsmElement.Node node) {
+    public void putNode(Serialized.Node node) {
 
     }
 
     @Override
-    public void putWay(OsmElement.Way way) {
+    public void putWay(Serialized.Way way) {
 
     }
 
     @Override
-    public void putRelation(OsmElement.Relation node) {
+    public void putRelation(Serialized.Relation node) {
 
     }
 

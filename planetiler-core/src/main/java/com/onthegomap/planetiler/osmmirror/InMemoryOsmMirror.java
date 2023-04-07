@@ -20,41 +20,41 @@ public class InMemoryOsmMirror implements OsmMirror {
 
   private class Bulk implements BulkWriter {
     @Override
-    public void putNode(OsmElement.Node node) {
-      nodes.put(node.id(), node);
+    public void putNode(Serialized.Node node) {
+      nodes.put(node.item().id(), node.item());
     }
 
     @Override
-    public void putWay(OsmElement.Way way) {
-      var previous = ways.put(way.id(), way);
+    public void putWay(Serialized.Way way) {
+      var previous = ways.put(way.item().id(), way.item());
       if (previous != null) {
         for (var node : previous.nodes()) {
-          nodesToParentWay.get(node.value).removeAll(way.id());
+          nodesToParentWay.get(node.value).removeAll(way.item().id());
         }
       }
-      for (var node : way.nodes()) {
-        nodesToParentWay.computeIfAbsent(node.value, c -> new LongArrayList()).add(way.id());
+      for (var node : way.item().nodes()) {
+        nodesToParentWay.computeIfAbsent(node.value, c -> new LongArrayList()).add(way.item().id());
       }
     }
 
     @Override
-    public void putRelation(OsmElement.Relation relation) {
-      var previous = relations.put(relation.id(), relation);
+    public void putRelation(Serialized.Relation relation) {
+      var previous = relations.put(relation.item().id(), relation.item());
       if (previous != null) {
         for (var member : previous.members()) {
           (switch (member.type()) {
             case NODE -> nodesToParentRelation;
             case WAY -> waysToParentRelation;
             case RELATION -> relationsToParentRelation;
-          }).get(member.ref()).removeAll(relation.id());
+          }).get(member.ref()).removeAll(relation.item().id());
         }
       }
-      for (var member : relation.members()) {
+      for (var member : relation.item().members()) {
         (switch (member.type()) {
           case NODE -> nodesToParentRelation;
           case WAY -> waysToParentRelation;
           case RELATION -> relationsToParentRelation;
-        }).computeIfAbsent(member.ref(), c -> new LongArrayList()).add(relation.id());
+        }).computeIfAbsent(member.ref(), c -> new LongArrayList()).add(relation.item().id());
       }
     }
 

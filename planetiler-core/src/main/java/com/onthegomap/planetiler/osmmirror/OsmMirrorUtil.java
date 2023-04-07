@@ -66,9 +66,9 @@ public class OsmMirrorUtil {
     return result;
   }
 
-  public static byte[] encode(OsmElement.Node node) {
+  public static byte[] encode(OsmElement.Node node, boolean id) {
     try (var messagePack = MessagePack.newDefaultBufferPacker()) {
-      pack(messagePack, node);
+      pack(messagePack, node, id);
       return messagePack.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -83,9 +83,9 @@ public class OsmMirrorUtil {
     }
   }
 
-  public static byte[] encode(OsmElement.Way way) {
+  public static byte[] encode(OsmElement.Way way, boolean id) {
     try (var messagePack = MessagePack.newDefaultBufferPacker()) {
-      pack(messagePack, way);
+      pack(messagePack, way, id);
       return messagePack.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -100,9 +100,9 @@ public class OsmMirrorUtil {
     }
   }
 
-  public static byte[] encode(OsmElement.Relation relation) {
+  public static byte[] encode(OsmElement.Relation relation, boolean id) {
     try (var messagePack = MessagePack.newDefaultBufferPacker()) {
-      pack(messagePack, relation);
+      pack(messagePack, relation, id);
       return messagePack.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -118,8 +118,10 @@ public class OsmMirrorUtil {
   }
 
 
-  static void pack(MessagePacker messagePack, OsmElement.Node node) throws IOException {
-    messagePack.packLong(node.id());
+  static void pack(MessagePacker messagePack, OsmElement.Node node, boolean id) throws IOException {
+    if (id) {
+      messagePack.packLong(node.id());
+    }
     messagePack.packInt(node.version());
     messagePack.packLong(node.encodedLocation());
     packTags(node.tags(), messagePack);
@@ -127,6 +129,10 @@ public class OsmMirrorUtil {
 
   private static OsmElement.Node unpackNode(MessageUnpacker messagePack) throws IOException {
     long id = messagePack.unpackLong();
+    return unpackNode(messagePack, id);
+  }
+
+  private static OsmElement.Node unpackNode(MessageUnpacker messagePack, long id) throws IOException {
     int version = messagePack.unpackInt();
     long location = messagePack.unpackLong();
     Map<String, Object> tags = unpackTags(messagePack);
@@ -151,8 +157,10 @@ public class OsmMirrorUtil {
     return (n >>> 1) ^ -(n & 1);
   }
 
-  static void pack(MessagePacker messagePack, OsmElement.Way way) throws IOException {
-    messagePack.packLong(way.id());
+  static void pack(MessagePacker messagePack, OsmElement.Way way, boolean id) throws IOException {
+    if (id) {
+      messagePack.packLong(way.id());
+    }
     messagePack.packInt(way.version());
     messagePack.packArrayHeader(way.nodes().size());
     LongArrayList nodes = way.nodes();
@@ -167,6 +175,10 @@ public class OsmMirrorUtil {
 
   private static OsmElement.Way unpackWay(MessageUnpacker messagePack) throws IOException {
     long id = messagePack.unpackLong();
+    return unpackWay(messagePack, id);
+  }
+
+  private static OsmElement.Way unpackWay(MessageUnpacker messagePack, long id) throws IOException {
     int version = messagePack.unpackInt();
     int nodeCount = messagePack.unpackArrayHeader();
     long nodeId = 0;
@@ -179,8 +191,10 @@ public class OsmMirrorUtil {
     return new OsmElement.Way(id, tags, longs, OsmElement.Info.forVersion(version));
   }
 
-  static void pack(MessagePacker messagePack, OsmElement.Relation relation) throws IOException {
-    messagePack.packLong(relation.id());
+  static void pack(MessagePacker messagePack, OsmElement.Relation relation, boolean id) throws IOException {
+    if (id) {
+      messagePack.packLong(relation.id());
+    }
     messagePack.packInt(relation.version());
     messagePack.packArrayHeader(relation.members().size());
     var members = relation.members();
@@ -202,6 +216,10 @@ public class OsmMirrorUtil {
 
   private static OsmElement.Relation unpackRelation(MessageUnpacker messagePack) throws IOException {
     long id = messagePack.unpackLong();
+    return unpackRelation(messagePack, id);
+  }
+
+  private static OsmElement.Relation unpackRelation(MessageUnpacker messagePack, long id) throws IOException {
     int version = messagePack.unpackInt();
     int memberCount = messagePack.unpackArrayHeader();
     List<OsmElement.Relation.Member> members = new ArrayList<>(memberCount);
@@ -229,13 +247,37 @@ public class OsmMirrorUtil {
     );
   }
 
-  public static void packElement(MessageBufferPacker packer, OsmElement item) throws IOException {
+  public static void packElement(MessageBufferPacker packer, OsmElement item, boolean id) throws IOException {
     if (item instanceof OsmElement.Node node) {
-      pack(packer, node);
+      pack(packer, node, id);
     } else if (item instanceof OsmElement.Way way) {
-      pack(packer, way);
+      pack(packer, way, id);
     } else if (item instanceof OsmElement.Relation relation) {
-      pack(packer, relation);
+      pack(packer, relation, id);
+    }
+  }
+
+  public static OsmElement.Way decodeWay(long id, byte[] bytes) {
+    try (var messagePack = MessagePack.newDefaultUnpacker(bytes)) {
+      return unpackWay(messagePack, id);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static OsmElement.Node decodeNode(long id, byte[] bytes) {
+    try (var messagePack = MessagePack.newDefaultUnpacker(bytes)) {
+      return unpackNode(messagePack, id);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static OsmElement.Relation decodeRelation(long id, byte[] bytes) {
+    try (var messagePack = MessagePack.newDefaultUnpacker(bytes)) {
+      return unpackRelation(messagePack, id);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 }

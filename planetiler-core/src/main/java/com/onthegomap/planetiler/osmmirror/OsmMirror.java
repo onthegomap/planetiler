@@ -54,6 +54,7 @@ public interface OsmMirror extends AutoCloseable {
     int processThreads = arguments.threads();
     OsmInputFile in = new OsmInputFile(input);
     var blockCounter = new AtomicLong();
+    boolean id = !type.contains("sqlite");
     try (var blocks = in.get()) {
       record Batch(CompletableFuture<List<Serialized<? extends OsmElement>>> results, OsmBlockSource.Block block) {}
       var queue = new WorkQueue<Batch>("batches", processThreads * 2, 1, stats);
@@ -76,17 +77,17 @@ public interface OsmMirror extends AutoCloseable {
                 packer.clear();
                 if (item instanceof OsmElement.Node node) {
                   if (doNodes) {
-                    OsmMirrorUtil.pack(packer, node);
+                    OsmMirrorUtil.pack(packer, node, id);
                     result.add(new Serialized.Node(node, packer.toByteArray()));
                   }
                 } else if (item instanceof OsmElement.Way way) {
                   if (doWays) {
-                    OsmMirrorUtil.pack(packer, way);
+                    OsmMirrorUtil.pack(packer, way, id);
                     result.add(new Serialized.Way(way, packer.toByteArray()));
                   }
                 } else if (item instanceof OsmElement.Relation relation) {
                   if (doRelations) {
-                    OsmMirrorUtil.pack(packer, relation);
+                    OsmMirrorUtil.pack(packer, relation, id);
                     result.add(new Serialized.Relation(relation, packer.toByteArray()));
                   }
                 }
@@ -177,29 +178,11 @@ public interface OsmMirror extends AutoCloseable {
 
   interface BulkWriter extends Closeable {
 
-    default void putNode(Serialized.Node node) {
-      putNode(node.item());
-    }
+    void putNode(Serialized.Node node);
 
-    default void putWay(Serialized.Way way) {
-      putWay(way.item());
-    }
+    void putWay(Serialized.Way way);
 
-    default void putRelation(Serialized.Relation node) {
-      putRelation(node.item());
-    }
-
-    default void putNode(OsmElement.Node node) {
-      putNode(new Serialized.Node(node, OsmMirrorUtil.encode(node)));
-    }
-
-    default void putWay(OsmElement.Way way) {
-      putWay(new Serialized.Way(way, OsmMirrorUtil.encode(way)));
-    }
-
-    default void putRelation(OsmElement.Relation node) {
-      putRelation(new Serialized.Relation(node, OsmMirrorUtil.encode(node)));
-    }
+    void putRelation(Serialized.Relation node);
   }
 
   BulkWriter newBulkWriter();

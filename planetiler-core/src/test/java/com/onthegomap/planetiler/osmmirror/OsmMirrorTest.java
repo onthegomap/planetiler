@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 abstract class OsmMirrorTest {
   OsmMirror fixture;
+  protected boolean serializeId = true;
 
   @Test
   void testEmpty() {
@@ -32,7 +33,7 @@ abstract class OsmMirrorTest {
   void testInsertNode() throws IOException {
     var node = new OsmElement.Node(1, Map.of("key", "value"), 2, 3, infoVersion(0));
     try (var writer = fixture.newBulkWriter()) {
-      writer.putNode(node);
+      writer.putNode(new Serialized.Node(node, serializeId));
     }
     assertEquals(node, fixture.getNode(1));
     assertEquals(List.of(node), fixture.iterator().toList());
@@ -41,10 +42,10 @@ abstract class OsmMirrorTest {
   @Test
   void testInsertWay() throws IOException {
     var way = new OsmElement.Way(2, Map.of("key", "value"), LongArrayList.from(1), infoVersion(0));
-    var way2 = new OsmElement.Way(3, Map.of("key", "value"), LongArrayList.from(1), infoVersion(0));
+    var way2 = new OsmElement.Way(3, Map.of("key", "value"), LongArrayList.from(1, 1), infoVersion(0));
     try (var writer = fixture.newBulkWriter()) {
-      writer.putWay(way);
-      writer.putWay(way2);
+      writer.putWay(new Serialized.Way(way, serializeId));
+      writer.putWay(new Serialized.Way(way2, serializeId));
     }
     assertEquals(way, fixture.getWay(2));
     assertEquals(way2, fixture.getWay(3));
@@ -63,8 +64,8 @@ abstract class OsmMirrorTest {
       new OsmElement.Relation.Member(OsmElement.Type.RELATION, 3, "rel")
     ), infoVersion(0));
     try (var writer = fixture.newBulkWriter()) {
-      writer.putRelation(rel);
-      writer.putRelation(rel2);
+      writer.putRelation(new Serialized.Relation(rel, serializeId));
+      writer.putRelation(new Serialized.Relation(rel2, serializeId));
     }
     assertEquals(rel, fixture.getRelation(3));
     assertEquals(rel2, fixture.getRelation(4));
@@ -86,9 +87,11 @@ abstract class OsmMirrorTest {
   }
   static class SqliteTest extends OsmMirrorTest {
 
+
     @BeforeEach
     void setup() {
       fixture = OsmMirror.newSqliteMemory();
+      serializeId = false;
     }
   }
   static class MapdbTest extends OsmMirrorTest {
