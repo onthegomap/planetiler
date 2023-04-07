@@ -20,9 +20,9 @@ import org.mapdb.Serializer;
 
 public class MapDbOsmMirror implements OsmMirror {
 
-  private final BTreeMap<Long, Serialized.SerializedNode> nodes;
-  private final BTreeMap<Long, Serialized.SerializedWay> ways;
-  private final BTreeMap<Long, Serialized.SerializedRelation> relations;
+  private final BTreeMap<Long, Serialized.Node> nodes;
+  private final BTreeMap<Long, Serialized.Way> ways;
+  private final BTreeMap<Long, Serialized.Relation> relations;
   private NavigableSet<Fun.Tuple2<Long, Long>> waysByNode;
   private final NavigableSet<Fun.Tuple2<Long, Long>> relationsByWay;
   private final NavigableSet<Fun.Tuple2<Long, Long>> relationsByNode;
@@ -59,20 +59,20 @@ public class MapDbOsmMirror implements OsmMirror {
       .make());
   }
 
-  private static class NodeSerializer implements Serializer<Serialized.SerializedNode>, Serializable {
+  private static class NodeSerializer implements Serializer<Serialized.Node>, Serializable {
 
     @Override
-    public void serialize(DataOutput out, Serialized.SerializedNode item) throws IOException {
+    public void serialize(DataOutput out, Serialized.Node item) throws IOException {
       out.writeInt(item.bytes().length);
       out.write(item.bytes());
     }
 
     @Override
-    public Serialized.SerializedNode deserialize(DataInput in, int available) throws IOException {
+    public Serialized.Node deserialize(DataInput in, int available) throws IOException {
       int len = in.readInt();
       byte[] bytes = new byte[len];
       in.readFully(bytes);
-      return new Serialized.SerializedNode(OsmMirrorUtil.decodeNode(bytes), bytes);
+      return new Serialized.Node(OsmMirrorUtil.decodeNode(bytes), bytes);
     }
 
     @Override
@@ -81,20 +81,20 @@ public class MapDbOsmMirror implements OsmMirror {
     }
   }
 
-  private static class WaySerializer implements Serializer<Serialized.SerializedWay>, Serializable {
+  private static class WaySerializer implements Serializer<Serialized.Way>, Serializable {
 
     @Override
-    public void serialize(DataOutput out, Serialized.SerializedWay item) throws IOException {
+    public void serialize(DataOutput out, Serialized.Way item) throws IOException {
       out.writeInt(item.bytes().length);
       out.write(item.bytes());
     }
 
     @Override
-    public Serialized.SerializedWay deserialize(DataInput in, int available) throws IOException {
+    public Serialized.Way deserialize(DataInput in, int available) throws IOException {
       int len = in.readInt();
       byte[] bytes = new byte[len];
       in.readFully(bytes);
-      return new Serialized.SerializedWay(OsmMirrorUtil.decodeWay(bytes), bytes);
+      return new Serialized.Way(OsmMirrorUtil.decodeWay(bytes), bytes);
     }
 
     @Override
@@ -103,20 +103,20 @@ public class MapDbOsmMirror implements OsmMirror {
     }
   }
 
-  private static class RelationSerializer implements Serializer<Serialized.SerializedRelation>, Serializable {
+  private static class RelationSerializer implements Serializer<Serialized.Relation>, Serializable {
 
     @Override
-    public void serialize(DataOutput out, Serialized.SerializedRelation item) throws IOException {
+    public void serialize(DataOutput out, Serialized.Relation item) throws IOException {
       out.writeInt(item.bytes().length);
       out.write(item.bytes());
     }
 
     @Override
-    public Serialized.SerializedRelation deserialize(DataInput in, int available) throws IOException {
+    public Serialized.Relation deserialize(DataInput in, int available) throws IOException {
       int len = in.readInt();
       byte[] bytes = new byte[len];
       in.readFully(bytes);
-      return new Serialized.SerializedRelation(OsmMirrorUtil.decodeRelation(bytes), bytes);
+      return new Serialized.Relation(OsmMirrorUtil.decodeRelation(bytes), bytes);
     }
 
     @Override
@@ -184,17 +184,17 @@ public class MapDbOsmMirror implements OsmMirror {
   private class Bulk implements BulkWriter {
 
     @Override
-    public void putNode(Serialized.SerializedNode node) {
+    public void putNode(Serialized.Node node) {
       nodes.put(node.item().id(), node);
     }
 
     @Override
-    public void putWay(Serialized.SerializedWay way) {
+    public void putWay(Serialized.Way way) {
       ways.put(way.item().id(), way);
     }
 
     @Override
-    public void putRelation(Serialized.SerializedRelation relation) {
+    public void putRelation(Serialized.Relation relation) {
       relations.put(relation.item().id(), relation);
     }
 

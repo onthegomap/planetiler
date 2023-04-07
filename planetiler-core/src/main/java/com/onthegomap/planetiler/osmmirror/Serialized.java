@@ -8,7 +8,7 @@ public interface Serialized<T> {
 
   byte[] bytes();
 
-  record SerializedNode(OsmElement.Node item, byte[] bytes) implements Serialized<OsmElement.Node> {}
-  record SerializedWay(OsmElement.Way item, byte[] bytes) implements Serialized<OsmElement.Way> {}
-  record SerializedRelation(OsmElement.Relation item, byte[] bytes) implements Serialized<OsmElement.Relation> {}
+  record Node(OsmElement.Node item, byte[] bytes) implements Serialized<OsmElement.Node> {}
+  record Way(OsmElement.Way item, byte[] bytes) implements Serialized<OsmElement.Way> {}
+  record Relation(OsmElement.Relation item, byte[] bytes) implements Serialized<OsmElement.Relation> {}
 }

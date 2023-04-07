@@ -30,9 +30,9 @@
       <version>0.9.1</version>
     </dependency>
     <dependency>
-      <groupId>com.conveyal</groupId>
-      <artifactId>osm-lib</artifactId>
-      <version>1.4.0</version>
+      <groupId>org.mapdb</groupId>
+      <artifactId>mapdb</artifactId>
+      <version>1.0.9</version>
     </dependency>
     <dependency>
       <groupId>org.lmdbjava</groupId>

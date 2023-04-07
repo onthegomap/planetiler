@@ -11,12 +11,14 @@ import com.onthegomap.planetiler.reader.osm.OsmPhaser;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.worker.WeightedHandoffQueue;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import org.msgpack.core.MessagePack;
 
@@ -38,10 +40,13 @@ public interface OsmMirror extends AutoCloseable {
     return new DummyOsmMirror();
   }
 
-  static void main(String[] args) throws InterruptedException {
+  static void main(String[] args) throws Exception {
     Arguments arguments = Arguments.fromEnvOrArgs(args);
     var stats = arguments.getStats();
     String type = arguments.getString("db", "type of db to use", "mapdb");
+    boolean doNodes = arguments.getBoolean("nodes", "process nodes", true);
+    boolean doWays = arguments.getBoolean("ways", "process ways", true);
+    boolean doRelations = arguments.getBoolean("relations", "process relations", true);
     Path input = arguments.inputFile("input", "input", Path.of("data/sources/massachusetts.osm.pbf"));
     Path output = arguments.file("output", "output", Path.of("data/tmp/output"));
     FileUtils.delete(output);
@@ -49,17 +54,15 @@ public interface OsmMirror extends AutoCloseable {
     int processThreads = arguments.threads();
     OsmInputFile in = new OsmInputFile(input);
     var blockCounter = new AtomicLong();
-    var nodes = new AtomicLong();
-    var ways = new AtomicLong();
-    var relations = new AtomicLong();
     try (var blocks = in.get()) {
-      record Batch(WeightedHandoffQueue<Serialized<? extends OsmElement>> results, OsmBlockSource.Block block) {}
+      record Batch(CompletableFuture<List<Serialized<? extends OsmElement>>> results, OsmBlockSource.Block block) {}
       var queue = new WorkQueue<Batch>("batches", processThreads * 2, 1, stats);
 
+      var phaser = new OsmPhaser(1);
       var pipeline = WorkerPipeline.start("osm2sqlite", stats);
       var readBranch = pipeline.<Batch>fromGenerator("pbf", next -> {
         blocks.forEachBlock(block -> {
-          var result = new Batch(new WeightedHandoffQueue<>(1_000, 100), block);
+          var result = new Batch(new CompletableFuture<>(), block);
           queue.accept(result);
           next.accept(result);
         });
@@ -68,29 +71,33 @@ public interface OsmMirror extends AutoCloseable {
         .sinkTo("parse", processThreads, (prev) -> {
           try (queue; var packer = MessagePack.newDefaultBufferPacker()) {
             for (var batch : prev) {
-              try (batch.results) {
-                for (var item : batch.block) {
-                  packer.clear();
-                  if (item instanceof OsmElement.Node node) {
+              List<Serialized<? extends OsmElement>> result = new ArrayList<>();
+              for (var item : batch.block) {
+                packer.clear();
+                if (item instanceof OsmElement.Node node) {
+                  if (doNodes) {
                     OsmMirrorUtil.pack(packer, node);
-                    batch.results.accept(new Serialized.SerializedNode(node, packer.toByteArray()), item.cost());
-                  } else if (item instanceof OsmElement.Way way) {
+                    result.add(new Serialized.Node(node, packer.toByteArray()));
+                  }
+                } else if (item instanceof OsmElement.Way way) {
+                  if (doWays) {
                     OsmMirrorUtil.pack(packer, way);
-                    batch.results.accept(new Serialized.SerializedWay(way, packer.toByteArray()), item.cost());
-                  } else if (item instanceof OsmElement.Relation relation) {
+                    result.add(new Serialized.Way(way, packer.toByteArray()));
+                  }
+                } else if (item instanceof OsmElement.Relation relation) {
+                  if (doRelations) {
                     OsmMirrorUtil.pack(packer, relation);
-                    batch.results.accept(new Serialized.SerializedRelation(relation, packer.toByteArray()),
-                      item.cost());
+                    result.add(new Serialized.Relation(relation, packer.toByteArray()));
                   }
                 }
               }
+              batch.results.complete(result);
             }
           }
         });
 
       var writeBranch = pipeline.readFromQueue(queue)
         .sinkTo("write", 1, prev -> {
-          var phaser = new OsmPhaser(1);
 
           try (
             OsmMirror out = newWriter(type, output.resolve("test.db"));
@@ -99,19 +106,16 @@ public interface OsmMirror extends AutoCloseable {
           ) {
             System.err.println("Using " + out.getClass().getSimpleName());
             for (var batch : prev) {
-              for (var item : batch.results) {
-                if (item instanceof Serialized.SerializedNode node) {
+              for (var item : batch.results.get()) {
+                if (item instanceof Serialized.Node node) {
                   phaserForWorker.arrive(OsmPhaser.Phase.NODES);
                   writer.putNode(node);
-                  nodes.incrementAndGet();
-                } else if (item instanceof Serialized.SerializedWay way) {
+                } else if (item instanceof Serialized.Way way) {
                   phaserForWorker.arrive(OsmPhaser.Phase.WAYS);
                   writer.putWay(way);
-                  ways.incrementAndGet();
-                } else if (item instanceof Serialized.SerializedRelation relation) {
+                } else if (item instanceof Serialized.Relation relation) {
                   phaserForWorker.arrive(OsmPhaser.Phase.RELATIONS);
                   writer.putRelation(relation);
-                  relations.incrementAndGet();
                 }
               }
               blockCounter.incrementAndGet();
@@ -123,9 +127,9 @@ public interface OsmMirror extends AutoCloseable {
 
       ProgressLoggers loggers = ProgressLoggers.create()
         .addRateCounter("blocks", blockCounter)
-        .addRateCounter("nodes", nodes, true)
-        .addRateCounter("ways", ways, true)
-        .addRateCounter("rels", relations, true)
+        .addRateCounter("nodes", phaser::nodes, true)
+        .addRateCounter("ways", phaser::ways, true)
+        .addRateCounter("rels", phaser::relations, true)
         .addFileSize(() -> FileUtils.size(output))
         .newLine()
         .addProcessStats()
@@ -145,6 +149,16 @@ public interface OsmMirror extends AutoCloseable {
       case "sqlite-memory" -> newSqliteMemory();
       case "memory" -> newInMemory();
       case "lmdb" -> newLmdbWrite(path);
+      case "dummy" -> newDummyWriter();
+      default -> throw new IllegalArgumentException("Unrecognized type: " + type);
+    };
+  }
+
+  static OsmMirror newReader(String type, Path path) {
+    return switch (type) {
+      case "mapdb" -> MapDbOsmMirror.newReadFromFile(path);
+      case "sqlite" -> newSqliteWrite(path);
+      case "lmdb" -> newLmdbWrite(path);
       default -> throw new IllegalArgumentException("Unrecognized type: " + type);
     };
   }
@@ -163,28 +177,28 @@ public interface OsmMirror extends AutoCloseable {
 
   interface BulkWriter extends Closeable {
 
-    default void putNode(Serialized.SerializedNode node) {
+    default void putNode(Serialized.Node node) {
       putNode(node.item());
     }
 
-    default void putWay(Serialized.SerializedWay way) {
+    default void putWay(Serialized.Way way) {
       putWay(way.item());
     }
 
-    default void putRelation(Serialized.SerializedRelation node) {
+    default void putRelation(Serialized.Relation node) {
       putRelation(node.item());
     }
 
     default void putNode(OsmElement.Node node) {
-      putNode(new Serialized.SerializedNode(node, OsmMirrorUtil.encode(node)));
+      putNode(new Serialized.Node(node, OsmMirrorUtil.encode(node)));
     }
 
     default void putWay(OsmElement.Way way) {
-      putWay(new Serialized.SerializedWay(way, OsmMirrorUtil.encode(way)));
+      putWay(new Serialized.Way(way, OsmMirrorUtil.encode(way)));
     }
 
     default void putRelation(OsmElement.Relation node) {
-      putRelation(new Serialized.SerializedRelation(node, OsmMirrorUtil.encode(node)));
+      putRelation(new Serialized.Relation(node, OsmMirrorUtil.encode(node)));
     }
   }
 

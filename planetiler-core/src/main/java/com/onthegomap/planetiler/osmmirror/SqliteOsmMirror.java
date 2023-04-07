@@ -95,26 +95,26 @@ public class SqliteOsmMirror implements OsmMirror {
 
   private void createTables() {
     execute("""
-      CREATE TABLE nodes (
+      CREATE TABLE IF NOT EXISTS nodes (
         id INTEGER PRIMARY KEY,
         version INTEGER,
         tags BLOB,
         location INTEGER
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE ways (
+      CREATE TABLE IF NOT EXISTS ways (
         id INTEGER PRIMARY KEY,
         version INTEGER,
         tags BLOB
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE relations (
+      CREATE TABLE IF NOT EXISTS relations (
         id INTEGER PRIMARY KEY,
         version INTEGER,
         tags BLOB
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE way_members (
+      CREATE TABLE IF NOT EXISTS way_members (
         way_id INTEGER,
         `order` INTEGER,
         node_id INTEGER,
@@ -122,7 +122,7 @@ public class SqliteOsmMirror implements OsmMirror {
         PRIMARY KEY(way_id, `order`)
       ) WITHOUT ROWID""");
     execute("""
-      CREATE TABLE relation_members (
+      CREATE TABLE IF NOT EXISTS relation_members (
         relation_id INTEGER,
         `order` INTEGER,
         type INTEGER,
@@ -152,12 +152,22 @@ public class SqliteOsmMirror implements OsmMirror {
 
   @Override
   public void deleteWay(long wayId, int version) {
-
+    try (var statement = connection.prepareStatement("DELETE FROM ways WHERE ID=?")) {
+      statement.setLong(1, wayId);
+      statement.execute();
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Override
   public void deleteRelation(long relationId, int version) {
-
+    try (var statement = connection.prepareStatement("DELETE FROM relations WHERE ID=?")) {
+      statement.setLong(1, relationId);
+      statement.execute();
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Override
@@ -223,7 +233,7 @@ public class SqliteOsmMirror implements OsmMirror {
           members.add(new OsmElement.Relation.Member(
             OsmElement.Type.values()[Integer.parseInt(types[i])],
             Long.parseLong(refs[i]),
-            roles[i]
+            i >= roles.length ? "" : roles[i]
           ));
         }
       } else {
@@ -459,6 +469,7 @@ public class SqliteOsmMirror implements OsmMirror {
     @Override
     public void putWay(OsmElement.Way way) {
       wayWriter.write(way);
+      //      TODO write way members separately, then insert in order into table in close
       for (int i = 0; i < way.nodes().size(); i++) {
         wayMemberWriter.write(new ParentChild<>(way, i));
       }
@@ -474,6 +485,7 @@ public class SqliteOsmMirror implements OsmMirror {
 
     @Override
     public void close() throws IOException {
+      // TODO sort way members, then insert in order into wayMembers
       nodeWriter.close();
       wayWriter.close();
       wayMemberWriter.close();

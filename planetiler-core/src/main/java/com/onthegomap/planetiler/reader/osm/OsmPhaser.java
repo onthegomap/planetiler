@@ -49,15 +49,15 @@ public class OsmPhaser {
     phaser.bulkRegister(workers);
   }
 
-  long nodes() {
+  public long nodes() {
     return getCount(Phase.NODES);
   }
 
-  long ways() {
+  public long ways() {
     return getCount(Phase.WAYS);
   }
 
-  long relations() {
+  public long relations() {
     return getCount(Phase.RELATIONS);
   }
 

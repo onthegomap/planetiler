@@ -211,13 +211,13 @@ public class LmdbOsmMirror implements OsmMirror {
     }
 
     @Override
-    public void putNode(Serialized.SerializedNode node) {
+    public void putNode(Serialized.Node node) {
       nodes.put(txn, key(node.item().id()), node.bytes());
       maybeCommit();
     }
 
     @Override
-    public void putWay(Serialized.SerializedWay way) {
+    public void putWay(Serialized.Way way) {
       ways.put(txn, key(way.item().id()), way.bytes());
       for (var node : way.item().nodes()) {
         waysByNode.put(txn, key(node.value, way.item().id()), EMPTY_BYTE);
@@ -226,7 +226,7 @@ public class LmdbOsmMirror implements OsmMirror {
     }
 
     @Override
-    public void putRelation(Serialized.SerializedRelation relation) {
+    public void putRelation(Serialized.Relation relation) {
       relations.put(txn, key(relation.item().id()), relation.bytes());
       for (var member : relation.item().members()) {
         (switch (member.type()) {
