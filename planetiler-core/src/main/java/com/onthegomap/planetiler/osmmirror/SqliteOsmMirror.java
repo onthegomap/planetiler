@@ -12,7 +12,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.FileUtils;
-import com.onthegomap.planetiler.worker.Worker;
+import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -30,9 +30,11 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteOpenMode;
 
 // java -Xmx30g -cp planetiler-osmmirror.jar com.onthegomap.planetiler.osmmirror.OsmMirror --input data/sources/planet.osm.pbf --output planet.db --threads 10 --db sqlite 2>&1 | tee sqlite2.txt
 public class SqliteOsmMirror implements OsmMirror {
+
   private static final boolean INSERT_IGNORE = false;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteOsmMirror.class);
@@ -44,7 +46,6 @@ public class SqliteOsmMirror implements OsmMirror {
   private SqliteOsmMirror(Connection connection, Path path, Stats stats, int maxWorkers) {
     this.connection = connection;
     this.path = path;
-    createTables();
     this.stats = stats;
     this.maxWorkers = maxWorkers;
   }
@@ -75,12 +76,28 @@ public class SqliteOsmMirror implements OsmMirror {
     sqliteConfig.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
     sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
     var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
-    return new SqliteOsmMirror(connection, path, options.getStats(), maxWorkers);
+    var result = new SqliteOsmMirror(connection, path, options.getStats(), maxWorkers);
+    result.createTables();
+    return result;
   }
 
   public static SqliteOsmMirror newInMemoryDatabase() {
     SQLiteConfig sqliteConfig = new SQLiteConfig();
     var connection = newConnection("jdbc:sqlite::memory:", sqliteConfig, Arguments.of());
+    var result = new SqliteOsmMirror(connection, null, Stats.inMemory(), 1);
+    result.createTables();
+    return result;
+  }
+
+  public static OsmMirror newReadFromFile(Path path) {
+    SQLiteConfig config = new SQLiteConfig();
+    config.setReadOnly(true);
+    config.setExplicitReadOnly(true);
+    config.setCacheSize(10_000);
+    config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+    config.setOpenMode(SQLiteOpenMode.NOMUTEX);
+    config.setPragma(SQLiteConfig.Pragma.MMAP_SIZE, "100000");
+    var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, Arguments.of());
     return new SqliteOsmMirror(connection, null, Stats.inMemory(), 1);
   }
 
@@ -312,6 +329,71 @@ public class SqliteOsmMirror implements OsmMirror {
   }
 
   @Override
+  public CloseableIterator<Serialized<? extends OsmElement>> iterator(int shard, int shards) {
+    try {
+      var nodestmt = connection.prepareStatement("SELECT * FROM nodes WHERE id % ? = ? ORDER BY id ASC");
+      nodestmt.setLong(1, shards);
+      nodestmt.setLong(2, shard);
+      var nodes = nodestmt.executeQuery();
+      var waystmt = connection.prepareStatement("SELECT * FROM ways WHERE id % ? = ? ORDER BY id ASC");
+      waystmt.setLong(1, shards);
+      waystmt.setLong(2, shard);
+      var ways = waystmt.executeQuery();
+      var relationstmt =
+        connection.prepareStatement("SELECT * FROM relations WHERE id % ? = ? ORDER BY id ASC");
+      relationstmt.setLong(1, shards);
+      relationstmt.setLong(2, shard);
+      var relations = relationstmt.executeQuery();
+      var nodesIter =
+        resultToIterator(nodes, result -> {
+          try {
+            return new Serialized.LazyNode(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var waysIter =
+        resultToIterator(ways, result -> {
+          try {
+            return new Serialized.LazyWay(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var relsIter =
+        resultToIterator(relations, result -> {
+          try {
+            return new Serialized.LazyRelation(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var iter = Iterators.concat(nodesIter, waysIter, relsIter);
+      return new CloseableIterator<>() {
+        @Override
+        public boolean hasNext() {
+          return iter.hasNext();
+        }
+
+        @Override
+        public Serialized<? extends OsmElement> next() {
+          return iter.next();
+        }
+
+        @Override
+        public void close() {
+          try (nodes; ways; relations) {
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      };
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
   public CloseableIterator<OsmElement> iterator() {
     try {
       var nodes = connection.prepareStatement("SELECT * FROM nodes ORDER BY id ASC").executeQuery();
@@ -346,6 +428,61 @@ public class SqliteOsmMirror implements OsmMirror {
   }
 
   @Override
+  public CloseableIterator<Serialized<? extends OsmElement>> lazyIter() {
+    try {
+      var nodes = connection.prepareStatement("SELECT * FROM nodes ORDER BY id ASC").executeQuery();
+      var ways = connection.prepareStatement("SELECT * FROM ways ORDER BY id ASC").executeQuery();
+      var relations = connection.prepareStatement("SELECT * FROM relations ORDER BY id ASC").executeQuery();
+      var nodesIter =
+        resultToIterator(nodes, result -> {
+          try {
+            return new Serialized.LazyNode(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var waysIter =
+        resultToIterator(ways, result -> {
+          try {
+            return new Serialized.LazyWay(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var relsIter =
+        resultToIterator(relations, result -> {
+          try {
+            return new Serialized.LazyRelation(result.getLong("id"), result.getBytes("data"));
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      var iter = Iterators.concat(nodesIter, waysIter, relsIter);
+      return new CloseableIterator<>() {
+        @Override
+        public boolean hasNext() {
+          return iter.hasNext();
+        }
+
+        @Override
+        public Serialized<? extends OsmElement> next() {
+          return iter.next();
+        }
+
+        @Override
+        public void close() {
+          try (nodes; ways; relations) {
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      };
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
   public void close() throws IOException {
     try {
       connection.close();
@@ -357,6 +494,7 @@ public class SqliteOsmMirror implements OsmMirror {
   private record ParentChild(long child, long parent) {}
 
   private class Bulk implements BulkWriter {
+
     private final ElementWriter nodeWriter = new ElementWriter(connection, "nodes");
     private final ElementWriter wayWriter = new ElementWriter(connection, "ways");
     private final ChildToParentWriter wayMemberWriter = new ChildToParentWriter(connection, "node_to_way");
@@ -411,44 +549,31 @@ public class SqliteOsmMirror implements OsmMirror {
 
     @Override
     public void close() throws IOException {
-      LongArrayList values = new LongArrayList();
-
-      var iter = nodeToWay.iterator();
       var counter = new AtomicLong(0);
-      var worker = new Worker("writer", stats, 1, () -> {
-        long lastKey = -1;
-        LOGGER.info("Inserting {} sorted way members...", nodeToWay.count());
-        var start = Timer.start();
-
-        while (iter.hasNext()) {
-          var pair = iter.next();
-          long key = pair.a();
-          if (key != lastKey) {
-            for (int i = 0; i < values.size(); i++) {
-              wayMemberWriter.write(new ParentChild(lastKey, values.get(i)));
-              counter.incrementAndGet();
-            }
-            values.clear();
-            lastKey = key;
+      var timer = Timer.start();
+      LOGGER.info("Inserting {} sorted way members...", nodeToWay.count());
+      var pipeline = WorkerPipeline.start("write", stats)
+        .<ParentChild>fromGenerator("read", next -> {
+          for (var item : nodeToWay) {
+            next.accept(new ParentChild(item.a(), item.b()));
           }
-          values.add(pair.b());
-        }
-        if (!values.isEmpty()) {
-          for (int i = 0; i < values.size(); i++) {
-            wayMemberWriter.write(new ParentChild(lastKey, values.get(i)));
+        })
+        .addBuffer("to_write", 100_000, 1_000)
+        .sinkTo("write", 1, prev -> {
+          for (var item : prev) {
+            wayMemberWriter.write(item);
             counter.incrementAndGet();
           }
-        }
-        LOGGER.info("Inserted sorted way members in {}", start.stop());
-      });
+        });
       ProgressLoggers loggers = ProgressLoggers.create()
         .addRatePercentCounter("way_members", nodeToWay.count(), counter, true)
         .addFileSize(() -> FileUtils.size(path))
         .newLine()
-        .addThreadPoolStats("writer", worker)
+        .addPipelineStats(pipeline)
         .newLine()
         .addProcessStats();
-      worker.awaitAndLog(loggers, Duration.ofSeconds(10));
+      pipeline.awaitAndLog(loggers, Duration.ofSeconds(10));
+      LOGGER.info("Inserted sorted way members in {}", timer.stop());
       nodeWriter.close();
       wayWriter.close();
       wayMemberWriter.close();
@@ -460,6 +585,7 @@ public class SqliteOsmMirror implements OsmMirror {
   }
 
   private class ElementWriter extends Mbtiles.BatchedTableWriterBase<Serialized<? extends OsmElement>> {
+
     ElementWriter(Connection conn, String table) {
       super(table, List.of("id", "data"), INSERT_IGNORE, conn);
     }
@@ -475,6 +601,7 @@ public class SqliteOsmMirror implements OsmMirror {
   }
 
   private class ChildToParentWriter extends Mbtiles.BatchedTableWriterBase<ParentChild> {
+
     ChildToParentWriter(Connection conn, String table) {
       super(table, List.of("child_id", "parent_id"), INSERT_IGNORE, conn);
     }

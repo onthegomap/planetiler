@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.CloseableIterator;
+import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
@@ -28,7 +29,7 @@ import org.msgpack.core.MessagePacker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public interface LongLongSorter extends Iterable<LongLongSorter.Result> {
+public interface LongLongSorter extends Iterable<LongLongSorter.Result>, DiskBacked {
   Logger LOGGER = LoggerFactory.getLogger(LongLongSorter.class);
 
   void put(long a, long b);
@@ -61,6 +62,11 @@ public interface LongLongSorter extends Iterable<LongLongSorter.Result> {
     @Override
     public long count() {
       return chunks.stream().mapToLong(d -> d.count).sum();
+    }
+
+    @Override
+    public long diskUsageBytes() {
+      return chunks.stream().mapToLong(c -> FileUtils.size(c.path)).sum();
     }
 
     class Chunk implements Iterable<Result> {
@@ -151,7 +157,8 @@ public interface LongLongSorter extends Iterable<LongLongSorter.Result> {
     }
 
     public DiskBacked(Path nodeToWayTmp, Stats stats, int maxWorkers) {
-      this(nodeToWayTmp, stats, 1_000_000_000 / BYTES_PER_ENTRY, maxWorkers);
+      this(nodeToWayTmp, stats, Math.max(1_000_000_000, ProcessInfo.getMaxMemoryBytes() / 8) / BYTES_PER_ENTRY,
+        maxWorkers);
     }
 
     private void prepare() {
@@ -174,6 +181,7 @@ public interface LongLongSorter extends Iterable<LongLongSorter.Result> {
           });
         ProgressLoggers logger = ProgressLoggers.create()
           .addPercentCounter("sort", chunks.size(), done)
+          .addFileSize(this::diskUsageBytes)
           .newLine()
           .addPipelineStats(pipeline)
           .newLine()
@@ -285,6 +293,11 @@ public interface LongLongSorter extends Iterable<LongLongSorter.Result> {
     @Override
     public long count() {
       return items.size();
+    }
+
+    @Override
+    public long diskUsageBytes() {
+      return 0;
     }
   }
 }

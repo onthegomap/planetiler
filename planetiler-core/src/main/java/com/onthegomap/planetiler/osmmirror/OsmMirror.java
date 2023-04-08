@@ -155,10 +155,10 @@ public interface OsmMirror extends AutoCloseable {
     };
   }
 
-  static OsmMirror newReader(String type, Path path, int maxWorkers) {
+  static OsmMirror newReader(String type, Path path) {
     return switch (type) {
       case "mapdb" -> MapDbOsmMirror.newReadFromFile(path);
-      case "sqlite" -> newSqliteWrite(path, maxWorkers);
+      case "sqlite" -> SqliteOsmMirror.newReadFromFile(path);
       case "lmdb" -> newLmdbWrite(path);
       default -> throw new IllegalArgumentException("Unrecognized type: " + type);
     };
@@ -208,4 +208,12 @@ public interface OsmMirror extends AutoCloseable {
   LongArrayList getParentRelationsForRelation(long nodeId);
 
   CloseableIterator<OsmElement> iterator();
+
+  default CloseableIterator<Serialized<? extends OsmElement>> iterator(int shard, int shards) {
+    throw new UnsupportedOperationException();
+  }
+
+  default CloseableIterator<Serialized<? extends OsmElement>> lazyIter() {
+    throw new UnsupportedOperationException();
+  }
 }

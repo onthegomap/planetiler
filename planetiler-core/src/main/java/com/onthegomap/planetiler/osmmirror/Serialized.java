@@ -8,6 +8,30 @@ public interface Serialized<T> {
 
   byte[] bytes();
 
+  record LazyNode(long id, byte[] bytes) implements Serialized<OsmElement.Node> {
+
+    @Override
+    public OsmElement.Node item() {
+      return OsmMirrorUtil.decodeNode(id, bytes);
+    }
+  }
+
+  record LazyWay(long id, byte[] bytes) implements Serialized<OsmElement.Way> {
+
+    @Override
+    public OsmElement.Way item() {
+      return OsmMirrorUtil.decodeWay(id, bytes);
+    }
+  }
+
+  record LazyRelation(long id, byte[] bytes) implements Serialized<OsmElement.Relation> {
+
+    @Override
+    public OsmElement.Relation item() {
+      return OsmMirrorUtil.decodeRelation(id, bytes);
+    }
+  }
+
   record Node(OsmElement.Node item, byte[] bytes) implements Serialized<OsmElement.Node> {
     Node(OsmElement.Node item, boolean id) {
       this(item, OsmMirrorUtil.encode(item, id));
