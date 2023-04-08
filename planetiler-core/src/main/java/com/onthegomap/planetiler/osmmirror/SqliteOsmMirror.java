@@ -7,7 +7,12 @@ import com.google.common.collect.Iterators;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.CloseableIterator;
+import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.worker.Worker;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -15,10 +20,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +37,16 @@ public class SqliteOsmMirror implements OsmMirror {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SqliteOsmMirror.class);
   private final Connection connection;
+  private final Path path;
+  private final Stats stats;
+  private final int maxWorkers;
 
-  private SqliteOsmMirror(Connection connection) {
+  private SqliteOsmMirror(Connection connection, Path path, Stats stats, int maxWorkers) {
     this.connection = connection;
+    this.path = path;
     createTables();
+    this.stats = stats;
+    this.maxWorkers = maxWorkers;
   }
 
   private static Connection newConnection(String url, SQLiteConfig defaults, Arguments args) {
@@ -53,7 +66,7 @@ public class SqliteOsmMirror implements OsmMirror {
     }
   }
 
-  public static SqliteOsmMirror newWriteToFileDatabase(Path path, Arguments options) {
+  public static SqliteOsmMirror newWriteToFileDatabase(Path path, Arguments options, int maxWorkers) {
     Objects.requireNonNull(path);
     SQLiteConfig sqliteConfig = new SQLiteConfig();
     sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.OFF);
@@ -62,13 +75,13 @@ public class SqliteOsmMirror implements OsmMirror {
     sqliteConfig.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
     sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
     var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
-    return new SqliteOsmMirror(connection);
+    return new SqliteOsmMirror(connection, path, options.getStats(), maxWorkers);
   }
 
   public static SqliteOsmMirror newInMemoryDatabase() {
     SQLiteConfig sqliteConfig = new SQLiteConfig();
     var connection = newConnection("jdbc:sqlite::memory:", sqliteConfig, Arguments.of());
-    return new SqliteOsmMirror(connection);
+    return new SqliteOsmMirror(connection, null, Stats.inMemory(), 1);
   }
 
 
@@ -351,6 +364,8 @@ public class SqliteOsmMirror implements OsmMirror {
     private final ChildToParentWriter nodeToRelWriter = new ChildToParentWriter(connection, "node_to_relation");
     private final ChildToParentWriter wayToRelWriter = new ChildToParentWriter(connection, "way_to_relation");
     private final ChildToParentWriter relToRelWriter = new ChildToParentWriter(connection, "relation_to_relation");
+    private final LongLongSorter nodeToWay = path == null ? new LongLongSorter.InMemory() :
+      new LongLongSorter.DiskBacked(path.resolveSibling("node_to_way_tmp"), stats, maxWorkers);
 
     @Override
     public void putNode(Serialized.Node node) {
@@ -360,13 +375,13 @@ public class SqliteOsmMirror implements OsmMirror {
     @Override
     public void putWay(Serialized.Way way) {
       wayWriter.write(way);
-      //      TODO write way members separately, then insert in order into table in close
+      long wayId = way.item().id();
       var nodes = way.item().nodes();
       LongSet written = new LongHashSet();
       for (int i = 0; i < nodes.size(); i++) {
         long id = nodes.get(i);
         if (written.add(id)) {
-          wayMemberWriter.write(new ParentChild(nodes.get(i), way.item().id()));
+          nodeToWay.put(id, wayId);
         }
       }
     }
@@ -396,7 +411,44 @@ public class SqliteOsmMirror implements OsmMirror {
 
     @Override
     public void close() throws IOException {
-      // TODO sort way members, then insert in order into wayMembers
+      LongArrayList values = new LongArrayList();
+
+      var iter = nodeToWay.iterator();
+      var counter = new AtomicLong(0);
+      var worker = new Worker("writer", stats, 1, () -> {
+        long lastKey = -1;
+        LOGGER.info("Inserting {} sorted way members...", nodeToWay.count());
+        var start = Timer.start();
+
+        while (iter.hasNext()) {
+          var pair = iter.next();
+          long key = pair.a();
+          if (key != lastKey) {
+            for (int i = 0; i < values.size(); i++) {
+              wayMemberWriter.write(new ParentChild(lastKey, values.get(i)));
+              counter.incrementAndGet();
+            }
+            values.clear();
+            lastKey = key;
+          }
+          values.add(pair.b());
+        }
+        if (!values.isEmpty()) {
+          for (int i = 0; i < values.size(); i++) {
+            wayMemberWriter.write(new ParentChild(lastKey, values.get(i)));
+            counter.incrementAndGet();
+          }
+        }
+        LOGGER.info("Inserted sorted way members in {}", start.stop());
+      });
+      ProgressLoggers loggers = ProgressLoggers.create()
+        .addRatePercentCounter("way_members", nodeToWay.count(), counter, true)
+        .addFileSize(() -> FileUtils.size(path))
+        .newLine()
+        .addThreadPoolStats("writer", worker)
+        .newLine()
+        .addProcessStats();
+      worker.awaitAndLog(loggers, Duration.ofSeconds(10));
       nodeWriter.close();
       wayWriter.close();
       wayMemberWriter.close();

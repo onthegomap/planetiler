@@ -28,8 +28,8 @@ public interface OsmMirror extends AutoCloseable {
     return new InMemoryOsmMirror();
   }
 
-  static OsmMirror newSqliteWrite(Path path) {
-    return SqliteOsmMirror.newWriteToFileDatabase(path, Arguments.of());
+  static OsmMirror newSqliteWrite(Path path, int maxWorkers) {
+    return SqliteOsmMirror.newWriteToFileDatabase(path, Arguments.of(), maxWorkers);
   }
 
   static OsmMirror newSqliteMemory() {
@@ -55,7 +55,11 @@ public interface OsmMirror extends AutoCloseable {
     OsmInputFile in = new OsmInputFile(input);
     var blockCounter = new AtomicLong();
     boolean id = !type.contains("sqlite");
-    try (var blocks = in.get()) {
+    try (
+      var blocks = in.get();
+      OsmMirror out = newWriter(type, output.resolve("test.db"), processThreads);
+      var writer = out.newBulkWriter()
+    ) {
       record Batch(CompletableFuture<List<Serialized<? extends OsmElement>>> results, OsmBlockSource.Block block) {}
       var queue = new WorkQueue<Batch>("batches", processThreads * 2, 1, stats);
 
@@ -100,11 +104,7 @@ public interface OsmMirror extends AutoCloseable {
       var writeBranch = pipeline.readFromQueue(queue)
         .sinkTo("write", 1, prev -> {
 
-          try (
-            OsmMirror out = newWriter(type, output.resolve("test.db"));
-            var writer = out.newBulkWriter();
-            var phaserForWorker = phaser.forWorker()
-          ) {
+          try (var phaserForWorker = phaser.forWorker()) {
             System.err.println("Using " + out.getClass().getSimpleName());
             for (var batch : prev) {
               for (var item : batch.results.get()) {
@@ -142,11 +142,11 @@ public interface OsmMirror extends AutoCloseable {
     }
   }
 
-  static OsmMirror newWriter(String type, Path path) {
+  static OsmMirror newWriter(String type, Path path, int maxWorkers) {
     return switch (type) {
       case "mapdb" -> newMapdbWrite(path);
       case "mapdb-memory" -> newMapdbMemory();
-      case "sqlite" -> newSqliteWrite(path);
+      case "sqlite" -> newSqliteWrite(path, maxWorkers);
       case "sqlite-memory" -> newSqliteMemory();
       case "memory" -> newInMemory();
       case "lmdb" -> newLmdbWrite(path);
@@ -155,10 +155,10 @@ public interface OsmMirror extends AutoCloseable {
     };
   }
 
-  static OsmMirror newReader(String type, Path path) {
+  static OsmMirror newReader(String type, Path path, int maxWorkers) {
     return switch (type) {
       case "mapdb" -> MapDbOsmMirror.newReadFromFile(path);
-      case "sqlite" -> newSqliteWrite(path);
+      case "sqlite" -> newSqliteWrite(path, maxWorkers);
       case "lmdb" -> newLmdbWrite(path);
       default -> throw new IllegalArgumentException("Unrecognized type: " + type);
     };

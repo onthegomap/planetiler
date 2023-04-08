@@ -41,8 +41,9 @@ abstract class OsmMirrorTest {
 
   @Test
   void testInsertWay() throws IOException {
-    var way = new OsmElement.Way(2, Map.of("key", "value"), LongArrayList.from(1), infoVersion(0));
-    var way2 = new OsmElement.Way(3, Map.of("key", "value"), LongArrayList.from(1, 1), infoVersion(0));
+    var way = new OsmElement.Way(2, Map.of("building", "yes"), LongArrayList.from(1), infoVersion(0));
+    var way2 = new OsmElement.Way(3, Map.of("random random random key??!?!", "not a normal value!!!"),
+      LongArrayList.from(1, 1), infoVersion(0));
     try (var writer = fixture.newBulkWriter()) {
       writer.putWay(new Serialized.Way(way, serializeId));
       writer.putWay(new Serialized.Way(way2, serializeId));
@@ -91,6 +92,17 @@ abstract class OsmMirrorTest {
     @BeforeEach
     void setup() {
       fixture = OsmMirror.newSqliteMemory();
+      serializeId = false;
+    }
+  }
+  static class SqliteFileTest extends OsmMirrorTest {
+    @TempDir
+    Path path;
+
+
+    @BeforeEach
+    void setup() {
+      fixture = OsmMirror.newSqliteWrite(path.resolve("test.db"), 2);
       serializeId = false;
     }
   }

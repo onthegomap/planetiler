@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.osmmirror;
 import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,41 +12,38 @@ import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.Value;
+import org.msgpack.value.ValueFactory;
 
 public class OsmMirrorUtil {
+  private static final CommonTags tags = new CommonTags();
 
-  public static byte[] encodeTags(Map<String, Object> tags) {
-    if (tags.isEmpty()) {
-      return null;
+  static Value encodeString(Object string) {
+    if (string == null) {
+      return ValueFactory.newNil();
     }
-    try (var msgPack = MessagePack.newDefaultBufferPacker()) {
-      packTags(tags, msgPack);
-      return msgPack.toByteArray();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    String str = string.toString();
+    int encoded = tags.encode(str);
+    return encoded < 0 ? ValueFactory.newString(str) : ValueFactory.newInteger(encoded);
+  }
+
+  static String decodeString(Value value) {
+    if (value.isStringValue()) {
+      return value.asStringValue().asString();
+    } else if (value.isIntegerValue()) {
+      return tags.decode(value.asIntegerValue().asInt());
+    } else {
+      return null;
     }
   }
 
   private static void packTags(Map<String, Object> tags, MessagePacker msgPack) throws IOException {
-    msgPack.packMapHeader(tags.size());
-    for (var entry : tags.entrySet()) {
-      msgPack.packString(entry.getKey());
-      if (entry.getValue() == null) {
-        msgPack.packNil();
-      } else {
-        msgPack.packString(entry.getValue().toString());
+    if (!tags.isEmpty()) {
+      msgPack.packMapHeader(tags.size());
+      for (var entry : tags.entrySet()) {
+        msgPack.packValue(encodeString(entry.getKey()));
+        msgPack.packValue(encodeString(entry.getValue()));
       }
-    }
-  }
-
-  public static Map<String, Object> parseTags(byte[] bytes) {
-    if (bytes == null || bytes.length == 0) {
-      return Map.of();
-    }
-    try (var msgPack = MessagePack.newDefaultUnpacker(bytes)) {
-      return unpackTags(msgPack);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
     }
   }
 
@@ -59,8 +55,8 @@ public class OsmMirrorUtil {
     Map<String, Object> result = new HashMap<>(length);
     for (int i = 0; i < length; i++) {
       result.put(
-        msgPack.unpackString(),
-        msgPack.unpackString()
+        decodeString(msgPack.unpackValue()),
+        decodeString(msgPack.unpackValue())
       );
     }
     return result;
