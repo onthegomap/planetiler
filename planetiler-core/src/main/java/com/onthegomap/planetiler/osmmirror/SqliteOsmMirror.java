@@ -491,6 +491,11 @@ public class SqliteOsmMirror implements OsmMirror {
     }
   }
 
+  @Override
+  public long diskUsageBytes() {
+    return FileUtils.size(path);
+  }
+
   private record ParentChild(long child, long parent) {}
 
   private class Bulk implements BulkWriter {

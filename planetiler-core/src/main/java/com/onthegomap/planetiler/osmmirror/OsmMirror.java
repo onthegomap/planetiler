@@ -9,9 +9,14 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmPhaser;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.CloseableIterator;
+import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.worker.WorkQueue;
+import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.Closeable;
 import java.nio.file.Path;
@@ -21,8 +26,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import org.msgpack.core.MessagePack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public interface OsmMirror extends AutoCloseable {
+public interface OsmMirror extends AutoCloseable, DiskBacked {
+  Logger LOGGER = LoggerFactory.getLogger(OsmMirror.class);
 
   static OsmMirror newInMemory() {
     return new InMemoryOsmMirror();
@@ -47,6 +55,7 @@ public interface OsmMirror extends AutoCloseable {
     boolean doNodes = arguments.getBoolean("nodes", "process nodes", true);
     boolean doWays = arguments.getBoolean("ways", "process ways", true);
     boolean doRelations = arguments.getBoolean("relations", "process relations", true);
+    String password = arguments.getString("password", "password");
     Path input = arguments.inputFile("input", "input", Path.of("data/sources/massachusetts.osm.pbf"));
     Path output = arguments.file("output", "output", Path.of("data/tmp/output"));
     FileUtils.delete(output);
@@ -54,16 +63,17 @@ public interface OsmMirror extends AutoCloseable {
     int processThreads = arguments.threads();
     OsmInputFile in = new OsmInputFile(input);
     var blockCounter = new AtomicLong();
-    boolean id = !type.contains("sqlite");
+    boolean id = !type.contains("sqlite") && !type.contains("postgres");
+    var timer = Timer.start();
     try (
       var blocks = in.get();
-      OsmMirror out = newWriter(type, output.resolve("test.db"), processThreads);
-      var writer = out.newBulkWriter()
+      OsmMirror out = newWriter(type, output.resolve("test.db"), processThreads, password)
     ) {
       record Batch(CompletableFuture<List<Serialized<? extends OsmElement>>> results, OsmBlockSource.Block block) {}
       var queue = new WorkQueue<Batch>("batches", processThreads * 2, 1, stats);
 
-      var phaser = new OsmPhaser(1);
+      int threads = type.contains("postgres") ? 4 : 1;
+      var phaser = new OsmPhaser(threads);
       var pipeline = WorkerPipeline.start("osm2sqlite", stats);
       var readBranch = pipeline.<Batch>fromGenerator("pbf", next -> {
         blocks.forEachBlock(block -> {
@@ -102,9 +112,12 @@ public interface OsmMirror extends AutoCloseable {
         });
 
       var writeBranch = pipeline.readFromQueue(queue)
-        .sinkTo("write", 1, prev -> {
+        .sinkTo("write", threads, prev -> {
 
-          try (var phaserForWorker = phaser.forWorker()) {
+          try (
+            var writer = out.newBulkWriter();
+            var phaserForWorker = phaser.forWorker()
+          ) {
             System.err.println("Using " + out.getClass().getSimpleName());
             for (var batch : prev) {
               for (var item : batch.results.get()) {
@@ -123,7 +136,6 @@ public interface OsmMirror extends AutoCloseable {
             }
             phaserForWorker.arrive(OsmPhaser.Phase.DONE);
           }
-          phaser.printSummary();
         });
 
       ProgressLoggers loggers = ProgressLoggers.create()
@@ -131,18 +143,31 @@ public interface OsmMirror extends AutoCloseable {
         .addRateCounter("nodes", phaser::nodes, true)
         .addRateCounter("ways", phaser::ways, true)
         .addRateCounter("rels", phaser::relations, true)
-        .addFileSize(() -> FileUtils.size(output))
+        .addFileSize(out)
         .newLine()
         .addProcessStats()
         .newLine()
         .addPipelineStats(readBranch)
         .addPipelineStats(writeBranch);
 
+
       loggers.awaitAndLog(joinFutures(readBranch.done(), writeBranch.done()), Duration.ofSeconds(10));
+      var worker = new Worker("finish", stats, 1, out::finish);
+      var pl2 = ProgressLoggers.create()
+        .addFileSize(out)
+        .newLine()
+        .addThreadPoolStats("worker", worker)
+        .newLine()
+        .addProcessStats();
+      worker.awaitAndLog(pl2, Duration.ofSeconds(10));
+      LOGGER.info("Finished in {} final size {}", timer.stop(), Format.defaultInstance().storage(out.diskUsageBytes()));
+      phaser.printSummary();
     }
   }
 
-  static OsmMirror newWriter(String type, Path path, int maxWorkers) {
+  default void finish() {}
+
+  static OsmMirror newWriter(String type, Path path, int maxWorkers, String password) {
     return switch (type) {
       case "mapdb" -> newMapdbWrite(path);
       case "mapdb-memory" -> newMapdbMemory();
@@ -151,6 +176,9 @@ public interface OsmMirror extends AutoCloseable {
       case "memory" -> newInMemory();
       case "lmdb" -> newLmdbWrite(path);
       case "dummy" -> newDummyWriter();
+      case "postgres" -> PostgresOsmMirror.newMirror(
+        "jdbc:postgresql://localhost:54321/pgdb?user=admin&password=" + password, 1,
+        Stats.inMemory());
       default -> throw new IllegalArgumentException("Unrecognized type: " + type);
     };
   }
@@ -159,6 +187,9 @@ public interface OsmMirror extends AutoCloseable {
     return switch (type) {
       case "mapdb" -> MapDbOsmMirror.newReadFromFile(path);
       case "sqlite" -> SqliteOsmMirror.newReadFromFile(path);
+      case "postgres" -> PostgresOsmMirror.newMirror(
+        "jdbc:postgresql://localhost:5432/pgdb?user=admin&password=password", 1,
+        Stats.inMemory());
       case "lmdb" -> newLmdbWrite(path);
       default -> throw new IllegalArgumentException("Unrecognized type: " + type);
     };

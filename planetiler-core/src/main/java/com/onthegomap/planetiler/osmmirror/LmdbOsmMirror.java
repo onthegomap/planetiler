@@ -22,6 +22,14 @@ import org.lmdbjava.KeyRange;
 import org.lmdbjava.Txn;
 
 public class LmdbOsmMirror implements OsmMirror {
+
+  private final Path path;
+
+  @Override
+  public long diskUsageBytes() {
+    return FileUtils.size(path);
+  }
+
   private final Dbi<byte[]> nodes;
   private final Dbi<byte[]> ways;
   private final Dbi<byte[]> relations;
@@ -32,6 +40,7 @@ public class LmdbOsmMirror implements OsmMirror {
   private final Env<byte[]> env;
 
   public LmdbOsmMirror(Path file) {
+    this.path = file;
     if (!Files.exists(file)) {
       FileUtils.createDirectory(file);
     }

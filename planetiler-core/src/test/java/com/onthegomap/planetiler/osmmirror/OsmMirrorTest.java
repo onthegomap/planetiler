@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.carrotsearch.hppc.LongArrayList;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -76,6 +77,10 @@ abstract class OsmMirrorTest {
     assertEquals(LongArrayList.from(4), fixture.getParentRelationsForRelation(3));
   }
 
+  //  TODO: versioned update
+  //  TODO: versioned delete
+  //  TODO: delete cascades?
+
   private OsmElement.Info infoVersion(int version) {
     return OsmElement.Info.forVersion(version);
   }
@@ -129,6 +134,15 @@ abstract class OsmMirrorTest {
     @BeforeEach
     void setup() {
       fixture = OsmMirror.newLmdbWrite(tmp);
+    }
+  }
+
+  static class PostgresTest extends OsmMirrorTest {
+    @BeforeEach
+    void setup() {
+      fixture = PostgresOsmMirror.newMirror("jdbc:postgresql://localhost:5432/pgdb?user=admin&password=password", 1,
+        Stats.inMemory());
+      ((PostgresOsmMirror) fixture).dropTables();
     }
   }
 }

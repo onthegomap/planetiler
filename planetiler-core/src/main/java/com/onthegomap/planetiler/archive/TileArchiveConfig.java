@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.util.FileUtils;
+import com.onthegomap.planetiler.util.Pgtiles;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -80,6 +81,9 @@ public record TileArchiveConfig(
     if (format == null) {
       format = getExtension(uri);
     }
+    if (getScheme(uri) == Scheme.POSTGRES) {
+      format = Format.POSTGRES.id;
+    }
     if (format == null) {
       return TileArchiveConfig.Format.MBTILES;
     }
@@ -154,7 +158,8 @@ public record TileArchiveConfig(
    * Returns the current size of this archive.
    */
   public long size() {
-    return getLocalPath() == null ? 0 : FileUtils.size(getLocalPath());
+    return format == Format.POSTGRES ? Pgtiles.getSize(this) : getLocalPath() == null ? 0 :
+      FileUtils.size(getLocalPath());
   }
 
   /**
@@ -167,7 +172,8 @@ public record TileArchiveConfig(
 
   public enum Format {
     MBTILES("mbtiles"),
-    PMTILES("pmtiles");
+    PMTILES("pmtiles"),
+    POSTGRES("postgres");
 
     private final String id;
 
@@ -181,7 +187,8 @@ public record TileArchiveConfig(
   }
 
   public enum Scheme {
-    FILE("file");
+    FILE("file"),
+    POSTGRES("postgres");
 
     private final String id;
 

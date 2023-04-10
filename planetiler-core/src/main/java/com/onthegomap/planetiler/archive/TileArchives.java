@@ -4,6 +4,7 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
+import com.onthegomap.planetiler.util.Pgtiles;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -45,6 +46,7 @@ public class TileArchives {
         Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options.orElse(config.arguments()
           .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
       case PMTILES -> WriteablePmtiles.newWriteToFile(archive.getLocalPath());
+      case POSTGRES -> Pgtiles.writer(archive.uri(), options);
     };
   }
 
@@ -59,6 +61,7 @@ public class TileArchives {
     return switch (archive.format()) {
       case MBTILES -> Mbtiles.newReadOnlyDatabase(archive.getLocalPath(), options);
       case PMTILES -> ReadablePmtiles.newReadFromFile(archive.getLocalPath());
+      case POSTGRES -> Pgtiles.reader(archive.uri(), options);
     };
   }
 

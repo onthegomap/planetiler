@@ -8,6 +8,11 @@ import org.geotools.data.store.EmptyIterator;
 
 public class DummyOsmMirror implements OsmMirror {
 
+  @Override
+  public long diskUsageBytes() {
+    return 0;
+  }
+
   private class Bulk implements BulkWriter {
 
     @Override

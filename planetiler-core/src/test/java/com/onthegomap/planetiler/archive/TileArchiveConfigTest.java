@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.archive;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -32,5 +33,18 @@ class TileArchiveConfigTest {
     assertEquals(TileArchiveConfig.Format.PMTILES, TileArchiveConfig.from("output.mbtiles?format=pmtiles").format());
     assertEquals(TileArchiveConfig.Format.PMTILES,
       TileArchiveConfig.from("file:///output.mbtiles?format=pmtiles").format());
+  }
+
+  @Test
+  void testPgtiles() {
+    var config = TileArchiveConfig.from("postgres://localhost:5432/db?user=user&password=password");
+    assertEquals(TileArchiveConfig.Format.POSTGRES, config.format());
+    assertEquals(Map.of("user", "user", "password", "password"), config.options());
+    assertEquals("localhost:5432", config.uri().getAuthority());
+    assertEquals("/db", config.uri().getPath());
+    assertNull(config.getLocalPath());
+
+    config = TileArchiveConfig.from("postgres://localhost:5432?user=user&password=password");
+    assertEquals("", config.uri().getPath());
   }
 }

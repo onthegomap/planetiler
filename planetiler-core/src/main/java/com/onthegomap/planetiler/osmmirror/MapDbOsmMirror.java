@@ -4,6 +4,7 @@ import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.collect.Iterators;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.util.CloseableIterator;
+import com.onthegomap.planetiler.util.FileUtils;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -20,6 +21,13 @@ import org.mapdb.Serializer;
 
 public class MapDbOsmMirror implements OsmMirror {
 
+  private final Path path;
+
+  @Override
+  public long diskUsageBytes() {
+    return path == null ? 0 : FileUtils.size(this.path);
+  }
+
   private final BTreeMap<Long, Serialized.Node> nodes;
   private final BTreeMap<Long, Serialized.Way> ways;
   private final BTreeMap<Long, Serialized.Relation> relations;
@@ -30,7 +38,7 @@ public class MapDbOsmMirror implements OsmMirror {
   private final DB db;
 
   static MapDbOsmMirror newInMemory() {
-    return new MapDbOsmMirror(DBMaker.newMemoryDirectDB()
+    return new MapDbOsmMirror(null, DBMaker.newMemoryDirectDB()
       .asyncWriteEnable()
       .transactionDisable()
       .closeOnJvmShutdown()
@@ -38,7 +46,7 @@ public class MapDbOsmMirror implements OsmMirror {
   }
 
   static MapDbOsmMirror newWriteToFile(Path path) {
-    return new MapDbOsmMirror(DBMaker
+    return new MapDbOsmMirror(path, DBMaker
       .newFileDB(path.toFile())
       .asyncWriteEnable()
       .transactionDisable()
@@ -49,7 +57,7 @@ public class MapDbOsmMirror implements OsmMirror {
   }
 
   static MapDbOsmMirror newReadFromFile(Path path) {
-    return new MapDbOsmMirror(DBMaker
+    return new MapDbOsmMirror(path, DBMaker
       .newFileDB(path.toFile())
       .transactionDisable()
       .compressionEnable()
@@ -125,7 +133,8 @@ public class MapDbOsmMirror implements OsmMirror {
     }
   }
 
-  MapDbOsmMirror(DB db) {
+  MapDbOsmMirror(Path path, DB db) {
+    this.path = path;
     this.db = db;
     nodes = db.createTreeMap("nodes")
       .keySerializer(BTreeKeySerializer.ZERO_OR_POSITIVE_LONG)

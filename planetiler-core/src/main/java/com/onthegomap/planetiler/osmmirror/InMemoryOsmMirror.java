@@ -9,6 +9,11 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 public class InMemoryOsmMirror implements OsmMirror {
+  @Override
+  public long diskUsageBytes() {
+    return 0;
+  }
+
   private final NavigableMap<Long, OsmElement.Node> nodes = new TreeMap<>();
   private final NavigableMap<Long, OsmElement.Way> ways = new TreeMap<>();
   private final NavigableMap<Long, LongArrayList> nodesToParentWay = new TreeMap<>();
