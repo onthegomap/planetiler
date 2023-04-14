@@ -9,8 +9,20 @@ public record TileEncodingResult(
   TileCoord coord,
   byte[] tileData,
   /** will always be empty in non-compact mode and might also be empty in compact mode */
-  OptionalLong tileDataHash
+  OptionalLong tileDataHash,
+  long inputBytes,
+  long inputFeatures,
+  boolean cached,
+  long time
 ) {
+  public TileEncodingResult(
+    TileCoord coord,
+    byte[] tileData,
+    /** will always be empty in non-compact mode and might also be empty in compact mode */
+    OptionalLong tileDataHash
+  ) {
+    this(coord, tileData, tileDataHash, 0, 0, false, 0);
+  }
 
   @Override
   public int hashCode() {

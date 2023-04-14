@@ -5,7 +5,9 @@ import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import com.onthegomap.planetiler.util.Pgtiles;
+import com.onthegomap.planetiler.util.TileStatsArchive;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.file.Path;
 
 /** Utilities for creating {@link ReadableTileArchive} and {@link WriteableTileArchive} instances. */
@@ -47,6 +49,7 @@ public class TileArchives {
           .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
       case PMTILES -> WriteablePmtiles.newWriteToFile(archive.getLocalPath());
       case POSTGRES -> Pgtiles.writer(archive.uri(), options);
+      case STATS -> new TileStatsArchive(archive.getLocalPath());
     };
   }
 
@@ -62,6 +65,7 @@ public class TileArchives {
       case MBTILES -> Mbtiles.newReadOnlyDatabase(archive.getLocalPath(), options);
       case PMTILES -> ReadablePmtiles.newReadFromFile(archive.getLocalPath());
       case POSTGRES -> Pgtiles.reader(archive.uri(), options);
+      case STATS -> throw new UnsupportedEncodingException();
     };
   }
 

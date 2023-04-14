@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hilbert;
+import java.util.regex.Pattern;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -25,6 +26,64 @@ import org.locationtech.jts.geom.Envelope;
  */
 @Immutable
 public record TileCoord(int encoded, int x, int y, int z) implements Comparable<TileCoord> {
+
+  public static void main(String[] args) {
+
+
+    insertLinks("""
+      |    tile    | inbytes | infeatures | outbytes | time  |
+      |------------|---------|------------|----------|-------|
+      | 6/52/24    | 316,843  | 7,592       | 118,047   | 0.739 |
+      | 6/50/26    | 263,488  | 5,587       | 101,577   | 0.668 |
+      | 6/52/26    | 332,374  | 6,722       | 138,996   | 0.667 |
+      | 10/308/381 | 604,776  | 6,533       | 362,984   | 0.662 |
+      | 6/45/25    | 147,850  | 2,085       | 77,298    | 0.634 |
+      | 6/51/26    | 221,077  | 4,312       | 89,517    | 0.63  |
+      | 6/51/27    | 264,509  | 5,301       | 102,592   | 0.617 |
+      | 6/15/22    | 124,147  | 1,480       | 70,605    | 0.597 |
+      | 6/52/27    | 310,144  | 6,443       | 122,242   | 0.593 |
+      | 1/0/0      | 149,781  | 3,906       | 63,429    | 0.586 |
+      """);
+    insertLinks("""
+      |     tile     | inbytes | infeatures | outbytes |  time  |
+      |--------------|---------|------------|----------|--------|
+      | 7/68/33      |  574,106 |       3,310 |   253,432 |  48.02 |
+      | 13/6527/4239 | 2,792,615 |     106,023 |   135,957 | 35.365 |
+      | 13/6661/4261 | 3,111,509 |     114,647 |   130,210 |  32.91 |
+      | 13/6661/4262 | 3,046,934 |     111,292 |   126,727 | 32.741 |
+      | 13/6527/4240 | 2,344,566 |      88,393 |   116,492 | 29.108 |
+      | 13/6527/4238 | 2,900,531 |     105,839 |   143,392 | 28.857 |
+      | 13/6526/4236 | 3,025,297 |     106,137 |   137,592 | 28.829 |
+      | 7/68/61      |  731,969 |       5,077 |   268,917 | 28.583 |
+      | 13/6527/4237 | 2,843,197 |      99,475 |   144,424 | 28.142 |
+      | 13/6607/4274 | 2,228,848 |      90,111 |    92,170 | 27.981 |
+      """);
+    insertLinks("""
+      |     tile     | inbytes | infeatures | outbytes |  time  |
+      |--------------|---------|------------|----------|--------|
+      | 10/236/413   | 6,676,345 |     179,762 |   17,9050 |  16.77 |
+      | 13/3037/4648 | 2,991,716 |     116,502 |   13,0376 | 13.434 |
+      | 7/68/33      |  574,320 |       3,311 |   25,3391 | 11.826 |
+      | 13/1436/3313 | 2,554,569 |     104,277 |   12,5866 | 11.517 |
+      | 13/3038/4646 | 2,664,982 |     103,904 |   13,4165 |  11.47 |
+      | 13/3037/4647 | 2,579,326 |      99,017 |   13,9578 |   11.2 |
+      | 13/6527/4239 | 2,792,855 |     106,027 |   13,6069 |  11.08 |
+      | 13/3036/4648 | 2,553,943 |      96,097 |   13,6788 | 11.064 |
+      | 13/3039/4646 | 2,629,057 |     104,042 |   13,3678 |  11.02 |
+      | 13/6661/4261 | 3,111,945 |     114,652 |   13,0269 | 10.987 |
+      """);
+  }
+
+  private static void insertLinks(String input) {
+    var matcher = Pattern.compile("([0-9]+)/([0-9]+)/([0-9]+)").matcher(input);
+    System.out.println(matcher.replaceAll(matchResult -> {
+      int z = Integer.parseInt(matchResult.group(1));
+      int x = Integer.parseInt(matchResult.group(2));
+      int y = Integer.parseInt(matchResult.group(3));
+      String url = TileCoord.ofXYZ(x, y, z).getDebugUrl();
+      return "[" + z + "/" + x + "/" + y + "](" + url + ")";
+    }));
+  }
 
   private static final int[] ZOOM_START_INDEX = new int[MAX_MAXZOOM + 1];
 

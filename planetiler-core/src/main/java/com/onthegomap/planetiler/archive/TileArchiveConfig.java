@@ -173,7 +173,8 @@ public record TileArchiveConfig(
   public enum Format {
     MBTILES("mbtiles"),
     PMTILES("pmtiles"),
-    POSTGRES("postgres");
+    POSTGRES("postgres"),
+    STATS("stats");
 
     private final String id;
 

@@ -355,6 +355,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     private final TileCoord tileCoord;
     private final List<SortableFeature> entries = new ArrayList<>();
     private final AtomicLong numFeaturesProcessed = new AtomicLong(0);
+    private final AtomicLong inputFeatureBytes = new AtomicLong(0);
     private LongLongHashMap counts = null;
     private byte lastLayer = Byte.MAX_VALUE;
 
@@ -507,6 +508,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
 
     void add(SortableFeature entry) {
       numFeaturesProcessed.incrementAndGet();
+      inputFeatureBytes.addAndGet(entry.value().length);
       long key = entry.key();
       if (extractHasGroupFromKey(key)) {
         byte thisLayer = extractLayerIdFromKey(key);
@@ -534,6 +536,10 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         "tile=" + tileCoord +
         ", num entries=" + entries.size() +
         '}';
+    }
+
+    public long getInputFeatureBytes() {
+      return inputFeatureBytes.get();
     }
   }
 }

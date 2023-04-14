@@ -19,6 +19,7 @@ import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -229,6 +230,7 @@ public class TileArchiveWriter {
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
     boolean skipFilled = config.skipFilledTiles();
+    long time = -1;
 
     for (TileBatch batch : prev) {
       Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
@@ -239,12 +241,15 @@ public class TileArchiveWriter {
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
         Long tileDataHash;
+        boolean cached = false;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
           memoizedTiles.inc();
+          cached = true;
         } else {
+          long start = System.nanoTime();
           VectorTile en = tileFeatures.getVectorTileEncoder();
           if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
             encoded = null;
@@ -267,6 +272,7 @@ public class TileArchiveWriter {
             tileDataHash = null;
           }
           lastTileDataHash = tileDataHash;
+          time = System.nanoTime() - start;
         }
         if (skipFilled && lastIsFill) {
           continue;
@@ -276,8 +282,15 @@ public class TileArchiveWriter {
         totalTileSizesByZoom[zoom].incBy(encodedLength);
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         result.add(
-          new TileEncodingResult(tileFeatures.tileCoord(), bytes,
-            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash))
+          new TileEncodingResult(
+            tileFeatures.tileCoord(),
+            bytes,
+            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
+            tileFeatures.getInputFeatureBytes(),
+            tileFeatures.getNumFeaturesProcessed(),
+            cached,
+            Duration.ofNanos(time).toMillis()
+          )
         );
       }
       // hand result off to writer
