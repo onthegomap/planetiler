@@ -25,11 +25,14 @@ import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.operation.MathTransform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility that reads {@link SourceFeature SourceFeatures} from the vector geometries contained in a GeoPackage file.
  */
 public class GeoPackageReader extends SimpleReader<SimpleFeature> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(GeoPackageReader.class);
 
   private final boolean keepUnzipped;
   private Path extractedPath = null;
@@ -122,6 +125,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
     var latLonCRS = CRS.decode("EPSG:4326");
     long id = 0;
+    boolean loggedMissingGeometry = false;
 
     for (var featureName : geoPackage.getFeatureTables()) {
       FeatureDao features = geoPackage.getFeatureDao(featureName);
@@ -136,11 +140,16 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
 
       for (var feature : features.queryForAll()) {
         GeoPackageGeometryData geometryData = feature.getGeometry();
-        if (geometryData == null) {
+        byte[] wkb;
+        if (geometryData == null || (wkb = geometryData.getWkb()).length == 0) {
+          if (!loggedMissingGeometry) {
+            loggedMissingGeometry = true;
+            LOGGER.warn("Geopackage file contains empty geometry: {}", geoPackage.getPath());
+          }
           continue;
         }
 
-        Geometry featureGeom = (new WKBReader()).read(geometryData.getWkb());
+        Geometry featureGeom = (new WKBReader()).read(wkb);
         Geometry latLonGeom = (transform.isIdentity()) ? featureGeom : JTS.transform(featureGeom, transform);
 
         FeatureColumns columns = feature.getColumns();
