@@ -1,10 +1,7 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import static com.onthegomap.planetiler.TestUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
@@ -540,6 +537,57 @@ class OsmReaderTest {
       ),
       round(feature.polygon())
     );
+  }
+
+
+  @Test
+  void testMultipolygonInvalidMembers() {
+    OsmReader reader = newOsmReader();
+
+    var relation = new OsmElement.Relation(16);
+
+    var childRelation = new OsmElement.Relation(17);
+    var childNode = new OsmElement.Node(17, 0.0, 0.0);
+    var childWay = new OsmElement.Way(18);
+
+    childWay.nodes().add(5, 6, 7, 8, 5);
+
+    relation.setTag("type", "multipolygon");
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, childRelation.id(), "outer"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.NODE, childNode.id(), "inner"));
+    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, childWay.id(), "inner"));
+
+    List<OsmElement> elements = List.of(
+      node(1, 0.1, 0.1),
+      node(2, 0.9, 0.1),
+      node(3, 0.9, 0.9),
+      node(4, 0.1, 0.9),
+
+      node(5, 0.2, 0.3),
+      node(6, 0.8, 0.3),
+      node(7, 0.8, 0.8),
+      node(8, 0.2, 0.8),
+
+      node(9, 0.2, 0.2),
+      node(10, 0.8, 0.2),
+      node(11, 0.8, 0.7),
+      node(12, 0.2, 0.7),
+
+      childNode,
+      childWay,
+      childRelation,
+
+      relation
+    );
+
+    processPass1Block(reader, elements);
+    elements.stream().flatMap(nodes).forEach(reader::processNodePass2);
+    var nodeCache = reader.newNodeLocationProvider();
+    elements.stream().flatMap(ways).forEach(way -> reader.processWayPass2(way, nodeCache));
+
+    var feature = reader.processRelationPass2(relation, nodeCache);
+
+    assertNull(feature);
   }
 
   @Test
