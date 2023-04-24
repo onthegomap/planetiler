@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
-import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -13,7 +12,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,9 +45,7 @@ class GeoPackageReaderTest {
             List<Geometry> points = new ArrayList<>();
             List<String> names = new ArrayList<>();
             WorkerPipeline.start("test", Stats.inMemory())
-              .readFromTiny("files", List.of(Path.of("dummy-path")))
-              .addWorker("geopackage", 1,
-                (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next))
+              .fromGenerator("geopackage", reader::readFeatures, 1)
               .addBuffer("reader_queue", 100, 1)
               .sinkToConsumer("counter", 1, elem -> {
                 assertTrue(elem.getTag("name") instanceof String);
@@ -64,6 +62,29 @@ class GeoPackageReaderTest {
             assertEquals(38.9119684, centroid.getY(), 5, id);
           }
         }
+      }
+    }
+  }
+
+  @Test
+  @Timeout(30)
+  void testReadEmptyGeoPackage() throws IOException {
+    Path path = TestUtils.pathToResource("empty-geom.gpkg");
+
+    try (
+      var reader = new GeoPackageReader(null, "test", path, tmpDir, false)
+    ) {
+      for (int iter = 0; iter < 2; iter++) {
+        String id = "iter=" + iter;
+        assertEquals(1, reader.getFeatureCount(), id);
+        AtomicInteger found = new AtomicInteger(0);
+        WorkerPipeline.start("test", Stats.inMemory())
+          .fromGenerator("geopackage", reader::readFeatures, 1)
+          .addBuffer("reader_queue", 100, 1)
+          .sinkToConsumer("counter", 1, elem -> {
+            found.incrementAndGet();
+          }).await();
+        assertEquals(0, found.get());
       }
     }
   }
