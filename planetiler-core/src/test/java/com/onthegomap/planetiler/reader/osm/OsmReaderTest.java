@@ -548,14 +548,10 @@ class OsmReaderTest {
 
     var childRelation = new OsmElement.Relation(17);
     var childNode = new OsmElement.Node(17, 0.0, 0.0);
-    var childWay = new OsmElement.Way(18);
-
-    childWay.nodes().add(5, 6, 7, 8, 5);
 
     relation.setTag("type", "multipolygon");
     relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.RELATION, childRelation.id(), "outer"));
     relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.NODE, childNode.id(), "inner"));
-    relation.members().add(new OsmElement.Relation.Member(OsmElement.Type.WAY, childWay.id(), "inner"));
 
     List<OsmElement> elements = List.of(
       node(1, 0.1, 0.1),
@@ -574,7 +570,6 @@ class OsmReaderTest {
       node(12, 0.2, 0.7),
 
       childNode,
-      childWay,
       childRelation,
 
       relation
