@@ -363,12 +363,17 @@ public class Pmtiles {
    */
   public record JsonMetadata(
     @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
-    @JsonAnyGetter @JsonAnySetter Map<String, String> otherMetadata
+    @JsonAnyGetter Map<String, String> otherMetadata
   ) {
 
     @JsonCreator
-    JsonMetadata(@JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers) {
+    public JsonMetadata(@JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers) {
       this(vectorLayers, new HashMap<>());
+    }
+
+    @JsonAnySetter
+    private void setExtraMetadata(String key, String val) {
+      otherMetadata.put(key, val);
     }
 
     public byte[] toBytes() {
