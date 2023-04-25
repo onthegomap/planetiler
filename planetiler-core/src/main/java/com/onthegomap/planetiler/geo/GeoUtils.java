@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -304,13 +305,17 @@ public class GeoUtils {
    *
    * @throws GeometryException if an unrecoverable robustness exception prevents us from fixing the geometry
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
+  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision)
+    throws GeometryException {
     try {
+      if (!geom.isValid()) {
+        geom = fixPolygon(geom);
+      }
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
     } catch (IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
-      geom = fixPolygon(geom);
+      geom = GeometryFixer.fix(geom);
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
       } catch (IllegalArgumentException e2) {

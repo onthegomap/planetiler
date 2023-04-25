@@ -42,6 +42,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
+import org.geotools.geometry.jts.WKTWriter2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1708,6 +1709,55 @@ class PlanetilerTests {
       13, 1160,
       14, 3108
     ), counts);
+  }
+
+  @Test
+  void testIssue546Terschelling() throws Exception {
+    Geometry geometry = new WKBReader()
+      .read(
+        new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource("issue_546_terschelling.wkb"))));
+    geometry = GeoUtils.worldToLatLonCoords(geometry);
+    Files.writeString(Path.of("test.wkt"), new WKTWriter2().write(geometry));
+
+    assertNotNull(geometry);
+
+    // automatically checks for self-intersections
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(geometry, Map.of())
+      ),
+      (in, features) -> features.polygon("ocean")
+        .setBufferPixels(4.0)
+        .setMinZoom(0)
+    );
+
+
+    // this lat/lon is in the middle of an island and should not be covered by
+    for (int z = 4; z <= 14; z++) {
+      double lat = 53.391958;
+      double lon = 5.2438441;
+
+      var coord = TileCoord.aroundLngLat(lon, lat, z);
+      var problematicTile = results.tiles.get(coord);
+      if (z == 14) {
+        assertNull(problematicTile);
+        continue;
+      }
+      double scale = Math.pow(2, coord.z());
+
+      double tileX = (GeoUtils.getWorldX(lon) * scale - coord.x()) * 256;
+      double tileY = (GeoUtils.getWorldY(lat) * scale - coord.y()) * 256;
+
+      var point = newPoint(tileX, tileY);
+
+      assertEquals(1, problematicTile.size());
+      var geomCompare = problematicTile.get(0).geometry();
+      geomCompare.validate();
+      var geom = geomCompare.geom();
+
+      assertFalse(geom.covers(point), "z" + z);
+    }
   }
 
   @ParameterizedTest
