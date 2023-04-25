@@ -293,7 +293,8 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
   }
 
   private static boolean isMultipolygon(OsmElement.Relation relation) {
-    return relation.hasTag("type", "multipolygon", "boundary", "land_area");
+    return relation.hasTag("type", "multipolygon", "boundary", "land_area") &&
+      relation.members().stream().anyMatch(m -> m.type() == OsmElement.Type.WAY);
   }
 
   /**
