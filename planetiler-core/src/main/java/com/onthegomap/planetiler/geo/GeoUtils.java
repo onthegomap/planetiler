@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -295,8 +296,8 @@ public class GeoUtils {
    * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
-  public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISION);
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage) throws GeometryException {
+    return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
   }
 
   /**
@@ -305,25 +306,29 @@ public class GeoUtils {
    *
    * @throws GeometryException if an unrecoverable robustness exception prevents us from fixing the geometry
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision)
+  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
     throws GeometryException {
     try {
       if (!geom.isValid()) {
         geom = fixPolygon(geom);
+        stats.dataError(stage + "_snap_fix_input");
       }
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
     } catch (IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
       geom = GeometryFixer.fix(geom);
+      stats.dataError(stage + "_snap_fix_input2");
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
       } catch (IllegalArgumentException e2) {
         // give it one last try but with more aggressive fixing, just in case (see issue #511)
         geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
+        stats.dataError(stage + "_snap_fix_input3");
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
         } catch (IllegalArgumentException e3) {
+          stats.dataError(stage + "_snap_fix_input3_failed");
           throw new GeometryException("snap_third_time_failed", "Error reducing precision");
         }
       }

@@ -9,6 +9,7 @@ import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -26,7 +27,9 @@ public interface Stats extends AutoCloseable {
 
   /** Returns a new stat collector that stores basic stats in-memory to report through {@link #printSummary()}. */
   static Stats inMemory() {
-    return new InMemory();
+    var stats = new InMemory();
+    DefaultStats.set(stats);
+    return stats;
   }
 
   /**
@@ -34,7 +37,9 @@ public interface Stats extends AutoCloseable {
    * <a href="https://github.com/prometheus/pushgateway">prometheus push gateway</a> at {@code destination}.
    */
   static Stats prometheusPushGateway(String destination, String job, Duration interval) {
-    return PrometheusStats.createAndStartPushing(destination, job, interval);
+    var stats = PrometheusStats.createAndStartPushing(destination, job, interval);
+    DefaultStats.set(stats);
+    return stats;
   }
 
   /**
@@ -46,6 +51,11 @@ public interface Stats extends AutoCloseable {
     Logger logger = LoggerFactory.getLogger(getClass());
     if (logger.isInfoEnabled()) {
       logger.info("");
+      logger.info("-".repeat(40));
+      logger.info("data errors:");
+      dataErrors().entrySet().stream()
+        .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+        .forEachOrdered(entry -> logger.info("\t{}\t{}", entry.getKey(), format.integer(entry.getValue())));
       logger.info("-".repeat(40));
       timers().printSummary();
       logger.info("-".repeat(40));
@@ -156,11 +166,16 @@ public interface Stats extends AutoCloseable {
    */
   void counter(String name, String label, Supplier<Map<String, LongSupplier>> values);
 
+  /** Returns all the data error counters. */
+  Map<String, Long> dataErrors();
+
   /**
    * Records that an invalid input feature was discarded where {@code errorCode} can be used to identify the kind of
    * failure.
    */
-  void dataError(String errorCode);
+  default void dataError(String errorCode) {
+    dataErrors().merge(errorCode, 1L, Long::sum);
+  }
 
   /**
    * A stat collector that stores top-level metrics in-memory to report through {@link #printSummary()}.
@@ -174,6 +189,7 @@ public interface Stats extends AutoCloseable {
 
     private final Timers timers = new Timers();
     private final Map<String, Path> monitoredFiles = new ConcurrentSkipListMap<>();
+    private final Map<String, Long> dataErrors = new ConcurrentHashMap<>();
 
     @Override
     public void wroteTile(int zoom, int bytes) {}
@@ -208,10 +224,12 @@ public interface Stats extends AutoCloseable {
     public void counter(String name, String label, Supplier<Map<String, LongSupplier>> values) {}
 
     @Override
-    public void processedElement(String elemType, String layer) {}
+    public Map<String, Long> dataErrors() {
+      return dataErrors;
+    }
 
     @Override
-    public void dataError(String errorCode) {}
+    public void processedElement(String elemType, String layer) {}
 
     @Override
     public void gauge(String name, Supplier<Number> value) {}
