@@ -42,7 +42,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
-import org.geotools.geometry.jts.WKTWriter2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1717,7 +1716,6 @@ class PlanetilerTests {
       .read(
         new InputStreamInStream(Files.newInputStream(TestUtils.pathToResource("issue_546_terschelling.wkb"))));
     geometry = GeoUtils.worldToLatLonCoords(geometry);
-    Files.writeString(Path.of("test.wkt"), new WKTWriter2().write(geometry));
 
     assertNotNull(geometry);
 
