@@ -112,6 +112,16 @@ class PrometheusStatsTest {
     assertContainsStat("^planetiler_heap_object_test_size_bytes 10", stats);
   }
 
+  @Test
+  void captureDataErrors() {
+    PrometheusStats stats = new PrometheusStats("job");
+    assertEquals(Map.of(), stats.dataErrors());
+    stats.dataError("a");
+    stats.dataError("a");
+    stats.dataError("b");
+    assertEquals(Map.of("a", 2L, "b", 1L), stats.dataErrors());
+  }
+
   private static Counter.Readable counterAt(int num) {
     var result = Counter.newSingleThreadCounter();
     result.incBy(num);
