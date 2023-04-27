@@ -237,7 +237,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
            * coordinate rounding.
            */
-          geom = GeoUtils.snapAndFixPolygon(geom);
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();

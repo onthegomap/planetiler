@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -49,6 +50,7 @@ class PrometheusStats implements Stats {
   private ScheduledExecutorService executor;
   private final String job;
   private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
+  private final Map<String, Long> dataErrorCounters = new ConcurrentHashMap<>();
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
 
   /** Constructs a new instance but does not start polling (for tests). */
@@ -128,6 +130,7 @@ class PrometheusStats implements Stats {
 
   @Override
   public void dataError(String errorCode) {
+    Stats.super.dataError(errorCode);
     dataErrors.labels(errorCode).inc();
   }
 
@@ -201,6 +204,11 @@ class PrometheusStats implements Stats {
         return result;
       }
     }.register(registry);
+  }
+
+  @Override
+  public Map<String, Long> dataErrors() {
+    return dataErrorCounters;
   }
 
   @Override
