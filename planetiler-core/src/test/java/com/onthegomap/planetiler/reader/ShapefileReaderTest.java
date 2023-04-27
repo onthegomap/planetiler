@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
-import com.onthegomap.planetiler.collection.IterableOnce;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -14,13 +13,24 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.shapefile.ShapefileDataStore;
+import org.geotools.data.shapefile.ShapefileDataStoreFactory;
+import org.geotools.data.simple.SimpleFeatureStore;
+import org.geotools.feature.DefaultFeatureCollection;
+import org.geotools.feature.simple.SimpleFeatureBuilder;
+import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.referencing.CRS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.operation.TransformException;
 
 class ShapefileReaderTest {
   @TempDir
@@ -45,6 +55,51 @@ class ShapefileReaderTest {
     testReadShapefile(dest.resolve("shapefile").resolve("stations.shp"));
   }
 
+  @Test
+  void testReadShapefileLeniently(@TempDir Path dir) throws IOException, TransformException, FactoryException {
+    var shpPath = dir.resolve("test.shp");
+    var dataStoreFactory = new ShapefileDataStoreFactory();
+    var newDataStore =
+      (ShapefileDataStore) dataStoreFactory.createNewDataStore(Map.of("url", shpPath.toUri().toURL()));
+
+    var builder = new SimpleFeatureTypeBuilder();
+    builder.setName("the_geom");
+    builder.setCRS(CRS.parseWKT(
+      """
+        PROJCS["SWEREF99_TM",GEOGCS["GCS_SWEREF99",DATUM["D_SWEREF99",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",15.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]
+        """));
+
+    builder.add("the_geom", Point.class);
+    builder.add("value", Integer.class);
+    builder.setDefaultGeometry("the_geom");
+    var type = builder.buildFeatureType();
+    newDataStore.createSchema(type);
+
+    try (var transaction = new DefaultTransaction("create")) {
+      var typeName = newDataStore.getTypeNames()[0];
+      var featureSource = newDataStore.getFeatureSource(typeName);
+      var featureStore = (SimpleFeatureStore) featureSource;
+      featureStore.setTransaction(transaction);
+      var collection = new DefaultFeatureCollection();
+      var featureBuilder = new SimpleFeatureBuilder(type);
+      featureBuilder.add(TestUtils.newPoint(1, 2));
+      featureBuilder.add(3);
+      var feature = featureBuilder.buildFeature(null);
+      collection.add(feature);
+      featureStore.addFeatures(collection);
+      transaction.commit();
+    }
+
+    try (var reader = new ShapefileReader(null, "test", shpPath)) {
+      assertEquals(1, reader.getFeatureCount());
+      List<SimpleFeature> features = new ArrayList<>();
+      reader.readFeatures(features::add);
+      assertEquals(10.5113, features.get(0).latLonGeometry().getCentroid().getX(), 1e-4);
+      assertEquals(0, features.get(0).latLonGeometry().getCentroid().getY(), 1e-4);
+      assertEquals(3, features.get(0).getTag("value"));
+    }
+  }
+
   private static void testReadShapefile(Path path) {
     try (var reader = new ShapefileReader(null, "test", path)) {
 
@@ -53,8 +108,7 @@ class ShapefileReaderTest {
         List<Geometry> points = new ArrayList<>();
         List<String> names = new ArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
-          .readFromTiny("files", List.of(path))
-          .addWorker("reader", 1, (IterableOnce<Path> p, Consumer<SimpleFeature> next) -> reader.readFeatures(next))
+          .fromGenerator("source", reader::readFeatures)
           .addBuffer("reader_queue", 100, 1)
           .sinkToConsumer("counter", 1, elem -> {
             assertTrue(elem.getTag("name") instanceof String);
