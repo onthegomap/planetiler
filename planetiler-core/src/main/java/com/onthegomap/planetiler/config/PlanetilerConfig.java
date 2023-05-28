@@ -52,8 +52,8 @@ public record PlanetilerConfig(
 ) {
 
   public static final int MIN_MINZOOM = 0;
-  public static final int MAX_MAXZOOM = 15;
-  private static final int DEFAULT_MAXZOOM = 14;
+  public static final int MAX_MAXZOOM = 16;
+  private static final int DEFAULT_MAXZOOM = 16;
 
   public PlanetilerConfig {
     if (minzoom > maxzoom) {

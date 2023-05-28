@@ -17,7 +17,7 @@ public class BenchmarkTileCoord {
         for (int x = 0; x < max; x++) {
           for (int y = 0; y < max; y++) {
             int encoded = TileCoord.encode(x, y, z);
-            int decoded = TileCoord.decode(encoded).encoded();
+            int decoded = (int)TileCoord.decode(encoded).encoded();
             // make sure we use the result so it doesn't get jit'ed-out
             if (encoded != decoded) {
               System.err.println("Error on " + z + "/" + x + "/" + y);

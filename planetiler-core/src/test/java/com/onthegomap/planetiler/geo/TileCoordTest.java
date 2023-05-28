@@ -39,7 +39,7 @@ class TileCoordTest {
     "32767,32767,15,1431622997"
   })
   void testTileCoordEncode(int x, int y, int z, int i) {
-    int encoded = TileCoord.ofXYZ(x, y, z).encoded();
+    long encoded = TileCoord.ofXYZ(x, y, z).encoded();
     assertEquals(i, encoded);
     TileCoord decoded = TileCoord.decode(i);
     assertEquals(decoded.x(), x, "x");
@@ -49,9 +49,9 @@ class TileCoordTest {
 
   @Test
   void testTileSortOrderRespectZ() {
-    int last = Integer.MIN_VALUE;
+    long last = Long.MIN_VALUE;
     for (int z = 0; z <= 15; z++) {
-      int encoded = TileCoord.ofXYZ(0, 0, z).encoded();
+      long encoded = TileCoord.ofXYZ(0, 0, z).encoded();
       if (encoded < last) {
         fail("encoded value for z" + (z - 1) + " (" + last + ") is not less than z" + z + " (" + encoded + ")");
       }

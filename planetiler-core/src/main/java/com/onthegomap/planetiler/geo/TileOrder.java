@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import java.util.function.IntFunction;
+import java.util.function.LongFunction;
 import java.util.function.ToDoubleBiFunction;
 import java.util.function.ToIntFunction;
 
@@ -11,14 +11,14 @@ import java.util.function.ToIntFunction;
  * {@link WriteableTileArchive.TileWriter}.
  */
 public enum TileOrder {
-  TMS(TileCoord::encoded, TileCoord::decode, TileCoord::progressOnLevel),
+  TMS(TileCoord::encodedAsInt, TileCoord::decode, TileCoord::progressOnLevel),
   HILBERT(TileCoord::hilbertEncoded, TileCoord::hilbertDecode, TileCoord::hilbertProgressOnLevel);
 
   private final ToIntFunction<TileCoord> encode;
-  private final IntFunction<TileCoord> decode;
+  private final LongFunction<TileCoord> decode;
   private final ToDoubleBiFunction<TileCoord, TileExtents> progressOnLevel;
 
-  private TileOrder(ToIntFunction<TileCoord> encode, IntFunction<TileCoord> decode,
+  private TileOrder(ToIntFunction<TileCoord> encode, LongFunction<TileCoord> decode,
     ToDoubleBiFunction<TileCoord, TileExtents> progressOnLevel) {
     this.encode = encode;
     this.decode = decode;
@@ -29,7 +29,7 @@ public enum TileOrder {
     return encode.applyAsInt(coord);
   }
 
-  public TileCoord decode(int encoded) {
+  public TileCoord decode(long encoded) {
     return decode.apply(encoded);
   }
 
