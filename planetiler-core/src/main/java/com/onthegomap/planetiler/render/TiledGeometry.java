@@ -197,7 +197,9 @@ public class TiledGeometry {
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) throws GeometryException {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
-    EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
+
+    EnumSet<Direction> wrapResult = buffer == 1 ? result.addWorldCopy(groups, 0) : result.sliceWorldCopy(groups, 0);
+
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);
     }
@@ -374,6 +376,66 @@ public class TiledGeometry {
           }
         }
       }
+      addShapeToResults(inProgressShapes);
+    }
+
+    return overflow;
+  }
+
+  private static void globalPolygonToLocal(
+    List<CoordinateSequence> polygon,
+    int tileX,
+    int tileY,
+    List<CoordinateSequence> toAddTo
+  ) {
+    for (var ring : polygon) {
+      var coords = ring.toCoordinateArray();
+      var newRing = new MutableCoordinateSequence();
+
+      for (var point : coords) {
+        double localX = point.x - tileX;
+        double localY = point.y - tileY;
+
+        localX *= 256d;
+        localY *= 256d;
+
+        newRing.addPoint(localX, localY);
+      }
+
+      toAddTo.add(newRing);
+    }
+  }
+
+  private EnumSet<Direction> addWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
+    throws GeometryException {
+    EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
+
+    for (List<CoordinateSequence> group : groups) {
+      Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
+
+      for (int i = 0; i < group.size(); i++) {
+        CoordinateSequence polygon = group.get(i);
+        boolean isOuterRing = i == 0;
+
+        var size = polygon.size();
+
+        for (int j = 0; j < size; j++) {
+          double x = polygon.getX(j);
+          double y = polygon.getY(j);
+
+          int tileX = (int) Math.floor(x);
+          int tileY = (int) Math.floor(y);
+
+          TileCoord tileID = TileCoord.ofXYZ(tileX, tileY, z);
+
+          List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, name -> new ArrayList<>());
+
+          if (toAddTo.isEmpty()) {
+            globalPolygonToLocal(group, tileX, tileY, toAddTo);
+          }
+        }
+      }
+
       addShapeToResults(inProgressShapes);
     }
 
@@ -573,20 +635,20 @@ public class TiledGeometry {
               }
               /*
               A tile is inside a filled region when there is an odd number of vertical edges to the left and right
-              
+
               for example a simple shape:
                      ---------
                out   |  in   | out
                (0/2) | (1/1) | (2/0)
                      ---------
-              
+
               or a more complex shape
                      ---------       ---------
                out   |  in   | out   | in    |
                (0/4) | (1/3) | (2/2) | (3/1) |
                      |       ---------       |
                      -------------------------
-              
+
               So we keep track of this number by xor'ing the left and right fills repeatedly,
               then and'ing them together at the end.
                */
