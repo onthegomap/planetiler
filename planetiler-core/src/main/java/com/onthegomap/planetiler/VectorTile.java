@@ -73,8 +73,7 @@ public class VectorTile {
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
   // TODO make these configurable
-  private static final int EXTENT = 4096;
-  private static final int EXTENT_ENCODE = 67108864;
+  private static final int EXTENT = 67108864;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
 
@@ -190,7 +189,7 @@ public class VectorTile {
   private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scale) throws GeometryException {
     try {
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
-      double SCALE = (EXTENT_ENCODE << scale) / SIZE;
+      double SCALE = (EXTENT << scale) / SIZE;
       int x = 0;
       int y = 0;
 
@@ -455,7 +454,7 @@ public class VectorTile {
       VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
         .setVersion(2)
         .setName(layerName)
-        .setExtent(EXTENT_ENCODE)
+        .setExtent(EXTENT)
         .addAllKeys(layer.keys());
 
       for (Object value : layer.values()) {
@@ -837,7 +836,7 @@ public class VectorTile {
     int x = 0, y = 0;
 
     CommandEncoder(int scale) {
-      this.SCALE = (EXTENT_ENCODE << scale) / SIZE;
+      this.SCALE = (EXTENT << scale) / SIZE;
     }
 
     static boolean shouldClosePath(Geometry geometry) {
