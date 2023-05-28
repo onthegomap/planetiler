@@ -190,7 +190,7 @@ public class VectorTile {
   private static Geometry decodeCommands(GeometryType geomType, int[] commands, int scale) throws GeometryException {
     try {
       GeometryFactory gf = GeoUtils.JTS_FACTORY;
-      double SCALE = (EXTENT << scale) / SIZE;
+      double SCALE = (EXTENT_ENCODE << scale) / SIZE;
       int x = 0;
       int y = 0;
 
