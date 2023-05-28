@@ -74,6 +74,7 @@ public class VectorTile {
 
   // TODO make these configurable
   private static final int EXTENT = 4096;
+  private static final int EXTENT_ENCODE = 67108864;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
 
@@ -454,7 +455,7 @@ public class VectorTile {
       VectorTileProto.Tile.Layer.Builder tileLayer = VectorTileProto.Tile.Layer.newBuilder()
         .setVersion(2)
         .setName(layerName)
-        .setExtent(EXTENT)
+        .setExtent(EXTENT_ENCODE)
         .addAllKeys(layer.keys());
 
       for (Object value : layer.values()) {
@@ -836,7 +837,7 @@ public class VectorTile {
     int x = 0, y = 0;
 
     CommandEncoder(int scale) {
-      this.SCALE = (EXTENT << scale) / SIZE;
+      this.SCALE = (EXTENT_ENCODE << scale) / SIZE;
     }
 
     static boolean shouldClosePath(Geometry geometry) {
