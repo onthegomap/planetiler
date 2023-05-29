@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.examples;
 
+import static com.onthegomap.planetiler.util.MemoryEstimator.CLASS_HEADER_BYTES;
+
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Planetiler;
@@ -9,7 +11,9 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
+import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
+import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Dictionary;
@@ -146,20 +150,6 @@ public class MyProfile implements Profile {
       return;
     }
 
-    if (
-      sourceFeature.canBePolygon() &&
-        (
-          sourceFeature.getSource().equals("water") ||
-            sourceFeature.hasTag("natural", "water") ||
-            sourceFeature.hasTag("leisure", "swimming_pool")
-        )
-    ) {
-      var feature = features.polygon("water");
-
-      setWaterFeatureParams(feature, sourceFeature);
-      return;
-    }
-
     if (sourceFeature.canBeLine()) {
       if (sourceFeature.hasTag("highway")) {
         var lanes = StreetsUtils.getRoadwayLanes(sourceFeature);
@@ -188,10 +178,50 @@ public class MyProfile implements Profile {
         return;
       }
 
-      if (sourceFeature.hasTag("railway")) {
+      if (StreetsUtils.isRailway(sourceFeature)) {
         var feature = features.line("highways")
           .setAttr("type", sourceFeature.getTag("railway"))
-          .setAttr("width", StreetsUtils.getWidth(sourceFeature));
+          .setAttr("width", StreetsUtils.getWidth(sourceFeature))
+          .setAttr("gauge", sourceFeature.getTag("gauge"));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("barrier", "fence")) {
+        var feature = features.line("barriers")
+          .setAttr("type", "fence")
+          .setAttr("fenceType", sourceFeature.getTag("fence_type"))
+          .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+          .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("barrier", "hedge")) {
+        var feature = features.line("barriers")
+          .setAttr("type", "hedge")
+          .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+          .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("barrier", "wall")) {
+        var feature = features.line("barriers")
+          .setAttr("type", "wall")
+          .setAttr("wallType", sourceFeature.getTag("wall"))
+          .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+          .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("power", "line", "minor_line")) {
+        var feature = features.line("powerLines");
 
         setCommonFeatureParams(feature, sourceFeature);
         return;
@@ -218,33 +248,83 @@ public class MyProfile implements Profile {
       }
     }
 
-    if (
-      sourceFeature.canBePolygon() && (
+    if (sourceFeature.canBePolygon()) {
+      if (StreetsUtils.isWater(sourceFeature)) {
+        var feature = features.polygon("water");
+
+        setWaterFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (
+        sourceFeature.hasTag("building:part") || (
+          sourceFeature.hasTag("building") && !this.isBuildingOutline(sourceFeature)
+        )
+      ) {
+        Boolean isPart = sourceFeature.hasTag("building:part");
+
+        var feature = features.polygon("buildings")
+          .setAttr("type", sourceFeature.getTag("building"))
+          .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+          .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+          .setAttr("roofHeight", sourceFeature.getTag("roof:height"))
+          .setAttr("buildingLevels", sourceFeature.getTag("building:levels"))
+          .setAttr("roofLevels", sourceFeature.getTag("roof:levels"))
+          .setAttr("roofMaterial", sourceFeature.getTag("roof:material"))
+          .setAttr("roofType", sourceFeature.getTag("roof:shape"))
+          .setAttr("roofOrientation", sourceFeature.getTag("roof:orientation"))
+          .setAttr("roofDirection", StreetsUtils.getDirection(sourceFeature))
+          .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
+          .setAttr("roofColor", sourceFeature.getTag("roof:colour"))
+          .setAttr("color", sourceFeature.getTag("building:colour"))
+          .setAttr("hasWindows", isBuildingHasWindows(sourceFeature, isPart))
+          .setBufferPixels(256);
+
+        setCommonFeatureParams(feature, sourceFeature);
+      }
+
+      if (
         sourceFeature.hasTag("area:highway") ||
           (sourceFeature.hasTag("highway") && sourceFeature.hasTag("area", "yes"))
-      )
-    ) {
-      var feature = features.polygon("highways")
-        .setAttr("type", sourceFeature.getTag("highway"));
+      ) {
+        var feature = features.polygon("highways")
+          .setAttr("type", sourceFeature.getTag("highway"));
 
-      setCommonFeatureParams(feature, sourceFeature);
-      return;
-    }
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
 
-    if (sourceFeature.canBePolygon() && sourceFeature.hasTag("landuse", "brownfield", "construction", "grass", "farmland")) {
-      var feature = features.polygon("landuse")
-        .setAttr("type", sourceFeature.getTag("landuse"));
+      if (sourceFeature.hasTag("landuse", "brownfield", "construction", "grass", "farmland")) {
+        var feature = features.polygon("landuse")
+          .setAttr("type", sourceFeature.getTag("landuse"));
 
-      setCommonFeatureParams(feature, sourceFeature);
-      return;
-    }
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
 
-    if (sourceFeature.canBePolygon() && sourceFeature.hasTag("natural", "wood", "forest", "scrub", "sand", "beach", "rock", "bare_rock")) {
-      var feature = features.polygon("natural")
-        .setAttr("type", sourceFeature.getTag("natural"));
+      if (sourceFeature.hasTag("natural", "wood", "forest", "scrub", "sand", "beach", "rock", "bare_rock")) {
+        var feature = features.polygon("natural")
+          .setAttr("type", sourceFeature.getTag("natural"));
 
-      setCommonFeatureParams(feature, sourceFeature);
-      return;
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("leisure", "garden")) {
+        var feature = features.polygon("natural")
+          .setAttr("type", "garden");
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
+
+      if (sourceFeature.hasTag("leisure", "fairway")) {
+        var feature = features.polygon("natural")
+          .setAttr("type", "manicuredGrass");
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return;
+      }
     }
 
     if (sourceFeature.isPoint()) {
@@ -386,33 +466,6 @@ public class MyProfile implements Profile {
         return;
       }
     }
-
-    if (
-      sourceFeature.canBePolygon() && (
-        sourceFeature.hasTag("building") || sourceFeature.hasTag("building:part")
-      )
-    ) {
-      Boolean isPart = sourceFeature.hasTag("building:part");
-
-      var feature = features.polygon("buildings")
-        .setAttr("type", sourceFeature.getTag("building"))
-        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
-        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
-        .setAttr("roofHeight", sourceFeature.getTag("roof:height"))
-        .setAttr("buildingLevels", sourceFeature.getTag("building:levels"))
-        .setAttr("roofLevels", sourceFeature.getTag("roof:levels"))
-        .setAttr("roofMaterial", sourceFeature.getTag("roof:material"))
-        .setAttr("roofType", sourceFeature.getTag("roof:shape"))
-        .setAttr("roofOrientation", sourceFeature.getTag("roof:orientation"))
-        .setAttr("roofDirection", StreetsUtils.getDirection(sourceFeature))
-        .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
-        .setAttr("roofColor", sourceFeature.getTag("roof:colour"))
-        .setAttr("color", sourceFeature.getTag("building:colour"))
-        .setAttr("hasWindows", isBuildingHasWindows(sourceFeature, isPart))
-        .setBufferPixels(256);
-
-      setCommonFeatureParams(feature, sourceFeature);
-    }
   }
 
   private static void setCommonFeatureParams(FeatureCollector.Feature feature, SourceFeature sourceFeature) {
@@ -465,5 +518,33 @@ public class MyProfile implements Profile {
     }
 
     return items.size() > 1 ? FeatureMerge.mergeOverlappingPolygons(items, 0) : items;
+  }
+
+  @Override
+  public List<OsmRelationInfo> preprocessOsmRelation(OsmElement.Relation relation) {
+    if (relation.hasTag("type", "building")) {
+      return List.of(new BuildingRelationInfo(relation.id()));
+    }
+
+    return null;
+  }
+
+  private record BuildingRelationInfo(long id) implements OsmRelationInfo {
+    @Override
+    public long estimateMemoryUsageBytes() {
+      return CLASS_HEADER_BYTES + MemoryEstimator.estimateSizeLong(id);
+    }
+  }
+
+  private boolean isBuildingOutline(SourceFeature sourceFeature) {
+    var relations = sourceFeature.relationInfo(BuildingRelationInfo.class);
+
+    for (var relation : relations) {
+      if ("outline".equals(relation.role())) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

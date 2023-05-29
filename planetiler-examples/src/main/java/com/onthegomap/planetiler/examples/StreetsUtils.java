@@ -37,6 +37,26 @@ public class StreetsUtils {
     return sourceFeature.hasTag("power", "generator") && sourceFeature.hasTag("generator:source", "wind");
   }
 
+  public static boolean isRailway(SourceFeature sourceFeature) {
+    return sourceFeature.hasTag("railway",
+      "rail",
+      "light_rail",
+      "subway",
+      "disused",
+      "narrow_gauge",
+      "tram"
+    );
+  }
+
+  public static boolean isWater(SourceFeature sourceFeature) {
+    return sourceFeature.getSource().equals("water") ||
+      sourceFeature.hasTag("natural", "water") ||
+      (
+        sourceFeature.hasTag("leisure", "swimming_pool") &&
+        !sourceFeature.hasTag("location", "indoor", "roof")
+      );
+  }
+
   public static boolean isRoadwayOneway(SourceFeature sourceFeature) {
     return sourceFeature.hasTag("oneway", "yes") || sourceFeature.hasTag("junction", "roundabout");
   }
