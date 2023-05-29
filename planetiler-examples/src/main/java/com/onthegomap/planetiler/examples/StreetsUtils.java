@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.examples;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.util.Arrays;
 import java.util.List;
+import jnr.ffi.annotations.In;
 
 class RoadwayLanes {
   Integer forward = null;
@@ -75,7 +76,6 @@ public class StreetsUtils {
     Double height = parseDouble((String) sourceFeature.getTag("height"));
     Double estHeight = parseDouble((String) sourceFeature.getTag("est_height"));
 
-
     if (height != null) {
       return height;
     }
@@ -87,12 +87,28 @@ public class StreetsUtils {
     return parseDouble((String) sourceFeature.getTag("min_height"));
   }
 
+  public static Double getRoofHeight(SourceFeature sourceFeature) {
+    return parseDouble((String) sourceFeature.getTag("roof:height"));
+  }
+
+  public static Integer getBuildingLevels(SourceFeature sourceFeature) {
+    return parseUnsignedInt((String) sourceFeature.getTag("building:levels"));
+  }
+
+  public static Integer getRoofLevels(SourceFeature sourceFeature) {
+    return parseUnsignedInt((String) sourceFeature.getTag("roof:levels"));
+  }
+
   public static Double getWidth(SourceFeature sourceFeature) {
     return parseDouble((String) sourceFeature.getTag("width"));
   }
 
   public static Double getDirection(SourceFeature sourceFeature) {
     return DirectionParser.parse((String) sourceFeature.getTag("direction"));
+  }
+
+  public static Double getRoofDirection(SourceFeature sourceFeature) {
+    return DirectionParser.parse((String) sourceFeature.getTag("roof:direction"));
   }
 
   public static Double getAngle(SourceFeature sourceFeature) {
