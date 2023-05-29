@@ -198,7 +198,7 @@ public class TiledGeometry {
     TileExtents.ForZoom extents) throws GeometryException {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
 
-    EnumSet<Direction> wrapResult = buffer == 1 ? result.addWorldCopy(groups, 0) : result.sliceWorldCopy(groups, 0);
+    EnumSet<Direction> wrapResult = buffer == 1 ? result.addWorldCopy(groups, 0.05) : result.sliceWorldCopy(groups, 0);
 
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);
@@ -406,26 +406,40 @@ public class TiledGeometry {
     }
   }
 
-  private EnumSet<Direction> addWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
-    throws GeometryException {
+  private EnumSet<Direction> addWorldCopy(List<List<CoordinateSequence>> groups, double buffer) throws GeometryException {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
 
     for (List<CoordinateSequence> group : groups) {
       Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
 
-      for (int i = 0; i < group.size(); i++) {
-        CoordinateSequence polygon = group.get(i);
-        boolean isOuterRing = i == 0;
+      double minX = Double.POSITIVE_INFINITY;
+      double maxX = Double.NEGATIVE_INFINITY;
+      double minY = Double.POSITIVE_INFINITY;
+      double maxY = Double.NEGATIVE_INFINITY;
 
-        var size = polygon.size();
+      var outer = group.get(0);
 
-        for (int j = 0; j < size; j++) {
-          double x = polygon.getX(j);
-          double y = polygon.getY(j);
+      if (outer == null) {
+        continue;
+      }
 
-          int tileX = (int) Math.floor(x);
-          int tileY = (int) Math.floor(y);
+      for (int j = 0; j < outer.size(); j++) {
+        double x = outer.getX(j);
+        double y = outer.getY(j);
 
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+
+      int tileMinX = (int) Math.floor(minX - buffer);
+      int tileMaxX = (int) Math.floor(maxX + buffer);
+      int tileMinY = (int) Math.floor(minY - buffer);
+      int tileMaxY = (int) Math.floor(maxY + buffer);
+
+      for (int tileX = tileMinX; tileX <= tileMaxX; tileX++) {
+        for (int tileY = tileMinY; tileY <= tileMaxY; tileY++) {
           TileCoord tileID = TileCoord.ofXYZ(tileX, tileY, z);
 
           List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, name -> new ArrayList<>());
