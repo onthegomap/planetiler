@@ -705,6 +705,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
 
   /** Returns {@code true} if a way can be interpreted as a line. */
   public static boolean canBeLine(boolean closed, String area, int points) {
+    // I really don't like this
     return (!closed || !"yes".equals(area)) && points >= 2;
   }
 
