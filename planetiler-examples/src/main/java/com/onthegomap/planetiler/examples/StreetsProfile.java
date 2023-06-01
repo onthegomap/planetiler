@@ -15,11 +15,15 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.algorithm.MinimumAreaRectangle;
+
 
 public class StreetsProfile implements Profile {
-
   @Override
   public String name() {
     return "Streets GL Profile";
@@ -60,9 +64,10 @@ public class StreetsProfile implements Profile {
 
     if (StreetsUtils.isMemorial(sourceFeature)) {
       var feature = features.point("point")
-        .setAttr("type", "adColumn")
+        .setAttr("type", "memorial")
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
-        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+        .setAttr("direction", StreetsUtils.getDirection(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -72,7 +77,8 @@ public class StreetsProfile implements Profile {
       var feature = features.point("point")
         .setAttr("type", "statue")
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
-        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+        .setAttr("direction", StreetsUtils.getDirection(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -82,7 +88,8 @@ public class StreetsProfile implements Profile {
       var feature = features.point("point")
         .setAttr("type", "sculpture")
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
-        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
+        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+        .setAttr("direction", StreetsUtils.getDirection(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -119,14 +126,17 @@ public class StreetsProfile implements Profile {
     }
 
     if (sourceFeature.hasTag("highway", "turning_circle")) {
-      var feature = features.point("point").setAttr("type", "roundabout");
+      var feature = features.point("point")
+        .setAttr("type", "roundabout")
+        .setAttr("surface", sourceFeature.getTag("surface"));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
     }
 
     if (sourceFeature.hasTag("highway", "bus_stop")) {
-      var feature = features.point("point").setAttr("type", "busStop")
+      var feature = features.point("point")
+        .setAttr("type", "busStop")
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -134,7 +144,8 @@ public class StreetsProfile implements Profile {
     }
 
     if (sourceFeature.hasTag("aeroway", "helipad")) {
-      var feature = features.point("point").setAttr("type", "helipad");
+      var feature = features.point("point")
+        .setAttr("type", "helipad");
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -142,6 +153,7 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("natural", "rock")) {
       var feature = features.point("point").setAttr("type", "rock")
+        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -149,7 +161,8 @@ public class StreetsProfile implements Profile {
     }
 
     if (sourceFeature.hasTag("power", "pole")) {
-      var feature = features.point("point").setAttr("type", "utilityPole")
+      var feature = features.point("point")
+        .setAttr("type", "utilityPole")
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -157,7 +170,8 @@ public class StreetsProfile implements Profile {
     }
 
     if (sourceFeature.hasTag("power", "tower")) {
-      var feature = features.point("point").setAttr("type", "transmissionTower")
+      var feature = features.point("point")
+        .setAttr("type", "transmissionTower")
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -268,6 +282,25 @@ public class StreetsProfile implements Profile {
     }
   }
 
+  private void setPolygonOMBB(FeatureCollector.Feature feature) {
+    Geometry geometry = feature.getGeometry();
+    Geometry ombb = MinimumAreaRectangle.getMinimumRectangle(geometry);
+
+    var coords = ombb.getCoordinates();
+
+    feature.setAttr("@ombb00", coords[0].x);
+    feature.setAttr("@ombb01", coords[0].y);
+
+    feature.setAttr("@ombb10", coords[1].x);
+    feature.setAttr("@ombb11", coords[1].y);
+
+    feature.setAttr("@ombb20", coords[2].x);
+    feature.setAttr("@ombb21", coords[2].y);
+
+    feature.setAttr("@ombb30", coords[3].x);
+    feature.setAttr("@ombb31", coords[3].y);
+  }
+
   private boolean processArea(SourceFeature sourceFeature, FeatureCollector features) {
     if (StreetsUtils.isWater(sourceFeature)) {
       var feature = features.polygon("water")
@@ -291,11 +324,12 @@ public class StreetsProfile implements Profile {
 
       var feature = features.polygon("buildings")
         .setAttr("type", "building")
+        .setAttr("isPart", isPart)
         .setAttr("buildingType", sourceFeature.getTag("building"))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
         .setAttr("roofHeight", StreetsUtils.getRoofHeight(sourceFeature))
-        .setAttr("buildingLevels", StreetsUtils.getBuildingLevels(sourceFeature))
+        .setAttr("levels", StreetsUtils.getBuildingLevels(sourceFeature))
         .setAttr("roofLevels", StreetsUtils.getRoofLevels(sourceFeature))
         .setAttr("roofMaterial", sourceFeature.getTag("roof:material"))
         .setAttr("roofType", sourceFeature.getTag("roof:shape"))
@@ -305,14 +339,16 @@ public class StreetsProfile implements Profile {
         .setAttr("roofColor", sourceFeature.getTag("roof:colour"))
         .setAttr("color", sourceFeature.getTag("building:colour"))
         .setAttr("noWindows", StreetsUtils.isBuildingHasWindows(sourceFeature, isPart) ? null : true)
-        .setBufferPixels(256);
+        .setBufferPixels(isPart ? 512 : 256);
 
+      setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
     }
 
     if (sourceFeature.hasTag("area:highway")) {
       var feature = features.polygon("highways")
-        .setAttr("type", sourceFeature.getTag("area:highway"));
+        .setAttr("type", "part")
+        .setAttr("pathType", sourceFeature.getTag("area:highway"));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
@@ -320,7 +356,8 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("highway") && sourceFeature.hasTag("area", "yes")) {
       var feature = features.polygon("highways")
-        .setAttr("type", sourceFeature.getTag("highway"));
+        .setAttr("type", "part")
+        .setAttr("pathType", sourceFeature.getTag("highway"));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
@@ -543,12 +580,64 @@ public class StreetsProfile implements Profile {
 
   @Override
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items) throws GeometryException {
-    if (!layer.equals("water")) {
-      return items;
+    if (layer.equals("water") && items.size() > 1) {
+      return FeatureMerge.mergeOverlappingPolygons(items, 0);
     }
 
-    if (items.size() > 1) {
-      return FeatureMerge.mergeOverlappingPolygons(items, 0);
+    if (layer.equals("buildings")) {
+      boolean hasParts = false;
+
+      for (VectorTile.Feature item : items) {
+        if ((boolean) item.attrs().get("isPart")) {
+          hasParts = true;
+          break;
+        }
+      }
+
+      if (hasParts) {
+        var parts = new ArrayList<BuildingPartWithEnvelope>();
+        var outlines = new ArrayList<BuildingOutlineWithEnvelope>();
+
+        for (VectorTile.Feature item : items) {
+          Geometry geometry = item.geometry().decode();
+          Envelope bbox = geometry.getEnvelopeInternal();
+
+          boolean isPart = (boolean) item.attrs().get("isPart");
+
+          if (isPart) {
+            parts.add(new BuildingPartWithEnvelope(item, geometry, bbox));
+          } else {
+            outlines.add(new BuildingOutlineWithEnvelope(item, geometry, bbox));
+          }
+        }
+
+        for (BuildingOutlineWithEnvelope outline : outlines) {
+          for (BuildingPartWithEnvelope part : parts) {
+            if (!outline.envelope.intersects(part.envelope)) {
+              continue;
+            }
+
+            outline.geometryCopy = outline.geometryCopy.difference(part.geometry);
+          }
+
+          var initialOutlineArea = outline.geometry.getArea();
+          var newOutlineArea = outline.geometryCopy.getArea();
+
+          if (newOutlineArea / initialOutlineArea < 0.1) {
+            items.remove(outline.feature);
+          }
+        }
+
+        for (BuildingPartWithEnvelope part : parts) {
+          if (!part.envelope.intersects(BuildingPartWithEnvelope.TileBoundsEnvelope)) {
+            items.remove(part.feature);
+          }
+        }
+      }
+
+      for (VectorTile.Feature item : items) {
+        item.attrs().remove("isPart");
+      }
     }
 
     return items;
@@ -580,5 +669,33 @@ public class StreetsProfile implements Profile {
     }
 
     return false;
+  }
+
+  private static class BuildingPartWithEnvelope {
+    static final Envelope TileBoundsEnvelope = new Envelope(-4, 260, -4, 260);
+
+    VectorTile.Feature feature;
+    Geometry geometry;
+    Envelope envelope;
+
+    public BuildingPartWithEnvelope(VectorTile.Feature feature, Geometry geometry, Envelope envelope) {
+      this.feature = feature;
+      this.geometry = geometry;
+      this.envelope = envelope;
+    }
+  }
+
+  private static class BuildingOutlineWithEnvelope {
+    VectorTile.Feature feature;
+    Geometry geometry;
+    Geometry geometryCopy;
+    Envelope envelope;
+
+    public BuildingOutlineWithEnvelope(VectorTile.Feature feature, Geometry geometry, Envelope envelope) {
+      this.feature = feature;
+      this.geometry = geometry;
+      this.envelope = envelope;
+      this.geometryCopy = geometry.copy();
+    }
   }
 }

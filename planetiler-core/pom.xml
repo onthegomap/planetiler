@@ -15,12 +15,33 @@
     <version>${revision}</version>
   </parent>
 
+  <repositories>
+    <repository>
+      <id>locationtech-releases</id>
+      <url>https://repo.eclipse.org/content/groups/releases</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
+    <repository>
+      <id>jts-snapshots</id>
+      <url>https://repo.eclipse.org/content/repositories/jts-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <properties>
     <geotools.version>29.1</geotools.version>
     <log4j.version>2.20.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
     <protobuf.version>3.23.1</protobuf.version>
     <geopackage.version>6.6.1</geopackage.version>
+    <jts.version>1.20.0-SNAPSHOT</jts.version>
   </properties>
 
   <dependencies>
@@ -47,7 +68,7 @@
     <dependency>
       <groupId>org.locationtech.jts</groupId>
       <artifactId>jts-core</artifactId>
-      <version>1.19.0</version>
+      <version>${jts.version}</version>
     </dependency>
     <dependency>
       <groupId>org.geotools</groupId>

@@ -198,7 +198,7 @@ public class TiledGeometry {
     TileExtents.ForZoom extents) throws GeometryException {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
 
-    EnumSet<Direction> wrapResult = buffer == 1 ? result.addWorldCopy(groups, 0.05) : result.sliceWorldCopy(groups, 0);
+    EnumSet<Direction> wrapResult = buffer >= 1 ? result.addWorldCopy(groups, buffer == 1 ? 0.05 : 1.5) : result.sliceWorldCopy(groups, 0);
 
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);

@@ -1,4 +1,18 @@
-# Planetiler
+# Planetiler (Streets GL Edition)
+
+This is a fork of [Michael Barry's Planetiler](https://github.com/onthegomap/planetiler) project, modified to generate
+vector tiles in a special format compatible with [Streets GL](https://github.com/strandedkitty/streets-gl).
+
+Introduced modifications include:
+- Support for level 16 zoom.
+- Features in vector tiles are stored with additional precision.
+- Buildings are fully embedded into tiles they intersect.
+- Building outlines mostly covered by building parts are discarded.
+- OMBBs are embedded into polygons.
+
+Original README.md below.
+
+---
 
 Planetiler (_**pla**&middot;nuh&middot;tai&middot;lr_, formerly named "Flatmap") is a tool that generates
 [Vector Tiles](https://github.com/mapbox/vector-tile-spec/tree/master/2.1)
