@@ -16,6 +16,8 @@ enum RoadwayExtensionSide {
 }
 
 public class StreetsUtils {
+  private static ColorParser colorParser = new ColorParser();
+
   private static final List<String> memorialTypes = Arrays.asList(
     "war_memorial", "stele", "obelisk", "memorial", "stone"
   );
@@ -96,12 +98,30 @@ public class StreetsUtils {
     return parseDouble((String) sourceFeature.getTag("roof:height"));
   }
 
+  public static Integer getRoofLevels(SourceFeature sourceFeature) {
+    return parseUnsignedInt((String) sourceFeature.getTag("roof:levels"));
+  }
+
   public static Integer getBuildingLevels(SourceFeature sourceFeature) {
     return parseUnsignedInt((String) sourceFeature.getTag("building:levels"));
   }
 
-  public static Integer getRoofLevels(SourceFeature sourceFeature) {
-    return parseUnsignedInt((String) sourceFeature.getTag("roof:levels"));
+  public static Integer getBuildingColor(SourceFeature sourceFeature) {
+    return colorParser.parseColor((String) sourceFeature.getTag("building:colour"));
+  }
+
+  public static Integer getRoofColor(SourceFeature sourceFeature) {
+    return colorParser.parseColor((String) sourceFeature.getTag("roof:colour"));
+  }
+
+  public static String getRoofOrientation(SourceFeature sourceFeature) {
+    String orientation = (String) sourceFeature.getTag("roof:orientation", "");
+
+    if (orientation.equals("along") || orientation.equals("across")) {
+      return orientation;
+    }
+
+    return null;
   }
 
   public static Double getWidth(SourceFeature sourceFeature) {
@@ -242,7 +262,9 @@ public class StreetsUtils {
       sourceFeature.hasTag("bridge:support") ||
         sourceFeature.hasTag("man_made", "storage_tank") ||
         sourceFeature.hasTag("man_made", "chimney") ||
-        sourceFeature.hasTag("man_made", "stele")
+        sourceFeature.hasTag("man_made", "stele") ||
+        sourceFeature.hasTag("advertising", "billboard") ||
+        sourceFeature.hasTag("historic", "city_gate")
     ) {
       return false;
     }

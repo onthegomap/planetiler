@@ -196,9 +196,24 @@ public class TiledGeometry {
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) throws GeometryException {
+    double oldBuffer = buffer;
+    buffer = 4. / 256.;
+
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
 
-    EnumSet<Direction> wrapResult = buffer >= 1 ? result.addWorldCopy(groups, buffer == 1 ? 0.05 : 1.5) : result.sliceWorldCopy(groups, 0);
+    // Building outlines
+    if (oldBuffer == 1) {
+      result.addWorldCopy(groups, 0.05);
+      return result;
+    }
+
+    // Building parts
+    if (oldBuffer == 2) {
+      result.addWorldCopy(groups, 1.5);
+      return result;
+    }
+
+    EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
 
     if (wrapResult.contains(Direction.RIGHT)) {
       result.sliceWorldCopy(groups, -result.maxTilesAtThisZoom);

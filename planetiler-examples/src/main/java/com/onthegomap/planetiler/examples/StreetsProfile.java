@@ -22,7 +22,6 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.algorithm.MinimumAreaRectangle;
 
-
 public class StreetsProfile implements Profile {
   @Override
   public String name() {
@@ -193,7 +192,8 @@ public class StreetsProfile implements Profile {
         .setAttr("cyclewaySide", StreetsUtils.getCyclewaySide(sourceFeature))
         .setAttr("isOneway", StreetsUtils.isRoadwayOneway(sourceFeature) ? true : null)
         .setAttr("lanesForward", lanes.forward)
-        .setAttr("lanesBackward", lanes.backward);
+        .setAttr("lanesBackward", lanes.backward)
+        .setBufferPixels(768);
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -321,11 +321,12 @@ public class StreetsProfile implements Profile {
       )
     ) {
       Boolean isPart = sourceFeature.hasTag("building:part");
+      String buildingType = isPart ? (String) sourceFeature.getTag("building:part") : (String) sourceFeature.getTag("building");
 
       var feature = features.polygon("buildings")
         .setAttr("type", "building")
         .setAttr("isPart", isPart)
-        .setAttr("buildingType", sourceFeature.getTag("building"))
+        .setAttr("buildingType", buildingType)
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
         .setAttr("roofHeight", StreetsUtils.getRoofHeight(sourceFeature))
@@ -333,11 +334,11 @@ public class StreetsProfile implements Profile {
         .setAttr("roofLevels", StreetsUtils.getRoofLevels(sourceFeature))
         .setAttr("roofMaterial", sourceFeature.getTag("roof:material"))
         .setAttr("roofType", sourceFeature.getTag("roof:shape"))
-        .setAttr("roofOrientation", sourceFeature.getTag("roof:orientation"))
+        .setAttr("roofOrientation", StreetsUtils.getRoofOrientation(sourceFeature))
         .setAttr("roofDirection", StreetsUtils.getRoofDirection(sourceFeature))
         .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
-        .setAttr("roofColor", sourceFeature.getTag("roof:colour"))
-        .setAttr("color", sourceFeature.getTag("building:colour"))
+        .setAttr("roofColor", StreetsUtils.getRoofColor(sourceFeature))
+        .setAttr("color", StreetsUtils.getBuildingColor(sourceFeature))
         .setAttr("noWindows", StreetsUtils.isBuildingHasWindows(sourceFeature, isPart) ? null : true)
         .setBufferPixels(isPart ? 512 : 256);
 
@@ -347,7 +348,7 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("area:highway")) {
       var feature = features.polygon("highways")
-        .setAttr("type", "part")
+        .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("area:highway"));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -356,7 +357,7 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("highway") && sourceFeature.hasTag("area", "yes")) {
       var feature = features.polygon("highways")
-        .setAttr("type", "part")
+        .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("highway"));
 
       setCommonFeatureParams(feature, sourceFeature);
