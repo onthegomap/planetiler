@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 class RoadwayLanes {
+  Integer both = null;
   Integer forward = null;
   Integer backward = null;
 }
@@ -23,7 +24,11 @@ public class StreetsUtils {
   );
 
   public static boolean isMemorial(SourceFeature sourceFeature) {
-    return sourceFeature.hasTag("historic", "memorial") && memorialTypes.contains((String) sourceFeature.getTag("memorial"));
+    String memorialType = (String) sourceFeature.getTag("memorial");
+
+    return sourceFeature.hasTag("historic", "memorial") && (
+      memorialTypes.contains(memorialType) || memorialType == null
+    );
   }
 
   public static boolean isFireHydrant(SourceFeature sourceFeature) {
@@ -65,18 +70,46 @@ public class StreetsUtils {
       );
   }
 
-  public static boolean isRoadwayOneway(SourceFeature sourceFeature) {
-    return sourceFeature.hasTag("oneway", "yes") || sourceFeature.hasTag("junction", "roundabout");
+  public static Boolean isRoadwayOneway(SourceFeature sourceFeature) {
+    String oneway = (String) sourceFeature.getTag("oneway", "");
+
+    if (oneway.equals("no")) {
+      return false;
+    }
+
+    if (oneway.equals("yes") || sourceFeature.hasTag("junction", "roundabout")) {
+      return true;
+    }
+
+    return null;
   }
 
   public static RoadwayLanes getRoadwayLanes(SourceFeature sourceFeature) {
+    Integer lanes = parseUnsignedInt((String) sourceFeature.getTag("lanes"));
     Integer lanesForward = parseUnsignedInt((String) sourceFeature.getTag("lanes:forward"));
     Integer lanesBackward = parseUnsignedInt((String) sourceFeature.getTag("lanes:backward"));
 
     return new RoadwayLanes() {{
+      both = lanes;
       forward = lanesForward;
       backward = lanesBackward;
     }};
+  }
+
+  public static String getFenceType(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("fence_type"));
+  }
+
+  public static String getWallType(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("wall"));
+  }
+
+  public static String getRailwayType(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("railway"));
+  }
+
+  public static String getWaterwayType(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("waterway"));
   }
 
   public static Double getHeight(SourceFeature sourceFeature) {
@@ -102,16 +135,30 @@ public class StreetsUtils {
     return parseUnsignedInt((String) sourceFeature.getTag("roof:levels"));
   }
 
+  public static String getRoofMaterial(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("roof:material"));
+  }
+
+  public static String getRoofShape(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("roof:shape"));
+  }
+
+  public static String getBuildingMaterial(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("building:material"));
+  }
+
   public static Integer getBuildingLevels(SourceFeature sourceFeature) {
     return parseUnsignedInt((String) sourceFeature.getTag("building:levels"));
   }
 
   public static Integer getBuildingColor(SourceFeature sourceFeature) {
-    return colorParser.parseColor((String) sourceFeature.getTag("building:colour"));
+    String color = getFirstTagValue((String) sourceFeature.getTag("building:colour"));
+    return colorParser.parseColor(color);
   }
 
   public static Integer getRoofColor(SourceFeature sourceFeature) {
-    return colorParser.parseColor((String) sourceFeature.getTag("roof:colour"));
+    String color = getFirstTagValue((String) sourceFeature.getTag("roof:colour"));
+    return colorParser.parseColor(color);
   }
 
   public static String getRoofOrientation(SourceFeature sourceFeature) {
@@ -140,7 +187,42 @@ public class StreetsUtils {
     return parseDouble((String) sourceFeature.getTag("angle"));
   }
 
-  private static Double parseDouble(String value) {
+  public static String getLeafType(SourceFeature sourceFeature) {
+    String leafType = (String) sourceFeature.getTag("leaf_type");
+
+    return getFirstTagValue(leafType);
+  }
+
+  public static String getGenus(SourceFeature sourceFeature) {
+    String genusValue = getFirstTagValue((String) sourceFeature.getTag("genus"));
+    String genusEngValue = getFirstTagValue((String) sourceFeature.getTag("genus:en"));
+
+    return genusValue != null ? genusValue : genusEngValue;
+  }
+
+  public static String getSurface(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("surface"));
+  }
+
+  public static Boolean getLaneMarkings(SourceFeature sourceFeature) {
+    String value = (String) sourceFeature.getTag("lane_markings", "");
+
+    if (value.equals("yes")) {
+      return true;
+    }
+
+    if (value.equals("no")) {
+      return false;
+    }
+
+    return null;
+  }
+
+  public static String getCrop(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("crop"));
+  }
+
+  public static Double parseDouble(String value) {
     if (value == null) return null;
 
     try {
@@ -150,7 +232,7 @@ public class StreetsUtils {
     }
   }
 
-  private static Integer parseUnsignedInt(String value) {
+  public static Integer parseUnsignedInt(String value) {
     if (value == null) return null;
 
     try {
@@ -158,6 +240,20 @@ public class StreetsUtils {
     } catch (Exception ex) {
       return null;
     }
+  }
+
+  public static String getFirstTagValue(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    String[] values = value.split(";");
+
+    if (values.length == 0) {
+      return null;
+    }
+
+    return values[0];
   }
 
   public static RoadwayExtensionSide getSidewalkSide(SourceFeature sourceFeature) {
@@ -218,6 +314,23 @@ public class StreetsUtils {
     return null;
   }
 
+  public static Integer convertRoadwayExtensionSideToInteger(RoadwayExtensionSide side) {
+    if (side == null) {
+      return null;
+    }
+
+    switch (side) {
+      case LEFT:
+        return 0;
+      case RIGHT:
+        return 1;
+      case BOTH:
+        return 2;
+    }
+
+    return null;
+  }
+
   public static boolean isUnderground(SourceFeature sourceFeature) {
     String layerTag = (String)sourceFeature.getTag("layer");
 
@@ -243,12 +356,9 @@ public class StreetsUtils {
     "slurry_tank", "container", "carport"
   );
 
-  public static boolean isBuildingHasWindows(SourceFeature sourceFeature, Boolean isPart) {
-    String windowValue = (String)sourceFeature.getTag("window");
-    String windowsValue = (String)sourceFeature.getTag("windows");
-
-    windowsValue = windowsValue == null ? "" : windowsValue;
-    windowValue = windowValue == null ? "" : windowValue;
+  public static Boolean getBuildingWindows(SourceFeature sourceFeature) {
+    String windowValue = (String)sourceFeature.getTag("window", "");
+    String windowsValue = (String)sourceFeature.getTag("windows", "");
 
     if (windowValue.equals("no") || windowsValue.equals("no")) {
       return false;
@@ -269,8 +379,6 @@ public class StreetsUtils {
       return false;
     }
 
-    String buildingValue = (String) (isPart ? sourceFeature.getTag("building:part") : sourceFeature.getTag("building"));
-
-    return !buildingsWithoutWindows.contains(buildingValue);
+    return null;
   }
 }

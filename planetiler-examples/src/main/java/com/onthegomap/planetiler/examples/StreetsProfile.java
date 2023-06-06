@@ -14,10 +14,12 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import com.onthegomap.planetiler.util.MemoryEstimator;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.algorithm.MinimumAreaRectangle;
@@ -32,8 +34,8 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("natural", "tree")) {
       var feature = features.point("point")
         .setAttr("type", "tree")
-        .setAttr("leafType", sourceFeature.getTag("leaf_type"))
-        .setAttr("genus", sourceFeature.getTag("genus"))
+        .setAttr("leafType", StreetsUtils.getLeafType(sourceFeature))
+        .setAttr("genus", StreetsUtils.getGenus(sourceFeature))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
@@ -127,7 +129,7 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("highway", "turning_circle")) {
       var feature = features.point("point")
         .setAttr("type", "roundabout")
-        .setAttr("surface", sourceFeature.getTag("surface"));
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -144,7 +146,8 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("aeroway", "helipad")) {
       var feature = features.point("point")
-        .setAttr("type", "helipad");
+        .setAttr("type", "helipad")
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -185,24 +188,25 @@ public class StreetsProfile implements Profile {
       var feature = features.line("highways")
         .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("highway"))
-        .setAttr("surface", sourceFeature.getTag("surface"))
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature))
         .setAttr("width", StreetsUtils.getWidth(sourceFeature))
-        .setAttr("laneMarkings", sourceFeature.getTag("lane_markings"))
-        .setAttr("sidewalkSide", StreetsUtils.getSidewalkSide(sourceFeature))
-        .setAttr("cyclewaySide", StreetsUtils.getCyclewaySide(sourceFeature))
-        .setAttr("isOneway", StreetsUtils.isRoadwayOneway(sourceFeature) ? true : null)
+        .setAttr("laneMarkings", StreetsUtils.getLaneMarkings(sourceFeature))
+        .setAttr("sidewalkSide", StreetsUtils.convertRoadwayExtensionSideToInteger(StreetsUtils.getSidewalkSide(sourceFeature)))
+        .setAttr("cyclewaySide", StreetsUtils.convertRoadwayExtensionSideToInteger(StreetsUtils.getCyclewaySide(sourceFeature)))
+        .setAttr("oneway", StreetsUtils.isRoadwayOneway(sourceFeature))
+        .setAttr("lanes", lanes.both)
         .setAttr("lanesForward", lanes.forward)
-        .setAttr("lanesBackward", lanes.backward)
-        .setBufferPixels(768);
+        .setAttr("lanesBackward", lanes.backward);
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
     }
 
-    if (sourceFeature.hasTag("aeroway", "runway") || sourceFeature.hasTag("aeroway", "taxiway")) {
+    if (sourceFeature.hasTag("aeroway", "runway", "taxiway")) {
       var feature = features.line("highways")
         .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("aeroway"))
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature))
         .setAttr("width", StreetsUtils.getWidth(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -212,7 +216,8 @@ public class StreetsProfile implements Profile {
     if (StreetsUtils.isRailway(sourceFeature)) {
       var feature = features.line("highways")
         .setAttr("type", "path")
-        .setAttr("pathType", sourceFeature.getTag("railway"))
+        .setAttr("pathType", "railway")
+        .setAttr("railwayType", StreetsUtils.getRailwayType(sourceFeature))
         .setAttr("width", StreetsUtils.getWidth(sourceFeature))
         .setAttr("gauge", sourceFeature.getTag("gauge"));
 
@@ -223,7 +228,7 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("barrier", "fence")) {
       var feature = features.line("barriers")
         .setAttr("type", "fence")
-        .setAttr("fenceType", sourceFeature.getTag("fence_type"))
+        .setAttr("fenceType", StreetsUtils.getFenceType(sourceFeature))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
@@ -245,7 +250,7 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("barrier", "wall")) {
       var feature = features.line("barriers")
         .setAttr("type", "wall")
-        .setAttr("wallType", sourceFeature.getTag("wall"))
+        .setAttr("wallType", StreetsUtils.getWallType(sourceFeature))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
@@ -264,8 +269,8 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("natural", "tree_row")) {
       var feature = features.line("natural")
         .setAttr("type", "treeRow")
-        .setAttr("leafType", sourceFeature.getTag("leaf_type"))
-        .setAttr("genus", sourceFeature.getTag("genus"))
+        .setAttr("leafType", StreetsUtils.getLeafType(sourceFeature))
+        .setAttr("genus", StreetsUtils.getGenus(sourceFeature))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
@@ -276,7 +281,16 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("waterway")) {
       var feature = features.line("water")
         .setAttr("type", "waterway")
-        .setAttr("waterwayType", sourceFeature.getTag("waterway"));
+        .setAttr("waterwayType", StreetsUtils.getWaterwayType(sourceFeature));
+
+      setCommonFeatureParams(feature, sourceFeature);
+    }
+
+    if (sourceFeature.hasTag("leisure", "track")) {
+      var feature = features.line("common")
+        .setAttr("type", "track")
+        .setAttr("sport", sourceFeature.getTag("sport"))
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
     }
@@ -327,19 +341,22 @@ public class StreetsProfile implements Profile {
         .setAttr("type", "building")
         .setAttr("isPart", isPart)
         .setAttr("buildingType", buildingType)
+        .setAttr("name", sourceFeature.getTag("name"))
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
-        .setAttr("roofHeight", StreetsUtils.getRoofHeight(sourceFeature))
         .setAttr("levels", StreetsUtils.getBuildingLevels(sourceFeature))
+        .setAttr("material", StreetsUtils.getBuildingMaterial(sourceFeature))
+        .setAttr("roofHeight", StreetsUtils.getRoofHeight(sourceFeature))
         .setAttr("roofLevels", StreetsUtils.getRoofLevels(sourceFeature))
-        .setAttr("roofMaterial", sourceFeature.getTag("roof:material"))
-        .setAttr("roofType", sourceFeature.getTag("roof:shape"))
+        .setAttr("roofMaterial", StreetsUtils.getRoofMaterial(sourceFeature))
+        .setAttr("roofMaterial", StreetsUtils.getRoofMaterial(sourceFeature))
+        .setAttr("roofType", StreetsUtils.getRoofShape(sourceFeature))
         .setAttr("roofOrientation", StreetsUtils.getRoofOrientation(sourceFeature))
         .setAttr("roofDirection", StreetsUtils.getRoofDirection(sourceFeature))
         .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
         .setAttr("roofColor", StreetsUtils.getRoofColor(sourceFeature))
         .setAttr("color", StreetsUtils.getBuildingColor(sourceFeature))
-        .setAttr("noWindows", StreetsUtils.isBuildingHasWindows(sourceFeature, isPart) ? null : true)
+        .setAttr("windows", StreetsUtils.getBuildingWindows(sourceFeature))
         .setBufferPixels(isPart ? 512 : 256);
 
       setPolygonOMBB(feature);
@@ -355,7 +372,9 @@ public class StreetsProfile implements Profile {
       return true;
     }
 
-    if (sourceFeature.hasTag("highway") && sourceFeature.hasTag("area", "yes")) {
+    if (sourceFeature.hasTag("highway") && (
+      sourceFeature.hasTag("area", "yes") || sourceFeature.hasTag("type", "multipolygon")
+    )) {
       var feature = features.polygon("highways")
         .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("highway"));
@@ -390,8 +409,10 @@ public class StreetsProfile implements Profile {
 
     if (sourceFeature.hasTag("landuse", "farmland")) {
       var feature = features.polygon("common")
-        .setAttr("type", "farmland");
+        .setAttr("type", "farmland")
+        .setAttr("crop", StreetsUtils.getCrop(sourceFeature));
 
+      setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
       return true;
     }
@@ -404,9 +425,15 @@ public class StreetsProfile implements Profile {
       return true;
     }
 
-    if (sourceFeature.hasTag("natural", "wood", "forest")) {
+    if (
+      sourceFeature.hasTag("natural", "wood") ||
+        sourceFeature.hasTag("landuse", "forest") ||
+        sourceFeature.hasTag("landcover", "trees")
+    ) {
       var feature = features.polygon("natural")
-        .setAttr("type", "forest");
+        .setAttr("type", "forest")
+        .setAttr("leafType", StreetsUtils.getLeafType(sourceFeature))
+        .setAttr("genus", StreetsUtils.getGenus(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
@@ -431,9 +458,22 @@ public class StreetsProfile implements Profile {
     if (sourceFeature.hasTag("leisure", "pitch")) {
       var feature = features.polygon("common")
         .setAttr("type", "pitch")
-        .setAttr("pitchType", sourceFeature.getTag("sport"))
-        .setAttr("surface", sourceFeature.getTag("surface"));
+        .setAttr("sport", sourceFeature.getTag("sport"))
+        .setAttr("hoops", StreetsUtils.parseUnsignedInt((String) sourceFeature.getTag("hoops")))
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
+      setPolygonOMBB(feature);
+      setCommonFeatureParams(feature, sourceFeature);
+      return true;
+    }
+
+    if (sourceFeature.hasTag("leisure", "track")) {
+      var feature = features.polygon("common")
+        .setAttr("type", "track")
+        .setAttr("sport", sourceFeature.getTag("sport"))
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
+
+      setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
       return true;
     }
@@ -456,7 +496,7 @@ public class StreetsProfile implements Profile {
 
     if (
       sourceFeature.hasTag("leisure", "garden") ||
-      sourceFeature.hasTag("landuse", "flowerbed")
+        sourceFeature.hasTag("landuse", "flowerbed")
     ) {
       var feature = features.polygon("common")
         .setAttr("type", "garden");
@@ -479,7 +519,7 @@ public class StreetsProfile implements Profile {
     ) {
       var feature = features.polygon("common")
         .setAttr("type", "parking")
-        .setAttr("surface", sourceFeature.getTag("surface"));
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
@@ -493,17 +533,20 @@ public class StreetsProfile implements Profile {
       return true;
     }
 
-    if (sourceFeature.hasTag("man_made", "apron")) {
+    if (sourceFeature.hasTag("aeroway", "helipad")) {
       var feature = features.polygon("common")
-        .setAttr("type", "apron");
+        .setAttr("type", "helipad")
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
+      setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
       return true;
     }
 
-    if (sourceFeature.hasTag("aeroway", "helipad")) {
+    if (sourceFeature.hasTag("aeroway", "apron")) {
       var feature = features.polygon("common")
-        .setAttr("type", "helipad");
+        .setAttr("type", "apron")
+        .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
