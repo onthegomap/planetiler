@@ -73,7 +73,7 @@ public class VectorTile {
   private static final Logger LOGGER = LoggerFactory.getLogger(VectorTile.class);
 
   // TODO make these configurable
-  private static final int EXTENT = 67108864;
+  private static final int EXTENT = 65536;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
 
