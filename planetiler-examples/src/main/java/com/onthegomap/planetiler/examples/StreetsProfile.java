@@ -199,6 +199,7 @@ public class StreetsProfile implements Profile {
         .setAttr("lanesBackward", lanes.backward);
 
       setCommonFeatureParams(feature, sourceFeature);
+      feature.setBufferPixels(24);
       return;
     }
 
@@ -210,6 +211,7 @@ public class StreetsProfile implements Profile {
         .setAttr("width", StreetsUtils.getWidth(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
+      feature.setBufferPixels(24);
       return;
     }
 
@@ -356,11 +358,12 @@ public class StreetsProfile implements Profile {
         .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
         .setAttr("roofColor", StreetsUtils.getRoofColor(sourceFeature))
         .setAttr("color", StreetsUtils.getBuildingColor(sourceFeature))
-        .setAttr("windows", StreetsUtils.getBuildingWindows(sourceFeature))
-        .setBufferPixels(isPart ? 512 : 256);
+        .setAttr("windows", StreetsUtils.getBuildingWindows(sourceFeature));
 
       setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
+
+      feature.setBufferPixels(isPart ? 512 : 256);
     }
 
     if (sourceFeature.hasTag("area:highway")) {
@@ -594,7 +597,8 @@ public class StreetsProfile implements Profile {
     feature
       .setZoomRange(16, 16)
       .setPixelToleranceAtAllZooms(0)
-      .setMinPixelSize(0);
+      .setMinPixelSize(0)
+      .setBufferPixels(4);
   }
 
   private static void setWaterFeatureParams(FeatureCollector.Feature feature, SourceFeature sourceFeature) {

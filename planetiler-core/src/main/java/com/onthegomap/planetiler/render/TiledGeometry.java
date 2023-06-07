@@ -197,7 +197,10 @@ public class TiledGeometry {
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
     TileExtents.ForZoom extents) throws GeometryException {
     double oldBuffer = buffer;
-    buffer = 4. / 256.;
+
+    if (oldBuffer >= 1) {
+      buffer = 4. / 256.;
+    }
 
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
 
