@@ -204,6 +204,10 @@ public class StreetsUtils {
     return getFirstTagValue((String) sourceFeature.getTag("surface"));
   }
 
+  public static String getGauge(SourceFeature sourceFeature) {
+    return (String) sourceFeature.getTag("gauge");
+  }
+
   public static Boolean getLaneMarkings(SourceFeature sourceFeature) {
     String value = (String) sourceFeature.getTag("lane_markings", "");
 
@@ -368,7 +372,8 @@ public class StreetsUtils {
         sourceFeature.hasTag("man_made", "chimney") ||
         sourceFeature.hasTag("man_made", "stele") ||
         sourceFeature.hasTag("advertising", "billboard") ||
-        sourceFeature.hasTag("historic", "city_gate")
+        sourceFeature.hasTag("historic", "city_gate") ||
+        sourceFeature.hasTag("memorial", "statue")
     ) {
       return false;
     }

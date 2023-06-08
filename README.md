@@ -8,7 +8,7 @@ Introduced modifications include:
 - Features in vector tiles are stored with additional precision.
 - Buildings are fully embedded into tiles they intersect.
 - Building outlines mostly covered by building parts are discarded.
-- OMBBs are embedded into polygons.
+- OMBBs and poles of inaccessibility are embedded into polygons.
 
 Original README.md below.
 

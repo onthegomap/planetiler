@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.algorithm.MinimumAreaRectangle;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
+import org.locationtech.jts.geom.LineString;
 
 public class StreetsProfile implements Profile {
   @Override
@@ -217,11 +219,9 @@ public class StreetsProfile implements Profile {
 
     if (StreetsUtils.isRailway(sourceFeature)) {
       var feature = features.line("highways")
-        .setAttr("type", "path")
-        .setAttr("pathType", "railway")
+        .setAttr("type", "railway")
         .setAttr("railwayType", StreetsUtils.getRailwayType(sourceFeature))
-        .setAttr("width", StreetsUtils.getWidth(sourceFeature))
-        .setAttr("gauge", sourceFeature.getTag("gauge"));
+        .setAttr("gauge", StreetsUtils.getGauge(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
       return;
@@ -317,6 +317,17 @@ public class StreetsProfile implements Profile {
     feature.setAttr("@ombb31", coords[3].y);
   }
 
+  private void setPolygonPoleOfInaccessibility(FeatureCollector.Feature feature) {
+    Geometry geometry = feature.getGeometry();
+    LineString poi = MaximumInscribedCircle.getRadiusLine(geometry, 1e-9);
+
+    var coords = poi.getCoordinates();
+
+    feature.setAttr("@poiX", coords[0].x);
+    feature.setAttr("@poiY", coords[0].y);
+    feature.setAttr("@poiR", poi.getLength());
+  }
+
   private boolean processArea(SourceFeature sourceFeature, FeatureCollector features) {
     if (StreetsUtils.isWater(sourceFeature)) {
       var feature = features.polygon("water")
@@ -367,21 +378,30 @@ public class StreetsProfile implements Profile {
       feature.setBufferPixels(isPart ? 512 : 256);
     }
 
+    if (isArea(sourceFeature)) {
+      if (sourceFeature.hasTag("highway")) {
+        var feature = features.polygon("highways")
+          .setAttr("type", "path")
+          .setAttr("pathType", sourceFeature.getTag("highway"));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return true;
+      }
+
+      if (sourceFeature.hasTag("man_made", "pier")) {
+        var feature = features.polygon("common")
+          .setAttr("type", "pier")
+          .setAttr("surface", StreetsUtils.getSurface(sourceFeature));
+
+        setCommonFeatureParams(feature, sourceFeature);
+        return true;
+      }
+    }
+
     if (sourceFeature.hasTag("area:highway")) {
       var feature = features.polygon("highways")
         .setAttr("type", "path")
         .setAttr("pathType", sourceFeature.getTag("area:highway"));
-
-      setCommonFeatureParams(feature, sourceFeature);
-      return true;
-    }
-
-    if (sourceFeature.hasTag("highway") && (
-      sourceFeature.hasTag("area", "yes") || sourceFeature.hasTag("type", "multipolygon")
-    )) {
-      var feature = features.polygon("highways")
-        .setAttr("type", "path")
-        .setAttr("pathType", sourceFeature.getTag("highway"));
 
       setCommonFeatureParams(feature, sourceFeature);
       return true;
@@ -392,6 +412,7 @@ public class StreetsProfile implements Profile {
         .setAttr("type", "brownfield");
 
       setCommonFeatureParams(feature, sourceFeature);
+      setPolygonPoleOfInaccessibility(feature);
       return true;
     }
 
@@ -400,6 +421,7 @@ public class StreetsProfile implements Profile {
         .setAttr("type", "construction");
 
       setCommonFeatureParams(feature, sourceFeature);
+      setPolygonPoleOfInaccessibility(feature);
       return true;
     }
 
@@ -718,6 +740,10 @@ public class StreetsProfile implements Profile {
     }
 
     return false;
+  }
+
+  private boolean isArea(SourceFeature sourceFeature) {
+    return sourceFeature.hasTag("area", "yes") || sourceFeature.hasTag("type", "multipolygon");
   }
 
   private static class BuildingPartWithEnvelope {
