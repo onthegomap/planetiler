@@ -42,8 +42,8 @@ public class AwsOsm {
    * @throws IllegalArgumentException if no matches, or more than one match is found.
    */
   public String getDownloadUrl(String searchQuery, PlanetilerConfig config) {
-    IndexXml index = getAndCacheIndex(config);
-    return searchIndexForDownloadUrl(searchQuery, index);
+    IndexXml indexXml = getAndCacheIndex(config);
+    return searchIndexForDownloadUrl(searchQuery, indexXml);
   }
 
   private synchronized IndexXml getAndCacheIndex(PlanetilerConfig config) {
