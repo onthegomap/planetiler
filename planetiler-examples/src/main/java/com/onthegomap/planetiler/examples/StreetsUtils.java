@@ -253,7 +253,7 @@ public class StreetsUtils {
       return null;
     }
 
-    return values[0];
+    return values[0].trim().toLowerCase();
   }
 
   public static RoadwayExtensionSide getSidewalkSide(SourceFeature sourceFeature) {
@@ -350,12 +350,6 @@ public class StreetsUtils {
       sourceFeature.hasTag("parking", "underground");
   }
 
-  private static final List<String> buildingsWithoutWindows = Arrays.asList(
-    "garage", "garages", "greenhouse", "storage_tank", "bunker", "silo", "stadium",
-    "ship", "castle", "service", "digester", "water_tower", "shed", "ger", "barn",
-    "slurry_tank", "container", "carport"
-  );
-
   public static Boolean getBuildingWindows(SourceFeature sourceFeature) {
     String windowValue = (String)sourceFeature.getTag("window", "");
     String windowsValue = (String)sourceFeature.getTag("windows", "");
@@ -375,6 +369,18 @@ public class StreetsUtils {
         sourceFeature.hasTag("man_made", "stele") ||
         sourceFeature.hasTag("advertising", "billboard") ||
         sourceFeature.hasTag("historic", "city_gate")
+    ) {
+      return false;
+    }
+
+    return null;
+  }
+
+  public static Boolean getBuildingDefaultRoof(SourceFeature sourceFeature) {
+    if (
+      sourceFeature.hasTag("bridge:support") ||
+      sourceFeature.hasTag("ship:type") ||
+      sourceFeature.hasTag("man_made", "storage_tank", "chimney", "stele")
     ) {
       return false;
     }

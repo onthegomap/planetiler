@@ -358,7 +358,8 @@ public class StreetsProfile implements Profile {
         .setAttr("roofAngle", StreetsUtils.getAngle(sourceFeature))
         .setAttr("roofColor", StreetsUtils.getRoofColor(sourceFeature))
         .setAttr("color", StreetsUtils.getBuildingColor(sourceFeature))
-        .setAttr("windows", StreetsUtils.getBuildingWindows(sourceFeature));
+        .setAttr("windows", StreetsUtils.getBuildingWindows(sourceFeature))
+        .setAttr("defaultRoof", StreetsUtils.getBuildingDefaultRoof(sourceFeature));
 
       setPolygonOMBB(feature);
       setCommonFeatureParams(feature, sourceFeature);
