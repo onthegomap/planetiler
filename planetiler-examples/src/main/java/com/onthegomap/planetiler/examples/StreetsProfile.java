@@ -325,6 +325,10 @@ public class StreetsProfile implements Profile {
 
     var coords = ombb.getCoordinates();
 
+    if (coords.length != 4) {
+      return;
+    }
+
     feature.setAttr("@ombb00", coords[0].x);
     feature.setAttr("@ombb01", coords[0].y);
 
