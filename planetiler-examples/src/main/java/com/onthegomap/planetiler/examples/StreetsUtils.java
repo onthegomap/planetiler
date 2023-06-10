@@ -347,14 +347,10 @@ public class StreetsUtils {
   }
 
   public static boolean isUnderground(SourceFeature sourceFeature) {
-    String layerTag = (String)sourceFeature.getTag("layer");
+    Double layer = parseDouble((String) sourceFeature.getTag("layer"));
 
-    if (layerTag != null) {
-      float layer = Float.parseFloat(layerTag);
-
-      if (layer < 0) {
-        return true;
-      }
+    if (layer != null && layer < 0) {
+      return true;
     }
 
     String tunnelValue = (String)sourceFeature.getTag("tunnel", "no");
