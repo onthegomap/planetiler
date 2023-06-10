@@ -208,6 +208,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private int minzoom = config.minzoom();
     private int maxzoom = config.maxzoom();
 
+    private List<Integer> zoomLevels = null;
+
     private ZoomFunction<Number> labelGridPixelSize = null;
     private ZoomFunction<Number> labelGridLimit = null;
 
@@ -292,6 +294,16 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     public Feature setZoomRange(int min, int max) {
       assert min <= max;
       return setMinZoom(min).setMaxZoom(max);
+    }
+
+    public Feature setZoomLevels(List<Integer> levels) {
+      zoomLevels = levels;
+
+      return this;
+    }
+
+    public List<Integer> getZoomLevels() {
+      return zoomLevels;
     }
 
     /** Returns the minimum zoom level (inclusive) that this feature appears in. */

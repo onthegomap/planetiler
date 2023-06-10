@@ -97,6 +97,10 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       coords[i] = origCoords[i].copy();
     }
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
+      if (feature.getZoomLevels() != null && !feature.getZoomLevels().contains(zoom)) {
+        continue;
+      }
+
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;
@@ -172,6 +176,10 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     String numPointsAttr = feature.getNumPointsAttr();
     for (int z = feature.getMaxZoom(); z >= feature.getMinZoom(); z--) {
+      if (feature.getZoomLevels() != null && !feature.getZoomLevels().contains(z)) {
+        continue;
+      }
+
       double scale = 1 << z;
       double tolerance = feature.getPixelToleranceAtZoom(z) / 256d;
       double minSize = feature.getMinPixelSizeAtZoom(z) / 256d;

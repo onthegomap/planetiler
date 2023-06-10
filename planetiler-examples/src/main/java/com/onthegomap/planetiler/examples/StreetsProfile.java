@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.util.MemoryEstimator;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -646,9 +647,11 @@ public class StreetsProfile implements Profile {
 
   private static void setWaterFeatureParams(FeatureCollector.Feature feature, SourceFeature sourceFeature) {
     feature
-      .setZoomRange(16, 16)
+      .setZoomRange(9, 16)
+      .setZoomLevels(Arrays.asList(9, 13, 16))
       .setPixelToleranceAtAllZooms(0)
-      .setMinPixelSize(0);
+      .setMinPixelSize(0)
+      .setMinPixelSizeBelowZoom(13, 2);
   }
 
   public static void main(String[] args) throws Exception {
@@ -658,9 +661,9 @@ public class StreetsProfile implements Profile {
   public static void run(Arguments args) throws Exception {
     Planetiler.create(args)
       .setProfile(new StreetsProfile())
-      .addOsmSource("osm", Path.of("data", "sources", "nyc.osm.pbf"))
-      .addShapefileSource("water", Path.of("data", "sources", "water_polygons", "water_polygons.shp"))
-      .overwriteOutput(Path.of("data", "test.mbtiles"))
+      .addOsmSource("osm", Path.of("data", "sources", "planet.osm.pbf"))
+      .addShapefileSource("water", Path.of("data", "sources", "water-polygons-split-3857", "water_polygons.shp"))
+      .overwriteOutput(Path.of("data", "data.mbtiles"))
       .run();
   }
 
