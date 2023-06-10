@@ -325,7 +325,7 @@ public class StreetsProfile implements Profile {
 
     var coords = ombb.getCoordinates();
 
-    if (coords.length != 4) {
+    if (coords.length != 5) {
       return;
     }
 
