@@ -208,6 +208,17 @@ public class StreetsUtils {
     return (String) sourceFeature.getTag("gauge");
   }
 
+  public static String getFlagWikidata(SourceFeature sourceFeature) {
+    String wikidata0 = getFirstTagValue((String) sourceFeature.getTag("flag:wikidata"));
+    String wikidata1 = getFirstTagValue((String) sourceFeature.getTag("subject:wikidata"));
+
+    return wikidata0 != null ? wikidata0 : wikidata1;
+  }
+
+  public static String getFlagCountry(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("country"));
+  }
+
   public static Boolean getLaneMarkings(SourceFeature sourceFeature) {
     String value = (String) sourceFeature.getTag("lane_markings", "");
 

@@ -181,6 +181,26 @@ public class StreetsProfile implements Profile {
       setCommonFeatureParams(feature, sourceFeature);
       return;
     }
+
+    if (sourceFeature.hasTag("amenity", "fountain")) {
+      var feature = features.point("point")
+        .setAttr("type", "fountain");
+
+      setCommonFeatureParams(feature, sourceFeature);
+      return;
+    }
+
+    if (sourceFeature.hasTag("man_made", "flagpole")) {
+      var feature = features.point("point")
+        .setAttr("type", "flagpole")
+        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+        .setAttr("wikidata", StreetsUtils.getFlagWikidata(sourceFeature))
+        .setAttr("country", StreetsUtils.getFlagCountry(sourceFeature));
+
+      setCommonFeatureParams(feature, sourceFeature);
+      return;
+    }
   }
 
   private static void processLine(SourceFeature sourceFeature, FeatureCollector features) {
