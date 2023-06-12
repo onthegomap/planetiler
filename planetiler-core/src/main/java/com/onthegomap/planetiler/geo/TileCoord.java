@@ -63,7 +63,7 @@ public record TileCoord(long encoded, int x, int y, int z) implements Comparable
 
   public static TileCoord decode(long encoded) {
     int z = zoomForIndex(encoded);
-    long xy = tmsPositionToXY(z, encoded - (long)startIndexForZoom(z));
+    long xy = tmsPositionToXY(z, encoded - startIndexForZoom(z));
     return new TileCoord(encoded, (int) (xy >>> 32 & 0xFFFFFFFFL), (int) (xy & 0xFFFFFFFFL), z);
   }
 
@@ -82,8 +82,8 @@ public record TileCoord(long encoded, int x, int y, int z) implements Comparable
     return TileCoord.ofXYZ((int) Math.floor(x), (int) Math.floor(y), zoom);
   }
 
-  public static int encode(int x, int y, int z) {
-    return (int)startIndexForZoom(z) + tmsXYToPosition(z, x, y);
+  public static long encode(int x, int y, int z) {
+    return startIndexForZoom(z) + tmsXYToPosition(z, x, y);
   }
 
   @Override
@@ -168,8 +168,8 @@ public record TileCoord(long encoded, int x, int y, int z) implements Comparable
     return ((long) x << 32) | (int)y;
   }
 
-  public static int tmsXYToPosition(int z, int x, int y) {
-    int dim = 1 << z;
+  public static long tmsXYToPosition(int z, int x, int y) {
+    long dim = 1L << z;
     return x * dim + (dim - 1 - y);
   }
 

@@ -107,7 +107,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    * Encode key by {@code tile} asc, {@code layer} asc, {@code sortKey} asc with an extra bit to indicate whether the
    * value contains grouping information.
    */
-  static long encodeKey(int tile, byte layer, int sortKey, boolean hasGroup) {
+  static long encodeKey(long tile, byte layer, int sortKey, boolean hasGroup) {
     return ((long) tile << 29L) | ((long) (layer & 31) << 24L) | (((sortKey - SORT_KEY_MIN) & SORT_KEY_MASK) << 1L) |
       (hasGroup ? 1 : 0);
   }
@@ -117,7 +117,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   }
 
   static long extractTileFromKey(long key) {
-    return (key >> 29L) & 0xFFFFFFFFL;
+    return (key >> 29L);
   }
 
   static byte extractLayerIdFromKey(long key) {
