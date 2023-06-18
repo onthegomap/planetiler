@@ -427,9 +427,9 @@ public class TiledGeometry {
   private EnumSet<Direction> addWorldCopy(List<List<CoordinateSequence>> groups, double buffer) throws GeometryException {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
 
-    for (List<CoordinateSequence> group : groups) {
-      Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
+    List<int[]> boxes = new ArrayList<>();
 
+    for (List<CoordinateSequence> group : groups) {
       double minX = Double.POSITIVE_INFINITY;
       double maxX = Double.NEGATIVE_INFINITY;
       double minY = Double.POSITIVE_INFINITY;
@@ -456,13 +456,24 @@ public class TiledGeometry {
       int tileMinY = (int) Math.floor(minY - buffer);
       int tileMaxY = (int) Math.floor(maxY + buffer);
 
-      for (int tileX = tileMinX; tileX <= tileMaxX; tileX++) {
-        for (int tileY = tileMinY; tileY <= tileMaxY; tileY++) {
-          TileCoord tileID = TileCoord.ofXYZ(tileX, tileY, z);
+      boxes.add(new int[] { tileMinX, tileMaxX, tileMinY, tileMaxY });
+    }
 
-          List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, name -> new ArrayList<>());
+    for (List<CoordinateSequence> group : groups) {
+      Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
 
-          if (toAddTo.isEmpty()) {
+      for (var box : boxes) {
+        int tileMinX = box[0];
+        int tileMaxX = box[1];
+        int tileMinY = box[2];
+        int tileMaxY = box[3];
+
+        for (int tileX = tileMinX; tileX <= tileMaxX; tileX++) {
+          for (int tileY = tileMinY; tileY <= tileMaxY; tileY++) {
+            TileCoord tileID = TileCoord.ofXYZ(tileX, tileY, z);
+
+            List<CoordinateSequence> toAddTo = inProgressShapes.computeIfAbsent(tileID, name -> new ArrayList<>());
+
             globalPolygonToLocal(group, tileX, tileY, toAddTo);
           }
         }
