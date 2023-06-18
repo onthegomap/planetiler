@@ -202,6 +202,18 @@ public class StreetsProfile implements Profile {
       setCommonFeatureParams(feature, sourceFeature);
       return;
     }
+
+    if (sourceFeature.hasTag("highway", "street_lamp")) {
+      var feature = features.point("point")
+        .setAttr("type", "streetLamp")
+        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+        .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
+        .setAttr("direction", StreetsUtils.getDirection(sourceFeature))
+        .setAttr("lampSupport", StreetsUtils.getLampSupport(sourceFeature));
+
+      setCommonFeatureParams(feature, sourceFeature);
+      return;
+    }
   }
 
   private static void processLine(SourceFeature sourceFeature, FeatureCollector features) {

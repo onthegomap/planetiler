@@ -251,6 +251,10 @@ public class StreetsUtils {
     return getFirstTagValue((String) sourceFeature.getTag("country"));
   }
 
+  public static String getLampSupport(SourceFeature sourceFeature) {
+    return getFirstTagValue((String) sourceFeature.getTag("support"));
+  }
+
   public static Boolean getLaneMarkings(SourceFeature sourceFeature) {
     String value = (String) sourceFeature.getTag("lane_markings", "");
 
