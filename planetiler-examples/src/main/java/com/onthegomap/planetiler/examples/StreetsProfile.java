@@ -39,7 +39,7 @@ public class StreetsProfile implements Profile {
         .setAttr("type", "tree")
         .setAttr("leafType", StreetsUtils.getLeafType(sourceFeature))
         .setAttr("genus", StreetsUtils.getGenus(sourceFeature))
-        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+        .setAttr("height", StreetsUtils.getTreeHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);
@@ -294,7 +294,7 @@ public class StreetsProfile implements Profile {
         .setAttr("type", "treeRow")
         .setAttr("leafType", StreetsUtils.getLeafType(sourceFeature))
         .setAttr("genus", StreetsUtils.getGenus(sourceFeature))
-        .setAttr("height", StreetsUtils.getHeight(sourceFeature))
+        .setAttr("height", StreetsUtils.getTreeHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature));
 
       setCommonFeatureParams(feature, sourceFeature);

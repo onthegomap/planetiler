@@ -112,23 +112,55 @@ public class StreetsUtils {
     return getFirstTagValue((String) sourceFeature.getTag("waterway"));
   }
 
-  public static Double getHeight(SourceFeature sourceFeature) {
-    Double height = parseDouble((String) sourceFeature.getTag("height"));
-    Double estHeight = parseDouble((String) sourceFeature.getTag("est_height"));
+  public static Double getTreeHeight(SourceFeature sourceFeature) {
+    Double height = getHeight(sourceFeature);
 
     if (height != null) {
       return height;
     }
 
-    return estHeight;
+    // We need minHeight in case tree height is implied from tags other than "height"
+    Double minHeight = getMinHeight(sourceFeature);
+    if (minHeight == null) minHeight = 0d;
+
+    Double width = parseMeters((String) sourceFeature.getTag("diameter_crown"));
+
+    if (width != null) {
+      return width * 2 + minHeight;
+    }
+
+    Double diameter = parseMeters((String) sourceFeature.getTag("diameter"));
+
+    if (diameter != null) {
+      return diameter * 60 + minHeight;
+    }
+
+    Double circumference = parseMeters((String) sourceFeature.getTag("circumference"));
+
+    if (circumference != null) {
+      return circumference / Math.PI * 60 + minHeight;
+    }
+
+    return null;
+  }
+
+  public static Double getHeight(SourceFeature sourceFeature) {
+    String height = (String) sourceFeature.getTag("height");
+    String estHeight = (String) sourceFeature.getTag("est_height");
+
+    if (height != null) {
+      return parseMeters(height);
+    }
+
+    return parseMeters(estHeight);
   }
 
   public static Double getMinHeight(SourceFeature sourceFeature) {
-    return parseDouble((String) sourceFeature.getTag("min_height"));
+    return parseMeters((String) sourceFeature.getTag("min_height"));
   }
 
   public static Double getRoofHeight(SourceFeature sourceFeature) {
-    return parseDouble((String) sourceFeature.getTag("roof:height"));
+    return parseMeters((String) sourceFeature.getTag("roof:height"));
   }
 
   public static Integer getRoofLevels(SourceFeature sourceFeature) {
@@ -255,6 +287,44 @@ public class StreetsUtils {
     } catch (Exception ex) {
       return null;
     }
+  }
+
+  public static Double parseMeters(String str) {
+    if (str == null) return null;
+
+    str = str
+      .replaceAll(",", ".")
+      .replaceAll(" ", "")
+      .replaceAll("ft", "'")
+      .replaceAll("feet", "'");
+
+    if (str.contains("cm")) {
+      Double cms = parseDouble(str.replace("cm", ""));
+      return cms != null ? cms * 0.01 : null;
+    } else if (str.contains("m")) {
+      return parseDouble(str.replace("m", ""));
+    } else if (str.contains("'")) {
+      String[] parts = str.split("'");
+
+      if (parts.length == 0) return null;
+
+      Double feet = parseDouble(parts[0]);
+      Double inches = null;
+
+      if (parts.length > 1) {
+        inches = parseDouble(parts[1]);
+      }
+
+      if (feet == null) feet = 0d;
+      if (inches == null) inches = 0d;
+
+      return (feet * 12 + inches) * 0.0254;
+    } else if (str.contains("\"")) {
+      Double inches = parseDouble(str.replace("\"", ""));
+      return inches != null ? inches * 0.0254 : null;
+    }
+
+    return parseDouble(str);
   }
 
   public static String getFirstTagValue(String value) {
