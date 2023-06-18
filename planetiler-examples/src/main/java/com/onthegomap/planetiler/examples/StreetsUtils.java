@@ -129,7 +129,8 @@ public class StreetsUtils {
       return width * 2 + minHeight;
     }
 
-    Double diameter = parseMeters((String) sourceFeature.getTag("diameter"));
+    // Diameter is in millimeters if no unit of measurement is specified
+    Double diameter = parseMillimeters((String) sourceFeature.getTag("diameter"));
 
     if (diameter != null) {
       return diameter * 60 + minHeight;
@@ -293,7 +294,7 @@ public class StreetsUtils {
     }
   }
 
-  public static Double parseMeters(String str) {
+  public static Double parseUnits(String str, double defaultUnitsFactor) {
     if (str == null) return null;
 
     str = str
@@ -328,7 +329,16 @@ public class StreetsUtils {
       return inches != null ? inches * 0.0254 : null;
     }
 
-    return parseDouble(str);
+    Double parsed = parseDouble(str);
+    return parsed != null ? parsed * defaultUnitsFactor : null;
+  }
+
+  public static Double parseMeters(String str) {
+    return parseUnits(str, 1d);
+  }
+
+  public static Double parseMillimeters(String str) {
+    return parseUnits(str, 0.001d);
   }
 
   public static String getFirstTagValue(String value) {
