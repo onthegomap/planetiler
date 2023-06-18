@@ -10,6 +10,41 @@ Introduced modifications include:
 - Building outlines mostly covered by building parts are discarded.
 - OMBBs and poles of inaccessibility are embedded into polygons.
 
+## How to generate tiles for Streets GL
+
+Clone this repository with submodules:
+
+`git clone --recurse-submodules https://github.com/StrandedKitty/planetiler.git`
+
+Install Java 17+ and Maven on your system. It's known to work with OpenJDK 17 and Maven 3.8.3.
+
+Download planet PBF and water polygons:
+
+```wget -O data/sources/planet.osm.pbf http://ftp.snt.utwente.nl/pub/misc/openstreetmap/planet-latest.osm.pbf`
+wget -O data/sources/water.zip https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+unzip data/sources/water.zip -d data/sources```
+
+Build the project using Maven:
+
+`mvn -q -DskipTests --projects planetiler-dist -am clean package`
+
+Run the tile generator and save the output to `planet.log`:
+
+`java -Xmx110g -XX:MaxHeapFreeRatio=40 -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.examples.StreetsProfile --nodemap-type=array --storage=ram 2>&1 | tee >(cat > planet.log)`
+
+Tested on [AWS EC2 r6id.4xlarge](https://instances.vantage.sh/aws/ec2/r6id.4xlarge?region=eu-central-1&os=linux&cost_duration=hourly&reserved_term=Standard.noUpfront) (16 vCPUs, 128GB RAM, 800GB storage). On this machine the generation process for the whole planet takes around 2.5 hours. The resulting database is around 200+ GB in size.
+
+For local testing it's advised to generate tiles only for small regions. You can download small portions of OSM data using [Protomaps](https://app.protomaps.com/downloads/osm).
+
+To run the tile generator on a small machine you can use `java -cp planetiler-dist/target/*-with-deps.jar com.onthegomap.planetiler.examples.StreetsProfile`.
+
+For local testing you can use `tileserver-gl-light` to serve tiles:
+
+```
+npm install -g tileserver-gl-light
+tileserver-gl-light data/data.mbtiles -p 8081
+```
+
 Original README.md below.
 
 ---
