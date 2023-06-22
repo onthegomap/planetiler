@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -28,7 +29,7 @@ public class AwsOsm {
   private static final ObjectMapper mapper = new XmlMapper().registerModule(new Jdk8Module());
 
   private final String bucketIndexUrl;
-  private volatile List<ContentXml> entries = null;
+  private final CopyOnWriteArrayList<ContentXml> entries = new CopyOnWriteArrayList<>();
 
   protected AwsOsm(String bucketIndexUrl) {
     this.bucketIndexUrl = bucketIndexUrl;
@@ -51,7 +52,7 @@ public class AwsOsm {
   }
 
   private synchronized List<ContentXml> getAndCacheIndex(PlanetilerConfig config) {
-    if (entries == null) {
+    if (entries.isEmpty()) {
       List<ContentXml> result = new ArrayList<>();
       String nextPageParam = "";
       int pageNum = 0;
@@ -68,7 +69,7 @@ public class AwsOsm {
           throw new IllegalStateException(e);
         }
       } while (nextPageParam != null);
-      entries = result;
+      entries.addAll(result);
     }
     return entries;
   }

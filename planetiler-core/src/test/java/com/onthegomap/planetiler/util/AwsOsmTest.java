@@ -261,8 +261,9 @@ class AwsOsmTest {
   void testNotFound() throws IOException {
     var awsOsm = new AwsOsm("https://base.url/");
     var index = awsOsm.parseIndexXml(new ByteArrayInputStream(response));
+    var contents = index.contents();
     assertThrows(IllegalArgumentException.class,
-      () -> awsOsm.searchIndexForDownloadUrl("1231", index.contents()));
+      () -> awsOsm.searchIndexForDownloadUrl("1231", contents));
   }
 
   @Test
