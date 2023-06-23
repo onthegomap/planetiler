@@ -13,12 +13,8 @@ updates:
     labels:
       - dependencies
     ignore:
-      - dependency-name: "com.graphhopper:graphhopper-reader-osm"
-      # See issue #510
-      - dependency-name: "com.github.jnr:jnr-ffi"
+      - dependency-name: "com.google.protobuf:protobuf-java"
         versions: [ "2.2.13" ]
-      - dependency-name: "org.projectnessie.cel:cel-bom"
-        versions: [ "0.3.14", "0.3.15" ]
   - package-ecosystem: maven
     # workaround for non-standard pom.xml filename (https://github.com/dependabot/dependabot-core/issues/4425)
     directory: "/.github/planetiler-examples-dependabot"
