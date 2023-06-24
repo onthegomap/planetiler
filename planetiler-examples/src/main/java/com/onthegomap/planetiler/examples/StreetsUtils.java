@@ -113,7 +113,9 @@ public class StreetsUtils {
   }
 
   public static Double getTreeHeight(SourceFeature sourceFeature) {
-    Double height = getHeight(sourceFeature);
+    return getHeight(sourceFeature);
+
+    /*Double height = getHeight(sourceFeature);
 
     if (height != null) {
       return height;
@@ -142,7 +144,7 @@ public class StreetsUtils {
       return circumference / Math.PI * 60 + minHeight;
     }
 
-    return null;
+    return null;*/
   }
 
   public static Double getHeight(SourceFeature sourceFeature) {
