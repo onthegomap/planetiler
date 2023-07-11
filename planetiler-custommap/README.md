@@ -7,7 +7,7 @@ file as the first argument:
 # from a java build
 java -jar planetiler.jar schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest /data/schema.yml
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom /data/schema.yml
 ```
 
 Schema files are in [YAML 1.2](https://yaml.org) format and support [anchors and aliases](#anchors-and-aliases) for
