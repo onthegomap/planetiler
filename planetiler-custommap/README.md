@@ -5,7 +5,7 @@ file as the first argument:
 
 ```bash
 # from a java build
-java -jar planetiler.jar schema.yml
+java -jar planetiler.jar generate-custom schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
 docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom /data/schema.yml
 ```
