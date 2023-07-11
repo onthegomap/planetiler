@@ -4,9 +4,7 @@ You can define how planetiler turns input sources into vector tiles by running p
 file as the first argument:
 
 ```bash
-# from a java build
-java -jar planetiler.jar schema.yml
-# or with docker (put the schema in data/schema.yml to include in the attached volume)
+# With docker (put the schema in data/schema.yml to include in the attached volume)
 docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest /data/schema.yml
 ```
 
@@ -17,6 +15,26 @@ available options. See the [samples](src/main/resources/samples) directory for w
 :construction: The configuration schema is under active development so the format may change between releases.
 Only a subset of the Java API is currently exposed so for more complex schemas you should switch to the Java API (see
 the [examples project](../planetiler-examples)). Feedback is welcome to help shape the final product!
+
+## Local Build and Usage
+
+Build the configurable Planetiler profile locally with:
+
+```bash
+../mvnw clean package --file standalone.pom.xml
+```
+
+To build the `shortbread.yml` configurable schema from the samples folder, run:
+
+```bash
+java -cp target/*with-deps.jar com.onthegomap.planetiler.custommap.ConfiguredMapMain --download --schema src/main/resources/samples/shortbread.yml
+```
+
+Inspect the generated tiles with:
+
+```bash
+docker run --rm -it -v "$(pwd)/data":/data -p 8080:8080 maptiler/tileserver-gl -p 8080
+```
 
 ## Root
 

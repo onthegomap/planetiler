@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <artifactId>planetiler-custommap</artifactId>
+
+  <parent>
+    <groupId>com.onthegomap.planetiler</groupId>
+    <artifactId>planetiler-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>16</maven.compiler.source>
+    <maven.compiler.target>16</maven.compiler.target>
+    <planetiler.version>0.6-SNAPSHOT</planetiler.version>
+    <junit.version>5.9.1</junit.version>
+    <!-- Replace this with the main class for the profile you add -->
+    <mainClass>com.onthegomap.planetiler.examples.BikeRouteOverlay</mainClass>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-core</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.snakeyaml</groupId>
+      <artifactId>snakeyaml-engine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.commonmark</groupId>
+      <artifactId>commonmark</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.cel</groupId>
+      <artifactId>cel-tools</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-core</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.projectnessie.cel</groupId>
+        <artifactId>cel-bom</artifactId>
+        <version>0.3.11</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.github.zlika</groupId>
+        <artifactId>reproducible-build-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <!-- we don't want to deploy this module -->
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.0.0-M7</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.0.0-M7</version>
+      </plugin>
+
+      <!-- Create an executable jar from "mvn package" goal -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.4.2</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.onthegomap.planetiler</groupId>
+            <artifactId>planetiler-core</artifactId>
+            <version>${planetiler.version}</version>
+          </dependency>
+        </dependencies>
+
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Multi-Release>true</Multi-Release>
+            </manifestEntries>
+            <manifest>
+              <mainClass>${mainClass}</mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>with-deps</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
