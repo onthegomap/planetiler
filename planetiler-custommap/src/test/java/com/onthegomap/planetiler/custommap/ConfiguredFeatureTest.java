@@ -12,6 +12,8 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
+import com.onthegomap.planetiler.custommap.configschema.MergeLineStrings;
+import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
@@ -786,6 +788,7 @@ class ConfiguredFeatureTest {
   void testInvalidSchemas() {
     testInvalidSchema("bad_geometry_type.yml", "Profile defined with invalid geometry type");
     testInvalidSchema("no_layers.yml", "Profile defined with no layers");
+    testInvalidSchema("invalid_post_process.yml", "Profile defined with invalid post process element");
   }
 
   private void testInvalidSchema(String filename, String message) {
@@ -1021,5 +1024,35 @@ class ConfiguredFeatureTest {
       "url", "https://example.com/file.osm.pbf"
     )));
     assertEquals("example.com_file.osm.pbf", loadConfig(config).sources().get(0).defaultFileUrl());
+  }
+
+  @Test
+  void testPostProcessInSchema() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        post_process:
+          merge_line_strings:
+            min_length: 1
+            tolerance: 5
+            buffer: 10
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      new MergeLineStrings(
+        1,
+        5,
+        10
+      ),
+      null
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }
 }

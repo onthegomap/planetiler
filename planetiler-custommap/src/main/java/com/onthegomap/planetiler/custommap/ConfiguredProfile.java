@@ -143,7 +143,7 @@ public class ConfiguredProfile implements Profile {
     return sources;
   }
 
-  private FeatureLayer findFeatureLayer(String layerSearch) throws IndexOutOfBoundsException {
+  public FeatureLayer findFeatureLayer(String layerSearch) throws IndexOutOfBoundsException {
     for (var layer : layers) {
       String layerId = layer.id();
       if (layerId.equals(layerSearch)) {
