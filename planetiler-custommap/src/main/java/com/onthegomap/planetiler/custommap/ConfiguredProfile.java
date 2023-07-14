@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A profile configured from a yml file.
@@ -34,8 +32,6 @@ public class ConfiguredProfile implements Profile {
   private final Map<String, Index<ConfiguredFeature>> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(ConfiguredProfile.class);
 
   public ConfiguredProfile(SchemaConfig schema, Contexts.Root rootContext) {
     this.schema = schema;
@@ -102,26 +98,20 @@ public class ConfiguredProfile implements Profile {
     }
 
     if (featureLayer.postProcess().mergeLineStrings() != null) {
-      int minLength = featureLayer.postProcess().mergeLineStrings().minLength();
-      int tolerance = featureLayer.postProcess().mergeLineStrings().tolerance();
-      int buffer = featureLayer.postProcess().mergeLineStrings().buffer();
-
-      LOGGER.debug("mergeLineStrings() minLength={} tolerance={} buffer={}", minLength, tolerance, buffer);
+      var merge = featureLayer.postProcess().mergeLineStrings();
 
       return FeatureMerge.mergeLineStrings(items,
-        minLength, // after merging, remove lines that are still less than {minLength}px long
-        tolerance, // simplify output linestrings using a {tolerance}px tolerance
-        buffer // remove any detail more than {buffer}px outside the tile boundary
+        merge.minLength(), // after merging, remove lines that are still less than {minLength}px long
+        merge.tolerance(), // simplify output linestrings using a {tolerance}px tolerance
+        merge.buffer() // remove any detail more than {buffer}px outside the tile boundary
       );
     }
 
     if (featureLayer.postProcess().mergeOverlappingPolygons() != null) {
-      int minArea = featureLayer.postProcess().mergeOverlappingPolygons().minArea();
-
-      LOGGER.debug("mergeOverlappingPolygons() minArea={}", minArea);
+      var merge = featureLayer.postProcess().mergeOverlappingPolygons();
 
       return FeatureMerge.mergeOverlappingPolygons(items,
-        minArea // after merging, remove polygons that are still less than {minArea} in square tile pixels
+        merge.minArea() // after merging, remove polygons that are still less than {minArea} in square tile pixels
       );
     }
 
