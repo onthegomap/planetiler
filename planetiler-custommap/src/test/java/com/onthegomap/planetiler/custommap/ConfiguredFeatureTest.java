@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.MergeLineStrings;
+import com.onthegomap.planetiler.custommap.configschema.MergeOverlappingPolygons;
 import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
@@ -1027,7 +1028,25 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testPostProcessInSchema() {
+  void testSchemaEmptyPostProcess() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(null, loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessWithMergeLineStrings() {
     var config = """
       sources:
         osm:
@@ -1053,6 +1072,32 @@ class ConfiguredFeatureTest {
         10
       ),
       null
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessWithMergeOverlappingPolygons() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        post_process:
+          merge_overlapping_polygons:
+            min_area: 3
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      null,
+      new MergeOverlappingPolygons(
+        3
+      )
     ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }
 }
