@@ -143,13 +143,13 @@ public class ConfiguredProfile implements Profile {
     return sources;
   }
 
-  private FeatureLayer findFeatureLayer(String layerSearch) {
+  private FeatureLayer findFeatureLayer(String layerSearch) throws IndexOutOfBoundsException {
     for (var layer : layers) {
       String layerId = layer.id();
-      if (layerId == layerSearch) {
+      if (layerId.equals(layerSearch)) {
         return layer;
       }
     }
-    return null;
+    throw new IndexOutOfBoundsException("Cannot find layer in schema");
   }
 }
