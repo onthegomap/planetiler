@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
@@ -17,6 +18,8 @@ import com.onthegomap.planetiler.custommap.configschema.MergeOverlappingPolygons
 import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
@@ -158,6 +161,89 @@ class ConfiguredFeatureTest {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
+  }
+
+  @Test
+  void testFeaturePostProcessorNoop() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
+  }
+
+  @Test
+  void testFeaturePostProcessorMergeLineStrings() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        post_process:
+          merge_line_strings:
+            min_length: 1
+            tolerance: 5
+            buffer: 10
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
+  }
+
+  @Test
+  void testFeaturePostProcessorMergeOverlappingPolygons() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        post_process:
+          merge_overlapping_polygons:
+            min_area: 3
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
   }
 
   @Test
