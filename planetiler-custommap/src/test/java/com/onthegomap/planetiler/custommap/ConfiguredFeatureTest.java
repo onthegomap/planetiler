@@ -18,8 +18,8 @@ import com.onthegomap.planetiler.custommap.configschema.MergeOverlappingPolygons
 import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
-import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
