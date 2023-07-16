@@ -74,7 +74,7 @@ public class PolyFileReader {
             inRing = false;
           } else {
             // we are in a ring and picking up new coordinates.
-            String[] splitted = line.trim().split("\s+");
+            String[] splitted = line.trim().split("\\s+");
             currentRing.addPoint(Double.parseDouble(splitted[0]), Double.parseDouble(splitted[1]));
           }
         } else {
