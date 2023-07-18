@@ -221,6 +221,7 @@ examples:
   - layer: streets
     geometry: line
     min_zoom: 8
+    min_size: 0
     tags:
       bridge: false
       kind: primary
@@ -262,6 +263,7 @@ examples:
     geometry: line
     min_zoom: 8
     allow_extra_tags: false
+    min_size: 0
     tags:
       bridge: false
       kind: primary
@@ -291,6 +293,7 @@ examples:
     geometry: line
     min_zoom: 8
     allow_extra_tags: false
+    min_size: 0
     tags:
       bridge: false
       kind: rail
@@ -707,6 +710,7 @@ examples:
     layer: boundaries
     geometry: line
     min_zoom: 0
+    min_size: 0
     tags:
       maritime: true
       admin_level: 2
@@ -723,6 +727,7 @@ examples:
     layer: boundaries
     geometry: line
     min_zoom: 7
+    min_size: 0
     tags:
       maritime: false
       admin_level: 4

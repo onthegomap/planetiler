@@ -208,6 +208,7 @@ public class SchemaValidator {
           validate(prefix + ".layer", issues, expected.layer(), actual.getLayer());
           validate(prefix + ".minzoom", issues, expected.minZoom(), actual.getMinZoom());
           validate(prefix + ".maxzoom", issues, expected.maxZoom(), actual.getMaxZoom());
+          validate(prefix + ".minsize", issues, expected.minSize(), actual.getMinPixelSizeAtZoom(expected.atZoom()));
           validate(prefix + ".geometry", issues, expected.geometry(), GeometryType.typeOf(actual.getGeometry()));
           Set<String> tags = new TreeSet<>(actualTags.keySet());
           expected.tags().forEach((tag, value) -> {

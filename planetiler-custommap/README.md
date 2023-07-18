@@ -222,6 +222,8 @@ A feature is a defined set of objects that meet a specified filter criteria.
 - `exclude_when` - A [Boolean Expression](#boolean-expression) which determines if a feature that matched the include
   expression should be skipped. If unspecified, no exclusion filter is applied.
 - `min_zoom` - An [Expression](#expression) that returns the minimum zoom to render this feature at.
+- `min_size` - An [Expression](#expression) that returns the minimum length of line features or square root of the
+  minimum area of polygon features to emit below the maximum zoom-level of the map.
 - `attributes` - An array of [Feature Attribute](#feature-attribute) objects that specify the attributes to be included
   on this output feature.
 
@@ -672,6 +674,8 @@ docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest verify /d
   - `geometry` - Geometry type of the expected output feature.
   - `min_zoom` - Min zoom level that the output feature appears in.
   - `max_zoom` - Max zoom level that the output feature appears in.
+  - `min_size` - Minimum length of line features or square root of the minimum area of polygon features to emit below
+    the maximum zoom-level of the map.
   - `tags` - Attributes expected on the output vector tile feature, or `null` if the attribute should not be set. Use
     `allow_extra_tags: true` to fail if any other tags appear besides the ones specified here.
   - `allow_extra_tags` - If `true`, then fail when extra attributes besides tags appear on the output feature.

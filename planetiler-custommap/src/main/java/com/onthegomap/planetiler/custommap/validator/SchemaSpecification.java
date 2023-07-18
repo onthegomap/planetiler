@@ -55,6 +55,7 @@ public record SchemaSpecification(List<Example> examples) {
     GeometryType geometry,
     @JsonProperty("min_zoom") Integer minZoom,
     @JsonProperty("max_zoom") Integer maxZoom,
+    @JsonProperty("min_size") Double minSize,
     @JsonProperty("at_zoom") Integer atZoom,
     @JsonProperty("allow_extra_tags") Boolean allowExtraTags,
     @JsonProperty("tags") Map<String, Object> tags
