@@ -70,7 +70,7 @@ public class ResourceUsage {
 
   /** Requests {@code amount} bytes on the file system that contains {@code path}. */
   public ResourceUsage addDisk(Path path, long amount, String description) {
-    return add(new DiskUsage(path), amount, description);
+    return path == null ? this : add(new DiskUsage(path), amount, description);
   }
 
   /** Requests {@code amount} bytes of RAM in the JVM heap. */

@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Envelope;
 
@@ -278,5 +279,74 @@ class ArgumentsTest {
     });
     assertEquals("value1", args.getString("key1", ""));
     assertThrows(ExpectedException.class, args::toMap);
+  }
+
+  @Test
+  void testBooleanObject() {
+    Map<String, String> env = Map.of(
+      "BOOL_TRUE", "true",
+      "BOOL_FALSE", "false",
+      "BOOL_NO", "no"
+    );
+    Arguments args = Arguments.of(env);
+    assertNull(args.getBooleanObject("BOOL_NULL", "test"));
+    assertEquals(true, args.getBooleanObject("BOOL_TRUE", "test"));
+    assertEquals(false, args.getBooleanObject("BOOL_FALSE", "test"));
+    assertEquals(false, args.getBooleanObject("BOOL_NO", "test"));
+  }
+
+  @Test
+  void testDeprecatedArgs() {
+    assertEquals("newvalue",
+      Arguments.of("oldkey", "oldvalue", "newkey", "newvalue")
+        .getString("newkey|oldkey", "key", "fallback"));
+    assertEquals("oldvalue",
+      Arguments.of("oldkey", "oldvalue")
+        .getString("newkey|oldkey", "key", "fallback"));
+    assertEquals("fallback",
+      Arguments.of()
+        .getString("newkey|oldkey", "key", "fallback"));
+  }
+
+  @Test
+  void testWithPrefix() {
+    var args = Arguments.of("prefix_a", "a_val", "prefix-b", "b_val", "other", "other_val").withPrefix("prefix");
+    assertEquals("a_val", args.getArg("a"));
+    assertEquals("b_val", args.getArg("b"));
+    assertNull(args.getArg("other"));
+    assertNull(args.getArg("prefix_a"));
+    assertNull(args.getArg("prefix_b"));
+    assertNull(args.getArg("prefix_other"));
+    assertEquals(Set.of("a", "b"), args.toMap().keySet());
+  }
+
+  @Test
+  void testPrefixFromEnvironment() {
+    Map<String, String> env = Map.of(
+      "OTHER", "value",
+      "PLANETILEROTHER", "VALUE",
+      "PLANETILER_MBTILES_KEY1", "value1",
+      "PLANETILER_PMTILES_KEY2", "value2"
+    );
+    Arguments args = Arguments.fromEnvironment(env::get, env::keySet).withPrefix("mbtiles");
+    assertEquals(Map.of(
+      "key1", "value1"
+    ), args.toMap());
+    assertEquals("value1", args.getArg("key1"));
+  }
+
+  @Test
+  void testSubset() {
+    var args = Arguments.of(Map.of(
+      "key_1", "val_1",
+      "key-2", "val_2",
+      "key-3", "val_3"
+    )).subset("key-1", "key-2");
+    assertEquals(Map.of(
+      "key_1", "val_1",
+      "key_2", "val_2"
+    ), args.toMap());
+    assertEquals("val_1", args.getArg("key-1"));
+    assertNull(args.getArg("key-3"));
   }
 }

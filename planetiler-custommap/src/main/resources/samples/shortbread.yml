@@ -8,7 +8,7 @@ args:
     default: massachusetts
   osm_url:
     description: OSM URL to download
-    default: '${ "geofabrik:" + args.area }'
+    default: '${ args.area == "planet" ? "aws:latest" : ("geofabrik:" + args.area) }'
 sources:
   ocean:
     type: shapefile

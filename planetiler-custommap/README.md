@@ -5,9 +5,9 @@ file as the first argument:
 
 ```bash
 # from a java build
-java -jar planetiler.jar schema.yml
+java -jar planetiler.jar generate-custom --schema=schema.yml
 # or with docker (put the schema in data/schema.yml to include in the attached volume)
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest /data/schema.yml
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:latest generate-custom --schema=/data/schema.yml
 ```
 
 Schema files are in [YAML 1.2](https://yaml.org) format and support [anchors and aliases](#anchors-and-aliases) for
@@ -57,7 +57,8 @@ examples: [...]
 A description that tells planetiler how to read geospatial objects with tags from an input file.
 
 - `type` - Enum representing the file format of the data source, one
-  of [`osm`](https://wiki.openstreetmap.org/wiki/PBF_Format) or [`shapefile`](https://en.wikipedia.org/wiki/Shapefile)
+  of [`osm`](https://wiki.openstreetmap.org/wiki/PBF_Format), [`shapefile`](https://en.wikipedia.org/wiki/Shapefile),
+  or [`geopackage`](https://www.geopackage.org/).
 - `local_path` - Local path to the file to use, inferred from `url` if missing. Can be a string
   or [expression](#expression) that can reference [argument values](#arguments).
 - `url` - Location to download the file from if not present at `local_path`.
@@ -150,9 +151,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
 - `minzoom` - Minimum tile zoom level to emit
 - `maxzoom` - Maximum tile zoom level to emit
 - `render_maxzoom` - Maximum rendering zoom level up to
-- `skip_mbtiles_index_creation` - Skip adding index to mbtiles file
-- `optimize_db` - Vacuum analyze mbtiles file after writing
-- `emit_tiles_in_order` - Emit vector tiles in index order
 - `force` - Overwriting output file and ignore warnings
 - `gzip_temp` - Gzip temporary feature storage (uses more CPU, but less disk space)
 - `mmap_temp` - Use memory-mapped IO for temp feature files
@@ -175,7 +173,6 @@ cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.proper
   maximum zoom level to allow for overzooming
 - `simplify_tolerance` - Default value for the tile pixel tolerance to use when simplifying features below the maximum
   zoom level
-- `compact_db` - Reduce the DB size by separating and deduping the tile data
 - `skip_filled_tiles` - Skip writing tiles containing only polygon fills to the output
 - `tile_warning_size_mb` - Maximum size in megabytes of a tile to emit a warning about
 

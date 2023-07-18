@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -22,6 +23,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -264,6 +266,20 @@ public class GeoUtils {
     }
   }
 
+  /**
+   * More aggressive fix for self-intersections than {@link #fixPolygon(Geometry)} that expands then contracts the shape
+   * by {@code buffer}.
+   *
+   * @throws GeometryException if a robustness error occurred
+   */
+  public static Geometry fixPolygon(Geometry geom, double buffer) throws GeometryException {
+    try {
+      return geom.buffer(buffer).buffer(-buffer);
+    } catch (TopologyException e) {
+      throw new GeometryException("fix_polygon_buffer_topology_error", "robustness error fixing polygon: " + e);
+    }
+  }
+
   public static Geometry combineLineStrings(List<LineString> lineStrings) {
     return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
   }
@@ -280,8 +296,8 @@ public class GeoUtils {
    * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
-  public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISION);
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage) throws GeometryException {
+    return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
   }
 
   /**
@@ -290,21 +306,29 @@ public class GeoUtils {
    *
    * @throws GeometryException if an unrecoverable robustness exception prevents us from fixing the geometry
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
+  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
+    throws GeometryException {
     try {
+      if (!geom.isValid()) {
+        geom = fixPolygon(geom);
+        stats.dataError(stage + "_snap_fix_input");
+      }
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-    } catch (IllegalArgumentException e) {
+    } catch (TopologyException | IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
-      geom = fixPolygon(geom);
+      geom = GeometryFixer.fix(geom);
+      stats.dataError(stage + "_snap_fix_input2");
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-      } catch (IllegalArgumentException e2) {
-        // give it one last try, just in case
-        geom = fixPolygon(geom);
+      } catch (TopologyException | IllegalArgumentException e2) {
+        // give it one last try but with more aggressive fixing, just in case (see issue #511)
+        geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
+        stats.dataError(stage + "_snap_fix_input3");
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-        } catch (IllegalArgumentException e3) {
+        } catch (TopologyException | IllegalArgumentException e3) {
+          stats.dataError(stage + "_snap_fix_input3_failed");
           throw new GeometryException("snap_third_time_failed", "Error reducing precision");
         }
       }
@@ -403,22 +427,16 @@ public class GeoUtils {
     return JTS_FACTORY.createPolygon(exteriorRing, rings.toArray(LinearRing[]::new));
   }
 
-
-  /**
-   * Returns {@code false} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
-   * {@code ring}, ignoring repeated and collinear points.
-   */
-  public static boolean isConvex(LinearRing ring) {
-    return !isConcave(ring);
-  }
-
   /**
    * Returns {@code true} if the signed area of the triangle formed by 3 sequential points changes sign anywhere along
    * {@code ring}, ignoring repeated and collinear points.
    */
-  public static boolean isConcave(LinearRing ring) {
+  public static boolean isConvex(LinearRing ring) {
+    double threshold = 1e-3;
+    double minPointsToCheck = 10;
     CoordinateSequence seq = ring.getCoordinateSequence();
-    if (seq.size() <= 3) {
+    int size = seq.size();
+    if (size <= 3) {
       return false;
     }
 
@@ -427,7 +445,7 @@ public class GeoUtils {
     double c0y = seq.getY(0);
     double c1x = Double.NaN, c1y = Double.NaN;
     int i;
-    for (i = 1; i < seq.size(); i++) {
+    for (i = 1; i < size; i++) {
       c1x = seq.getX(i);
       c1y = seq.getY(i);
       if (c1x != c0x || c1y != c0y) {
@@ -438,29 +456,39 @@ public class GeoUtils {
     double dx1 = c1x - c0x;
     double dy1 = c1y - c0y;
 
-    int sign = 0;
+    double negZ = 1e-20, posZ = 1e-20;
 
-    for (; i < seq.size(); i++) {
-      double c2x = seq.getX(i);
-      double c2y = seq.getY(i);
+    // need to wrap around to make sure the triangle formed by last and first points does not change sign
+    for (; i <= size + 1; i++) {
+      // first and last point should be the same, so skip index 0
+      int idx = i < size ? i : (i + 1 - size);
+      double c2x = seq.getX(idx);
+      double c2y = seq.getY(idx);
 
       double dx2 = c2x - c1x;
       double dy2 = c2y - c1y;
       double z = dx1 * dy2 - dy1 * dx2;
 
-      // if z == 0 (with small delta to account for rounding errors) then keep skipping
-      // points to ignore repeated or collinear points
-      if (Math.abs(z) < 1e-10) {
-        continue;
+      double absZ = Math.abs(z);
+
+      // look for sign changes in the triangles formed by sequential points
+      // but, we want to allow for rounding errors and small concavities relative to the overall shape
+      // so track the largest positive and negative threshold for triangle area and compare them once we
+      // have enough points
+      boolean extendedBounds = false;
+      if (z < 0 && absZ > negZ) {
+        negZ = absZ;
+        extendedBounds = true;
+      } else if (z > 0 && absZ > posZ) {
+        posZ = absZ;
+        extendedBounds = true;
       }
 
-      int s = z >= 0d ? 1 : -1;
-      if (sign == 0) {
-        // on the first non-repeated, non-collinear points, store sign of the area for comparison
-        sign = s;
-      } else if (sign != s) {
-        // the sign of this triangle has changed, not convex
-        return false;
+      if (i == minPointsToCheck || (i > minPointsToCheck && extendedBounds)) {
+        double ratio = negZ < posZ ? negZ / posZ : posZ / negZ;
+        if (ratio > threshold) {
+          return false;
+        }
       }
 
       c1x = c2x;
@@ -468,7 +496,7 @@ public class GeoUtils {
       dx1 = dx2;
       dy1 = dy2;
     }
-    return true;
+    return (negZ < posZ ? negZ / posZ : posZ / negZ) < threshold;
   }
 
   /**

@@ -59,16 +59,19 @@ public class Verify {
   public static int getNumFeatures(Mbtiles db, String layer, int zoom, Map<String, Object> attrs, Envelope envelope,
     Class<? extends Geometry> clazz) throws GeometryException {
     int num = 0;
-    for (var tileCoord : db.getAllTileCoords()) {
-      Envelope tileEnv = new Envelope();
-      tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMinX(), envelope.getMinY()));
-      tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMaxX(), envelope.getMaxY()));
-      if (tileCoord.z() == zoom) {
-        byte[] data = db.getTile(tileCoord);
-        for (var feature : decode(data)) {
-          if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
-            Geometry geometry = feature.geometry().decode();
-            num += getGeometryCounts(geometry, clazz);
+    try (var tileCoords = db.getAllTileCoords()) {
+      while (tileCoords.hasNext()) {
+        var tileCoord = tileCoords.next();
+        Envelope tileEnv = new Envelope();
+        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMinX(), envelope.getMinY()));
+        tileEnv.expandToInclude(tileCoord.lngLatToTileCoords(envelope.getMaxX(), envelope.getMaxY()));
+        if (tileCoord.z() == zoom) {
+          byte[] data = db.getTile(tileCoord);
+          for (var feature : decode(data)) {
+            if (layer.equals(feature.layer()) && feature.attrs().entrySet().containsAll(attrs.entrySet())) {
+              Geometry geometry = feature.geometry().decode();
+              num += getGeometryCounts(geometry, clazz);
+            }
           }
         }
       }
@@ -186,8 +189,8 @@ public class Verify {
   }
 
   private void checkBasicStructure() {
-    check("contains name attribute", () -> mbtiles.metadata().getAll().containsKey("name"));
-    check("contains at least one tile", () -> !mbtiles.getAllTileCoords().isEmpty());
+    check("contains name attribute", () -> mbtiles.metadata().toMap().containsKey("name"));
+    check("contains at least one tile", () -> mbtiles.getAllTileCoords().stream().findAny().isPresent());
     checkWithMessage("all tiles are valid", () -> {
       List<String> invalidTiles = mbtiles.getAllTileCoords().stream()
         .flatMap(coord -> checkValidity(coord, decode(mbtiles.getTile(coord))).stream())

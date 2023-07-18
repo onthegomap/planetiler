@@ -40,7 +40,8 @@
             "description": "File format of the data source",
             "enum": [
               "osm",
-              "shapefile"
+              "shapefile",
+              "geopackage"
             ]
           },
           "url": {
@@ -136,39 +137,6 @@
         },
         "render_maxzoom": {
           "description": "Maximum rendering zoom level up to"
-        },
-        "skip_mbtiles_index_creation": {
-          "description": "Skip adding index to mbtiles file",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
-        "optimize_db": {
-          "description": "Vacuum analyze mbtiles file after writing",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        },
-        "emit_tiles_in_order": {
-          "description": "Emit vector tiles in index order",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
         },
         "force": {
           "description": "Overwriting output file and ignore warnings",
@@ -289,6 +257,9 @@
         "download_threads": {
           "description": "Number of parallel threads to use when downloading each file"
         },
+        "download_max_bandwidth": {
+          "description": "Maximum bandwidth to consume when downloading files in units mb/s, mbps, kbps, etc."
+        },
         "min_feature_size_at_max_zoom": {
           "description": "Default value for the minimum size in tile pixels of features to emit at the maximum zoom level to allow for overzooming"
         },
@@ -300,17 +271,6 @@
         },
         "simplify_tolerance": {
           "description": "Default value for the tile pixel tolerance to use when simplifying features below the maximum zoom level"
-        },
-        "compact_db": {
-          "description": "Reduce the DB size by separating and deduping the tile data",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "boolean"
-            }
-          ]
         },
         "skip_filled_tiles": {
           "description": "Skip writing tiles containing only polygon fills to the output",

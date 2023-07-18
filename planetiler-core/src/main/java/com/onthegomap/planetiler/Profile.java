@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * (i.e. one per layer) and forwarding each element/event to the handlers that care about it.
  */
 public interface Profile {
-  // TODO might want to break this apart into sub-interfaces that ForwardingProfile (and MbtilesMetadata) can use too
+  // TODO might want to break this apart into sub-interfaces that ForwardingProfile (and TileArchiveMetadata) can use too
 
   /**
    * Allows profile to extract any information it needs from a {@link OsmElement.Node} during the first pass through OSM

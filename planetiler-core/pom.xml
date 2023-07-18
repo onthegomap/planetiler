@@ -16,10 +16,11 @@
   </parent>
 
   <properties>
-    <geotools.version>28.0</geotools.version>
-    <log4j.version>2.19.0</log4j.version>
+    <geotools.version>29.1</geotools.version>
+    <log4j.version>2.20.0</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.21.12</protobuf.version>
+    <protobuf.version>3.23.4</protobuf.version>
+    <geopackage.version>6.6.1</geopackage.version>
   </properties>
 
   <dependencies>
@@ -31,7 +32,7 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
-      <version>0.9.36</version>
+      <version>0.9.45</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -41,7 +42,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
-      <version>2.2.13</version>
+      <version>2.2.14</version>
     </dependency>
     <dependency>
       <groupId>org.locationtech.jts</groupId>
@@ -61,17 +62,17 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.40.0.0</version>
+      <version>3.42.0.0</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>
       <artifactId>msgpack-core</artifactId>
-      <version>0.9.3</version>
+      <version>0.9.4</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.6</version>
+      <version>2.0.7</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -131,12 +132,17 @@
     <dependency>
       <groupId>com.ibm.icu</groupId>
       <artifactId>icu4j</artifactId>
-      <version>72.1</version>
+      <version>73.2</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>31.1-jre</version>
+      <version>32.1.1-jre</version>
+    </dependency>
+    <dependency>
+      <groupId>mil.nga.geopackage</groupId>
+      <artifactId>geopackage</artifactId>
+      <version>${geopackage.version}</version>
     </dependency>
   </dependencies>
 
@@ -189,9 +195,6 @@
     <plugins>
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <artifactId>maven-source-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>io.github.zlika</groupId>

@@ -52,7 +52,12 @@ public class TileExtents implements Predicate<TileCoord> {
 
       if (mercator != null) {
         Geometry scaled = AffineTransformation.scaleInstance(1 << zoom, 1 << zoom).transform(mercator);
-        TiledGeometry.CoveredTiles covered = TiledGeometry.getCoveredTiles(scaled, zoom, forZoom);
+        TiledGeometry.CoveredTiles covered;
+        try {
+          covered = TiledGeometry.getCoveredTiles(scaled, zoom, forZoom);
+        } catch (GeometryException e) {
+          throw new IllegalArgumentException("Invalid geometry: " + scaled);
+        }
         forZoom = forZoom.withShape(covered);
         LOGGER.info("prepareShapeForZoom z{} {}", zoom, covered);
       }

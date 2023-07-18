@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.VectorTile;
+import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.util.List;
@@ -44,8 +45,8 @@ class VerifyTest {
   @Test
   void testValidWithNameAndOneTile() throws IOException {
     mbtiles.createTablesWithIndexes();
-    mbtiles.metadata().setName("name");
-    try (var writer = mbtiles.newBatchedTileWriter()) {
+    mbtiles.metadataTable().setMetadata("name", "name");
+    try (var writer = mbtiles.newTileWriter()) {
       VectorTile tile = new VectorTile();
       tile.addLayerFeatures("layer", List.of(new VectorTile.Feature(
         "layer",
@@ -61,8 +62,8 @@ class VerifyTest {
   @Test
   void testInvalidGeometry() throws IOException {
     mbtiles.createTablesWithIndexes();
-    mbtiles.metadata().setName("name");
-    try (var writer = mbtiles.newBatchedTileWriter()) {
+    mbtiles.metadataTable().setMetadata("name", "name");
+    try (var writer = mbtiles.newTileWriter()) {
       VectorTile tile = new VectorTile();
       tile.addLayerFeatures("layer", List.of(new VectorTile.Feature(
         "layer",

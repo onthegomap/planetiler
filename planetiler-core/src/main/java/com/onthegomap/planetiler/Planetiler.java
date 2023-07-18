@@ -1,12 +1,16 @@
 package com.onthegomap.planetiler;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileArchives;
+import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.MbtilesMetadata;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.mbtiles.MbtilesWriter;
+import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
@@ -15,6 +19,8 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
+import com.onthegomap.planetiler.util.AnsiColors;
+import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.Downloader;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -29,11 +35,8 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +86,7 @@ public class Planetiler {
   private final PlanetilerConfig config;
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
-  private Path output;
+  private TileArchiveConfig output;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -96,12 +99,16 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
+  private TileArchiveMetadata tileArchiveMetadata;
 
   private Planetiler(Arguments arguments) {
     this.arguments = arguments;
     stats = arguments.getStats();
     overallTimer = stats.startStageQuietly("overall");
     config = PlanetilerConfig.from(arguments);
+    if (config.color() != null) {
+      AnsiColors.setUseColors(config.color());
+    }
     tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
@@ -145,8 +152,8 @@ public class Planetiler {
    *
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name_path} argument is not set
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set. As a shortcut, can use "geofabrik:monaco" or
    *                    "geofabrik:australia" shorthand to find an extract by name from
    *                    <a href="https://download.geofabrik.de/">Geofabrik download site</a> or "aws:latest" to download
    *                    the latest {@code planet.osm.pbf} file from <a href="https://registry.opendata.aws/osm/">AWS
@@ -176,6 +183,12 @@ public class Planetiler {
         name + "_pass2: Process OpenStreetMap nodes, ways, then relations"
       ),
       ifSourceUsed(name, () -> {
+        var header = osmInputFile.getHeader();
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationtime", header.instant());
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationseq",
+          header.osmosisReplicationSequenceNumber());
+        tileArchiveMetadata.setExtraMetadata("planetiler:" + name + ":osmosisreplicationurl",
+          header.osmosisReplicationBaseUrl());
         try (
           var nodeLocations =
             LongLongMap.from(config.nodeMapType(), config.nodeMapStorage(), nodeDbPath, config.nodeMapMadvise());
@@ -242,8 +255,8 @@ public class Planetiler {
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
    *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    * @see Downloader
@@ -253,46 +266,51 @@ public class Planetiler {
   }
 
   /**
-   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
-   * {@param globPattern} using an explicit projection.
+   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
+   * {@param globPattern}. {@param basePath} may be a directory or ZIP archive.
+   *
+   * @param sourceName  string to use in stats and logs to identify this stage
+   * @param basePath    path to the directory containing shapefiles to process
+   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @return this runner instance for chaining
+   * @see ShapefileReader
+   */
+  public Planetiler addShapefileGlobSource(String sourceName, Path basePath, String globPattern) {
+    return addShapefileGlobSource(null, sourceName, basePath, globPattern, null);
+  }
+
+  /**
+   * Adds a new ESRI shapefile glob source that will process all files under {@param basePath} matching
+   * {@param globPattern} using an explicit projection. {@param basePath} may be a directory or ZIP archive.
+   * <p>
+   * If {@param globPattern} matches a ZIP archive, all files ending in {@code .shp} within the archive will be used for
+   * this source.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
    *
    * @param projection  the Coordinate Reference System authority code to use, parsed with
    *                    {@link org.geotools.referencing.CRS#decode(String)}
    * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory containing shapefiles to process
+   * @param basePath    path to the directory or zip file containing shapefiles to process
    * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    */
-  public Planetiler addShapefileDirectorySource(String projection, String sourceName, Path basePath,
-    String globPattern) {
-    Path dirPath = getPath(sourceName, "shapefile directory", basePath, null);
-    PathMatcher matcher = dirPath.getFileSystem().getPathMatcher("glob:" + globPattern);
+  public Planetiler addShapefileGlobSource(String projection, String sourceName, Path basePath,
+    String globPattern, String defaultUrl) {
+    Path dirPath = getPath(sourceName, "shapefile glob", basePath, defaultUrl);
 
     return addStage(sourceName, "Process all files matching " + dirPath + "/" + globPattern,
       ifSourceUsed(sourceName, () -> {
-        try (
-          var walk = Files.walk(dirPath);
-          var sourcePaths = walk.filter(path -> matcher.matches(path.getFileName()))
-        ) {
-          ShapefileReader.processWithProjection(projection, sourceName, sourcePaths.toList(), featureGroup, config,
-            profile, stats);
-        }
+        var sourcePaths = FileUtils.walkPathWithPattern(basePath, globPattern,
+          zipPath -> FileUtils.walkPathWithPattern(zipPath, "*.shp"));
+        ShapefileReader.processWithProjection(projection, sourceName, sourcePaths, featureGroup, config,
+          profile, stats);
       }));
-  }
-
-  /**
-   * Adds a new ESRI shapefile directory source that will process all files under {@param basePath} matching
-   * {@param globPattern}.
-   *
-   * @param sourceName  string to use in stats and logs to identify this stage
-   * @param basePath    path to the directory containing shapefiles to process
-   * @param globPattern string to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
-   * @return this runner instance for chaining
-   * @see ShapefileReader
-   */
-  public Planetiler addShapefileDirectorySource(String sourceName, Path basePath, String globPattern) {
-    return addShapefileDirectorySource(null, sourceName, basePath, globPattern);
   }
 
 
@@ -311,8 +329,8 @@ public class Planetiler {
    * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments. Can be a
    *                    {@code .shp} file with other shapefile components in the same directory, or a {@code .zip} file
    *                    containing the shapefile components.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see ShapefileReader
    * @see Downloader
@@ -320,9 +338,80 @@ public class Planetiler {
   public Planetiler addShapefileSource(String projection, String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "shapefile", defaultPath, defaultUrl);
     return addStage(name, "Process features in " + path,
-      ifSourceUsed(name,
-        () -> ShapefileReader.processWithProjection(projection, name, List.of(path), featureGroup, config, profile,
-          stats)));
+      ifSourceUsed(name, () -> {
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip") || Files.isDirectory(path)) {
+          sourcePaths = FileUtils.walkPathWithPattern(path, "*.shp");
+        }
+
+        ShapefileReader.processWithProjection(projection, name, sourcePaths, featureGroup, config, profile, stats);
+      }));
+  }
+
+  /**
+   * Adds a new OGC GeoPackage source that will be processed when {@link #run()} is called.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
+   * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
+   * override the download URL set {@code name_url=http://url/of/file.gpkg}.
+   * <p>
+   * If given a path to a ZIP file containing one or more GeoPackages, each {@code .gpkg} file within will be extracted
+   * to a temporary directory at runtime.
+   *
+   * @param projection  the Coordinate Reference System authority code to use, parsed with
+   *                    {@link org.geotools.referencing.CRS#decode(String)}
+   * @param name        string to use in stats and logs to identify this stage
+   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   * @see Downloader
+   */
+  public Planetiler addGeoPackageSource(String projection, String name, Path defaultPath, String defaultUrl) {
+    Path path = getPath(name, "geopackage", defaultPath, defaultUrl);
+    boolean keepUnzipped = getKeepUnzipped(name);
+    return addStage(name, "Process features in " + path,
+      ifSourceUsed(name, () -> {
+        List<Path> sourcePaths = List.of(path);
+        if (FileUtils.hasExtension(path, "zip")) {
+          sourcePaths = FileUtils.walkPathWithPattern(path, "*.gpkg");
+        }
+
+        if (sourcePaths.isEmpty()) {
+          throw new IllegalArgumentException("No .gpkg files found in " + path);
+        }
+
+        GeoPackageReader.process(projection, name, sourcePaths,
+          keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup, config, profile,
+          stats, keepUnzipped);
+      }));
+  }
+
+  /**
+   * Adds a new OGC GeoPackage source that will be processed when {@link #run()} is called.
+   * <p>
+   * If the file does not exist and {@code download=true} argument is set, then the file will first be downloaded from
+   * {@code defaultUrl}.
+   * <p>
+   * To override the location of the {@code geopackage} file, set {@code name_path=newpath.gpkg} in the arguments and to
+   * override the download URL set {@code name_url=http://url/of/file.gpkg}.
+   * <p>
+   * If given a path to a ZIP file containing one or more GeoPackages, each {@code .gpkg} file within will be extracted
+   * to a temporary directory at runtime.
+   *
+   * @param name        string to use in stats and logs to identify this stage
+   * @param defaultPath path to the input file to use if {@code name_path} key is not set through arguments
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
+   * @return this runner instance for chaining
+   * @see GeoPackageReader
+   * @see Downloader
+   */
+  public Planetiler addGeoPackageSource(String name, Path defaultPath, String defaultUrl) {
+    return addGeoPackageSource(null, name, defaultPath, defaultUrl);
   }
 
   /**
@@ -336,7 +425,9 @@ public class Planetiler {
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
    * @return this runner instance for chaining
    * @see NaturalEarthReader
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    */
+  @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath) {
     return addNaturalEarthSource(name, defaultPath, null);
   }
@@ -353,16 +444,20 @@ public class Planetiler {
    * @param name        string to use in stats and logs to identify this stage
    * @param defaultPath path to the input file to use if {@code name} key is not set through arguments. Can be the
    *                    {@code .sqlite} file or a {@code .zip} file containing the sqlite file.
-   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and {@code
-   *                    name_url} argument is not set
+   * @param defaultUrl  remote URL that the file to download if {@code download=true} argument is set and
+   *                    {@code name_url} argument is not set
    * @return this runner instance for chaining
    * @see NaturalEarthReader
    * @see Downloader
+   * @deprecated can be replaced by {@link #addGeoPackageSource(String, Path, String)}.
    */
+  @Deprecated(forRemoval = true)
   public Planetiler addNaturalEarthSource(String name, Path defaultPath, String defaultUrl) {
     Path path = getPath(name, "sqlite db", defaultPath, defaultUrl);
+    boolean keepUnzipped = getKeepUnzipped(name);
     return addStage(name, "Process features in " + path, ifSourceUsed(name, () -> NaturalEarthReader
-      .process(name, path, tmpDir.resolve("natearth.sqlite"), featureGroup, config, profile, stats)));
+      .process(name, path, keepUnzipped ? path.resolveSibling(path.getFileName() + "-unzipped") : tmpDir, featureGroup,
+        config, profile, stats, keepUnzipped)));
   }
 
   /**
@@ -434,6 +529,11 @@ public class Planetiler {
     return this;
   }
 
+  private boolean getKeepUnzipped(String name) {
+    return arguments.getBoolean(name + "_keep_unzipped",
+      "keep unzipped " + name + " after reading", config.keepUnzippedSources());
+  }
+
   /** Sets the profile implementation that controls how source feature map to output map elements. */
   public Planetiler setProfile(Profile profile) {
     this.profile = profile;
@@ -451,46 +551,84 @@ public class Planetiler {
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Fails if the file already exists.
-   * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * Sets the location of the output archive to write rendered tiles to.
    *
-   * @param argument the argument key to check for an override to {@code fallback}
-   * @param fallback the fallback value if {@code argument} is not set in arguments
-   * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @deprecated Use {@link #setOutput(String)} instead
    */
+  @Deprecated(forRemoval = true)
   public Planetiler setOutput(String argument, Path fallback) {
-    this.output = arguments.file(argument, "mbtiles output file", fallback);
+    this.output =
+      TileArchiveConfig
+        .from(arguments.getString("output|" + argument, "output tile archive path", fallback.toString()));
     return this;
   }
 
   /**
-   * Sets the location of the output {@code .mbtiles} file to write rendered tiles to. Overwrites file if it already
-   * exists.
+   * Sets the location of the output archive to write rendered tiles to. Fails if the archive already exists.
    * <p>
-   * To override the location of the file, set {@code argument=newpath.mbtiles} in the arguments.
+   * To override the location of the file, set {@code argument=newpath} in the arguments. To set options for the output
+   * drive add {@code output.mbtiles?arg=value} or add command-line argument {@code mbtiles_arg=value}.
    *
-   * @param argument the argument key to check for an override to {@code fallback}
-   * @param fallback the fallback value if {@code argument} is not set in arguments
+   * @param defaultOutputUri The default output URI string to write to.
    * @return this runner instance for chaining
-   * @see MbtilesWriter
+   * @see TileArchiveConfig For details on URI string formats and options.
    */
+  public Planetiler setOutput(String defaultOutputUri) {
+    this.output = TileArchiveConfig.from(arguments.getString("output", "output tile archive URI", defaultOutputUri));
+    return this;
+  }
+
+  /** Alias for {@link #setOutput(String)} which infers the output type based on extension. */
+  public Planetiler setOutput(Path path) {
+    return setOutput(path.toString());
+  }
+
+  /**
+   * Sets the location of the output archive to write rendered tiles to.
+   *
+   * @deprecated Use {@link #overwriteOutput(String)} instead
+   */
+  @Deprecated(forRemoval = true)
   public Planetiler overwriteOutput(String argument, Path fallback) {
     this.overwrite = true;
     return setOutput(argument, fallback);
   }
 
   /**
+   * Sets the location of the output archive to write rendered tiles to. Overwrites if the archive already exists.
+   * <p>
+   * To override the location of the file, set {@code argument=newpath} in the arguments. To set options for the output
+   * drive add {@code output.mbtiles?arg=value} or add command-line argument {@code mbtiles_arg=value}.
+   *
+   * @param defaultOutputUri The default output URI string to write to.
+   * @return this runner instance for chaining
+   * @see TileArchiveConfig For details on URI string formats and options.
+   */
+  public Planetiler overwriteOutput(String defaultOutputUri) {
+    this.overwrite = true;
+    return setOutput(defaultOutputUri);
+  }
+
+  /** Alias for {@link #overwriteOutput(String)} which infers the output type based on extension. */
+  public Planetiler overwriteOutput(Path defaultOutput) {
+    return overwriteOutput(defaultOutput.toString());
+  }
+
+  /**
    * Reads all elements from all sourced that have been added, generates map features according to the profile, and
-   * writes the rendered tiles to the output mbtiles file.
+   * writes the rendered tiles to the output archive.
    *
    * @throws IllegalArgumentException if expected inputs have not been provided
    * @throws Exception                if an error occurs while processing
    */
   public void run() throws Exception {
     var showVersion = arguments.getBoolean("version", "show version then exit", false);
-    printVersionInfoFromManifest();
+    var buildInfo = BuildInfo.get();
+    if (buildInfo != null && LOGGER.isInfoEnabled()) {
+      LOGGER.info("Planetiler build git hash: {}", buildInfo.githash());
+      LOGGER.info("Planetiler build version: {}", buildInfo.version());
+      LOGGER.info("Planetiler build timestamp: {}", buildInfo.buildTimeString());
+    }
     if (showVersion) {
       System.exit(0);
     }
@@ -507,19 +645,18 @@ public class Planetiler {
       throw new IllegalArgumentException("Can only run once");
     }
     ran = true;
-    MbtilesMetadata mbtilesMetadata = new MbtilesMetadata(profile, config.arguments());
 
     if (arguments.getBoolean("help", "show arguments then exit", false)) {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
     } else if (overwrite || config.force()) {
-      FileUtils.deleteFile(output);
-    } else if (Files.exists(output)) {
-      throw new IllegalArgumentException(output + " already exists, use the --force argument to overwrite.");
+      output.delete();
+    } else if (output.exists()) {
+      throw new IllegalArgumentException(output.uri() + " already exists, use the --force argument to overwrite.");
     }
 
-    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output);
+    LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
 
     if (!toDownload.isEmpty()) {
       LOGGER.info("  download: Download sources {}", toDownload.stream().map(d -> d.id).toList());
@@ -536,13 +673,13 @@ public class Planetiler {
         }
       }
       LOGGER.info("  sort: Sort rendered features by tile ID");
-      LOGGER.info("  mbtiles: Encode each tile and write to {}", output);
+      LOGGER.info("  archive: Encode each tile and write to {}", output);
     }
 
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
     Files.createDirectories(tmpDir);
-    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output);
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalPath());
 
     if (!toDownload.isEmpty()) {
       download();
@@ -568,50 +705,42 @@ public class Planetiler {
       }
       bounds.addFallbackProvider(new OsmNodeBoundsProvider(osmInputFile, config, stats));
     }
+    // must construct this after bounds providers are added in order to infer bounds from the input source if not provided
+    tileArchiveMetadata = new TileArchiveMetadata(profile, config);
 
-    featureGroup = FeatureGroup.newDiskBackedFeatureGroup(featureDbPath, profile, config, stats);
-    stats.monitorFile("nodes", nodeDbPath);
-    stats.monitorFile("features", featureDbPath);
-    stats.monitorFile("multipolygons", multipolygonPath);
-    stats.monitorFile("mbtiles", output);
+    try (WriteableTileArchive archive = TileArchives.newWriter(output, config)) {
+      featureGroup =
+        FeatureGroup.newDiskBackedFeatureGroup(archive.tileOrder(), featureDbPath, profile, config, stats);
+      stats.monitorFile("nodes", nodeDbPath);
+      stats.monitorFile("features", featureDbPath);
+      stats.monitorFile("multipolygons", multipolygonPath);
+      stats.monitorFile("archive", output.getLocalPath());
 
-    for (Stage stage : stages) {
-      stage.task.run();
-    }
-
-    LOGGER.info("Deleting node.db to make room for output file");
-    profile.release();
-    for (var inputPath : inputPaths) {
-      if (inputPath.freeAfterReading()) {
-        LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
-        FileUtils.delete(inputPath.path());
+      for (Stage stage : stages) {
+        stage.task.run();
       }
+
+      LOGGER.info("Deleting node.db to make room for output file");
+      profile.release();
+      for (var inputPath : inputPaths) {
+        if (inputPath.freeAfterReading()) {
+          LOGGER.info("Deleting {} ({}) to make room for output file", inputPath.id, inputPath.path);
+          FileUtils.delete(inputPath.path());
+        }
+      }
+
+      featureGroup.prepare();
+
+      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata,
+        config, stats);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to write to " + output, e);
     }
-
-    featureGroup.prepare();
-
-    MbtilesWriter.writeOutput(featureGroup, output, mbtilesMetadata, config, stats);
 
     overallTimer.stop();
     LOGGER.info("FINISHED!");
     stats.printSummary();
     stats.close();
-  }
-
-  public static void printVersionInfoFromManifest() {
-    try (var properties = Planetiler.class.getResourceAsStream("/buildinfo.properties")) {
-      var parsed = new Properties();
-      parsed.load(properties);
-      LOGGER.info("Planetiler build git hash: {}", parsed.getProperty("githash"));
-      LOGGER.info("Planetiler build version: {}", parsed.getProperty("version"));
-      var epochMs = parsed.getProperty("timestamp");
-      if (epochMs != null && !epochMs.isBlank() && epochMs.matches("^\\d+$")) {
-        var time = Instant.ofEpochMilli(Long.parseLong(epochMs));
-        LOGGER.info("Planetiler build timestamp: {}", time);
-      }
-    } catch (IOException e) {
-      LOGGER.error("Error getting build properties");
-    }
   }
 
   private void checkDiskSpace() {
@@ -632,7 +761,7 @@ public class Planetiler {
     readPhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     writePhase.addDisk(featureDbPath, featureSize, "temporary feature storage");
     // output only needed during write phase
-    writePhase.addDisk(output, outputSize, "mbtiles output");
+    writePhase.addDisk(output.getLocalPath(), outputSize, "archive output");
     // if the user opts to remove an input source after reading to free up additional space for the output...
     for (var input : inputPaths) {
       if (input.freeAfterReading()) {

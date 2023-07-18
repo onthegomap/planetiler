@@ -3,14 +3,20 @@ package com.onthegomap.planetiler.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
@@ -22,6 +28,7 @@ import org.slf4j.LoggerFactory;
  * Convenience methods for working with files on disk.
  */
 public class FileUtils {
+
   private static final Format FORMAT = Format.defaultInstance();
   // Prevent zip-bomb attack, see https://rules.sonarsource.com/java/RSPEC-5042
   private static final int ZIP_THRESHOLD_ENTRIES = 10_000;
@@ -43,6 +50,61 @@ public class FileUtils {
           return Stream.empty();
         }
       });
+  }
+
+  /**
+   * Returns list of paths matching {@param pattern} within {@param basePath}.
+   * <p>
+   * If {@param basePath} is a directory, then {@param walkZipFile} will be invoked for each matching {@code .zip} file
+   * found. This function should return paths of interest within the zip file.
+   *
+   * @param basePath    file path to recursively walk, either a directory or ZIP archive.
+   * @param pattern     pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   * @param walkZipFile callback function to recurse into matching {@code .zip} files.
+   */
+  public static List<Path> walkPathWithPattern(Path basePath, String pattern,
+    Function<Path, List<Path>> walkZipFile) {
+    PathMatcher matcher = basePath.getFileSystem().getPathMatcher("glob:" + pattern);
+
+    try {
+      if (FileUtils.hasExtension(basePath, "zip")) {
+        try (
+          var zipFs = FileSystems.newFileSystem(basePath);
+          var walkStream = FileUtils.walkFileSystem(zipFs)
+        ) {
+          return walkStream
+            .filter(p -> p.getFileName() != null && matcher.matches(p.getFileName()))
+            .toList();
+        }
+      } else if (Files.isDirectory(basePath)) {
+        try (var walk = Files.walk(basePath)) {
+          return walk
+            .filter(path -> matcher.matches(path.getFileName()))
+            .flatMap(path -> {
+              if (FileUtils.hasExtension(path, "zip")) {
+                return walkZipFile.apply(path).stream();
+              } else {
+                return Stream.of(path);
+              }
+            })
+            .toList();
+        }
+      } else {
+        throw new IllegalArgumentException("No files matching " + basePath + "/" + pattern);
+      }
+    } catch (IOException exc) {
+      throw new UncheckedIOException(exc);
+    }
+  }
+
+  /**
+   * Returns list of paths matching {@param pattern} within {@param basePath}.
+   *
+   * @param basePath file path to recursively walk, either a directory or ZIP archive.
+   * @param pattern  pattern to match filenames against, as described in {@link FileSystem#getPathMatcher(String)}.
+   */
+  public static List<Path> walkPathWithPattern(Path basePath, String pattern) {
+    return walkPathWithPattern(basePath, pattern, zipPath -> List.of(zipPath));
   }
 
   /** Returns true if {@code path} ends with ".extension" (case-insensitive). */
@@ -157,17 +219,19 @@ public class FileUtils {
    */
   public static void createParentDirectories(Path... paths) {
     for (var path : paths) {
-      try {
-        if (Files.isDirectory(path) && !Files.exists(path)) {
-          Files.createDirectories(path);
-        } else {
-          Path parent = path.getParent();
-          if (parent != null && !Files.exists(parent)) {
-            Files.createDirectories(parent);
+      if (path != null) {
+        try {
+          if (Files.isDirectory(path) && !Files.exists(path)) {
+            Files.createDirectories(path);
+          } else {
+            Path parent = path.getParent();
+            if (parent != null && !Files.exists(parent)) {
+              Files.createDirectories(parent);
+            }
           }
+        } catch (IOException e) {
+          throw new IllegalStateException("Unable to create parent directories " + path, e);
         }
-      } catch (IOException e) {
-        throw new IllegalStateException("Unable to create parent directories " + path, e);
       }
     }
   }
@@ -188,6 +252,31 @@ public class FileUtils {
     try (var is = FileUtils.class.getResourceAsStream(resource)) {
       Objects.requireNonNull(is, "Resource not found on classpath: " + resource);
       unzip(is, dest);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Copies bytes from {@code input} to {@code destPath}, ensuring that the size is limited to a reasonable value.
+   *
+   * @throws UncheckedIOException if an IO exception occurs
+   */
+  public static void safeCopy(InputStream inputStream, Path destPath) {
+    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      int totalSize = 0;
+
+      int nBytes;
+      byte[] buffer = new byte[2048];
+      while ((nBytes = inputStream.read(buffer)) > 0) {
+        outputStream.write(buffer, 0, nBytes);
+        totalSize += nBytes;
+
+        if (totalSize > ZIP_THRESHOLD_SIZE) {
+          throw new IOException("The uncompressed data size " + FORMAT.storage(totalSize) +
+            "B is too much for the application resource capacity");
+        }
+      }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -244,7 +333,7 @@ public class FileUtils {
             }
 
             if (totalEntryArchive > ZIP_THRESHOLD_ENTRIES) {
-              throw new IOException("Too much entries in this archive " + FORMAT.integer(totalEntryArchive) +
+              throw new IOException("Too many entries in this archive " + FORMAT.integer(totalEntryArchive) +
                 ", can lead to inodes exhaustion of the system");
             }
           }
@@ -252,6 +341,29 @@ public class FileUtils {
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  public static long getLastModifiedTime(Path path) throws IOException {
+    try {
+      FileTime time;
+      if ("jar".equals(path.toUri().getScheme())) {
+        time = Files.getLastModifiedTime(Path.of(path.getFileSystem().toString()));
+      } else {
+        time = Files.getLastModifiedTime(path);
+      }
+      return time.toMillis();
+    } catch (ClosedFileSystemException e) {
+      throw new IOException("File system closed", e);
+    }
+  }
+
+  /** Returns {@code true} if src is newer than dest, or if dest does not exist. Defaults to true if an error occurs. */
+  public static boolean isNewer(Path src, Path dest) {
+    try {
+      return Files.notExists(dest) || getLastModifiedTime(src) > getLastModifiedTime(dest);
+    } catch (IOException e) {
+      return true;
     }
   }
 }

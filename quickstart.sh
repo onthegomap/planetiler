@@ -77,12 +77,18 @@ case $AREA in
     esac
     ;;
   monaco)
+    echo "$TASK"
+    echo "${PLANETILER_ARGS[*]}"
     if [ "$TASK" == "openmaptiles" ]; then
-      # Use mini extracts for monaco
-      PLANETILER_ARGS+=("--water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip")
-      PLANETILER_ARGS+=("--water-polygons-path=data/sources/monaco-water.zip")
-      PLANETILER_ARGS+=("--natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip")
-      PLANETILER_ARGS+=("--natural-earth-path=data/sources/monaco-natural_earth_vector.sqlite.zip")
+      if [[ "${PLANETILER_ARGS[*]}" =~ ^.*osm[-_](path|url).*$ ]]; then
+        : # don't add monaco args
+      else
+        # Use mini extracts for monaco
+        PLANETILER_ARGS+=("--water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip")
+        PLANETILER_ARGS+=("--water-polygons-path=data/sources/monaco-water.zip")
+        PLANETILER_ARGS+=("--natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip")
+        PLANETILER_ARGS+=("--natural-earth-path=data/sources/monaco-natural_earth_vector.sqlite.zip")
+      fi
     fi
     ;;
 esac
@@ -102,9 +108,10 @@ if [ "$DRY_RUN" == "true" ]; then
 fi
 
 function run() {
-  echo "$ $*"
+  command="${*//&/\&}"
+  echo "$ $command"
   if [ "$DRY_RUN" != "true" ]; then
-    eval "$*"
+    eval "$command"
   fi
 }
 
@@ -116,7 +123,7 @@ function check_java_version() {
     else
       OUTPUT="$($JAVA -jar "$1" --help 2>&1 || echo OK)"
       if [[ "$OUTPUT" =~ "UnsupportedClassVersionError" ]]; then
-        echo "Wrong version of java installed, need at least 16 but found:"
+        echo "Wrong version of java installed, need at least 17 but found:"
         $JAVA --version
         exit 1
       fi

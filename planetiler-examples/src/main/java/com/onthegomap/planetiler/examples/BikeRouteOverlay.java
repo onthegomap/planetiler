@@ -22,13 +22,13 @@ import java.util.List;
  * <li>then build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
  * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles data/bikeroutes.mbtiles}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light data/bikeroutes.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
 public class BikeRouteOverlay implements Profile {
   /*
-   * The processing happens in 4 steps:
+   * The processing happens in 3 steps:
    * 1. On the first pass through the input file, store relevant information from OSM bike route relations
    * 2. On the second pass, emit linestrings for each OSM way contained in one of those relations
    * 3. Before storing each finished tile, Merge linestrings in each tile with the same tags and touching endpoints
@@ -175,7 +175,7 @@ public class BikeRouteOverlay implements Profile {
       // override this default with osm_path="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput("mbtiles", Path.of("data", "bikeroutes.mbtiles"))
+      .overwriteOutput(Path.of("data", "bikeroutes.mbtiles"))
       .run();
   }
 }

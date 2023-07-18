@@ -13,6 +13,7 @@ public class GeometryException extends Exception {
   private static final Logger LOGGER = LoggerFactory.getLogger(GeometryException.class);
 
   private final String stat;
+  private final boolean nonFatal;
 
   /**
    * Constructs a new exception with a detailed error message caused by {@code cause}.
@@ -25,18 +26,29 @@ public class GeometryException extends Exception {
   public GeometryException(String stat, String message, Throwable cause) {
     super(message, cause);
     this.stat = stat;
+    this.nonFatal = false;
+  }
+
+  /**
+   * Constructs a new exception with a detailed error message for. Use
+   * {@link #GeometryException(String, String, boolean)} for non-fatal exceptions.
+   */
+  public GeometryException(String stat, String message) {
+    this(stat, message, false);
   }
 
   /**
    * Constructs a new exception with a detailed error message.
    *
-   * @param stat    string that uniquely defines this error that will be used to count number of occurrences in stats
-   * @param message description of the error to log that should be detailed enough that you can find the offending
-   *                geometry from it
+   * @param stat     string that uniquely defines this error that will be used to count number of occurrences in stats
+   * @param message  description of the error to log that should be detailed enough that you can find the offending
+   *                 geometry from it
+   * @param nonFatal When true, won't cause an assertion error when thrown
    */
-  public GeometryException(String stat, String message) {
+  public GeometryException(String stat, String message, boolean nonFatal) {
     super(message);
     this.stat = stat;
+    this.nonFatal = nonFatal;
   }
 
   /** Returns the unique code for this error condition to use for counting the number of occurrences in stats. */
@@ -57,6 +69,7 @@ public class GeometryException extends Exception {
 
   void logMessage(String log) {
     LOGGER.warn(log);
+    assert nonFatal : log; // make unit tests fail if fatal
   }
 
   /**

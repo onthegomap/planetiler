@@ -8,7 +8,7 @@ Planetiler builds a map in 3 phases:
    intermediate files on disk
 2. [Sort Features](#2-sort-features) by tile ID
 3. [Emit Vector Tiles](#3-emit-vector-tiles) by iterating through sorted features to group by tile ID, encoding, and
-   writing to the output MBTiles file
+   writing to the output tile archive
 
 User-defined [profiles](#profiles) customize the behavior of each part of this pipeline.
 
@@ -96,7 +96,8 @@ of the intermediate features using a worker thread per core:
 
 ## 3) Emit Vector Tiles
 
-[MbtilesWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/mbtiles/MbtilesWriter.java) is the main driver.
+[TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/archive/TileArchiveWriter.java) is the main
+driver.
 First, a single-threaded reader reads features from disk:
 
 - [ExternalMergeSort](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/ExternalMergeSort.java) emits
@@ -104,7 +105,8 @@ First, a single-threaded reader reads features from disk:
 - [FeatureGroup](planetiler-core/src/main/java/com/onthegomap/planetiler/collection/FeatureGroup.java) collects
   consecutive features in the same tile into a `TileFeatures` instance, dropping features in the same group over the
   grouping limit to limit point label density
-- Then [MbtilesWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/mbtiles/MbtilesWriter.java) groups tiles
+- Then [TileArchiveWriter](planetiler-core/src/main/java/com/onthegomap/planetiler/archive/TileArchiveWriter.java)
+  groups tiles
   into variable-sized batches for workers to process (complex tiles get their own batch to ensure workers stay busy
   while the writer thread waits for finished tiles in order)
 
@@ -116,9 +118,9 @@ Then, process tile batches in worker threads (default 1 per core):
 - gzip each encoded tile
 - Pass the batch of encoded vector tiles to the writer thread
 
-Finally, a single-threaded writer writes encoded vector tiles to the output MBTiles file:
+Finally, a single-threaded writer writes encoded vector tiles to the output archive format:
 
-- Create the largest prepared statement supported by SQLite (999 parameters)
+- For MBTiles, create the largest prepared statement supported by SQLite (999 parameters)
 - Iterate through finished vector tile batches until the prepared statement is full, flush to disk, then repeat
 - Then flush any remaining tiles at the end
 

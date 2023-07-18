@@ -4,17 +4,12 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
@@ -26,7 +21,10 @@ import org.opengis.filter.Filter;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.OperationNotFoundException;
 import org.opengis.referencing.operation.TransformException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility that reads {@link SourceFeature SourceFeatures} from the geometries contained in an ESRI shapefile.
@@ -38,14 +36,17 @@ import org.opengis.referencing.operation.TransformException;
  *      Shapefile Specification</a>
  */
 public class ShapefileReader extends SimpleReader<SimpleFeature> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ShapefileReader.class);
 
   private final FeatureCollection<SimpleFeatureType, org.opengis.feature.simple.SimpleFeature> inputSource;
   private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
+  private final String layer;
   private MathTransform transformToLatLon;
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input) {
     super(sourceName);
+    this.layer = input.getFileName().toString().replaceAll("\\.shp$", "");
     dataStore = open(input);
     try {
       String typeName = dataStore.getTypeNames()[0];
@@ -56,7 +57,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       CoordinateReferenceSystem src =
         sourceProjection == null ? source.getSchema().getCoordinateReferenceSystem() : CRS.decode(sourceProjection);
       CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
-      transformToLatLon = CRS.findMathTransform(src, dest);
+      transformToLatLon = findMathTransform(input, src, dest);
       if (transformToLatLon.isIdentity()) {
         transformToLatLon = null;
       }
@@ -68,6 +69,19 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       throw new UncheckedIOException(e);
     } catch (FactoryException e) {
       throw new FileFormatException("Bad reference system", e);
+    }
+  }
+
+  private static MathTransform findMathTransform(Path input, CoordinateReferenceSystem src,
+    CoordinateReferenceSystem dest) throws FactoryException {
+    try {
+      return CRS.findMathTransform(src, dest);
+    } catch (OperationNotFoundException e) {
+      var result = CRS.findMathTransform(src, dest, true);
+      LOGGER.warn(
+        "Failed to parse projection from {} (\"{}\") using lenient mode instead which may result in data inconsistencies",
+        input.getFileName(), e.getMessage());
+      return result;
     }
   }
 
@@ -96,34 +110,9 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
     );
   }
 
-  private static URI findShpFile(Path path, Stream<Path> walkStream) {
-    return walkStream
-      .filter(z -> FileUtils.hasExtension(z, "shp"))
-      .findFirst()
-      .orElseThrow(() -> new IllegalArgumentException("No .shp file found inside " + path))
-      .toUri();
-  }
-
   private ShapefileDataStore open(Path path) {
     try {
-      URI uri;
-      if (Files.isDirectory(path)) {
-        try (var walkStream = Files.walk(path)) {
-          uri = findShpFile(path, walkStream);
-        }
-      } else if (FileUtils.hasExtension(path, "zip")) {
-        try (
-          var zipFs = FileSystems.newFileSystem(path);
-          var walkStream = FileUtils.walkFileSystem(zipFs)
-        ) {
-          uri = findShpFile(path, walkStream);
-        }
-      } else if (FileUtils.hasExtension(path, "shp")) {
-        uri = path.toUri();
-      } else {
-        throw new IllegalArgumentException("Invalid shapefile input: " + path + " must be zip or shp");
-      }
-      var store = new ShapefileDataStore(uri.toURL());
+      var store = new ShapefileDataStore(path.toUri().toURL());
       store.setTryCPGFile(true);
       return store;
     } catch (IOException e) {
@@ -149,7 +138,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
         }
         if (latLonGeometry != null) {
           SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
-            sourceName, null, ++id);
+            sourceName, layer, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));
           }

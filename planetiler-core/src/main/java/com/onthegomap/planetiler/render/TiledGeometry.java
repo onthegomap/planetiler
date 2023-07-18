@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.cursors.IntObjectCursor;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.collection.IntRangeSet;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileExtents;
@@ -130,7 +131,7 @@ public class TiledGeometry {
    * @return each tile this feature touches, and the points that appear on each
    */
   public static TiledGeometry sliceIntoTiles(Geometry scaledGeom, double minSize, double buffer, int z,
-    TileExtents.ForZoom extents) {
+    TileExtents.ForZoom extents) throws GeometryException {
 
     if (scaledGeom.isEmpty()) {
       // ignore
@@ -161,7 +162,8 @@ public class TiledGeometry {
    * @param extents    The tile extents for this zoom level.
    * @return A {@link CoveredTiles} instance for the tiles that are covered by this geometry.
    */
-  public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents) {
+  public static CoveredTiles getCoveredTiles(Geometry scaledGeom, int zoom, TileExtents.ForZoom extents)
+    throws GeometryException {
     if (scaledGeom.isEmpty()) {
       return new CoveredTiles(new RoaringBitmap(), zoom);
     } else if (scaledGeom instanceof Puntal || scaledGeom instanceof Polygonal || scaledGeom instanceof Lineal) {
@@ -190,9 +192,10 @@ public class TiledGeometry {
    * @param z       zoom level
    * @param extents range of tile coordinates within the bounds of the map to generate
    * @return each tile this feature touches, and the points that appear on each
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
   static TiledGeometry sliceIntoTiles(List<List<CoordinateSequence>> groups, double buffer, boolean area, int z,
-    TileExtents.ForZoom extents) {
+    TileExtents.ForZoom extents) throws GeometryException {
     TiledGeometry result = new TiledGeometry(extents, buffer, z, area);
     EnumSet<Direction> wrapResult = result.sliceWorldCopy(groups, 0);
     if (wrapResult.contains(Direction.RIGHT)) {
@@ -323,8 +326,10 @@ public class TiledGeometry {
    *                content that wraps too far west)
    * @return {@link Direction#LEFT} if there is more content to the west and {@link Direction#RIGHT} if there is more
    *         content to the east.
+   * @throws GeometryException for a polygon that is invalid in a way that interferes with clipping
    */
-  private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset) {
+  private EnumSet<Direction> sliceWorldCopy(List<List<CoordinateSequence>> groups, int xOffset)
+    throws GeometryException {
     EnumSet<Direction> overflow = EnumSet.noneOf(Direction.class);
     for (List<CoordinateSequence> group : groups) {
       Map<TileCoord, List<CoordinateSequence>> inProgressShapes = new HashMap<>();
@@ -494,7 +499,7 @@ public class TiledGeometry {
    * polygon.
    */
   private IntRangeSet sliceY(CoordinateSequence stripeSegment, int x, boolean outer,
-    Map<TileCoord, List<CoordinateSequence>> inProgressShapes) {
+    Map<TileCoord, List<CoordinateSequence>> inProgressShapes) throws GeometryException {
     if (stripeSegment.size() == 0) {
       return null;
     }
@@ -512,7 +517,7 @@ public class TiledGeometry {
 
     // keep a record of filled tiles that we skipped because an edge of the polygon that gets processed
     // later may intersect the edge of a filled tile, and we'll need to replay all the edges we skipped
-    record SkippedSegment(Direction side, int lo, int hi) {}
+    record SkippedSegment(Direction side, int lo, int hi, boolean asc) {}
     List<SkippedSegment> skipped = null;
 
     for (int i = 0; i < stripeSegment.size() - 1; i++) {
@@ -532,8 +537,8 @@ public class TiledGeometry {
       int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + neighborBuffer));
 
       // inside a fill if one edge of the polygon runs straight down the right side or up the left side of the column
-      boolean onRightEdge = area && ax == bx && ax == rightEdge && by > ay;
-      boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
+      boolean onRightEdge = area && ax == bx && ax == rightEdge;
+      boolean onLeftEdge = area && ax == bx && ax == leftEdge;
 
       for (int y = startY; y <= endY; y++) {
         // skip over filled tiles until we get to the next tile that already has detail on it
@@ -548,23 +553,47 @@ public class TiledGeometry {
             Integer next = tileYsWithDetail.ceiling(y);
             int nextNonEdgeTile = next == null ? startEndY : Math.min(next, startEndY);
             int endSkip = nextNonEdgeTile - 1;
-            if (skipped == null) {
-              skipped = new ArrayList<>();
-            }
             // save the Y range that we skipped in case a later edge intersects a filled tile
-            skipped.add(new SkippedSegment(
-              onLeftEdge ? Direction.LEFT : Direction.RIGHT,
-              y,
-              endSkip
-            ));
+            if (endSkip >= y) {
+              if (skipped == null) {
+                skipped = new ArrayList<>();
+              }
+              var skippedSegment = new SkippedSegment(
+                onLeftEdge ? Direction.LEFT : Direction.RIGHT,
+                y,
+                endSkip,
+                by > ay
+              );
+              skipped.add(skippedSegment);
 
-            if (rightFilled == null) {
-              rightFilled = new IntRangeSet();
-              leftFilled = new IntRangeSet();
+              //              System.err.println("    " + skippedSegment);
+              if (rightFilled == null) {
+                rightFilled = new IntRangeSet();
+                leftFilled = new IntRangeSet();
+              }
+              /*
+              A tile is inside a filled region when there is an odd number of vertical edges to the left and right
+              
+              for example a simple shape:
+                     ---------
+               out   |  in   | out
+               (0/2) | (1/1) | (2/0)
+                     ---------
+              
+              or a more complex shape
+                     ---------       ---------
+               out   |  in   | out   | in    |
+               (0/4) | (1/3) | (2/2) | (3/1) |
+                     |       ---------       |
+                     -------------------------
+              
+              So we keep track of this number by xor'ing the left and right fills repeatedly,
+              then and'ing them together at the end.
+               */
+              (onRightEdge ? rightFilled : leftFilled).xor(y, endSkip);
+
+              y = nextNonEdgeTile;
             }
-            (onRightEdge ? rightFilled : leftFilled).add(y, endSkip);
-
-            y = nextNonEdgeTile;
           }
         }
 
@@ -583,6 +612,13 @@ public class TiledGeometry {
 
           // if this is tile is inside a fill from an outer tile, infer that fill here
           if (area && !outer && toAddTo.isEmpty()) {
+            // since we process outer shells before holes, if a hole is the first thing to intersect
+            // a tile then it must be inside a filled tile from the outer shell. If that's not the case
+            // then the geometry is invalid, so throw an exception so the caller can decide how to handle,
+            // for example fix the polygon then try again.
+            if (!isFilled(x, y)) {
+              throw new GeometryException("bad_polygon_fill", x + ", " + y + " is not filled!");
+            }
             toAddTo.add(fill(buffer));
           }
           toAddTo.add(slice);
@@ -594,13 +630,11 @@ public class TiledGeometry {
               if (skippedSegment.lo <= y && skippedSegment.hi >= y) {
                 double top = y - buffer;
                 double bottom = y + 1 + buffer;
-                if (skippedSegment.side == Direction.LEFT) {
-                  slice.addPoint(-buffer, bottom);
-                  slice.addPoint(-buffer, top);
-                } else { // side == RIGHT
-                  slice.addPoint(1 + buffer, top);
-                  slice.addPoint(1 + buffer, bottom);
-                }
+                double start = skippedSegment.asc ? top : bottom;
+                double end = skippedSegment.asc ? bottom : top;
+                double edgeX = skippedSegment.side == Direction.LEFT ? -buffer : (1 + buffer);
+                slice.addPoint(edgeX, start);
+                slice.addPoint(edgeX, end);
               }
             }
           }
@@ -665,7 +699,7 @@ public class TiledGeometry {
   }
 
   private void addFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {
@@ -680,7 +714,7 @@ public class TiledGeometry {
   }
 
   private void removeFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {
@@ -690,6 +724,17 @@ public class TiledGeometry {
     if (existing != null) {
       existing.removeAll(yRange);
     }
+  }
+
+  private boolean isFilled(int x, int y) {
+    if (filledRanges == null) {
+      return false;
+    }
+    var filledCol = filledRanges.get(x);
+    if (filledCol == null) {
+      return false;
+    }
+    return filledCol.contains(y);
   }
 
   private enum Direction {

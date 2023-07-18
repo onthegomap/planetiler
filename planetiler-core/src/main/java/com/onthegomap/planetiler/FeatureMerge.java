@@ -9,6 +9,8 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.stats.DefaultStats;
+import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -35,7 +37,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A collection of utilities for merging features with the same attributes in a rendered tile from
  * {@link Profile#postProcessLayerFeatures(String, int, List)} immediately before a tile is written to the output
- * mbtiles file.
+ * archive.
  * <p>
  * Unlike postgis-based solutions that have a full view of all features after they are loaded into the database, the
  * planetiler engine only sees a single input feature at a time while processing source features, then only has
@@ -233,12 +235,13 @@ public class FeatureMerge {
    * @param minDist     the minimum threshold in tile pixels between polygons to combine into a group
    * @param buffer      the amount (in tile pixels) to expand then contract polygons by in order to combine
    *                    almost-touching polygons
+   * @param stats       for counting data errors
    * @return a new list containing all unaltered features in their original order, then each of the merged groups
    *         ordered by the index of the first element in that group from the input list.
    * @throws GeometryException if an error occurs encoding the combined geometry
    */
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
-    double minHoleArea, double minDist, double buffer) throws GeometryException {
+    double minHoleArea, double minDist, double buffer, Stats stats) throws GeometryException {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -272,7 +275,7 @@ public class FeatureMerge {
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
-          merged = GeoUtils.snapAndFixPolygon(merged).reverse();
+          merged = GeoUtils.snapAndFixPolygon(merged, stats, "merge").reverse();
         } else {
           merged = polygonGroup.get(0);
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
@@ -287,6 +290,11 @@ public class FeatureMerge {
       }
     }
     return result;
+  }
+
+  public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
+    double minHoleArea, double minDist, double buffer) throws GeometryException {
+    return mergeNearbyPolygons(features, minArea, minHoleArea, minDist, buffer, DefaultStats.get());
   }
 
 
