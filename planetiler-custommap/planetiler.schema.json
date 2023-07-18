@@ -392,6 +392,10 @@
           "items": {
             "$ref": "#/$defs/attribute"
           }
+        },
+        "min_size": {
+          "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map",
+          "$ref": "#/$defs/expression"
         }
       }
     },

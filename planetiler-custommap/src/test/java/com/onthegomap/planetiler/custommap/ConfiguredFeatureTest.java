@@ -1022,4 +1022,29 @@ class ConfiguredFeatureTest {
     )));
     assertEquals("example.com_file.osm.pbf", loadConfig(config).sources().get(0).defaultFileUrl());
   }
+
+  @ParameterizedTest
+  @CsvSource("""
+    10,10
+    ${10+1},11
+    ${feature.tags.key}|9
+    """)
+  void setMinSize(String input, double output) {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          min_size: %s
+          geometry: line
+      """.formatted(input);
+    testLinestring(config, Map.of("key", 9), feature -> {
+      assertEquals(output, feature.getMinPixelSizeAtZoom(11));
+    }, 1);
+  }
 }

@@ -85,7 +85,7 @@
         },
         "min_size": {
           "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map",
-          "type": "double"
+          "type": "number"
         },
         "tags": {
           "description": "Attributes expected on the output vector tile feature, or null if the attribute should not be set. Use allow_extra_tags: true to fail if any other tags appear besides the ones specified here",
