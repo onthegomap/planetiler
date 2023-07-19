@@ -107,8 +107,8 @@ public class ConfiguredProfile implements Profile {
       );
     }
 
-    if (featureLayer.postProcess().mergeOverlappingPolygons() != null) {
-      var merge = featureLayer.postProcess().mergeOverlappingPolygons();
+    if (featureLayer.postProcess().mergePolygons() != null) {
+      var merge = featureLayer.postProcess().mergePolygons();
 
       return FeatureMerge.mergeOverlappingPolygons(items,
         merge.minArea() // after merging, remove polygons that are still less than {minArea} in square tile pixels

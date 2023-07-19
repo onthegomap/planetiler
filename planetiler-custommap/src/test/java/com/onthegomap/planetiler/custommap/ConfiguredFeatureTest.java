@@ -14,7 +14,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
 import com.onthegomap.planetiler.custommap.configschema.MergeLineStrings;
-import com.onthegomap.planetiler.custommap.configschema.MergeOverlappingPolygons;
+import com.onthegomap.planetiler.custommap.configschema.MergePolygons;
 import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
@@ -219,7 +219,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testFeaturePostProcessorMergeOverlappingPolygons() throws GeometryException {
+  void testFeaturePostProcessorMergePolygons() throws GeometryException {
     var config = """
       sources:
         osm:
@@ -232,7 +232,7 @@ class ConfiguredFeatureTest {
         - source: osm
           geometry: point
         post_process:
-          merge_overlapping_polygons:
+          merge_polygons:
             min_area: 3
       """;
     var profile = loadConfig(config);
@@ -1187,7 +1187,7 @@ class ConfiguredFeatureTest {
   }
 
   @Test
-  void testSchemaPostProcessWithMergeOverlappingPolygons() {
+  void testSchemaPostProcessWithMergePolygons() {
     var config = """
       sources:
         osm:
@@ -1200,13 +1200,13 @@ class ConfiguredFeatureTest {
         - source: osm
           geometry: point
         post_process:
-          merge_overlapping_polygons:
+          merge_polygons:
             min_area: 3
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
     assertEquals(new PostProcess(
       null,
-      new MergeOverlappingPolygons(
+      new MergePolygons(
         3
       )
     ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
