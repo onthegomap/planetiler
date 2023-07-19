@@ -201,7 +201,7 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: point
-        post_process:
+        tile_post_process:
           merge_line_strings:
             min_length: 1
             tolerance: 5
@@ -231,7 +231,7 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: point
-        post_process:
+        tile_post_process:
           merge_polygons:
             min_area: 3
       """;
@@ -1169,7 +1169,7 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: point
-        post_process:
+        tile_post_process:
           merge_line_strings:
             min_length: 1
             tolerance: 5
@@ -1199,7 +1199,7 @@ class ConfiguredFeatureTest {
         features:
         - source: osm
           geometry: point
-        post_process:
+        tile_post_process:
           merge_polygons:
             min_area: 3
       """;

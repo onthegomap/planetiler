@@ -16,6 +16,6 @@ layers:
     attributes:
     - key: water
     - value: wet
-  post_process:
+  tile_post_process:
     merge_everything:
       min_length: 1

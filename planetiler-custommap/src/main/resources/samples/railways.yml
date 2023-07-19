@@ -24,7 +24,7 @@ layers:
       - usage: main
     exclude_when:
       service: __any__
-  post_process:
+  tile_post_process:
     merge_line_strings:
       min_length: 1
       tolerance: 5

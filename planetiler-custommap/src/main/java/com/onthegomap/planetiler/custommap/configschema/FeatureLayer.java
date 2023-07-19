@@ -6,5 +6,5 @@ import java.util.Collection;
 public record FeatureLayer(
   String id,
   Collection<FeatureItem> features,
-  @JsonProperty("post_process") PostProcess postProcess
+  @JsonProperty("tile_post_process") PostProcess postProcess
 ) {}
