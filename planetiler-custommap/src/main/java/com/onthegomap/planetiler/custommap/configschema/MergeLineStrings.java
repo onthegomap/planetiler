@@ -4,6 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record MergeLineStrings(
   @JsonProperty("min_length") double minLength,
-  @JsonProperty() double tolerance,
-  @JsonProperty() double buffer
+  @JsonProperty("tolerance") double tolerance,
+  @JsonProperty("buffer") double buffer
 ) {}
