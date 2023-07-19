@@ -77,6 +77,7 @@ class SchemaValidatorTest {
       features:
       - source: osm
         geometry: polygon
+        min_size: 10
         include_when:
           natural: water
         attributes:
@@ -121,6 +122,9 @@ class SchemaValidatorTest {
     "true,water,polygon,natural: water,allow_extra_tags: false",
     "true,water,polygon,,allow_extra_tags: true",
     "false,water,polygon,,allow_extra_tags: false",
+
+    "true,water,polygon,,min_size: 10",
+    "false,water,polygon,,min_size: 9",
   })
   void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags, String allowExtraTags)
     throws IOException {
