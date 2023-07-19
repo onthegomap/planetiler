@@ -29,6 +29,7 @@ public class ConfiguredProfile implements Profile {
   private final SchemaConfig schema;
 
   private final Collection<FeatureLayer> layers;
+  private final Map<String, FeatureLayer> layersById = new HashMap<>();
   private final Map<String, Index<ConfiguredFeature>> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
@@ -48,6 +49,7 @@ public class ConfiguredProfile implements Profile {
 
     for (var layer : layers) {
       String layerId = layer.id();
+      layersById.put(layerId, layer);
       for (var feature : layer.features()) {
         var configuredFeature = new ConfiguredFeature(layerId, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
@@ -133,13 +135,7 @@ public class ConfiguredProfile implements Profile {
     return sources;
   }
 
-  public FeatureLayer findFeatureLayer(String layerSearch) throws IndexOutOfBoundsException {
-    for (var layer : layers) {
-      String layerId = layer.id();
-      if (layerId.equals(layerSearch)) {
-        return layer;
-      }
-    }
-    throw new IndexOutOfBoundsException("Cannot find layer in schema");
+  public FeatureLayer findFeatureLayer(String layerId) {
+    return layersById.get(layerId);
   }
 }
