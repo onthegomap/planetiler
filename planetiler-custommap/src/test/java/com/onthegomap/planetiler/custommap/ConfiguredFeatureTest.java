@@ -1153,7 +1153,7 @@ class ConfiguredFeatureTest {
           geometry: point
       """;
     this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
-    assertEquals(null, loadConfig(config).findFeatureLayer("testLayer").postProcess());
+    assertNull(loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }
 
   @Test
