@@ -14,16 +14,22 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
+import mil.nga.geopackage.BoundingBox;
 import mil.nga.geopackage.GeoPackage;
 import mil.nga.geopackage.GeoPackageManager;
+import mil.nga.geopackage.features.index.FeatureIndexManager;
+import mil.nga.geopackage.features.index.FeatureIndexResults;
+import mil.nga.geopackage.features.index.FeatureIndexType;
 import mil.nga.geopackage.features.user.FeatureColumns;
 import mil.nga.geopackage.features.user.FeatureDao;
+import mil.nga.geopackage.features.user.FeatureRow;
 import mil.nga.geopackage.geom.GeoPackageGeometryData;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.WKBReader;
 import org.geotools.referencing.CRS;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,9 +45,14 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
   private final GeoPackage geoPackage;
   private final MathTransform coordinateTransform;
 
-  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped) {
+  private final Envelope bounds;
+
+  GeoPackageReader(String sourceProjection, String sourceName, Path input, Path tmpDir, boolean keepUnzipped,
+    Envelope bounds) {
+
     super(sourceName);
     this.keepUnzipped = keepUnzipped;
+    this.bounds = bounds;
 
     if (sourceProjection != null) {
       try {
@@ -105,7 +116,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped),
+      path -> new GeoPackageReader(sourceProjection, sourceName, path, tmpDir, keepUnzipped, config.bounds().latLon()),
       writer, config, profile, stats
     );
   }
@@ -138,7 +149,20 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
       MathTransform transform = (coordinateTransform != null) ? coordinateTransform :
         CRS.findMathTransform(CRS.decode("EPSG:" + srsId), latLonCRS);
 
-      for (var feature : features.queryForAll()) {
+      FeatureIndexManager indexer = new FeatureIndexManager(geoPackage,
+        features);
+      indexer.setIndexLocation(FeatureIndexType.RTREE);
+
+      BoundingBox boundingBox = BoundingBox.worldWGS84();
+
+      if (this.bounds != null) {
+        var l = this.bounds;
+
+        boundingBox = new BoundingBox(l.getMinX(), l.getMinY(), l.getMaxX(), l.getMaxY());
+      }
+      FeatureIndexResults indexResults = indexer.query(boundingBox);
+
+      for (FeatureRow feature : indexResults) {
         GeoPackageGeometryData geometryData = feature.getGeometry();
         byte[] wkb;
         if (geometryData == null || (wkb = geometryData.getWkb()).length == 0) {

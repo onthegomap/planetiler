@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 
 class GeoPackageReaderTest {
@@ -37,7 +38,7 @@ class GeoPackageReaderTest {
     for (var path : List.of(pathOutsideZip, pathInZip)) {
       for (var proj : projections) {
         try (
-          var reader = new GeoPackageReader(proj, "test", path, tmpDir, keepUnzipped)
+          var reader = new GeoPackageReader(proj, "test", path, tmpDir, keepUnzipped, null)
         ) {
           for (int iter = 0; iter < 2; iter++) {
             String id = "path=" + path + " proj=" + proj + " iter=" + iter;
@@ -66,13 +67,47 @@ class GeoPackageReaderTest {
     }
   }
 
+
+  @Test
+  @Timeout(30)
+  void testReadGeoPackageSpatialIndex() throws IOException {
+    Path pathOutsideZip = TestUtils.pathToResource("geopackage.gpkg");
+    Path zipPath = TestUtils.pathToResource("geopackage.gpkg.zip");
+    Path pathInZip = FileUtils.walkPathWithPattern(zipPath, "*.gpkg").get(0);
+
+    var projections = new String[]{null, "EPSG:4326"};
+
+    for (var path : List.of(pathOutsideZip, pathInZip)) {
+      for (var proj : projections) {
+        try (
+          var reader =
+            new GeoPackageReader(proj, "test", path, tmpDir, false, new Envelope(-77.0306, -77.0192, 38.8894, 38.9014))
+        ) {
+          for (int iter = 0; iter < 2; iter++) {
+            String id = "path=" + path + " proj=" + proj + " iter=" + iter;
+            assertEquals(86, reader.getFeatureCount(), id);
+            List<Geometry> points = new ArrayList<>();
+            List<String> names = new ArrayList<>();
+            WorkerPipeline.start("test", Stats.inMemory())
+              .fromGenerator("geopackage", reader::readFeatures, 1)
+              .addBuffer("reader_queue", 100, 1)
+              .sinkToConsumer("counter", 1, elem -> {
+                points.add(elem.latLonGeometry());
+              }).await();
+            assertEquals(4, points.size(), id);
+          }
+        }
+      }
+    }
+  }
+
   @Test
   @Timeout(30)
   void testReadEmptyGeoPackage() throws IOException {
     Path path = TestUtils.pathToResource("empty-geom.gpkg");
 
     try (
-      var reader = new GeoPackageReader(null, "test", path, tmpDir, false)
+      var reader = new GeoPackageReader(null, "test", path, tmpDir, false, null)
     ) {
       for (int iter = 0; iter < 2; iter++) {
         String id = "iter=" + iter;
