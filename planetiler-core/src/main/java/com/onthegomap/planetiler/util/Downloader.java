@@ -98,7 +98,7 @@ public class Downloader {
     return new Downloader(config, stats, config.downloadChunkSizeMB() * 1_000_000L);
   }
 
-  private static URLConnection getUrlConnection(String urlString, PlanetilerConfig config) throws IOException {
+  public static URLConnection getUrlConnection(String urlString, PlanetilerConfig config) throws IOException {
     var url = new URL(urlString);
     var connection = url.openConnection();
     connection.setConnectTimeout((int) config.httpTimeout().toMillis());
@@ -119,7 +119,7 @@ public class Downloader {
     return getUrlConnection(urlString, config).getInputStream();
   }
 
-  private static InputStream openStreamRange(String urlString, PlanetilerConfig config, long start, long end)
+  public static InputStream openStreamRange(String urlString, PlanetilerConfig config, long start, long end)
     throws IOException {
     URLConnection connection = getUrlConnection(urlString, config);
     connection.setRequestProperty(RANGE, "bytes=%d-%d".formatted(start, end));

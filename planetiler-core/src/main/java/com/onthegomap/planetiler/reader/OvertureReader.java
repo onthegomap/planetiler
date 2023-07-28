@@ -1,53 +1,89 @@
 package com.onthegomap.planetiler.reader;
 
+import blue.strategic.parquet.Hydrator;
+import blue.strategic.parquet.HydratorSupplier;
+import blue.strategic.parquet.ParquetReader;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.util.Downloader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.avro.AvroParquetReader;
-import org.apache.parquet.hadoop.ParquetFileReader;
-import org.apache.parquet.hadoop.ParquetReader;
-import org.apache.parquet.hadoop.util.HadoopInputFile;
+import java.util.stream.Stream;
 import org.apache.parquet.io.InputFile;
-import org.locationtech.jts.io.WKBReader;
+import org.apache.parquet.io.SeekableInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OvertureReader extends SimpleReader<SimpleFeature> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OvertureReader.class);
-  private static final Configuration conf = new Configuration();
+  //  private static final Configuration conf = new Configuration();
+  //
+  //  static {
+  //    //    conf.set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
+  //    //    conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+  //    //    conf.setBoolean("fs.s3a.path.style.access", true);
+  //    conf.setBoolean(org.apache.parquet.avro.AvroReadSupport.READ_INT96_AS_FIXED, true);
+  //  }
 
-  static {
-    //    conf.set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
-    //    conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
-    //    conf.setBoolean("fs.s3a.path.style.access", true);
-    conf.setBoolean(org.apache.parquet.avro.AvroReadSupport.READ_INT96_AS_FIXED, true);
-  }
-
-  private final ParquetReader<GenericRecord> reader;
+  private final Stream<Map<String, Object>> reader;
   private final String layer;
   private final long count;
+  private static final PlanetilerConfig config = PlanetilerConfig.defaults();
+
+  private static final Hydrator<Map<String, Object>, Map<String, Object>> hydrator = new Hydrator<>() {
+    @Override
+    public Map<String, Object> start() {
+      return new HashMap<>();
+    }
+
+    @Override
+    public HashMap<String, Object> add(Map<String, Object> target, String heading, Object value) {
+      HashMap<String, Object> r = new HashMap<>(target);
+      r.put(heading, value);
+      return r;
+    }
+
+    @Override
+    public Map<String, Object> finish(Map<String, Object> target) {
+      return target;
+    }
+  };
+  private final Iterator<Map<String, Object>> iter;
 
   OvertureReader(String sourceName, Path input) {
     super(sourceName);
     try {
-      InputFile file = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(input.toString()), conf);
-      try (var fr = ParquetFileReader.open(file)) {
-        this.count = fr.getRecordCount();
-      }
-      reader = AvroParquetReader.genericRecordReader(file);
+      String url = input.toString().replaceAll("^.*theme=",
+        "https://overturemaps-us-west-2.s3.amazonaws.com/release/2023-07-26-alpha.0/theme=");
+      var size = Downloader.getUrlConnection(url, config).getContentLengthLong();
+      var file = new InputFile() {
+        @Override
+        public long getLength() {
+          return size;
+        }
+
+        @Override
+        public SeekableInputStream newStream() throws IOException {
+          return new SeekableHttpInputStream(url, config, size);
+        }
+      };
+
+      //      var metadata = ParquetReader.readMetadata(file);
+      //      this.count = metadata.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
+      this.count = 0;
+      this.reader = ParquetReader.streamContent(input.toFile(), HydratorSupplier.constantly(hydrator),
+        List.of("geometry"));
+      this.iter = reader.iterator();
       var pattern = Pattern.compile("theme=([a-zA-Z]+)/type=([a-zA-Z]+)");
       var results = pattern.matcher(input.toString());
       if (!results.find()) {
@@ -88,36 +124,33 @@ public class OvertureReader extends SimpleReader<SimpleFeature> {
 
   @Override
   public void readFeatures(Consumer<SimpleFeature> next) throws Exception {
-    GenericRecord r;
-    long id = 0;
-    while ((r = reader.read()) != null) {
-      ByteBuffer buf = (ByteBuffer) r.get("geometry");
-      byte[] bytes = new byte[buf.limit()];
-      buf.get(bytes);
-      Map<String, Object> tags = new HashMap<>();
+    //    long id = 0;
+    while (iter.hasNext()) {
+      Map<String, Object> map = iter.next();
+      //      System.err.println(map);
+      //      ByteBuffer buf = (ByteBuffer) r.get("geometry");
+      //      byte[] bytes = new byte[buf.limit()];
+      //      buf.get(bytes);
+      //      Map<String, Object> tags = new HashMap<>();
+      //
+      //      for (var field : r.getSchema().getFields()) {
+      //        if (!"geometry".equals(field.name())) {
+      //          var value = r.get(field.pos());
+      //          if (value != null) {
+      //            //            System.err.println(field.name() + " " + value.getClass());
+      //            tags.put(field.name(), value.toString());
+      //          }
+      //        }
+      //      }
 
-      for (var field : r.getSchema().getFields()) {
-        if (!"geometry".equals(field.name())) {
-          var value = r.get(field.pos());
-          if (value != null) {
-            //            System.err.println(field.name() + " " + value.getClass());
-            tags.put(field.name(), value.toString());
-          }
-        }
-      }
-
-      var geometry = new WKBReader().read(bytes);
-      var feature = SimpleFeature.create(geometry, tags, sourceName, layer, id++);
-      next.accept(feature);
+      //      var geometry = new WKBReader().read(bytes);
+      //      var feature = SimpleFeature.create(geometry, tags, sourceName, layer, id++);
+      //      next.accept(feature);
     }
   }
 
   @Override
   public void close() {
-    try {
-      reader.close();
-    } catch (IOException e) {
-      LOGGER.error("Error closing parquet file", e);
-    }
+    reader.close();
   }
 }
