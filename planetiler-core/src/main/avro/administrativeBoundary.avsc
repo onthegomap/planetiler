@@ -1,0 +1,222 @@
+{
+  "type": "record",
+  "name": "com.onthegomap.planetiler.overture.avrogen.AdministrativeBoundary",
+  "fields": [
+    {
+      "name": "id",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "updatetime",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "version",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "names",
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": [
+            "null",
+            {
+              "type": "array",
+              "items": {
+                "type": "record",
+                "name": "bag",
+                "fields": [
+                  {
+                    "name": "array_element",
+                    "type": [
+                      "null",
+                      {
+                        "type": "map",
+                        "values": [
+                          "null",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "default": null
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "adminlevel",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "maritime",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "subtype",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "localitytype",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "context",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "isocountrycodealpha2",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "isosubcountrycode",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "defaultlanugage",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "drivingside",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "sources",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "bag",
+            "namespace": "bag2",
+            "fields": [
+              {
+                "name": "array_element",
+                "type": [
+                  "null",
+                  {
+                    "type": "map",
+                    "values": [
+                      "null",
+                      "string"
+                    ]
+                  }
+                ],
+                "default": null
+              }
+            ]
+          }
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "bbox",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "bbox",
+          "fields": [
+            {
+              "name": "minx",
+              "type": [
+                "null",
+                "double"
+              ],
+              "default": null
+            },
+            {
+              "name": "maxx",
+              "type": [
+                "null",
+                "double"
+              ],
+              "default": null
+            },
+            {
+              "name": "miny",
+              "type": [
+                "null",
+                "double"
+              ],
+              "default": null
+            },
+            {
+              "name": "maxy",
+              "type": [
+                "null",
+                "double"
+              ],
+              "default": null
+            }
+          ]
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "geometry",
+      "type": [
+        "null",
+        "bytes"
+      ],
+      "default": null
+    }
+  ]
+}

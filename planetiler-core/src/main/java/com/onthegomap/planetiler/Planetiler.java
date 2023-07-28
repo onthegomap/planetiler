@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.reader.GeoPackageReader;
 import com.onthegomap.planetiler.reader.NaturalEarthReader;
+import com.onthegomap.planetiler.reader.OvertureReader;
 import com.onthegomap.planetiler.reader.ShapefileReader;
 import com.onthegomap.planetiler.reader.osm.OsmInputFile;
 import com.onthegomap.planetiler.reader.osm.OsmNodeBoundsProvider;
@@ -879,6 +880,15 @@ public class Planetiler {
         throw new IllegalArgumentException(inputPath.path + " does not exist");
       }
     }
+  }
+
+  public Planetiler addOvertureSource(String name, Path root) {
+    Path path = getPath(name, "overture", root, null);
+    return addStage(name, "Process features in " + path,
+      ifSourceUsed(name, () -> {
+        var sourcePaths = FileUtils.walkPathWithPattern(path, "*").stream().filter(Files::isRegularFile).toList();
+        OvertureReader.process(name, sourcePaths, featureGroup, config, profile, stats);
+      }));
   }
 
   private record Stage(String id, List<String> details, RunnableThatThrows task) {
