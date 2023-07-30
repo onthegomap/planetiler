@@ -327,7 +327,8 @@ public class OvertureTest implements Profile {
     var d = Downloader.create(pt.config(), pt.stats());
     for (var s : files) {
       var p = base.resolve(s);
-      if (s.contains("administrativeBound")) {
+      if (s.contains("administrativeBound") ||
+        s.contains("20230725_211555_00082_tpd52_00e93efa-24f4-4014-b65a-38c7d2854ab4")) {
         d.add(s, "https://overturemaps-us-west-2.s3.amazonaws.com/release/2023-07-26-alpha.0/" + s, p);
       }
     }

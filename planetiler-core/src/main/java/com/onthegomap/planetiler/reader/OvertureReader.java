@@ -1,13 +1,11 @@
 package com.onthegomap.planetiler.reader;
 
 import blue.strategic.parquet.Hydrator;
-import blue.strategic.parquet.HydratorSupplier;
 import blue.strategic.parquet.ParquetReader;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.util.Downloader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -17,9 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
-import org.apache.parquet.io.InputFile;
-import org.apache.parquet.io.SeekableInputStream;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +31,7 @@ public class OvertureReader extends SimpleReader<SimpleFeature> {
   //    conf.setBoolean(org.apache.parquet.avro.AvroReadSupport.READ_INT96_AS_FIXED, true);
   //  }
 
-  private final Stream<Map<String, Object>> reader;
+  private final ParquetInputFile reader;
   private final String layer;
   private final long count;
   private static final PlanetilerConfig config = PlanetilerConfig.defaults();
@@ -63,27 +59,11 @@ public class OvertureReader extends SimpleReader<SimpleFeature> {
   OvertureReader(String sourceName, Path input) {
     super(sourceName);
     try {
-      String url = input.toString().replaceAll("^.*theme=",
-        "https://overturemaps-us-west-2.s3.amazonaws.com/release/2023-07-26-alpha.0/theme=");
-      var size = Downloader.getUrlConnection(url, config).getContentLengthLong();
-      var file = new InputFile() {
-        @Override
-        public long getLength() {
-          return size;
-        }
+      var metadata = ParquetReader.readMetadata(input.toFile());
+      this.count = metadata.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
+      this.reader = new ParquetInputFile(input);
+      this.iter = null;//reader.iterator();
 
-        @Override
-        public SeekableInputStream newStream() throws IOException {
-          return new SeekableHttpInputStream(url, config, size);
-        }
-      };
-
-      //      var metadata = ParquetReader.readMetadata(file);
-      //      this.count = metadata.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
-      this.count = 0;
-      this.reader = ParquetReader.streamContent(input.toFile(), HydratorSupplier.constantly(hydrator),
-        List.of("geometry"));
-      this.iter = reader.iterator();
       var pattern = Pattern.compile("theme=([a-zA-Z]+)/type=([a-zA-Z]+)");
       var results = pattern.matcher(input.toString());
       if (!results.find()) {
@@ -150,7 +130,7 @@ public class OvertureReader extends SimpleReader<SimpleFeature> {
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     reader.close();
   }
 }
