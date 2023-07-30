@@ -166,17 +166,32 @@ public record TileArchiveConfig(
   }
 
   public enum Format {
-    MBTILES("mbtiles"),
-    PMTILES("pmtiles");
+    MBTILES("mbtiles", false, false),
+    PMTILES("pmtiles", false, false),
+    CSV("csv", true, true),
+    PROTO("proto", true, true),
+    JSON("json", true, true);
 
     private final String id;
+    private final boolean supportsAppend;
+    private final boolean supportsConcurrentWrites;
 
-    Format(String id) {
+    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites) {
       this.id = id;
+      this.supportsAppend = supportsAppend;
+      this.supportsConcurrentWrites = supportsConcurrentWrites;
     }
 
     public String id() {
       return id;
+    }
+
+    public boolean supportsAppend() {
+      return supportsAppend;
+    }
+
+    public boolean supportsConcurrentWrites() {
+      return supportsConcurrentWrites;
     }
   }
 

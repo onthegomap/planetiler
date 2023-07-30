@@ -91,6 +91,7 @@ public class TileArchiveWriter {
     int readThreads = config.featureReadThreads();
     int threads = config.threads();
     int processThreads = threads < 10 ? threads : threads - readThreads;
+    int tileWriteThreads = config.tileWriteThreads();
 
     // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
     // when using 1 read thread we just have: (1 read & merge thread) -> ...
@@ -137,15 +138,16 @@ public class TileArchiveWriter {
           writerEnqueuer.accept(batch); // also send immediately to writer
         });
         writerQueue.close();
+        // TODO can this restriction be lifted when tileWriteThreads>1 ?
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
       }, 1)
       .addBuffer("reader_queue", queueSize)
       .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
+    // TODO can this restriction be lifted when tileWriteThreads>1 ? or is it already lifted now that we have multiple writer threads?
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
     writeBranch = pipeline.readFromQueue(writerQueue)
-      // use only 1 thread since tileWriter needs to be single-threaded
-      .sinkTo("write", 1, writer::tileWriter);
+      .sinkTo("write", tileWriteThreads, writer::tileWriter);
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
