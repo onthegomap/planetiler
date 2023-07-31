@@ -7,20 +7,26 @@ import java.io.UncheckedIOException;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.ColumnReadStore;
 import org.apache.parquet.column.ColumnReader;
-import org.apache.parquet.column.impl.ColumnReadStoreImpl;
-import org.apache.parquet.example.DummyRecordConverter;
-import org.apache.parquet.example.data.simple.convert.GroupRecordConverter;
+import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.DelegatingSeekableInputStream;
 import org.apache.parquet.io.InputFile;
+import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.PrimitiveType;
@@ -58,22 +64,10 @@ public class ParquetInputFile implements Closeable {
         };
       }
     };
+
     try {
       this.reader = ParquetFileReader.open(inputFile);
       this.metadata = reader.getFooter();
-      for (var block : metadata.getBlocks()) {
-        var group = reader.readRowGroup(block.getOrdinal());
-        ColumnReadStore columnReadStore =
-          new ColumnReadStoreImpl(group,
-            new DummyRecordConverter(metadata.getFileMetaData().getSchema()).getRootConverter(),
-            metadata.getFileMetaData()
-              .getSchema(),
-            metadata.getFileMetaData().getCreatedBy());
-        for (var column : metadata.getFileMetaData().getSchema().getColumns()) {
-          var reader = columnReadStore.getColumnReader(column);
-          //          reader.get
-        }
-      }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -81,7 +75,7 @@ public class ParquetInputFile implements Closeable {
 
   public interface BlockReader extends Iterable<Block> {}
 
-  public interface Block extends Iterable<ParquetRow> {}
+  public interface Block extends Iterable<GenericRecord> {}
 
   public static class ParquetRow {
 
@@ -102,60 +96,39 @@ public class ParquetInputFile implements Closeable {
   }
 
   public BlockReader get() {
+    var config = new Configuration();
     var schema = metadata.getFileMetaData().getSchema();
-    var columns = schema.getColumns();
-    System.err.println(metadata.getBlocks().size());
+    ColumnIOFactory columnIOFactory = new ColumnIOFactory(metadata.getFileMetaData().getCreatedBy(), false);
+    var keyValueMetadata = metadata.getFileMetaData().getKeyValueMetaData();
+    var keyValueMetadataSets =
+      keyValueMetadata.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> Set.of(e.getValue())));
     return () -> metadata.getBlocks().stream().map(block -> {
       try {
         // happens in reader thread
         var group = reader.readRowGroup(block.getOrdinal());
         return (Block) (() -> {
-          // happens in each worker thread
-          ColumnReadStore columnReadStore =
-            new ColumnReadStoreImpl(group, new GroupRecordConverter(schema).getRootConverter(),
-              schema, metadata.getFileMetaData().getCreatedBy());
-          var currentRowGroupColumnReaders = columns.stream().map(columnReadStore::getColumnReader).toList();
+          AvroReadSupport<GenericRecord> readSupport = new AvroReadSupport<>(GenericData.get());
+          var readContext = readSupport.init(new InitContext(config, keyValueMetadataSets, schema));
+          MessageColumnIO columnIO = columnIOFactory.getColumnIO(schema);
+          var converter =
+            readSupport.prepareForRead(config, keyValueMetadata, schema, readContext);
+          var recordReader = columnIO.getRecordReader(group, converter, FilterCompat.NOOP);
+          long total = block.getRowCount();
           return new Iterator<>() {
-            long index = 0;
-            long[] read = new long[columns.size()];
+            long i = 0;
 
             @Override
             public boolean hasNext() {
-              boolean result = index < group.getRowCount();
-              if (!result) {
-                boolean failed = false;
-                for (int i = 0; i < read.length; i++) {
-                  var columnReader = currentRowGroupColumnReaders.get(i);
-                  if (read[i] != columnReader.getTotalValueCount()) {
-                    System.err.println(String.join(".", columns.get(i).getPath()) + " expected " +
-                      columnReader.getTotalValueCount() + " but read " + read[i]);
-                    failed = true;
-                  }
-                }
-                if (failed) {
-                  throw new IllegalStateException();
-                }
-              }
-              return result;
+              return i < total;
             }
 
             @Override
-            public ParquetRow next() {
-              Map<String, Object> result = new HashMap<>();
-              int i = 0;
-              for (ColumnReader columnReader : currentRowGroupColumnReaders) {
-                String path = String.join(".", columnReader.getDescriptor().getPath());
-                result.put(path, readValue(columnReader));
-                columnReader.consume();
-                read[i++]++;
-
-                // how many optional fields in the path for the column are defined
-                int def = columnReader.getCurrentDefinitionLevel();
-                // at what repeated field in the path has the value repeated
-                int rep = columnReader.getCurrentRepetitionLevel();
+            public GenericRecord next() {
+              if (!hasNext()) {
+                throw new NoSuchElementException();
               }
-              index++;
-              return new ParquetRow(result);
+              i++;
+              return recordReader.read();
             }
           };
         });
@@ -163,36 +136,19 @@ public class ParquetInputFile implements Closeable {
         throw new UncheckedIOException(e);
       }
     }).iterator();
-
-
-    //      () -> {
-    //      try {
-    //        for (var block : metadata.getBlocks()) {
-    //          var group = reader.readRowGroup(block.getOrdinal());
-    //          consumer.accept(() -> () -> {
-    //            ColumnReadStore columnReadStore =
-    //              new ColumnReadStoreImpl(group, new DummyRecordConverter(schema).getRootConverter(),
-    //                metadata.getFileMetaData().getSchema(), metadata.getFileMetaData().getCreatedBy());
-    //            return () -> {
-    //              for (var column : schema.getColumns()) {
-    //                var reader = columnReadStore.getColumnReader(column);
-    //                //          reader.get
-    //              }
-    //            };
-    //          });
-    //        }
-    //      } catch (IOException e) {
-    //        throw new UncheckedIOException(e);
-    //      }
-    //    };
   }
 
   public static void main(String[] args) throws IOException {
+    //    var path = Path.of(
+    //      "./data/sources/overture/theme=admins/type=administrativeBoundary/20230725_211237_00132_5p54t_0100b1b9-31ab-4d03-9a92-8141dcae93a5");
     var path = Path.of(
       "./data/sources/overture/theme=buildings/type=building/20230725_211555_00082_tpd52_00e93efa-24f4-4014-b65a-38c7d2854ab4");
     try (var parquetInputFile = new ParquetInputFile(path)) {
       for (var block : parquetInputFile.get()) {
         for (var row : block) {
+          if (row.get("height")instanceof Number n) {
+            System.err.println(row);
+          }
           //          System.out.println(row);
         }
       }

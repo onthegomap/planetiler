@@ -1,7 +1,5 @@
 package com.onthegomap.planetiler.reader;
 
-import blue.strategic.parquet.Hydrator;
-import blue.strategic.parquet.ParquetReader;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -9,13 +7,11 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,46 +29,27 @@ public class OvertureReader extends SimpleReader<SimpleFeature> {
 
   private final ParquetInputFile reader;
   private final String layer;
-  private final long count;
+  private final long count = 0;
   private static final PlanetilerConfig config = PlanetilerConfig.defaults();
-
-  private static final Hydrator<Map<String, Object>, Map<String, Object>> hydrator = new Hydrator<>() {
-    @Override
-    public Map<String, Object> start() {
-      return new HashMap<>();
-    }
-
-    @Override
-    public HashMap<String, Object> add(Map<String, Object> target, String heading, Object value) {
-      HashMap<String, Object> r = new HashMap<>(target);
-      r.put(heading, value);
-      return r;
-    }
-
-    @Override
-    public Map<String, Object> finish(Map<String, Object> target) {
-      return target;
-    }
-  };
   private final Iterator<Map<String, Object>> iter;
 
   OvertureReader(String sourceName, Path input) {
     super(sourceName);
-    try {
-      var metadata = ParquetReader.readMetadata(input.toFile());
-      this.count = metadata.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
-      this.reader = new ParquetInputFile(input);
-      this.iter = null;//reader.iterator();
+    //    try {
+    //      var metadata =
+    //      this.count = metadata.getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
+    this.reader = new ParquetInputFile(input);
+    this.iter = null;//reader.iterator();
 
-      var pattern = Pattern.compile("theme=([a-zA-Z]+)/type=([a-zA-Z]+)");
-      var results = pattern.matcher(input.toString());
-      if (!results.find()) {
-        throw new UncheckedIOException(new IOException("Bad filename: " + input));
-      }
-      this.layer = results.group(1) + "/" + results.group(2);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    var pattern = Pattern.compile("theme=([a-zA-Z]+)/type=([a-zA-Z]+)");
+    var results = pattern.matcher(input.toString());
+    if (!results.find()) {
+      throw new UncheckedIOException(new IOException("Bad filename: " + input));
     }
+    this.layer = results.group(1) + "/" + results.group(2);
+    //    } catch (IOException e) {
+    //      throw new UncheckedIOException(e);
+    //    }
   }
 
   /**
