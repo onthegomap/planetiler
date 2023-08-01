@@ -3,8 +3,10 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.onthegomap.planetiler.TestUtils.OsmXml;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
@@ -1765,12 +1767,23 @@ class PlanetilerTests {
     "--free-osm-after-read",
     "--osm-parse-node-bounds",
     "--output-format=pmtiles",
+    "--tile-compression=none",
+    "--tile-compression=gzip"
   })
   void testPlanetilerRunner(String args) throws Exception {
     boolean pmtiles = args.contains("pmtiles");
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
     Path output = tempDir.resolve(pmtiles ? "output.pmtiles" : "output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
+    TileCompression tileCompression;
+    if (args.contains("tile-compression=none")) {
+      tileCompression = TileCompression.NONE;
+    } else if (args.contains("tile-compression=gzip")) {
+      tileCompression = TileCompression.GZIP;
+    } else {
+      tileCompression = TileCompression.GZIP;
+    }
+
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
       ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
@@ -1799,7 +1812,7 @@ class PlanetilerTests {
       var db = pmtiles ? ReadablePmtiles.newReadFromFile(output) : Mbtiles.newReadOnlyDatabase(output)
     ) {
       int features = 0;
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = TestUtils.getTileMap(db, tileCompression);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();

@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
@@ -50,7 +51,8 @@ public record PlanetilerConfig(
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
   Boolean color,
-  boolean keepUnzippedSources
+  boolean keepUnzippedSources,
+  TileCompression tileCompression
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -177,7 +179,12 @@ public record PlanetilerConfig(
         1d) * 1024 * 1024),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", false)
+        "keep unzipped sources by default after reading", false),
+      TileCompression
+        .fromId(arguments.getString("tile_compression",
+          "the tile compression, one of " +
+            Stream.of(TileCompression.values()).map(TileCompression::id).toList(),
+          "gzip"))
     );
   }
 

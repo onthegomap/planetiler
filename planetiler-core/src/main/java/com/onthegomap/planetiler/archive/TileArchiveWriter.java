@@ -253,7 +253,10 @@ public class TileArchiveWriter {
             bytes = null;
           } else {
             encoded = en.encode();
-            bytes = gzip(encoded);
+            bytes = switch (config.tileCompression()) {
+              case GZIP -> gzip(encoded);
+              case NONE -> encoded;
+            };
             if (encoded.length > config.tileWarningSizeBytes()) {
               LOGGER.warn("{} {}kb uncompressed",
                 tileFeatures.tileCoord(),
