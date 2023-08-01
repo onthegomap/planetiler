@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -39,8 +40,9 @@ public final class WriteableJsonStreamArchive extends WritableStreamArchive {
 
   private static final String OPTION_ROOT_VALUE_SEPARATOR = "root_value_separator";
 
-  private static final JsonMapper jsonMapper = JsonMapper.builder()
-    .serializationInclusion(Include.NON_NULL)
+  static final JsonMapper jsonMapper = JsonMapper.builder()
+    .serializationInclusion(Include.NON_ABSENT)
+    .addModule(new Jdk8Module())
     .build();
 
   private final boolean writeTilesOnly;
@@ -160,12 +162,12 @@ public final class WriteableJsonStreamArchive extends WritableStreamArchive {
     @Type(value = InitializationEntry.class, name = "initialization"),
     @Type(value = FinishEntry.class, name = "finish")
   })
-  private interface Entry {
+  sealed interface Entry {
 
   }
 
 
-  private record TileEntry(int x, int y, int z, byte[] encodedData) implements Entry {
+  record TileEntry(int x, int y, int z, byte[] encodedData) implements Entry {
 
     @Override
     public int hashCode() {
@@ -200,12 +202,12 @@ public final class WriteableJsonStreamArchive extends WritableStreamArchive {
    */
 
 
-  private record InitializationEntry(TileArchiveMetadata metadata) implements Entry {
+  record InitializationEntry(TileArchiveMetadata metadata) implements Entry {
 
   }
 
 
-  private record FinishEntry(TileArchiveMetadata metadata) implements Entry {
+  record FinishEntry(TileArchiveMetadata metadata) implements Entry {
 
   }
 
