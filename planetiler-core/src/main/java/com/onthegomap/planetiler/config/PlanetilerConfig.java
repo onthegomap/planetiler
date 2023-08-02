@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
@@ -124,13 +125,18 @@ public record PlanetilerConfig(
       arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
         threads < 32 ? 1 : 2),
       arguments.getInteger("tile_write_threads",
-        "number of threads used to write tiles - only supported by CSV, JSON and proto", 1),
+        "number of threads used to write tiles - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsConcurrentWrites).map(TileArchiveConfig.Format::id).toList(),
+        1),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       minzoom,
       maxzoom,
       renderMaxzoom,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
-      arguments.getBoolean("append", "append to the output file - only supported by CSV, JSON and proto", false),
+      arguments.getBoolean("append",
+        "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsAppend).map(TileArchiveConfig.Format::id).toList(),
+        false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SequenceWriter;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -61,15 +62,9 @@ public final class WriteableJsonStreamArchive extends WritableStreamArchive {
 
   private WriteableJsonStreamArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
-    this.writeTilesOnly = config.moreOptions()
-      .getBoolean(OPTION_WRITE_TILES_ONLY, "write tiles, only", false);
-    this.rootValueSeparator = config.moreOptions()
-      .getString(OPTION_ROOT_VALUE_SEPARATOR,
-        "root value separator - pass from command line as follows root_value_separator='\\\\n' root_value_separator=' '",
-        "'\\n'")
-      // allow values to be wrapped by single quotes => allows to pass a space which otherwise gets trimmed
-      .replaceAll("^'(.+?)'$", "$1")
-      .translateEscapes();
+    this.writeTilesOnly = config.moreOptions().getBoolean(OPTION_WRITE_TILES_ONLY, "write tiles, only", false);
+    this.rootValueSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+      OPTION_ROOT_VALUE_SEPARATOR, "root value separator", "'\\n'", List.of("\n", " "));
   }
 
   public static WriteableJsonStreamArchive newWriteToFile(Path path, StreamArchiveConfig config) {

@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.stream;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.BufferedWriter;
@@ -11,6 +12,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * Writes tile data into a CSV file (or pipe).
@@ -50,19 +52,18 @@ import java.util.Base64;
  */
 public final class WriteableCsvArchive extends WritableStreamArchive {
 
-  static final String OPTION_DELIMITER = "delimiter";
+  static final String OPTION_COLUMN_SEPARATOR = "column_separator";
+  static final String OPTION_LINE_SEPARTATOR = "line_separator";
 
-  private final String delimiter;
+  private final String columnSeparator;
+  private final String lineSeparator;
 
   private WriteableCsvArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
-    this.delimiter = config.moreOptions()
-      .getString(OPTION_DELIMITER,
-        "field delimiter - pass from command line as follows delimiter=',' delimiter=' '",
-        "','")
-      // allow values to be wrapped by single quotes => allows to pass a space which otherwise gets trimmed
-      .replaceAll("^'(.+?)'$", "$1")
-      .translateEscapes();
+    this.columnSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+      OPTION_COLUMN_SEPARATOR, "column separator", "','", List.of(",", " "));
+    this.lineSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+      OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
   }
 
   public static WriteableCsvArchive newWriteToFile(Path path, StreamArchiveConfig config) {
@@ -71,7 +72,7 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
 
   @Override
   protected TileWriter newTileWriter(OutputStream outputStream) {
-    return new CsvTileWriter(outputStream, delimiter);
+    return new CsvTileWriter(outputStream, columnSeparator, lineSeparator);
   }
 
   private static class CsvTileWriter implements TileWriter {
@@ -80,15 +81,18 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
 
     private final Writer writer;
 
-    private final String delimiter;
+    private final String columnSeparator;
+    private final String lineSeparator;
 
-    CsvTileWriter(Writer writer, String delimiter) {
+    CsvTileWriter(Writer writer, String columnSeparator, String lineSeparator) {
       this.writer = writer;
-      this.delimiter = delimiter;
+      this.columnSeparator = columnSeparator;
+      this.lineSeparator = lineSeparator;
     }
 
-    CsvTileWriter(OutputStream outputStream, String delimiter) {
-      this(new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8.newEncoder())), delimiter);
+    CsvTileWriter(OutputStream outputStream, String columnSeparator, String lineSeparator) {
+      this(new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8.newEncoder())),
+        columnSeparator, lineSeparator);
     }
 
     @Override
@@ -97,8 +101,8 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
       final String tileDataEncoded = tileDataEncoder.encodeToString(encodingResult.tileData());
       try {
         // x | y | z | encoded data
-        writer.write("%d%s%d%s%d%s%s\n"
-          .formatted(coord.x(), delimiter, coord.y(), delimiter, coord.z(), delimiter, tileDataEncoded));
+        writer.write("%d%s%d%s%d%s%s%s".formatted(coord.x(), columnSeparator, coord.y(), columnSeparator, coord.z(),
+          columnSeparator, tileDataEncoded, lineSeparator));
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
@@ -107,7 +111,6 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
     @Override
     public void close() {
       try {
-        writer.close();
         writer.close();
       } catch (IOException e) {
         throw new UncheckedIOException(e);

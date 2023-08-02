@@ -97,16 +97,31 @@ class WriteableCsvArchiveTest {
   }
 
   @Test
-  void testDelimiter(@TempDir Path tempDir) throws IOException {
+  void testColumnSeparator(@TempDir Path tempDir) throws IOException {
 
     final StreamArchiveConfig config =
-      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_DELIMITER, "' '")));
+      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_COLUMN_SEPARATOR, "' '")));
 
     final String expectedCsv =
       """
         0,0,0,AA==
         1,1,1,AQ==
         """.replace(',', ' ');
+
+    testTileOptions(tempDir, config, expectedCsv);
+  }
+
+  @Test
+  void testLineSeparator(@TempDir Path tempDir) throws IOException {
+
+    final StreamArchiveConfig config =
+      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_LINE_SEPARTATOR, "'\\r'")));
+
+    final String expectedCsv =
+      """
+        0,0,0,AA==
+        1,1,1,AQ==
+        """.replace('\n', '\r');
 
     testTileOptions(tempDir, config, expectedCsv);
   }
