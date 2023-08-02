@@ -144,20 +144,15 @@
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>blue.strategic.parquet</groupId>-->
-    <!--      <artifactId>parquet-floor</artifactId>-->
-    <!--      <version>1.39</version>-->
-    <!--    </dependency>-->
+    <dependency>
+      <groupId>blue.strategic.parquet</groupId>
+      <artifactId>parquet-floor</artifactId>
+      <version>1.39</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-avro</artifactId>
       <version>1.13.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client</artifactId>
-      <version>3.3.6</version>
     </dependency>
   </dependencies>
 

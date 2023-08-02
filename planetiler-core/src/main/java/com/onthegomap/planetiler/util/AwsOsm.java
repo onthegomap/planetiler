@@ -9,6 +9,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -53,28 +54,38 @@ public class AwsOsm {
 
   private synchronized List<ContentXml> getAndCacheIndex(PlanetilerConfig config) {
     if (entries.isEmpty()) {
-      List<ContentXml> result = new ArrayList<>();
-      String nextPageParam = "";
-      int pageNum = 0;
-      do {
-        try (InputStream inputStream = Downloader.openStream(bucketIndexUrl + "?list-type=2" + nextPageParam, config)) {
-          if (pageNum++ > MAX_PAGES) {
-            throw new IllegalArgumentException("Too many entries in " + bucketIndexUrl + " to page through");
-          }
-          var page = parseIndexXml(inputStream);
-          result.addAll(page.contents());
-          nextPageParam = (!page.truncated() || page.nextToken() == null) ? null :
-            "&continuation-token=" + URLEncoder.encode(page.nextToken(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-          throw new IllegalStateException(e);
-        }
-      } while (nextPageParam != null);
-      entries.addAll(result);
+      entries.addAll(s3List(config, bucketIndexUrl));
     }
     return entries;
   }
 
-  protected IndexXml parseIndexXml(InputStream indexXmlContent) throws IOException {
+  public static List<ContentXml> s3List(PlanetilerConfig config, String base) {
+    URI uri = URI.create(base);
+    String host = uri.getScheme() + "://" + uri.getHost();
+    String prefixParam = uri.getPath().length() <= 1 ? "" : "&prefix=" + uri.getPath().substring(1);
+    List<ContentXml> result = new ArrayList<>();
+    String nextPageParam = "";
+    int pageNum = 0;
+    do {
+      try (
+        InputStream inputStream = Downloader.openStream(host + "?list-type=2" + nextPageParam + prefixParam, config)
+      ) {
+        if (pageNum++ > MAX_PAGES) {
+          throw new IllegalArgumentException(
+            "Too many entries in " + host + uri.getPath() + " to page through");
+        }
+        var page = parseIndexXml(inputStream);
+        result.addAll(page.contents());
+        nextPageParam = (!page.truncated() || page.nextToken() == null) ? null :
+          "&continuation-token=" + URLEncoder.encode(page.nextToken(), StandardCharsets.UTF_8);
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
+    } while (nextPageParam != null);
+    return result;
+  }
+
+  protected static IndexXml parseIndexXml(InputStream indexXmlContent) throws IOException {
     return mapper.readValue(indexXmlContent, IndexXml.class);
   }
 
@@ -99,6 +110,13 @@ public class AwsOsm {
     }
   }
 
+  public List<String> getUrlsWithPrefix(PlanetilerConfig config, String prefix) {
+    return getAndCacheIndex(config).stream()
+      .filter(d -> d.key().startsWith(prefix))
+      .map(d -> bucketIndexUrl + d.key())
+      .toList();
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   @Immutable
   record IndexXml(
@@ -111,7 +129,8 @@ public class AwsOsm {
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record ContentXml(
-    @JacksonXmlProperty(localName = "Key") String key
+  public record ContentXml(
+    @JacksonXmlProperty(localName = "Key") String key,
+    @JacksonXmlProperty(localName = "Size") Long size
   ) {}
 }
