@@ -185,6 +185,10 @@ public class StreetsUtils {
   public static Integer getBuildingLevels(SourceFeature sourceFeature) {
     return parseUnsignedInt((String) sourceFeature.getTag("building:levels"));
   }
+  
+  public static Integer getMinBuildingLevel(SourceFeature sourceFeature) {
+    return parseUnsignedInt((String) sourceFeature.getTag("building:min_level"));
+  }
 
   public static Integer getBuildingColor(SourceFeature sourceFeature) {
     String color = getFirstTagValue((String) sourceFeature.getTag("building:colour"));
