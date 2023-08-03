@@ -12,7 +12,10 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 /**
  * Writes tile data into a CSV file (or pipe).
@@ -36,16 +39,25 @@ import java.util.List;
  * Loading data into mysql could be done like this:
  *
  * <pre>
- * mkfifo /var/lib/mysql-files/output.csv
- * # now run planetiler with the options --append --output=/var/lib/mysql-files/output.csv
+ * mkfifo /tmp/data/output.csv
+ * # now run planetiler with the options --append --output=/tmp/data/output.csv
  *
  * mysql&gt; ...create tile(s) table
- * mysql&gt; LOAD DATA INFILE '/var/lib/mysql-files/output.csv'
+ * mysql&gt; LOAD DATA INFILE '/tmp/data/output.csv'
  *  -&gt; INTO TABLE tiles
  *  -&gt; FIELDS TERMINATED BY ','
  *  -&gt; LINES TERMINATED BY '\n'
  *  -&gt; (tile_column, tile_row, zoom_level, @var1)
  *  -&gt; SET tile_data = FROM_BASE64(@var1);
+ * </pre>
+ *
+ * Loading data into postgres could be done like this:
+ *
+ * <pre>
+ * mkfifo /tmp/data/output.csv
+ * # now run planetiler with the options --append --output=/tmp/data/output.csv --csv_binary_encoding=hex_prefix_start
+ * ...create tile(s) table
+ * postgres=# \copy tiles(tile_column, tile_row, zoom_level, tile_data) from /tmp/data/output.csv DELIMITER ',' CSV;
  * </pre>
  *
  * Check {@link WritableStreamArchive} to see how to write to multiple files. This can be used to parallelize uploads.
@@ -54,9 +66,11 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
 
   static final String OPTION_COLUMN_SEPARATOR = "column_separator";
   static final String OPTION_LINE_SEPARTATOR = "line_separator";
+  static final String OPTION_BINARY_ENCODING = "binary_encoding";
 
   private final String columnSeparator;
   private final String lineSeparator;
+  private final Function<byte[], String> tileDataEncoder;
 
   private WriteableCsvArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
@@ -64,6 +78,17 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
       OPTION_COLUMN_SEPARATOR, "column separator", "','", List.of(",", " "));
     this.lineSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
       OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
+    final BinaryEncoding binaryEncoding = BinaryEncoding.fromId(config.moreOptions().getString(OPTION_BINARY_ENCODING,
+      "binary (tile) data encoding - one of " + BinaryEncoding.ids(), "base64"));
+    this.tileDataEncoder = switch (binaryEncoding) {
+      case BASE64 -> Base64.getEncoder()::encodeToString;
+      case HEX -> HexFormat.of()::formatHex;
+      case HEX_PREFIX_EACH -> HexFormat.of().withPrefix("\\x")::formatHex;
+      case HEX_PREFIX_START -> {
+        final HexFormat hexFormat = HexFormat.of();
+        yield bytes -> String.format("\\x%s", hexFormat.formatHex(bytes));
+      }
+    };
   }
 
   public static WriteableCsvArchive newWriteToFile(Path path, StreamArchiveConfig config) {
@@ -72,33 +97,37 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
 
   @Override
   protected TileWriter newTileWriter(OutputStream outputStream) {
-    return new CsvTileWriter(outputStream, columnSeparator, lineSeparator);
+    return new CsvTileWriter(outputStream, columnSeparator, lineSeparator, tileDataEncoder);
   }
 
   private static class CsvTileWriter implements TileWriter {
 
-    private static final Base64.Encoder tileDataEncoder = Base64.getEncoder();
+    private final Function<byte[], String> tileDataEncoder;
 
     private final Writer writer;
 
     private final String columnSeparator;
     private final String lineSeparator;
 
-    CsvTileWriter(Writer writer, String columnSeparator, String lineSeparator) {
+    CsvTileWriter(Writer writer, String columnSeparator, String lineSeparator,
+      Function<byte[], String> tileDataEncoder) {
       this.writer = writer;
       this.columnSeparator = columnSeparator;
       this.lineSeparator = lineSeparator;
+      this.tileDataEncoder = tileDataEncoder;
+
     }
 
-    CsvTileWriter(OutputStream outputStream, String columnSeparator, String lineSeparator) {
+    CsvTileWriter(OutputStream outputStream, String columnSeparator, String lineSeparator,
+      Function<byte[], String> tileDataEncoder) {
       this(new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8.newEncoder())),
-        columnSeparator, lineSeparator);
+        columnSeparator, lineSeparator, tileDataEncoder);
     }
 
     @Override
     public void write(TileEncodingResult encodingResult) {
       final TileCoord coord = encodingResult.coord();
-      final String tileDataEncoded = tileDataEncoder.encodeToString(encodingResult.tileData());
+      final String tileDataEncoded = tileDataEncoder.apply(encodingResult.tileData());
       try {
         // x | y | z | encoded data
         writer.write("%d%s%d%s%d%s%s%s".formatted(coord.x(), columnSeparator, coord.y(), columnSeparator, coord.z(),
@@ -116,6 +145,35 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
         throw new UncheckedIOException(e);
       }
     }
+  }
 
+  private enum BinaryEncoding {
+
+    BASE64("base64"),
+    HEX("hex"),
+    HEX_PREFIX_START("hex_prefix_start"),
+    HEX_PREFIX_EACH("hex_prefix_each");
+
+    private final String id;
+
+    private BinaryEncoding(String id) {
+      this.id = id;
+    }
+
+    static List<String> ids() {
+      return Stream.of(BinaryEncoding.values()).map(BinaryEncoding::id).toList();
+    }
+
+    static BinaryEncoding fromId(String id) {
+      return Stream.of(BinaryEncoding.values())
+        .filter(de -> de.id().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException(
+          "unexpected binary encoding - expected one of " + ids() + " but got " + id));
+    }
+
+    String id() {
+      return id;
+    }
   }
 }

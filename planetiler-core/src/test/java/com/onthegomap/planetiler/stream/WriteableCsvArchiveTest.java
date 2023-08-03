@@ -104,8 +104,8 @@ class WriteableCsvArchiveTest {
 
     final String expectedCsv =
       """
-        0,0,0,AA==
-        1,1,1,AQ==
+        0,0,0,AAE=
+        1,1,1,AgM=
         """.replace(',', ' ');
 
     testTileOptions(tempDir, config, expectedCsv);
@@ -119,9 +119,56 @@ class WriteableCsvArchiveTest {
 
     final String expectedCsv =
       """
-        0,0,0,AA==
-        1,1,1,AQ==
+        0,0,0,AAE=
+        1,1,1,AgM=
         """.replace('\n', '\r');
+
+    testTileOptions(tempDir, config, expectedCsv);
+  }
+
+  @Test
+  void testHexEncoding(@TempDir Path tempDir) throws IOException {
+
+    final StreamArchiveConfig config =
+      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex")));
+
+    final String expectedCsv =
+      """
+        0,0,0,0001
+        1,1,1,0203
+        """;
+
+    testTileOptions(tempDir, config, expectedCsv);
+  }
+
+  @Test
+  void testHexPrefixStartEncoding(@TempDir Path tempDir) throws IOException {
+
+    final StreamArchiveConfig config =
+      new StreamArchiveConfig(false,
+        Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex_prefix_start")));
+
+    final String expectedCsv =
+      """
+        0,0,0,\\x0001
+        1,1,1,\\x0203
+        """;
+
+    testTileOptions(tempDir, config, expectedCsv);
+  }
+
+  @Test
+  void testHexPrefixEachEncoding(@TempDir Path tempDir) throws IOException {
+
+    final StreamArchiveConfig config =
+      new StreamArchiveConfig(false,
+        Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex_prefix_each")));
+
+    final String expectedCsv =
+      """
+        0,0,0,\\x00\\x01
+        1,1,1,\\x02\\x03
+        """;
 
     testTileOptions(tempDir, config, expectedCsv);
   }
@@ -133,8 +180,8 @@ class WriteableCsvArchiveTest {
     try (var archive = WriteableCsvArchive.newWriteToFile(csvFile, config)) {
       archive.initialize(defaultMetadata);
       try (var tileWriter = archive.newTileWriter()) {
-        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
-        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 1, 1), new byte[]{1}, OptionalLong.empty()));
+        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0, 1}, OptionalLong.empty()));
+        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 1, 1), new byte[]{2, 3}, OptionalLong.empty()));
       }
       archive.finish(defaultMetadata);
     }
