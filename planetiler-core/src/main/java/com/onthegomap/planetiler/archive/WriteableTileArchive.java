@@ -48,11 +48,6 @@ public interface WriteableTileArchive extends Closeable {
 
     void write(TileEncodingResult encodingResult);
 
-    // TODO: exists for compatibility reasons
-    default void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
-    }
-
     @Override
     void close();
 
