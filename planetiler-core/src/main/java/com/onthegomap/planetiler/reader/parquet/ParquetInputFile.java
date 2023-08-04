@@ -31,9 +31,11 @@ public class ParquetInputFile {
   private final ParquetMetadata metadata;
   private final InputFile inputFile;
   private final Path path;
+  private final FilterCompat.Filter filter;
 
-  public ParquetInputFile(Path path) {
+  public ParquetInputFile(Path path, FilterCompat.Filter filter) {
     this.path = path;
+    this.filter = filter;
     inputFile = new InputFile() {
       @Override
       public long getLength() {
@@ -99,6 +101,7 @@ public class ParquetInputFile {
           return metadata.getBlocks().stream().map(block -> {
             try {
               // happens in reader thread
+              // TODO read smaller set of rows to reduce memory usage
               var group = reader.readRowGroup(block.getOrdinal());
               return (Block) new Block() {
                 @Override
@@ -113,7 +116,7 @@ public class ParquetInputFile {
                   var readContext = readSupport.init(new InitContext(config, keyValueMetadataSets, schema));
                   MessageColumnIO columnIO = columnIOFactory.getColumnIO(schema);
                   var converter = readSupport.prepareForRead(config, keyValueMetadata, schema, readContext);
-                  var recordReader = columnIO.getRecordReader(group, converter, FilterCompat.NOOP);
+                  var recordReader = columnIO.getRecordReader(group, converter, filter);
                   long total = block.getRowCount();
                   return new Iterator<>() {
                     long i = 0;

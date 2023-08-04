@@ -28,6 +28,10 @@ public class Bounds {
     set(latLon);
   }
 
+  public boolean isWorld() {
+    return latLon == null || latLon.contains(GeoUtils.WORLD_LAT_LON_BOUNDS);
+  }
+
   public Envelope latLon() {
     return latLon == null ? GeoUtils.WORLD_LAT_LON_BOUNDS : latLon;
   }

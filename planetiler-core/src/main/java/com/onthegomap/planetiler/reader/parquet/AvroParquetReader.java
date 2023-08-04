@@ -22,6 +22,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.filter2.predicate.FilterApi;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
@@ -86,14 +88,23 @@ public class AvroParquetReader {
 
   public void process(List<Path> sourcePath, FeatureGroup writer, PlanetilerConfig config) {
     var timer = stats.startStage(sourceName);
-    var inputFiles = sourcePath.stream().map(ParquetInputFile::new).toList();
+    Envelope latLonBounds = config.bounds().latLon();
+    FilterCompat.Filter filter = config.bounds().isWorld() ? FilterCompat.NOOP : FilterCompat.get(FilterApi.and(
+      FilterApi.and(
+        FilterApi.gtEq(FilterApi.doubleColumn("bbox.maxx"), latLonBounds.getMinX()),
+        FilterApi.ltEq(FilterApi.doubleColumn("bbox.minx"), latLonBounds.getMaxX())
+      ),
+      FilterApi.and(
+        FilterApi.gtEq(FilterApi.doubleColumn("bbox.maxy"), latLonBounds.getMinY()),
+        FilterApi.ltEq(FilterApi.doubleColumn("bbox.miny"), latLonBounds.getMaxY())
+      )
+    ));
+    var inputFiles = sourcePath.stream().map(path -> new ParquetInputFile(path, filter)).toList();
     long featureCount = inputFiles.stream().mapToLong(ParquetInputFile::getCount).sum();
     long blockCount = inputFiles.stream().mapToLong(ParquetInputFile::getBlockCount).sum();
     int readThreads = config.featureReadThreads();
     int processThreads = config.featureProcessThreads();
     int writeThreads = config.featureWriteThreads();
-    // TODO push down bounds predicate to reader
-    Envelope latLonBounds = config.bounds().latLon();
     var blocksRead = Counter.newMultiThreadCounter();
     var featuresRead = Counter.newMultiThreadCounter();
     var featuresWritten = Counter.newMultiThreadCounter();
@@ -108,7 +119,7 @@ public class AvroParquetReader {
           }
         }
       })
-      .addBuffer("row_groups", Math.max(10, processThreads / 2))
+      .addBuffer("row_groups", 10)
       .<SortableFeature>addWorker("process", processThreads, (prev, next) -> {
         var blocks = blocksRead.counterForThread();
         var elements = featuresRead.counterForThread();
@@ -116,24 +127,26 @@ public class AvroParquetReader {
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
           for (var block : prev) {
             for (var item : block) {
-              var sourceFeature = new AvroParquetFeature(
-                item,
-                sourceName,
-                layerParser.apply(block.getFileName()),
-                block.getFileName(),
-                idParser.applyAsLong(item),
-                geometryParser,
-                toMap(item)
-              );
-              FeatureCollector features = featureCollectors.get(sourceFeature);
-              try {
-                profile.processFeature(sourceFeature, features);
-                for (FeatureCollector.Feature renderable : features) {
-                  renderer.accept(renderable);
+              if (item != null) {
+                var sourceFeature = new AvroParquetFeature(
+                  item,
+                  sourceName,
+                  layerParser.apply(block.getFileName()),
+                  block.getFileName(),
+                  idParser.applyAsLong(item),
+                  geometryParser,
+                  toMap(item)
+                );
+                FeatureCollector features = featureCollectors.get(sourceFeature);
+                try {
+                  profile.processFeature(sourceFeature, features);
+                  for (FeatureCollector.Feature renderable : features) {
+                    renderer.accept(renderable);
+                  }
+                } catch (Exception e) {
+                  e.printStackTrace();
+                  LOGGER.error("Error processing {}", sourceFeature, e);
                 }
-              } catch (Exception e) {
-                e.printStackTrace();
-                LOGGER.error("Error processing {}", sourceFeature, e);
               }
               elements.inc();
             }

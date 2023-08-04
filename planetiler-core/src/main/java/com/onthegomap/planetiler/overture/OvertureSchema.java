@@ -101,6 +101,11 @@ public class OvertureSchema {
     public static BuildingClass parse(Object obj) {
       return obj == null ? null : BuildingClass.valueOf(obj.toString().toUpperCase());
     }
+
+    @Override
+    public String toString() {
+      return super.toString().toLowerCase();
+    }
   }
 
   public enum DrivingSide {
@@ -109,6 +114,11 @@ public class OvertureSchema {
 
     public static DrivingSide parse(Object str) {
       return str == null ? null : DrivingSide.valueOf(str.toString().toUpperCase());
+    }
+
+    @Override
+    public String toString() {
+      return super.toString().toLowerCase();
     }
   }
 
@@ -259,6 +269,11 @@ public class OvertureSchema {
 
     public static SegmentSubType parse(Object obj) {
       return obj == null ? null : SegmentSubType.valueOf(obj.toString().toUpperCase());
+    }
+
+    @Override
+    public String toString() {
+      return super.toString().toLowerCase();
     }
   }
 

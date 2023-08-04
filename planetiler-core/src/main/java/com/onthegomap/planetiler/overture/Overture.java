@@ -27,12 +27,10 @@ public class Overture implements Profile {
 
   private final boolean connectors;
   private final boolean metadata;
+  private final PlanetilerConfig config;
 
   Overture(PlanetilerConfig config) {
-    // 650mb no connectors, no metadata
-    // 1gb connectors, no metadata
-    // 1.7gb connectors, metadata
-    // 932mb no connectors, metadata
+    this.config = config;
     this.connectors = config.arguments().getBoolean("connectors", "include connectors", false);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time, id)", false);
@@ -41,14 +39,17 @@ public class Overture implements Profile {
   public static void main(String[] args) throws Exception {
     var base = Path.of("data", "sources", "overture");
     var arguments = Arguments.fromEnvOrArgs(args);
-    var sample = arguments.getBoolean("sample", "only download smallest file from parquet source", true);
+    var sample = arguments.getBoolean("sample", "only download smallest file from parquet source", false);
+    var release = arguments.getString("release", "overture release", "2023-07-26-alpha.0");
 
     var pt = Planetiler.create(arguments)
       .addAvroParquetSource("overture", base)
       .setProfile(planetiler -> new Overture(planetiler.config()))
       .overwriteOutput(Path.of("data", "output.pmtiles"));
 
-    downloadFiles(base, pt, "2023-07-26-alpha.0", sample);
+    if (arguments.getBoolean("download", "download overture files", true)) {
+      downloadFiles(base, pt, release, sample);
+    }
 
     pt.run();
   }
@@ -91,10 +92,11 @@ public class Overture implements Profile {
   @Override
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items)
     throws GeometryException {
+    double tolerance = config.tolerance(zoom);
     if (layer.equals("admins/administrativeBoundary")) {
-      return FeatureMerge.mergeLineStrings(items, 0, 0.125, 4, true);
+      return FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
     } else if (layer.equals("transportation/segment")) {
-      return FeatureMerge.mergeLineStrings(items, 0, 0.125, 4, true);
+      return FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
     }
     return items;
   }
@@ -102,6 +104,18 @@ public class Overture implements Profile {
   @Override
   public String name() {
     return "Overture";
+  }
+
+  @Override
+  public String attribution() {
+    return """
+      <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+      <a href="https://www.usgs.gov/3d-elevation-program" target="_blank">USGS</a>
+      <a href="https://github.com/microsoft/GlobalMLBuildingFootprints" target="_blank">&copy; Microsoft</a>
+      &copy; Esri Community Maps contributors
+      """
+      .replaceAll("\n", " ")
+      .trim();
   }
 
   private void processOvertureFeature(OvertureSchema.Segment element, SourceFeature sourceFeature,
@@ -129,6 +143,9 @@ public class Overture implements Profile {
       case RAIL -> 8;
       case WATER -> 10;
     };
+    if (element.road() != null && element.road().flags() != null && element.road().flags().contains("isLink")) {
+      minzoom = Math.max(minzoom, 9);
+    }
     var feature = features.line(sourceFeature.getSourceLayer())
       .setMinZoom(minzoom)
       .setAttr("width", element.width())
