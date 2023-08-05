@@ -18,6 +18,7 @@ layers:
   - source: osm
     geometry: line
     min_zoom: 4
+    min_size: 0
     include_when:
       __all__:
       - railway: rail
@@ -26,9 +27,9 @@ layers:
       service: __any__
   tile_post_process:
     merge_line_strings:
-      min_length: 1
-      tolerance: 5
-      buffer: 10
+      min_length: 0
+      tolerance: -1
+      buffer: -1
 - id: railways_unmerged
   features:
   - source: osm
