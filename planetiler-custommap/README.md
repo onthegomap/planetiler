@@ -192,7 +192,7 @@ A layer contains a thematically-related set of features from one or more input s
 
 - `id` - Unique name of this layer
 - `features` - A list of features contained in this layer. See [Layer Features](#layer-feature)
-- `tile_post_process` - Optional processing operations to merge features with the same attributes in a rendered tile. 
+- `tile_post_process` - Optional processing operations to merge features with the same attributes in a rendered tile.
   See [Tile Post Process](#tile-post-process)
 
 For example:
@@ -290,9 +290,9 @@ type: integer
 
 Specific tile post processing operations for merging features may be defined:
 
-- `merge_line_strings` - Combines linestrings with the same set of attributes into a multilinestring where segments with 
+- `merge_line_strings` - Combines linestrings with the same set of attributes into a multilinestring where segments with
   touching endpoints are merged.
-- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons 
+- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons
   are combined into fewer polygons covering the same area.
 
 The follow attributes for `merge_line_strings` may be set:
