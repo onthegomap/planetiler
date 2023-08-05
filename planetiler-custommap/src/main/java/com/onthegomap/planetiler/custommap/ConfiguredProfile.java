@@ -102,7 +102,7 @@ public class ConfiguredProfile implements Profile {
     if (featureLayer.postProcess().mergeLineStrings() != null) {
       var merge = featureLayer.postProcess().mergeLineStrings();
 
-      return FeatureMerge.mergeLineStrings(items,
+      items = FeatureMerge.mergeLineStrings(items,
         merge.minLength(), // after merging, remove lines that are still less than {minLength}px long
         merge.tolerance(), // simplify output linestrings using a {tolerance}px tolerance
         merge.buffer() // remove any detail more than {buffer}px outside the tile boundary
@@ -112,7 +112,7 @@ public class ConfiguredProfile implements Profile {
     if (featureLayer.postProcess().mergePolygons() != null) {
       var merge = featureLayer.postProcess().mergePolygons();
 
-      return FeatureMerge.mergeOverlappingPolygons(items,
+      items = FeatureMerge.mergeOverlappingPolygons(items,
         merge.minArea() // after merging, remove polygons that are still less than {minArea} in square tile pixels
       );
     }
