@@ -192,6 +192,8 @@ A layer contains a thematically-related set of features from one or more input s
 
 - `id` - Unique name of this layer
 - `features` - A list of features contained in this layer. See [Layer Features](#layer-feature)
+- `tile_post_process` - Optional processing operations to merge features with the same attributes in a rendered tile. 
+  See [Tile Post Process](#tile-post-process)
 
 For example:
 
@@ -201,6 +203,11 @@ layers:
     features:
       - { ... }
       - { ... }
+    tile_post_process:
+      merge_line_strings:
+        min_length: 1
+        tolerance: 1
+        buffer: 5
 ```
 
 ## Layer Feature
@@ -277,6 +284,34 @@ min_zoom: 10
 include_when: "${ double(feature.tags.voltage) > 1000 }"
 tag_value: voltage
 type: integer
+```
+
+## Tile Post Process
+
+Specific tile post processing operations for merging features may be defined:
+
+- `merge_line_strings` - Combines linestrings with the same set of attributes into a multilinestring where segments with 
+  touching endpoints are merged.
+- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons 
+  are combined into fewer polygons covering the same area.
+
+The follow attributes for `merge_line_strings` may be set:
+- `min_length` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings.
+- `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step.
+- `buffer` - Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step.
+
+The follow attribute for `merge_polygons` may be set:
+- `min_area` - Minimum area in square tile pixels of polygons to emit.
+
+For example:
+
+```yaml
+merge_line_strings:
+  min_length: 1
+  tolerance: 1
+  buffer: 5
+merge_polygons:
+  min_area: 1
 ```
 
 ## Data Type
