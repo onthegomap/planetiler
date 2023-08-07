@@ -141,38 +141,6 @@ class WriteableCsvArchiveTest {
     testTileOptions(tempDir, config, expectedCsv);
   }
 
-  @Test
-  void testHexPrefixStartEncoding(@TempDir Path tempDir) throws IOException {
-
-    final StreamArchiveConfig config =
-      new StreamArchiveConfig(false,
-        Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex_prefix_start")));
-
-    final String expectedCsv =
-      """
-        0,0,0,\\x0001
-        1,1,1,\\x0203
-        """;
-
-    testTileOptions(tempDir, config, expectedCsv);
-  }
-
-  @Test
-  void testHexPrefixEachEncoding(@TempDir Path tempDir) throws IOException {
-
-    final StreamArchiveConfig config =
-      new StreamArchiveConfig(false,
-        Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex_prefix_each")));
-
-    final String expectedCsv =
-      """
-        0,0,0,\\x00\\x01
-        1,1,1,\\x02\\x03
-        """;
-
-    testTileOptions(tempDir, config, expectedCsv);
-  }
-
   private void testTileOptions(Path tempDir, StreamArchiveConfig config, String expectedCsv) throws IOException {
 
     final Path csvFile = tempDir.resolve("mbtiles.json");

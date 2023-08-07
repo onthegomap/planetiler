@@ -54,10 +54,13 @@ import java.util.stream.Stream;
  * Loading data into postgres could be done like this:
  *
  * <pre>
- * mkfifo /tmp/data/output.csv
- * # now run planetiler with the options --append --output=/tmp/data/output.csv --csv_binary_encoding=hex_prefix_start
+ * mkfifo /tmp/data/output_raw.csv
+ * mkfifo /tmp/data/output_transformed.csv
+ * # prefix hex-data with '\x' for the postgres import
+ * cat /tmp/data/output_raw.csv | sed -r 's/^([0-9]+,)([0-9]+,)([0-9]+,)(.*)$/\1\2\3\\x\4/' > /tmp/data/output_transformed.csv
+ * # now run planetiler with the options --append --output=/tmp/data/output.csv --csv_binary_encoding=hex
  * ...create tile(s) table
- * postgres=# \copy tiles(tile_column, tile_row, zoom_level, tile_data) from /tmp/data/output.csv DELIMITER ',' CSV;
+ * postgres=# \copy tiles(tile_column, tile_row, zoom_level, tile_data) from /tmp/data/output_raw.csv DELIMITER ',' CSV;
  * </pre>
  *
  * Check {@link WritableStreamArchive} to see how to write to multiple files. This can be used to parallelize uploads.
@@ -83,11 +86,6 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
     this.tileDataEncoder = switch (binaryEncoding) {
       case BASE64 -> Base64.getEncoder()::encodeToString;
       case HEX -> HexFormat.of()::formatHex;
-      case HEX_PREFIX_EACH -> HexFormat.of().withPrefix("\\x")::formatHex;
-      case HEX_PREFIX_START -> {
-        final HexFormat hexFormat = HexFormat.of();
-        yield bytes -> String.format("\\x%s", hexFormat.formatHex(bytes));
-      }
     };
   }
 
@@ -150,9 +148,7 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
   private enum BinaryEncoding {
 
     BASE64("base64"),
-    HEX("hex"),
-    HEX_PREFIX_START("hex_prefix_start"),
-    HEX_PREFIX_EACH("hex_prefix_each");
+    HEX("hex");
 
     private final String id;
 
