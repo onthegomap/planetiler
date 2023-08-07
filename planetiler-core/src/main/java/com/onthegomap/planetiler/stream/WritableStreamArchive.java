@@ -11,7 +11,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
-import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Base archive for all kinds of simple file streams. This is primarily useful when the file is a named pipe. In that
@@ -79,7 +78,6 @@ abstract class WritableStreamArchive implements WriteableTileArchive {
 
   }
 
-  @Pure
   protected abstract TileWriter newTileWriter(OutputStream outputStream);
 
   protected final OutputStream getPrimaryOutputStream() {

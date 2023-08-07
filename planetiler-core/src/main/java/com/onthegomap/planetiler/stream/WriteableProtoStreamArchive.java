@@ -6,7 +6,6 @@ import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
 import com.onthegomap.planetiler.util.LayerStats.VectorLayer;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -167,17 +166,6 @@ public final class WriteableProtoStreamArchive extends WritableStreamArchive {
         out.close();
       } catch (IOException e) {
         throw new UncheckedIOException(e);
-      }
-    }
-  }
-
-  // for quick testing
-  // note: do not use nio (Files.newInputStream) for pipes
-  public static void main(String[] args) throws IOException {
-    try (var in = new FileInputStream(args[0])) {
-      StreamArchiveProto.Entry entry;
-      while ((entry = StreamArchiveProto.Entry.parseDelimitedFrom(in)) != null) {
-        System.out.println(entry);
       }
     }
   }

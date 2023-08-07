@@ -20,7 +20,7 @@ public final class StreamArchiveUtils {
     return index == 0 ? basePath : Paths.get(basePath.toString() + index);
   }
 
-  static String getEscpacedString(Arguments options, TileArchiveConfig.Format format, String key,
+  static String getEscapedString(Arguments options, TileArchiveConfig.Format format, String key,
     String descriptionPrefix, String defaultValue, List<String> examples) {
 
     final String cliKey = format.id() + "_" + key;

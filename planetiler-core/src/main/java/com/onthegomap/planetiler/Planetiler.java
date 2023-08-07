@@ -652,8 +652,6 @@ public class Planetiler {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
-    } else if (overwrite || config.force()) {
-      output.delete();
     } else if (config.append()) {
       if (!output.format().supportsAppend()) {
         throw new IllegalArgumentException("cannot append to " + output.format().id());
@@ -661,6 +659,8 @@ public class Planetiler {
       if (!output.exists()) {
         throw new IllegalArgumentException(output.uri() + " must exist when appending");
       }
+    } else if (overwrite || config.force()) {
+      output.delete();
     } else if (output.exists()) {
       throw new IllegalArgumentException(
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
@@ -676,7 +676,7 @@ public class Planetiler {
       IntStream.range(1, config.tileWriteThreads())
         .mapToObj(index -> StreamArchiveUtils.constructIndexedPath(output.getLocalPath(), index))
         .forEach(p -> {
-          if (overwrite || config.force()) {
+          if (!config.append() && (overwrite || config.force())) {
             FileUtils.delete(p);
           }
           if (config.append() && !Files.exists(p)) {

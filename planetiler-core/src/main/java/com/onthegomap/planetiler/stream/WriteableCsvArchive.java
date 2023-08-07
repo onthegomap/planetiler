@@ -77,9 +77,9 @@ public final class WriteableCsvArchive extends WritableStreamArchive {
 
   private WriteableCsvArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
-    this.columnSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+    this.columnSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
       OPTION_COLUMN_SEPARATOR, "column separator", "','", List.of(",", " "));
-    this.lineSeparator = StreamArchiveUtils.getEscpacedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+    this.lineSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
       OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
     final BinaryEncoding binaryEncoding = BinaryEncoding.fromId(config.moreOptions().getString(OPTION_BINARY_ENCODING,
       "binary (tile) data encoding - one of " + BinaryEncoding.ids(), "base64"));

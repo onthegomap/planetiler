@@ -23,7 +23,7 @@ class StreamArchiveUtilsTest {
 
     final Arguments options = Arguments.of(Map.of("key", in));
 
-    assertEquals(out, StreamArchiveUtils.getEscpacedString(options, TileArchiveConfig.Format.CSV, "key", "descr.", "ex",
+    assertEquals(out, StreamArchiveUtils.getEscapedString(options, TileArchiveConfig.Format.CSV, "key", "descr.", "ex",
       List.of("\n", " ")));
   }
 
