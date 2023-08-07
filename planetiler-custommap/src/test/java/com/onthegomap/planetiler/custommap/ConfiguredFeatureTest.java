@@ -9,11 +9,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureCollector.Feature;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.custommap.configschema.DataSourceType;
+import com.onthegomap.planetiler.custommap.configschema.MergeLineStrings;
+import com.onthegomap.planetiler.custommap.configschema.MergePolygons;
+import com.onthegomap.planetiler.custommap.configschema.PostProcess;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.custommap.util.TestConfigurableUtils;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.stats.Stats;
@@ -155,6 +161,89 @@ class ConfiguredFeatureTest {
     var sf =
       SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
     testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
+  }
+
+  @Test
+  void testFeaturePostProcessorNoop() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
+  }
+
+  @Test
+  void testFeaturePostProcessorMergeLineStrings() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_line_strings:
+            min_length: 1
+            tolerance: 5
+            buffer: 10
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
+  }
+
+  @Test
+  void testFeaturePostProcessorMergePolygons() throws GeometryException {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_polygons:
+            min_area: 3
+      """;
+    var profile = loadConfig(config);
+
+    VectorTile.Feature feature = new VectorTile.Feature(
+      "testLayer",
+      1,
+      VectorTile.encodeGeometry(GeoUtils.point(0, 0)),
+      Map.of()
+    );
+    assertEquals(List.of(feature), profile.postProcessLayerFeatures("testLayer", 0, List.of(feature)));
   }
 
   @Test
@@ -786,6 +875,7 @@ class ConfiguredFeatureTest {
   void testInvalidSchemas() {
     testInvalidSchema("bad_geometry_type.yml", "Profile defined with invalid geometry type");
     testInvalidSchema("no_layers.yml", "Profile defined with no layers");
+    testInvalidSchema("invalid_post_process.yml", "Profile defined with invalid post process element");
   }
 
   private void testInvalidSchema(String filename, String message) {
@@ -1046,5 +1136,79 @@ class ConfiguredFeatureTest {
     testLinestring(config, Map.of("key", 9), feature -> {
       assertEquals(output, feature.getMinPixelSizeAtZoom(11));
     }, 1);
+  }
+
+  @Test
+  void testSchemaEmptyPostProcess() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertNull(loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessWithMergeLineStrings() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_line_strings:
+            min_length: 1
+            tolerance: 5
+            buffer: 10
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      new MergeLineStrings(
+        1,
+        5,
+        10
+      ),
+      null
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
+  }
+
+  @Test
+  void testSchemaPostProcessWithMergePolygons() {
+    var config = """
+      sources:
+        osm:
+          type: osm
+          url: geofabrik:rhode-island
+          local_path: data/rhode-island.osm.pbf
+      layers:
+      - id: testLayer
+        features:
+        - source: osm
+          geometry: point
+        tile_post_process:
+          merge_polygons:
+            min_area: 3
+      """;
+    this.planetilerConfig = PlanetilerConfig.from(Arguments.of(Map.of()));
+    assertEquals(new PostProcess(
+      null,
+      new MergePolygons(
+        3
+      )
+    ), loadConfig(config).findFeatureLayer("testLayer").postProcess());
   }
 }
