@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
@@ -26,6 +27,7 @@ import org.locationtech.jts.geom.Polygon;
  */
 public abstract class SourceFeature implements WithTags, WithGeometryType {
 
+  private static final double TOLERANCE = 1 / 4096d / Math.pow(2, 14);
   private final Map<String, Object> tags;
   private final String source;
   private final String sourceLayer;
@@ -33,12 +35,16 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private final long id;
   private Geometry centroid = null;
   private Geometry pointOnSurface = null;
+  private Geometry innermostPoint = null;
   private Geometry centroidIfConvex = null;
   private Geometry linearGeometry = null;
   private Geometry polygonGeometry = null;
   private Geometry validPolygon = null;
   private double area = Double.NaN;
   private double length = Double.NaN;
+
+  // slight optimization: replace default implementation with direct access to the tags
+  // map to get slightly improved performance when matching elements against expressions
 
   /**
    * Constructs a new input feature.
@@ -59,9 +65,6 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
     this.id = id;
   }
 
-  // slight optimization: replace default implementation with direct access to the tags
-  // map to get slightly improved performance when matching elements against expressions
-
   @Override
   public Object getTag(String key) {
     return tags.get(key);
@@ -71,7 +74,6 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   public boolean hasTag(String key) {
     return tags.containsKey(key);
   }
-
 
   @Override
   public Object getTag(String key, Object defaultValue) {
@@ -123,6 +125,13 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
       canBePolygon() ? polygon().getInteriorPoint() :
         canBeLine() ? line().getInteriorPoint() :
         worldGeometry().getInteriorPoint());
+  }
+
+  public final Geometry innermostPoint() throws GeometryException {
+    if (innermostPoint == null) {
+      innermostPoint = MaximumInscribedCircle.getCenter(polygon(), TOLERANCE);
+    }
+    return innermostPoint;
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {

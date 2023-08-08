@@ -263,8 +263,11 @@ public class OvertureSchema {
   }
 
   public enum SegmentSubType {
+    @JsonProperty("road")
     ROAD,
+    @JsonProperty("rail")
     RAIL,
+    @JsonProperty("water")
     WATER;
 
     public static SegmentSubType parse(Object obj) {

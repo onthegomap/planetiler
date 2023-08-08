@@ -175,6 +175,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
+  public Feature innermostPoint(String layer) {
+    try {
+      return geometry(layer, source.innermostPoint());
+    } catch (GeometryException e) {
+      e.log(stats, "feature_innermost_point", "Error getting innermost point for " + source.id());
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
   /**
    * Creates new feature collector instances for each source feature that we encounter.
    */

@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader.parquet;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.overture.Struct;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,6 +32,10 @@ public class AvroParquetFeature extends SourceFeature {
 
   public GenericRecord getRecord() {
     return unparsed;
+  }
+
+  public Struct getStruct() {
+    return Struct.of(Struct.convert(unparsed));
   }
 
   public Path getFilename() {

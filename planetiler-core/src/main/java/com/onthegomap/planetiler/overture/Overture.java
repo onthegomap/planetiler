@@ -20,7 +20,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 public class Overture implements Profile {
@@ -31,9 +33,9 @@ public class Overture implements Profile {
 
   Overture(PlanetilerConfig config) {
     this.config = config;
-    this.connectors = config.arguments().getBoolean("connectors", "include connectors", false);
+    this.connectors = config.arguments().getBoolean("connectors", "include connectors", true);
     this.metadata =
-      config.arguments().getBoolean("metadata", "include element metadata (version, update time, id)", false);
+      config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
   }
 
   public static void main(String[] args) throws Exception {
@@ -73,18 +75,18 @@ public class Overture implements Profile {
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature instanceof AvroParquetFeature avroFeature) {
       switch (sourceFeature.getSourceLayer()) {
-        case "admins/administrativeBoundary" -> processOvertureFeature(OvertureSchema.AdministrativeBoundary.parse(
-          avroFeature.getRecord()), sourceFeature, features);
-        case "admins/locality" -> processOvertureFeature(OvertureSchema.Locality.parse(
-          avroFeature.getRecord()), sourceFeature, features);
-        case "buildings/building" -> processOvertureFeature(OvertureSchema.Building.parse(
-          avroFeature.getRecord()), sourceFeature, features);
-        case "places/place" -> processOvertureFeature(OvertureSchema.Place.parse(
-          avroFeature.getRecord()), sourceFeature, features);
-        case "transportation/connector" -> processOvertureFeature(OvertureSchema.Connector.parse(
-          avroFeature.getRecord()), sourceFeature, features);
-        case "transportation/segment" -> processOvertureFeature(OvertureSchema.Segment.parse(
-          avroFeature.getRecord()), sourceFeature, features);
+        case "admins/administrativeBoundary" -> processOvertureFeature(
+          (OvertureSchema.AdministrativeBoundary) null, sourceFeature, features);
+        case "admins/locality" -> processOvertureFeature(
+          (OvertureSchema.Locality) null, sourceFeature, features);
+        case "buildings/building" -> processOvertureFeature(
+          (OvertureSchema.Building) null, sourceFeature, features);
+        case "places/place" -> processOvertureFeature(
+          (OvertureSchema.Place) null, sourceFeature, features);
+        case "transportation/connector" -> processOvertureFeature(
+          (OvertureSchema.Connector) null, sourceFeature, features);
+        case "transportation/segment" -> processOvertureFeature(
+          (OvertureSchema.Segment) null, sourceFeature, features);
       }
     }
   }
@@ -110,9 +112,7 @@ public class Overture implements Profile {
   public String attribution() {
     return """
       <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
-      <a href="https://www.usgs.gov/3d-elevation-program" target="_blank">USGS</a>
-      <a href="https://github.com/microsoft/GlobalMLBuildingFootprints" target="_blank">&copy; Microsoft</a>
-      &copy; Esri Community Maps contributors
+      <a href="https://overturemaps.org/download/overture-july-alpha-release-notes/" target="_blank">&copy; Overture Foundation</a>
       """
       .replaceAll("\n", " ")
       .trim();
@@ -120,8 +120,14 @@ public class Overture implements Profile {
 
   private void processOvertureFeature(OvertureSchema.Segment element, SourceFeature sourceFeature,
     FeatureCollector features) {
-    int minzoom = switch (element.subType()) {
-      case ROAD -> switch (element.road().roadClass()) {
+    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+    var subtype = struct.get("subtype").as(OvertureSchema.SegmentSubType.class);
+    var roadClass = struct.get("road.class").as(OvertureSchema.RoadClass.class);
+    if (roadClass == null || subtype == null) {
+      return;
+    }
+    int minzoom = switch (subtype) {
+      case ROAD -> switch (roadClass) {
           case MOTORWAY -> 4;
           case TRUNK -> 5;
           case PRIMARY -> 7;
@@ -143,62 +149,65 @@ public class Overture implements Profile {
       case RAIL -> 8;
       case WATER -> 10;
     };
-    if (element.road() != null && element.road().flags() != null && element.road().flags().contains("isLink")) {
+    if (struct.get("road.flags").asList().stream().map(Struct::asString).anyMatch("isLink"::equals)) {
       minzoom = Math.max(minzoom, 9);
     }
     var feature = features.line(sourceFeature.getSourceLayer())
       .setMinZoom(minzoom)
-      .setAttr("width", element.width())
+      // TODO road not present
+      //      .setAttr("width", struct.get("width").asDouble())
       .setMinPixelSize(0)
-      .setAttr("subType", element.subType().toString().toLowerCase())
-      .putAttrs(getCommonTags(element.info()));
+      .setAttr("subType", struct.get("subtype").asString())
+      .putAttrs(getCommonTags(struct));
     if (connectors) {
-      feature.setAttr("connectors", join(",", element.connectors()));
+      feature.setAttrWithMinzoom("connectors", join(",", struct.get("connectors")), 14);
     }
-    if (element.road() != null) {
-      OvertureSchema.Road road = element.road();
+    Struct road = struct.get("road");
+    if (!road.isNull()) {
+      List<Struct> names = road.get("roadnames").asList();
+      Optional<Struct> fullLengthName = names.stream()
+        .filter(d -> d.get("at").isNull())
+        .findFirst();
+      List<Object> otherNames = names.stream().filter(d -> !d.get("at").isNull()).map(Struct::rawValue).toList();
       feature
         // TODO partial road names ? partial tags
-        .putAttrs(road.roadNames() == null ? Map.of() : getNames(road.roadNames().stream()
-          .filter(d -> d.at() == null)
-          .findFirst()
-          .orElse(null)))
-        .setAttr("roadNames",
-          toJsonString(
-            road.roadNames() == null ? null : road.roadNames().stream().filter(d -> d.at() != null).toList()))
-        .setAttr("class", road.roadClass().toString())
-        .setAttr("flags", toJsonString(road.flags()))
-        .setAttr("lanes", toJsonString(road.lanes()))
-        .setAttr("surface", toJsonString(road.surface()))
-        .setAttr("restrictions", toJsonString(road.restrictions()));
+        .putAttrs(fullLengthName.map(Overture::getNames).orElse(Map.of()))
+        .setAttr("roadNames", toJsonString(otherNames))
+        .setAttr("class", road.get("class").asString())
+        .setAttr("flags", road.get("flags").asJson())
+        .setAttr("lanes", road.get("lanes").asJson())
+        .setAttr("surface", road.get("surface").asJson())
+        .setAttr("restrictions", road.get("restrictions").asJson());
     }
   }
 
   private void processOvertureFeature(OvertureSchema.Connector element, SourceFeature sourceFeature,
     FeatureCollector features) {
     if (connectors) {
+      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
       features.point(sourceFeature.getSourceLayer())
         .setMinZoom(14)
-        .putAttrs(getCommonTags(element.info()));
+        .putAttrs(getCommonTags(struct));
     }
   }
 
   private void processOvertureFeature(OvertureSchema.Place element, SourceFeature sourceFeature,
     FeatureCollector features) {
+    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
     features.point(sourceFeature.getSourceLayer())
       .setMinZoom(14)
-      .setAttr("emails", join(",", element.emails()))
-      .setAttr("phones", join(",", element.phones()))
-      .setAttr("socials", join(",", element.socials()))
-      .setAttr("websites", join(",", element.websites()))
-      .setAttr("confidence", element.confidence())
-      .setAttr("brand.wikidata", element.brand() == null ? null : element.brand().wikidata())
-      .putAttrs(getNames("brand.", element.brand() == null ? null : element.brand().names()))
-      .setAttr("addresses", toJsonString(element.addresses()))
-      .setAttr("category", element.categories().main())
-      .setAttr("category.alternate", join(",", element.categories().alternate()))
-      .putAttrs(getCommonTags(element.info()))
-      .putAttrs(getNames(element.names()));
+      .setAttr("emails", join(",", struct.get("emails")))
+      .setAttr("phones", join(",", struct.get("phones")))
+      .setAttr("socials", join(",", struct.get("socials")))
+      .setAttr("websites", join(",", struct.get("websites")))
+      .setAttr("confidence", struct.get("confidence").asDouble())
+      .setAttr("brand.wikidata", struct.get("brand.wikidata").asString())
+      .putAttrs(getNames("brand", struct.get("brand.names")))
+      .setAttr("addresses", struct.get("addresses").asJson())
+      .setAttr("categories.main", struct.get("categories.main").asString())
+      .setAttr("categories.alternate", join(",", struct.get("categories.alternate")))
+      .putAttrs(getCommonTags(struct))
+      .putAttrs(getNames(struct.get("names")));
   }
 
   private static String toJsonString(List<?> list) {
@@ -221,26 +230,28 @@ public class Overture implements Profile {
     return items == null || items.isEmpty() ? null : String.join(sep, items);
   }
 
+  private static String join(String sep, Struct struct) {
+    List<Struct> items = struct.asList();
+    return items.isEmpty() ? null : String.join(sep, items.stream().map(Struct::asString).toList());
+  }
+
   private void processOvertureFeature(OvertureSchema.Building element, SourceFeature sourceFeature,
     FeatureCollector features) {
     if (sourceFeature.canBePolygon()) {
+      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+      var commonTags = getCommonTags(struct);
+      commonTags.put("class", struct.get("class").asString());
+      commonTags.put("height", struct.get("height").asDouble());
+      commonTags.put("numFloors", struct.get("numfloors").asInt());
       features.polygon(sourceFeature.getSourceLayer())
         .setMinZoom(14)
-        .setAttr("class", element.class_() != null ? element.class_().toString() : null)
-        .setAttr("height", element.height())
-        .setAttr("numFloors", element.numFloors())
-        .putAttrs(getCommonTags(element.info()));
-      if (element.names() != null) {
-        var names = getNames(element.names());
-        if (!names.isEmpty()) {
-          features.centroidIfConvex(sourceFeature.getSourceLayer())
-            .setMinZoom(14)
-            .setAttr("class", element.class_() != null ? element.class_().toString() : null)
-            .setAttr("height", element.height())
-            .setAttr("numFloors", element.numFloors())
-            .putAttrs(getNames(element.names()))
-            .putAttrs(getCommonTags(element.info()));
-        }
+        .putAttrs(commonTags);
+      var names = getNames(struct.get("names"));
+      if (!names.isEmpty()) {
+        features.centroidIfConvex(sourceFeature.getSourceLayer())
+          .setMinZoom(14)
+          .putAttrs(names)
+          .putAttrs(commonTags);
       }
     }
   }
@@ -248,48 +259,37 @@ public class Overture implements Profile {
   private void processOvertureFeature(OvertureSchema.Locality element, SourceFeature sourceFeature,
     FeatureCollector features) {
     if (sourceFeature.canBePolygon()) {
-      features.pointOnSurface(sourceFeature.getSourceLayer())
-        .setMinZoom(adminLevelMinZoom(element.adminLevel()))
-        .putAttrs(getNames(element.names()))
-        .setAttr("adminLevel", element.adminLevel())
-        .setAttr("subType", element.subType())
-        .setAttr("isoCountryCodeAlpha2", element.isoCountryCodeAlpha2())
-        .setAttr("isoSubCountryCode", element.isoSubCountryCode())
-        .putAttrs(getCommonTags(element.info()));
+      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+      features.innermostPoint(sourceFeature.getSourceLayer())
+        .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
+        .putAttrs(getNames(struct.get("names")))
+        .setAttr("adminLevel", struct.get("adminlevel").asInt())
+        .setAttr("subType", struct.get("subtype").asString())
+        .setAttr("isoCountryCodeAlpha2", struct.get("isocountrycodealpha2").asString())
+        .setAttr("isoSubCountryCode", struct.get("isosubcountrycode").asString())
+        .putAttrs(getCommonTags(struct));
     }
   }
 
-  private static Map<String, Object> getNames(OvertureSchema.Names names) {
+  private static Map<String, Object> getNames(Struct names) {
     return getNames(null, names);
   }
 
-  private static Map<String, Object> getNames(String prefix, OvertureSchema.Names names) {
-    if (names == null) {
+  private static Map<String, Object> getNames(String prefix, Struct names) {
+    if (names.isNull()) {
       return Map.of();
     }
     String base = prefix == null ? "name" : (prefix + ".name");
     Map<String, Object> result = new LinkedHashMap<>();
-    if (names.common() != null) {
-      if (!names.common().isEmpty()) {
-        result.put(base, names.common().get(0).value());
-      }
-      for (var name : names.common()) {
-        put(result, base + ".common." + name.language(), name.value());
-      }
-    }
-    if (names.official() != null) {
-      for (var name : names.official()) {
-        put(result, base + ".official." + name.language(), name.value());
-      }
-    }
-    if (names.shortName() != null) {
-      for (var name : names.shortName()) {
-        put(result, base + ".short." + name.language(), name.value());
-      }
-    }
-    if (names.alternate() != null) {
-      for (var name : names.alternate()) {
-        put(result, base + ".alternate." + name.language(), name.value());
+    boolean first = true;
+    for (String key : List.of("common", "official", "short", "alternate")) {
+      for (var name : names.get(key).asList()) {
+        String value = name.get("value").asString();
+        if (first) {
+          first = false;
+          put(result, "name", value);
+        }
+        put(result, base + "." + key + "." + name.get("language").asString(), value);
       }
     }
     return result;
@@ -304,28 +304,32 @@ public class Overture implements Profile {
     attrs.put(result, value);
   }
 
-  private Map<String, Object> getCommonTags(OvertureSchema.SharedMetadata info) {
+  private Map<String, Object> getCommonTags(Struct info) {
     Map<String, Object> results = new HashMap<>(4);
     if (metadata) {
-      results.put("id", info.id());
-      results.put("version", info.version());
-      results.put("updateTime", Instant.ofEpochMilli(info.updateTime()).toString());
+      results.put("version", info.get("version").asInt());
+      results.put("updateTime", Instant.ofEpochMilli(info.get("updatetime").asLong()).toString());
     }
-    results.put("sources", join(",", info.sources().stream()
-      .map(d -> d.dataset() + (d.recordId() != null ? (":" + d.recordId()) : ""))
-      .distinct()
-      .toList()));
+    results.put("id", info.get("id").asString());
+    results.put("sources", info.get("sources").asList().stream().map(d -> {
+      String recordId = d.get("recordId").asString();
+      if (recordId == null) {
+        recordId = d.get("recordid").asString();
+      }
+      return d.get("dataset").asString() + (recordId == null ? "" : (":" + recordId));
+    }).sorted().distinct().collect(Collectors.joining(",")));
     return results;
   }
 
   private void processOvertureFeature(OvertureSchema.AdministrativeBoundary element,
     SourceFeature sourceFeature, FeatureCollector features) {
+    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
     features.line(sourceFeature.getSourceLayer())
-      .setMinZoom(adminLevelMinZoom(element.adminLevel()))
+      .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
       .setMinPixelSize(0)
-      .setAttr("adminLevel", element.adminLevel())
-      .setAttr("maritime", element.maritime())
-      .putAttrs(getCommonTags(element.info()));
+      .setAttr("adminLevel", struct.get("adminlevel").asInt())
+      .setAttr("maritime", struct.get("maritime").asBoolean())
+      .putAttrs(getCommonTags(struct));
   }
 
 
