@@ -15,7 +15,6 @@ import com.onthegomap.planetiler.util.Downloader;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,18 +74,12 @@ public class Overture implements Profile {
   public void processFeature(SourceFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature instanceof AvroParquetFeature avroFeature) {
       switch (sourceFeature.getSourceLayer()) {
-        case "admins/administrativeBoundary" -> processOvertureFeature(
-          (OvertureSchema.AdministrativeBoundary) null, sourceFeature, features);
-        case "admins/locality" -> processOvertureFeature(
-          (OvertureSchema.Locality) null, sourceFeature, features);
-        case "buildings/building" -> processOvertureFeature(
-          (OvertureSchema.Building) null, sourceFeature, features);
-        case "places/place" -> processOvertureFeature(
-          (OvertureSchema.Place) null, sourceFeature, features);
-        case "transportation/connector" -> processOvertureFeature(
-          (OvertureSchema.Connector) null, sourceFeature, features);
-        case "transportation/segment" -> processOvertureFeature(
-          (OvertureSchema.Segment) null, sourceFeature, features);
+        case "admins/administrativeBoundary" -> processAdministrativeBoundary(avroFeature, features);
+        case "admins/locality" -> processLocality(avroFeature, features);
+        case "buildings/building" -> processBuilding(avroFeature, features);
+        case "places/place" -> processPlace(avroFeature, features);
+        case "transportation/connector" -> processConnector(avroFeature, features);
+        case "transportation/segment" -> processSegment(avroFeature, features);
       }
     }
   }
@@ -111,16 +104,15 @@ public class Overture implements Profile {
   @Override
   public String attribution() {
     return """
-      <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+      <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
       <a href="https://overturemaps.org/download/overture-july-alpha-release-notes/" target="_blank">&copy; Overture Foundation</a>
       """
       .replaceAll("\n", " ")
       .trim();
   }
 
-  private void processOvertureFeature(OvertureSchema.Segment element, SourceFeature sourceFeature,
-    FeatureCollector features) {
-    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+  private void processSegment(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    Struct struct = sourceFeature.getStruct();
     var subtype = struct.get("subtype").as(OvertureSchema.SegmentSubType.class);
     var roadClass = struct.get("road", "class").as(OvertureSchema.RoadClass.class);
     if (roadClass == null || subtype == null) {
@@ -181,19 +173,17 @@ public class Overture implements Profile {
     }
   }
 
-  private void processOvertureFeature(OvertureSchema.Connector element, SourceFeature sourceFeature,
-    FeatureCollector features) {
+  private void processConnector(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (connectors) {
-      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+      Struct struct = sourceFeature.getStruct();
       features.point(sourceFeature.getSourceLayer())
         .setMinZoom(14)
         .putAttrs(getCommonTags(struct));
     }
   }
 
-  private void processOvertureFeature(OvertureSchema.Place element, SourceFeature sourceFeature,
-    FeatureCollector features) {
-    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+  private void processPlace(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    Struct struct = sourceFeature.getStruct();
     features.point(sourceFeature.getSourceLayer())
       .setMinZoom(14)
       .setAttr("emails", join(",", struct.get("emails")))
@@ -218,18 +208,6 @@ public class Overture implements Profile {
     }
   }
 
-  private static String toJsonString(Object obj) {
-    try {
-      return obj == null ? null : OvertureSchema.mapper.writeValueAsString(obj);
-    } catch (JsonProcessingException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  private static String join(String sep, Collection<String> items) {
-    return items == null || items.isEmpty() ? null : String.join(sep, items);
-  }
-
   private static String join(String sep, Struct struct) {
     List<Struct> items = struct.asList();
     if (items.isEmpty()) {
@@ -245,16 +223,16 @@ public class Overture implements Profile {
     return sb.toString();
   }
 
-  private void processOvertureFeature(OvertureSchema.Building element, SourceFeature sourceFeature,
-    FeatureCollector features) {
+  private void processBuilding(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.canBePolygon()) {
-      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+      Struct struct = sourceFeature.getStruct();
       var commonTags = getCommonTags(struct);
       commonTags.put("class", struct.get("class").asString());
       commonTags.put("height", struct.get("height").asDouble());
       commonTags.put("numFloors", struct.get("numfloors").asInt());
       features.polygon(sourceFeature.getSourceLayer())
-        .setMinZoom(14)
+        .setMinZoom(13)
+        .setMinPixelSize(2)
         .putAttrs(commonTags);
       var names = getNames(struct.get("names"));
       if (!names.isEmpty()) {
@@ -266,10 +244,9 @@ public class Overture implements Profile {
     }
   }
 
-  private void processOvertureFeature(OvertureSchema.Locality element, SourceFeature sourceFeature,
-    FeatureCollector features) {
+  private void processLocality(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.canBePolygon()) {
-      Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+      Struct struct = sourceFeature.getStruct();
       features.innermostPoint(sourceFeature.getSourceLayer())
         .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
         .putAttrs(getNames(struct.get("names")))
@@ -331,9 +308,8 @@ public class Overture implements Profile {
     return results;
   }
 
-  private void processOvertureFeature(OvertureSchema.AdministrativeBoundary element,
-    SourceFeature sourceFeature, FeatureCollector features) {
-    Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
+  private void processAdministrativeBoundary(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    Struct struct = sourceFeature.getStruct();
     features.line(sourceFeature.getSourceLayer())
       .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
       .setMinPixelSize(0)

@@ -705,6 +705,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * value for that attribute by zoom level.
      */
     public Feature putAttrs(Map<String, Object> attrs) {
+      if (attrs.isEmpty()) {
+        return this;
+      }
       for (Object value : attrs.values()) {
         if (value instanceof ZoomFunction) {
           attrsChangeByZoom = true;
