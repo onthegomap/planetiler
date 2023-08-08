@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.SortableFeature;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.overture.Struct;
 import com.onthegomap.planetiler.render.FeatureRenderer;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
@@ -12,7 +13,6 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -36,7 +36,7 @@ public class AvroParquetReader {
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroParquetReader.class);
   private final long count = 0;
   private final String sourceName;
-  private final Function<GenericRecord, Geometry> geometryParser;
+  private final Function<Struct, Geometry> geometryParser;
   private final ToLongFunction<GenericRecord> idParser;
   private final Profile profile;
   private final Stats stats;
@@ -47,10 +47,8 @@ public class AvroParquetReader {
     Profile profile,
     Stats stats
   ) {
-    this(sourceName, profile, stats, genericRecord -> {
-      ByteBuffer buf = (ByteBuffer) genericRecord.get("geometry");
-      byte[] bytes = new byte[buf.limit()];
-      buf.get(bytes);
+    this(sourceName, profile, stats, struct -> {
+      byte[] bytes = struct.get("geometry").asBytes();
       try {
         return new WKBReader().read(bytes);
       } catch (ParseException e) {
@@ -66,7 +64,7 @@ public class AvroParquetReader {
     String sourceName,
     Profile profile,
     Stats stats,
-    Function<GenericRecord, Geometry> getGeometry,
+    Function<Struct, Geometry> getGeometry,
     ToLongFunction<GenericRecord> getId,
     Function<Path, String> getLayer
   ) {
@@ -126,12 +124,13 @@ public class AvroParquetReader {
         var featureCollectors = new FeatureCollector.Factory(config, stats);
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
           for (var block : prev) {
+            String layer = layerParser.apply(block.getFileName());
             for (var item : block) {
               if (item != null) {
                 var sourceFeature = new AvroParquetFeature(
                   item,
                   sourceName,
-                  layerParser.apply(block.getFileName()),
+                  layer,
                   block.getFileName(),
                   idParser.applyAsLong(item),
                   geometryParser,

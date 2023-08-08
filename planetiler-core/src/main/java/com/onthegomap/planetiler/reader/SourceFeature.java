@@ -129,7 +129,8 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
 
   public final Geometry innermostPoint() throws GeometryException {
     if (innermostPoint == null) {
-      innermostPoint = MaximumInscribedCircle.getCenter(polygon(), TOLERANCE);
+      Geometry polygon = polygon();
+      innermostPoint = MaximumInscribedCircle.getCenter(polygon(), Math.sqrt(polygon.getArea() / 100d));
     }
     return innermostPoint;
   }

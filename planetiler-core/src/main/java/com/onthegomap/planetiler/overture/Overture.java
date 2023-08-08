@@ -122,7 +122,7 @@ public class Overture implements Profile {
     FeatureCollector features) {
     Struct struct = ((AvroParquetFeature) sourceFeature).getStruct();
     var subtype = struct.get("subtype").as(OvertureSchema.SegmentSubType.class);
-    var roadClass = struct.get("road.class").as(OvertureSchema.RoadClass.class);
+    var roadClass = struct.get("road", "class").as(OvertureSchema.RoadClass.class);
     if (roadClass == null || subtype == null) {
       return;
     }
@@ -201,11 +201,11 @@ public class Overture implements Profile {
       .setAttr("socials", join(",", struct.get("socials")))
       .setAttr("websites", join(",", struct.get("websites")))
       .setAttr("confidence", struct.get("confidence").asDouble())
-      .setAttr("brand.wikidata", struct.get("brand.wikidata").asString())
-      .putAttrs(getNames("brand", struct.get("brand.names")))
+      .setAttr("brand.wikidata", struct.get("brand", "wikidata").asString())
+      .putAttrs(getNames("brand", struct.get("brand", "names")))
       .setAttr("addresses", struct.get("addresses").asJson())
-      .setAttr("categories.main", struct.get("categories.main").asString())
-      .setAttr("categories.alternate", join(",", struct.get("categories.alternate")))
+      .setAttr("categories.main", struct.get("categories", "main").asString())
+      .setAttr("categories.alternate", join(",", struct.get("categories", "alternate")))
       .putAttrs(getCommonTags(struct))
       .putAttrs(getNames(struct.get("names")));
   }
@@ -232,7 +232,17 @@ public class Overture implements Profile {
 
   private static String join(String sep, Struct struct) {
     List<Struct> items = struct.asList();
-    return items.isEmpty() ? null : String.join(sep, items.stream().map(Struct::asString).toList());
+    if (items.isEmpty()) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder();
+    for (Struct item : items) {
+      if (sb.length() > 0) {
+        sb.append(sep);
+      }
+      sb.append(item.asString());
+    }
+    return sb.toString();
   }
 
   private void processOvertureFeature(OvertureSchema.Building element, SourceFeature sourceFeature,

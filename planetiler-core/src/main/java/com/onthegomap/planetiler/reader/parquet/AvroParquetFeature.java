@@ -16,26 +16,22 @@ import org.locationtech.jts.geom.Puntal;
 
 public class AvroParquetFeature extends SourceFeature {
 
-  private final Function<GenericRecord, Geometry> geometryParser;
-  private final GenericRecord unparsed;
+  private final Function<Struct, Geometry> geometryParser;
+  private final Struct struct;
   private final Path filename;
   private Geometry latLon;
   private Geometry world;
 
   AvroParquetFeature(GenericRecord unparsed, String source, String sourceLayer, Path filename,
-    long id, Function<GenericRecord, Geometry> getGeometry, Map<String, Object> tags) {
+    long id, Function<Struct, Geometry> getGeometry, Map<String, Object> tags) {
     super(tags, source, sourceLayer, List.of(), id);
-    this.unparsed = unparsed;
+    this.struct = Struct.of(unparsed);
     this.geometryParser = getGeometry;
     this.filename = filename;
   }
 
-  public GenericRecord getRecord() {
-    return unparsed;
-  }
-
   public Struct getStruct() {
-    return Struct.of(Struct.convert(unparsed));
+    return struct;
   }
 
   public Path getFilename() {
@@ -44,7 +40,7 @@ public class AvroParquetFeature extends SourceFeature {
 
   @Override
   public Geometry latLonGeometry() throws GeometryException {
-    return latLon == null ? latLon = geometryParser.apply(unparsed) : latLon;
+    return latLon == null ? latLon = geometryParser.apply(struct) : latLon;
   }
 
   @Override
