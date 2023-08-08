@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
@@ -929,6 +930,16 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       String[] center = map.containsKey(TileArchiveMetadata.CENTER_KEY) ?
         map.remove(TileArchiveMetadata.CENTER_KEY).split(",") : null;
       var metadataJson = MetadataJson.fromJson(map.remove("json"));
+
+
+      String tileCompressionRaw = map.remove(TileArchiveMetadata.COMPRESSION_KEY);
+      TileCompression tileCompression = tileCompressionRaw == null ? TileCompression.GZIP :
+        TileCompression.findById(tileCompressionRaw).orElseGet(() -> {
+          LOGGER.warn("unknown tile compression {}", tileCompressionRaw);
+          return TileCompression.UNKNWON;
+        });
+
+
       return new TileArchiveMetadata(
         map.remove(TileArchiveMetadata.NAME_KEY),
         map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
@@ -951,7 +962,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM_KEY)),
         metadataJson == null ? null : metadataJson.vectorLayers,
         // any left-overs:
-        map
+        map,
+        tileCompression
       );
     }
   }

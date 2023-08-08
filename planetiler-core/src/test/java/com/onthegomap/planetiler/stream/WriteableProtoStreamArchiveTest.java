@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.protobuf.ByteString;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
@@ -39,7 +40,8 @@ class WriteableProtoStreamArchiveTest {
           Map.of(),
           Optional.empty(), OptionalInt.empty(), OptionalInt.empty())
       ),
-      Map.of("a", "b", "c", "d"));
+      Map.of("a", "b", "c", "d"),
+      TileCompression.GZIP);
   private static final StreamArchiveProto.Metadata maxMetadataOut = StreamArchiveProto.Metadata.newBuilder()
     .setName("name").setDescription("description").setAttribution("attribution").setVersion("version")
     .setType("type").setFormat("format")
@@ -56,11 +58,15 @@ class WriteableProtoStreamArchiveTest {
     )
     .addVectorLayers(StreamArchiveProto.VectorLayer.newBuilder().setId("vl1").build())
     .putOthers("a", "b").putOthers("c", "d")
+    .setTileCompression(StreamArchiveProto.TileCompression.TILE_COMPRESSION_GZIP)
     .build();
 
   private static final TileArchiveMetadata minMetadataIn =
-    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null);
-  private static final StreamArchiveProto.Metadata minMetadataOut = StreamArchiveProto.Metadata.newBuilder().build();
+    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null,
+      TileCompression.NONE);
+  private static final StreamArchiveProto.Metadata minMetadataOut = StreamArchiveProto.Metadata.newBuilder()
+    .setTileCompression(StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE)
+    .build();
 
   @Test
   void testWriteSingleFile(@TempDir Path tempDir) throws IOException {

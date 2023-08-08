@@ -189,7 +189,7 @@ public record PlanetilerConfig(
       TileCompression
         .fromId(arguments.getString("tile_compression",
           "the tile compression, one of " +
-            Stream.of(TileCompression.values()).map(TileCompression::id).toList(),
+            TileCompression.availableValues().stream().map(TileCompression::id).toList(),
           "gzip"))
     );
   }

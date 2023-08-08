@@ -44,7 +44,8 @@ public record TileArchiveMetadata(
   @JsonProperty(MINZOOM_KEY) Integer minzoom,
   @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
   @JsonIgnore List<LayerStats.VectorLayer> vectorLayers,
-  @JsonAnyGetter @JsonDeserialize(using = EmptyMapIfNullDeserializer.class) Map<String, String> others
+  @JsonAnyGetter @JsonDeserialize(using = EmptyMapIfNullDeserializer.class) Map<String, String> others,
+  @JsonProperty(COMPRESSION_KEY) TileCompression tileCompression
 ) {
 
   public static final String NAME_KEY = "name";
@@ -59,6 +60,7 @@ public record TileArchiveMetadata(
   public static final String MINZOOM_KEY = "minzoom";
   public static final String MAXZOOM_KEY = "maxzoom";
   public static final String VECTOR_LAYERS_KEY = "vector_layers";
+  public static final String COMPRESSION_KEY = "compression";
 
   public static final String MVT_FORMAT = "pbf";
 
@@ -85,7 +87,8 @@ public record TileArchiveMetadata(
       config.minzoom(),
       config.maxzoom(),
       vectorLayers,
-      mapWithBuildInfo()
+      mapWithBuildInfo(),
+      config.tileCompression()
     );
   }
 
@@ -144,7 +147,7 @@ public record TileArchiveMetadata(
   /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
   public TileArchiveMetadata withLayerStats(List<LayerStats.VectorLayer> layerStats) {
     return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
-      maxzoom, layerStats, others);
+      maxzoom, layerStats, others, tileCompression);
   }
 
   /*

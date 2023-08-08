@@ -41,6 +41,7 @@ message Metadata {
   int32 max_zoom = 11;
   repeated VectorLayer vector_layers = 12;
   map<string, string> others = 13;
+  TileCompression tile_compression = 14;
 }
 
 message Envelope {
@@ -69,5 +70,11 @@ message VectorLayer {
     FIELD_TYPE_BOOLEAN = 3;
     FIELD_TYPE_STRING = 4;
   }
+}
+
+enum TileCompression {
+  TILE_COMPRESSION_UNSPECIFIED = 0;
+  TILE_COMPRESSION_GZIP = 1;
+  TILE_COMPRESSION_NONE = 2;
 }
 

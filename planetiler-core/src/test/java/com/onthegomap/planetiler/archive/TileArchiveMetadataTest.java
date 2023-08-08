@@ -59,7 +59,8 @@ class TileArchiveMetadataTest {
         "minzoom", "0",
         "maxzoom", "14",
         "bounds", "-73.6632,41.1274,-69.7598,43.0185",
-        "center", "-71.7115,42.07295"
+        "center", "-71.7115,42.07295",
+        "compression", "gzip"
       )),
       map
     );

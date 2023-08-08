@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -38,7 +39,8 @@ class WriteableJsonStreamArchiveTest {
           Map.of(),
           Optional.empty(), OptionalInt.empty(), OptionalInt.empty())
       ),
-      ImmutableMap.of("a", "b", "c", "d"));
+      ImmutableMap.of("a", "b", "c", "d"),
+      TileCompression.GZIP);
   private static final String maxMetadataOut = """
     {
       "name":"name",
@@ -50,6 +52,7 @@ class WriteableJsonStreamArchiveTest {
       "zoom":1.0,
       "minzoom":2,
       "maxzoom":3,
+      "compression":"gzip",
       "bounds":{
         "minX":0.0,
         "maxX":1.0,
@@ -81,7 +84,7 @@ class WriteableJsonStreamArchiveTest {
     }""".lines().map(String::trim).collect(Collectors.joining(""));
 
   private static final TileArchiveMetadata minMetadataIn =
-    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null);
+    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   private static final String MIN_METADATA_OUT = "{}";
 
   @Test

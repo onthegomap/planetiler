@@ -76,6 +76,12 @@ public final class WriteableProtoStreamArchive extends WritableStreamArchive {
     setIfNotNull(metaDataBuilder::setZoom, metadata.zoom());
     setIfNotNull(metaDataBuilder::setMinZoom, metadata.minzoom());
     setIfNotNull(metaDataBuilder::setMaxZoom, metadata.maxzoom());
+    StreamArchiveProto.TileCompression tileCompression = switch (metadata.tileCompression()) {
+      case GZIP -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_GZIP;
+      case NONE -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE;
+      case UNKNWON -> throw new IllegalArgumentException("should not produce \"UNKNOWN\" compression");
+    };
+    metaDataBuilder.setTileCompression(tileCompression);
     if (metadata.vectorLayers() != null) {
       metadata.vectorLayers().forEach(vl -> metaDataBuilder.addVectorLayers(toExportData(vl)));
     }

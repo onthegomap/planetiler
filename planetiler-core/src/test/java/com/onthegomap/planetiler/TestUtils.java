@@ -214,6 +214,7 @@ public class TestUtils {
       var bytes = switch (tileCompression) {
         case GZIP -> gunzip(tile.bytes());
         case NONE -> tile.bytes();
+        case UNKNWON -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
       };
       var decoded = VectorTile.decode(bytes).stream()
         .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
