@@ -30,6 +30,16 @@ public interface Struct {
     public Object rawValue() {
       return null;
     }
+
+    @Override
+    public List<Struct> asList() {
+      return List.of();
+    }
+
+    @Override
+    public String asString() {
+      return null;
+    }
   };
 
   static Struct of(Object value) {
@@ -95,8 +105,8 @@ public interface Struct {
     return null;
   }
 
-  default boolean asBoolean() {
-    return false;
+  default Boolean asBoolean() {
+    return null;
   }
 
   default String asString() {
@@ -202,8 +212,8 @@ public interface Struct {
     }
 
     @Override
-    public boolean asBoolean() {
-      return value;
+    public Boolean asBoolean() {
+      return value == null || !value ? null : true;
     }
   }
 

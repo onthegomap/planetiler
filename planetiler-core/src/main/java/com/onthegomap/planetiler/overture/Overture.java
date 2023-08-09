@@ -87,6 +87,9 @@ public class Overture implements Profile {
   @Override
   public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom, List<VectorTile.Feature> items)
     throws GeometryException {
+    if (zoom >= 14) {
+      return items;
+    }
     double tolerance = config.tolerance(zoom);
     if (layer.equals("admins/administrativeBoundary")) {
       return FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
@@ -150,7 +153,8 @@ public class Overture implements Profile {
       //      .setAttr("width", struct.get("width").asDouble())
       .setMinPixelSize(0)
       .setAttr("subType", struct.get("subtype").asString())
-      .putAttrs(getCommonTags(struct));
+      .putAttrs(getCommonTags(struct))
+      .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
     if (connectors) {
       feature.setAttrWithMinzoom("connectors", join(",", struct.get("connectors")), 14);
     }
@@ -178,7 +182,8 @@ public class Overture implements Profile {
       Struct struct = sourceFeature.getStruct();
       features.point(sourceFeature.getSourceLayer())
         .setMinZoom(14)
-        .putAttrs(getCommonTags(struct));
+        .putAttrs(getCommonTags(struct))
+        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
     }
   }
 
@@ -197,6 +202,7 @@ public class Overture implements Profile {
       .setAttr("categories.main", struct.get("categories", "main").asString())
       .setAttr("categories.alternate", join(",", struct.get("categories", "alternate")))
       .putAttrs(getCommonTags(struct))
+      .setAttrWithMinzoom("id", struct.get("id").asString(), 14)
       .putAttrs(getNames(struct.get("names")));
   }
 
@@ -233,13 +239,15 @@ public class Overture implements Profile {
       features.polygon(sourceFeature.getSourceLayer())
         .setMinZoom(13)
         .setMinPixelSize(2)
-        .putAttrs(commonTags);
+        .putAttrs(commonTags)
+        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
       var names = getNames(struct.get("names"));
       if (!names.isEmpty()) {
         features.centroidIfConvex(sourceFeature.getSourceLayer())
           .setMinZoom(14)
           .putAttrs(names)
-          .putAttrs(commonTags);
+          .putAttrs(commonTags)
+          .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
       }
     }
   }
@@ -254,7 +262,8 @@ public class Overture implements Profile {
         .setAttr("subType", struct.get("subtype").asString())
         .setAttr("isoCountryCodeAlpha2", struct.get("isocountrycodealpha2").asString())
         .setAttr("isoSubCountryCode", struct.get("isosubcountrycode").asString())
-        .putAttrs(getCommonTags(struct));
+        .putAttrs(getCommonTags(struct))
+        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
     }
   }
 
@@ -272,11 +281,13 @@ public class Overture implements Profile {
     for (String key : List.of("common", "official", "short", "alternate")) {
       for (var name : names.get(key).asList()) {
         String value = name.get("value").asString();
-        if (first) {
-          first = false;
-          put(result, "name", value);
+        if (value != null) {
+          if (first) {
+            first = false;
+            put(result, "name", value);
+          }
+          put(result, base + "." + key + "." + name.get("language").asString(), value);
         }
-        put(result, base + "." + key + "." + name.get("language").asString(), value);
       }
     }
     return result;
@@ -297,7 +308,6 @@ public class Overture implements Profile {
       results.put("version", info.get("version").asInt());
       results.put("updateTime", Instant.ofEpochMilli(info.get("updatetime").asLong()).toString());
     }
-    results.put("id", info.get("id").asString());
     results.put("sources", info.get("sources").asList().stream().map(d -> {
       String recordId = d.get("recordId").asString();
       if (recordId == null) {
@@ -315,7 +325,8 @@ public class Overture implements Profile {
       .setMinPixelSize(0)
       .setAttr("adminLevel", struct.get("adminlevel").asInt())
       .setAttr("maritime", struct.get("maritime").asBoolean())
-      .putAttrs(getCommonTags(struct));
+      .putAttrs(getCommonTags(struct))
+      .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
   }
 
 
