@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.overture;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Range;
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Planetiler;
@@ -12,6 +13,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.reader.parquet.AvroParquetFeature;
 import com.onthegomap.planetiler.util.Downloader;
+import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -22,9 +24,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class Overture implements Profile {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Overture.class);
   // TODO
   // - address structs
   // - lists? keep comma separated?
@@ -33,10 +38,13 @@ public class Overture implements Profile {
   private final boolean connectors;
   private final boolean metadata;
   private final PlanetilerConfig config;
+  private final boolean splitRoads;
 
   Overture(PlanetilerConfig config) {
     this.config = config;
     this.connectors = config.arguments().getBoolean("connectors", "include connectors", true);
+    this.splitRoads =
+      config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", true);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
   }
@@ -118,11 +126,17 @@ public class Overture implements Profile {
       .trim();
   }
 
+
   private void processSegment(AvroParquetFeature sourceFeature, FeatureCollector features) {
     Struct struct = sourceFeature.getStruct();
     var subtype = struct.get("subtype").as(OvertureSchema.SegmentSubType.class);
     var roadClass = struct.get("road", "class").as(OvertureSchema.RoadClass.class);
-    if (roadClass == null || subtype == null) {
+    if (roadClass == null) {
+      LOGGER.warn("Invalid road class: {}", struct.get("road", "class"));
+      return;
+    }
+    if (subtype == null) {
+      LOGGER.warn("Invalid subType: {}", struct.get("subtype"));
       return;
     }
     int minzoom = switch (subtype) {
@@ -148,29 +162,39 @@ public class Overture implements Profile {
       case RAIL -> 8;
       case WATER -> 10;
     };
-    if (struct.get("road.flags").asList().stream().map(Struct::asString).anyMatch("isLink"::equals)) {
-      minzoom = Math.max(minzoom, 9);
+    var commonTags = getCommonTags(struct);
+    commonTags.put("subType", struct.get("subtype").asString());
+    commonTags.put("id", ZoomFunction.minZoom(14, struct.get("id").asString()));
+    if (connectors) {
+      commonTags.put("connectors", ZoomFunction.minZoom(14, join(",", struct.get("connectors"))));
     }
+
     var feature = features.line(sourceFeature.getSourceLayer())
       .setMinZoom(minzoom)
-      // TODO road not present
-      //      .setAttr("width", struct.get("width").asDouble())
       .setMinPixelSize(0)
-      .setAttr("subType", struct.get("subtype").asString())
-      .putAttrs(getCommonTags(struct))
-      .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
-    if (connectors) {
-      feature.setAttrWithMinzoom("connectors", join(",", struct.get("connectors")), 14);
-    }
+      .putAttrs(commonTags);
+
     Struct road = struct.get("road");
     if (!road.isNull()) {
+      if (road.get("flags").asList().stream().map(Struct::asString).anyMatch("isLink"::equals)) {
+        feature.setMinZoom(Math.max(minzoom, 9));
+      }
       List<Struct> names = road.get("roadNames").asList();
       Optional<Struct> fullLengthName = names.stream()
         .filter(d -> d.get("at").isNull())
         .findFirst();
-      List<Object> otherNames = names.stream().filter(d -> !d.get("at").isNull()).map(Struct::rawValue).toList();
+      //      if (!road.get("roadNames").isNull() && road.get("roadNames").asJson().contains("\"at\""))
+      //        System.err.println(road.get("roadNames").asJson());
+      //      if (!road.get("flags").isNull() && road.get("flags").asJson().contains("\"at\""))
+      //        System.err.println(road.get("flags").asJson());
+      //      if (!road.get("lanes").isNull() && road.get("lanes").asJson().contains("\"at\""))
+      //        System.err.println(road.get("lanes").asJson());
+      //      if (!road.get("surface").isNull() && road.get("surface").asJson().contains("\"at\""))
+      //        System.err.println(road.get("surface").asJson());
+      //      if (!road.get("restrictions").isNull() && road.get("restrictions").asJson().contains("\"at\""))
+      //        System.err.println(road.get("restrictions").asJson());
+      List<Struct> otherNames = names.stream().filter(d -> !d.get("at").isNull()).toList();
       feature
-        // TODO partial road names ? partial tags
         .putAttrs(fullLengthName.map(Overture::getNames).orElse(Map.of()))
         .setAttr("roadNames", toJsonString(otherNames))
         .setAttr("class", road.get("class").asString())
@@ -180,6 +204,8 @@ public class Overture implements Profile {
         .setAttr("restrictions", road.get("restrictions").asJson());
     }
   }
+
+  record Partial<T> (T value, Range<Double> at) {}
 
   private void processConnector(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (connectors) {
@@ -212,7 +238,7 @@ public class Overture implements Profile {
 
   private static String toJsonString(List<?> list) {
     try {
-      return list == null || list.isEmpty() ? null : OvertureSchema.mapper.writeValueAsString(list);
+      return list == null || list.isEmpty() ? null : Struct.mapper.writeValueAsString(list);
     } catch (JsonProcessingException e) {
       throw new UncheckedIOException(e);
     }
