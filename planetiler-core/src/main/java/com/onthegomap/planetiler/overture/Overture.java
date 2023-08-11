@@ -25,6 +25,10 @@ import java.util.stream.Collectors;
 
 
 public class Overture implements Profile {
+  // TODO
+  // - address structs
+  // - lists? keep comma separated?
+  // - road segments split (names, flags, surface, restrictions)
 
   private final boolean connectors;
   private final boolean metadata;
@@ -160,7 +164,7 @@ public class Overture implements Profile {
     }
     Struct road = struct.get("road");
     if (!road.isNull()) {
-      List<Struct> names = road.get("roadnames").asList();
+      List<Struct> names = road.get("roadNames").asList();
       Optional<Struct> fullLengthName = names.stream()
         .filter(d -> d.get("at").isNull())
         .findFirst();
