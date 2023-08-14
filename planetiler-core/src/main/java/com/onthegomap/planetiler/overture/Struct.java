@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.avro.generic.GenericData;
@@ -40,13 +40,18 @@ public interface Struct {
     public String asString() {
       return null;
     }
+
+    @Override
+    public Struct orElse(Struct other) {
+      return other;
+    }
   };
 
   static Struct of(Object value) {
     if (value == null) {
       return NULL;
     } else if (value instanceof GenericRecord r) {
-      Map<String, Struct> result = new HashMap<>(r.getSchema().getFields().size());
+      Map<String, Struct> result = new LinkedHashMap<>(r.getSchema().getFields().size());
       for (var f : r.getSchema().getFields()) {
         var v = of(r.get(f.name()));
         if (!v.isNull()) {
@@ -55,7 +60,7 @@ public interface Struct {
       }
       return new MapStruct(result);
     } else if (value instanceof Map<?, ?> map) {
-      Map<String, Struct> result = new HashMap<>(map.size());
+      Map<String, Struct> result = new LinkedHashMap<>(map.size());
       for (var e : map.entrySet()) {
         var v = of(e.getValue());
         if (!v.isNull()) {
@@ -145,6 +150,10 @@ public interface Struct {
     return NULL;
   }
 
+  default Struct get(int index) {
+    return NULL;
+  }
+
   default Struct get(String key, String... others) {
     Struct struct = get(key);
     for (String other : others) {
@@ -157,6 +166,18 @@ public interface Struct {
   }
 
   Object rawValue();
+
+  default boolean isStruct() {
+    return false;
+  }
+
+  default Struct orElse(Struct other) {
+    return this;
+  }
+
+  default Struct without(String key) {
+    return this;
+  }
 
   abstract class AStruct<T> implements Struct {
 
@@ -192,6 +213,23 @@ public interface Struct {
     public Struct get(String key) {
       return value.getOrDefault(key, NULL);
     }
+
+    @Override
+    public boolean isStruct() {
+      return true;
+    }
+
+    @Override
+    public Struct without(String key) {
+      var copy = new LinkedHashMap<>(value);
+      copy.remove(key);
+      return new MapStruct(copy);
+    }
+
+    @Override
+    public String asString() {
+      return super.asJson();
+    }
   }
 
   class ListStruct extends AStruct<List<Struct>> {
@@ -202,6 +240,11 @@ public interface Struct {
     @Override
     public List<Struct> asList() {
       return value;
+    }
+
+    @Override
+    public Struct get(int index) {
+      return index < value.size() ? value.get(index) : NULL;
     }
   }
 

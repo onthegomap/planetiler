@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.util.ZoomFunction;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,7 +45,7 @@ public class Overture implements Profile {
     this.config = config;
     this.connectors = config.arguments().getBoolean("connectors", "include connectors", true);
     this.splitRoads =
-      config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", true);
+      config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", false);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
   }
@@ -169,41 +170,157 @@ public class Overture implements Profile {
       commonTags.put("connectors", ZoomFunction.minZoom(14, join(",", struct.get("connectors"))));
     }
 
-    var feature = features.line(sourceFeature.getSourceLayer())
-      .setMinZoom(minzoom)
-      .setMinPixelSize(0)
-      .putAttrs(commonTags);
-
     Struct road = struct.get("road");
-    if (!road.isNull()) {
-      if (road.get("flags").asList().stream().map(Struct::asString).anyMatch("isLink"::equals)) {
-        feature.setMinZoom(Math.max(minzoom, 9));
+    if (road.isNull()) {
+      features.line(sourceFeature.getSourceLayer())
+        .setMinZoom(minzoom)
+        .setMinPixelSize(0)
+        .putAttrs(commonTags);
+    } else {
+      commonTags.put("class", roadClass.toString());
+      if (splitRoads) {
+        RangeMapMap tags = parseRoadPartials(road);
+        try {
+          var lineSplitter = new LineSplitter(sourceFeature.worldGeometry());
+          for (var range : tags.result()) {
+            var attrs = range.value();
+            var splitLine = lineSplitter.get(range.start(), range.end());
+            features.geometry(sourceFeature.getSourceLayer(), splitLine)
+              .setMinZoom(attrs.containsKey("flags.isLink") ? Math.max(minzoom, 9) : minzoom)
+              .setMinPixelSize(0)
+              .putAttrs(attrs)
+              .putAttrs(commonTags)
+              .setAttr("restrictions.turns", road.get("restrictions", "turns").asJson());
+          }
+        } catch (GeometryException e) {
+          LOGGER.error("Error splitting road {}", sourceFeature, e);
+        }
+      } else {
+        var feature = features.line(sourceFeature.getSourceLayer())
+          .setMinZoom(minzoom)
+          .setMinPixelSize(0)
+          .putAttrs(commonTags);
+        if (road.get("flags").asList().stream().map(Struct::asString).anyMatch("isLink"::equals)) {
+          feature.setMinZoom(Math.max(minzoom, 9));
+        }
+        List<Struct> names = road.get("roadNames").asList();
+        Optional<Struct> fullLengthName = names.stream()
+          .filter(d -> d.get("at").isNull())
+          .findFirst();
+        List<Struct> otherNames = names.stream().filter(d -> !d.get("at").isNull()).toList();
+        feature
+          .putAttrs(fullLengthName.map(Overture::getNames).orElse(Map.of()))
+          .setAttr("roadNames", toJsonString(otherNames))
+          .setAttr("flags", road.get("flags").asJson())
+          .setAttr("lanes", road.get("lanes").asJson())
+          .setAttr("surface", road.get("surface").asJson())
+          .setAttr("restrictions", road.get("restrictions").asJson());
       }
-      List<Struct> names = road.get("roadNames").asList();
-      Optional<Struct> fullLengthName = names.stream()
-        .filter(d -> d.get("at").isNull())
-        .findFirst();
-      //      if (!road.get("roadNames").isNull() && road.get("roadNames").asJson().contains("\"at\""))
-      //        System.err.println(road.get("roadNames").asJson());
-      //      if (!road.get("flags").isNull() && road.get("flags").asJson().contains("\"at\""))
-      //        System.err.println(road.get("flags").asJson());
-      //      if (!road.get("lanes").isNull() && road.get("lanes").asJson().contains("\"at\""))
-      //        System.err.println(road.get("lanes").asJson());
-      //      if (!road.get("surface").isNull() && road.get("surface").asJson().contains("\"at\""))
-      //        System.err.println(road.get("surface").asJson());
-      //      if (!road.get("restrictions").isNull() && road.get("restrictions").asJson().contains("\"at\""))
-      //        System.err.println(road.get("restrictions").asJson());
-      List<Struct> otherNames = names.stream().filter(d -> !d.get("at").isNull()).toList();
-      feature
-        .putAttrs(fullLengthName.map(Overture::getNames).orElse(Map.of()))
-        .setAttr("roadNames", toJsonString(otherNames))
-        .setAttr("class", road.get("class").asString())
-        .setAttr("flags", road.get("flags").asJson())
-        .setAttr("lanes", road.get("lanes").asJson())
-        .setAttr("surface", road.get("surface").asJson())
-        .setAttr("restrictions", road.get("restrictions").asJson());
     }
   }
+
+  static RangeMapMap parseRoadPartials(Struct road) {
+    RangeMapMap tags = new RangeMapMap();
+    for (var flag : extractPartials(road.get("flags"))) {
+      tags.put(flag.at, Map.of("flags." + flag.value, ZoomFunction.minZoom(9, 1)));
+    }
+    for (var surface : extractPartials(road.get("surface"))) {
+      tags.put(surface.at, Map.of("surface", ZoomFunction.minZoom(9, surface.value)));
+    }
+    Struct lanes = road.get("lanes");
+    if (lanes.isNull()) {
+      // skip
+    } else if (lanes.get(0).get("at").isNull()) {
+      tags.put(FULL_LENGTH, Map.of("lanes", ZoomFunction.minZoom(9, lanes.asJson())));
+    } else {
+      for (var item : lanes.asList()) {
+        tags.put(getRangeFromAt(item),
+          Map.of("lanes", ZoomFunction.minZoom(9, item.get("value").orElse(item.get("values")).asJson())));
+      }
+    }
+    for (var name : road.get("roadNames").asList()) {
+      tags.put(getRangeFromAt(name), getNames(name));
+    }
+
+    for (var limits : road.get("restrictions", "speedLimits").asList()) {
+      Range<Double> range = getRangeFromAt(limits);
+      Map<String, Object> attrs = new HashMap<>();
+      var max = limits.get("maxSpeed");
+      if (!max.isNull()) {
+        attrs.put("restrictions.speedLimits.maxSpeed",
+          ZoomFunction.minZoom(9, max.get(0).asString() + max.get(1).asString()));
+      }
+      var min = limits.get("minSpeed");
+      if (!min.isNull()) {
+        attrs.put("restrictions.speedLimits.minSpeed",
+          ZoomFunction.minZoom(9, min.get(0).asString() + min.get(1).asString()));
+      }
+      if (Boolean.TRUE.equals(limits.get("isMaxSpeedVariable").asBoolean())) {
+        attrs.put("restrictions.speedLimits.isMaxSpeedVariable", ZoomFunction.minZoom(9, 1));
+      }
+      tags.put(range, attrs);
+    }
+
+    for (var restriction : road.get("restrictions", "access").asList()) {
+      // TODO string (allowed/denied)
+      // TODO allowed/denied/designated: details (possibly at)
+      if (!restriction.isStruct()) {
+        tags.put(FULL_LENGTH, Map.of("restrictions.access." + restriction.asString(), ZoomFunction.minZoom(9, 1)));
+      } else {
+        {
+          var allowed = restriction.get("allowed");
+          if (!allowed.isNull()) {
+            tags.put(getRangeFromAt(allowed),
+              Map.of("restrictions.access.allowed", ZoomFunction.minZoom(9, processAccessRestriction(allowed))));
+          }
+        }
+        {
+          var designated = restriction.get("designated");
+          if (!designated.isNull()) {
+            tags.put(getRangeFromAt(designated),
+              Map.of("restrictions.access.designated", ZoomFunction.minZoom(9, processAccessRestriction(designated))));
+          }
+        }
+        {
+          var denied = restriction.get("denied");
+          if (!denied.isNull()) {
+            tags.put(getRangeFromAt(denied),
+              Map.of("restrictions.access.denied", ZoomFunction.minZoom(9, processAccessRestriction(denied))));
+          }
+        }
+      }
+    }
+    return tags;
+  }
+
+  private static Object processAccessRestriction(Struct allowed) {
+    var result = allowed.without("at").asJson();
+    return "{}".equals(result) ? 1 : result;
+  }
+
+  private static Range<Double> getRangeFromAt(Struct struct) {
+    Range<Double> range = FULL_LENGTH;
+    Struct at = struct.get("at");
+    if (!at.isNull()) {
+      Double lo = at.get(0).asDouble();
+      Double hi = at.get(1).asDouble();
+      range = Range.closedOpen(lo, hi);
+    }
+    return range;
+  }
+
+  private static List<Partial<String>> extractPartials(Struct flagStruct) {
+    List<Partial<String>> flags = new ArrayList<>();
+    for (var flag : flagStruct.asList()) {
+      Range<Double> range = getRangeFromAt(flag);
+      for (var value : flag.get("value").orElse(flag.get("values").orElse(flag)).asList()) {
+        flags.add(new Partial<>(value.asString(), range));
+      }
+    }
+    return flags;
+  }
+
+  private static final Range<Double> FULL_LENGTH = Range.closedOpen(0.0, 1.0);
 
   record Partial<T> (T value, Range<Double> at) {}
 
