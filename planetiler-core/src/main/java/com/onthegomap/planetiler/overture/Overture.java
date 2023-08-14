@@ -31,10 +31,6 @@ import org.slf4j.LoggerFactory;
 
 public class Overture implements Profile {
   private static final Logger LOGGER = LoggerFactory.getLogger(Overture.class);
-  // TODO
-  // - address structs
-  // - lists? keep comma separated?
-  // - road segments split (names, flags, surface, restrictions)
 
   private final boolean connectors;
   private final boolean metadata;
@@ -345,12 +341,39 @@ public class Overture implements Profile {
       .setAttr("confidence", struct.get("confidence").asDouble())
       .setAttr("brand.wikidata", struct.get("brand", "wikidata").asString())
       .putAttrs(getNames("brand", struct.get("brand", "names")))
-      .setAttr("addresses", struct.get("addresses").asJson())
+      .setAttr("addresses", formatAddress(struct.get("addresses")))
       .setAttr("categories.main", struct.get("categories", "main").asString())
       .setAttr("categories.alternate", join(",", struct.get("categories", "alternate")))
       .putAttrs(getCommonTags(struct))
       .setAttrWithMinzoom("id", struct.get("id").asString(), 14)
       .putAttrs(getNames(struct.get("names")));
+  }
+
+  private static String formatAddress(Struct addresses) {
+    StringBuilder result = new StringBuilder();
+    for (var address : addresses.asList()) {
+      if (!result.isEmpty()) {
+        result.append("; ");
+      }
+      result.append(address.get("freeform").asString());
+      var locality = address.get("locality");
+      var postCode = address.get("postCode");
+      var region = address.get("region");
+      var country = address.get("country");
+      if (!locality.isNull()) {
+        result.append(", ").append(locality.asString());
+      }
+      if (!postCode.isNull()) {
+        result.append(", ").append(postCode.asString());
+      }
+      if (!region.isNull()) {
+        result.append(", ").append(region.asString());
+      }
+      if (!country.isNull()) {
+        result.append(", ").append(country.asString());
+      }
+    }
+    return result.toString();
   }
 
   private static String toJsonString(List<?> list) {
