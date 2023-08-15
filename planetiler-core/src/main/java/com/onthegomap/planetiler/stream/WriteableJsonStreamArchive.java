@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * Writes JSON-serialized tile data as well as meta data into file(s). The entries are of type
  * {@link WriteableJsonStreamArchive.Entry} are separated by newline (by default).
  */
-public final class WriteableJsonStreamArchive extends WritableStreamArchive {
+public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WriteableJsonStreamArchive.class);
 

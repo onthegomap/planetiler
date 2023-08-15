@@ -58,14 +58,14 @@ import java.util.stream.Stream;
  * mkfifo /tmp/data/output_transformed.csv
  * # prefix hex-data with '\x' for the postgres import
  * cat /tmp/data/output_raw.csv | sed -r 's/^([0-9]+,)([0-9]+,)([0-9]+,)(.*)$/\1\2\3\\x\4/' > /tmp/data/output_transformed.csv
- * # now run planetiler with the options --append --output=/tmp/data/output.csv --csv_binary_encoding=hex
+ * # now run planetiler with the options --append --output=/tmp/data/output_raw.csv --csv_binary_encoding=hex
  * ...create tile(s) table
- * postgres=# \copy tiles(tile_column, tile_row, zoom_level, tile_data) from /tmp/data/output_raw.csv DELIMITER ',' CSV;
+ * postgres=# \copy tiles(tile_column, tile_row, zoom_level, tile_data) from /tmp/data/output_transformed.csv DELIMITER ',' CSV;
  * </pre>
  *
- * Check {@link WritableStreamArchive} to see how to write to multiple files. This can be used to parallelize uploads.
+ * Check {@link WriteableStreamArchive} to see how to write to multiple files. This can be used to parallelize uploads.
  */
-public final class WriteableCsvArchive extends WritableStreamArchive {
+public final class WriteableCsvArchive extends WriteableStreamArchive {
 
   static final String OPTION_COLUMN_SEPARATOR = "column_separator";
   static final String OPTION_LINE_SEPARTATOR = "line_separator";

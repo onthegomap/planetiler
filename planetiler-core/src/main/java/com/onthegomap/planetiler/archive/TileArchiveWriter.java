@@ -128,6 +128,11 @@ public class TileArchiveWriter {
      * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
      * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
      * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
+     *
+     * Note:
+     * In the future emitting tiles out order might be especially interesting when tileWriteThreads>1,
+     * since when multiple threads/files are included there's no order that needs to be preserved.
+     * So some of the restrictions could be lifted then.
      */
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
     encodeBranch = pipeline
@@ -138,13 +143,11 @@ public class TileArchiveWriter {
           writerEnqueuer.accept(batch); // also send immediately to writer
         });
         writerQueue.close();
-        // TODO can this restriction be lifted when tileWriteThreads>1 ?
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
       }, 1)
       .addBuffer("reader_queue", queueSize)
       .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
-    // TODO can this restriction be lifted when tileWriteThreads>1 ? or is it already lifted now that we have multiple writer threads?
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
     writeBranch = pipeline.readFromQueue(writerQueue)
       .sinkTo("write", tileWriteThreads, writer::tileWriter);

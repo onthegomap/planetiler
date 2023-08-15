@@ -1,7 +1,11 @@
 package com.onthegomap.planetiler.stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
@@ -10,6 +14,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.LayerStats;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -101,7 +106,7 @@ class WriteableJsonStreamArchiveTest {
       archive.finish(minMetadataIn);
     }
 
-    assertEquals(
+    assertEqualsDelimitedJson(
       """
         {"type":"initialization","metadata":%s}
         {"type":"tile","x":0,"y":0,"z":0,"encodedData":"AA=="}
@@ -142,7 +147,7 @@ class WriteableJsonStreamArchiveTest {
       archive.finish(maxMetadataIn);
     }
 
-    assertEquals(
+    assertEqualsDelimitedJson(
       """
         {"type":"initialization","metadata":%s}
         {"type":"tile","x":11,"y":12,"z":1,"encodedData":"AA=="}
@@ -152,7 +157,7 @@ class WriteableJsonStreamArchiveTest {
       Files.readString(csvFilePrimary)
     );
 
-    assertEquals(
+    assertEqualsDelimitedJson(
       """
         {"type":"tile","x":31,"y":32,"z":3,"encodedData":"Ag=="}
         {"type":"tile","x":41,"y":42,"z":4,"encodedData":"Aw=="}
@@ -160,7 +165,7 @@ class WriteableJsonStreamArchiveTest {
       Files.readString(csvFileSecondary)
     );
 
-    assertEquals(
+    assertEqualsDelimitedJson(
       """
         {"type":"tile","x":51,"y":52,"z":5,"encodedData":"BA=="}
         """,
@@ -202,6 +207,8 @@ class WriteableJsonStreamArchiveTest {
         .replace('\n', ' ');
 
     testTileOptions(tempDir, config, expectedJson);
+
+    assertFalse(Files.readString(tempDir.resolve("mbtiles.json")).contains("\n"));
   }
 
   private void testTileOptions(Path tempDir, StreamArchiveConfig config, String expectedJson) throws IOException {
@@ -217,9 +224,21 @@ class WriteableJsonStreamArchiveTest {
       archive.finish(maxMetadataIn);
     }
 
-    assertEquals(expectedJson, Files.readString(csvFile));
+    assertEqualsDelimitedJson(expectedJson, Files.readString(csvFile));
 
     assertEquals(Set.of(csvFile), Files.list(tempDir).collect(Collectors.toUnmodifiableSet()));
+  }
+
+  private static void assertEqualsDelimitedJson(String expectedJson, String actualJson) {
+    assertEquals(readDelimitedNodes(expectedJson), readDelimitedNodes(actualJson));
+  }
+
+  private static List<JsonNode> readDelimitedNodes(String json) {
+    try {
+      return ImmutableList.copyOf(new ObjectMapper().readerFor(JsonNode.class).readValues(json));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
 }

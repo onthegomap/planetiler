@@ -116,9 +116,4 @@ public class InMemoryStreamArchive implements ReadableTileArchive {
     return metadata;
   }
 
-  @Override
-  public boolean supportsMetadata() {
-    return metadata != null;
-  }
-
 }

@@ -17,8 +17,24 @@ import org.locationtech.jts.geom.Envelope;
 /**
  * Writes protobuf-serialized tile data as well as meta data into file(s). The messages are of type
  * {@link StreamArchiveProto.Entry} and are length-delimited.
+ * <p>
+ * Custom plugins/integrations should prefer to use this format since - given it's binary - it's the fastest to write
+ * and read, and once setup, it should also be the simplest to use since models and the code to parse it are generated.
+ * It's also the most stable and straightforward format in regards to schema evolution.
+ * <p>
+ * In Java the stream could be read like this:
+ *
+ * <pre>
+ * // note: do not use nio (Files.newInputStream) for pipes
+ * try (var in = new FileInputStream(...)) {
+ *   StreamArchiveProto.Entry entry;
+ *   while ((entry = StreamArchiveProto.Entry.parseDelimitedFrom(in)) != null) {
+ *     ...
+ *   }
+ * }
+ * </pre>
  */
-public final class WriteableProtoStreamArchive extends WritableStreamArchive {
+public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
 
   private WriteableProtoStreamArchive(Path p, StreamArchiveConfig config) {
     super(p, config);
@@ -76,7 +92,7 @@ public final class WriteableProtoStreamArchive extends WritableStreamArchive {
     setIfNotNull(metaDataBuilder::setZoom, metadata.zoom());
     setIfNotNull(metaDataBuilder::setMinZoom, metadata.minzoom());
     setIfNotNull(metaDataBuilder::setMaxZoom, metadata.maxzoom());
-    StreamArchiveProto.TileCompression tileCompression = switch (metadata.tileCompression()) {
+    final StreamArchiveProto.TileCompression tileCompression = switch (metadata.tileCompression()) {
       case GZIP -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_GZIP;
       case NONE -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE;
       case UNKNWON -> throw new IllegalArgumentException("should not produce \"UNKNOWN\" compression");
@@ -117,13 +133,13 @@ public final class WriteableProtoStreamArchive extends WritableStreamArchive {
   private static StreamArchiveProto.VectorLayer toExportData(VectorLayer vectorLayer) {
     final var builder = StreamArchiveProto.VectorLayer.newBuilder();
     builder.setId(vectorLayer.id());
-    vectorLayer.fields().entrySet().forEach(e -> {
-      var exportType = switch (e.getValue()) {
+    vectorLayer.fields().forEach((key, value) -> {
+      var exportType = switch (value) {
         case NUMBER -> StreamArchiveProto.VectorLayer.FieldType.FIELD_TYPE_NUMBER;
         case BOOLEAN -> StreamArchiveProto.VectorLayer.FieldType.FIELD_TYPE_BOOLEAN;
         case STRING -> StreamArchiveProto.VectorLayer.FieldType.FIELD_TYPE_STRING;
       };
-      builder.putFields(e.getKey(), exportType);
+      builder.putFields(key, exportType);
     });
     vectorLayer.description().ifPresent(builder::setDescription);
     vectorLayer.minzoom().ifPresent(builder::setMinZoom);

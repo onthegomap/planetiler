@@ -889,6 +889,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
      *      specification</a>
      */
     public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
+
+      final TileCompression tileCompression = tileArchiveMetadata.tileCompression();
+      if (tileCompression != null && tileCompression != TileCompression.GZIP) {
+        LOGGER.warn("will use {} for tile compression, but the mbtiles specification actually requires gzip",
+          tileCompression.id());
+      }
+
       var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
       setMetadata(TileArchiveMetadata.FORMAT_KEY, tileArchiveMetadata.format());

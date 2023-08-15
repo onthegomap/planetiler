@@ -32,7 +32,7 @@ import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
  * # now run planetiler with the options --append --output=/tmp/data/output.csv --tile_write_threads=3
  * </pre>
  */
-abstract class WritableStreamArchive implements WriteableTileArchive {
+abstract class WriteableStreamArchive implements WriteableTileArchive {
 
   private final OutputStream primaryOutputStream;
   private final OutputStreamSupplier outputStreamFactory;
@@ -41,14 +41,14 @@ abstract class WritableStreamArchive implements WriteableTileArchive {
 
   private final AtomicInteger tileWriterCounter = new AtomicInteger(0);
 
-  private WritableStreamArchive(OutputStreamSupplier outputStreamFactory, StreamArchiveConfig config) {
+  private WriteableStreamArchive(OutputStreamSupplier outputStreamFactory, StreamArchiveConfig config) {
     this.outputStreamFactory = outputStreamFactory;
     this.config = config;
 
     this.primaryOutputStream = outputStreamFactory.newOutputStream(0);
   }
 
-  protected WritableStreamArchive(Path p, StreamArchiveConfig config) {
+  protected WriteableStreamArchive(Path p, StreamArchiveConfig config) {
     this(new FileOutputStreamSupplier(p, config.appendToFile()), config);
   }
 

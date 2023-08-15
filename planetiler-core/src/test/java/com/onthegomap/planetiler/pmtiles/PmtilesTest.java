@@ -24,6 +24,8 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 
@@ -223,11 +225,12 @@ class PmtilesTest {
     ));
   }
 
-  @Test
-  void testRoundtripMetadataMinimal() throws IOException {
+  @ParameterizedTest
+  @EnumSource(value = TileCompression.class, names = {"GZIP", "NONE"})
+  void testRoundtripMetadataMinimal(TileCompression tileCompression) throws IOException {
     roundTripMetadata(
       new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
-        TileCompression.GZIP),
+        tileCompression),
       new TileArchiveMetadata(null, null, null, null, null, null,
         new Envelope(-180, 180, -85.0511287, 85.0511287),
         new CoordinateXY(0, 0),
@@ -236,7 +239,7 @@ class PmtilesTest {
         15,
         null,
         Map.of(),
-        TileCompression.GZIP
+        tileCompression
       )
     );
   }

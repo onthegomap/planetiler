@@ -51,7 +51,6 @@ message Envelope {
   double max_y = 4;
 }
 
-// TODO can we just use int here?
 message CoordinateXY {
   double x = 1;
   double y = 2;

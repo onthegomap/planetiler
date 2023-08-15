@@ -45,9 +45,5 @@ public interface ReadableTileArchive extends Closeable {
    */
   TileArchiveMetadata metadata();
 
-  default boolean supportsMetadata() {
-    return true;
-  }
-
   // TODO access archive metadata
 }

@@ -166,7 +166,9 @@ public record TileArchiveConfig(
   }
 
   public enum Format {
-    MBTILES("mbtiles", false, false),
+    MBTILES("mbtiles",
+      false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
+      false),
     PMTILES("pmtiles", false, false),
     CSV("csv", true, true),
     PROTO("proto", true, true),

@@ -1860,7 +1860,13 @@ class PlanetilerTests {
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
 
-      if (db.supportsMetadata()) {
+      final boolean checkMetadata = switch (format) {
+        case MBTILES -> true;
+        case PMTILES -> true;
+        default -> db.metadata() != null;
+      };
+
+      if (checkMetadata) {
         assertSubmap(Map.of(
           "planetiler:version", BuildInfo.get().version(),
           "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",
