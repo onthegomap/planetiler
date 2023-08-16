@@ -109,6 +109,10 @@
             "items": {
               "$ref": "#/$defs/feature"
             }
+          },
+          "tile_post_process": {
+            "description": "Optional processing operations to merge features with the same attributes in a rendered tile",
+            "$ref": "#/$defs/tile_post_process"
           }
         }
       }
@@ -396,6 +400,39 @@
         "min_size": {
           "description": "Minimum length of line features or square root of the minimum area of polygon features to emit below the maximum zoom-level of the map",
           "$ref": "#/$defs/expression"
+        }
+      }
+    },
+    "tile_post_process": {
+      "type": "object",
+      "properties": {
+        "merge_line_strings": {
+          "description": "Combines linestrings with the same set of attributes into a multilinestring where segments with touching endpoints are merged",
+          "type": "object",
+          "properties": {
+            "min_length": {
+              "description": "Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings",
+              "type": "number"
+            },
+            "tolerance": {
+              "description": "After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step",
+              "type": "number"
+            },
+            "buffer": {
+              "description": "Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step",
+              "type": "number"
+            }
+          }
+        },
+        "merge_polygons": {
+          "description": "Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons are combined into fewer polygons covering the same area",
+          "type": "object",
+          "properties": {
+            "min_area": {
+              "description": "Minimum area in square tile pixels of polygons to emit",
+              "type": "number"
+            }
+          }
         }
       }
     },
