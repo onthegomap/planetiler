@@ -30,12 +30,15 @@ import org.slf4j.LoggerFactory;
 
 
 public class Overture implements Profile {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(Overture.class);
 
   private final boolean connectors;
   private final boolean metadata;
+  private final boolean ids;
   private final PlanetilerConfig config;
   private final boolean splitRoads;
+  private final boolean sources;
 
   Overture(PlanetilerConfig config) {
     this.config = config;
@@ -44,6 +47,10 @@ public class Overture implements Profile {
       config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", false);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
+    this.ids =
+      config.arguments().getBoolean("ids", "include ids on output features", true);
+    this.sources =
+      config.arguments().getBoolean("sources", "include sources on output features", true);
   }
 
   public static void main(String[] args) throws Exception {
@@ -161,7 +168,6 @@ public class Overture implements Profile {
     };
     var commonTags = getCommonTags(struct);
     commonTags.put("subType", struct.get("subtype").asString());
-    commonTags.put("id", ZoomFunction.minZoom(14, struct.get("id").asString()));
     if (connectors) {
       commonTags.put("connectors", ZoomFunction.minZoom(14, join(",", struct.get("connectors"))));
     }
@@ -325,8 +331,7 @@ public class Overture implements Profile {
       Struct struct = sourceFeature.getStruct();
       features.point(sourceFeature.getSourceLayer())
         .setMinZoom(14)
-        .putAttrs(getCommonTags(struct))
-        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
+        .putAttrs(getCommonTags(struct));
     }
   }
 
@@ -345,7 +350,6 @@ public class Overture implements Profile {
       .setAttr("categories.main", struct.get("categories", "main").asString())
       .setAttr("categories.alternate", join(",", struct.get("categories", "alternate")))
       .putAttrs(getCommonTags(struct))
-      .setAttrWithMinzoom("id", struct.get("id").asString(), 14)
       .putAttrs(getNames(struct.get("names")));
   }
 
@@ -409,15 +413,13 @@ public class Overture implements Profile {
       features.polygon(sourceFeature.getSourceLayer())
         .setMinZoom(13)
         .setMinPixelSize(2)
-        .putAttrs(commonTags)
-        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
+        .putAttrs(commonTags);
       var names = getNames(struct.get("names"));
       if (!names.isEmpty()) {
         features.centroidIfConvex(sourceFeature.getSourceLayer())
           .setMinZoom(14)
           .putAttrs(names)
-          .putAttrs(commonTags)
-          .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
+          .putAttrs(commonTags);
       }
     }
   }
@@ -432,8 +434,7 @@ public class Overture implements Profile {
         .setAttr("subType", struct.get("subtype").asString())
         .setAttr("isoCountryCodeAlpha2", struct.get("isocountrycodealpha2").asString())
         .setAttr("isoSubCountryCode", struct.get("isosubcountrycode").asString())
-        .putAttrs(getCommonTags(struct))
-        .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
+        .putAttrs(getCommonTags(struct));
     }
   }
 
@@ -478,13 +479,18 @@ public class Overture implements Profile {
       results.put("version", info.get("version").asInt());
       results.put("updateTime", Instant.ofEpochMilli(info.get("updatetime").asLong()).toString());
     }
-    results.put("sources", info.get("sources").asList().stream().map(d -> {
-      String recordId = d.get("recordId").asString();
-      if (recordId == null) {
-        recordId = d.get("recordid").asString();
-      }
-      return d.get("dataset").asString() + (recordId == null ? "" : (":" + recordId));
-    }).sorted().distinct().collect(Collectors.joining(",")));
+    if (ids) {
+      results.put("id", ZoomFunction.minZoom(14, info.get("id").asString()));
+    }
+    if (sources) {
+      results.put("sources", info.get("sources").asList().stream().map(d -> {
+        String recordId = d.get("recordId").asString();
+        if (recordId == null) {
+          recordId = d.get("recordid").asString();
+        }
+        return d.get("dataset").asString() + (recordId == null ? "" : (":" + recordId));
+      }).sorted().distinct().collect(Collectors.joining(",")));
+    }
     return results;
   }
 
@@ -495,8 +501,7 @@ public class Overture implements Profile {
       .setMinPixelSize(0)
       .setAttr("adminLevel", struct.get("adminlevel").asInt())
       .setAttr("maritime", struct.get("maritime").asBoolean())
-      .putAttrs(getCommonTags(struct))
-      .setAttrWithMinzoom("id", struct.get("id").asString(), 14);
+      .putAttrs(getCommonTags(struct));
   }
 
 
