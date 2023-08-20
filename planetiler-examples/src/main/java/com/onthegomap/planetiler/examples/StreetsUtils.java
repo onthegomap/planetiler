@@ -185,8 +185,8 @@ public class StreetsUtils {
   public static Integer getBuildingLevels(SourceFeature sourceFeature) {
     return parseUnsignedInt((String) sourceFeature.getTag("building:levels"));
   }
-  
-  public static Integer getMinBuildingLevel(SourceFeature sourceFeature) {
+
+  public static Integer getBuildingMinLevel(SourceFeature sourceFeature) {
     return parseUnsignedInt((String) sourceFeature.getTag("building:min_level"));
   }
 

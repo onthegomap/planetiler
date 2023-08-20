@@ -395,7 +395,7 @@ public class StreetsProfile implements Profile {
         .setAttr("height", StreetsUtils.getHeight(sourceFeature))
         .setAttr("minHeight", StreetsUtils.getMinHeight(sourceFeature))
         .setAttr("levels", StreetsUtils.getBuildingLevels(sourceFeature))
-        .setAttr("minLevel", StreetsUtils.getMinBuildingLevel(sourceFeature))
+        .setAttr("minLevel", StreetsUtils.getBuildingMinLevel(sourceFeature))
         .setAttr("material", StreetsUtils.getBuildingMaterial(sourceFeature))
         .setAttr("roofHeight", StreetsUtils.getRoofHeight(sourceFeature))
         .setAttr("roofLevels", StreetsUtils.getRoofLevels(sourceFeature))
