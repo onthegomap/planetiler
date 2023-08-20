@@ -128,14 +128,14 @@ public class FeatureMerge {
         for (Object merged : merger.getMergedLineStrings()) {
           if (merged instanceof LineString line && line.getLength() >= lengthLimit) {
             // re-simplify since some endpoints of merged segments may be unnecessary
-            if (line.getNumPoints() > 2 && tolerance >= 0) {
+            /*if (line.getNumPoints() > 2 && tolerance >= 0) {
               Geometry simplified = DouglasPeuckerSimplifier.simplify(line, tolerance);
               if (simplified instanceof LineString simpleLineString) {
                 line = simpleLineString;
               } else {
                 LOGGER.warn("line string merge simplify emitted " + simplified.getGeometryType());
               }
-            }
+            }*/
             if (buffer >= 0) {
               removeDetailOutsideTile(line, buffer, outputSegments);
             } else {

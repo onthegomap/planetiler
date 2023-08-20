@@ -659,6 +659,7 @@ public class StreetsProfile implements Profile {
       .setZoomRange(16, 16)
       .setPixelToleranceAtAllZooms(0)
       .setMinPixelSize(0)
+      .setMinPixelSizeAtMaxZoom(0)
       .setBufferPixels(4);
   }
 
@@ -668,6 +669,7 @@ public class StreetsProfile implements Profile {
       .setZoomLevels(Arrays.asList(9, 13, 16))
       .setPixelToleranceAtAllZooms(0)
       .setMinPixelSize(0)
+      .setMinPixelSizeAtMaxZoom(0)
       .setMinPixelSizeBelowZoom(13, 2);
   }
 

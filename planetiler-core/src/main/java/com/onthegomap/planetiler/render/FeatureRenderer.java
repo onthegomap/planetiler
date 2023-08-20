@@ -198,7 +198,8 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       // simplify only takes 4-5 minutes of wall time when generating the planet though, so not a big deal
       Geometry scaled = AffineTransformation.scaleInstance(scale, scale).transform(input);
       TiledGeometry sliced;
-      Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
+      Geometry geom = scaled;
+      //Geometry geom = DouglasPeuckerSimplifier.simplify(scaled, tolerance);
       List<List<CoordinateSequence>> groups = GeometryCoordinateSequences.extractGroups(geom, minSize);
       try {
         sliced = TiledGeometry.sliceIntoTiles(groups, buffer, area, z, extents);

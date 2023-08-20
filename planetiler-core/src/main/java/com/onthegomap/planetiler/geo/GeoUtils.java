@@ -37,7 +37,7 @@ import org.locationtech.jts.precision.GeometryPrecisionReducer;
 public class GeoUtils {
 
   /** Rounding precision for 256x256px tiles encoded using 4096 values. */
-  public static final PrecisionModel TILE_PRECISION = new PrecisionModel(4096d / 256d);
+  public static final PrecisionModel TILE_PRECISION = new PrecisionModel(PrecisionModel.FLOATING);
   public static final GeometryFactory JTS_FACTORY = new GeometryFactory(PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
   public static final WKBReader WKB_READER = new WKBReader(JTS_FACTORY);
   public static final Geometry EMPTY_GEOMETRY = JTS_FACTORY.createGeometryCollection();
