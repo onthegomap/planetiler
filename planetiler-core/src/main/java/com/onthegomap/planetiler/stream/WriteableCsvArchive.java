@@ -75,11 +75,16 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
   private final String lineSeparator;
   private final Function<byte[], String> tileDataEncoder;
 
-  private WriteableCsvArchive(Path p, StreamArchiveConfig config) {
+  private WriteableCsvArchive(TileArchiveConfig.Format format, Path p, StreamArchiveConfig config) {
     super(p, config);
-    this.columnSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
-      OPTION_COLUMN_SEPARATOR, "column separator", "','", List.of(",", " "));
-    this.lineSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), TileArchiveConfig.Format.JSON,
+    final String defaultColumnSeparator = switch (format) {
+      case CSV -> "','";
+      case TSV -> "'\\t'";
+      default -> throw new IllegalArgumentException("supported formats are csv and tsv but got " + format.id());
+    };
+    this.columnSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
+      OPTION_COLUMN_SEPARATOR, "column separator", defaultColumnSeparator, List.of(",", " "));
+    this.lineSeparator = StreamArchiveUtils.getEscapedString(config.moreOptions(), format,
       OPTION_LINE_SEPARTATOR, "line separator", "'\\n'", List.of("\n", "\r\n"));
     final BinaryEncoding binaryEncoding = BinaryEncoding.fromId(config.moreOptions().getString(OPTION_BINARY_ENCODING,
       "binary (tile) data encoding - one of " + BinaryEncoding.ids(), "base64"));
@@ -89,8 +94,9 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
     };
   }
 
-  public static WriteableCsvArchive newWriteToFile(Path path, StreamArchiveConfig config) {
-    return new WriteableCsvArchive(path, config);
+  public static WriteableCsvArchive newWriteToFile(TileArchiveConfig.Format format, Path path,
+    StreamArchiveConfig config) {
+    return new WriteableCsvArchive(format, path, config);
   }
 
   @Override

@@ -170,8 +170,15 @@ public record TileArchiveConfig(
       false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
       false),
     PMTILES("pmtiles", false, false),
+
     CSV("csv", true, true),
+    /** identical to {@link Format#CSV} - except for the column separator */
+    TSV("tsv", true, true),
+
     PROTO("proto", true, true),
+    /** identical to {@link Format#PROTO} */
+    PBF("pbf", true, true),
+
     JSON("json", true, true);
 
     private final String id;

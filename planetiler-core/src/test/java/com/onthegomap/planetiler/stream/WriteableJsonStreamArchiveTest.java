@@ -95,7 +95,7 @@ class WriteableJsonStreamArchiveTest {
   @Test
   void testWriteToSingleFile(@TempDir Path tempDir) throws IOException {
 
-    final Path csvFile = tempDir.resolve("mbtiles.json");
+    final Path csvFile = tempDir.resolve("out.json");
 
     try (var archive = WriteableJsonStreamArchive.newWriteToFile(csvFile, defaultConfig)) {
       archive.initialize(maxMetadataIn);
@@ -122,9 +122,9 @@ class WriteableJsonStreamArchiveTest {
   @Test
   void testWriteToMultipleFiles(@TempDir Path tempDir) throws IOException {
 
-    final Path csvFilePrimary = tempDir.resolve("mbtiles.proto");
-    final Path csvFileSecondary = tempDir.resolve("mbtiles.proto1");
-    final Path csvFileTertiary = tempDir.resolve("mbtiles.proto2");
+    final Path csvFilePrimary = tempDir.resolve("out.json");
+    final Path csvFileSecondary = tempDir.resolve("out.json1");
+    final Path csvFileTertiary = tempDir.resolve("out.json2");
 
     final var tile0 = new TileEncodingResult(TileCoord.ofXYZ(11, 12, 1), new byte[]{0}, OptionalLong.empty());
     final var tile1 = new TileEncodingResult(TileCoord.ofXYZ(21, 22, 2), new byte[]{1}, OptionalLong.empty());
@@ -208,12 +208,12 @@ class WriteableJsonStreamArchiveTest {
 
     testTileOptions(tempDir, config, expectedJson);
 
-    assertFalse(Files.readString(tempDir.resolve("mbtiles.json")).contains("\n"));
+    assertFalse(Files.readString(tempDir.resolve("out.json")).contains("\n"));
   }
 
   private void testTileOptions(Path tempDir, StreamArchiveConfig config, String expectedJson) throws IOException {
 
-    final Path csvFile = tempDir.resolve("mbtiles.json");
+    final Path csvFile = tempDir.resolve("out.json");
 
     try (var archive = WriteableJsonStreamArchive.newWriteToFile(csvFile, config)) {
       archive.initialize(minMetadataIn);

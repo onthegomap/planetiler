@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
@@ -15,6 +16,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class WriteableCsvArchiveTest {
 
@@ -22,12 +25,13 @@ class WriteableCsvArchiveTest {
   private static final TileArchiveMetadata defaultMetadata =
     new TileArchiveMetadata("start", null, null, null, null, null, null, null, null, null, null, null, null, null);
 
-  @Test
-  void testWriteToSingleFile(@TempDir Path tempDir) throws IOException {
+  @ParameterizedTest
+  @EnumSource(value = TileArchiveConfig.Format.class, names = {"CSV", "TSV"})
+  void testWriteToSingleFile(TileArchiveConfig.Format format, @TempDir Path tempDir) throws IOException {
 
-    final Path csvFile = tempDir.resolve("mbtiles.csv");
+    final Path csvFile = tempDir.resolve("out.csv");
 
-    try (var archive = WriteableCsvArchive.newWriteToFile(csvFile, defaultConfig)) {
+    try (var archive = WriteableCsvArchive.newWriteToFile(format, csvFile, defaultConfig)) {
       archive.initialize(defaultMetadata); // ignored
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
@@ -35,13 +39,20 @@ class WriteableCsvArchiveTest {
       }
       archive.finish(defaultMetadata);
     }
-    assertEquals(
-      """
+
+    final String expectedFileContent = switch (format) {
+      case CSV -> """
         0,0,0,AA==
         1,2,3,AQ==
-        """,
-      Files.readString(csvFile)
-    );
+        """;
+      case TSV -> """
+        0\t0\t0\tAA==
+        1\t2\t3\tAQ==
+        """;
+      default -> throw new IllegalArgumentException("unsupported format" + format);
+    };
+
+    assertEquals(expectedFileContent, Files.readString(csvFile));
 
     assertEquals(Set.of(csvFile), Files.list(tempDir).collect(Collectors.toUnmodifiableSet()));
   }
@@ -49,11 +60,13 @@ class WriteableCsvArchiveTest {
   @Test
   void testWriteToMultipleFiles(@TempDir Path tempDir) throws IOException {
 
-    final Path csvFilePrimary = tempDir.resolve("mbtiles.csv");
-    final Path csvFileSecondary = tempDir.resolve("mbtiles.csv1");
-    final Path csvFileTertiary = tempDir.resolve("mbtiles.csv2");
+    final Path csvFilePrimary = tempDir.resolve("out.csv");
+    final Path csvFileSecondary = tempDir.resolve("out.csv1");
+    final Path csvFileTertiary = tempDir.resolve("out.csv2");
 
-    try (var archive = WriteableCsvArchive.newWriteToFile(csvFilePrimary, defaultConfig)) {
+    try (
+      var archive = WriteableCsvArchive.newWriteToFile(TileArchiveConfig.Format.CSV, csvFilePrimary, defaultConfig)
+    ) {
       archive.initialize(defaultMetadata); // ignored
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(11, 12, 1), new byte[]{0}, OptionalLong.empty()));
@@ -143,9 +156,9 @@ class WriteableCsvArchiveTest {
 
   private void testTileOptions(Path tempDir, StreamArchiveConfig config, String expectedCsv) throws IOException {
 
-    final Path csvFile = tempDir.resolve("mbtiles.json");
+    final Path csvFile = tempDir.resolve("out.csv");
 
-    try (var archive = WriteableCsvArchive.newWriteToFile(csvFile, config)) {
+    try (var archive = WriteableCsvArchive.newWriteToFile(TileArchiveConfig.Format.CSV, csvFile, config)) {
       archive.initialize(defaultMetadata);
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0, 1}, OptionalLong.empty()));

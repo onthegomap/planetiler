@@ -26,13 +26,13 @@ public class InMemoryStreamArchive implements ReadableTileArchive {
     this.metadata = metadata;
   }
 
-  public static InMemoryStreamArchive fromCsv(Path p) throws IOException {
+  public static InMemoryStreamArchive fromCsv(Path p, String columnSepatator) throws IOException {
     var base64Decoder = Base64.getDecoder();
     final List<TileEncodingResult> tileEncodings = new ArrayList<>();
     try (var reader = Files.newBufferedReader(p)) {
       String line;
       while ((line = reader.readLine()) != null) {
-        final String[] splits = line.split(",");
+        final String[] splits = line.split(columnSepatator);
         final TileCoord tileCoord = TileCoord.ofXYZ(Integer.parseInt(splits[0]), Integer.parseInt(splits[1]),
           Integer.parseInt(splits[2]));
         tileEncodings.add(new TileEncodingResult(tileCoord, base64Decoder.decode(splits[3]), OptionalLong.empty()));

@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -47,6 +48,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1764,16 +1766,13 @@ class PlanetilerTests {
   }
 
   private static TileArchiveConfig.Format extractFormat(String args) {
-    if (args.contains("--output-format=mbtiles")) {
-      return TileArchiveConfig.Format.MBTILES;
-    } else if (args.contains("--output-format=pmtiles")) {
-      return TileArchiveConfig.Format.PMTILES;
-    } else if (args.contains("--output-format=csv")) {
-      return TileArchiveConfig.Format.CSV;
-    } else if (args.contains("--output-format=proto")) {
-      return TileArchiveConfig.Format.PROTO;
-    } else if (args.contains("--output-format=json")) {
-      return TileArchiveConfig.Format.JSON;
+
+    final Optional<TileArchiveConfig.Format> format = Stream.of(TileArchiveConfig.Format.values())
+      .filter(fmt -> args.contains("--output-format=" + fmt.id()))
+      .findFirst();
+
+    if (format.isPresent()) {
+      return format.get();
     } else if (args.contains("--output-format=")) {
       throw new IllegalArgumentException("unhandled output format");
     } else {
@@ -1801,7 +1800,9 @@ class PlanetilerTests {
     "--osm-parse-node-bounds",
     "--output-format=pmtiles",
     "--output-format=csv",
+    "--output-format=tsv",
     "--output-format=proto",
+    "--output-format=pbf",
     "--output-format=json",
     "--tile-compression=none",
     "--tile-compression=gzip"
@@ -1816,10 +1817,11 @@ class PlanetilerTests {
 
     final ReadableTileArchiveFactory readableTileArchiveFactory = switch (format) {
       case MBTILES -> Mbtiles::newReadOnlyDatabase;
-      case CSV -> InMemoryStreamArchive::fromCsv;
+      case CSV -> p -> InMemoryStreamArchive.fromCsv(p, ",");
+      case TSV -> p -> InMemoryStreamArchive.fromCsv(p, "\t");
       case JSON -> InMemoryStreamArchive::fromJson;
       case PMTILES -> ReadablePmtiles::newReadFromFile;
-      case PROTO -> InMemoryStreamArchive::fromProtobuf;
+      case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
     };
 
 
