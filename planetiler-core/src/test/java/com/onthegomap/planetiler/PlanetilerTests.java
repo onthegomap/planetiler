@@ -3,8 +3,12 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.onthegomap.planetiler.TestUtils.OsmXml;
+import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
@@ -25,6 +29,7 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -42,6 +48,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1758,6 +1765,33 @@ class PlanetilerTests {
     }
   }
 
+  private static TileArchiveConfig.Format extractFormat(String args) {
+
+    final Optional<TileArchiveConfig.Format> format = Stream.of(TileArchiveConfig.Format.values())
+      .filter(fmt -> args.contains("--output-format=" + fmt.id()))
+      .findFirst();
+
+    if (format.isPresent()) {
+      return format.get();
+    } else if (args.contains("--output-format=")) {
+      throw new IllegalArgumentException("unhandled output format");
+    } else {
+      return TileArchiveConfig.Format.MBTILES;
+    }
+  }
+
+  private static TileCompression extractTileCompression(String args) {
+    if (args.contains("tile-compression=none")) {
+      return TileCompression.NONE;
+    } else if (args.contains("tile-compression=gzip")) {
+      return TileCompression.GZIP;
+    } else if (args.contains("tile-compression=")) {
+      throw new IllegalArgumentException("unhandled tile compression");
+    } else {
+      return TileCompression.GZIP;
+    }
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {
     "",
@@ -1765,12 +1799,32 @@ class PlanetilerTests {
     "--free-osm-after-read",
     "--osm-parse-node-bounds",
     "--output-format=pmtiles",
+    "--output-format=csv",
+    "--output-format=tsv",
+    "--output-format=proto",
+    "--output-format=pbf",
+    "--output-format=json",
+    "--tile-compression=none",
+    "--tile-compression=gzip"
   })
   void testPlanetilerRunner(String args) throws Exception {
-    boolean pmtiles = args.contains("pmtiles");
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
-    Path output = tempDir.resolve(pmtiles ? "output.pmtiles" : "output.mbtiles");
     Path tempOsm = tempDir.resolve("monaco-temp.osm.pbf");
+    final TileCompression tileCompression = extractTileCompression(args);
+
+    final TileArchiveConfig.Format format = extractFormat(args);
+    final Path output = tempDir.resolve("output." + format.id());
+
+    final ReadableTileArchiveFactory readableTileArchiveFactory = switch (format) {
+      case MBTILES -> Mbtiles::newReadOnlyDatabase;
+      case CSV -> p -> InMemoryStreamArchive.fromCsv(p, ",");
+      case TSV -> p -> InMemoryStreamArchive.fromCsv(p, "\t");
+      case JSON -> InMemoryStreamArchive::fromJson;
+      case PMTILES -> ReadablePmtiles::newReadFromFile;
+      case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
+    };
+
+
     Files.copy(originalOsm, tempOsm);
     Planetiler.create(Arguments.fromArgs(
       ("--tmpdir=" + tempDir.resolve("data") + " " + args).split("\\s+")
@@ -1795,11 +1849,9 @@ class PlanetilerTests {
       assertFalse(Files.exists(tempOsm));
     }
 
-    try (
-      var db = pmtiles ? ReadablePmtiles.newReadFromFile(output) : Mbtiles.newReadOnlyDatabase(output)
-    ) {
+    try (var db = readableTileArchiveFactory.create(output)) {
       int features = 0;
-      var tileMap = TestUtils.getTileMap(db);
+      var tileMap = TestUtils.getTileMap(db, tileCompression);
       for (var tile : tileMap.values()) {
         for (var feature : tile) {
           feature.geometry().validate();
@@ -1809,12 +1861,21 @@ class PlanetilerTests {
 
       assertEquals(11, tileMap.size(), "num tiles");
       assertEquals(2146, features, "num buildings");
-      assertSubmap(Map.of(
-        "planetiler:version", BuildInfo.get().version(),
-        "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",
-        "planetiler:osm:osmosisreplicationseq", "2947",
-        "planetiler:osm:osmosisreplicationurl", "http://download.geofabrik.de/europe/monaco-updates"
-      ), db.metadata().toMap());
+
+      final boolean checkMetadata = switch (format) {
+        case MBTILES -> true;
+        case PMTILES -> true;
+        default -> db.metadata() != null;
+      };
+
+      if (checkMetadata) {
+        assertSubmap(Map.of(
+          "planetiler:version", BuildInfo.get().version(),
+          "planetiler:osm:osmosisreplicationtime", "2021-04-21T20:21:46Z",
+          "planetiler:osm:osmosisreplicationseq", "2947",
+          "planetiler:osm:osmosisreplicationurl", "http://download.geofabrik.de/europe/monaco-updates"
+        ), db.metadata().toMap());
+      }
     }
   }
 
@@ -2102,5 +2163,10 @@ class PlanetilerTests {
     int z8tiles = 1 << 8;
     assertFalse(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 5 / 8, 8)));
     assertTrue(polyResultz8.tiles.containsKey(TileCoord.ofXYZ(z8tiles * 3 / 4, z8tiles * 7 / 8, 8)));
+  }
+
+  @FunctionalInterface
+  private interface ReadableTileArchiveFactory {
+    ReadableTileArchive create(Path p) throws IOException;
   }
 }

@@ -16,6 +16,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -202,9 +203,19 @@ public class TestUtils {
 
   public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
     throws IOException {
+    return getTileMap(db, TileCompression.GZIP);
+  }
+
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
+    TileCompression tileCompression)
+    throws IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
     for (var tile : getAllTiles(db)) {
-      var bytes = gunzip(tile.bytes());
+      var bytes = switch (tileCompression) {
+        case GZIP -> gunzip(tile.bytes());
+        case NONE -> tile.bytes();
+        case UNKNWON -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
+      };
       var decoded = VectorTile.decode(bytes).stream()
         .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
       tiles.put(tile.tile(), decoded);

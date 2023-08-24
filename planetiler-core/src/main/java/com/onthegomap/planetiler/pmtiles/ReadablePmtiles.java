@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.pmtiles;
 
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
@@ -115,6 +116,18 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
   @Override
   public TileArchiveMetadata metadata() {
+
+    TileCompression tileCompression = switch (header.tileCompression()) {
+      case GZIP -> TileCompression.GZIP;
+      case NONE -> TileCompression.NONE;
+      case UNKNOWN -> TileCompression.UNKNWON;
+    };
+
+    String format = switch (header.tileType()) {
+      case MVT -> TileArchiveMetadata.MVT_FORMAT;
+      default -> null;
+    };
+
     try {
       var jsonMetadata = getJsonMetadata();
       var map = new LinkedHashMap<>(jsonMetadata.otherMetadata());
@@ -124,17 +137,15 @@ public class ReadablePmtiles implements ReadableTileArchive {
         map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
         map.remove(TileArchiveMetadata.VERSION_KEY),
         map.remove(TileArchiveMetadata.TYPE_KEY),
-        switch (header.tileType()) {
-        case MVT -> TileArchiveMetadata.MVT_FORMAT;
-        default -> null;
-        },
+        format,
         header.bounds(),
         header.center(),
         (double) header.centerZoom(),
         (int) header.minZoom(),
         (int) header.maxZoom(),
         jsonMetadata.vectorLayers(),
-        map
+        map,
+        tileCompression
       );
     } catch (IOException e) {
       throw new UncheckedIOException(e);

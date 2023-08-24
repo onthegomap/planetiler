@@ -4,17 +4,24 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
 import static com.onthegomap.planetiler.util.Format.joinCoordinates;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.LayerStats;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +44,8 @@ public record TileArchiveMetadata(
   @JsonProperty(MINZOOM_KEY) Integer minzoom,
   @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
   @JsonIgnore List<LayerStats.VectorLayer> vectorLayers,
-  @JsonAnyGetter Map<String, String> others
+  @JsonAnyGetter @JsonDeserialize(using = EmptyMapIfNullDeserializer.class) Map<String, String> others,
+  @JsonProperty(COMPRESSION_KEY) TileCompression tileCompression
 ) {
 
   public static final String NAME_KEY = "name";
@@ -52,6 +60,7 @@ public record TileArchiveMetadata(
   public static final String MINZOOM_KEY = "minzoom";
   public static final String MAXZOOM_KEY = "maxzoom";
   public static final String VECTOR_LAYERS_KEY = "vector_layers";
+  public static final String COMPRESSION_KEY = "compression";
 
   public static final String MVT_FORMAT = "pbf";
 
@@ -78,7 +87,8 @@ public record TileArchiveMetadata(
       config.minzoom(),
       config.maxzoom(),
       vectorLayers,
-      mapWithBuildInfo()
+      mapWithBuildInfo(),
+      config.tileCompression()
     );
   }
 
@@ -137,6 +147,30 @@ public record TileArchiveMetadata(
   /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
   public TileArchiveMetadata withLayerStats(List<LayerStats.VectorLayer> layerStats) {
     return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
-      maxzoom, layerStats, others);
+      maxzoom, layerStats, others, tileCompression);
+  }
+
+  /*
+   * few workarounds to make collect unknown fields to others work,
+   * because @JsonAnySetter does not yet work on constructor/creator arguments
+   * https://github.com/FasterXML/jackson-databind/issues/3439
+   */
+
+  @JsonAnySetter
+  private void putUnknownFieldsToOthers(String name, String value) {
+    others.put(name, value);
+  }
+
+  private static class EmptyMapIfNullDeserializer extends JsonDeserializer<Map<String, String>> {
+    @SuppressWarnings("unchecked")
+    @Override
+    public Map<String, String> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      return p.readValueAs(HashMap.class);
+    }
+
+    @Override
+    public Map<String, String> getNullValue(DeserializationContext ctxt) {
+      return new HashMap<>();
+    }
   }
 }

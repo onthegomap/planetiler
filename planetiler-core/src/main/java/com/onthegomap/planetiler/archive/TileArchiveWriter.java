@@ -91,6 +91,7 @@ public class TileArchiveWriter {
     int readThreads = config.featureReadThreads();
     int threads = config.threads();
     int processThreads = threads < 10 ? threads : threads - readThreads;
+    int tileWriteThreads = config.tileWriteThreads();
 
     // when using more than 1 read thread: (N read threads) -> (1 merge thread) -> ...
     // when using 1 read thread we just have: (1 read & merge thread) -> ...
@@ -127,6 +128,11 @@ public class TileArchiveWriter {
      * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
      * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
      * One batch might take a long time to process, so make the queues very big to avoid idle encoding CPUs.
+     *
+     * Note:
+     * In the future emitting tiles out order might be especially interesting when tileWriteThreads>1,
+     * since when multiple threads/files are included there's no order that needs to be preserved.
+     * So some of the restrictions could be lifted then.
      */
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
     encodeBranch = pipeline
@@ -144,8 +150,7 @@ public class TileArchiveWriter {
 
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
     writeBranch = pipeline.readFromQueue(writerQueue)
-      // use only 1 thread since tileWriter needs to be single-threaded
-      .sinkTo("write", 1, writer::tileWriter);
+      .sinkTo("write", tileWriteThreads, writer::tileWriter);
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
@@ -251,7 +256,11 @@ public class TileArchiveWriter {
             bytes = null;
           } else {
             encoded = en.encode();
-            bytes = gzip(encoded);
+            bytes = switch (config.tileCompression()) {
+              case GZIP -> gzip(encoded);
+              case NONE -> encoded;
+              case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
+            };
             if (encoded.length > config.tileWarningSizeBytes()) {
               LOGGER.warn("{} {}kb uncompressed",
                 tileFeatures.tileCoord(),

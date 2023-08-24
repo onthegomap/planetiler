@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -157,14 +158,56 @@ class MbtilesTest {
       8,
       9,
       List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
-      Map.of("other key", "other value")
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
     ));
+  }
+
+  @Test
+  void testMetadataWithoutCompressionAssumesGzip() throws IOException {
+
+    final TileArchiveMetadata metadataIn = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      null
+    );
+
+    final TileArchiveMetadata expectedMetadataOut = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
+    );
+
+    roundTripMetadata(metadataIn, expectedMetadataOut);
   }
 
   @Test
   void testRoundTripMinimalMetadata() throws IOException {
     var empty =
-      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of());
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+        TileCompression.GZIP);
     roundTripMetadata(empty);
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTablesWithoutIndexes();
@@ -173,11 +216,16 @@ class MbtilesTest {
   }
 
   private static void roundTripMetadata(TileArchiveMetadata metadata) throws IOException {
+    roundTripMetadata(metadata, metadata);
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata metadata, TileArchiveMetadata expectedOut)
+    throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTablesWithoutIndexes();
       var metadataTable = db.metadataTable();
       metadataTable.set(metadata);
-      assertEquals(metadata, metadataTable.get());
+      assertEquals(expectedOut, metadataTable.get());
     }
   }
 

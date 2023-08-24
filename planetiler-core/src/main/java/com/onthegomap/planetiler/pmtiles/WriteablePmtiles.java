@@ -150,6 +150,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       otherMetadata.remove(TileArchiveMetadata.MINZOOM_KEY);
       otherMetadata.remove(TileArchiveMetadata.MAXZOOM_KEY);
       otherMetadata.remove(TileArchiveMetadata.VECTOR_LAYERS_KEY);
+      otherMetadata.remove(TileArchiveMetadata.COMPRESSION_KEY);
 
       byte[] jsonBytes =
         new Pmtiles.JsonMetadata(tileArchiveMetadata.vectorLayers(), otherMetadata).toBytes();
@@ -167,6 +168,13 @@ public final class WriteablePmtiles implements WriteableTileArchive {
       int maxzoom =
         tileArchiveMetadata.maxzoom() == null ? PlanetilerConfig.MAX_MAXZOOM : tileArchiveMetadata.maxzoom();
 
+
+      Pmtiles.Compression tileCompression = switch (tileArchiveMetadata.tileCompression()) {
+        case GZIP -> Pmtiles.Compression.GZIP;
+        case NONE -> Pmtiles.Compression.NONE;
+        default -> Pmtiles.Compression.UNKNOWN;
+      };
+
       Pmtiles.Header header = new Pmtiles.Header(
         (byte) 3,
         Pmtiles.HEADER_LEN,
@@ -182,7 +190,7 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         hashToOffset.size() + numUnhashedTiles,
         isClustered,
         Pmtiles.Compression.GZIP,
-        Pmtiles.Compression.GZIP,
+        tileCompression,
         outputFormat,
         (byte) minzoom,
         (byte) maxzoom,

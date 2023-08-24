@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
@@ -20,11 +22,13 @@ public record PlanetilerConfig(
   int featureWriteThreads,
   int featureProcessThreads,
   int featureReadThreads,
+  int tileWriteThreads,
   Duration logInterval,
   int minzoom,
   int maxzoom,
   int maxzoomForRendering,
   boolean force,
+  boolean append,
   boolean gzipTempStorage,
   boolean mmapTempStorage,
   int sortMaxReaders,
@@ -48,7 +52,8 @@ public record PlanetilerConfig(
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
   Boolean color,
-  boolean keepUnzippedSources
+  boolean keepUnzippedSources,
+  TileCompression tileCompression
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -119,11 +124,19 @@ public record PlanetilerConfig(
       featureProcessThreads,
       arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
         threads < 32 ? 1 : 2),
+      arguments.getInteger("tile_write_threads",
+        "number of threads used to write tiles - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsConcurrentWrites).map(TileArchiveConfig.Format::id).toList(),
+        1),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       minzoom,
       maxzoom,
       renderMaxzoom,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
+      arguments.getBoolean("append",
+        "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsAppend).map(TileArchiveConfig.Format::id).toList(),
+        false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
@@ -172,7 +185,12 @@ public record PlanetilerConfig(
         1d) * 1024 * 1024),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", false)
+        "keep unzipped sources by default after reading", false),
+      TileCompression
+        .fromId(arguments.getString("tile_compression",
+          "the tile compression, one of " +
+            TileCompression.availableValues().stream().map(TileCompression::id).toList(),
+          "gzip"))
     );
   }
 
