@@ -134,6 +134,20 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
     );
   }
 
+  public Envelope getEnvelope() {
+    double worldWidthAtZoom = Math.pow(2, z);
+    return new Envelope(
+      GeoUtils.getWorldLon(x / worldWidthAtZoom),
+      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
+      GeoUtils.getWorldLat(y / worldWidthAtZoom),
+      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom)
+    );
+  }
+
+  public double maxLon() {
+    return GeoUtils.getWorldLon(x / Math.pow(2, z));
+  }
+
 
   /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl() {

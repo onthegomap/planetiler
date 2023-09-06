@@ -227,6 +227,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     private ZoomFunction<Number> pixelTolerance = null;
 
     private String numPointsAttr = null;
+    private boolean removeHolesBelowMinSize = false;
 
     private Feature(String layer, Geometry geom, long id) {
       this.layer = layer;
@@ -730,6 +731,15 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         ", geom=" + geom.getGeometryType() +
         ", attrs=" + attrs +
         '}';
+    }
+
+    public Feature setRemoveHolesBelowMinSize(boolean b) {
+      this.removeHolesBelowMinSize = b;
+      return this;
+    }
+
+    public boolean getRemoveHolesBelowMinSize() {
+      return this.removeHolesBelowMinSize;
     }
   }
 }

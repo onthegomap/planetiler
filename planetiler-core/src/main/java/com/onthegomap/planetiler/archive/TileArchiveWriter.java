@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
+import com.carrotsearch.hppc.LongIntHashMap;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -18,11 +19,21 @@ import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.text.NumberFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Queue;
@@ -34,8 +45,12 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.zip.Deflater;
+import java.util.zip.GZIPOutputStream;
+import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import vector_tile.VectorTileProto;
 
 /**
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
@@ -233,6 +248,7 @@ public class TileArchiveWriter {
     byte[] lastBytes = null, lastEncoded = null;
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
+    List<TileEncodingResult.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
 
     for (TileBatch batch : prev) {
@@ -243,19 +259,24 @@ public class TileArchiveWriter {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
+        List<TileEncodingResult.LayerStats> layerStats;
         Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
           encoded = lastEncoded;
           tileDataHash = lastTileDataHash;
+          layerStats = lastLayerStats;
           memoizedTiles.inc();
         } else {
           VectorTile en = tileFeatures.getVectorTileEncoder();
           if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
             encoded = null;
+            layerStats = null;
             bytes = null;
           } else {
-            encoded = en.encode();
+            var proto = en.toProto();
+            layerStats = computeTileStats(proto);
+            encoded = proto.toByteArray();
             bytes = switch (config.tileCompression()) {
               case GZIP -> gzip(encoded);
               case NONE -> encoded;
@@ -267,6 +288,7 @@ public class TileArchiveWriter {
                 encoded.length / 1024);
             }
           }
+          lastLayerStats = layerStats;
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
@@ -285,8 +307,13 @@ public class TileArchiveWriter {
         totalTileSizesByZoom[zoom].incBy(encodedLength);
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         result.add(
-          new TileEncodingResult(tileFeatures.tileCoord(), bytes,
-            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash))
+          new TileEncodingResult(
+            tileFeatures.tileCoord(),
+            bytes,
+            encoded == null ? 0 : encoded.length,
+            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
+            layerStats
+          )
         );
       }
       // hand result off to writer
@@ -295,7 +322,46 @@ public class TileArchiveWriter {
     }
   }
 
+  public static List<TileEncodingResult.LayerStats> computeTileStats(VectorTileProto.Tile proto) {
+    if (proto == null) {
+      return List.of();
+    }
+    List<TileEncodingResult.LayerStats> result = new ArrayList<>(proto.getLayersCount());
+    for (var layer : proto.getLayersList()) {
+      int attrSize = 0;
+      for (var key : layer.getKeysList().asByteStringList()) {
+        attrSize += key.size();
+      }
+      for (var value : layer.getValuesList()) {
+        attrSize += value.getSerializedSize();
+      }
+      result.add(new TileEncodingResult.LayerStats(
+        layer.getName(),
+        layer.getFeaturesCount(),
+        layer.getSerializedSize(),
+        attrSize,
+        layer.getValuesCount()
+      ));
+    }
+    return result;
+  }
+
+  public static class FastGzipOutputStream extends GZIPOutputStream {
+
+    public FastGzipOutputStream(OutputStream out) throws IOException {
+      super(out);
+      def.setLevel(Deflater.BEST_SPEED);
+    }
+  }
+
+  private static Writer newWriter(Path path) throws IOException {
+    return new OutputStreamWriter(new FastGzipOutputStream(new BufferedOutputStream(Files.newOutputStream(path,
+      StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE))));
+  }
+
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
+    var f = NumberFormat.getNumberInstance(Locale.getDefault());
+    f.setMaximumFractionDigits(5);
 
     archive.initialize(tileArchiveMetadata);
     var order = archive.tileOrder();
@@ -303,7 +369,30 @@ public class TileArchiveWriter {
     TileCoord lastTile = null;
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
-    try (var tileWriter = archive.newTileWriter()) {
+    LongIntHashMap hashToId = new LongIntHashMap();
+    int tileId = 0;
+    try (
+      var tileWriter = archive.newTileWriter();
+      var tileStats = newWriter(Path.of("tile_stats.tsv.gz"));
+    ) {
+      writeTsvLine(tileStats,
+        "z",
+        "x",
+        "y",
+        "hilbert",
+        "tile_bytes",
+        "gzipped_tile_bytes",
+        "deduped_tile_id",
+        "layer",
+        "features",
+        "layer_bytes",
+        "layer_attr_bytes",
+        "layer_attr_values",
+        "min_lon",
+        "max_lon",
+        "min_lat",
+        "max_lat"
+      );
       for (TileBatch batch : tileBatches) {
         Queue<TileEncodingResult> encodedTiles = batch.out.get();
         TileEncodingResult encodedTile;
@@ -323,6 +412,39 @@ public class TileArchiveWriter {
             time = Timer.start();
             currentZ = z;
           }
+          int hilbert = encodedTile.coord().hilbertEncoded();
+          Integer thisTileId;
+          if (encodedTile.tileDataHash().isPresent()) {
+            long hash = encodedTile.tileDataHash().getAsLong();
+            if (hashToId.containsKey(hash)) {
+              thisTileId = hashToId.get(hash);
+            } else {
+              hashToId.put(hash, thisTileId = ++tileId);
+            }
+          } else {
+            thisTileId = null;
+          }
+          Envelope envelope = encodedTile.coord().getEnvelope();
+          for (var layer : encodedTile.layerStats()) {
+            writeTsvLine(tileStats,
+              encodedTile.coord().z(),
+              encodedTile.coord().x(),
+              encodedTile.coord().y(),
+              hilbert,
+              encodedTile.rawTileSize(),
+              encodedTile.tileData().length,
+              thisTileId == null ? "" : thisTileId,
+              layer.name(),
+              layer.features(),
+              layer.totalBytes(),
+              layer.attrBytes(),
+              layer.attrValues(),
+              f.format(envelope.getMinX()),
+              f.format(envelope.getMaxX()),
+              f.format(envelope.getMinY()),
+              f.format(envelope.getMaxY())
+            );
+          }
           tileWriter.write(encodedTile);
 
           stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
@@ -331,6 +453,8 @@ public class TileArchiveWriter {
         lastTileWritten.set(lastTile);
       }
       tileWriter.printStats();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
 
     if (time != null) {
@@ -339,6 +463,18 @@ public class TileArchiveWriter {
 
 
     archive.finish(tileArchiveMetadata);
+  }
+
+  private static void writeTsvLine(Writer writer, Object... values) throws IOException {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < values.length; i++) {
+      if (i > 0) {
+        builder.append('\t');
+      }
+      builder.append(values[i]);
+    }
+    builder.append('\n');
+    writer.write(builder.toString());
   }
 
   private void printTileStats() {
