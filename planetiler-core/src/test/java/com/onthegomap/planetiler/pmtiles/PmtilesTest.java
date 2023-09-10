@@ -14,9 +14,9 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.LayerStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -181,6 +181,22 @@ class PmtilesTest {
     assertTrue(result.leafSize() >= 4096, "entries in leaf: " + result.leafSize());
   }
 
+  record FakeFile(SeekableInMemoryByteChannel b) implements ReadablePmtiles.DataProvider, Closeable {
+
+    @Override
+    public byte[] getBytes(long start, int length) throws IOException {
+      var buf = ByteBuffer.allocate(length);
+      b.position(start);
+      b.read(buf);
+      return buf.array();
+    }
+
+    @Override
+    public void close() throws IOException {
+      b.close();
+    }
+  }
+
   @Test
   void testWritePmtilesSingleEntry() throws IOException {
     var bytes = new SeekableInMemoryByteChannel(0);
@@ -193,7 +209,8 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
     in.finish(metadata);
-    try (var reader = new ReadablePmtiles(bytes)) {
+    try (var reader = new ReadablePmtiles(new FakeFile(bytes), () -> {
+    })) {
       var header = reader.getHeader();
       assertEquals(1, header.numAddressedTiles());
       assertEquals(1, header.numTileContents());
@@ -264,7 +281,8 @@ class PmtilesTest {
       writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
       in.finish(input);
-      try (var reader = new ReadablePmtiles(channel)) {
+      try (var reader = new ReadablePmtiles(new FakeFile(channel), () -> {
+      })) {
         assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
 
         assertEquals(output, reader.metadata());
@@ -286,7 +304,7 @@ class PmtilesTest {
   @Test
   void testReadPmtilesFromTippecanoe() throws IOException {
     // '{"type":"Polygon","coordinates":[[[0,0],[0,1],[1,1],[1,0],[0,0]]]}' | ./tippecanoe -zg -o box1degree.pmtiles
-    var reader = new ReadablePmtiles(FileChannel.open(TestUtils.pathToResource("box1degree.pmtiles")));
+    ReadablePmtiles reader = ReadablePmtiles.newReadFromFile(TestUtils.pathToResource("box1degree.pmtiles"));
     var header = reader.getHeader();
     assertTrue(header.maxZoom() <= 15);
     assertNotNull(reader.getTile(0, 0, 0));
@@ -306,7 +324,8 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
     in.finish(metadata);
-    try (var reader = new ReadablePmtiles(bytes)) {
+    try (var reader = new ReadablePmtiles(new FakeFile(bytes), () -> {
+    })) {
       var header = reader.getHeader();
       assertEquals(3, header.numAddressedTiles());
       assertEquals(1, header.numTileContents());
@@ -343,7 +362,8 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
     in.finish(metadata);
-    try (var reader = new ReadablePmtiles(bytes)) {
+    try (var reader = new ReadablePmtiles(new FakeFile(bytes), () -> {
+    })) {
       var header = reader.getHeader();
       assertEquals(2, header.numAddressedTiles());
       assertEquals(1, header.numTileContents());
@@ -388,7 +408,8 @@ class PmtilesTest {
     }
 
     in.finish(metadata);
-    try (var reader = new ReadablePmtiles(bytes)) {
+    try (var reader = new ReadablePmtiles(new FakeFile(bytes), () -> {
+    })) {
       var header = reader.getHeader();
       assertEquals(ENTRIES, header.numAddressedTiles());
       assertEquals(ENTRIES, header.numTileContents());

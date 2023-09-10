@@ -12,28 +12,37 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class ReadablePmtiles implements ReadableTileArchive {
-  private final FileChannel channel;
+  private final DataProvider channel;
   private final Pmtiles.Header header;
   private final LoadingCache<Range, byte[]> tileCache;
   private final LoadingCache<Range, List<Pmtiles.Entry>> dirCache;
+  private final Closeable closeable;
 
-  public ReadablePmtiles(SeekableByteChannel channel) {
-    this.channel = (FileChannel) channel;
+  @FunctionalInterface
+  interface DataProvider {
+    byte[] getBytes(long offset, int length) throws IOException;
+  }
+
+  public ReadablePmtiles(DataProvider channel, Closeable closeable) {
+    this.channel = channel;
+    this.closeable = closeable;
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
     this.tileCache = CacheBuilder.newBuilder()
       .weigher((Range key, byte[] value) -> value.length)
@@ -45,15 +54,18 @@ public class ReadablePmtiles implements ReadableTileArchive {
       .build(CacheLoader.from(range -> getDir(range.offset, range.length)));
   }
 
-  public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
-    return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
+  public static ReadablePmtiles newReadFromFile(Path path) throws IOException {
+    var channel = FileChannel.open(path, StandardOpenOption.READ);
+    return new ReadablePmtiles((start, length) -> {
+      var buf = ByteBuffer.allocate(length);
+      channel.read(buf, start);
+      return buf.array();
+    }, channel);
   }
 
   private byte[] getBytes(long start, int length) {
     try {
-      var buf = ByteBuffer.allocate(length);
-      channel.read(buf, start);
-      return buf.array();
+      return channel.getBytes(start, length);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -204,53 +216,108 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
   }
 
-  private List<Pmtiles.Entry> readDir(long offset, int length) throws IOException {
-    var buf = getBytes(offset, length);
-    if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-      buf = Gzip.gunzip(buf);
+  private List<Pmtiles.Entry> readDir(long offset, int length) {
+    try {
+      var buf = getBytes(offset, length);
+      if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+        buf = Gzip.gunzip(buf);
+      }
+      return Pmtiles.directoryFromBytes(buf);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
-    return Pmtiles.directoryFromBytes(buf);
   }
 
   // Warning: this will only work on z15 or less pmtiles which planetiler creates
   private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
-    return dir.stream().flatMap(entry -> {
-      try {
-        return entry.runLength() == 0 ?
-          getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
-            .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-    });
+    return dir.stream().flatMap(entry -> entry.runLength() == 0 ?
+      getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
+        .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
   }
 
-  private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
-    return dir.stream().flatMap(entry -> {
-      try {
-        if (entry.runLength == 0) {
-          return getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()));
-        } else {
-          var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
-          return IntStream
-            .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength())
-            .mapToObj(tileId -> new Tile(TileCoord.hilbertDecode(tileId), data));
-        }
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
+  private CloseableIterator<Tile> getTiles(List<Pmtiles.Entry> dir) {
+    return new CloseableIterator<Tile>() {
+      @Override
+      public void close() {}
+
+      final Deque<Iterator<Pmtiles.Entry>> stack = new LinkedList<>();
+      Iterator<Pmtiles.Entry> entryIterator = dir.iterator();
+      Tile next = null;
+      long tileId = 0;
+      int i = 0;
+      int rep = 0;
+      byte[] data = null;
+
+      {
+        stack.push(entryIterator);
+        advance();
       }
-    });
+
+      @Override
+      public boolean hasNext() {
+        return next != null;
+      }
+
+      void advance() {
+        if (i < rep) {
+          next = new Tile(TileCoord.hilbertDecode((int) (tileId + i)), data);
+          i++;
+          return;
+        }
+        rep = 0;
+        next = null;
+
+        while (!stack.isEmpty() && !stack.peek().hasNext()) {
+          stack.pop();
+          entryIterator = stack.peek();
+        }
+        if (entryIterator == null) {
+          return;
+        }
+        while (true) {
+          var entry = entryIterator.next();
+          if (entry.runLength == 0) {
+            entryIterator = readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()).iterator();
+            stack.push(entryIterator);
+          } else {
+            this.data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+            this.tileId = entry.tileId();
+            next = new Tile(TileCoord.hilbertDecode((int) tileId), data);
+            this.i = 1;
+            this.rep = entry.runLength;
+            break;
+          }
+        }
+      }
+
+      @Override
+      public Tile next() {
+        Tile result = this.next;
+        advance();
+        return result;
+      }
+    };
+    //    return dir.stream().mapMulti((entry, next) -> {
+    //      try {
+    //        if (entry.runLength == 0) {
+    //          getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())).forEach(next);
+    //        } else {
+    //          var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+    //          for (int i = 0; i < entry.runLength(); i++) {
+    //            next.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
+    //          }
+    //        }
+    //      } catch (IOException e) {
+    //        throw new IllegalStateException(e);
+    //      }
+    //    });
   }
 
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
     List<Pmtiles.Entry> rootDir;
-    try {
-      rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-      return new StreamIterator<>(getTileCoords(rootDir));
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+    return new StreamIterator<>(getTileCoords(rootDir));
   }
 
   private record Range(long offset, int length) {}
@@ -258,12 +325,8 @@ public class ReadablePmtiles implements ReadableTileArchive {
   @Override
   public CloseableIterator<Tile> getAllTiles() {
     List<Pmtiles.Entry> rootDir;
-    try {
-      rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-      return new StreamIterator<>(getTiles(rootDir));
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+    return getTiles(rootDir);
   }
 
   public static void main(String[] args) throws IOException {
@@ -299,6 +362,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
 
   @Override
   public void close() throws IOException {
-    channel.close();
+    closeable.close();
   }
 }
