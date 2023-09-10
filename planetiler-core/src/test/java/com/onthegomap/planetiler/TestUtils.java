@@ -16,6 +16,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
@@ -218,7 +219,7 @@ public class TestUtils {
       };
       var decoded = VectorTile.decode(bytes).stream()
         .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
-      tiles.put(tile.tile(), decoded);
+      tiles.put(tile.coord(), decoded);
     }
     return tiles;
   }
@@ -231,10 +232,8 @@ public class TestUtils {
     }
   }
 
-  public static Set<Mbtiles.TileEntry> getAllTiles(ReadableTileArchive db) {
-    return db.getAllTileCoords().stream()
-      .map(coord -> new Mbtiles.TileEntry(coord, db.getTile(coord)))
-      .collect(Collectors.toSet());
+  public static Set<Tile> getAllTiles(ReadableTileArchive db) {
+    return db.getAllTiles().stream().collect(Collectors.toSet());
   }
 
   public static int getTilesDataCount(Mbtiles db) throws SQLException {

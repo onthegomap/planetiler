@@ -321,6 +321,11 @@ public class Pmtiles {
     return dir.toArray();
   }
 
+  private static long zigZagEncode(long n) {
+    // https://developers.google.com/protocol-buffers/docs/encoding#types
+    return (n << 1) ^ (n >> 31);
+  }
+
   public static List<Entry> directoryFromBytes(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
     int numEntries = (int) VarInt.getVarLong(buffer);

@@ -1,9 +1,14 @@
 package com.onthegomap.planetiler.pmtiles;
 
-import com.carrotsearch.hppc.LongObjectHashMap;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileArchives;
 import com.onthegomap.planetiler.archive.TileCompression;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
@@ -17,28 +22,41 @@ import java.nio.file.StandardOpenOption;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class ReadablePmtiles implements ReadableTileArchive {
-  private final SeekableByteChannel channel;
+  private final FileChannel channel;
   private final Pmtiles.Header header;
+  private final LoadingCache<Range, byte[]> tileCache;
+  private final LoadingCache<Range, List<Pmtiles.Entry>> dirCache;
 
-  public ReadablePmtiles(SeekableByteChannel channel) throws IOException {
-    this.channel = channel;
-
+  public ReadablePmtiles(SeekableByteChannel channel) {
+    this.channel = (FileChannel) channel;
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
+    this.tileCache = CacheBuilder.newBuilder()
+      .weigher((Range key, byte[] value) -> value.length)
+      .maximumWeight(1_000_000_000)
+      .build(CacheLoader.from(range -> getBytes(range.offset, range.length)));
+    this.dirCache = CacheBuilder.newBuilder()
+      .weigher((Range key, List<Pmtiles.Entry> value) -> value.size() * (8 + 8 + 8 + 8 + 4 + 4))
+      .maximumWeight(1_000_000_000)
+      .build(CacheLoader.from(range -> getDir(range.offset, range.length)));
   }
 
   public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
     return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
   }
 
-  private synchronized byte[] getBytes(long start, int length) throws IOException {
-    channel.position(start);
-    var buf = ByteBuffer.allocate(length);
-    channel.read(buf);
-    return buf.array();
+  private byte[] getBytes(long start, int length) {
+    try {
+      var buf = ByteBuffer.allocate(length);
+      channel.read(buf, start);
+      return buf.array();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /**
@@ -67,7 +85,18 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return null;
   }
 
-  private LongObjectHashMap<List<Pmtiles.Entry>> dirCache = new LongObjectHashMap<>();
+  private List<Pmtiles.Entry> getDir(long offset, int length) {
+    try {
+      byte[] dirBytes = getBytes(offset, length);
+      if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+        dirBytes = Gzip.gunzip(dirBytes);
+      }
+      return Pmtiles.directoryFromBytes(dirBytes);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
 
   @Override
   @SuppressWarnings("java:S1168")
@@ -79,20 +108,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
       int dirLength = (int) header.rootDirLength();
 
       for (int depth = 0; depth <= 3; depth++) {
-        var dir = dirCache.get(dirOffset);
-        if (dir == null) {
-          byte[] dirBytes = getBytes(dirOffset, dirLength);
-          if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-            dirBytes = Gzip.gunzip(dirBytes);
-          }
-
-          dir = Pmtiles.directoryFromBytes(dirBytes);
-          dirCache.put(dirOffset, dir);
-        }
+        var dir = dirCache.get(new Range(dirOffset, dirLength));
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {
-            return getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+            return tileCache.get(new Range(header.tileDataOffset() + entry.offset(), entry.length()));
           } else {
             dirOffset = header.leafDirectoriesOffset() + entry.offset();
             dirLength = entry.length();
@@ -102,8 +122,8 @@ public class ReadablePmtiles implements ReadableTileArchive {
         }
 
       }
-    } catch (IOException e) {
-      throw new IllegalStateException("Could not get tile", e);
+    } catch (ExecutionException e) {
+      throw new IllegalStateException("Could not get tile", e.getCause());
     }
 
     return null;
@@ -159,11 +179,11 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
   }
 
-  private static class TileCoordIterator implements CloseableIterator<TileCoord> {
-    private final Stream<TileCoord> stream;
-    private final Iterator<TileCoord> iterator;
+  private static class StreamIterator<T> implements CloseableIterator<T> {
+    private final Stream<T> stream;
+    private final Iterator<T> iterator;
 
-    public TileCoordIterator(Stream<TileCoord> stream) {
+    public StreamIterator(Stream<T> stream) {
       this.stream = stream;
       this.iterator = stream.iterator();
     }
@@ -179,7 +199,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
     }
 
     @Override
-    public TileCoord next() {
+    public T next() {
       return this.iterator.next();
     }
   }
@@ -205,14 +225,75 @@ public class ReadablePmtiles implements ReadableTileArchive {
     });
   }
 
+  private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
+    return dir.stream().flatMap(entry -> {
+      try {
+        if (entry.runLength == 0) {
+          return getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()));
+        } else {
+          var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+          return IntStream
+            .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength())
+            .mapToObj(tileId -> new Tile(TileCoord.hilbertDecode(tileId), data));
+        }
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
+    });
+  }
+
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
     List<Pmtiles.Entry> rootDir;
     try {
       rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-      return new TileCoordIterator(getTileCoords(rootDir));
+      return new StreamIterator<>(getTileCoords(rootDir));
     } catch (IOException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  private record Range(long offset, int length) {}
+
+  @Override
+  public CloseableIterator<Tile> getAllTiles() {
+    List<Pmtiles.Entry> rootDir;
+    try {
+      rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+      return new StreamIterator<>(getTiles(rootDir));
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  public static void main(String[] args) throws IOException {
+    try (
+      var reader = TileArchives.newReader(Path.of("planet-stats.pmtiles"), PlanetilerConfig.defaults())
+    ) {
+      long start = System.currentTimeMillis();
+      long bytes = 0;
+      long i = 0;
+      //      try (var iter = reader.getAllTileCoords()) {
+      //        while (iter.hasNext()) {
+      //          bytes += reader.getTile(iter.next()).length;
+      //          if (++i % 10_000_000 == 0) {
+      //            System.err.println("Read " + (i / 1000000) + "m tiles");
+      //          }
+      //        }
+      //      }
+      //      System.err.println("Read pmtiles1 " + bytes + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
+      start = System.currentTimeMillis();
+      bytes = 0;
+      i = 0;
+      try (var iter = reader.getAllTiles()) {
+        while (iter.hasNext()) {
+          bytes += iter.next().bytes().length;
+          if (++i % 10_000_000 == 0) {
+            System.err.println("Read " + (i / 1000000) + "m tiles");
+          }
+        }
+      }
+      System.err.println("Read pmtiles2 " + bytes + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
     }
   }
 

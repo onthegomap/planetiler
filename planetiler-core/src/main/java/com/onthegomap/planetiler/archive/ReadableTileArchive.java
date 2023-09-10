@@ -40,6 +40,28 @@ public interface ReadableTileArchive extends Closeable {
    */
   CloseableIterator<TileCoord> getAllTileCoords();
 
+  default CloseableIterator<Tile> getAllTiles() {
+    return new CloseableIterator<>() {
+      private final CloseableIterator<TileCoord> coords = getAllTileCoords();
+
+      @Override
+      public boolean hasNext() {
+        return coords.hasNext();
+      }
+
+      @Override
+      public Tile next() {
+        var coord = coords.next();
+        return new Tile(coord, getTile(coord));
+      }
+
+      @Override
+      public void close() {
+        coords.close();
+      }
+    };
+  }
+
   /**
    * Returns the metadata stored in this archive.
    */

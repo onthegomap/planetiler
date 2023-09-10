@@ -49,8 +49,8 @@ public record TileEncodingResult(
   public record LayerStats(
     String name,
     int features,
-    int totalBytes,
-    int attrBytes,
-    int attrValues
+    int total_bytes,
+    int attr_bytes,
+    int attr_values
   ) {}
 }
