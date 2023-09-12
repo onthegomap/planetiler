@@ -4,6 +4,7 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import com.google.common.io.LineReader;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -11,7 +12,6 @@ import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -43,7 +43,7 @@ public class OsmTileStats {
     LocalDate date = LocalDate.now(ZoneOffset.UTC);
     int days = arguments.getInteger("days", "number of days into the past to look", 90);
     int maxZoom = arguments.getInteger("maxzoom", "max zoom", 15);
-    int topN = arguments.getInteger("top", "top n", 10_000_000);
+    int topN = arguments.getInteger("top", "top n", 100_000);
     Path output = arguments.file("output", "output", Path.of("top_tiles.tsv.gz"));
     int threads = arguments.getInteger("download-threads", "number of threads to use for downloading",
       Math.min(10, arguments.threads()));
@@ -60,15 +60,16 @@ public class OsmTileStats {
     AtomicLong downloaded = new AtomicLong();
 
     var pipeline = WorkerPipeline.start("osm-tile-stats", stats)
-      .readFromTiny("urls", toDownload).<Map.Entry<Integer, Long>>addWorker("parse", arguments.threads(),
+      .readFromTiny("urls", toDownload).<Map.Entry<Integer, Long>>addWorker("download", threads,
         (prev, next) -> {
           for (var url : prev) {
             try (
               var inputStream = new XZInputStream(new BufferedInputStream(downloader.openStream(url)));
-              var reader = new BufferedReader(new InputStreamReader(inputStream));
+              var reader = new InputStreamReader(inputStream);
             ) {
+              LineReader lines = new LineReader(reader);
               String line;
-              while ((line = reader.readLine()) != null) {
+              while ((line = lines.readLine()) != null) {
                 String[] parts = splitter.split(line);
                 if (parts.length == 4) {
                   int z = Integer.parseInt(parts[0]);
