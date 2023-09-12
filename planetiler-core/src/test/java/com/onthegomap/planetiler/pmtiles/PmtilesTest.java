@@ -346,6 +346,9 @@ class PmtilesTest {
         new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}),
         new Tile(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2})
       ), tileset);
+      var tileset2 = new TreeSet<>();
+      reader.forEachTile(tileset2::add);
+      assertEquals(tileset, tileset2);
     }
   }
 
@@ -427,6 +430,10 @@ class PmtilesTest {
 
       Set<Tile> tileset = reader.getAllTiles().stream().collect(Collectors.toCollection(TreeSet::new));
       assertEquals(expectedTiles, tileset);
+
+      Set<Tile> tileset2 = new TreeSet<>();
+      reader.forEachTile(tileset2::add);
+      assertEquals(expectedTiles, tileset2);
 
       for (int i = 0; i < ENTRIES; i++) {
         var coord = TileCoord.hilbertDecode(i);

@@ -19,12 +19,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Deque;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -235,82 +237,68 @@ public class ReadablePmtiles implements ReadableTileArchive {
         .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
   }
 
-  private CloseableIterator<Tile> getTiles(List<Pmtiles.Entry> dir) {
-    return new CloseableIterator<Tile>() {
-      @Override
-      public void close() {}
-
-      final Deque<Iterator<Pmtiles.Entry>> stack = new LinkedList<>();
-      Iterator<Pmtiles.Entry> entryIterator = dir.iterator();
-      Tile next = null;
-      long tileId = 0;
-      int i = 0;
-      int rep = 0;
-      byte[] data = null;
-
-      {
-        stack.push(entryIterator);
-        advance();
-      }
-
-      @Override
-      public boolean hasNext() {
-        return next != null;
-      }
-
-      void advance() {
-        if (i < rep) {
-          next = new Tile(TileCoord.hilbertDecode((int) (tileId + i)), data);
-          i++;
-          return;
-        }
-        rep = 0;
-        next = null;
-
-        while (!stack.isEmpty() && !stack.peek().hasNext()) {
-          stack.pop();
-          entryIterator = stack.peek();
-        }
-        if (entryIterator == null) {
-          return;
-        }
-        while (true) {
-          var entry = entryIterator.next();
-          if (entry.runLength == 0) {
-            entryIterator = readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()).iterator();
-            stack.push(entryIterator);
-          } else {
-            this.data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
-            this.tileId = entry.tileId();
-            next = new Tile(TileCoord.hilbertDecode((int) tileId), data);
-            this.i = 1;
-            this.rep = entry.runLength;
-            break;
-          }
+  private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
+    return dir.stream().mapMulti((entry, next) -> {
+      if (entry.runLength == 0) {
+        getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())).forEach(next);
+      } else {
+        var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+        for (int i = 0; i < entry.runLength(); i++) {
+          next.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
         }
       }
+    });
+  }
 
-      @Override
-      public Tile next() {
-        Tile result = this.next;
-        advance();
-        return result;
+  @Override
+  public void forEachTile(Consumer<Tile> consumer) {
+    forEachTile(readDir(header.rootDirOffset(), (int) header.rootDirLength()), consumer);
+  }
+
+  public void forEachTile(List<Pmtiles.Entry> entries, Consumer<Tile> consumer) {
+    long chunkStart = Long.MAX_VALUE;
+    long chunkEnd = Long.MIN_VALUE;
+    List<Pmtiles.Entry> chunks = new ArrayList<>();
+    for (var entry : entries) {
+      if (entry.runLength() == 0) {
+        // flush
+        flushChunks(chunks, chunkStart, chunkEnd, consumer);
+        chunkStart = Long.MAX_VALUE;
+        chunkEnd = Long.MIN_VALUE;
+        forEachTile(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length()), consumer);
+      } else {
+        long start = header.tileDataOffset() + entry.offset();
+        long end = start + entry.length();
+        long newStartMaybe = Math.min(chunkStart, start);
+        long newEndMaybe = Math.max(chunkEnd, end);
+        if (newEndMaybe - newStartMaybe < 8192) {
+          chunkStart = newStartMaybe;
+          chunkEnd = newEndMaybe;
+        } else {
+          flushChunks(chunks, chunkStart, chunkEnd, consumer);
+          chunkStart = start;
+          chunkEnd = end;
+        }
+        chunks.add(entry);
       }
-    };
-    //    return dir.stream().mapMulti((entry, next) -> {
-    //      try {
-    //        if (entry.runLength == 0) {
-    //          getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())).forEach(next);
-    //        } else {
-    //          var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
-    //          for (int i = 0; i < entry.runLength(); i++) {
-    //            next.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
-    //          }
-    //        }
-    //      } catch (IOException e) {
-    //        throw new IllegalStateException(e);
-    //      }
-    //    });
+    }
+    flushChunks(chunks, chunkStart, chunkEnd, consumer);
+  }
+
+  private void flushChunks(List<Pmtiles.Entry> entries, long chunkStart, long chunkEnd, Consumer<Tile> consumer) {
+    if (!entries.isEmpty()) {
+      int length = (int) (chunkEnd - chunkStart);
+      byte[] bytes = getBytes(chunkStart, (int) (chunkEnd - chunkStart));
+      for (var entry : entries) {
+        int start = (int) (header.tileDataOffset() + entry.offset() - chunkStart);
+        byte[] data =
+          (start == 0 && length == entry.length()) ? bytes : Arrays.copyOfRange(bytes, start, start + entry.length());
+        for (int i = 0; i < entry.runLength(); i++) {
+          consumer.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
+        }
+      }
+      entries.clear();
+    }
   }
 
   @Override
@@ -326,7 +314,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
   public CloseableIterator<Tile> getAllTiles() {
     List<Pmtiles.Entry> rootDir;
     rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-    return getTiles(rootDir);
+    return CloseableIterator.of(getTiles(rootDir));
   }
 
   public static void main(String[] args) throws IOException {
@@ -336,27 +324,26 @@ public class ReadablePmtiles implements ReadableTileArchive {
       long start = System.currentTimeMillis();
       long bytes = 0;
       long i = 0;
-      //      try (var iter = reader.getAllTileCoords()) {
-      //        while (iter.hasNext()) {
-      //          bytes += reader.getTile(iter.next()).length;
-      //          if (++i % 10_000_000 == 0) {
-      //            System.err.println("Read " + (i / 1000000) + "m tiles");
-      //          }
-      //        }
-      //      }
-      //      System.err.println("Read pmtiles1 " + bytes + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
-      start = System.currentTimeMillis();
-      bytes = 0;
-      i = 0;
       try (var iter = reader.getAllTiles()) {
         while (iter.hasNext()) {
           bytes += iter.next().bytes().length;
-          if (++i % 10_000_000 == 0) {
+          if (++i % 100_000_000 == 0) {
             System.err.println("Read " + (i / 1000000) + "m tiles");
           }
         }
       }
-      System.err.println("Read pmtiles2 " + bytes + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
+      System.err.println("Read pmtiles1 " + bytes + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
+      start = System.currentTimeMillis();
+      AtomicLong nbs = new AtomicLong(0);
+      AtomicLong num = new AtomicLong(0);
+      reader.forEachTile(tile -> {
+        nbs.addAndGet(tile.bytes().length);
+        if (num.incrementAndGet() % 100_000_000 == 0) {
+          System.err.println("Read " + (num.get() / 1000000) + "m tiles");
+        }
+      });
+      System.err
+        .println("Read pmtiles2 " + " " + num + " " + nbs + " in " + (System.currentTimeMillis() - start) / 1000 + "s");
     }
   }
 

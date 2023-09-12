@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.archive;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import java.io.Closeable;
+import java.util.function.Consumer;
 
 /**
  * Read API for on-disk representation of a tileset in a portable format. Example: MBTiles, a sqlite-based archive
@@ -39,6 +40,15 @@ public interface ReadableTileArchive extends Closeable {
    * </pre>
    */
   CloseableIterator<TileCoord> getAllTileCoords();
+
+  default void forEachTile(Consumer<Tile> consumer) {
+    try (var iter = getAllTileCoords()) {
+      while (iter.hasNext()) {
+        var coord = iter.next();
+        consumer.accept(new Tile(coord, getTile(coord)));
+      }
+    }
+  }
 
   default CloseableIterator<Tile> getAllTiles() {
     return new CloseableIterator<>() {

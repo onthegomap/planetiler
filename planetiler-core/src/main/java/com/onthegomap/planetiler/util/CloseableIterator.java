@@ -8,6 +8,27 @@ import java.util.stream.StreamSupport;
 
 public interface CloseableIterator<T> extends Closeable, Iterator<T> {
 
+  static <T> CloseableIterator<T> of(Stream<T> stream) {
+    return new CloseableIterator<>() {
+      private final Iterator<T> iter = stream.iterator();
+
+      @Override
+      public boolean hasNext() {
+        return iter.hasNext();
+      }
+
+      @Override
+      public T next() {
+        return iter.next();
+      }
+
+      @Override
+      public void close() {
+        stream.close();
+      }
+    };
+  }
+
   @Override
   void close();
 
