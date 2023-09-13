@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.pmtiles;
 
-import com.carrotsearch.hppc.LongObjectHashMap;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
@@ -67,8 +66,6 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return null;
   }
 
-  private LongObjectHashMap<List<Pmtiles.Entry>> dirCache = new LongObjectHashMap<>();
-
   @Override
   @SuppressWarnings("java:S1168")
   public byte[] getTile(int x, int y, int z) {
@@ -79,16 +76,12 @@ public class ReadablePmtiles implements ReadableTileArchive {
       int dirLength = (int) header.rootDirLength();
 
       for (int depth = 0; depth <= 3; depth++) {
-        var dir = dirCache.get(dirOffset);
-        if (dir == null) {
-          byte[] dirBytes = getBytes(dirOffset, dirLength);
-          if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-            dirBytes = Gzip.gunzip(dirBytes);
-          }
-
-          dir = Pmtiles.directoryFromBytes(dirBytes);
-          dirCache.put(dirOffset, dir);
+        byte[] dirBytes = getBytes(dirOffset, dirLength);
+        if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+          dirBytes = Gzip.gunzip(dirBytes);
         }
+
+        var dir = Pmtiles.directoryFromBytes(dirBytes);
         var entry = findTile(dir, tileId);
         if (entry != null) {
           if (entry.runLength() > 0) {

@@ -25,9 +25,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.MultiPoint;
-import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.index.strtree.STRtree;
@@ -88,68 +85,6 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer) {
     return mergeLineStrings(features, minLength, tolerance, buffer, false);
-  }
-
-  public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
-    List<VectorTile.Feature> result = new ArrayList<>(features.size());
-    var groupedByAttrs = groupByAttrs(features, result, GeometryType.POINT);
-    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
-      if (groupedFeatures.size() == 1) {
-        result.add(feature1);
-      } else {
-        List<Point> points = new ArrayList<>();
-        for (var feature : groupedFeatures) {
-          try {
-            var geom = feature.geometry().decode();
-            if (geom instanceof Point p) {
-              points.add(p);
-            } else if (geom instanceof MultiPoint mp) {
-              for (int i = 0; i < mp.getNumGeometries(); i++) {
-                points.add((Point) mp.getGeometryN(i));
-              }
-            } else {
-              LOGGER.warn("Unexpected geometry type: {}", geom.getClass());
-            }
-          } catch (GeometryException e) {
-            throw new RuntimeException(e);
-          }
-        }
-        result.add(feature1.copyWithNewGeometry(GeoUtils.combinePoints(points)));
-      }
-    }
-    return result;
-  }
-
-  public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
-    List<VectorTile.Feature> result = new ArrayList<>(features.size());
-    var groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
-    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
-      if (groupedFeatures.size() == 1) {
-        result.add(feature1);
-      } else {
-        List<Polygon> polys = new ArrayList<>();
-        for (var feature : groupedFeatures) {
-          try {
-            var geom = feature.geometry().decode();
-            if (geom instanceof Polygon p) {
-              polys.add(p);
-            } else if (geom instanceof MultiPolygon mp) {
-              for (int i = 0; i < mp.getNumGeometries(); i++) {
-                polys.add((Polygon) mp.getGeometryN(i));
-              }
-            } else {
-              LOGGER.warn("Unexpected geometry type: {}", geom.getClass());
-            }
-          } catch (GeometryException e) {
-            throw new RuntimeException(e);
-          }
-        }
-        result.add(feature1.copyWithNewGeometry(GeoUtils.combinePolygons(polys)));
-      }
-    }
-    return result;
   }
 
   /**
