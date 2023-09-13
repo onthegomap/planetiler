@@ -12,7 +12,6 @@ import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -73,7 +72,7 @@ class ConfiguredMapTest {
 
   @Test
   void ensureValidGeometries() throws Exception {
-    Set<Mbtiles.TileEntry> parsedTiles = TestUtils.getAllTiles(mbtiles);
+    var parsedTiles = TestUtils.getTiles(mbtiles);
     for (var tileEntry : parsedTiles) {
       var decoded = VectorTile.decode(gunzip(tileEntry.bytes()));
       for (VectorTile.Feature feature : decoded) {

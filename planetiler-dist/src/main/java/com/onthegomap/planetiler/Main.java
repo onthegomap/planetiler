@@ -11,6 +11,8 @@ import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.mbtiles.Verify;
+import com.onthegomap.planetiler.util.OsmTileStats;
+import com.onthegomap.planetiler.util.TileStats;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
@@ -50,7 +52,9 @@ public class Main {
     entry("benchmark-longlongmap", LongLongMapBench::main),
 
     entry("verify-mbtiles", Verify::main),
-    entry("verify-monaco", VerifyMonaco::main)
+    entry("verify-monaco", VerifyMonaco::main),
+    entry("stats", TileStats::main),
+    entry("top-osm-tiles", OsmTileStats::main)
   );
 
   private static EntryPoint bundledSchema(String path) {

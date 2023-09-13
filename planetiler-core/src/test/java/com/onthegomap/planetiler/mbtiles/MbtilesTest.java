@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
@@ -50,18 +51,18 @@ class MbtilesTest {
       }
 
       assertNull(db.getTile(0, 0, 0));
-      Set<Mbtiles.TileEntry> expected = new TreeSet<>();
+      Set<Tile> expected = new TreeSet<>();
       try (var writer = db.newTileWriter()) {
         for (int i = 0; i < howMany; i++) {
           var dataHash = i - (i % 2);
           var dataBase = howMany + dataHash;
-          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
+          var entry = new Tile(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
             (byte) dataBase,
             (byte) (dataBase >> 8),
             (byte) (dataBase >> 16),
             (byte) (dataBase >> 24)
           });
-          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), OptionalLong.of(dataHash)));
+          writer.write(new TileEncodingResult(entry.coord(), entry.bytes(), OptionalLong.of(dataHash)));
           expected.add(entry);
         }
       }
@@ -69,13 +70,14 @@ class MbtilesTest {
       if (optimize) {
         db.vacuumAnalyze();
       }
-      var all = TestUtils.getAllTiles(db);
+      var all = TestUtils.getTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
-      assertEquals(expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
+      assertEquals(expected.stream().map(Tile::coord).collect(Collectors.toSet()),
         db.getAllTileCoords().stream().collect(Collectors.toSet()));
+      assertEquals(expected, db.getAllTiles().stream().collect(Collectors.toSet()));
       for (var expectedEntry : expected) {
-        var tile = expectedEntry.tile();
+        var tile = expectedEntry.coord();
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
         assertArrayEquals(expectedEntry.bytes(), data);
       }
