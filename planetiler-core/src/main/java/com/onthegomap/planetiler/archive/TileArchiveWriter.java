@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.Gzip.gzip;
 import static com.onthegomap.planetiler.worker.Worker.joinFutures;
 
-import com.carrotsearch.hppc.LongIntHashMap;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
@@ -16,27 +15,19 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
+import com.onthegomap.planetiler.util.TileStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
-import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalLong;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,11 +36,8 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.zip.Deflater;
-import java.util.zip.GZIPOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vector_tile.VectorTileProto;
 
 /**
  * Final stage of the map generation process that encodes vector tiles using {@link VectorTile} and writes them to a
@@ -71,6 +59,7 @@ public class TileArchiveWriter {
   private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
+  private final TileStats tileStats = new TileStats();
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
@@ -99,7 +88,7 @@ public class TileArchiveWriter {
 
   /** Reads all {@code features}, encodes them in parallel, and writes to {@code output}. */
   public static void writeOutput(FeatureGroup features, WriteableTileArchive output, DiskBacked fileSize,
-    TileArchiveMetadata tileArchiveMetadata, PlanetilerConfig config, Stats stats) {
+    TileArchiveMetadata tileArchiveMetadata, Path layerStatsPath, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 
     int readThreads = config.featureReadThreads();
@@ -136,8 +125,6 @@ public class TileArchiveWriter {
       (int) (5_000d * ProcessInfo.getMaxMemoryBytes() / 100_000_000_000d)
     );
 
-    WorkerPipeline<TileBatch> encodeBranch, writeBranch = null;
-
     /*
      * To emit tiles in order, fork the input queue and send features to both the encoder and writer. The writer
      * waits on them to be encoded in the order they were received, and the encoder processes them in parallel.
@@ -149,22 +136,35 @@ public class TileArchiveWriter {
      * So some of the restrictions could be lifted then.
      */
     WorkQueue<TileBatch> writerQueue = new WorkQueue<>("archive_writer_queue", queueSize, 1, stats);
-    encodeBranch = pipeline
+    WorkQueue<TileBatch> layerStatsQueue = new WorkQueue<>("archive_layerstats_queue", queueSize, 1, stats);
+    WorkerPipeline<TileBatch> encodeBranch = pipeline
       .<TileBatch>fromGenerator(secondStageName, next -> {
-        var writerEnqueuer = writerQueue.threadLocalWriter();
-        writer.readFeaturesAndBatch(batch -> {
-          next.accept(batch);
-          writerEnqueuer.accept(batch); // also send immediately to writer
-        });
-        writerQueue.close();
+        try (writerQueue; layerStatsQueue) {
+          var writerEnqueuer = writerQueue.threadLocalWriter();
+          var statsEnqueuer = layerStatsQueue.threadLocalWriter();
+          writer.readFeaturesAndBatch(batch -> {
+            next.accept(batch);
+            writerEnqueuer.accept(batch); // also send immediately to writer
+            if (config.outputLayerStats()) {
+              statsEnqueuer.accept(batch);
+            }
+          });
+        }
         // use only 1 thread since readFeaturesAndBatch needs to be single-threaded
       }, 1)
       .addBuffer("reader_queue", queueSize)
       .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
-    writeBranch = pipeline.readFromQueue(writerQueue)
+    WorkerPipeline<TileBatch> writeBranch = pipeline.readFromQueue(writerQueue)
       .sinkTo("write", tileWriteThreads, writer::tileWriter);
+
+    WorkerPipeline<TileBatch> layerStatsBranch = null;
+
+    if (config.outputLayerStats()) {
+      layerStatsBranch = pipeline.readFromQueue(layerStatsQueue)
+        .sinkTo("stats", 1, tileStatsWriter(layerStatsPath));
+    }
 
     var loggers = ProgressLoggers.create()
       .addRatePercentCounter("features", features.numFeaturesWritten(), writer.featuresProcessed, true)
@@ -178,14 +178,36 @@ public class TileArchiveWriter {
       loggers.addThreadPoolStats("read", readWorker);
     }
     loggers.addPipelineStats(encodeBranch)
-      .addPipelineStats(writeBranch)
+      .addPipelineStats(writeBranch);
+    if (layerStatsBranch != null) {
+      loggers.addPipelineStats(layerStatsBranch);
+    }
+    loggers.newLine()
       .newLine()
       .add(writer::getLastTileLogDetails);
 
-    var doneFuture = writeBranch == null ? encodeBranch.done() : joinFutures(writeBranch.done(), encodeBranch.done());
+    var doneFuture = joinFutures(
+      writeBranch.done(),
+      layerStatsBranch == null ? CompletableFuture.completedFuture(null) : layerStatsBranch.done(),
+      encodeBranch.done());
     loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
+  }
+
+  private static WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
+    return prev -> {
+      try (var statsWriter = TileStats.newWriter(layerStatsPath)) {
+        statsWriter.write(TileStats.headerRow());
+        for (var batch : prev) {
+          for (var encodedTile : batch.out().get()) {
+            for (var line : encodedTile.layerStats()) {
+              statsWriter.write(line);
+            }
+          }
+        }
+      }
+    };
   }
 
   private String getLastTileLogDetails() {
@@ -234,12 +256,6 @@ public class TileArchiveWriter {
   }
 
   private void tileEncoderSink(Iterable<TileBatch> prev) throws IOException {
-    tileEncoder(prev, batch -> {
-      // no next step
-    });
-  }
-
-  private void tileEncoder(Iterable<TileBatch> prev, Consumer<TileBatch> next) throws IOException {
     /*
      * To optimize emitting many identical consecutive tiles (like large ocean areas), memoize output to avoid
      * recomputing if the input hasn't changed.
@@ -247,115 +263,83 @@ public class TileArchiveWriter {
     byte[] lastBytes = null, lastEncoded = null;
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
-    List<TileEncodingResult.LayerStats> lastLayerStats = null;
+    List<TileStats.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
 
-    for (TileBatch batch : prev) {
-      Queue<TileEncodingResult> result = new ArrayDeque<>(batch.size());
-      FeatureGroup.TileFeatures last = null;
-      // each batch contains tile ordered by z asc, x asc, y desc
-      for (int i = 0; i < batch.in.size(); i++) {
-        FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
-        featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
-        byte[] bytes, encoded;
-        List<TileEncodingResult.LayerStats> layerStats;
-        Long tileDataHash;
-        if (tileFeatures.hasSameContents(last)) {
-          bytes = lastBytes;
-          encoded = lastEncoded;
-          tileDataHash = lastTileDataHash;
-          layerStats = lastLayerStats;
-          memoizedTiles.inc();
-        } else {
-          VectorTile en = tileFeatures.getVectorTileEncoder();
-          if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
-            encoded = null;
-            layerStats = null;
-            bytes = null;
+    try (var tileStatsUpdater = tileStats.threadLocalUpdater()) {
+      for (TileBatch batch : prev) {
+        List<TileEncodingResult> result = new ArrayList<>(batch.size());
+        FeatureGroup.TileFeatures last = null;
+        // each batch contains tile ordered by tile-order ID ascending
+        for (int i = 0; i < batch.in.size(); i++) {
+          FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
+          featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
+          byte[] bytes, encoded;
+          List<TileStats.LayerStats> layerStats;
+          Long tileDataHash;
+          if (tileFeatures.hasSameContents(last)) {
+            bytes = lastBytes;
+            encoded = lastEncoded;
+            tileDataHash = lastTileDataHash;
+            layerStats = lastLayerStats;
+            memoizedTiles.inc();
           } else {
-            var proto = en.toProto();
-            layerStats = computeTileStats(proto);
-            encoded = proto.toByteArray();
-            bytes = switch (config.tileCompression()) {
-              case GZIP -> gzip(encoded);
-              case NONE -> encoded;
-              case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
-            };
-            if (encoded.length > config.tileWarningSizeBytes()) {
-              LOGGER.warn("{} {}kb uncompressed",
-                tileFeatures.tileCoord(),
-                encoded.length / 1024);
+            VectorTile en = tileFeatures.getVectorTileEncoder();
+            if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
+              encoded = null;
+              layerStats = null;
+              bytes = null;
+            } else {
+              var proto = en.toProto();
+              encoded = proto.toByteArray();
+              bytes = switch (config.tileCompression()) {
+                case GZIP -> gzip(encoded);
+                case NONE -> encoded;
+                case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
+              };
+              layerStats = TileStats.computeTileStats(proto);
+              if (encoded.length > config.tileWarningSizeBytes()) {
+                LOGGER.warn("{} {}kb uncompressed",
+                  tileFeatures.tileCoord(),
+                  encoded.length / 1024);
+              }
             }
+            lastLayerStats = layerStats;
+            lastEncoded = encoded;
+            lastBytes = bytes;
+            last = tileFeatures;
+            if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
+              tileDataHash = generateContentHash(bytes);
+            } else {
+              tileDataHash = null;
+            }
+            lastTileDataHash = tileDataHash;
           }
-          lastLayerStats = layerStats;
-          lastEncoded = encoded;
-          lastBytes = bytes;
-          last = tileFeatures;
-          if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
-            tileDataHash = generateContentHash(bytes);
-          } else {
-            tileDataHash = null;
+          if (skipFilled && lastIsFill) {
+            continue;
           }
-          lastTileDataHash = tileDataHash;
+          int zoom = tileFeatures.tileCoord().z();
+          int encodedLength = encoded == null ? 0 : encoded.length;
+          totalTileSizesByZoom[zoom].incBy(encodedLength);
+          maxTileSizesByZoom[zoom].accumulate(encodedLength);
+          tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
+          List<String> layerStatsRows = config.outputLayerStats() ?
+            TileStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+            List.of();
+          result.add(
+            new TileEncodingResult(
+              tileFeatures.tileCoord(),
+              bytes,
+              encoded == null ? 0 : encoded.length,
+              tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
+              layerStatsRows
+            )
+          );
         }
-        if (skipFilled && lastIsFill) {
-          continue;
-        }
-        int zoom = tileFeatures.tileCoord().z();
-        int encodedLength = encoded == null ? 0 : encoded.length;
-        totalTileSizesByZoom[zoom].incBy(encodedLength);
-        maxTileSizesByZoom[zoom].accumulate(encodedLength);
-        result.add(
-          new TileEncodingResult(
-            tileFeatures.tileCoord(),
-            bytes,
-            encoded == null ? 0 : encoded.length,
-            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
-            layerStats
-          )
-        );
+        // hand result off to writer
+        batch.out.complete(result);
       }
-      // hand result off to writer
-      batch.out.complete(result);
-      next.accept(batch);
     }
-  }
-
-  public static List<TileEncodingResult.LayerStats> computeTileStats(VectorTileProto.Tile proto) {
-    if (proto == null) {
-      return List.of();
-    }
-    List<TileEncodingResult.LayerStats> result = new ArrayList<>(proto.getLayersCount());
-    for (var layer : proto.getLayersList()) {
-      int attrSize = 0;
-      for (var key : layer.getKeysList().asByteStringList()) {
-        attrSize += key.size();
-      }
-      for (var value : layer.getValuesList()) {
-        attrSize += value.getSerializedSize();
-      }
-      result.add(new TileEncodingResult.LayerStats(
-        layer.getName(),
-        layer.getFeaturesCount(),
-        layer.getSerializedSize(),
-        attrSize,
-        layer.getValuesCount()
-      ));
-    }
-    return result;
-  }
-
-  public static class FastGzipOutputStream extends GZIPOutputStream {
-
-    public FastGzipOutputStream(OutputStream out) throws IOException {
-      super(out);
-      def.setLevel(Deflater.BEST_SPEED);
-    }
-  }
-
-  private static Writer newWriter(Path path) throws IOException {
-    return new OutputStreamWriter(new FastGzipOutputStream(new BufferedOutputStream(Files.newOutputStream(path,
-      StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE))));
   }
 
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
@@ -368,30 +352,9 @@ public class TileArchiveWriter {
     TileCoord lastTile = null;
     Timer time = null;
     int currentZ = Integer.MIN_VALUE;
-    LongIntHashMap hashToId = new LongIntHashMap();
-    int tileId = 0;
-    try (
-      var tileWriter = archive.newTileWriter();
-      var tileStats = newWriter(Path.of("tile_stats.tsv.gz"));
-    ) {
-      writeTsvLine(tileStats,
-        "z",
-        "x",
-        "y",
-        "hilbert",
-        "tile_bytes",
-        "gzipped_tile_bytes",
-        "deduped_tile_id",
-        "layer",
-        "features",
-        "layer_bytes",
-        "layer_attr_bytes",
-        "layer_attr_values"
-      );
+    try (var tileWriter = archive.newTileWriter()) {
       for (TileBatch batch : tileBatches) {
-        Queue<TileEncodingResult> encodedTiles = batch.out.get();
-        TileEncodingResult encodedTile;
-        while ((encodedTile = encodedTiles.poll()) != null) {
+        for (var encodedTile : batch.out.get()) {
           TileCoord tileCoord = encodedTile.coord();
           assert lastTile == null ||
             order.encode(tileCoord) > order.encode(lastTile) : "Tiles out of order %s before %s"
@@ -407,34 +370,6 @@ public class TileArchiveWriter {
             time = Timer.start();
             currentZ = z;
           }
-          int hilbert = encodedTile.coord().hilbertEncoded();
-          Integer thisTileId;
-          if (encodedTile.tileDataHash().isPresent()) {
-            long hash = encodedTile.tileDataHash().getAsLong();
-            if (hashToId.containsKey(hash)) {
-              thisTileId = hashToId.get(hash);
-            } else {
-              hashToId.put(hash, thisTileId = ++tileId);
-            }
-          } else {
-            thisTileId = null;
-          }
-          for (var layer : encodedTile.layerStats()) {
-            writeTsvLine(tileStats,
-              encodedTile.coord().z(),
-              encodedTile.coord().x(),
-              encodedTile.coord().y(),
-              hilbert,
-              encodedTile.rawTileSize(),
-              encodedTile.tileData().length,
-              thisTileId == null ? "" : thisTileId,
-              layer.name(),
-              layer.features(),
-              layer.total_bytes(),
-              layer.attr_bytes(),
-              layer.attr_values()
-            );
-          }
           tileWriter.write(encodedTile);
 
           stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
@@ -443,54 +378,20 @@ public class TileArchiveWriter {
         lastTileWritten.set(lastTile);
       }
       tileWriter.printStats();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
     }
 
     if (time != null) {
       LOGGER.info("Finished z{} in {}", currentZ, time.stop());
     }
 
-
     archive.finish(tileArchiveMetadata);
-  }
-
-  private static void writeTsvLine(Writer writer, Object... values) throws IOException {
-    StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < values.length; i++) {
-      if (i > 0) {
-        builder.append('\t');
-      }
-      builder.append(values[i]);
-    }
-    builder.append('\n');
-    writer.write(builder.toString());
   }
 
   private void printTileStats() {
     if (LOGGER.isDebugEnabled()) {
       Format format = Format.defaultInstance();
-      LOGGER.debug("Tile stats:");
-      long sumSize = 0;
-      long sumCount = 0;
-      long maxMax = 0;
-      for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
-        long totalCount = tilesByZoom[z].get();
-        long totalSize = totalTileSizesByZoom[z].get();
-        sumSize += totalSize;
-        sumCount += totalCount;
-        long maxSize = maxTileSizesByZoom[z].get();
-        maxMax = Math.max(maxMax, maxSize);
-        LOGGER.debug("z{} avg:{} max:{}",
-          z,
-          format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
-          format.storage(maxSize, false));
-      }
-      LOGGER.debug("all avg:{} max:{}",
-        format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
-        format.storage(maxMax, false));
+      tileStats.printStats();
       LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
-      LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
     }
   }
 
@@ -519,7 +420,7 @@ public class TileArchiveWriter {
    */
   private record TileBatch(
     List<FeatureGroup.TileFeatures> in,
-    CompletableFuture<Queue<TileEncodingResult>> out
+    CompletableFuture<List<TileEncodingResult>> out
   ) {
 
     TileBatch() {

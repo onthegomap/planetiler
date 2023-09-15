@@ -53,7 +53,8 @@ public record PlanetilerConfig(
   int tileWarningSizeBytes,
   Boolean color,
   boolean keepUnzippedSources,
-  TileCompression tileCompression
+  TileCompression tileCompression,
+  boolean outputLayerStats
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -190,7 +191,8 @@ public record PlanetilerConfig(
         .fromId(arguments.getString("tile_compression",
           "the tile compression, one of " +
             TileCompression.availableValues().stream().map(TileCompression::id).toList(),
-          "gzip"))
+          "gzip")),
+      arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false)
     );
   }
 

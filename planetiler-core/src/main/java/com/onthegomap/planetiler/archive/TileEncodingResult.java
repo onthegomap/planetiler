@@ -12,7 +12,7 @@ public record TileEncodingResult(
   int rawTileSize,
   /** will always be empty in non-compact mode and might also be empty in compact mode */
   OptionalLong tileDataHash,
-  List<LayerStats> layerStats
+  List<String> layerStats
 ) {
   public TileEncodingResult(
     TileCoord coord,
@@ -27,7 +27,7 @@ public record TileEncodingResult(
     final int prime = 31;
     int result = 1;
     result = prime * result + Arrays.hashCode(tileData);
-    result = prime * result + Objects.hash(coord, tileDataHash, layerStats);
+    result = prime * result + Objects.hash(coord, tileDataHash);
     return result;
   }
 
@@ -36,21 +36,12 @@ public record TileEncodingResult(
     return this == obj || (obj instanceof TileEncodingResult other &&
       Objects.equals(coord, other.coord) &&
       Arrays.equals(tileData, other.tileData) &&
-      Objects.equals(tileDataHash, other.tileDataHash) &&
-      Objects.equals(layerStats, other.layerStats));
+      Objects.equals(tileDataHash, other.tileDataHash));
   }
 
   @Override
   public String toString() {
     return "TileEncodingResult [coord=" + coord + ", tileData=" + Arrays.toString(tileData) + ", tileDataHash=" +
-      tileDataHash + ", layerStats=" + layerStats + "]";
+      tileDataHash + "]";
   }
-
-  public record LayerStats(
-    String name,
-    int features,
-    int total_bytes,
-    int attr_bytes,
-    int attr_values
-  ) {}
 }

@@ -29,6 +29,7 @@ import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.ResourceUsage;
+import com.onthegomap.planetiler.util.TileStats;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -38,6 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -89,6 +91,7 @@ public class Planetiler {
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
   private TileArchiveConfig output;
+  private Path layerStatsPath;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -666,6 +669,10 @@ public class Planetiler {
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
 
+    layerStatsPath = arguments.file("layer_stats", "layer stats output path",
+      // default to <output file>.layerstats.tsv.gz
+      TileStats.getOutputPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
+
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");
     }
@@ -762,8 +769,8 @@ public class Planetiler {
 
       featureGroup.prepare();
 
-      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata,
-        config, stats);
+      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata, layerStatsPath, config,
+        stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
     }

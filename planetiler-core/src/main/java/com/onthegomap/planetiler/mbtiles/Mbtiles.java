@@ -503,7 +503,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    *
    * @deprecated Use {@link Tile} instead
    */
-  @Deprecated
+  @Deprecated(forRemoval = true)
   public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
 
     @Override

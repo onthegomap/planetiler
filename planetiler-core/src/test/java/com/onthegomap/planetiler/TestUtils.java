@@ -232,6 +232,7 @@ public class TestUtils {
     }
   }
 
+  @Deprecated(forRemoval = true)
   public static Set<Mbtiles.TileEntry> getAllTiles(ReadableTileArchive db) {
     return db.getAllTiles().stream().map(t -> new Mbtiles.TileEntry(t.coord(), t.bytes())).collect(Collectors.toSet());
   }
