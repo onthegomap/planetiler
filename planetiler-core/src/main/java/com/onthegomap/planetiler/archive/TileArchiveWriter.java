@@ -220,7 +220,7 @@ public class TileArchiveWriter {
         lastTile.z(), lastTile.x(), lastTile.y(),
         lastTile.z(),
         Format.defaultInstance().percent(archive.tileOrder().progressOnLevel(lastTile, config.bounds().tileExtents())),
-        lastTile.getDebugUrl()
+        lastTile.getDebugUrl(config.debugUrlPattern())
       );
     }
     return "last tile: " + blurb;
@@ -389,7 +389,7 @@ public class TileArchiveWriter {
   private void printTileStats() {
     if (LOGGER.isDebugEnabled()) {
       Format format = Format.defaultInstance();
-      tileStats.printStats();
+      tileStats.printStats(config.debugUrlPattern());
       LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
     }
   }

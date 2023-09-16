@@ -120,4 +120,14 @@ class TileCoordTest {
         TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0.5/0/0",
+    "0,0,1,1.5/42.52556/-90",
+    "123,123,14,14.5/84.81142/-177.28638",
+  })
+  void testDebugUrl(int x, int y, int z, String expected) {
+    assertEquals(expected, TileCoord.ofXYZ(x, y, z).getDebugUrl("${z}/${lat}/${lon}"));
+  }
 }

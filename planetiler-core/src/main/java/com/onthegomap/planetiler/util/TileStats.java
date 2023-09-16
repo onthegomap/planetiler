@@ -46,6 +46,9 @@ import vector_tile.VectorTileProto;
 public class TileStats {
 
   private static final int BATCH_SIZE = 1_000;
+  private static final int WARN_BYTES = 100_000;
+  private static final int ERROR_BYTES = 500_000;
+
   private static final Logger LOGGER = LoggerFactory.getLogger(TileStats.class);
 
   private static final CsvMapper MAPPER = new CsvMapper();
@@ -155,7 +158,7 @@ public class TileStats {
 
     timer.stop();
     if (LOGGER.isDebugEnabled()) {
-      tileStats.printStats();
+      tileStats.printStats(config.debugUrlPattern());
     }
     stats.printSummary();
   }
@@ -225,7 +228,7 @@ public class TileStats {
     return result;
   }
 
-  public void printStats() {
+  public void printStats(String debugUrlPattern) {
     if (LOGGER.isDebugEnabled()) {
       Summary result = summary();
       var overallStats = result.get();
@@ -241,7 +244,7 @@ public class TileStats {
               tile.coord.x(),
               tile.coord.y(),
               formatter.storage(tile.size),
-              tile.coord.getDebugUrl(),
+              tile.coord.getDebugUrl(debugUrlPattern),
               tileBiggestLayers(formatter, tile)
             );
           }).collect(Collectors.joining("\n"))
@@ -249,7 +252,7 @@ public class TileStats {
       var alreadyListed = biggestTiles.stream().map(TileSummary::coord).collect(Collectors.toSet());
       var otherTiles = result.layers().stream()
         .flatMap(layer -> result.get(layer).biggestTiles().stream().limit(1))
-        .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > 100_000)
+        .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > WARN_BYTES)
         .toList();
       if (!otherTiles.isEmpty()) {
         LOGGER.info("Other tiles with large layers:\n{}",
@@ -259,7 +262,7 @@ public class TileStats {
               tile.coord.x(),
               tile.coord.y(),
               formatter.storage(tile.size),
-              tile.coord.getDebugUrl(),
+              tile.coord.getDebugUrl(debugUrlPattern),
               tileBiggestLayers(formatter, tile)
             )).collect(Collectors.joining("\n")));
       }
@@ -267,8 +270,8 @@ public class TileStats {
       LOGGER.debug("Max tile sizes:\n{}\n{}\n{}",
         writeStatsTable(result, n -> {
           String string = " " + formatter.storage(n, true);
-          return n.intValue() > 500_000 ? AnsiColors.red(string) :
-            n.intValue() > 100_000 ? AnsiColors.yellow(string) :
+          return n.intValue() > ERROR_BYTES ? AnsiColors.red(string) :
+            n.intValue() > WARN_BYTES ? AnsiColors.yellow(string) :
             string;
         }, SummaryCell::maxSize),
         writeStatsRow(result, "full tile",
@@ -291,10 +294,9 @@ public class TileStats {
   }
 
   private static String tileBiggestLayers(Format formatter, TileSummary tile) {
+    int minSize = tile.layers.stream().mapToInt(l -> l.layerBytes).max().orElse(0);
     return tile.layers.stream()
-      .filter(
-        d -> d.layerBytes > Math.min(100_000,
-          tile.layers.stream().mapToInt(l -> l.layerBytes).max().orElse(0)))
+      .filter(d -> d.layerBytes >= minSize)
       .sorted(Comparator.comparingInt(d -> -d.layerBytes))
       .map(d -> d.layer + ":" + formatter.storage(d.layerBytes))
       .collect(Collectors.joining(", "));

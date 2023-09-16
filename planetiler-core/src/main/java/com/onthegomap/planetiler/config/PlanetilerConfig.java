@@ -54,7 +54,8 @@ public record PlanetilerConfig(
   Boolean color,
   boolean keepUnzippedSources,
   TileCompression tileCompression,
-  boolean outputLayerStats
+  boolean outputLayerStats,
+  String debugUrlPattern
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -192,7 +193,9 @@ public record PlanetilerConfig(
           "the tile compression, one of " +
             TileCompression.availableValues().stream().map(TileCompression::id).toList(),
           "gzip")),
-      arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false)
+      arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
+      arguments.getString("debug_url", "debug url to use for displaying tiles with ${z} ${lat} ${lon} placeholders",
+        "https://onthegomap.github.io/planetiler-demo/#${z}/${lat}/${lon}")
     );
   }
 
