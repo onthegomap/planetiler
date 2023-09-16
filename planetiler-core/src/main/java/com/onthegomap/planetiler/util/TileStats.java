@@ -32,10 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,7 @@ public class TileStats {
     .withColumnSeparator('\t')
     .withLineSeparator("\n");
   public static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
+  private static final int TOP_N_TILES = 10;
   private final List<Summary> summaries = new CopyOnWriteArrayList<>();
 
   public TileStats() {
@@ -227,8 +230,40 @@ public class TileStats {
       Summary result = summary();
       var overallStats = result.get();
       var formatter = Format.defaultInstance();
-      // TODO top 10 biggest tiles
-      // TODO other notably large tiles
+      var biggestTiles = overallStats.biggestTiles();
+      LOGGER.debug("Biggest tiles (gzipped):\n{}",
+        IntStream.range(0, biggestTiles.size())
+          .mapToObj(index -> {
+            var tile = biggestTiles.get(index);
+            return "%d. %d/%d/%d (%s) %s (%s)".formatted(
+              index + 1,
+              tile.coord.z(),
+              tile.coord.x(),
+              tile.coord.y(),
+              formatter.storage(tile.size),
+              tile.coord.getDebugUrl(),
+              tileBiggestLayers(formatter, tile)
+            );
+          }).collect(Collectors.joining("\n"))
+      );
+      var alreadyListed = biggestTiles.stream().map(TileSummary::coord).collect(Collectors.toSet());
+      var otherTiles = result.layers().stream()
+        .flatMap(layer -> result.get(layer).biggestTiles().stream().limit(1))
+        .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > 100_000)
+        .toList();
+      if (!otherTiles.isEmpty()) {
+        LOGGER.info("Other tiles with large layers:\n{}",
+          otherTiles.stream()
+            .map(tile -> "%d/%d/%d (%s) %s (%s)".formatted(
+              tile.coord.z(),
+              tile.coord.x(),
+              tile.coord.y(),
+              formatter.storage(tile.size),
+              tile.coord.getDebugUrl(),
+              tileBiggestLayers(formatter, tile)
+            )).collect(Collectors.joining("\n")));
+      }
+
       LOGGER.debug("Max tile sizes:\n{}\n{}",
         writeStatsTable(result, formatter::storage, SummaryCell::maxSize),
         writeStatsRow(result, "gzipped",
@@ -243,6 +278,16 @@ public class TileStats {
         formatter.storage(overallStats.maxArchivedSize()));
       // TODO weighted average tile size
     }
+  }
+
+  private static String tileBiggestLayers(Format formatter, TileSummary tile) {
+    return tile.layers.stream()
+      .filter(
+        d -> d.layerBytes > Math.min(100_000,
+          tile.layers.stream().mapToInt(l -> l.layerBytes).max().orElse(0)))
+      .sorted(Comparator.comparingInt(d -> -d.layerBytes))
+      .map(d -> d.layer + ":" + formatter.storage(d.layerBytes))
+      .collect(Collectors.joining(", "));
   }
 
   private static String writeStatsRow(
@@ -391,6 +436,8 @@ public class TileStats {
   public static class SummaryCell {
     private final LongSummaryStatistics archivedBytes = new LongSummaryStatistics();
     private final LongSummaryStatistics bytes = new LongSummaryStatistics();
+    private int bigTileCutoff = 0;
+    private final PriorityQueue<TileSummary> topTiles = new PriorityQueue<>();
 
     SummaryCell(String layer) {}
 
@@ -411,11 +458,31 @@ public class TileStats {
     public SummaryCell merge(SummaryCell other) {
       archivedBytes.combine(other.archivedBytes);
       bytes.combine(other.bytes);
+      for (var bigTile : other.topTiles) {
+        acceptBigTile(bigTile.coord, bigTile.size, bigTile.layers);
+      }
       return this;
+    }
+
+    private void acceptBigTile(TileCoord coord, int archivedBytes, List<LayerStats> layerStats) {
+      if (archivedBytes >= bigTileCutoff) {
+        topTiles.offer(new TileSummary(coord, archivedBytes, layerStats));
+        while (topTiles.size() > TOP_N_TILES) {
+          topTiles.poll();
+          var min = topTiles.peek();
+          if (min != null) {
+            bigTileCutoff = min.size();
+          }
+        }
+      }
     }
 
     public static SummaryCell combine(SummaryCell a, SummaryCell b) {
       return new SummaryCell().merge(a).merge(b);
+    }
+
+    public List<TileSummary> biggestTiles() {
+      return topTiles.stream().sorted(Comparator.comparingLong(s -> -s.size)).toList();
     }
   }
 
@@ -467,6 +534,22 @@ public class TileStats {
     }
   }
 
+  record TileSummary(TileCoord coord, int size, List<LayerStats> layers) implements Comparable<TileSummary> {
+
+    @Override
+    public int compareTo(TileSummary o) {
+      int result = Integer.compare(size, o.size);
+      if (result == 0) {
+        result = Integer.compare(coord.encoded(), o.coord.encoded());
+      }
+      return result;
+    }
+
+    TileSummary withSize(int newSize) {
+      return new TileSummary(coord, newSize, layers);
+    }
+  }
+
   public class Updater {
     private final Summary summary = new Summary();
 
@@ -478,10 +561,13 @@ public class TileStats {
       var tileStat = summary.byTile.get(coord.z());
       var layerStat = summary.byLayer.get(coord.z());
       tileStat.archivedBytes.accept(archivedBytes);
+      tileStat.acceptBigTile(coord, archivedBytes, layerStats);
+
       int sum = 0;
       for (var layer : layerStats) {
         var cell = layerStat.computeIfAbsent(layer.layer, SummaryCell::new);
         cell.bytes.accept(layer.layerBytes);
+        cell.acceptBigTile(coord, layer.layerBytes, layerStats);
         sum += layer.layerBytes;
       }
       tileStat.bytes.accept(sum);

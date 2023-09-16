@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -138,5 +139,54 @@ class TileStatsTest {
 
     assertEquals(7, summary.get().maxSize());
     assertEquals(2, summary.get().numTiles());
+  }
+
+  @Test
+  void topGzippedTiles() {
+    var tileStats = new TileStats();
+    var updater1 = tileStats.threadLocalUpdater();
+    var updater2 = tileStats.threadLocalUpdater();
+    for (int i = 0; i < 20; i++) {
+      (i % 2 == 0 ? updater1 : updater2).recordTile(TileCoord.decode(i), i, List.of());
+    }
+    assertEquals(
+      List.of(
+        new TileStats.TileSummary(TileCoord.decode(19), 19, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(18), 18, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(17), 17, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(16), 16, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(15), 15, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(14), 14, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(13), 13, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(12), 12, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(11), 11, List.of()),
+        new TileStats.TileSummary(TileCoord.decode(10), 10, List.of())
+      ),
+      tileStats.summary().get().biggestTiles()
+    );
+  }
+
+  @Test
+  void topLayerTiles() {
+    var tileStats = new TileStats();
+    var updater1 = tileStats.threadLocalUpdater();
+    var updater2 = tileStats.threadLocalUpdater();
+    List<TileStats.TileSummary> summaries = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      var summary = new TileStats.TileSummary(TileCoord.decode(i), i, List.of(
+        new TileStats.LayerStats("a", i * 2, i, 0, 0, 0),
+        new TileStats.LayerStats("b", i * 3, i, 0, 0, 0)
+      ));
+      summaries.add(0, summary);
+      (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.size(), summary.layers());
+    }
+    assertEquals(
+      summaries.stream().map(d -> d.withSize(d.coord().encoded() * 2)).limit(10).toList(),
+      tileStats.summary().get("a").biggestTiles()
+    );
+    assertEquals(
+      summaries.stream().map(d -> d.withSize(d.coord().encoded() * 3)).limit(10).toList(),
+      tileStats.summary().get("b").biggestTiles()
+    );
   }
 }
