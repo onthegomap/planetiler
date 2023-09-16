@@ -28,9 +28,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.LongSummaryStatistics;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
@@ -47,6 +53,7 @@ public class TileStats {
     .withColumnSeparator('\t')
     .withLineSeparator("\n");
   public static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
+  private final List<Summary> summaries = new CopyOnWriteArrayList<>();
 
   public TileStats() {
     //    TODO load OSM tile weights
@@ -106,21 +113,20 @@ public class TileStats {
         VectorTileProto.Tile decoded;
         List<LayerStats> layerStats = null;
 
-        try (var updater = tileStats.threadLocalUpdater()) {
-          for (var batch : prev) {
-            List<String> lines = new ArrayList<>(batch.tiles.size());
-            for (var tile : batch.tiles) {
-              if (!Arrays.equals(zipped, tile.bytes())) {
-                zipped = tile.bytes();
-                unzipped = Gzip.gunzip(tile.bytes());
-                decoded = VectorTileProto.Tile.parseFrom(unzipped);
-                layerStats = computeTileStats(decoded);
-              }
-              updater.recordTile(tile.coord(), zipped.length, layerStats);
-              lines.addAll(TileStats.formatOutputRows(tile.coord(), zipped.length, layerStats));
+        var updater = tileStats.threadLocalUpdater();
+        for (var batch : prev) {
+          List<String> lines = new ArrayList<>(batch.tiles.size());
+          for (var tile : batch.tiles) {
+            if (!Arrays.equals(zipped, tile.bytes())) {
+              zipped = tile.bytes();
+              unzipped = Gzip.gunzip(tile.bytes());
+              decoded = VectorTileProto.Tile.parseFrom(unzipped);
+              layerStats = computeTileStats(decoded);
             }
-            batch.stats.complete(lines);
+            updater.recordTile(tile.coord(), zipped.length, layerStats);
+            lines.addAll(TileStats.formatOutputRows(tile.coord(), zipped.length, layerStats));
           }
+          batch.stats.complete(lines);
         }
       });
 
@@ -205,8 +211,8 @@ public class TileStats {
       }
       result.add(new LayerStats(
         layer.getName(),
-        layer.getFeaturesCount(),
         layer.getSerializedSize(),
+        layer.getFeaturesCount(),
         attrSize,
         layer.getKeysCount(),
         layer.getValuesCount()
@@ -218,32 +224,204 @@ public class TileStats {
 
   public void printStats() {
     if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("Tile stats:");
+      Summary result = summary();
+      var overallStats = result.get();
+      var formatter = Format.defaultInstance();
+      // TODO top 10 biggest tiles
+      // TODO other notably large tiles
+      LOGGER.debug("Max tile sizes:\n{}\n{}",
+        writeStatsTable(result, formatter::storage, SummaryCell::maxSize),
+        writeStatsRow(result, "gzipped",
+          formatter::storage,
+          z -> result.get(z).maxArchivedSize(),
+          result.get().maxArchivedSize()
+        )
+      );
+      LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));
+      LOGGER.debug("   Max tile: {} (gzipped: {})",
+        formatter.storage(overallStats.maxSize()),
+        formatter.storage(overallStats.maxArchivedSize()));
+      // TODO weighted average tile size
     }
-    // TODO
-    //    long sumSize = 0;
-    //    long sumCount = 0;
-    //    long maxMax = 0;
-    //    for (int z = config.minzoom(); z <= config.maxzoom(); z++) {
-    //      long totalCount = tilesByZoom[z].get();
-    //      long totalSize = totalTileSizesByZoom[z].get();
-    //      sumSize += totalSize;
-    //      sumCount += totalCount;
-    //      long maxSize = maxTileSizesByZoom[z].get();
-    //      maxMax = Math.max(maxMax, maxSize);
-    //      LOGGER.debug("z{} avg:{} max:{}",
-    //        z,
-    //        format.storage(totalCount == 0 ? 0 : (totalSize / totalCount), false),
-    //        format.storage(maxSize, false));
-    //    }
-    //    LOGGER.debug("all avg:{} max:{}",
-    //      format.storage(sumCount == 0 ? 0 : (sumSize / sumCount), false),
-    //      format.storage(maxMax, false));
-    //    LOGGER.debug("    # tiles: {}", format.integer(this.tilesEmitted()));
+  }
+
+  private static String writeStatsRow(
+    Summary result,
+    String firstColumn,
+    Function<Number, String> formatter,
+    Function<Integer, Number> extractCells,
+    Number lastColumn
+  ) {
+    return writeStatsRow(result, firstColumn, extractCells.andThen(formatter), formatter.apply(lastColumn));
+  }
+
+  private static String writeStatsRow(
+    Summary result,
+    String firstColumn,
+    Function<Integer, String> extractStat,
+    String lastColumn
+  ) {
+    StringBuilder builder = new StringBuilder();
+    int minZoom = result.minZoomWithData();
+    int maxZoom = result.maxZoomWithData();
+    List<String> layers = result.layers().stream()
+      .sorted(Comparator.comparingInt(result::minZoomWithData))
+      .toList();
+    int maxLayerLength = Math.max(9, layers.stream().mapToInt(String::length).max().orElse(0));
+    String cellFormat = "%1$5s";
+    String layerFormat = "%1$" + maxLayerLength + "s";
+
+    builder.append(layerFormat.formatted(firstColumn));
+    for (int z = minZoom; z <= maxZoom; z++) {
+      builder.append(cellFormat.formatted(extractStat.apply(z)));
+      builder.append(' ');
+    }
+    builder.append(cellFormat.formatted(lastColumn));
+    return builder.toString();
+  }
+
+  private static String writeStatsTable(Summary result, Function<Number, String> formatter,
+    Function<SummaryCell, Number> extractStat) {
+    StringBuilder builder = new StringBuilder();
+    List<String> layers = result.layers().stream()
+      .sorted(Comparator.comparingInt(result::minZoomWithData))
+      .toList();
+
+    // header:   0 1 2 3 4 ... 15
+    builder.append(writeStatsRow(result, "", z -> "z" + z, "all")).append('\n');
+
+    // each row: layer
+    for (var layer : layers) {
+      builder.append(writeStatsRow(
+        result,
+        layer,
+        formatter,
+        z -> extractStat.apply(result.get(z, layer)),
+        extractStat.apply(result.get(layer))
+      )).append('\n');
+    }
+
+    // last layer: total sizes
+    builder.append(writeStatsRow(
+      result,
+      "full tile",
+      formatter,
+      z -> extractStat.apply(result.get(z)),
+      extractStat.apply(result.get())
+    ));
+    return builder.toString();
   }
 
   public Updater threadLocalUpdater() {
     return new Updater();
+  }
+
+  public static class Summary {
+    private final List<SummaryCell> byTile =
+      IntStream.rangeClosed(PlanetilerConfig.MIN_MINZOOM, PlanetilerConfig.MAX_MAXZOOM)
+        .mapToObj(i -> new SummaryCell())
+        .toList();
+
+    private final List<Map<String, SummaryCell>> byLayer =
+      IntStream.rangeClosed(PlanetilerConfig.MIN_MINZOOM, PlanetilerConfig.MAX_MAXZOOM)
+        .<Map<String, SummaryCell>>mapToObj(i -> new HashMap<>())
+        .toList();
+
+    public Summary merge(Summary other) {
+      for (int z = PlanetilerConfig.MIN_MINZOOM; z <= PlanetilerConfig.MAX_MAXZOOM; z++) {
+        byTile.get(z).merge(other.byTile.get(z));
+      }
+      for (int z = PlanetilerConfig.MIN_MINZOOM; z <= PlanetilerConfig.MAX_MAXZOOM; z++) {
+        var ourMap = byLayer.get(z);
+        var theirMap = other.byLayer.get(z);
+        theirMap.forEach((layer, stats) -> ourMap.merge(layer, stats, SummaryCell::combine));
+      }
+      return this;
+    }
+
+    public static Summary combine(Summary a, Summary b) {
+      return new Summary().merge(a).merge(b);
+    }
+
+
+    public List<String> layers() {
+      return byLayer.stream().flatMap(e -> e.keySet().stream()).distinct().sorted().toList();
+    }
+
+    public SummaryCell get(int z, String layer) {
+      return byLayer.get(z).getOrDefault(layer, new SummaryCell());
+    }
+
+    public SummaryCell get(String layer) {
+      return byLayer.stream()
+        .map(e -> e.getOrDefault(layer, new SummaryCell()))
+        .reduce(new SummaryCell(), SummaryCell::combine);
+    }
+
+    public SummaryCell get(int z) {
+      return byTile.get(z);
+    }
+
+    public SummaryCell get() {
+      return byTile.stream().reduce(new SummaryCell(), SummaryCell::combine);
+    }
+
+    public int minZoomWithData() {
+      return IntStream.range(0, byTile.size())
+        .filter(i -> byTile.get(i).numTiles() > 0)
+        .min()
+        .orElse(PlanetilerConfig.MAX_MAXZOOM);
+    }
+
+    public int maxZoomWithData() {
+      return IntStream.range(0, byTile.size())
+        .filter(i -> byTile.get(i).numTiles() > 0)
+        .max()
+        .orElse(PlanetilerConfig.MAX_MAXZOOM);
+    }
+
+    public int minZoomWithData(String layer) {
+      return IntStream.range(0, byLayer.size())
+        .filter(i -> byLayer.get(i).containsKey(layer))
+        .min()
+        .orElse(PlanetilerConfig.MAX_MAXZOOM);
+    }
+  }
+
+  public static class SummaryCell {
+    private final LongSummaryStatistics archivedBytes = new LongSummaryStatistics();
+    private final LongSummaryStatistics bytes = new LongSummaryStatistics();
+
+    SummaryCell(String layer) {}
+
+    SummaryCell() {}
+
+    public long maxSize() {
+      return Math.max(0, bytes.getMax());
+    }
+
+    public long maxArchivedSize() {
+      return Math.max(0, archivedBytes.getMax());
+    }
+
+    public long numTiles() {
+      return bytes.getCount();
+    }
+
+    public SummaryCell merge(SummaryCell other) {
+      archivedBytes.combine(other.archivedBytes);
+      bytes.combine(other.bytes);
+      return this;
+    }
+
+    public static SummaryCell combine(SummaryCell a, SummaryCell b) {
+      return new SummaryCell().merge(a).merge(b);
+    }
+  }
+
+
+  public Summary summary() {
+    return summaries.stream().reduce(new Summary(), Summary::merge);
   }
 
   @JsonPropertyOrder({
@@ -289,15 +467,24 @@ public class TileStats {
     }
   }
 
-  public class Updater implements AutoCloseable {
+  public class Updater {
+    private final Summary summary = new Summary();
 
-    @Override
-    public void close() {
-      // TODO report to parent
+    private Updater() {
+      summaries.add(summary);
     }
 
     public void recordTile(TileCoord coord, int archivedBytes, List<LayerStats> layerStats) {
-      //      TODO
+      var tileStat = summary.byTile.get(coord.z());
+      var layerStat = summary.byLayer.get(coord.z());
+      tileStat.archivedBytes.accept(archivedBytes);
+      int sum = 0;
+      for (var layer : layerStats) {
+        var cell = layerStat.computeIfAbsent(layer.layer, SummaryCell::new);
+        cell.bytes.accept(layer.layerBytes);
+        sum += layer.layerBytes;
+      }
+      tileStat.bytes.accept(sum);
     }
   }
 }

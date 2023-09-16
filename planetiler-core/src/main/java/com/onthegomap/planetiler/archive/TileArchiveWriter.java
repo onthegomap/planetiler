@@ -266,79 +266,78 @@ public class TileArchiveWriter {
     List<TileStats.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
 
-    try (var tileStatsUpdater = tileStats.threadLocalUpdater()) {
-      for (TileBatch batch : prev) {
-        List<TileEncodingResult> result = new ArrayList<>(batch.size());
-        FeatureGroup.TileFeatures last = null;
-        // each batch contains tile ordered by tile-order ID ascending
-        for (int i = 0; i < batch.in.size(); i++) {
-          FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
-          featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
-          byte[] bytes, encoded;
-          List<TileStats.LayerStats> layerStats;
-          Long tileDataHash;
-          if (tileFeatures.hasSameContents(last)) {
-            bytes = lastBytes;
-            encoded = lastEncoded;
-            tileDataHash = lastTileDataHash;
-            layerStats = lastLayerStats;
-            memoizedTiles.inc();
+    var tileStatsUpdater = tileStats.threadLocalUpdater();
+    for (TileBatch batch : prev) {
+      List<TileEncodingResult> result = new ArrayList<>(batch.size());
+      FeatureGroup.TileFeatures last = null;
+      // each batch contains tile ordered by tile-order ID ascending
+      for (int i = 0; i < batch.in.size(); i++) {
+        FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
+        featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
+        byte[] bytes, encoded;
+        List<TileStats.LayerStats> layerStats;
+        Long tileDataHash;
+        if (tileFeatures.hasSameContents(last)) {
+          bytes = lastBytes;
+          encoded = lastEncoded;
+          tileDataHash = lastTileDataHash;
+          layerStats = lastLayerStats;
+          memoizedTiles.inc();
+        } else {
+          VectorTile en = tileFeatures.getVectorTileEncoder();
+          if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
+            encoded = null;
+            layerStats = null;
+            bytes = null;
           } else {
-            VectorTile en = tileFeatures.getVectorTileEncoder();
-            if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
-              encoded = null;
-              layerStats = null;
-              bytes = null;
-            } else {
-              var proto = en.toProto();
-              encoded = proto.toByteArray();
-              bytes = switch (config.tileCompression()) {
-                case GZIP -> gzip(encoded);
-                case NONE -> encoded;
-                case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
-              };
-              layerStats = TileStats.computeTileStats(proto);
-              if (encoded.length > config.tileWarningSizeBytes()) {
-                LOGGER.warn("{} {}kb uncompressed",
-                  tileFeatures.tileCoord(),
-                  encoded.length / 1024);
-              }
+            var proto = en.toProto();
+            encoded = proto.toByteArray();
+            bytes = switch (config.tileCompression()) {
+              case GZIP -> gzip(encoded);
+              case NONE -> encoded;
+              case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
+            };
+            layerStats = TileStats.computeTileStats(proto);
+            if (encoded.length > config.tileWarningSizeBytes()) {
+              LOGGER.warn("{} {}kb uncompressed",
+                tileFeatures.tileCoord(),
+                encoded.length / 1024);
             }
-            lastLayerStats = layerStats;
-            lastEncoded = encoded;
-            lastBytes = bytes;
-            last = tileFeatures;
-            if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
-              tileDataHash = generateContentHash(bytes);
-            } else {
-              tileDataHash = null;
-            }
-            lastTileDataHash = tileDataHash;
           }
-          if (skipFilled && lastIsFill) {
-            continue;
+          lastLayerStats = layerStats;
+          lastEncoded = encoded;
+          lastBytes = bytes;
+          last = tileFeatures;
+          if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
+            tileDataHash = generateContentHash(bytes);
+          } else {
+            tileDataHash = null;
           }
-          int zoom = tileFeatures.tileCoord().z();
-          int encodedLength = encoded == null ? 0 : encoded.length;
-          totalTileSizesByZoom[zoom].incBy(encodedLength);
-          maxTileSizesByZoom[zoom].accumulate(encodedLength);
-          tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
-          List<String> layerStatsRows = config.outputLayerStats() ?
-            TileStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
-            List.of();
-          result.add(
-            new TileEncodingResult(
-              tileFeatures.tileCoord(),
-              bytes,
-              encoded == null ? 0 : encoded.length,
-              tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
-              layerStatsRows
-            )
-          );
+          lastTileDataHash = tileDataHash;
         }
-        // hand result off to writer
-        batch.out.complete(result);
+        if (skipFilled && lastIsFill) {
+          continue;
+        }
+        int zoom = tileFeatures.tileCoord().z();
+        int encodedLength = encoded == null ? 0 : encoded.length;
+        totalTileSizesByZoom[zoom].incBy(encodedLength);
+        maxTileSizesByZoom[zoom].accumulate(encodedLength);
+        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
+        List<String> layerStatsRows = config.outputLayerStats() ?
+          TileStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+          List.of();
+        result.add(
+          new TileEncodingResult(
+            tileFeatures.tileCoord(),
+            bytes,
+            encoded == null ? 0 : encoded.length,
+            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
+            layerStatsRows
+          )
+        );
       }
+      // hand result off to writer
+      batch.out.complete(result);
     }
   }
 
