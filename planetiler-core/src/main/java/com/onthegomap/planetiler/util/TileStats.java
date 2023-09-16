@@ -264,8 +264,18 @@ public class TileStats {
             )).collect(Collectors.joining("\n")));
       }
 
-      LOGGER.debug("Max tile sizes:\n{}\n{}",
-        writeStatsTable(result, formatter::storage, SummaryCell::maxSize),
+      LOGGER.debug("Max tile sizes:\n{}\n{}\n{}",
+        writeStatsTable(result, n -> {
+          String string = " " + formatter.storage(n, true);
+          return n.intValue() > 500_000 ? AnsiColors.red(string) :
+            n.intValue() > 100_000 ? AnsiColors.yellow(string) :
+            string;
+        }, SummaryCell::maxSize),
+        writeStatsRow(result, "full tile",
+          formatter::storage,
+          z -> result.get(z).maxSize(),
+          result.get().maxSize()
+        ),
         writeStatsRow(result, "gzipped",
           formatter::storage,
           z -> result.get(z).maxArchivedSize(),
@@ -345,16 +355,7 @@ public class TileStats {
         extractStat.apply(result.get(layer))
       )).append('\n');
     }
-
-    // last layer: total sizes
-    builder.append(writeStatsRow(
-      result,
-      "full tile",
-      formatter,
-      z -> extractStat.apply(result.get(z)),
-      extractStat.apply(result.get())
-    ));
-    return builder.toString();
+    return builder.toString().stripTrailing();
   }
 
   public Updater threadLocalUpdater() {
