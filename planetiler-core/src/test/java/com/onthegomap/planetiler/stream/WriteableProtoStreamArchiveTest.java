@@ -8,7 +8,7 @@ import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -33,10 +33,11 @@ class WriteableProtoStreamArchiveTest {
     new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
       new CoordinateXY(1.3, 3.7), 1.0, 2, 3,
       List.of(
-        new LayerStats.VectorLayer("vl0",
-          Map.of("1", LayerStats.FieldType.BOOLEAN, "2", LayerStats.FieldType.NUMBER, "3", LayerStats.FieldType.STRING),
+        new LayerAttrStats.VectorLayer("vl0",
+          Map.of("1", LayerAttrStats.FieldType.BOOLEAN, "2", LayerAttrStats.FieldType.NUMBER, "3",
+            LayerAttrStats.FieldType.STRING),
           Optional.of("description"), OptionalInt.of(1), OptionalInt.of(2)),
-        new LayerStats.VectorLayer("vl1",
+        new LayerAttrStats.VectorLayer("vl1",
           Map.of(),
           Optional.empty(), OptionalInt.empty(), OptionalInt.empty())
       ),

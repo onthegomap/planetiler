@@ -20,7 +20,7 @@ import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Format;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -474,10 +474,10 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    */
   // TODO add tilestats
   public record MetadataJson(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers
+    @JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers
   ) {
 
-    public MetadataJson(LayerStats.VectorLayer... layers) {
+    public MetadataJson(LayerAttrStats.VectorLayer... layers) {
       this(List.of(layers));
     }
 

@@ -29,7 +29,7 @@ import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.ResourceUsage;
-import com.onthegomap.planetiler.util.TileStats;
+import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -671,7 +671,7 @@ public class Planetiler {
 
     layerStatsPath = arguments.file("layer_stats", "layer stats output path",
       // default to <output file>.layerstats.tsv.gz
-      TileStats.getOutputPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
+      TileSizeStats.getOutputPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
 
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");

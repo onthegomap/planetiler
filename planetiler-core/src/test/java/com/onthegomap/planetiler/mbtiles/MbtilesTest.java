@@ -11,7 +11,7 @@ import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.nio.file.Path;
@@ -159,7 +159,7 @@ class MbtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value"),
       TileCompression.GZIP
     ));
@@ -180,7 +180,7 @@ class MbtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value"),
       null
     );
@@ -197,7 +197,7 @@ class MbtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value"),
       TileCompression.GZIP
     );
@@ -252,17 +252,17 @@ class MbtilesTest {
   @Test
   void testFullMetadataJson() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "full",
         Map.of(
-          "NUMBER_FIELD", LayerStats.FieldType.NUMBER,
-          "STRING_FIELD", LayerStats.FieldType.STRING,
-          "boolean field", LayerStats.FieldType.BOOLEAN
+          "NUMBER_FIELD", LayerAttrStats.FieldType.NUMBER,
+          "STRING_FIELD", LayerAttrStats.FieldType.STRING,
+          "boolean field", LayerAttrStats.FieldType.BOOLEAN
         )
       ).withDescription("full description")
         .withMinzoom(0)
         .withMaxzoom(5),
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "partial",
         Map.of()
       )

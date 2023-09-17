@@ -15,7 +15,7 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
-import com.onthegomap.planetiler.util.TileStats;
+import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -59,7 +59,7 @@ public class TileArchiveWriter {
   private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
-  private final TileStats tileStats = new TileStats();
+  private final TileSizeStats tileStats = new TileSizeStats();
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
@@ -197,8 +197,8 @@ public class TileArchiveWriter {
 
   private static WorkerPipeline.SinkStep<TileBatch> tileStatsWriter(Path layerStatsPath) {
     return prev -> {
-      try (var statsWriter = TileStats.newWriter(layerStatsPath)) {
-        statsWriter.write(TileStats.headerRow());
+      try (var statsWriter = TileSizeStats.newWriter(layerStatsPath)) {
+        statsWriter.write(TileSizeStats.headerRow());
         for (var batch : prev) {
           for (var encodedTile : batch.out().get()) {
             for (var line : encodedTile.layerStats()) {
@@ -263,7 +263,7 @@ public class TileArchiveWriter {
     byte[] lastBytes = null, lastEncoded = null;
     Long lastTileDataHash = null;
     boolean lastIsFill = false;
-    List<TileStats.LayerStats> lastLayerStats = null;
+    List<TileSizeStats.LayerStats> lastLayerStats = null;
     boolean skipFilled = config.skipFilledTiles();
 
     var tileStatsUpdater = tileStats.threadLocalUpdater();
@@ -275,7 +275,7 @@ public class TileArchiveWriter {
         FeatureGroup.TileFeatures tileFeatures = batch.in.get(i);
         featuresProcessed.incBy(tileFeatures.getNumFeaturesProcessed());
         byte[] bytes, encoded;
-        List<TileStats.LayerStats> layerStats;
+        List<TileSizeStats.LayerStats> layerStats;
         Long tileDataHash;
         if (tileFeatures.hasSameContents(last)) {
           bytes = lastBytes;
@@ -297,7 +297,7 @@ public class TileArchiveWriter {
               case NONE -> encoded;
               case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
             };
-            layerStats = TileStats.computeTileStats(proto);
+            layerStats = TileSizeStats.computeTileStats(proto);
             if (encoded.length > config.tileWarningSizeBytes()) {
               LOGGER.warn("{} {}kb uncompressed",
                 tileFeatures.tileCoord(),
@@ -324,7 +324,7 @@ public class TileArchiveWriter {
         maxTileSizesByZoom[zoom].accumulate(encodedLength);
         tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
         List<String> layerStatsRows = config.outputLayerStats() ?
-          TileStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
           List.of();
         result.add(
           new TileEncodingResult(

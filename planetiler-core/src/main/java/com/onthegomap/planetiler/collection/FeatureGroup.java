@@ -13,7 +13,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
 import java.io.IOException;
@@ -59,7 +59,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
   private final CommonStringEncoder commonValueStrings = new CommonStringEncoder(100_000);
   private final Stats stats;
-  private final LayerStats layerStats = new LayerStats();
+  private final LayerAttrStats layerStats = new LayerAttrStats();
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
 
@@ -156,7 +156,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
    * features on elements in that layer, and their types.
    */
-  public LayerStats layerStats() {
+  public LayerAttrStats layerStats() {
     return layerStats;
   }
 

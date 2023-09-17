@@ -27,7 +27,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles spec</a>
  */
 @ThreadSafe
-public class LayerStats implements Consumer<RenderedFeature> {
+public class LayerAttrStats implements Consumer<RenderedFeature> {
   /*
    * This utility is called for billions of features by multiple threads when processing the planet which can make
    * access to shared data structures a bottleneck.  So give each thread an individual ThreadLocalLayerStatsHandler to

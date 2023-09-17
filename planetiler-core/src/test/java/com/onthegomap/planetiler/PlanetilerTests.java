@@ -33,7 +33,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.Gzip;
-import com.onthegomap.planetiler.util.TileStats;
+import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -1922,7 +1922,7 @@ class PlanetilerTests {
 
       // ensure tilestats standalone executable produces same output
       var standaloneLayerstatsOutput = tempDir.resolve("layerstats2.tsv.gz");
-      TileStats.main("--input=" + output, "--output=" + standaloneLayerstatsOutput);
+      TileSizeStats.main("--input=" + output, "--output=" + standaloneLayerstatsOutput);
       byte[] standaloneData = Files.readAllBytes(standaloneLayerstatsOutput);
       byte[] standaloneUncompressed = Gzip.gunzip(standaloneData);
       assertEquals(

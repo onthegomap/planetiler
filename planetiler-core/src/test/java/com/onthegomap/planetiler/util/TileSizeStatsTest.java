@@ -12,16 +12,16 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class TileStatsTest {
+class TileSizeStatsTest {
   @Test
   void computeStatsEmpty() {
-    var stats = TileStats.computeTileStats(new VectorTile().toProto());
+    var stats = TileSizeStats.computeTileStats(new VectorTile().toProto());
     assertEquals(0, stats.size());
   }
 
   @Test
   void computeStatsOneFeature() throws IOException {
-    var stats = TileStats.computeTileStats(new VectorTile()
+    var stats = TileSizeStats.computeTileStats(new VectorTile()
       .addLayerFeatures("layer", List.of(new VectorTile.Feature(
         "layer",
         1,
@@ -39,19 +39,19 @@ class TileStatsTest {
     assertEquals(2, entry1.layerAttrKeys());
     assertEquals(2, entry1.layerAttrValues());
 
-    var formatted = TileStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    var formatted = TileSizeStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_attr_bytes	layer_attr_keys	layer_attr_values
         3	1	2	34	999	layer	55	1	18	2	2
         """
         .trim(),
-      (TileStats.headerRow() + String.join("", formatted)).trim());
+      (TileSizeStats.headerRow() + String.join("", formatted)).trim());
   }
 
   @Test
   void computeStats2Features() throws IOException {
-    var stats = TileStats.computeTileStats(new VectorTile()
+    var stats = TileSizeStats.computeTileStats(new VectorTile()
       .addLayerFeatures("b", List.of(
         new VectorTile.Feature(
           "b",
@@ -88,7 +88,7 @@ class TileStatsTest {
     assertEquals("b", entry2.layer());
     assertEquals(1, entry2.layerFeatures());
 
-    var formatted = TileStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
+    var formatted = TileSizeStats.formatOutputRows(TileCoord.ofXYZ(1, 2, 3), 999, stats);
     assertEquals(
       """
         z	x	y	hilbert	archived_tile_bytes	layer	layer_bytes	layer_features	layer_attr_bytes	layer_attr_keys	layer_attr_values
@@ -96,21 +96,21 @@ class TileStatsTest {
         3	1	2	34	999	b	19	1	0	0	0
         """
         .trim(),
-      (TileStats.headerRow() + String.join("", formatted)).trim());
+      (TileSizeStats.headerRow() + String.join("", formatted)).trim());
   }
 
   @Test
   void aggregateTileStats() {
-    var tileStats = new TileStats();
+    var tileStats = new TileSizeStats();
     var updater1 = tileStats.threadLocalUpdater();
     var updater2 = tileStats.threadLocalUpdater();
     updater1.recordTile(TileCoord.ofXYZ(0, 0, 1), 123, List.of(
-      new TileStats.LayerStats("a", 1, 2, 3, 4, 5),
-      new TileStats.LayerStats("b", 6, 7, 8, 9, 10)
+      new TileSizeStats.LayerStats("a", 1, 2, 3, 4, 5),
+      new TileSizeStats.LayerStats("b", 6, 7, 8, 9, 10)
     ));
     updater2.recordTile(TileCoord.ofXYZ(0, 1, 1), 345, List.of(
-      new TileStats.LayerStats("b", 1, 2, 3, 4, 5),
-      new TileStats.LayerStats("c", 6, 7, 8, 9, 10)
+      new TileSizeStats.LayerStats("b", 1, 2, 3, 4, 5),
+      new TileSizeStats.LayerStats("c", 6, 7, 8, 9, 10)
     ));
     var summary = tileStats.summary();
     assertEquals(Set.of("a", "b", "c"), Set.copyOf(summary.layers()));
@@ -143,7 +143,7 @@ class TileStatsTest {
 
   @Test
   void topGzippedTiles() {
-    var tileStats = new TileStats();
+    var tileStats = new TileSizeStats();
     var updater1 = tileStats.threadLocalUpdater();
     var updater2 = tileStats.threadLocalUpdater();
     for (int i = 0; i < 20; i++) {
@@ -151,16 +151,16 @@ class TileStatsTest {
     }
     assertEquals(
       List.of(
-        new TileStats.TileSummary(TileCoord.decode(19), 19, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(18), 18, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(17), 17, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(16), 16, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(15), 15, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(14), 14, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(13), 13, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(12), 12, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(11), 11, List.of()),
-        new TileStats.TileSummary(TileCoord.decode(10), 10, List.of())
+        new TileSizeStats.TileSummary(TileCoord.decode(19), 19, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(18), 18, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(17), 17, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(16), 16, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(15), 15, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(14), 14, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(13), 13, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(12), 12, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(11), 11, List.of()),
+        new TileSizeStats.TileSummary(TileCoord.decode(10), 10, List.of())
       ),
       tileStats.summary().get().biggestTiles()
     );
@@ -168,14 +168,14 @@ class TileStatsTest {
 
   @Test
   void topLayerTiles() {
-    var tileStats = new TileStats();
+    var tileStats = new TileSizeStats();
     var updater1 = tileStats.threadLocalUpdater();
     var updater2 = tileStats.threadLocalUpdater();
-    List<TileStats.TileSummary> summaries = new ArrayList<>();
+    List<TileSizeStats.TileSummary> summaries = new ArrayList<>();
     for (int i = 0; i < 20; i++) {
-      var summary = new TileStats.TileSummary(TileCoord.decode(i), i, List.of(
-        new TileStats.LayerStats("a", i * 2, i, 0, 0, 0),
-        new TileStats.LayerStats("b", i * 3, i, 0, 0, 0)
+      var summary = new TileSizeStats.TileSummary(TileCoord.decode(i), i, List.of(
+        new TileSizeStats.LayerStats("a", i * 2, i, 0, 0, 0),
+        new TileSizeStats.LayerStats("b", i * 3, i, 0, 0, 0)
       ));
       summaries.add(0, summary);
       (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.size(), summary.layers());

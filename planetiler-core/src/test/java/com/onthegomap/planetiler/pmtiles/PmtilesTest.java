@@ -12,7 +12,7 @@ import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -225,7 +225,7 @@ class PmtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value"),
       TileCompression.GZIP
     ));

@@ -16,7 +16,7 @@ import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -218,7 +218,7 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
     CoordinateXY center();
 
     @JsonIgnore(false)
-    List<LayerStats.VectorLayer> vectorLayers();
+    List<LayerAttrStats.VectorLayer> vectorLayers();
   }
 
   @JsonIncludeProperties({"minX", "maxX", "minY", "maxY"})

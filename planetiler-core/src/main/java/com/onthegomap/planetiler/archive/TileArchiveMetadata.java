@@ -19,7 +19,7 @@ import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.util.BuildInfo;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -43,7 +43,7 @@ public record TileArchiveMetadata(
   @JsonProperty(ZOOM_KEY) Double zoom,
   @JsonProperty(MINZOOM_KEY) Integer minzoom,
   @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
-  @JsonIgnore List<LayerStats.VectorLayer> vectorLayers,
+  @JsonIgnore List<LayerAttrStats.VectorLayer> vectorLayers,
   @JsonAnyGetter @JsonDeserialize(using = EmptyMapIfNullDeserializer.class) Map<String, String> others,
   @JsonProperty(COMPRESSION_KEY) TileCompression tileCompression
 ) {
@@ -73,7 +73,7 @@ public record TileArchiveMetadata(
     this(profile, config, null);
   }
 
-  public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerStats.VectorLayer> vectorLayers) {
+  public TileArchiveMetadata(Profile profile, PlanetilerConfig config, List<LayerAttrStats.VectorLayer> vectorLayers) {
     this(
       getString(config, NAME_KEY, profile.name()),
       getString(config, DESCRIPTION_KEY, profile.description()),
@@ -145,7 +145,7 @@ public record TileArchiveMetadata(
   }
 
   /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
-  public TileArchiveMetadata withLayerStats(List<LayerStats.VectorLayer> layerStats) {
+  public TileArchiveMetadata withLayerStats(List<LayerAttrStats.VectorLayer> layerStats) {
     return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
       maxzoom, layerStats, others, tileCompression);
   }

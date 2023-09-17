@@ -5,7 +5,7 @@ import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.proto.StreamArchiveProto;
-import com.onthegomap.planetiler.util.LayerStats.VectorLayer;
+import com.onthegomap.planetiler.util.LayerAttrStats.VectorLayer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;

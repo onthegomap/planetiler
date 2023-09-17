@@ -11,13 +11,13 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-class LayerStatsTest {
+class LayerAttrStatsTest {
 
-  final LayerStats layerStats = new LayerStats();
+  final LayerAttrStats layerStats = new LayerAttrStats();
 
   @Test
   void testEmptyLayerStats() {
-    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{}), layerStats.getTileStats());
+    assertEquals(Arrays.asList(new LayerAttrStats.VectorLayer[]{}), layerStats.getTileStats());
   }
 
   @Test
@@ -33,11 +33,11 @@ class LayerStatsTest {
       1,
       Optional.empty()
     ));
-    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
-      new LayerStats.VectorLayer("layer1", Map.of(
-        "a", LayerStats.FieldType.NUMBER,
-        "b", LayerStats.FieldType.STRING,
-        "c", LayerStats.FieldType.BOOLEAN
+    assertEquals(Arrays.asList(new LayerAttrStats.VectorLayer[]{
+      new LayerAttrStats.VectorLayer("layer1", Map.of(
+        "a", LayerAttrStats.FieldType.NUMBER,
+        "b", LayerAttrStats.FieldType.STRING,
+        "c", LayerAttrStats.FieldType.BOOLEAN
       ), 3, 3)
     }), layerStats.getTileStats());
   }
@@ -77,13 +77,13 @@ class LayerStatsTest {
       1,
       Optional.empty()
     ));
-    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
-      new LayerStats.VectorLayer("layer1", Map.of(
+    assertEquals(Arrays.asList(new LayerAttrStats.VectorLayer[]{
+      new LayerAttrStats.VectorLayer("layer1", Map.of(
       ), 3, 3),
-      new LayerStats.VectorLayer("layer2", Map.of(
-        "a", LayerStats.FieldType.NUMBER,
-        "b", LayerStats.FieldType.BOOLEAN,
-        "c", LayerStats.FieldType.STRING
+      new LayerAttrStats.VectorLayer("layer2", Map.of(
+        "a", LayerAttrStats.FieldType.NUMBER,
+        "b", LayerAttrStats.FieldType.BOOLEAN,
+        "c", LayerAttrStats.FieldType.STRING
       ), 1, 4)
     }), layerStats.getTileStats());
   }
@@ -116,9 +116,9 @@ class LayerStatsTest {
     t2.start();
     t1.join();
     t2.join();
-    assertEquals(Arrays.asList(new LayerStats.VectorLayer[]{
-      new LayerStats.VectorLayer("layer1", Map.of(
-        "a", LayerStats.FieldType.STRING
+    assertEquals(Arrays.asList(new LayerAttrStats.VectorLayer[]{
+      new LayerAttrStats.VectorLayer("layer1", Map.of(
+        "a", LayerAttrStats.FieldType.STRING
       ), 3, 4)
     }), layerStats.getTileStats());
   }

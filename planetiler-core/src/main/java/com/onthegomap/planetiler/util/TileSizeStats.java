@@ -43,14 +43,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
 
-public class TileStats {
+public class TileSizeStats {
 
   private static final int BATCH_SIZE = 1_000;
   private static final int WARN_BYTES = 100_000;
   private static final int ERROR_BYTES = 500_000;
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(TileStats.class);
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(TileSizeStats.class);
   private static final CsvMapper MAPPER = new CsvMapper();
   private static final CsvSchema SCHEMA = MAPPER
     .schemaFor(OutputRow.class)
@@ -61,7 +59,7 @@ public class TileStats {
   private static final int TOP_N_TILES = 10;
   private final List<Summary> summaries = new CopyOnWriteArrayList<>();
 
-  public TileStats() {
+  public TileSizeStats() {
     //    TODO load OSM tile weights
   }
 
@@ -69,8 +67,8 @@ public class TileStats {
     return output.resolveSibling(output.getFileName() + ".layerstats.tsv.gz");
   }
 
-  public static void main(String... args) throws IOException {
-    var tileStats = new TileStats();
+  public static void main(String... args) {
+    var tileStats = new TileSizeStats();
     var arguments = Arguments.fromArgsOrConfigFile(args);
     var config = PlanetilerConfig.from(arguments);
     var stats = Stats.inMemory();
@@ -130,7 +128,7 @@ public class TileStats {
               layerStats = computeTileStats(decoded);
             }
             updater.recordTile(tile.coord(), zipped.length, layerStats);
-            lines.addAll(TileStats.formatOutputRows(tile.coord(), zipped.length, layerStats));
+            lines.addAll(TileSizeStats.formatOutputRows(tile.coord(), zipped.length, layerStats));
           }
           batch.stats.complete(lines);
         }
@@ -228,71 +226,6 @@ public class TileStats {
     return result;
   }
 
-  public void printStats(String debugUrlPattern) {
-    if (LOGGER.isDebugEnabled()) {
-      Summary result = summary();
-      var overallStats = result.get();
-      var formatter = Format.defaultInstance();
-      var biggestTiles = overallStats.biggestTiles();
-      LOGGER.debug("Biggest tiles (gzipped):\n{}",
-        IntStream.range(0, biggestTiles.size())
-          .mapToObj(index -> {
-            var tile = biggestTiles.get(index);
-            return "%d. %d/%d/%d (%s) %s (%s)".formatted(
-              index + 1,
-              tile.coord.z(),
-              tile.coord.x(),
-              tile.coord.y(),
-              formatter.storage(tile.size),
-              tile.coord.getDebugUrl(debugUrlPattern),
-              tileBiggestLayers(formatter, tile)
-            );
-          }).collect(Collectors.joining("\n"))
-      );
-      var alreadyListed = biggestTiles.stream().map(TileSummary::coord).collect(Collectors.toSet());
-      var otherTiles = result.layers().stream()
-        .flatMap(layer -> result.get(layer).biggestTiles().stream().limit(1))
-        .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > WARN_BYTES)
-        .toList();
-      if (!otherTiles.isEmpty()) {
-        LOGGER.info("Other tiles with large layers:\n{}",
-          otherTiles.stream()
-            .map(tile -> "%d/%d/%d (%s) %s (%s)".formatted(
-              tile.coord.z(),
-              tile.coord.x(),
-              tile.coord.y(),
-              formatter.storage(tile.size),
-              tile.coord.getDebugUrl(debugUrlPattern),
-              tileBiggestLayers(formatter, tile)
-            )).collect(Collectors.joining("\n")));
-      }
-
-      LOGGER.debug("Max tile sizes:\n{}\n{}\n{}",
-        writeStatsTable(result, n -> {
-          String string = " " + formatter.storage(n, true);
-          return n.intValue() > ERROR_BYTES ? AnsiColors.red(string) :
-            n.intValue() > WARN_BYTES ? AnsiColors.yellow(string) :
-            string;
-        }, SummaryCell::maxSize),
-        writeStatsRow(result, "full tile",
-          formatter::storage,
-          z -> result.get(z).maxSize(),
-          result.get().maxSize()
-        ),
-        writeStatsRow(result, "gzipped",
-          formatter::storage,
-          z -> result.get(z).maxArchivedSize(),
-          result.get().maxArchivedSize()
-        )
-      );
-      LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));
-      LOGGER.debug("   Max tile: {} (gzipped: {})",
-        formatter.storage(overallStats.maxSize()),
-        formatter.storage(overallStats.maxArchivedSize()));
-      // TODO weighted average tile size
-    }
-  }
-
   private static String tileBiggestLayers(Format formatter, TileSummary tile) {
     int minSize = tile.layers.stream().mapToInt(l -> l.layerBytes).max().orElse(0);
     return tile.layers.stream()
@@ -360,8 +293,77 @@ public class TileStats {
     return builder.toString().stripTrailing();
   }
 
+  public void printStats(String debugUrlPattern) {
+    if (LOGGER.isDebugEnabled()) {
+      Summary result = summary();
+      var overallStats = result.get();
+      var formatter = Format.defaultInstance();
+      var biggestTiles = overallStats.biggestTiles();
+      LOGGER.debug("Biggest tiles (gzipped):\n{}",
+        IntStream.range(0, biggestTiles.size())
+          .mapToObj(index -> {
+            var tile = biggestTiles.get(index);
+            return "%d. %d/%d/%d (%s) %s (%s)".formatted(
+              index + 1,
+              tile.coord.z(),
+              tile.coord.x(),
+              tile.coord.y(),
+              formatter.storage(tile.size),
+              tile.coord.getDebugUrl(debugUrlPattern),
+              tileBiggestLayers(formatter, tile)
+            );
+          }).collect(Collectors.joining("\n"))
+      );
+      var alreadyListed = biggestTiles.stream().map(TileSummary::coord).collect(Collectors.toSet());
+      var otherTiles = result.layers().stream()
+        .flatMap(layer -> result.get(layer).biggestTiles().stream().limit(1))
+        .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > WARN_BYTES)
+        .toList();
+      if (!otherTiles.isEmpty()) {
+        LOGGER.info("Other tiles with large layers:\n{}",
+          otherTiles.stream()
+            .map(tile -> "%d/%d/%d (%s) %s (%s)".formatted(
+              tile.coord.z(),
+              tile.coord.x(),
+              tile.coord.y(),
+              formatter.storage(tile.size),
+              tile.coord.getDebugUrl(debugUrlPattern),
+              tileBiggestLayers(formatter, tile)
+            )).collect(Collectors.joining("\n")));
+      }
+
+      LOGGER.debug("Max tile sizes:\n{}\n{}\n{}",
+        writeStatsTable(result, n -> {
+          String string = " " + formatter.storage(n, true);
+          return n.intValue() > ERROR_BYTES ? AnsiColors.red(string) :
+            n.intValue() > WARN_BYTES ? AnsiColors.yellow(string) :
+            string;
+        }, SummaryCell::maxSize),
+        writeStatsRow(result, "full tile",
+          formatter::storage,
+          z -> result.get(z).maxSize(),
+          result.get().maxSize()
+        ),
+        writeStatsRow(result, "gzipped",
+          formatter::storage,
+          z -> result.get(z).maxArchivedSize(),
+          result.get().maxArchivedSize()
+        )
+      );
+      LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));
+      LOGGER.debug("   Max tile: {} (gzipped: {})",
+        formatter.storage(overallStats.maxSize()),
+        formatter.storage(overallStats.maxArchivedSize()));
+      // TODO weighted average tile size
+    }
+  }
+
   public Updater threadLocalUpdater() {
     return new Updater();
+  }
+
+  public Summary summary() {
+    return summaries.stream().reduce(new Summary(), Summary::merge);
   }
 
   public static class Summary {
@@ -386,11 +388,6 @@ public class TileStats {
       }
       return this;
     }
-
-    public static Summary combine(Summary a, Summary b) {
-      return new Summary().merge(a).merge(b);
-    }
-
 
     public List<String> layers() {
       return byLayer.stream().flatMap(e -> e.keySet().stream()).distinct().sorted().toList();
@@ -439,12 +436,12 @@ public class TileStats {
   public static class SummaryCell {
     private final LongSummaryStatistics archivedBytes = new LongSummaryStatistics();
     private final LongSummaryStatistics bytes = new LongSummaryStatistics();
-    private int bigTileCutoff = 0;
     private final PriorityQueue<TileSummary> topTiles = new PriorityQueue<>();
+    private int bigTileCutoff = 0;
 
-    SummaryCell(String layer) {}
-
-    SummaryCell() {}
+    public static SummaryCell combine(SummaryCell a, SummaryCell b) {
+      return new SummaryCell().merge(a).merge(b);
+    }
 
     public long maxSize() {
       return Math.max(0, bytes.getMax());
@@ -480,18 +477,9 @@ public class TileStats {
       }
     }
 
-    public static SummaryCell combine(SummaryCell a, SummaryCell b) {
-      return new SummaryCell().merge(a).merge(b);
-    }
-
     public List<TileSummary> biggestTiles() {
       return topTiles.stream().sorted(Comparator.comparingLong(s -> -s.size)).toList();
     }
-  }
-
-
-  public Summary summary() {
-    return summaries.stream().reduce(new Summary(), Summary::merge);
   }
 
   @JsonPropertyOrder({
@@ -568,12 +556,16 @@ public class TileStats {
 
       int sum = 0;
       for (var layer : layerStats) {
-        var cell = layerStat.computeIfAbsent(layer.layer, SummaryCell::new);
+        var cell = layerStat.computeIfAbsent(layer.layer, Updater::newCell);
         cell.bytes.accept(layer.layerBytes);
         cell.acceptBigTile(coord, layer.layerBytes, layerStats);
         sum += layer.layerBytes;
       }
       tileStat.bytes.accept(sum);
+    }
+
+    private static SummaryCell newCell(String layer) {
+      return new SummaryCell();
     }
   }
 }
