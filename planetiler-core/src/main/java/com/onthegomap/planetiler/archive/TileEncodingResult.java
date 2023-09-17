@@ -5,10 +5,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
+import javax.annotation.Nonnull;
 
 public record TileEncodingResult(
   TileCoord coord,
-  byte[] tileData,
+  @Nonnull byte[] tileData,
   int rawTileSize,
   /** will always be empty in non-compact mode and might also be empty in compact mode */
   OptionalLong tileDataHash,

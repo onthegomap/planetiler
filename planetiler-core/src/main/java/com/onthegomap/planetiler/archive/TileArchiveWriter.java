@@ -32,7 +32,6 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.LongAccumulator;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.IntStream;
@@ -55,8 +54,6 @@ public class TileArchiveWriter {
   private final PlanetilerConfig config;
   private final Stats stats;
   private final Counter.Readable[] tilesByZoom;
-  private final Counter.Readable[] totalTileSizesByZoom;
-  private final LongAccumulator[] maxTileSizesByZoom;
   private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
@@ -72,12 +69,6 @@ public class TileArchiveWriter {
     tilesByZoom = IntStream.rangeClosed(0, config.maxzoom())
       .mapToObj(i -> Counter.newSingleThreadCounter())
       .toArray(Counter.Readable[]::new);
-    totalTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
-      .mapToObj(i -> Counter.newMultiThreadCounter())
-      .toArray(Counter.Readable[]::new);
-    maxTileSizesByZoom = IntStream.rangeClosed(0, config.maxzoom())
-      .mapToObj(i -> new LongAccumulator(Long::max, 0))
-      .toArray(LongAccumulator[]::new);
     memoizedTiles = stats.longCounter("archive_memoized_tiles");
     featuresProcessed = stats.longCounter("archive_features_processed");
     Map<String, LongSupplier> countsByZoom = new LinkedHashMap<>();
@@ -316,22 +307,18 @@ public class TileArchiveWriter {
           }
           lastTileDataHash = tileDataHash;
         }
-        if (skipFilled && lastIsFill) {
+        if ((skipFilled && lastIsFill) || encoded == null) {
           continue;
         }
-        int zoom = tileFeatures.tileCoord().z();
-        int encodedLength = encoded == null ? 0 : encoded.length;
-        totalTileSizesByZoom[zoom].incBy(encodedLength);
-        maxTileSizesByZoom[zoom].accumulate(encodedLength);
-        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
+        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), encoded.length, layerStats);
         List<String> layerStatsRows = config.outputLayerStats() ?
-          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), encoded.length, layerStats) :
           List.of();
         result.add(
           new TileEncodingResult(
             tileFeatures.tileCoord(),
             bytes,
-            encoded == null ? 0 : encoded.length,
+            encoded.length,
             tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
             layerStatsRows
           )
@@ -372,7 +359,7 @@ public class TileArchiveWriter {
           }
           tileWriter.write(encodedTile);
 
-          stats.wroteTile(z, encodedTile.tileData() == null ? 0 : encodedTile.tileData().length);
+          stats.wroteTile(z, encodedTile.tileData().length);
           tilesByZoom[z].inc();
         }
         lastTileWritten.set(lastTile);
