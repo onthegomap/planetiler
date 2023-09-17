@@ -16,6 +16,7 @@ import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
 import com.onthegomap.planetiler.util.TileSizeStats;
+import com.onthegomap.planetiler.util.TilesetSummaryStatistics;
 import com.onthegomap.planetiler.worker.WorkQueue;
 import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
@@ -59,7 +60,7 @@ public class TileArchiveWriter {
   private final Iterable<FeatureGroup.TileFeatures> inputTiles;
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
-  private final TileSizeStats tileStats = new TileSizeStats();
+  private final TilesetSummaryStatistics tileStats = new TilesetSummaryStatistics();
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
