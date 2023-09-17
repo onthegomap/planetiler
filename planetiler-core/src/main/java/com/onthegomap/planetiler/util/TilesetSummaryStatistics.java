@@ -28,11 +28,12 @@ public class TilesetSummaryStatistics {
 
   public void printStats(String debugUrlPattern) {
     if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Tile stats:");
       Summary result = summary();
       var overallStats = result.get();
       var formatter = Format.defaultInstance();
       var biggestTiles = overallStats.biggestTiles();
-      LOGGER.debug("Biggest tiles (gzipped):\n{}",
+      LOGGER.debug("Biggest tiles (gzipped)\n{}",
         IntStream.range(0, biggestTiles.size())
           .mapToObj(index -> {
             var tile = biggestTiles.get(index);
@@ -53,7 +54,7 @@ public class TilesetSummaryStatistics {
         .filter(tile -> !alreadyListed.contains(tile.coord) && tile.size > WARN_BYTES)
         .toList();
       if (!otherTiles.isEmpty()) {
-        LOGGER.info("Other tiles with large layers:\n{}",
+        LOGGER.info("Other tiles with large layers\n{}",
           otherTiles.stream()
             .map(tile -> "%d/%d/%d (%s) %s (%s)".formatted(
               tile.coord.z(),
@@ -65,7 +66,7 @@ public class TilesetSummaryStatistics {
             )).collect(Collectors.joining("\n")));
       }
 
-      LOGGER.debug("Max tile sizes:\n{}\n{}\n{}",
+      LOGGER.debug("Max tile sizes\n{}\n{}\n{}",
         writeStatsTable(result, n -> {
           String string = " " + formatter.storage(n, true);
           return n.intValue() > ERROR_BYTES ? AnsiColors.red(string) :

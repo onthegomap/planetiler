@@ -307,12 +307,12 @@ public class TileArchiveWriter {
           }
           lastTileDataHash = tileDataHash;
         }
-        if ((skipFilled && lastIsFill) || encoded == null) {
+        if ((skipFilled && lastIsFill) || bytes == null) {
           continue;
         }
-        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), encoded.length, layerStats);
+        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
         List<String> layerStatsRows = config.outputLayerStats() ?
-          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), encoded.length, layerStats) :
+          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
           List.of();
         result.add(
           new TileEncodingResult(

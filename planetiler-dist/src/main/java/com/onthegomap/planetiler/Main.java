@@ -11,8 +11,8 @@ import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
 import com.onthegomap.planetiler.mbtiles.Verify;
-import com.onthegomap.planetiler.util.OsmTileStats;
 import com.onthegomap.planetiler.util.TileSizeStats;
+import com.onthegomap.planetiler.util.TopOsmTiles;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class Main {
     entry("verify-mbtiles", Verify::main),
     entry("verify-monaco", VerifyMonaco::main),
     entry("stats", TileSizeStats::main),
-    entry("top-osm-tiles", OsmTileStats::main)
+    entry("top-osm-tiles", TopOsmTiles::main)
   );
 
   private static EntryPoint bundledSchema(String path) {

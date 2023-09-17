@@ -32,8 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tukaani.xz.XZInputStream;
 
-public class OsmTileStats {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OsmTileStats.class);
+public class TopOsmTiles {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TopOsmTiles.class);
 
   public static void main(String[] args) {
     Arguments arguments = Arguments.fromArgsOrConfigFile(args);
