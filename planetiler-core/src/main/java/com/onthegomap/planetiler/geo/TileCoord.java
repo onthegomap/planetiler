@@ -4,6 +4,8 @@ import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
 import com.onthegomap.planetiler.util.Hilbert;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.concurrent.Immutable;
 import org.apache.commons.text.StringSubstitutor;
@@ -142,7 +144,7 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   /** Returns a URL that displays the openstreetmap data for this tile. */
   public String getDebugUrl(String pattern) {
     Coordinate center = getEnvelope().centre();
-    DecimalFormat format = new DecimalFormat("0.#####");
+    DecimalFormat format = new DecimalFormat("0.#####", DecimalFormatSymbols.getInstance(Locale.US));
     String lat = format.format(center.y);
     String lon = format.format(center.x);
     String zoom = z + ".5";
