@@ -116,7 +116,8 @@ from layerstats order by layer_bytes desc limit 2;
 | 14 | 6435 | 8361 | https://protomaps.github.io/PMTiles/#map=14.5/35.96912/3.72437 | building | 799971      |
 | 14 | 6435 | 8364 | https://protomaps.github.io/PMTiles/#map=14.5/35.96912/3.79028 | building | 693563      |
 
-Drag and drop your pmtiles archive to the pmtiles debugger to inspect the large tiles.
+Drag and drop your pmtiles archive to the pmtiles debugger to see the large tiles on a map. You can also switch to the
+"inspect" tab to inspect an individual tile.
 
 #### Computing Weighted Averages
 
