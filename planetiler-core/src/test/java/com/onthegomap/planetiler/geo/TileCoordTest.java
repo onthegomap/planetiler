@@ -128,6 +128,6 @@ class TileCoordTest {
     "123,123,14,14.5/84.81142/-177.28638",
   })
   void testDebugUrl(int x, int y, int z, String expected) {
-    assertEquals(expected, TileCoord.ofXYZ(x, y, z).getDebugUrl("${z}/${lat}/${lon}"));
+    assertEquals(expected, TileCoord.ofXYZ(x, y, z).getDebugUrl("{z}/{lat}/{lon}"));
   }
 }

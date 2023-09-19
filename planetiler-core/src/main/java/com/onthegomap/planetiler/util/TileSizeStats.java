@@ -56,10 +56,14 @@ public class TileSizeStats {
   }
 
   public static void main(String... args) {
-    var tileStats = new TilesetSummaryStatistics();
     var arguments = Arguments.fromArgsOrConfigFile(args);
     var config = PlanetilerConfig.from(arguments);
     var stats = Stats.inMemory();
+    var download = arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", true);
+    if (download && !Files.exists(config.tileWeights())) {
+      TopOsmTiles.download(config, stats);
+    }
+    var tileStats = new TilesetSummaryStatistics(TopOsmTiles.loadFromFile(config.tileWeights()));
     var inputString = arguments.getString("input", "input file");
     var input = TileArchiveConfig.from(inputString);
     var localPath = input.getLocalPath();

@@ -55,7 +55,9 @@ public record PlanetilerConfig(
   boolean keepUnzippedSources,
   TileCompression tileCompression,
   boolean outputLayerStats,
-  String debugUrlPattern
+  String debugUrlPattern,
+  Path tmpDir,
+  Path tileWeights
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -118,6 +120,8 @@ public record PlanetilerConfig(
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
+    Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
+
     return new PlanetilerConfig(
       arguments,
       bounds,
@@ -194,8 +198,11 @@ public record PlanetilerConfig(
             TileCompression.availableValues().stream().map(TileCompression::id).toList(),
           "gzip")),
       arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
-      arguments.getString("debug_url", "debug url to use for displaying tiles with ${z} ${lat} ${lon} placeholders",
-        "https://onthegomap.github.io/planetiler-demo/#${z}/${lat}/${lon}")
+      arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
+        "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
+      tmpDir,
+      arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
+        tmpDir.resolveSibling("tile_weights.tsv.gz"))
     );
   }
 

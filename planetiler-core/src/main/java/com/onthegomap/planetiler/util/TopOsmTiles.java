@@ -4,42 +4,62 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.io.LineReader;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tukaani.xz.XZInputStream;
 
 public class TopOsmTiles {
+  private static final String DOWLOAD_URL =
+    "https://raw.githubusercontent.com/onthegomap/planetiler/main/top_osm_tiles.tsv.gz";
+  private static final CsvMapper MAPPER = new CsvMapper();
+  private static final CsvSchema SCHEMA = MAPPER
+    .schemaFor(Row.class)
+    .withHeader()
+    .withColumnSeparator('\t')
+    .withLineSeparator("\n");
+  public static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
+  public static final ObjectReader READER = MAPPER.readerFor(Row.class).with(SCHEMA);
   private static final Logger LOGGER = LoggerFactory.getLogger(TopOsmTiles.class);
 
   public static void main(String[] args) {
-    Arguments arguments = Arguments.fromArgsOrConfigFile(args);
+    Arguments arguments = Arguments.fromArgsOrConfigFile(args).orElse(Arguments.of(Map.of(
+      "http-retries", "3"
+    )));
     PlanetilerConfig config = PlanetilerConfig.from(arguments);
     var stats = arguments.getStats();
-    var timer = stats.startStage("osm-tile-stats");
+    var timer = stats.startStage("top-osm-tiles");
     LocalDate date = LocalDate.now(ZoneOffset.UTC);
     int days = arguments.getInteger("days", "number of days into the past to look", 90);
     int maxZoom = arguments.getInteger("maxzoom", "max zoom", 15);
@@ -59,32 +79,43 @@ public class TopOsmTiles {
     var splitter = Pattern.compile("[/ ]");
     AtomicLong downloaded = new AtomicLong();
 
-    var pipeline = WorkerPipeline.start("osm-tile-stats", stats)
+    var pipeline = WorkerPipeline.start("top-osm-tiles", stats)
       .readFromTiny("urls", toDownload).<Map.Entry<Integer, Long>>addWorker("download", threads,
         (prev, next) -> {
           for (var url : prev) {
-            try (
-              var inputStream = new XZInputStream(new BufferedInputStream(downloader.openStream(url)));
-              var reader = new InputStreamReader(inputStream);
-            ) {
-              LineReader lines = new LineReader(reader);
-              String line;
-              while ((line = lines.readLine()) != null) {
-                String[] parts = splitter.split(line);
-                if (parts.length == 4) {
-                  int z = Integer.parseInt(parts[0]);
-                  if (z <= maxZoom) {
-                    int x = Integer.parseInt(parts[1]);
-                    int y = Integer.parseInt(parts[2]);
-                    long loads = Long.parseLong(parts[3]);
-                    next.accept(Map.entry(TileCoord.ofXYZ(x, y, z).hilbertEncoded(), loads));
+            for (int i = 0; i <= config.httpRetries(); i++) {
+              List<Map.Entry<Integer, Long>> result = new ArrayList<>();
+              try (
+                var inputStream = new XZInputStream(new BufferedInputStream(downloader.openStream(url)));
+                var reader = new InputStreamReader(inputStream);
+              ) {
+                LineReader lines = new LineReader(reader);
+                String line;
+                while ((line = lines.readLine()) != null) {
+                  String[] parts = splitter.split(line);
+                  if (parts.length == 4) {
+                    // adjust osm tiles (256x256px) to vector (512x512px) by moving up one zoom level
+                    int z = Integer.parseInt(parts[0]) - 1;
+                    if (z >= 0 && z <= maxZoom) {
+                      int x = Integer.parseInt(parts[1]) >> 1;
+                      int y = Integer.parseInt(parts[2]) >> 1;
+                      long loads = Long.parseLong(parts[3]);
+                      result.add(Map.entry(TileCoord.ofXYZ(x, y, z).encoded(), loads));
+                    }
                   }
                 }
+                result.forEach(next);
+                break;
+              } catch (FileNotFoundException e) {
+                LOGGER.info("No data for {}", url);
+                break;
+              } catch (IOException e) {
+                if (i == config.httpRetries()) {
+                  LOGGER.warn("Failed getting {} {}", url, e);
+                }
               }
-              downloaded.incrementAndGet();
-            } catch (IOException e) {
-              LOGGER.warn("Error getting file {} {}", url, e);
             }
+            downloaded.incrementAndGet();
           }
         })
       .addBuffer("lines", 100_000, 1_000)
@@ -102,12 +133,11 @@ public class TopOsmTiles {
         try (
           var ouput = new GZIPOutputStream(
             new BufferedOutputStream(Files.newOutputStream(output, CREATE, TRUNCATE_EXISTING, WRITE)));
-          var writer = new BufferedWriter(new OutputStreamWriter(ouput))
+          var writer = WRITER.writeValues(ouput)
         ) {
-          writer.write("z\tx\ty\tcount\n");
           for (var entry : topCounts) {
-            TileCoord coord = TileCoord.hilbertDecode(entry.getKey());
-            writer.write("%d\t%d\t%d\t%d%n".formatted(coord.z(), coord.x(), coord.y(), entry.getValue()));
+            TileCoord coord = TileCoord.decode(entry.getKey());
+            writer.write(new Row(coord.z(), coord.x(), coord.y(), entry.getValue()));
           }
         }
       });
@@ -123,4 +153,31 @@ public class TopOsmTiles {
     timer.stop();
     stats.printSummary();
   }
+
+  public static TileWeights loadFromFile(Path path) {
+    TileWeights result = new TileWeights();
+    try (
+      var input = new GZIPInputStream(new BufferedInputStream(Files.newInputStream(path)));
+      var reader = READER.<Row>readValues(input)
+    ) {
+      while (reader.hasNext()) {
+        var row = reader.next();
+        result.put(TileCoord.ofXYZ(row.x(), row.y(), row.z()), row.loads());
+      }
+    } catch (IOException e) {
+      LOGGER.warn("Unable to load tile weights from {}, will fall back to unweighted average: {}", path, e);
+      return new TileWeights();
+    }
+    return result;
+  }
+
+  public static void download(PlanetilerConfig config, Stats stats) {
+    if (!Files.exists(config.tileWeights())) {
+      Downloader.create(config, stats)
+        .downloadIfNecessary(new Downloader.ResourceToDownload("osm-tile-weights", DOWLOAD_URL, config.tileWeights()));
+    }
+  }
+
+  @JsonPropertyOrder({"z", "x", "y", "loads"})
+  record Row(int z, int x, int y, long loads) {}
 }

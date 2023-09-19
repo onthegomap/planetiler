@@ -30,6 +30,7 @@ import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.ResourceUsage;
 import com.onthegomap.planetiler.util.TileSizeStats;
+import com.onthegomap.planetiler.util.TopOsmTiles;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -104,6 +105,7 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
+  private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
 
   private Planetiler(Arguments arguments) {
@@ -114,10 +116,11 @@ public class Planetiler {
     if (config.color() != null) {
       AnsiColors.setUseColors(config.color());
     }
-    tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
+    tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
-
+    fetchOsmTileStats =
+      arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", downloadSources);
     nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
     multipolygonPath =
       arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
@@ -721,6 +724,9 @@ public class Planetiler {
 
     if (!toDownload.isEmpty()) {
       download();
+    }
+    if (fetchOsmTileStats) {
+      TopOsmTiles.download(config, stats);
     }
     ensureInputFilesExist();
 

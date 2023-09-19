@@ -16,14 +16,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TilesetSummaryStatistics {
+
+  private final TileWeights tileWeights;
   private static final int TOP_N_TILES = 10;
   private static final int WARN_BYTES = 100_000;
   private static final int ERROR_BYTES = 500_000;
   private static final Logger LOGGER = LoggerFactory.getLogger(TilesetSummaryStatistics.class);
   private final List<Summary> summaries = new CopyOnWriteArrayList<>();
 
+  public TilesetSummaryStatistics(TileWeights tileWeights) {
+    this.tileWeights = tileWeights;
+  }
+
+  public TilesetSummaryStatistics() {
+    this(new TileWeights());
+  }
+
   public Summary summary() {
-    return summaries.stream().reduce(new Summary(), Summary::combine);
+    return summaries.stream().reduce(new Summary(), Summary::mergeIn);
   }
 
   public void printStats(String debugUrlPattern) {
@@ -84,11 +94,16 @@ public class TilesetSummaryStatistics {
           result.get().maxArchivedSize()
         )
       );
-      LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));
       LOGGER.debug("   Max tile: {} (gzipped: {})",
         formatter.storage(overallStats.maxSize()),
         formatter.storage(overallStats.maxArchivedSize()));
-      // TODO weighted average tile size
+      LOGGER.debug("   Avg tile: {} (gzipped: {}) {}",
+        formatter.storage(overallStats.weightedAverageSize()),
+        formatter.storage(overallStats.weightedAverageArchivedSize()),
+        overallStats.totalWeight <= 0 ?
+          "no tile weights, use --download-osm-tile-weights for weighted average" :
+          "using weighted average based on OSM traffic");
+      LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));
     }
   }
 
@@ -163,7 +178,8 @@ public class TilesetSummaryStatistics {
     return new Updater();
   }
 
-  public static class Summary {
+  public class Summary {
+
     private final List<Cell> byTile =
       IntStream.rangeClosed(PlanetilerConfig.MIN_MINZOOM, PlanetilerConfig.MAX_MAXZOOM)
         .mapToObj(i -> new Cell())
@@ -195,9 +211,9 @@ public class TilesetSummaryStatistics {
     }
 
     public Cell get(String layer) {
-      return byLayer.stream()
+      return combineZooms(byLayer.stream()
         .map(e -> e.getOrDefault(layer, new Cell()))
-        .reduce(new Cell(), Cell::combine);
+        .toList());
     }
 
     public Cell get(int z) {
@@ -205,7 +221,31 @@ public class TilesetSummaryStatistics {
     }
 
     public Cell get() {
-      return byTile.stream().reduce(new Cell(), Cell::combine);
+      return combineZooms(byTile);
+    }
+
+    private Cell combineZooms(List<Cell> byTile) {
+      double sumWeight = 0;
+      double preSumWeight = 0;
+      for (int z = 0; z < byTile.size(); z++) {
+        var cell = byTile.get(z);
+        long zoomWeight = tileWeights.getZoomWeight(z);
+        if (cell.numTiles() > 0 && zoomWeight > 0) {
+          sumWeight += zoomWeight;
+          preSumWeight += cell.totalWeight;
+        }
+      }
+      boolean noData = sumWeight == 0 || preSumWeight == 0;
+      Cell result = new Cell();
+      for (int z = 0; z < byTile.size(); z++) {
+        var cell = byTile.get(z);
+        long zoomWeight = tileWeights.getZoomWeight(z);
+        if ((cell.numTiles() > 0 && zoomWeight > 0) || noData) {
+          double weight = noData ? 1 : (zoomWeight / sumWeight) / (cell.totalWeight / preSumWeight);
+          result.mergeIn(cell, weight);
+        }
+      }
+      return result;
     }
 
     public int minZoomWithData() {
@@ -228,13 +268,13 @@ public class TilesetSummaryStatistics {
         .min()
         .orElse(PlanetilerConfig.MAX_MAXZOOM);
     }
-
-    private static Summary combine(Summary a, Summary b) {
-      return new Summary().mergeIn(a).mergeIn(b);
-    }
   }
 
   public static class Cell {
+
+    private long weightedBytesSum;
+    private long weightedArchivedBytesSum;
+    private long totalWeight;
     private final LongSummaryStatistics archivedBytes = new LongSummaryStatistics();
     private final LongSummaryStatistics bytes = new LongSummaryStatistics();
     private final PriorityQueue<TileSummary> topTiles = new PriorityQueue<>();
@@ -257,6 +297,9 @@ public class TilesetSummaryStatistics {
     }
 
     private Cell mergeIn(Cell other) {
+      totalWeight += other.totalWeight;
+      weightedBytesSum += other.weightedBytesSum;
+      weightedArchivedBytesSum += other.weightedArchivedBytesSum;
       archivedBytes.combine(other.archivedBytes);
       bytes.combine(other.bytes);
       for (var bigTile : other.topTiles) {
@@ -264,6 +307,19 @@ public class TilesetSummaryStatistics {
       }
       return this;
     }
+
+    private Cell mergeIn(Cell other, double weight) {
+      totalWeight += other.totalWeight * weight;
+      weightedBytesSum += other.weightedBytesSum * weight;
+      weightedArchivedBytesSum += other.weightedArchivedBytesSum * weight;
+      archivedBytes.combine(other.archivedBytes);
+      bytes.combine(other.bytes);
+      for (var bigTile : other.topTiles) {
+        acceptBigTile(bigTile.coord, bigTile.size, bigTile.layers);
+      }
+      return this;
+    }
+
 
     private void acceptBigTile(TileCoord coord, int archivedBytes, List<TileSizeStats.LayerStats> layerStats) {
       if (archivedBytes >= bigTileCutoff) {
@@ -280,6 +336,14 @@ public class TilesetSummaryStatistics {
 
     public List<TileSummary> biggestTiles() {
       return topTiles.stream().sorted(Comparator.comparingLong(s -> -s.size)).toList();
+    }
+
+    public double weightedAverageArchivedSize() {
+      return totalWeight == 0 ? archivedBytes.getAverage() : (weightedArchivedBytesSum * 1d / totalWeight);
+    }
+
+    public double weightedAverageSize() {
+      return totalWeight == 0 ? bytes.getAverage() : (weightedBytesSum * 1d / totalWeight);
     }
   }
 
@@ -312,6 +376,9 @@ public class TilesetSummaryStatistics {
       var layerStat = summary.byLayer.get(coord.z());
       tileStat.archivedBytes.accept(archivedBytes);
       tileStat.acceptBigTile(coord, archivedBytes, layerStats);
+      long weight = tileWeights.getWeight(coord);
+      tileStat.totalWeight += weight;
+      tileStat.weightedArchivedBytesSum += weight * archivedBytes;
 
       int sum = 0;
       for (var layer : layerStats) {
@@ -319,7 +386,10 @@ public class TilesetSummaryStatistics {
         cell.bytes.accept(layer.layerBytes());
         cell.acceptBigTile(coord, layer.layerBytes(), layerStats);
         sum += layer.layerBytes();
+        cell.weightedBytesSum += weight * layer.layerBytes();
+        cell.totalWeight += weight;
       }
+      tileStat.weightedBytesSum += weight * sum;
       tileStat.bytes.accept(sum);
     }
 
