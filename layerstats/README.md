@@ -49,6 +49,33 @@ select * from layerstats order by layer_bytes desc limit 2;
 | 14 | 6435 | 8361 | 219723809 | 679498              | building | 799971      | 18             | 68               | 2               | 19                |
 | 14 | 6435 | 8364 | 219723850 | 603677              | building | 693563      | 18             | 75               | 3               | 19                |
 
+Or a table of biggest layers by layer and zoom:
+
+```sql
+pivot (
+  select z, layer, (max(layer_bytes)/1000)::int size from layerstats group by z, layer order by z asc
+) on z using sum(size);
+```
+
+|        layer        |  0  |  1  | 10  | 11  | 12  | 13  | 14  |  2  |  3  |  4  |  5  | 6  |  7  |  8  |  9  |
+|---------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|----|-----|-----|-----|
+| boundary            | 10  | 75  | 24  | 18  | 32  | 18  | 10  | 85  | 53  | 44  | 25  | 18 | 15  | 15  | 29  |
+| landcover           | 2   | 1   | 153 | 175 | 166 | 111 | 334 | 8   | 5   | 3   | 31  | 18 | 273 | 333 | 235 |
+| place               | 116 | 191 | 16  | 14  | 10  | 25  | 57  | 236 | 154 | 123 | 58  | 30 | 21  | 15  | 14  |
+| water               | 8   | 4   | 133 | 94  | 167 | 116 | 90  | 11  | 9   | 15  | 13  | 89 | 114 | 126 | 109 |
+| water_name          | 7   | 7   | 4   | 4   | 4   | 4   | 9   | 7   | 6   | 4   | 3   | 3  | 3   | 3   | 4   |
+| waterway            |     |     | 20  | 16  | 60  | 66  | 73  |     | 1   | 4   | 2   | 18 | 13  | 10  | 28  |
+| park                |     |     | 90  | 56  | 48  | 19  | 50  |     |     | 53  | 135 | 89 | 75  | 68  | 82  |
+| landuse             |     |     | 176 | 132 | 66  | 140 | 52  |     |     | 3   | 2   | 33 | 67  | 95  | 107 |
+| transportation      |     |     | 165 | 95  | 312 | 187 | 133 |     |     | 60  | 103 | 61 | 126 | 287 | 284 |
+| transportation_name |     |     | 30  | 18  | 65  | 59  | 169 |     |     |     |     | 32 | 20  | 18  | 13  |
+| mountain_peak       |     |     | 7   | 8   | 6   | 295 | 232 |     |     |     |     |    | 8   | 7   | 9   |
+| aerodrome_label     |     |     | 4   | 4   | 4   | 4   | 4   |     |     |     |     |    |     | 4   | 4   |
+| aeroway             |     |     | 16  | 25  | 34  | 30  | 18  |     |     |     |     |    |     |     |     |
+| poi                 |     |     |     |     | 22  | 10  | 542 |     |     |     |     |    |     |     |     |
+| building            |     |     |     |     |     | 69  | 800 |     |     |     |     |    |     |     |     |
+| housenumber         |     |     |     |     |     |     | 413 |     |     |     |     |    |     |     |     |
+
 Or the biggest tiles, NOTE: this group by uses a lot of memory so you need to be running in file-backed
 mode `duckdb analysis.duckdb`:
 
