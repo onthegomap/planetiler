@@ -32,7 +32,7 @@ The output is a gzipped tsv with a row per layer on each tile and the following 
 
 ### Analyzing Layer Stats
 
-In [duckdb](https://duckdb.org/) you can load a layer stats file:
+Load a layer stats file in [duckdb](https://duckdb.org/):
 
 ```sql
 create table layerstats as select * from 'output.pmtiles.layerstats.tsv.gz';
@@ -54,9 +54,9 @@ mode `duckdb analysis.duckdb`:
 
 ```sql
 create table tilestats as select
-  z, x, y,
-  any_value(archived_tile_bytes) gzipped,
-  sum(layer_bytes) raw
+z, x, y,
+any_value(archived_tile_bytes) gzipped,
+sum(layer_bytes) raw
 from layerstats group by z, x, y;
 select * from tilestats order by gzipped desc limit 2;
 ```
@@ -73,9 +73,15 @@ lat/lons:
 create macro lon(z, x) as (x/2**z) * 360 - 180;
 create macro lat_n(z, y) as pi() - 2 * pi() * y/2**z;
 create macro lat(z, y) as degrees(atan(0.5*(exp(lat_n(z, y)) - exp(-lat_n(z, y)))));
-create or replace macro debug_url(z, x, y) as concat('https://protomaps.github.io/PMTiles/#map=', z + 0.5, '/', round(lat(z, x + 0.5), 5), '/', round(lon(z, y + 0.5), 5));
+create or replace macro debug_url(z, x, y) as concat(
+  'https://protomaps.github.io/PMTiles/#map=',
+  z + 0.5, '/',
+  round(lat(z, x + 0.5), 5), '/',
+  round(lon(z, y + 0.5), 5)
+);
 
-select z, x, y, debug_url(z, x, y), layer, layer_bytes from layerstats order by layer_bytes desc limit 2;
+select z, x, y, debug_url(z, x, y), layer, layer_bytes
+from layerstats order by layer_bytes desc limit 2;
 ```
 
 | z  |  x   |  y   |                       debug_url(z, x, y)                       |  layer   | layer_bytes |
@@ -128,8 +134,8 @@ zoom_avgs as (
   group by z
 )
 select
-  sum(gzipped * loads) / sum(loads) / 1000 gzipped_avg_kb,
-  sum(raw * loads) / sum(loads) / 1000 raw_avg_kb,
+sum(gzipped * loads) / sum(loads) / 1000 gzipped_avg_kb,
+sum(raw * loads) / sum(loads) / 1000 raw_avg_kb,
 from zoom_avgs join zoom_weights using (z);
 ```
 
