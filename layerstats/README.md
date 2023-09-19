@@ -49,7 +49,7 @@ select * from layerstats order by layer_bytes desc limit 2;
 | 14 | 6435 | 8361 | 219723809 | 679498              | building | 799971      | 18             | 68               | 2               | 19                |
 | 14 | 6435 | 8364 | 219723850 | 603677              | building | 693563      | 18             | 75               | 3               | 19                |
 
-Or a table of biggest layers by layer and zoom:
+To get a table of biggest layers by zoom:
 
 ```sql
 pivot (
@@ -76,8 +76,7 @@ pivot (
 | building            |     |     |     |     |     | 69  | 800 |     |     |     |     |    |     |     |     |
 | housenumber         |     |     |     |     |     |     | 413 |     |     |     |     |    |     |     |     |
 
-Or the biggest tiles, NOTE: this group by uses a lot of memory so you need to be running in file-backed
-mode `duckdb analysis.duckdb`:
+To get biggest tiles:
 
 ```sql
 create table tilestats as select
@@ -87,6 +86,9 @@ sum(layer_bytes) raw
 from layerstats group by z, x, y;
 select * from tilestats order by gzipped desc limit 2;
 ```
+
+NOTE: this group by uses a lot of memory so you need to be running in file-backed
+mode `duckdb analysis.duckdb` (not in-memory mode)
 
 | z  |  x   |  y   | gzipped |  raw   |
 |----|------|------|---------|--------|
