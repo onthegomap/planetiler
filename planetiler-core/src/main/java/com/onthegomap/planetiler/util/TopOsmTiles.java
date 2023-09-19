@@ -42,7 +42,7 @@ import org.tukaani.xz.XZInputStream;
 
 public class TopOsmTiles {
   private static final String DOWLOAD_URL =
-    "https://raw.githubusercontent.com/onthegomap/planetiler/main/top_osm_tiles.tsv.gz";
+    "https://raw.githubusercontent.com/onthegomap/planetiler/main/layerstats/top_osm_tiles.tsv.gz";
   private static final CsvMapper MAPPER = new CsvMapper();
   private static final CsvSchema SCHEMA = MAPPER
     .schemaFor(Row.class)
