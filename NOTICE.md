@@ -28,6 +28,7 @@ The `planetiler-core` module includes the following software:
   - mil.nga.geopackage:geopackage (MIT license)
   - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
+  - org.tukaani:xz (public domain)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)

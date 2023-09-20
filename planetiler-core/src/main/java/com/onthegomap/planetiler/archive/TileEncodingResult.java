@@ -11,7 +11,7 @@ public record TileEncodingResult(
   TileCoord coord,
   @Nonnull byte[] tileData,
   int rawTileSize,
-  /** will always be empty in non-compact mode and might also be empty in compact mode */
+  /* will always be empty in non-compact mode and might also be empty in compact mode */
   OptionalLong tileDataHash,
   List<String> layerStats
 ) {
@@ -20,7 +20,7 @@ public record TileEncodingResult(
     byte[] tileData,
     OptionalLong tileDataHash
   ) {
-    this(coord, tileData, 0, tileDataHash, List.of());
+    this(coord, tileData, tileData.length, tileDataHash, List.of());
   }
 
   @Override

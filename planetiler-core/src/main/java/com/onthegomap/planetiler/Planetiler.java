@@ -92,7 +92,6 @@ public class Planetiler {
   private FeatureGroup featureGroup;
   private OsmInputFile osmInputFile;
   private TileArchiveConfig output;
-  private Path layerStatsPath;
   private boolean overwrite = false;
   private boolean ran = false;
   // most common OSM languages
@@ -672,7 +671,7 @@ public class Planetiler {
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
 
-    layerStatsPath = arguments.file("layer_stats", "layer stats output path",
+    Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
       // default to <output file>.layerstats.tsv.gz
       TileSizeStats.getOutputPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
 

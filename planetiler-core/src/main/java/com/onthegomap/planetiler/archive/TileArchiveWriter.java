@@ -177,7 +177,6 @@ public class TileArchiveWriter {
       loggers.addPipelineStats(layerStatsBranch);
     }
     loggers.newLine()
-      .newLine()
       .add(writer::getLastTileLogDetails);
 
     var doneFuture = joinFutures(
@@ -309,22 +308,21 @@ public class TileArchiveWriter {
           }
           lastTileDataHash = tileDataHash;
         }
-        if ((skipFilled && lastIsFill) || bytes == null) {
-          continue;
+        if ((!skipFilled || !lastIsFill) && bytes != null) {
+          tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
+          List<String> layerStatsRows = config.outputLayerStats() ?
+            TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
+            List.of();
+          result.add(
+            new TileEncodingResult(
+              tileFeatures.tileCoord(),
+              bytes,
+              encoded.length,
+              tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
+              layerStatsRows
+            )
+          );
         }
-        tileStatsUpdater.recordTile(tileFeatures.tileCoord(), bytes.length, layerStats);
-        List<String> layerStatsRows = config.outputLayerStats() ?
-          TileSizeStats.formatOutputRows(tileFeatures.tileCoord(), bytes.length, layerStats) :
-          List.of();
-        result.add(
-          new TileEncodingResult(
-            tileFeatures.tileCoord(),
-            bytes,
-            encoded.length,
-            tileDataHash == null ? OptionalLong.empty() : OptionalLong.of(tileDataHash),
-            layerStatsRows
-          )
-        );
       }
       // hand result off to writer
       batch.out.complete(result);

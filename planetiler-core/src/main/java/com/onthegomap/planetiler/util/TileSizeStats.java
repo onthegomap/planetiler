@@ -35,6 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
 
+/**
+ *
+ */
 public class TileSizeStats {
 
   private static final int BATCH_SIZE = 1_000;
@@ -46,10 +49,6 @@ public class TileSizeStats {
     .withColumnSeparator('\t')
     .withLineSeparator("\n");
   public static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
-
-  public TileSizeStats() {
-    //    TODO load OSM tile weights
-  }
 
   public static Path getOutputPath(Path output) {
     return output.resolveSibling(output.getFileName() + ".layerstats.tsv.gz");

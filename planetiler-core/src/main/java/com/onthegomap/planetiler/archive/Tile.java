@@ -2,12 +2,15 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.util.Arrays;
+import java.util.Objects;
 
+/** A tile stored in an archive with coordinate {@code coord} and archived {@code bytes}. */
 public record Tile(TileCoord coord, byte[] bytes) implements Comparable<Tile> {
 
   @Override
   public boolean equals(Object o) {
-    return (this == o) || (o instanceof Tile other && coord.equals(other.coord) && Arrays.equals(bytes, other.bytes));
+    return (this == o) ||
+      (o instanceof Tile other && Objects.equals(coord, other.coord) && Arrays.equals(bytes, other.bytes));
   }
 
   @Override

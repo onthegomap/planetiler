@@ -115,7 +115,6 @@ public final class WriteableCsvArchive extends WriteableStreamArchive {
 
     CsvTileWriter(Writer writer, String columnSeparator, String lineSeparator,
       Function<byte[], String> tileDataEncoder) {
-
       this.writer = writer;
       this.columnSeparator = columnSeparator;
       this.lineSeparator = lineSeparator;
