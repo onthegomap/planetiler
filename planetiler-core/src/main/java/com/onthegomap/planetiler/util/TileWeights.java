@@ -4,8 +4,12 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Holds tile weights to compute weighted average tile sizes.
+ * <p>
+ * {@link TopOsmTiles} can be used to get tile weights from 90 days of openstreetmap.org tile traffic.
+ */
 public class TileWeights {
-  private long total = 0;
   private final Map<Integer, Long> byZoom = new HashMap<>();
   private final Map<TileCoord, Long> weights = new HashMap<>();
 
@@ -13,18 +17,15 @@ public class TileWeights {
     return weights.getOrDefault(coord, 0L);
   }
 
+  /** Returns the sum of all tile weights at a specific zoom */
   public long getZoomWeight(int zoom) {
     return byZoom.getOrDefault(zoom, 0L);
   }
 
-  public long getTotalWeight() {
-    return total;
-  }
-
-  public TileWeights put(TileCoord coord, long i) {
-    weights.merge(coord, i, Long::sum);
-    byZoom.merge(coord.z(), i, Long::sum);
-    total += i;
+  /** Adds {@code weight} to the current weight for {@code coord} and returns this modified instance. */
+  public TileWeights put(TileCoord coord, long weight) {
+    weights.merge(coord, weight, Long::sum);
+    byZoom.merge(coord.z(), weight, Long::sum);
     return this;
   }
 }
