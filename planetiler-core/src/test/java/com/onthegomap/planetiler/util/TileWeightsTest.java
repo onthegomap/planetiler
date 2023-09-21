@@ -52,26 +52,11 @@ class TileWeightsTest {
     var read = TileWeights.readFromFile(file);
     assertEquals("""
       z	x	y	loads
-      1	0	0	2
       0	0	0	1
+      1	0	0	2
       """, new String(new GZIPInputStream(Files.newInputStream(file)).readAllBytes()));
     assertEquals(1, read.getWeight(TileCoord.ofXYZ(0, 0, 0)));
     assertEquals(2, read.getWeight(TileCoord.ofXYZ(0, 0, 1)));
-  }
-
-  @Test
-  void testWriteToFileDifferentOrder(@TempDir Path path) throws IOException {
-    Path file = path.resolve("test.tsv.gz");
-    new TileWeights()
-      .put(TileCoord.ofXYZ(0, 0, 0), 1)
-      .put(TileCoord.ofXYZ(0, 0, 1), 1)
-      .put(TileCoord.ofXYZ(0, 0, 1), 1)
-      .writeToFile(file);
-    assertEquals("""
-      z	x	y	loads
-      0	0	0	1
-      1	0	0	2
-      """, new String(new GZIPInputStream(Files.newInputStream(file)).readAllBytes()));
   }
 
   @Test

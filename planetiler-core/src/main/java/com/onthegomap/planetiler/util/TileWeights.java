@@ -17,7 +17,8 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -41,8 +42,8 @@ public class TileWeights {
     .withLineSeparator("\n");
   private static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
   private static final ObjectReader READER = MAPPER.readerFor(Row.class).with(SCHEMA);
-  private final Map<Integer, Long> byZoom = new LinkedHashMap<>();
-  private final Map<TileCoord, Long> weights = new LinkedHashMap<>();
+  private final Map<Integer, Long> byZoom = new HashMap<>();
+  private final Map<TileCoord, Long> weights = new HashMap<>();
 
   public long getWeight(TileCoord coord) {
     return weights.getOrDefault(coord, 0L);
@@ -69,7 +70,11 @@ public class TileWeights {
         new BufferedOutputStream(Files.newOutputStream(path, CREATE, TRUNCATE_EXISTING, WRITE)));
       var writer = WRITER.writeValues(output)
     ) {
-      for (var entry : weights.entrySet()) {
+      var sorted = weights.entrySet().stream()
+        .sorted(Comparator.comparingInt(e -> e.getKey().encoded()))
+        .iterator();
+      while (sorted.hasNext()) {
+        var entry = sorted.next();
         TileCoord coord = entry.getKey();
         writer.write(new Row(coord.z(), coord.x(), coord.y(), entry.getValue()));
       }

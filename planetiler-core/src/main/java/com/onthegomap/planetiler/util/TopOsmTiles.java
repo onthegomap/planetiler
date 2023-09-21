@@ -99,7 +99,6 @@ public class TopOsmTiles {
         counts.entrySet().stream()
           .sorted(Comparator.comparingLong(e -> -e.getValue()))
           .limit(topN)
-          .sorted(Comparator.comparingInt(Map.Entry::getKey))
           .forEach(entry -> tileWeights.put(TileCoord.decode(entry.getKey()), entry.getValue()));
         result.complete(tileWeights);
       });
