@@ -31,8 +31,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
 
 /**
@@ -53,7 +51,6 @@ import vector_tile.VectorTileProto;
 public class TileSizeStats {
 
   private static final int BATCH_SIZE = 1_000;
-  private static final Logger LOGGER = LoggerFactory.getLogger(TileSizeStats.class);
   private static final CsvMapper MAPPER = new CsvMapper();
   private static final CsvSchema SCHEMA = MAPPER
     .schemaFor(OutputRow.class)
