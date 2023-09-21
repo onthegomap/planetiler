@@ -271,7 +271,6 @@ public class TilesetSummaryStatistics {
   }
 
   public static class Cell {
-
     private long weightedBytesSum;
     private long weightedArchivedBytesSum;
     private long totalWeight;

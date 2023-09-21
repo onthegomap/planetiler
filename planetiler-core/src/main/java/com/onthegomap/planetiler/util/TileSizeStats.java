@@ -36,7 +36,19 @@ import org.slf4j.LoggerFactory;
 import vector_tile.VectorTileProto;
 
 /**
+ * Utilities for extracting tile and layer size summaries from encoded vector tiles.
+ * <p>
+ * {@link #computeTileStats(VectorTileProto.Tile)} extracts statistics about each layer in a tile and
+ * {@link #formatOutputRows(TileCoord, int, List)} formats them as row of a TSV file to write.
+ * <p>
+ * To generate a tsv.gz file with stats for each tile, you can add {@code --output-layerstats} option when generating an
+ * archive, or run the following an existing archive:
  *
+ * <pre>
+ * {@code
+ * java -jar planetiler.jar stats --input=<path to pmtiles or mbtiles> --output=layerstats.tsv.gz
+ * }
+ * </pre>
  */
 public class TileSizeStats {
 
@@ -48,10 +60,11 @@ public class TileSizeStats {
     .withoutHeader()
     .withColumnSeparator('\t')
     .withLineSeparator("\n");
-  public static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
+  private static final ObjectWriter WRITER = MAPPER.writer(SCHEMA);
 
-  public static Path getOutputPath(Path output) {
-    return output.resolveSibling(output.getFileName() + ".layerstats.tsv.gz");
+  /** Returns the default path that a layerstats file should go relative to an existing archive. */
+  public static Path getDefaultLayerstatsPath(Path archive) {
+    return archive.resolveSibling(archive.getFileName() + ".layerstats.tsv.gz");
   }
 
   public static void main(String... args) {
@@ -62,13 +75,13 @@ public class TileSizeStats {
     if (download && !Files.exists(config.tileWeights())) {
       TopOsmTiles.downloadPrecomputed(config, stats);
     }
-    var tileStats = new TilesetSummaryStatistics(TopOsmTiles.loadFromFile(config.tileWeights()));
+    var tileStats = new TilesetSummaryStatistics(TileWeights.readFromFile(config.tileWeights()));
     var inputString = arguments.getString("input", "input file");
     var input = TileArchiveConfig.from(inputString);
     var localPath = input.getLocalPath();
     var output = localPath == null ?
       arguments.file("output", "output file") :
-      arguments.file("output", "output file", getOutputPath(localPath));
+      arguments.file("output", "output file", getDefaultLayerstatsPath(localPath));
     var counter = new AtomicLong(0);
     var timer = stats.startStage("tilestats");
     record Batch(List<Tile> tiles, CompletableFuture<List<String>> stats) {}
@@ -152,10 +165,11 @@ public class TileSizeStats {
     stats.printSummary();
   }
 
+  /** Returns the TSV rows to output for all the layers in a tile. */
   public static List<String> formatOutputRows(TileCoord tileCoord, int archivedBytes, List<LayerStats> layerStats)
     throws IOException {
     int hilbert = tileCoord.hilbertEncoded();
-    List<String> result = new ArrayList<>();
+    List<String> result = new ArrayList<>(layerStats.size());
     for (var layer : layerStats) {
       result.add(lineToString(new OutputRow(
         tileCoord.z(),
@@ -174,16 +188,22 @@ public class TileSizeStats {
     return result;
   }
 
+  /**
+   * Opens a new gzip (level 1/fast) writer to {@code path}, creating a new one or replacing an existing file at that
+   * path.
+   */
   public static Writer newWriter(Path path) throws IOException {
     return new OutputStreamWriter(
       new FastGzipOutputStream(new BufferedOutputStream(Files.newOutputStream(path,
         StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE))));
   }
 
+  /** Returns {@code output} encoded as a TSV row string. */
   public static String lineToString(OutputRow output) throws IOException {
     return WRITER.writeValueAsString(output);
   }
 
+  /** Returns the header row for the output TSV file. */
   public static String headerRow() {
     return String.join(
       String.valueOf(SCHEMA.getColumnSeparator()),
@@ -191,6 +211,7 @@ public class TileSizeStats {
     ) + new String(SCHEMA.getLineSeparator());
   }
 
+  /** Returns the size and statistics for each layer in {@code proto}. */
   public static List<LayerStats> computeTileStats(VectorTileProto.Tile proto) {
     if (proto == null) {
       return List.of();
@@ -217,6 +238,7 @@ public class TileSizeStats {
     return result;
   }
 
+  /** Model for the data contained in each row in the TSV. */
   @JsonPropertyOrder({
     "z",
     "x",
@@ -245,6 +267,7 @@ public class TileSizeStats {
     int layerAttrValues
   ) {}
 
+  /** Stats extracted from a layer in a vector tile. */
   public record LayerStats(
     String layer,
     int layerBytes,
