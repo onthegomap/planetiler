@@ -49,6 +49,23 @@ class TilesetSummaryStatisticsTest {
 
     assertEquals(7, summary.get().maxSize());
     assertEquals(2, summary.get().numTiles());
+
+    updater1.recordTile(TileCoord.ofXYZ(0, 0, 2), 0, List.of(
+      new TileSizeStats.LayerStats("c", 10, 7, 8, 9, 10)
+    ));
+    assertEquals("""
+                  z1    z2   all
+              a    1     0     1
+              b    6     0     6
+              c    6    10    10
+      """.stripTrailing(), tileStats.summary().formatTable(Number::toString, cell -> cell.maxSize()));
+
+    assertEquals("""
+                  z1    z2   all
+              a    1     0     1
+              b    2     0     2
+              c    1     1     2
+      """.stripTrailing(), tileStats.summary().formatTable(Number::toString, cell -> cell.numTiles()));
   }
 
   @Test
@@ -98,6 +115,18 @@ class TilesetSummaryStatisticsTest {
       summaries.stream().map(d -> d.withSize(d.coord().encoded() * 3)).limit(10).toList(),
       tileStats.summary().get("b").biggestTiles()
     );
+    assertEquals("""
+      1. 2/3/1 (19) 2.5/33.25663/135 (b:57)
+      2. 2/3/2 (18) 2.5/-33.25663/135 (b:54)
+      3. 2/3/3 (17) 2.5/-75.78219/135 (b:51)
+      4. 2/2/0 (16) 2.5/75.78219/45 (b:48)
+      5. 2/2/1 (15) 2.5/33.25663/45 (b:45)
+      6. 2/2/2 (14) 2.5/-33.25663/45 (b:42)
+      7. 2/2/3 (13) 2.5/-75.78219/45 (b:39)
+      8. 2/1/0 (12) 2.5/75.78219/-45 (b:36)
+      9. 2/1/1 (11) 2.5/33.25663/-45 (b:33)
+      10. 2/1/2 (10) 2.5/-33.25663/-45 (b:30)
+      """.trim(), tileStats.summary().get().formatBiggestTiles("{z}/{lat}/{lon}"));
   }
 
   @Test

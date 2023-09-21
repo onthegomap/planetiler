@@ -50,64 +50,6 @@ public class TilesetSummaryStatistics {
       .collect(Collectors.joining(", "));
   }
 
-  private static String writeStatsTableRow(
-    Summary result,
-    String firstColumn,
-    Function<Number, String> formatter,
-    Function<Integer, Number> extractCells,
-    Number lastColumn
-  ) {
-    return writeStatsTableRow(result, firstColumn, extractCells.andThen(formatter), formatter.apply(lastColumn));
-  }
-
-  private static String writeStatsTableRow(
-    Summary result,
-    String firstColumn,
-    Function<Integer, String> extractStat,
-    String lastColumn
-  ) {
-    StringBuilder builder = new StringBuilder();
-    int minZoom = result.minZoomWithData();
-    int maxZoom = result.maxZoomWithData();
-    List<String> layers = result.layers().stream()
-      .sorted(Comparator.comparingInt(result::minZoomWithData))
-      .toList();
-    int maxLayerLength = Math.max(9, layers.stream().mapToInt(String::length).max().orElse(0));
-    String cellFormat = "%1$5s";
-    String layerFormat = "%1$" + maxLayerLength + "s";
-
-    builder.append(layerFormat.formatted(firstColumn));
-    for (int z = minZoom; z <= maxZoom; z++) {
-      builder.append(cellFormat.formatted(extractStat.apply(z)));
-      builder.append(' ');
-    }
-    builder.append(cellFormat.formatted(lastColumn));
-    return builder.toString();
-  }
-
-  private static String writeStatsTable(Summary result, Function<Number, String> formatter,
-    Function<Cell, Number> extractStat) {
-    StringBuilder builder = new StringBuilder();
-    List<String> layers = result.layers().stream()
-      .sorted(Comparator.comparingInt(result::minZoomWithData))
-      .toList();
-
-    // header:   0 1 2 3 4 ... 15
-    builder.append(writeStatsTableRow(result, "", z -> "z" + z, "all")).append('\n');
-
-    // each row: layer
-    for (var layer : layers) {
-      builder.append(writeStatsTableRow(
-        result,
-        layer,
-        formatter,
-        z -> extractStat.apply(result.get(z, layer)),
-        extractStat.apply(result.get(layer))
-      )).append('\n');
-    }
-    return builder.toString().stripTrailing();
-  }
-
   /** Returns a combined {@link Summary} from each thread's {@link Updater}. */
   public Summary summary() {
     return summaries.stream().reduce(new Summary(), Summary::mergeIn);
@@ -120,23 +62,10 @@ public class TilesetSummaryStatistics {
     Summary result = summary();
     var overallStats = result.get();
     var formatter = Format.defaultInstance();
-    var biggestTiles = overallStats.biggestTiles();
-    LOGGER.debug("Biggest tiles (gzipped)\n{}",
-      IntStream.range(0, biggestTiles.size())
-        .mapToObj(index -> {
-          var tile = biggestTiles.get(index);
-          return "%d. %d/%d/%d (%s) %s (%s)".formatted(
-            index + 1,
-            tile.coord.z(),
-            tile.coord.x(),
-            tile.coord.y(),
-            formatter.storage(tile.archivedSize),
-            tile.coord.getDebugUrl(debugUrlPattern),
-            tileBiggestLayers(formatter, tile)
-          );
-        }).collect(Collectors.joining("\n"))
-    );
-    var alreadyListed = biggestTiles.stream().map(TileSummary::coord).collect(Collectors.toSet());
+    LOGGER.debug("Biggest tiles (gzipped)\n{}", overallStats.formatBiggestTiles(debugUrlPattern));
+    var alreadyListed = overallStats.biggestTiles().stream()
+      .map(TileSummary::coord)
+      .collect(Collectors.toSet());
     var otherTiles = result.layers().stream()
       .flatMap(layer -> result.get(layer).biggestTiles().stream().limit(1))
       .filter(tile -> !alreadyListed.contains(tile.coord) && tile.archivedSize > WARN_BYTES)
@@ -155,18 +84,18 @@ public class TilesetSummaryStatistics {
     }
 
     LOGGER.debug("Max tile sizes\n{}\n{}\n{}",
-      writeStatsTable(result, n -> {
+      result.formatTable(n -> {
         String string = " " + formatter.storage(n, true);
         return n.intValue() > ERROR_BYTES ? AnsiColors.red(string) :
           n.intValue() > WARN_BYTES ? AnsiColors.yellow(string) :
           string;
       }, Cell::maxSize),
-      writeStatsTableRow(result, "full tile",
+      result.formatRow("full tile",
         formatter::storage,
         z -> result.get(z).maxSize(),
         result.get().maxSize()
       ),
-      writeStatsTableRow(result, "gzipped",
+      result.formatRow("gzipped",
         formatter::storage,
         z -> result.get(z).maxArchivedSize(),
         result.get().maxArchivedSize()
@@ -250,15 +179,7 @@ public class TilesetSummaryStatistics {
     }
 
     private Cell mergeIn(Cell other) {
-      totalWeight += other.totalWeight;
-      weightedBytesSum += other.weightedBytesSum;
-      weightedArchivedBytesSum += other.weightedArchivedBytesSum;
-      archivedBytes.combine(other.archivedBytes);
-      bytes.combine(other.bytes);
-      for (var bigTile : other.topTiles) {
-        acceptBigTile(bigTile.coord, bigTile.archivedSize, bigTile.layers);
-      }
-      return this;
+      return mergeIn(other, 1);
     }
 
     private Cell mergeIn(Cell other, double weight) {
@@ -284,6 +205,24 @@ public class TilesetSummaryStatistics {
           }
         }
       }
+    }
+
+    String formatBiggestTiles(String debugUrlPattern) {
+      var biggestTiles = biggestTiles();
+      var formatter = Format.defaultInstance();
+      return IntStream.range(0, biggestTiles.size())
+        .mapToObj(index -> {
+          var tile = biggestTiles.get(index);
+          return "%d. %d/%d/%d (%s) %s (%s)".formatted(
+            index + 1,
+            tile.coord.z(),
+            tile.coord.x(),
+            tile.coord.y(),
+            formatter.storage(tile.archivedSize),
+            tile.coord.getDebugUrl(debugUrlPattern),
+            tileBiggestLayers(formatter, tile)
+          );
+        }).collect(Collectors.joining("\n"));
     }
   }
 
@@ -405,6 +344,61 @@ public class TilesetSummaryStatistics {
         }
       }
       return result;
+    }
+
+    String formatRow(
+      String firstColumn,
+      Function<Number, String> formatter,
+      Function<Integer, Number> extractCells,
+      Number lastColumn
+    ) {
+      return formatRow(firstColumn, extractCells.andThen(formatter), formatter.apply(lastColumn));
+    }
+
+    String formatRow(
+      String firstColumn,
+      Function<Integer, String> extractStat,
+      String lastColumn
+    ) {
+      StringBuilder builder = new StringBuilder();
+      int minZoom = minZoomWithData();
+      int maxZoom = maxZoomWithData();
+      List<String> layers = layers().stream()
+        .sorted(Comparator.comparingInt(this::minZoomWithData))
+        .toList();
+      int maxLayerLength = Math.max(9, layers.stream().mapToInt(String::length).max().orElse(0));
+      String cellFormat = "%1$5s";
+      String layerFormat = "%1$" + maxLayerLength + "s";
+
+      builder.append(layerFormat.formatted(firstColumn));
+      for (int z = minZoom; z <= maxZoom; z++) {
+        builder.append(cellFormat.formatted(extractStat.apply(z)));
+        builder.append(' ');
+      }
+      builder.append(cellFormat.formatted(lastColumn));
+      return builder.toString();
+    }
+
+    String formatTable(Function<Number, String> formatter,
+      Function<Cell, Number> extractStat) {
+      StringBuilder builder = new StringBuilder();
+      List<String> layers = layers().stream()
+        .sorted(Comparator.comparingInt(this::minZoomWithData))
+        .toList();
+
+      // header:   0 1 2 3 4 ... 15
+      builder.append(formatRow("", z -> "z" + z, "all")).append('\n');
+
+      // each row: layer
+      for (var layer : layers) {
+        builder.append(formatRow(
+          layer,
+          formatter,
+          z -> extractStat.apply(get(z, layer)),
+          extractStat.apply(get(layer))
+        )).append('\n');
+      }
+      return builder.toString().stripTrailing();
     }
   }
 
