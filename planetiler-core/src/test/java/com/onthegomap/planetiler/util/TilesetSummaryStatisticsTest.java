@@ -88,7 +88,7 @@ class TilesetSummaryStatisticsTest {
         new TileSizeStats.LayerStats("b", i * 3, i, 0, 0, 0)
       ));
       summaries.add(0, summary);
-      (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.size(), summary.layers());
+      (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.archivedSize(), summary.layers());
     }
     assertEquals(
       summaries.stream().map(d -> d.withSize(d.coord().encoded() * 2)).limit(10).toList(),

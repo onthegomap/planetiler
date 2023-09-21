@@ -159,9 +159,7 @@ public class TileSizeStats {
     loggers.awaitAndLog(joinFutures(readBranch.done(), writeBranch.done()), config.logInterval());
 
     timer.stop();
-    if (LOGGER.isDebugEnabled()) {
-      tileStats.printStats(config.debugUrlPattern());
-    }
+    tileStats.printStats(config.debugUrlPattern());
     stats.printSummary();
   }
 

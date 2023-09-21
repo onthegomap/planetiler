@@ -374,12 +374,11 @@ public class TileArchiveWriter {
     archive.finish(tileArchiveMetadata);
   }
 
+  @SuppressWarnings("java:S2629")
   private void printTileStats() {
-    if (LOGGER.isDebugEnabled()) {
-      Format format = Format.defaultInstance();
-      tileStats.printStats(config.debugUrlPattern());
-      LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
-    }
+    Format format = Format.defaultInstance();
+    tileStats.printStats(config.debugUrlPattern());
+    LOGGER.debug(" # features: {}", format.integer(featuresProcessed.get()));
   }
 
   private long tilesEmitted() {

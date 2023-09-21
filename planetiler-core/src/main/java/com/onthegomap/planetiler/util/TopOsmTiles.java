@@ -71,6 +71,7 @@ public class TopOsmTiles {
     return new InputStreamReader(new XZInputStream(new BufferedInputStream(downloader.openStream(url))));
   }
 
+  @SuppressWarnings("java:S2142")
   TileWeights run(int threads, int topN, int maxZoom, List<LocalDate> toDownload) {
     CompletableFuture<TileWeights> result = new CompletableFuture<>();
     var timer = stats.startStage("top-osm-tiles");
