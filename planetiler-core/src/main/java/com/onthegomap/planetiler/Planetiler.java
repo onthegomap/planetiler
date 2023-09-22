@@ -29,6 +29,8 @@ import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Geofabrik;
 import com.onthegomap.planetiler.util.LogUtil;
 import com.onthegomap.planetiler.util.ResourceUsage;
+import com.onthegomap.planetiler.util.TileSizeStats;
+import com.onthegomap.planetiler.util.TopOsmTiles;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.Wikidata;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -38,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -101,6 +104,7 @@ public class Planetiler {
   private boolean useWikidata = false;
   private boolean onlyFetchWikidata = false;
   private boolean fetchWikidata = false;
+  private final boolean fetchOsmTileStats;
   private TileArchiveMetadata tileArchiveMetadata;
 
   private Planetiler(Arguments arguments) {
@@ -111,10 +115,11 @@ public class Planetiler {
     if (config.color() != null) {
       AnsiColors.setUseColors(config.color());
     }
-    tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
+    tmpDir = config.tmpDir();
     onlyDownloadSources = arguments.getBoolean("only_download", "download source data then exit", false);
     downloadSources = onlyDownloadSources || arguments.getBoolean("download", "download sources", false);
-
+    fetchOsmTileStats =
+      arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", downloadSources);
     nodeDbPath = arguments.file("temp_nodes", "temp node db location", tmpDir.resolve("node.db"));
     multipolygonPath =
       arguments.file("temp_multipolygons", "temp multipolygon db location", tmpDir.resolve("multipolygon.db"));
@@ -666,6 +671,10 @@ public class Planetiler {
         output.uri() + " already exists, use the --force argument to overwrite or --append.");
     }
 
+    Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
+      // default to <output file>.layerstats.tsv.gz
+      TileSizeStats.getDefaultLayerstatsPath(Optional.ofNullable(output.getLocalPath()).orElse(Path.of("output"))));
+
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");
     }
@@ -715,6 +724,9 @@ public class Planetiler {
     if (!toDownload.isEmpty()) {
       download();
     }
+    if (fetchOsmTileStats) {
+      TopOsmTiles.downloadPrecomputed(config, stats);
+    }
     ensureInputFilesExist();
 
     if (fetchWikidata) {
@@ -762,8 +774,8 @@ public class Planetiler {
 
       featureGroup.prepare();
 
-      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata,
-        config, stats);
+      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata, layerStatsPath, config,
+        stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
     }

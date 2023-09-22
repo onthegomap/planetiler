@@ -441,11 +441,9 @@ public class VectorTile {
   }
 
   /**
-   * Creates a vector tile protobuf with all features in this tile and serializes it as a byte array.
-   * <p>
-   * Does not compress the result.
+   * Returns a vector tile protobuf object with all features in this tile.
    */
-  public byte[] encode() {
+  public VectorTileProto.Tile toProto() {
     VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
     for (Map.Entry<String, Layer> e : layers.entrySet()) {
       String layerName = e.getKey();
@@ -492,7 +490,16 @@ public class VectorTile {
 
       tile.addLayers(tileLayer.build());
     }
-    return tile.build().toByteArray();
+    return tile.build();
+  }
+
+  /**
+   * Creates a vector tile protobuf with all features in this tile and serializes it as a byte array.
+   * <p>
+   * Does not compress the result.
+   */
+  public byte[] encode() {
+    return toProto().toByteArray();
   }
 
   /**

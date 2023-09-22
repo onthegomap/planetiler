@@ -11,7 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.VarInt;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
@@ -362,12 +362,12 @@ public class Pmtiles {
    * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
    */
   public record JsonMetadata(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
+    @JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers,
     @JsonAnyGetter Map<String, String> otherMetadata
   ) {
 
     @JsonCreator
-    public JsonMetadata(@JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers) {
+    public JsonMetadata(@JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers) {
       this(vectorLayers, new HashMap<>());
     }
 

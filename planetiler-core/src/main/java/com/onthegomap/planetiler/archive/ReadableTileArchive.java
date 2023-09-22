@@ -40,6 +40,10 @@ public interface ReadableTileArchive extends Closeable {
    */
   CloseableIterator<TileCoord> getAllTileCoords();
 
+  default CloseableIterator<Tile> getAllTiles() {
+    return getAllTileCoords().map(coord -> new Tile(coord, getTile(coord)));
+  }
+
   /**
    * Returns the metadata stored in this archive.
    */

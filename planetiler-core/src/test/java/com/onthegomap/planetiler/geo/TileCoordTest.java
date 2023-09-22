@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.locationtech.jts.geom.Envelope;
 
 
 class TileCoordTest {
@@ -119,5 +120,27 @@ class TileCoordTest {
       TileOrder.HILBERT.progressOnLevel(TileCoord.ofXYZ(x, y, z),
         TileExtents.computeFromWorldBounds(15, GeoUtils.WORLD_BOUNDS));
     assertEquals(p, progress);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0,0,0,0.5/0/0",
+    "0,0,1,1.5/42.52556/-90",
+    "123,123,14,14.5/84.81142/-177.28638",
+  })
+  void testDebugUrl(int x, int y, int z, String expected) {
+    assertEquals(expected, TileCoord.ofXYZ(x, y, z).getDebugUrl("{z}/{lat}/{lon}"));
+  }
+
+  @Test
+  void testEnvelope() {
+    assertEquals(new Envelope(
+      -180, 180,
+      -85.0511287798066, 85.0511287798066
+    ), TileCoord.ofXYZ(0, 0, 0).getEnvelope());
+    assertEquals(new Envelope(
+      0, 180,
+      -85.0511287798066, 0
+    ), TileCoord.ofXYZ(1, 1, 1).getEnvelope());
   }
 }

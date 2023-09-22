@@ -3,7 +3,8 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.onthegomap.planetiler.TestUtils.OsmXml;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -31,7 +32,10 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
 import com.onthegomap.planetiler.util.BuildInfo;
+import com.onthegomap.planetiler.util.Gzip;
+import com.onthegomap.planetiler.util.TileSizeStats;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -151,8 +155,7 @@ class PlanetilerTests {
     featureGroup.prepare();
     try (Mbtiles db = Mbtiles.newInMemoryDatabase(config.arguments())) {
       TileArchiveWriter.writeOutput(featureGroup, db, () -> 0L, new TileArchiveMetadata(profile, config),
-        config,
-        stats);
+        null, config, stats);
       var tileMap = TestUtils.getTileMap(db);
       tileMap.values().forEach(fs -> fs.forEach(f -> f.geometry().validate()));
       int tileDataCount = db.compactDb() ? TestUtils.getTilesDataCount(db) : 0;
@@ -1805,7 +1808,8 @@ class PlanetilerTests {
     "--output-format=pbf",
     "--output-format=json",
     "--tile-compression=none",
-    "--tile-compression=gzip"
+    "--tile-compression=gzip",
+    "--output-layerstats"
   })
   void testPlanetilerRunner(String args) throws Exception {
     Path originalOsm = TestUtils.pathToResource("monaco-latest.osm.pbf");
@@ -1876,6 +1880,57 @@ class PlanetilerTests {
           "planetiler:osm:osmosisreplicationurl", "http://download.geofabrik.de/europe/monaco-updates"
         ), db.metadata().toMap());
       }
+    }
+
+    final Path layerstats = output.resolveSibling(output.getFileName().toString() + ".layerstats.tsv.gz");
+    if (args.contains("--output-layerstats")) {
+      assertTrue(Files.exists(layerstats));
+      byte[] data = Files.readAllBytes(layerstats);
+      byte[] uncompressed = Gzip.gunzip(data);
+      String[] lines = new String(uncompressed, StandardCharsets.UTF_8).split("\n");
+      assertEquals(12, lines.length);
+
+      assertEquals(List.of(
+        "z",
+        "x",
+        "y",
+        "hilbert",
+        "archived_tile_bytes",
+        "layer",
+        "layer_bytes",
+        "layer_features",
+        "layer_attr_bytes",
+        "layer_attr_keys",
+        "layer_attr_values"
+      ), List.of(lines[0].split("\t")), lines[0]);
+
+      var mapper = new CsvMapper();
+      var reader = mapper
+        .readerFor(Map.class)
+        .with(CsvSchema.emptySchema().withColumnSeparator('\t').withLineSeparator("\n").withHeader());
+      try (var items = reader.readValues(uncompressed)) {
+        while (items.hasNext()) {
+          @SuppressWarnings("unchecked") Map<String, String> next = (Map<String, String>) items.next();
+          int z = Integer.parseInt(next.get("z"));
+          int x = Integer.parseInt(next.get("x"));
+          int y = Integer.parseInt(next.get("y"));
+          int hilbert = Integer.parseInt(next.get("hilbert"));
+          assertEquals(hilbert, TileCoord.ofXYZ(x, y, z).hilbertEncoded());
+          assertTrue(Integer.parseInt(next.get("z")) <= 14, "bad z: " + next);
+        }
+      }
+
+      // ensure tilestats standalone executable produces same output
+      var standaloneLayerstatsOutput = tempDir.resolve("layerstats2.tsv.gz");
+      TileSizeStats.main("--input=" + output, "--output=" + standaloneLayerstatsOutput);
+      byte[] standaloneData = Files.readAllBytes(standaloneLayerstatsOutput);
+      byte[] standaloneUncompressed = Gzip.gunzip(standaloneData);
+      assertEquals(
+        new String(uncompressed, StandardCharsets.UTF_8),
+        new String(standaloneUncompressed, StandardCharsets.UTF_8)
+      );
+    } else {
+      assertFalse(Files.exists(layerstats));
     }
   }
 

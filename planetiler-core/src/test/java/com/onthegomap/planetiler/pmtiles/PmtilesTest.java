@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -201,7 +203,11 @@ class PmtilesTest {
       assertNull(reader.getTile(0, 0, 2));
 
       Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-      assertEquals(1, coordset.size());
+      assertEquals(Set.of(TileCoord.ofXYZ(0, 0, 1)), coordset);
+      Set<Tile> tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2})
+      ), tileset);
     }
   }
 
@@ -219,7 +225,7 @@ class PmtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
       Map.of("other key", "other value"),
       TileCompression.GZIP
     ));
@@ -310,7 +316,17 @@ class PmtilesTest {
       assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 2));
 
       Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-      assertEquals(3, coordset.size());
+      assertEquals(Set.of(
+        TileCoord.ofXYZ(0, 0, 0),
+        TileCoord.ofXYZ(0, 0, 1),
+        TileCoord.ofXYZ(0, 0, 2)
+      ), coordset);
+      var tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2})
+      ), tileset);
     }
   }
 
@@ -337,7 +353,15 @@ class PmtilesTest {
       assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
 
       Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-      assertEquals(2, coordset.size());
+      assertEquals(Set.of(
+        TileCoord.ofXYZ(0, 0, 0),
+        TileCoord.ofXYZ(0, 0, 1)
+      ), coordset);
+      var tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2})
+      ), tileset);
     }
   }
 
@@ -352,10 +376,15 @@ class PmtilesTest {
     var writer = in.newTileWriter();
 
     int ENTRIES = 20000;
+    Set<TileCoord> expectedCoords = new TreeSet<>();
+    Set<Tile> expectedTiles = new TreeSet<>();
 
     for (int i = 0; i < ENTRIES; i++) {
-      writer.write(new TileEncodingResult(TileCoord.hilbertDecode(i), ByteBuffer.allocate(4).putInt(i).array(),
-        OptionalLong.empty()));
+      var coord = TileCoord.hilbertDecode(i);
+      var data = ByteBuffer.allocate(4).putInt(i).array();
+      expectedCoords.add(coord);
+      expectedTiles.add(new Tile(coord, data));
+      writer.write(new TileEncodingResult(coord, data, OptionalLong.empty()));
     }
 
     in.finish(metadata);
@@ -372,8 +401,11 @@ class PmtilesTest {
           "tileCoord=%s did not match".formatted(coord.toString()));
       }
 
-      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-      assertEquals(ENTRIES, coordset.size());
+      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toCollection(TreeSet::new));
+      assertEquals(expectedCoords, coordset);
+
+      Set<Tile> tileset = reader.getAllTiles().stream().collect(Collectors.toCollection(TreeSet::new));
+      assertEquals(expectedTiles, tileset);
 
       for (int i = 0; i < ENTRIES; i++) {
         var coord = TileCoord.hilbertDecode(i);
@@ -381,5 +413,4 @@ class PmtilesTest {
       }
     }
   }
-
 }
