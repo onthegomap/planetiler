@@ -181,7 +181,9 @@ public class TopOsmTiles {
    * {@link PlanetilerConfig#tileWeights()} path if they don't already exist.
    */
   public static void downloadPrecomputed(PlanetilerConfig config, Stats stats) {
+    LOGGER.error("TopOsmTiles.downloadPrecomputed={} {}", config.tileWeights(), Files.exists(config.tileWeights()));
     if (!Files.exists(config.tileWeights())) {
+      LOGGER.error("TopOsmTiles.downloadPrecomputed downloading");
       Downloader.create(config, stats)
         .downloadIfNecessary(new Downloader.ResourceToDownload("osm-tile-weights", DOWLOAD_URL, config.tileWeights()));
     }

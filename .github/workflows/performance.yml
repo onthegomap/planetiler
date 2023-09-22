@@ -62,6 +62,7 @@ jobs:
     - name: 'Download data'
       run: |
         set -eo pipefail
+        find data
         cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
         cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
         find data
