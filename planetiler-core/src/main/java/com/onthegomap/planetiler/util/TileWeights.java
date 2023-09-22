@@ -108,7 +108,7 @@ public class TileWeights {
   }
 
   public boolean isEmpty() {
-    return byZoom.entrySet().stream().anyMatch(e -> e.getValue() > 0);
+    return byZoom.values().stream().noneMatch(e -> e > 0);
   }
 
   @JsonPropertyOrder({"z", "x", "y", "loads"})
