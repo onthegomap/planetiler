@@ -107,7 +107,7 @@ public class TilesetSummaryStatistics {
     LOGGER.debug("   Avg tile: {} (gzipped: {}) {}",
       formatter.storage(overallStats.weightedAverageSize()),
       formatter.storage(overallStats.weightedAverageArchivedSize()),
-      overallStats.totalWeight <= 0 ?
+      tileWeights.isEmpty() ?
         "no tile weights, use --download-osm-tile-weights for weighted average" :
         "using weighted average based on OSM traffic");
     LOGGER.debug("    # tiles: {}", formatter.integer(overallStats.numTiles()));

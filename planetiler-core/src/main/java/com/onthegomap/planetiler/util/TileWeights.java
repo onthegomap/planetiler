@@ -107,6 +107,10 @@ public class TileWeights {
     return result;
   }
 
+  public boolean isEmpty() {
+    return byZoom.entrySet().stream().anyMatch(e -> e.getValue() > 0);
+  }
+
   @JsonPropertyOrder({"z", "x", "y", "loads"})
   private record Row(int z, int x, int y, long loads) {}
 

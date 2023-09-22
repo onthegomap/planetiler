@@ -5,10 +5,8 @@ This page describes how to generate and analyze layer stats data to find ways to
 
 ### Generating Layer Stats
 
-Run planetiler with `--output-layerstats` to generate an extra `<output>.layerstats.tsv.gz` file with a row per
-tile layer that can be used to analyze tile sizes. You can also
-get stats for an existing archive by
-running:
+Run planetiler with `--output-layerstats` to generate an extra `<output>.layerstats.tsv.gz` file with a row for each
+layer in each tile that can be used to analyze tile sizes. You can also get stats for an existing archive by running:
 
 ```bash
 java -jar planetiler.jar stats --input=<path to mbtiles or pmtiles file> --output=layerstats.tsv.gz
@@ -35,88 +33,94 @@ The output is a gzipped tsv with a row per layer on each tile and the following 
 Load a layer stats file in [duckdb](https://duckdb.org/):
 
 ```sql
-create table layerstats as select * from 'output.pmtiles.layerstats.tsv.gz';
+CREATE TABLE layerstats AS SELECT * FROM 'output.pmtiles.layerstats.tsv.gz';
 ```
 
 Then get the biggest layers:
 
 ```sql
-select * from layerstats order by layer_bytes desc limit 2;
+SELECT * FROM layerstats ORDER BY layer_bytes DESC LIMIT 2;
 ```
 
-| z  |  x   |  y   |  hilbert  | archived_tile_bytes |  layer   | layer_bytes | layer_features | layer_attr_bytes | layer_attr_keys | layer_attr_values |
-|----|------|------|-----------|---------------------|----------|-------------|----------------|------------------|-----------------|-------------------|
-| 14 | 6435 | 8361 | 219723809 | 679498              | building | 799971      | 18             | 68               | 2               | 19                |
-| 14 | 6435 | 8364 | 219723850 | 603677              | building | 693563      | 18             | 75               | 3               | 19                |
+| z  |   x   |  y   |  hilbert  | archived_tile_bytes |    layer    | layer_bytes | layer_features | layer_attr_bytes | layer_attr_keys | layer_attr_values |
+|----|-------|------|-----------|---------------------|-------------|-------------|----------------|------------------|-----------------|-------------------|
+| 14 | 13722 | 7013 | 305278258 | 1261474             | housenumber | 2412464     | 108384         | 30764            | 1               | 3021              |
+| 14 | 13723 | 7014 | 305278256 | 1064044             | housenumber | 1848990     | 83038          | 26022            | 1               | 2542              |
 
 To get a table of biggest layers by zoom:
 
 ```sql
-pivot (
-  select z, layer, (max(layer_bytes)/1000)::int size from layerstats group by z, layer order by z asc
-) on z using sum(size);
+PIVOT (
+  SELECT z, layer, (max(layer_bytes)/1000)::int size FROM layerstats GROUP BY z, layer ORDER BY z ASC
+) ON printf('%2d', z) USING sum(size);
+-- duckdb sorts columns lexicographically, so left-pad the zoom so 2 comes before 10
 ```
 
-|        layer        |  0  |  1  | 10  | 11  | 12  | 13  | 14  |  2  |  3  |  4  |  5  | 6  |  7  |  8  |  9  |
-|---------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|----|-----|-----|-----|
-| boundary            | 10  | 75  | 24  | 18  | 32  | 18  | 10  | 85  | 53  | 44  | 25  | 18 | 15  | 15  | 29  |
-| landcover           | 2   | 1   | 153 | 175 | 166 | 111 | 334 | 8   | 5   | 3   | 31  | 18 | 273 | 333 | 235 |
-| place               | 116 | 191 | 16  | 14  | 10  | 25  | 57  | 236 | 154 | 123 | 58  | 30 | 21  | 15  | 14  |
-| water               | 8   | 4   | 133 | 94  | 167 | 116 | 90  | 11  | 9   | 15  | 13  | 89 | 114 | 126 | 109 |
-| water_name          | 7   | 7   | 4   | 4   | 4   | 4   | 9   | 7   | 6   | 4   | 3   | 3  | 3   | 3   | 4   |
-| waterway            |     |     | 20  | 16  | 60  | 66  | 73  |     | 1   | 4   | 2   | 18 | 13  | 10  | 28  |
-| park                |     |     | 90  | 56  | 48  | 19  | 50  |     |     | 53  | 135 | 89 | 75  | 68  | 82  |
-| landuse             |     |     | 176 | 132 | 66  | 140 | 52  |     |     | 3   | 2   | 33 | 67  | 95  | 107 |
-| transportation      |     |     | 165 | 95  | 312 | 187 | 133 |     |     | 60  | 103 | 61 | 126 | 287 | 284 |
-| transportation_name |     |     | 30  | 18  | 65  | 59  | 169 |     |     |     |     | 32 | 20  | 18  | 13  |
-| mountain_peak       |     |     | 7   | 8   | 6   | 295 | 232 |     |     |     |     |    | 8   | 7   | 9   |
-| aerodrome_label     |     |     | 4   | 4   | 4   | 4   | 4   |     |     |     |     |    |     | 4   | 4   |
-| aeroway             |     |     | 16  | 25  | 34  | 30  | 18  |     |     |     |     |    |     |     |     |
-| poi                 |     |     |     |     | 22  | 10  | 542 |     |     |     |     |    |     |     |     |
-| building            |     |     |     |     |     | 69  | 800 |     |     |     |     |    |     |     |     |
-| housenumber         |     |     |     |     |     |     | 413 |     |     |     |     |    |     |     |     |
+|        layer        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  | 10  | 11  | 12  | 13  |  14  |
+|---------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
+| boundary            | 10  | 75  | 85  | 53  | 44  | 25  | 18  | 15  | 15  | 29  | 24  | 18  | 32  | 18  | 10   |
+| landcover           | 2   | 1   | 8   | 5   | 3   | 31  | 18  | 584 | 599 | 435 | 294 | 175 | 166 | 111 | 334  |
+| place               | 116 | 314 | 833 | 830 | 525 | 270 | 165 | 80  | 51  | 54  | 63  | 70  | 50  | 122 | 221  |
+| water               | 8   | 4   | 11  | 9   | 15  | 13  | 89  | 114 | 126 | 109 | 133 | 94  | 167 | 116 | 91   |
+| water_name          | 7   | 19  | 25  | 15  | 11  | 6   | 6   | 4   | 3   | 6   | 5   | 4   | 4   | 4   | 29   |
+| waterway            |     |     |     | 1   | 4   | 2   | 18  | 13  | 10  | 28  | 20  | 16  | 60  | 66  | 73   |
+| park                |     |     |     |     | 54  | 135 | 89  | 76  | 72  | 82  | 90  | 56  | 48  | 19  | 50   |
+| landuse             |     |     |     |     | 3   | 2   | 33  | 67  | 95  | 107 | 177 | 132 | 66  | 313 | 109  |
+| transportation      |     |     |     |     | 384 | 425 | 259 | 240 | 287 | 284 | 165 | 95  | 313 | 187 | 133  |
+| transportation_name |     |     |     |     |     |     | 32  | 20  | 18  | 13  | 30  | 18  | 65  | 59  | 169  |
+| mountain_peak       |     |     |     |     |     |     |     | 13  | 13  | 12  | 15  | 12  | 12  | 317 | 235  |
+| aerodrome_label     |     |     |     |     |     |     |     |     | 5   | 4   | 5   | 4   | 4   | 4   | 4    |
+| aeroway             |     |     |     |     |     |     |     |     |     |     | 16  | 26  | 35  | 31  | 18   |
+| poi                 |     |     |     |     |     |     |     |     |     |     |     |     | 35  | 18  | 811  |
+| building            |     |     |     |     |     |     |     |     |     |     |     |     |     | 94  | 1761 |
+| housenumber         |     |     |     |     |     |     |     |     |     |     |     |     |     |     | 2412 |
 
 To get biggest tiles:
 
 ```sql
-create table tilestats as select
+CREATE TABLE tilestats AS SELECT
 z, x, y,
 any_value(archived_tile_bytes) gzipped,
 sum(layer_bytes) raw
-from layerstats group by z, x, y;
-select * from tilestats order by gzipped desc limit 2;
+FROM layerstats GROUP BY z, x, y;
+
+SELECT
+z, x, y,
+format_bytes(gzipped::int) gzipped,
+format_bytes(raw::int) raw,
+FROM tilestats ORDER BY gzipped DESC LIMIT 2;
 ```
 
 NOTE: this group by uses a lot of memory so you need to be running in file-backed
 mode `duckdb analysis.duckdb` (not in-memory mode)
 
-| z  |  x   |  y   | gzipped |  raw   |
-|----|------|------|---------|--------|
-| 14 | 6435 | 8361 | 679498  | 974602 |
-| 14 | 6437 | 8362 | 613512  | 883559 |
+| z  |  x   |  y   | gzipped | raw  |
+|----|------|------|---------|------|
+| 13 | 2286 | 3211 | 9KB     | 12KB |
+| 13 | 2340 | 2961 | 9KB     | 12KB |
 
 To make it easier to look at these tiles on a map, you can define following macros that convert z/x/y coordinates to
 lat/lons:
 
 ```sql
-create macro lon(z, x) as (x/2**z) * 360 - 180;
-create macro lat_n(z, y) as pi() - 2 * pi() * y/2**z;
-create macro lat(z, y) as degrees(atan(0.5*(exp(lat_n(z, y)) - exp(-lat_n(z, y)))));
-create or replace macro debug_url(z, x, y) as concat(
+CREATE MACRO lon(z, x) AS (x/2**z) * 360 - 180;
+CREATE MACRO lat_n(z, y) AS pi() - 2 * pi() * y/2**z;
+CREATE MACRO lat(z, y) AS degrees(atan(0.5*(exp(lat_n(z, y)) - exp(-lat_n(z, y)))));
+CREATE MACRO debug_url(z, x, y) as concat(
   'https://protomaps.github.io/PMTiles/#map=',
   z + 0.5, '/',
   round(lat(z, x + 0.5), 5), '/',
   round(lon(z, y + 0.5), 5)
 );
 
-select z, x, y, debug_url(z, x, y), layer, layer_bytes
-from layerstats order by layer_bytes desc limit 2;
+SELECT z, x, y, debug_url(z, x, y), layer, format_bytes(layer_bytes)
+FROM layerstats ORDER BY layer_bytes DESC LIMIT 2;
 ```
 
-| z  |  x   |  y   |                       debug_url(z, x, y)                       |  layer   | layer_bytes |
-|----|------|------|----------------------------------------------------------------|----------|-------------|
-| 14 | 6435 | 8361 | https://protomaps.github.io/PMTiles/#map=14.5/35.96912/3.72437 | building | 799971      |
-| 14 | 6435 | 8364 | https://protomaps.github.io/PMTiles/#map=14.5/35.96912/3.79028 | building | 693563      |
+| z  |   x   |  y   |                        debug_url(z, x, y)                         |    layer    | format_bytes(layer_bytes) |
+|----|-------|------|-------------------------------------------------------------------|-------------|---------------------------|
+| 14 | 13722 | 7013 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32335/-25.89478 | housenumber | 2.4MB                     |
+| 14 | 13723 | 7014 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32855/-25.8728  | housenumber | 1.8MB                     |
 
 Drag and drop your pmtiles archive to the pmtiles debugger to see the large tiles on a map. You can also switch to the
 "inspect" tab to inspect an individual tile.
@@ -131,45 +135,45 @@ of [OSM tile logs](https://planet.openstreetmap.org/tile_logs/) from summer 2023
 You can load these sample weights using duckdb's [httpfs module](https://duckdb.org/docs/extensions/httpfs.html):
 
 ```sql
-install httpfs;
-create table weights as select z, x, y, loads from 'https://raw.githubusercontent.com/onthegomap/planetiler/main/layerstats/top_osm_tiles.tsv.gz';
+INSTALL httpfs;
+CREATE TABLE weights AS SELECT z, x, y, loads FROM 'https://raw.githubusercontent.com/onthegomap/planetiler/main/layerstats/top_osm_tiles.tsv.gz';
 ```
 
 Then compute the weighted average tile size:
 
 ```sql
-select
-sum(gzipped * loads) / sum(loads) / 1000 gzipped_avg_kb,
-sum(raw * loads) / sum(loads) / 1000 raw_avg_kb,
-from tilestats join weights using (z, x, y);
+SELECT
+format_bytes((sum(gzipped * loads) / sum(loads))::int) gzipped_avg,
+format_bytes((sum(raw * loads) / sum(loads))::int) raw_avg,
+FROM tilestats JOIN weights USING (z, x, y);
 ```
 
-|   gzipped_avg_kb   |    raw_avg_kb     |
-|--------------------|-------------------|
-| 47.430680122547145 | 68.06047582043456 |
+| gzipped_avg | raw_avg |
+|-------------|---------|
+| 81KB        | 132KB   |
 
 If you are working with an extract, then the low-zoom tiles will dominate, so you can make the weighted average respect
 the per-zoom weights that appear globally:
 
 ```sql
-with zoom_weights as (
-  select z, sum(loads) loads from weights group by z
+WITH zoom_weights AS (
+  SELECT z, sum(loads) loads FROM weights GROUP BY z
 ),
-zoom_avgs as (
-  select
+zoom_avgs AS (
+  SELECT
   z,
   sum(gzipped * loads) / sum(loads) gzipped,
   sum(raw * loads) / sum(loads) raw,
-  from tilestats join weights using (z, x, y)
-  group by z
+  FROM tilestats JOIN weights USING (z, x, y)
+  GROUP BY z
 )
-select
-sum(gzipped * loads) / sum(loads) / 1000 gzipped_avg_kb,
-sum(raw * loads) / sum(loads) / 1000 raw_avg_kb,
-from zoom_avgs join zoom_weights using (z);
+SELECT
+format_bytes((sum(gzipped * loads) / sum(loads))::int) gzipped_avg,
+format_bytes((sum(raw * loads) / sum(loads))::int) raw_avg,
+FROM zoom_avgs JOIN zoom_weights USING (z);
 ```
 
-|  gzipped_avg_kb   |    raw_avg_kb     |
-|-------------------|-------------------|
-| 47.42996479265248 | 68.05934476347593 |
+| gzipped_avg | raw_avg |
+|-------------|---------|
+| 81KB        | 132KB   |
 
