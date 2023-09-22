@@ -725,7 +725,7 @@ public class Planetiler {
       download();
     }
     if (fetchOsmTileStats) {
-      TopOsmTiles.downloadPrecomputed(config, stats);
+      TopOsmTiles.downloadPrecomputed(config);
     }
     ensureInputFilesExist();
 

@@ -1,6 +1,9 @@
 package com.onthegomap.planetiler.util;
 
 import static com.onthegomap.planetiler.util.Exceptions.throwFatalException;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.google.common.io.LineReader;
 import com.onthegomap.planetiler.config.Arguments;
@@ -45,7 +48,7 @@ import org.tukaani.xz.XZInputStream;
  * </pre>
  * <p>
  * You can also fetch precomputed top-1m tile stats from summer 2023 using
- * {@link #downloadPrecomputed(PlanetilerConfig, Stats)}
+ * {@link #downloadPrecomputed(PlanetilerConfig)}
  */
 public class TopOsmTiles {
 
@@ -180,10 +183,27 @@ public class TopOsmTiles {
    * Download precomputed top-1m tile stats from 90 days of openstreetmap.org tile logs to
    * {@link PlanetilerConfig#tileWeights()} path if they don't already exist.
    */
-  public static void downloadPrecomputed(PlanetilerConfig config, Stats stats) {
-    if (!Files.exists(config.tileWeights())) {
-      Downloader.create(config, stats)
-        .downloadIfNecessary(new Downloader.ResourceToDownload("osm-tile-weights", DOWLOAD_URL, config.tileWeights()));
+  @SuppressWarnings("java:S2142")
+  public static void downloadPrecomputed(PlanetilerConfig config) {
+    var dest = config.tileWeights();
+    if (!Files.exists(dest)) {
+      var tmp = dest.resolveSibling(dest.getFileName() + ".tmp");
+      FileUtils.deleteOnExit(tmp);
+      try {
+        try (
+          var in = Downloader.openStream(DOWLOAD_URL, config);
+          var out = Files.newOutputStream(tmp, CREATE, TRUNCATE_EXISTING, WRITE)
+        ) {
+          LOGGER.info("Downloading pre-computed tile weights from {} to {}", DOWLOAD_URL, dest);
+          in.transferTo(out);
+        }
+        Files.move(tmp, dest);
+      } catch (IOException e) {
+        LOGGER.warn("Failed downloading pre-computed tile weights: {}", e.toString());
+        FileUtils.delete(dest);
+      } finally {
+        FileUtils.delete(tmp);
+      }
     }
   }
 }
