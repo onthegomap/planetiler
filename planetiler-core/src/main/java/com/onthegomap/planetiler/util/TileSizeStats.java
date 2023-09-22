@@ -70,7 +70,7 @@ public class TileSizeStats {
     var stats = Stats.inMemory();
     var download = arguments.getBoolean("download_osm_tile_weights", "download OSM tile weights file", true);
     if (download && !Files.exists(config.tileWeights())) {
-      TopOsmTiles.downloadPrecomputed(config, stats);
+      TopOsmTiles.downloadPrecomputed(config);
     }
     var tileStats = new TilesetSummaryStatistics(TileWeights.readFromFile(config.tileWeights()));
     var inputString = arguments.getString("input", "input file");
