@@ -113,23 +113,23 @@ CREATE MACRO debug_url(z, x, y) as concat(
   round(lon(z, y + 0.5), 5)
 );
 
-SELECT z, x, y, debug_url(z, x, y), layer, format_bytes(layer_bytes)
+SELECT z, x, y, debug_url(z, x, y), layer, format_bytes(layer_bytes) size
 FROM layerstats ORDER BY layer_bytes DESC LIMIT 2;
 ```
 
-| z  |   x   |  y   |                        debug_url(z, x, y)                         |    layer    | format_bytes(layer_bytes) |
-|----|-------|------|-------------------------------------------------------------------|-------------|---------------------------|
-| 14 | 13722 | 7013 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32335/-25.89478 | housenumber | 2.4MB                     |
-| 14 | 13723 | 7014 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32855/-25.8728  | housenumber | 1.8MB                     |
+| z  |   x   |  y   |                        debug_url(z, x, y)                         |    layer    | size  |
+|----|-------|------|-------------------------------------------------------------------|-------------|-------|
+| 14 | 13722 | 7013 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32335/-25.89478 | housenumber | 2.4MB |
+| 14 | 13723 | 7014 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32855/-25.8728  | housenumber | 1.8MB |
 
 Drag and drop your pmtiles archive to the pmtiles debugger to see the large tiles on a map. You can also switch to the
 "inspect" tab to inspect an individual tile.
 
-#### Computing Weighted Averages
+#### Computing Weighted Average Tile Sizes
 
 If you compute a straight average tile size, it will be dominated by ocean tiles that no one looks at. You can compute a
 weighted average based on actual usage by joining with a `z, x, y, loads` tile source. For
-convenience, `top_osm_tiles.tsv.gz` has the top 1 million tiles from 90 days
+convenience, [top_osm_tiles.tsv.gz](top_osm_tiles.tsv.gz) has the top 1 million tiles from 90 days
 of [OSM tile logs](https://planet.openstreetmap.org/tile_logs/) from summer 2023.
 
 You can load these sample weights using duckdb's [httpfs module](https://duckdb.org/docs/extensions/httpfs.html):
@@ -172,8 +172,4 @@ format_bytes((sum(gzipped * loads) / sum(loads))::int) gzipped_avg,
 format_bytes((sum(raw * loads) / sum(loads))::int) raw_avg,
 FROM zoom_avgs JOIN zoom_weights USING (z);
 ```
-
-| gzipped_avg | raw_avg |
-|-------------|---------|
-| 81KB        | 132KB   |
 
