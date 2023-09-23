@@ -21,11 +21,14 @@ package com.onthegomap.planetiler;
 import static com.onthegomap.planetiler.TestUtils.*;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.google.common.primitives.Ints;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -515,6 +518,20 @@ class VectorTileTest {
         })
       )
       ));
+  }
+
+  @Test
+  void testUnscaleDegenerate() throws GeometryException {
+    var lessThanOnePx = 256d / 4096 / 4;
+    var encoded = VectorTile.encodeGeometry(newLineString(0, 0, lessThanOnePx, lessThanOnePx), 2);
+    assertEquals(6, encoded.commands().length);
+    var unscaled = encoded.unscale();
+    assertEquals(0, unscaled.commands().length);
+    assertFalse(encoded.isEmpty());
+    assertTrue(unscaled.isEmpty());
+    assertEquals(GeoUtils.EMPTY_GEOMETRY, unscaled.decode());
+    var reEncoded = VectorTile.encodeGeometry(unscaled.decode());
+    assertEquals(0, reEncoded.commands().length);
   }
 
   private void assertSameGeometry(Geometry expected, Geometry actual) {

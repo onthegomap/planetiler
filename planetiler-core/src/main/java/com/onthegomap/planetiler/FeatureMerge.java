@@ -25,10 +25,6 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.MultiLineString;
-import org.locationtech.jts.geom.MultiPoint;
-import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.index.strtree.STRtree;
@@ -94,39 +90,27 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
     return mergeGeometries(
       features,
-      GeometryType.POINT,
-      Point.class,
-      MultiPoint.class,
-      GeoUtils::combinePoints
+      GeometryType.POINT
     );
   }
 
   public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
     return mergeGeometries(
       features,
-      GeometryType.POLYGON,
-      Polygon.class,
-      MultiPolygon.class,
-      GeoUtils::combinePolygons
+      GeometryType.POLYGON
     );
   }
 
   public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
     return mergeGeometries(
       features,
-      GeometryType.LINE,
-      LineString.class,
-      MultiLineString.class,
-      GeoUtils::combineLineStrings
+      GeometryType.LINE
     );
   }
 
-  private static <S extends Geometry, M extends GeometryCollection> List<VectorTile.Feature> mergeGeometries(
+  private static List<VectorTile.Feature> mergeGeometries(
     List<VectorTile.Feature> features,
-    GeometryType geometryType,
-    Class<S> singleClass,
-    Class<M> multiClass,
-    Function<List<S>, Geometry> combine
+    GeometryType geometryType
   ) {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, geometryType);
@@ -135,28 +119,11 @@ public class FeatureMerge {
       if (groupedFeatures.size() == 1) {
         result.add(feature1);
       } else {
-        List<S> geoms = new ArrayList<>();
+        VectorTile.VectorGeometryMerger combined = VectorTile.newMerger(geometryType);
         for (var feature : groupedFeatures) {
-          try {
-            // TODO can we avoid decoding/encoding?
-            var geom = feature.geometry().decode();
-            if (singleClass.isInstance(geom)) {
-              geoms.add(singleClass.cast(geom));
-            } else if (multiClass.isInstance(geom)) {
-              var mp = multiClass.cast(geom);
-              for (int i = 0; i < mp.getNumGeometries(); i++) {
-                geoms.add(singleClass.cast(mp.getGeometryN(i)));
-              }
-            } else if (LOGGER.isWarnEnabled()) {
-              LOGGER.warn("Unexpected geometry type in merge({}): {}",
-                geometryType.name().toLowerCase(),
-                geom.getClass());
-            }
-          } catch (GeometryException e) {
-            e.log("Error merging merging into a multi" + geometryType.name().toLowerCase() + ": " + feature);
-          }
+          combined.accept(feature.geometry());
         }
-        result.add(feature1.copyWithNewGeometry(combine.apply(geoms)));
+        result.add(feature1.copyWithNewGeometry(combined.finish()));
       }
     }
     return result;

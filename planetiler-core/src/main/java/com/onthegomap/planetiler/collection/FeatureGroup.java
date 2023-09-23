@@ -368,7 +368,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         if (feature != null) {
           VectorTile.VectorGeometry geometry = feature.geometry();
           if (geometry.scale() != 0) {
-            features.set(i, feature.copyWithNewGeometry(geometry.unscale()));
+            var unscaled = geometry.unscale();
+            features.set(i, unscaled.isEmpty() ? null : feature.copyWithNewGeometry(unscaled));
           }
         }
       }

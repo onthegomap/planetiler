@@ -85,6 +85,7 @@ class PlanetilerTests {
   private static final int Z13_TILES = 1 << 13;
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
+  private static final double Z12_WIDTH = 1d / Z12_TILES;
   private static final int Z4_TILES = 1 << 4;
   private static final Polygon WORLD_POLYGON = newPolygon(
     worldCoordinateList(
@@ -467,6 +468,33 @@ class PlanetilerTests {
         feature(newLineString(64, 64, 192, 192), Map.of())
       )
     ), results.tiles);
+  }
+
+  @Test
+  void testLineStringDegenerateWhenUnscaled() throws Exception {
+    double x1 = 0.5 + Z12_WIDTH / 2;
+    double y1 = 0.5 + Z12_WIDTH / 2;
+    double x2 = x1 + Z12_WIDTH / 4096 / 3;
+    double y2 = y1 + Z12_WIDTH / 4096 / 3;
+    double lat1 = GeoUtils.getWorldLat(y1);
+    double lng1 = GeoUtils.getWorldLon(x1);
+    double lat2 = GeoUtils.getWorldLat(y2);
+    double lng2 = GeoUtils.getWorldLon(x2);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(lng1, lat1, lng2, lat2), Map.of(
+          "attr", "value"
+        ))
+      ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(12, 12)
+        .setMinPixelSize(0)
+        .setBufferPixels(4)
+    );
+
+    assertSubmap(Map.of(), results.tiles);
   }
 
   @Test

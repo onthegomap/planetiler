@@ -8,16 +8,17 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -727,9 +728,9 @@ class FeatureMergeTest {
 
   public static void main(String[] args) {
     List<VectorTile.Feature> features = new ArrayList<>();
-    for (int i = 0; i < 1_000; i++) {
-      double[] points = IntStream.range(0, 100).mapToDouble(Double::valueOf).toArray();
-      var lineString = newLineString(points);
+    Random r = new Random(0);
+    for (int i = 0; i < 100_000; i++) {
+      var lineString = newPoint(r.nextDouble(256), r.nextDouble(256));
       features.add(new VectorTile.Feature("layer", i, VectorTile.encodeGeometry(lineString), Map.of("a", 1)));
     }
     for (int j = 0; j < 10; j++) {
@@ -751,6 +752,7 @@ class FeatureMergeTest {
     var geom2 = generateGeometry.apply(2);
     var geom3 = generateGeometry.apply(3);
     var geom4 = generateGeometry.apply(4);
+    var geom5 = generateGeometry.apply(5);
 
     assertTopologicallyEquivalentFeatures(
       List.of(),
@@ -771,15 +773,17 @@ class FeatureMergeTest {
     assertTopologicallyEquivalentFeatures(
       List.of(
         feature(4, otherGeometry, Map.of("a", 1)),
-        feature(1, combineJTS.apply(List.of(geom1, geom2, geom3)), Map.of("a", 1)),
-        feature(3, geom4, Map.of("a", 2))
+        feature(1, combineJTS.apply(List.of(geom1, geom2, geom3, geom4)), Map.of("a", 1)),
+        feature(3, geom5, Map.of("a", 2))
       ),
       merge.apply(
         List.of(
-          feature(1, geom1, Map.of("a", 1)),
-          feature(2, combineJTS.apply(List.of(geom2, geom3)), Map.of("a", 1)),
-          feature(3, geom4, Map.of("a", 2)),
-          feature(4, otherGeometry, Map.of("a", 1))
+          feature(1, combineJTS.apply(List.of(geom1, geom2)), Map.of("a", 1)),
+          feature(2, combineJTS.apply(List.of(geom3, geom4)), Map.of("a", 1)),
+          feature(3, geom5, Map.of("a", 2)),
+          feature(4, otherGeometry, Map.of("a", 1)),
+          new VectorTile.Feature("layer", 5, new VectorTile.VectorGeometry(new int[0], GeometryType.typeOf(geom1), 0),
+            Map.of("a", 1))
         )
       )
     );

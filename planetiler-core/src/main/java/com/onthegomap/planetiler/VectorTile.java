@@ -31,7 +31,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -206,6 +208,11 @@ public class VectorTile {
           length = commands[i++];
           command = length & ((1 << 3) - 1);
           length = length >> 3;
+          assert geomType != GeometryType.POINT || i == 1 : "Invalid multipoint, command found at index %d, expected 0"
+            .formatted(i);
+          assert geomType != GeometryType.POINT ||
+            (length * 2 + 1 == geometryCount) : "Invalid multipoint: int[%d] length=%d".formatted(geometryCount,
+              length);
         }
 
         if (length > 0) {
@@ -405,6 +412,14 @@ public class VectorTile {
   }
 
   /**
+   * Returns a new {@link VectorGeometryMerger} that combines encoded geometries of the same type into a merged
+   * multipoint, multilinestring, or multipolygon.
+   */
+  public static VectorGeometryMerger newMerger(GeometryType geometryType) {
+    return new VectorGeometryMerger(geometryType);
+  }
+
+  /**
    * Adds features in a layer to this tile.
    *
    * @param layerName name of the layer in this tile to add the features to
@@ -557,6 +572,82 @@ public class VectorTile {
 
     Command(int value) {
       this.value = value;
+    }
+  }
+
+  /**
+   * Utility that combines encoded geometries of the same type into a merged multipoint, multilinestring, or
+   * multipolygon.
+   */
+  public static class VectorGeometryMerger implements Consumer<VectorGeometry> {
+
+    private final GeometryType geometryType;
+    int overallX = 0;
+    int overallY = 0;
+    private final IntArrayList result = new IntArrayList();
+
+    private VectorGeometryMerger(GeometryType geometryType) {
+      this.geometryType = geometryType;
+    }
+
+    @Override
+    public void accept(VectorGeometry vectorGeometry) {
+      if (vectorGeometry.geomType != geometryType) {
+        throw new IllegalArgumentException(
+          "Cannot merge a " + vectorGeometry.geomType.name().toLowerCase(Locale.ROOT) + " geometry into a multi" +
+            vectorGeometry.geomType.name().toLowerCase(Locale.ROOT));
+      }
+      if (vectorGeometry.isEmpty()) {
+        return;
+      }
+      var commands = vectorGeometry.unscale().commands();
+      int x = 0;
+      int y = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int command = 0;
+      int i = 0;
+
+      // For the most part combining geometries just entails concatenating the commands
+      // EXCEPT we need to adjust the first coordinate of each subsequent linestring to
+      // be an offset from the end of the previous linestring
+      result.ensureCapacity(result.elementsCount + commands.length);
+      // and multipoints will end up with only one command ("move to" with length=# points)
+      if (geometryType != GeometryType.POINT || result.isEmpty()) {
+        result.add(commands[0]);
+      }
+      result.add(zigZagEncode(zigZagDecode(commands[1]) - overallX));
+      result.add(zigZagEncode(zigZagDecode(commands[2]) - overallY));
+      if (commands.length > 3) {
+        result.add(commands, 3, commands.length - 3);
+      }
+
+      while (i < geometryCount) {
+        if (length <= 0) {
+          length = commands[i++];
+          command = length & ((1 << 3) - 1);
+          length = length >> 3;
+        }
+
+        if (length > 0) {
+          length--;
+          if (command != Command.CLOSE_PATH.value) {
+            x += zigZagDecode(commands[i++]);
+            y += zigZagDecode(commands[i++]);
+          }
+        }
+      }
+      overallX = x;
+      overallY = y;
+    }
+
+    public VectorGeometry finish() {
+      // set the correct "move to" length for multipoints based on how many points were actually added
+      if (geometryType == GeometryType.POINT) {
+        result.buffer[0] = Command.MOVE_TO.value | (((result.size() - 1) / 2) << 3);
+      }
+      return new VectorGeometry(result.toArray(), geometryType, 0);
     }
   }
 
@@ -759,6 +850,9 @@ public class VectorTile {
       return visitedEnoughSides(allowEdges, visited);
     }
 
+    public boolean isEmpty() {
+      return commands.length == 0;
+    }
   }
 
   /**
