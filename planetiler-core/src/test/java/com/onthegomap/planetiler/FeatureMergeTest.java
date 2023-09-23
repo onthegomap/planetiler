@@ -11,11 +11,9 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
@@ -723,23 +721,6 @@ class FeatureMergeTest {
       newPoint(0, 0),
       FeatureMerge::mergeMultiLineString
     );
-  }
-
-
-  public static void main(String[] args) {
-    List<VectorTile.Feature> features = new ArrayList<>();
-    Random r = new Random(0);
-    for (int i = 0; i < 100_000; i++) {
-      var lineString = newPoint(r.nextDouble(256), r.nextDouble(256));
-      features.add(new VectorTile.Feature("layer", i, VectorTile.encodeGeometry(lineString), Map.of("a", 1)));
-    }
-    for (int j = 0; j < 10; j++) {
-      long start = System.currentTimeMillis();
-      for (int i = 0; i < 1_000; i++) {
-        FeatureMerge.mergeMultiLineString(features);
-      }
-      System.err.println(System.currentTimeMillis() - start);
-    }
   }
 
   <S extends Geometry, M extends GeometryCollection> void testMultigeometryMerger(

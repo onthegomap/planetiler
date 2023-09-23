@@ -87,25 +87,30 @@ public class FeatureMerge {
     return mergeLineStrings(features, minLength, tolerance, buffer, false);
   }
 
+  /** Merges points with the same attributes into multipoints. */
   public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
-    return mergeGeometries(
-      features,
-      GeometryType.POINT
-    );
+    return mergeGeometries(features, GeometryType.POINT);
   }
 
+  /**
+   * Merges polygons with the same attributes into multipolygons.
+   * <p>
+   * NOTE: This does not attempt to combine overlapping geometries, see {@link #mergeOverlappingPolygons(List, double)}
+   * or {@link #mergeNearbyPolygons(List, double, double, double, double)} for that.
+   */
   public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
-    return mergeGeometries(
-      features,
-      GeometryType.POLYGON
-    );
+    return mergeGeometries(features, GeometryType.POLYGON);
   }
 
+  /**
+   * Merges linestrings with the same attributes into multilinestrings.
+   * <p>
+   * NOTE: This does not attempt to connect linestrings that intersect at endpoints, see
+   * {@link #mergeLineStrings(List, double, double, double, boolean)} for that. Also, this removes extra detail that was
+   * preserved to improve connected-linestring merging, so you should only use one or the other.
+   */
   public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
-    return mergeGeometries(
-      features,
-      GeometryType.LINE
-    );
+    return mergeGeometries(features, GeometryType.LINE);
   }
 
   private static List<VectorTile.Feature> mergeGeometries(
