@@ -458,8 +458,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
     }
 
-    public VectorTile getVectorTileEncoder() {
-      VectorTile encoder = new VectorTile();
+    public VectorTile getVectorTile() {
+      VectorTile tile = new VectorTile();
       List<VectorTile.Feature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
       for (SortableFeature entry : entries) {
@@ -469,15 +469,15 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         if (currentLayer == null) {
           currentLayer = layer;
         } else if (!currentLayer.equals(layer)) {
-          postProcessAndAddLayerFeatures(encoder, currentLayer, items);
+          postProcessAndAddLayerFeatures(tile, currentLayer, items);
           currentLayer = layer;
           items.clear();
         }
 
         items.add(feature);
       }
-      postProcessAndAddLayerFeatures(encoder, currentLayer, items);
-      return encoder;
+      postProcessAndAddLayerFeatures(tile, currentLayer, items);
+      return tile;
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,

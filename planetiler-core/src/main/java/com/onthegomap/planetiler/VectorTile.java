@@ -178,7 +178,7 @@ public class VectorTile {
     return result.toArray();
   }
 
-  private static int zigZagEncode(int n) {
+  static int zigZagEncode(int n) {
     // https://developers.google.com/protocol-buffers/docs/encoding#types
     return (n << 1) ^ (n >> 31);
   }
@@ -426,7 +426,7 @@ public class VectorTile {
    * @param features  features to add to the tile
    * @return this encoder for chaining
    */
-  public VectorTile addLayerFeatures(String layerName, List<? extends Feature> features) {
+  public VectorTile addLayerFeatures(String layerName, List<Feature> features) {
     if (features.isEmpty()) {
       return this;
     }
@@ -563,7 +563,7 @@ public class VectorTile {
     return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFillsOrEdges();
   }
 
-  private enum Command {
+  enum Command {
     MOVE_TO(1),
     LINE_TO(2),
     CLOSE_PATH(7);
@@ -855,6 +855,63 @@ public class VectorTile {
     public boolean isEmpty() {
       return commands.length == 0;
     }
+
+    public VectorGeometry filterPointsOutsideBuffer(double buffer) {
+      if (geomType != GeometryType.POINT) {
+        return this;
+      }
+      IntArrayList result = null;
+
+      int extent = (EXTENT << scale);
+      int bufferInt = (int) Math.ceil(buffer * extent / 256);
+      int min = -bufferInt;
+      int max = extent + bufferInt;
+
+      int x = 0;
+      int y = 0;
+      int lastX = 0;
+      int lastY = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int i = 0;
+
+      while (i < geometryCount) {
+        if (length <= 0) {
+          length = commands[i++] >> 3;
+          assert i <= 1 : "Bad index " + i;
+        }
+
+        if (length > 0) {
+          length--;
+          x += zigZagDecode(commands[i++]);
+          y += zigZagDecode(commands[i++]);
+          if (x < min || y < min || x > max || y > max) {
+            if (result == null) {
+              result = new IntArrayList(commands.length);
+              result.add(commands, 0, i - 2);
+            }
+          } else {
+            if (result != null) {
+              result.add(zigZagEncode(x - lastX), zigZagEncode(y - lastY));
+            }
+            lastX = x;
+            lastY = y;
+          }
+        }
+      }
+      if (result != null) {
+        if (result.size() < 3) {
+          result.elementsCount = 0;
+        } else {
+          result.set(0, Command.MOVE_TO.value | (((result.size() - 1) / 2) << 3));
+        }
+
+        return new VectorGeometry(result.toArray(), geomType, scale);
+      } else {
+        return this;
+      }
+    }
   }
 
   /**
@@ -903,7 +960,7 @@ public class VectorTile {
      * Returns a copy of this feature with {@code geometry} replaced with {@code newGeometry}.
      */
     public Feature copyWithNewGeometry(VectorGeometry newGeometry) {
-      return new Feature(
+      return newGeometry == geometry ? this : new Feature(
         layer,
         id,
         newGeometry,

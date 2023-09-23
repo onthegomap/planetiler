@@ -90,7 +90,7 @@ class FeatureGroupTest {
   private Map<Integer, Map<String, List<Feature>>> getFeatures() {
     Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
     for (FeatureGroup.TileFeatures tile : features) {
-      for (var feature : VectorTile.decode(tile.getVectorTileEncoder().encode())) {
+      for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
           .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
@@ -104,7 +104,7 @@ class FeatureGroupTest {
     Map<Integer, Map<String, List<Feature>>> map = new TreeMap<>();
     var reader = features.parallelIterator(2);
     for (FeatureGroup.TileFeatures tile : reader.result()) {
-      for (var feature : VectorTile.decode(tile.getVectorTileEncoder().encode())) {
+      for (var feature : VectorTile.decode(tile.getVectorTile().encode())) {
         map.computeIfAbsent(tile.tileCoord().encoded(), (i) -> new TreeMap<>())
           .computeIfAbsent(feature.layer(), l -> new ArrayList<>())
           .add(new Feature(feature.attrs(), decodeSilently(feature.geometry())));
@@ -447,10 +447,10 @@ class FeatureGroupTest {
     sorter.sort();
     var iter = features.iterator();
     var tileHash0 = TileArchiveWriter.generateContentHash(
-      Gzip.gzip(iter.next().getVectorTileEncoder().encode())
+      Gzip.gzip(iter.next().getVectorTile().encode())
     );
     var tileHash1 = TileArchiveWriter.generateContentHash(
-      Gzip.gzip(iter.next().getVectorTileEncoder().encode())
+      Gzip.gzip(iter.next().getVectorTile().encode())
     );
     if (expectSame) {
       assertEquals(tileHash0, tileHash1);

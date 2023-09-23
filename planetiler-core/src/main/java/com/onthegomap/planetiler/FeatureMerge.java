@@ -532,4 +532,27 @@ public class FeatureMerge {
       }
     }
   }
+
+  /**
+   * Returns a new list of features with points that are more than {@code buffer} pixels outside the tile boundary
+   * removed, assuming a 256x256px tile.
+   */
+  public static List<VectorTile.Feature> removePointsOutsideBuffer(List<VectorTile.Feature> features, double buffer) {
+    if (!Double.isFinite(buffer)) {
+      return features;
+    }
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    for (var feature : features) {
+      var geometry = feature.geometry();
+      if (geometry.geomType() == GeometryType.POINT) {
+        var newGeometry = geometry.filterPointsOutsideBuffer(buffer);
+        if (!newGeometry.isEmpty()) {
+          result.add(feature.copyWithNewGeometry(newGeometry));
+        }
+      } else {
+        result.add(feature);
+      }
+    }
+    return result;
+  }
 }

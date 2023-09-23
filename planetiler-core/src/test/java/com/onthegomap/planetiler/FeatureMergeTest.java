@@ -11,9 +11,11 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
@@ -32,7 +34,7 @@ class FeatureMergeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMergeTest.class);
 
-  private VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
+  private static VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
     return new VectorTile.Feature(
       "layer",
       id,
@@ -768,5 +770,115 @@ class FeatureMergeTest {
         )
       )
     );
+  }
+
+  @Test
+  void removePointsOutsideBufferEmpty() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+  }
+
+  @Test
+  void removePointsOutsideBufferSinglePoints() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, newPoint(0, 0), Map.of()),
+        feature(1, newPoint(256, 256), Map.of()),
+        feature(1, newPoint(-4, -4), Map.of()),
+        feature(1, newPoint(-4, 260), Map.of()),
+        feature(1, newPoint(260, -4), Map.of()),
+        feature(1, newPoint(260, 260), Map.of())
+      ),
+      FeatureMerge.removePointsOutsideBuffer(
+        List.of(
+          feature(1, newPoint(0, 0), Map.of()),
+          feature(1, newPoint(256, 256), Map.of()),
+          feature(1, newPoint(-4, -4), Map.of()),
+          feature(1, newPoint(-4, 260), Map.of()),
+          feature(1, newPoint(260, -4), Map.of()),
+          feature(1, newPoint(260, 260), Map.of()),
+          feature(1, newPoint(-5, -5), Map.of()),
+          feature(1, newPoint(-5, 261), Map.of()),
+          feature(1, newPoint(261, -5), Map.of()),
+          feature(1, newPoint(261, 261), Map.of())
+        ),
+        4d
+      )
+    );
+  }
+
+  @Test
+  void removePointsOutsideBufferMultiPoints() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, newMultiPoint(
+          newPoint(0, 0),
+          newPoint(256, 256),
+          newPoint(-4, -4),
+          newPoint(-4, 260),
+          newPoint(260, -4),
+          newPoint(260, 260)
+        ), Map.of())
+      ),
+      FeatureMerge.removePointsOutsideBuffer(
+        List.of(
+          feature(1, newMultiPoint(
+            newPoint(0, 0),
+            newPoint(256, 256),
+            newPoint(-4, -4),
+            newPoint(-4, 260),
+            newPoint(260, -4),
+            newPoint(260, 260),
+            newPoint(-5, -5),
+            newPoint(-5, 261),
+            newPoint(261, -5),
+            newPoint(261, 261)
+          ), Map.of()),
+          feature(1, newMultiPoint(
+            newPoint(-5, -5),
+            newPoint(-5, 261),
+            newPoint(261, -5),
+            newPoint(261, 261)
+          ), Map.of())
+        ),
+        4d
+      )
+    );
+  }
+
+  public static void main(String[] args) {
+    var random = new Random(0);
+    List<VectorTile.Feature> features = new ArrayList<>();
+    for (int i = 0; i < 10_000; i++) {
+      features.add(feature(1, newMultiPoint(
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
+        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8))
+      ), Map.of()));
+    }
+    for (int j = 0; j < 10; j++) {
+      long start = System.currentTimeMillis();
+      for (int i = 0; i < 10_000; i++) {
+        FeatureMerge.removePointsOutsideBuffer(features, 4);
+      }
+      System.err.println(System.currentTimeMillis() - start);
+    }
   }
 }

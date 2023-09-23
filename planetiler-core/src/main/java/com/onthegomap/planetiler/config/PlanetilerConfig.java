@@ -57,7 +57,8 @@ public record PlanetilerConfig(
   boolean outputLayerStats,
   String debugUrlPattern,
   Path tmpDir,
-  Path tileWeights
+  Path tileWeights,
+  double maxPointBuffer
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -202,7 +203,11 @@ public record PlanetilerConfig(
         "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
       tmpDir,
       arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
-        tmpDir.resolveSibling("tile_weights.tsv.gz"))
+        tmpDir.resolveSibling("tile_weights.tsv.gz")),
+      arguments.getDouble("max_point_buffer",
+        "Number of tile pixels outside which points should be removed before emitting a vector tile to reduce tile size.  " +
+          "NOTE: do not reduce this value for clients that process tiles in isolation (like raster tile serving)",
+        Double.POSITIVE_INFINITY)
     );
   }
 
