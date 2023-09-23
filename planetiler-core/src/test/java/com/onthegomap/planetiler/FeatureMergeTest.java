@@ -11,11 +11,9 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
@@ -854,31 +852,5 @@ class FeatureMergeTest {
         4d
       )
     );
-  }
-
-  public static void main(String[] args) {
-    var random = new Random(0);
-    List<VectorTile.Feature> features = new ArrayList<>();
-    for (int i = 0; i < 10_000; i++) {
-      features.add(feature(1, newMultiPoint(
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8)),
-        newPoint(random.nextDouble(-8, 256 + 8), random.nextDouble(-8, 256 + 8))
-      ), Map.of()));
-    }
-    for (int j = 0; j < 10; j++) {
-      long start = System.currentTimeMillis();
-      for (int i = 0; i < 10_000; i++) {
-        FeatureMerge.removePointsOutsideBuffer(features, 4);
-      }
-      System.err.println(System.currentTimeMillis() - start);
-    }
   }
 }
