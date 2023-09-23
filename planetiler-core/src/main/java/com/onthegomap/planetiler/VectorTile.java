@@ -580,10 +580,15 @@ public class VectorTile {
    * multipolygon.
    */
   public static class VectorGeometryMerger implements Consumer<VectorGeometry> {
+    // For the most part this just concatenates the individual command arrays together
+    // EXCEPT we need to adjust the first coordinate of each subsequent linestring to
+    // be an offset from the end of the previous linestring.
+    // AND we need to combine all multipoint "move to" commands into one at the start of
+    // the sequence
 
     private final GeometryType geometryType;
-    int overallX = 0;
-    int overallY = 0;
+    private int overallX = 0;
+    private int overallY = 0;
     private final IntArrayList result = new IntArrayList();
 
     private VectorGeometryMerger(GeometryType geometryType) {
@@ -609,9 +614,6 @@ public class VectorTile {
       int command = 0;
       int i = 0;
 
-      // For the most part combining geometries just entails concatenating the commands
-      // EXCEPT we need to adjust the first coordinate of each subsequent linestring to
-      // be an offset from the end of the previous linestring
       result.ensureCapacity(result.elementsCount + commands.length);
       // and multipoints will end up with only one command ("move to" with length=# points)
       if (geometryType != GeometryType.POINT || result.isEmpty()) {
