@@ -672,6 +672,7 @@ public class VectorTile {
     private static final int BOTTOM = 1 << 3;
     private static final int INSIDE = 0;
     private static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
+    private static final VectorGeometry EMPTY_POINT = new VectorGeometry(new int[0], GeometryType.POINT, 0);
 
     public VectorGeometry {
       if (scale < 0) {
@@ -894,6 +895,10 @@ public class VectorTile {
           y += zigZagDecode(commands[i++]);
           if (x < min || y < min || x > max || y > max) {
             if (result == null) {
+              // short-circuit the common case of only a single point that gets filtered-out
+              if (commands.length == 3) {
+                return EMPTY_POINT;
+              }
               result = new IntArrayList(commands.length);
               result.add(commands, 0, i - 2);
             }
