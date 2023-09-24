@@ -205,8 +205,9 @@ public record PlanetilerConfig(
       arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
         tmpDir.resolveSibling("tile_weights.tsv.gz")),
       arguments.getDouble("max_point_buffer",
-        "Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for web and native clients. " +
-          "NOTE: do not reduce if clients need to to render labels on tiles in isolation (like raster tile serving)",
+        "Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for " +
+          "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
+          "raster tile rendering",
         Double.POSITIVE_INFINITY)
     );
   }
