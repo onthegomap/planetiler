@@ -11,7 +11,6 @@
  */
 package com.onthegomap.planetiler.geo;
 
-import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -46,26 +45,12 @@ public class DouglasPeuckerSimplifier {
     return (new DPTransformer(distanceTolerance)).transform(geom);
   }
 
-  public static Geometry simplify(Geometry geom, double distanceTolerance, double minHoleSize) {
-    if (geom.isEmpty()) {
-      return geom.copy();
-    }
-
-    return (new DPTransformer(distanceTolerance, minHoleSize)).transform(geom);
-  }
-
   private static class DPTransformer extends GeometryTransformer {
 
     private final double sqTolerance;
-    private final double minHoleSize;
 
     private DPTransformer(double distanceTolerance) {
-      this(distanceTolerance, 0);
-    }
-
-    private DPTransformer(double distanceTolerance, double minHoleSize) {
       this.sqTolerance = distanceTolerance * distanceTolerance;
-      this.minHoleSize = minHoleSize;
     }
 
     /**
@@ -157,8 +142,7 @@ public class DouglasPeuckerSimplifier {
     protected Geometry transformLinearRing(LinearRing geom, Geometry parent) {
       boolean removeDegenerateRings = parent instanceof Polygon;
       Geometry simpResult = super.transformLinearRing(geom, parent);
-      if (removeDegenerateRings && (!(simpResult instanceof LinearRing ring) ||
-        (minHoleSize > 0 && Area.ofRing(ring.getCoordinateSequence()) <= minHoleSize))) {
+      if (removeDegenerateRings && !(simpResult instanceof LinearRing)) {
         return null;
       }
       return simpResult;
