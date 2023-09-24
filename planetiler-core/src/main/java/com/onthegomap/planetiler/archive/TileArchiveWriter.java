@@ -277,13 +277,13 @@ public class TileArchiveWriter {
           layerStats = lastLayerStats;
           memoizedTiles.inc();
         } else {
-          VectorTile en = tileFeatures.getVectorTileEncoder();
-          if (skipFilled && (lastIsFill = en.containsOnlyFills())) {
+          VectorTile tile = tileFeatures.getVectorTile();
+          if (skipFilled && (lastIsFill = tile.containsOnlyFills())) {
             encoded = null;
             layerStats = null;
             bytes = null;
           } else {
-            var proto = en.toProto();
+            var proto = tile.toProto();
             encoded = proto.toByteArray();
             bytes = switch (config.tileCompression()) {
               case GZIP -> gzip(encoded);
@@ -301,7 +301,7 @@ public class TileArchiveWriter {
           lastEncoded = encoded;
           lastBytes = bytes;
           last = tileFeatures;
-          if (archive.deduplicates() && en.likelyToBeDuplicated() && bytes != null) {
+          if (archive.deduplicates() && tile.likelyToBeDuplicated() && bytes != null) {
             tileDataHash = generateContentHash(bytes);
           } else {
             tileDataHash = null;

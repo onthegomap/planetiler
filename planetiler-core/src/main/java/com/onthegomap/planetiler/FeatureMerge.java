@@ -87,6 +87,53 @@ public class FeatureMerge {
     return mergeLineStrings(features, minLength, tolerance, buffer, false);
   }
 
+  /** Merges points with the same attributes into multipoints. */
+  public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.POINT);
+  }
+
+  /**
+   * Merges polygons with the same attributes into multipolygons.
+   * <p>
+   * NOTE: This does not attempt to combine overlapping geometries, see {@link #mergeOverlappingPolygons(List, double)}
+   * or {@link #mergeNearbyPolygons(List, double, double, double, double)} for that.
+   */
+  public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.POLYGON);
+  }
+
+  /**
+   * Merges linestrings with the same attributes into multilinestrings.
+   * <p>
+   * NOTE: This does not attempt to connect linestrings that intersect at endpoints, see
+   * {@link #mergeLineStrings(List, double, double, double, boolean)} for that. Also, this removes extra detail that was
+   * preserved to improve connected-linestring merging, so you should only use one or the other.
+   */
+  public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.LINE);
+  }
+
+  private static List<VectorTile.Feature> mergeGeometries(
+    List<VectorTile.Feature> features,
+    GeometryType geometryType
+  ) {
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    var groupedByAttrs = groupByAttrs(features, result, geometryType);
+    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
+      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      if (groupedFeatures.size() == 1) {
+        result.add(feature1);
+      } else {
+        VectorTile.VectorGeometryMerger combined = VectorTile.newMerger(geometryType);
+        for (var feature : groupedFeatures) {
+          combined.accept(feature.geometry());
+        }
+        result.add(feature1.copyWithNewGeometry(combined.finish()));
+      }
+    }
+    return result;
+  }
+
   /**
    * Merges linestrings with the same attributes as {@link #mergeLineStrings(List, Function, double, double, boolean)}
    * except sets {@code resimplify=false} by default.
@@ -484,5 +531,28 @@ public class FeatureMerge {
         }
       }
     }
+  }
+
+  /**
+   * Returns a new list of features with points that are more than {@code buffer} pixels outside the tile boundary
+   * removed, assuming a 256x256px tile.
+   */
+  public static List<VectorTile.Feature> removePointsOutsideBuffer(List<VectorTile.Feature> features, double buffer) {
+    if (!Double.isFinite(buffer)) {
+      return features;
+    }
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    for (var feature : features) {
+      var geometry = feature.geometry();
+      if (geometry.geomType() == GeometryType.POINT) {
+        var newGeometry = geometry.filterPointsOutsideBuffer(buffer);
+        if (!newGeometry.isEmpty()) {
+          result.add(feature.copyWithNewGeometry(newGeometry));
+        }
+      } else {
+        result.add(feature);
+      }
+    }
+    return result;
   }
 }

@@ -8,15 +8,23 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.carrotsearch.hppc.IntObjectMap;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeometryException;
+import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +32,7 @@ class FeatureMergeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMergeTest.class);
 
-  private VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
+  private static VectorTile.Feature feature(long id, Geometry geom, Map<String, Object> attrs) {
     return new VectorTile.Feature(
       "layer",
       id,
@@ -681,6 +689,167 @@ class FeatureMergeTest {
         1,
         0,
         0
+      )
+    );
+  }
+
+  @Test
+  void mergeMultipoints() throws GeometryException {
+    testMultigeometryMerger(
+      i -> newPoint(i, 2 * i),
+      items -> newMultiPoint(items.toArray(Point[]::new)),
+      rectangle(0, 1),
+      FeatureMerge::mergeMultiPoint
+    );
+  }
+
+  @Test
+  void mergeMultipolygons() throws GeometryException {
+    testMultigeometryMerger(
+      i -> rectangle(i, i + 1),
+      items -> newMultiPolygon(items.toArray(Polygon[]::new)),
+      newPoint(0, 0),
+      FeatureMerge::mergeMultiPolygon
+    );
+  }
+
+  @Test
+  void mergeMultiline() throws GeometryException {
+    testMultigeometryMerger(
+      i -> newLineString(i, i + 1, i + 2, i + 3),
+      items -> newMultiLineString(items.toArray(LineString[]::new)),
+      newPoint(0, 0),
+      FeatureMerge::mergeMultiLineString
+    );
+  }
+
+  <S extends Geometry, M extends GeometryCollection> void testMultigeometryMerger(
+    IntFunction<S> generateGeometry,
+    Function<List<S>, M> combineJTS,
+    Geometry otherGeometry,
+    UnaryOperator<List<VectorTile.Feature>> merge
+  ) throws GeometryException {
+    var geom1 = generateGeometry.apply(1);
+    var geom2 = generateGeometry.apply(2);
+    var geom3 = generateGeometry.apply(3);
+    var geom4 = generateGeometry.apply(4);
+    var geom5 = generateGeometry.apply(5);
+
+    assertTopologicallyEquivalentFeatures(
+      List.of(),
+      merge.apply(List.of())
+    );
+
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, geom1, Map.of("a", 1))
+      ),
+      merge.apply(
+        List.of(
+          feature(1, geom1, Map.of("a", 1))
+        )
+      )
+    );
+
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(4, otherGeometry, Map.of("a", 1)),
+        feature(1, combineJTS.apply(List.of(geom1, geom2, geom3, geom4)), Map.of("a", 1)),
+        feature(3, geom5, Map.of("a", 2))
+      ),
+      merge.apply(
+        List.of(
+          feature(1, combineJTS.apply(List.of(geom1, geom2)), Map.of("a", 1)),
+          feature(2, combineJTS.apply(List.of(geom3, geom4)), Map.of("a", 1)),
+          feature(3, geom5, Map.of("a", 2)),
+          feature(4, otherGeometry, Map.of("a", 1)),
+          new VectorTile.Feature("layer", 5, new VectorTile.VectorGeometry(new int[0], GeometryType.typeOf(geom1), 0),
+            Map.of("a", 1))
+        )
+      )
+    );
+  }
+
+  @Test
+  void removePointsOutsideBufferEmpty() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+  }
+
+  @Test
+  void removePointsOutsideBufferSinglePoints() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, newPoint(0, 0), Map.of()),
+        feature(1, newPoint(256, 256), Map.of()),
+        feature(1, newPoint(-4, -4), Map.of()),
+        feature(1, newPoint(-4, 260), Map.of()),
+        feature(1, newPoint(260, -4), Map.of()),
+        feature(1, newPoint(260, 260), Map.of())
+      ),
+      FeatureMerge.removePointsOutsideBuffer(
+        List.of(
+          feature(1, newPoint(0, 0), Map.of()),
+          feature(1, newPoint(256, 256), Map.of()),
+          feature(1, newPoint(-4, -4), Map.of()),
+          feature(1, newPoint(-4, 260), Map.of()),
+          feature(1, newPoint(260, -4), Map.of()),
+          feature(1, newPoint(260, 260), Map.of()),
+          feature(1, newPoint(-5, -5), Map.of()),
+          feature(1, newPoint(-5, 261), Map.of()),
+          feature(1, newPoint(261, -5), Map.of()),
+          feature(1, newPoint(261, 261), Map.of())
+        ),
+        4d
+      )
+    );
+  }
+
+  @Test
+  void removePointsOutsideBufferMultiPoints() throws GeometryException {
+    assertEquals(
+      List.of(),
+      FeatureMerge.removePointsOutsideBuffer(List.of(), 4d)
+    );
+    assertTopologicallyEquivalentFeatures(
+      List.of(
+        feature(1, newMultiPoint(
+          newPoint(0, 0),
+          newPoint(256, 256),
+          newPoint(-4, -4),
+          newPoint(-4, 260),
+          newPoint(260, -4),
+          newPoint(260, 260)
+        ), Map.of())
+      ),
+      FeatureMerge.removePointsOutsideBuffer(
+        List.of(
+          feature(1, newMultiPoint(
+            newPoint(0, 0),
+            newPoint(256, 256),
+            newPoint(-4, -4),
+            newPoint(-4, 260),
+            newPoint(260, -4),
+            newPoint(260, 260),
+            newPoint(-5, -5),
+            newPoint(-5, 261),
+            newPoint(261, -5),
+            newPoint(261, 261)
+          ), Map.of()),
+          feature(1, newMultiPoint(
+            newPoint(-5, -5),
+            newPoint(-5, 261),
+            newPoint(261, -5),
+            newPoint(261, 261)
+          ), Map.of())
+        ),
+        4d
       )
     );
   }
