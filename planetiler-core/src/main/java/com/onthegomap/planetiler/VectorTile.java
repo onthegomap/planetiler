@@ -644,6 +644,7 @@ public class VectorTile {
       overallY = y;
     }
 
+    /** Returns the merged multi-geometry. */
     public VectorGeometry finish() {
       // set the correct "move to" length for multipoints based on how many points were actually added
       if (geometryType == GeometryType.POINT) {
@@ -852,10 +853,15 @@ public class VectorTile {
       return visitedEnoughSides(allowEdges, visited);
     }
 
+    /** Returns true if there are no commands in this geometry. */
     public boolean isEmpty() {
       return commands.length == 0;
     }
 
+    /**
+     * If this is a point, returns an empty geometry if more than {@code buffer} pixels outside the tile bounds, or if
+     * it is a multipoint than removes all points outside the buffer.
+     */
     public VectorGeometry filterPointsOutsideBuffer(double buffer) {
       if (geomType != GeometryType.POINT) {
         return this;
