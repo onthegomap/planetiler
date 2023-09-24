@@ -69,7 +69,8 @@ class SourceFeatureProcessorTest {
   void testProcessMultipleInputs() {
     var profile = new Profile.NullProfile();
     var stats = Stats.inMemory();
-    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, stats);
+    var config = PlanetilerConfig.defaults();
+    var featureGroup = FeatureGroup.newInMemoryFeatureGroup(TileOrder.TMS, profile, config, stats);
 
     var emittedFeatures = new ArrayList<SimpleFeature>();
     var paths = List.of(

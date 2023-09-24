@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
@@ -40,9 +41,10 @@ import org.locationtech.jts.geom.Geometry;
 class FeatureGroupTest {
 
   private final FeatureSort sorter = FeatureSort.newInMemory();
+  private final PlanetilerConfig config = PlanetilerConfig.defaults();
 
   private FeatureGroup features =
-    new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile(), Stats.inMemory());
+    new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile(), config, Stats.inMemory());
   private CloseableConsumer<SortableFeature> featureWriter = features.writerForThread();
 
   @Test
@@ -274,7 +276,7 @@ class FeatureGroupTest {
         Collections.reverse(items);
         return items;
       }
-    }, Stats.inMemory());
+    }, config, Stats.inMemory());
     featureWriter = features.writerForThread();
     putWithGroup(
       1, "layer", Map.of("id", 3), newPoint(5, 6), 2, 1, 2
@@ -298,7 +300,7 @@ class FeatureGroupTest {
 
   @Test
   void testHilbertOrdering() {
-    features = new FeatureGroup(sorter, TileOrder.HILBERT, new Profile.NullProfile() {}, Stats.inMemory());
+    features = new FeatureGroup(sorter, TileOrder.HILBERT, new Profile.NullProfile() {}, config, Stats.inMemory());
     featureWriter = features.writerForThread();
 
     // Hilbert tile IDs at zoom level 1:
@@ -337,7 +339,7 @@ class FeatureGroupTest {
 
   @Test
   void testTMSOrdering() {
-    features = new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile() {}, Stats.inMemory());
+    features = new FeatureGroup(sorter, TileOrder.TMS, new Profile.NullProfile() {}, config, Stats.inMemory());
     featureWriter = features.writerForThread();
 
     // TMS tile IDs at zoom level 1:
