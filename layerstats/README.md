@@ -109,18 +109,18 @@ CREATE MACRO lat(z, y) AS degrees(atan(0.5*(exp(lat_n(z, y)) - exp(-lat_n(z, y))
 CREATE MACRO debug_url(z, x, y) as concat(
   'https://protomaps.github.io/PMTiles/#map=',
   z + 0.5, '/',
-  round(lat(z, x + 0.5), 5), '/',
-  round(lon(z, y + 0.5), 5)
+  round(lat(z, y + 0.5), 5), '/',
+  round(lon(z, x + 0.5), 5)
 );
 
 SELECT z, x, y, debug_url(z, x, y), layer, format_bytes(layer_bytes) size
 FROM layerstats ORDER BY layer_bytes DESC LIMIT 2;
 ```
 
-| z  |   x   |  y   |                        debug_url(z, x, y)                         |    layer    | size  |
-|----|-------|------|-------------------------------------------------------------------|-------------|-------|
-| 14 | 13722 | 7013 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32335/-25.89478 | housenumber | 2.4MB |
-| 14 | 13723 | 7014 | https://protomaps.github.io/PMTiles/#map=14.5/-76.32855/-25.8728  | housenumber | 1.8MB |
+| z  |   x   |  y   |                        debug_url(z, x, y)                        |    layer    | size  |
+|----|-------|------|------------------------------------------------------------------|-------------|-------|
+| 14 | 13722 | 7013 | https://protomaps.github.io/PMTiles/#map=14.5/25.05575/121.51978 | housenumber | 2.4MB |
+| 14 | 13723 | 7014 | https://protomaps.github.io/PMTiles/#map=14.5/25.03584/121.54175 | housenumber | 1.8MB |
 
 Drag and drop your pmtiles archive to the pmtiles debugger to see the large tiles on a map. You can also switch to the
 "inspect" tab to inspect an individual tile.
