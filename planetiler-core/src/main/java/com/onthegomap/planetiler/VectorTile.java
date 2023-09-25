@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.util.Hilbert;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -922,6 +923,13 @@ public class VectorTile {
       } else {
         return this;
       }
+    }
+
+    public int index() {
+      // 0 -> 4096*2*2
+      int x = commands[1];
+      int y = commands[2];
+      return Hilbert.hilbertXYToIndex(14, x, y);
     }
   }
 

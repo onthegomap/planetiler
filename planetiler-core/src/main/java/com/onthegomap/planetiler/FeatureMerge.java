@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,6 +118,7 @@ public class FeatureMerge {
     List<VectorTile.Feature> features,
     GeometryType geometryType
   ) {
+    features = features.stream().sorted(Comparator.comparingInt(f -> f.geometry().index())).toList();
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, geometryType);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
