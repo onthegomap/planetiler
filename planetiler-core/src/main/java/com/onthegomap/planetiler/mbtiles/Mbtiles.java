@@ -498,52 +498,6 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
   }
 
-  /**
-   * Contents of a row of the tiles table, or in case of compact mode in the tiles view.
-   *
-   * @deprecated Use {@link Tile} instead
-   */
-  @Deprecated(forRemoval = true)
-  public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TileEntry tileEntry = (TileEntry) o;
-
-      if (!tile.equals(tileEntry.tile)) {
-        return false;
-      }
-      return Arrays.equals(bytes, tileEntry.bytes);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = tile.hashCode();
-      result = 31 * result + Arrays.hashCode(bytes);
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TileEntry{" +
-        "tile=" + tile +
-        ", bytes=" + Arrays.toString(bytes) +
-        '}';
-    }
-
-    @Override
-    public int compareTo(TileEntry o) {
-      return tile.compareTo(o.tile);
-    }
-  }
-
   /** Contents of a row of the tiles_shallow table. */
   private record TileShallowEntry(TileCoord coord, int tileDataId) {}
 
