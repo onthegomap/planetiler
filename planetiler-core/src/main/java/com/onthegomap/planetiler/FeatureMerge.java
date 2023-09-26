@@ -114,11 +114,15 @@ public class FeatureMerge {
     return mergeGeometries(features, GeometryType.LINE);
   }
 
+  private static final Comparator<WithIndex<?>> BY_HILBERT_INDEX =
+    (o1, o2) -> Integer.compare(o1.hilbert(), o2.hilbert());
+
+  private record WithIndex<T> (T feature, int hilbert) {}
+
   private static List<VectorTile.Feature> mergeGeometries(
     List<VectorTile.Feature> features,
     GeometryType geometryType
   ) {
-    features = features.stream().sorted(Comparator.comparingInt(f -> f.geometry().index())).toList();
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, geometryType);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
@@ -127,9 +131,11 @@ public class FeatureMerge {
         result.add(feature1);
       } else {
         VectorTile.VectorGeometryMerger combined = VectorTile.newMerger(geometryType);
-        for (var feature : groupedFeatures) {
-          combined.accept(feature.geometry());
-        }
+        groupedFeatures.stream()
+          .map(f -> new WithIndex<>(f, f.geometry().hilbertIndex()))
+          .sorted(BY_HILBERT_INDEX)
+          .map(d -> d.feature.geometry())
+          .forEachOrdered(combined);
         result.add(feature1.copyWithNewGeometry(combined.finish()));
       }
     }
@@ -193,6 +199,7 @@ public class FeatureMerge {
           }
         }
         if (!outputSegments.isEmpty()) {
+          outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
           result.add(feature1.copyWithNewGeometry(newGeometry));
         }
@@ -334,11 +341,20 @@ public class FeatureMerge {
         extractPolygons(merged, outPolygons, minArea, minHoleArea);
       }
       if (!outPolygons.isEmpty()) {
+        outPolygons = sortByHilbertIndex(outPolygons);
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
         result.add(feature1.copyWithNewGeometry(combined));
       }
     }
     return result;
+  }
+
+  private static <G extends Geometry> List<G> sortByHilbertIndex(List<G> geometries) {
+    return geometries.stream()
+      .map(p -> new WithIndex<>(p, VectorTile.hilbertIndex(p)))
+      .sorted(BY_HILBERT_INDEX)
+      .map(d -> d.feature)
+      .toList();
   }
 
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,

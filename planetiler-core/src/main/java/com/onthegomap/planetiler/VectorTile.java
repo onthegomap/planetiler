@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -420,6 +421,13 @@ public class VectorTile {
     return new VectorGeometryMerger(geometryType);
   }
 
+  public static int hilbertIndex(Geometry g) {
+    Coordinate coord = g.getCoordinate();
+    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
+    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
+    return Hilbert.hilbertXYToIndex(15, x, y);
+  }
+
   /**
    * Adds features in a layer to this tile.
    *
@@ -588,9 +596,9 @@ public class VectorTile {
     // the sequence
 
     private final GeometryType geometryType;
+    private final IntArrayList result = new IntArrayList();
     private int overallX = 0;
     private int overallY = 0;
-    private final IntArrayList result = new IntArrayList();
 
     private VectorGeometryMerger(GeometryType geometryType) {
       this.geometryType = geometryType;
@@ -925,12 +933,15 @@ public class VectorTile {
       }
     }
 
-    public int index() {
-      // 0 -> 4096*2*2
+    public int hilbertIndex() {
+      if (commands.length < 3) {
+        return 0;
+      }
       int x = commands[1];
       int y = commands[2];
-      return Hilbert.hilbertXYToIndex(14, x, y);
+      return Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
     }
+
   }
 
   /**
