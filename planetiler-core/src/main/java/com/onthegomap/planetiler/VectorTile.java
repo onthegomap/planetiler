@@ -425,7 +425,7 @@ public class VectorTile {
    * Returns the hilbert index of the zig-zag-encoded first point of {@code geometry}.
    * <p>
    * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
-   * values take fewer bytes using protobuf varint encoding.
+   * offsets take fewer bytes using protobuf varint encoding.
    */
   public static int hilbertIndex(Geometry geometry) {
     Coordinate coord = geometry.getCoordinate();
@@ -961,6 +961,12 @@ public class VectorTile {
       }
     }
 
+    /**
+     * Returns the hilbert index of the zig-zag-encoded first point of this feature.
+     * <p>
+     * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+     * offsets take fewer bytes using protobuf varint encoding.
+     */
     public int hilbertIndex() {
       if (commands.length < 3) {
         return 0;

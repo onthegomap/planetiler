@@ -50,6 +50,9 @@ public class FeatureMerge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMerge.class);
   private static final BufferParameters bufferOps = new BufferParameters();
+  // this is slightly faster than Comparator.comparingInt
+  private static final Comparator<WithIndex<?>> BY_HILBERT_INDEX =
+    (o1, o2) -> Integer.compare(o1.hilbert, o2.hilbert);
 
   static {
     bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
@@ -113,11 +116,6 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
     return mergeGeometries(features, GeometryType.LINE);
   }
-
-  private static final Comparator<WithIndex<?>> BY_HILBERT_INDEX =
-    (o1, o2) -> Integer.compare(o1.hilbert(), o2.hilbert());
-
-  private record WithIndex<T> (T feature, int hilbert) {}
 
   private static List<VectorTile.Feature> mergeGeometries(
     List<VectorTile.Feature> features,
@@ -188,7 +186,7 @@ public class FeatureMerge {
               if (simplified instanceof LineString simpleLineString) {
                 line = simpleLineString;
               } else {
-                LOGGER.warn("line string merge simplify emitted " + simplified.getGeometryType());
+                LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
               }
             }
             if (buffer >= 0) {
@@ -573,4 +571,6 @@ public class FeatureMerge {
     }
     return result;
   }
+
+  private record WithIndex<T> (T feature, int hilbert) {}
 }
