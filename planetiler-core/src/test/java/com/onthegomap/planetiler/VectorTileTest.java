@@ -595,6 +595,44 @@ class VectorTileTest {
     );
   }
 
+  @TestFactory
+  Stream<DynamicTest> testCountInternalGeometries() {
+    record Case(int expected, Geometry geom) {}
+    return Stream.of(
+      new Case(1, newPoint(0, 0)),
+      new Case(2, newMultiPoint(newPoint(0, 0), newPoint(0, 1))),
+      new Case(3, newMultiPoint(newPoint(0, 0), newPoint(0, 1), newPoint(0, 2))),
+      new Case(1, newLineString(0, 0, 1, 1)),
+      new Case(2, newMultiLineString(
+        newLineString(0, 0, 1, 1),
+        newLineString(0, 0, 2, 2)
+      )),
+      new Case(3, newMultiLineString(
+        newLineString(0, 0, 1, 1),
+        newLineString(0, 0, 2, 2),
+        newLineString(0, 0, 2, 3)
+      )),
+      new Case(1, rectangle(0, 1)),
+      new Case(2, newMultiPolygon(
+        rectangle(0, 1),
+        rectangle(3, 4)
+      )),
+      new Case(3, newMultiPolygon(
+        rectangle(0, 1),
+        rectangle(3, 4),
+        rectangle(6, 8)
+      ))
+    ).map(test -> dynamicTest(test.toString(),
+      () -> {
+        var feature = new VectorTile.Feature(
+          "layer", 1, VectorTile.encodeGeometry(test.geom), Map.of()
+        );
+        var tile = new VectorTile()
+          .addLayerFeatures("layer", List.of(feature));
+        assertEquals(test.expected, VectorTile.countGeometries(tile.toProto().getLayers(0).getFeatures(0)));
+      }));
+  }
+
   private static void assertArrayEquals(int[] a, int[] b) {
     assertEquals(
       IntStream.of(a).boxed().toList(),

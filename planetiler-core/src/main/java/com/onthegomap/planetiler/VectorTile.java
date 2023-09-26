@@ -421,11 +421,39 @@ public class VectorTile {
     return new VectorGeometryMerger(geometryType);
   }
 
-  public static int hilbertIndex(Geometry g) {
-    Coordinate coord = g.getCoordinate();
+  /**
+   * Returns the hilbert index of the zig-zag-encoded first point of {@code geometry}.
+   * <p>
+   * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+   * values take fewer bytes using protobuf varint encoding.
+   */
+  public static int hilbertIndex(Geometry geometry) {
+    Coordinate coord = geometry.getCoordinate();
     int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
     int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
     return Hilbert.hilbertXYToIndex(15, x, y);
+  }
+
+  /**
+   * Returns the number of internal geometries in this feature including points/lines/polygons inside multigeometries.
+   */
+  public static int countGeometries(VectorTileProto.Tile.Feature feature) {
+    int result = 0;
+    int idx = 0;
+    int geomCount = feature.getGeometryCount();
+    while (idx < geomCount) {
+      int length = feature.getGeometry(idx);
+      int command = length & ((1 << 3) - 1);
+      length = length >> 3;
+      if (command == Command.MOVE_TO.value) {
+        result += length;
+      }
+      idx += 1;
+      if (command != Command.CLOSE_PATH.value) {
+        idx += length * 2;
+      }
+    }
+    return result;
   }
 
   /**
