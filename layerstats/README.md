@@ -24,6 +24,7 @@ The output is a gzipped tsv with a row per layer on each tile and the following 
 | layer               | layer name                                                                                                                                      |
 | layer_bytes         | encoded size of this layer on this tile                                                                                                         |
 | layer_features      | number of features in this layer                                                                                                                |
+| layer_geometries    | number of geometries in features in this layer, including inside multipoint/multipolygons/multilinestring features                              |
 | layer_attr_bytes    | encoded size of the [attribute key/value pairs](https://github.com/mapbox/vector-tile-spec/tree/master/2.1#44-feature-attributes) in this layer |
 | layer_attr_keys     | number of distinct attribute keys in this layer on this tile                                                                                    |
 | layer_attr_values   | number of distinct attribute values in this layer on this tile                                                                                  |
@@ -42,10 +43,10 @@ Then get the biggest layers:
 SELECT * FROM layerstats ORDER BY layer_bytes DESC LIMIT 2;
 ```
 
-| z  |   x   |  y   |  hilbert  | archived_tile_bytes |    layer    | layer_bytes | layer_features | layer_attr_bytes | layer_attr_keys | layer_attr_values |
-|----|-------|------|-----------|---------------------|-------------|-------------|----------------|------------------|-----------------|-------------------|
-| 14 | 13722 | 7013 | 305278258 | 1261474             | housenumber | 2412464     | 108384         | 30764            | 1               | 3021              |
-| 14 | 13723 | 7014 | 305278256 | 1064044             | housenumber | 1848990     | 83038          | 26022            | 1               | 2542              |
+| z  |   x   |  y   |  hilbert  | archived_tile_bytes |    layer    | layer_bytes | layer_features | layer_geometries | layer_attr_bytes | layer_attr_keys | layer_attr_values |
+|----|-------|------|-----------|---------------------|-------------|-------------|----------------|------------------|------------------|-----------------|-------------------|
+| 14 | 13722 | 7013 | 305278258 | 1260526             | housenumber | 2412589     | 108390         | 108390           | 30764            | 1               | 3021              |
+| 14 | 13723 | 7014 | 305278256 | 1059752             | housenumber | 1850041     | 83038          | 83038            | 26022            | 1               | 2542              |
 
 To get a table of biggest layers by zoom:
 

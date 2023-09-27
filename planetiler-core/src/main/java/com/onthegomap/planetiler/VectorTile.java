@@ -26,6 +26,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.util.Hilbert;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -420,6 +422,41 @@ public class VectorTile {
   }
 
   /**
+   * Returns the hilbert index of the zig-zag-encoded first point of {@code geometry}.
+   * <p>
+   * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+   * offsets take fewer bytes using protobuf varint encoding.
+   */
+  public static int hilbertIndex(Geometry geometry) {
+    Coordinate coord = geometry.getCoordinate();
+    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
+    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
+    return Hilbert.hilbertXYToIndex(15, x, y);
+  }
+
+  /**
+   * Returns the number of internal geometries in this feature including points/lines/polygons inside multigeometries.
+   */
+  public static int countGeometries(VectorTileProto.Tile.Feature feature) {
+    int result = 0;
+    int idx = 0;
+    int geomCount = feature.getGeometryCount();
+    while (idx < geomCount) {
+      int length = feature.getGeometry(idx);
+      int command = length & ((1 << 3) - 1);
+      length = length >> 3;
+      if (command == Command.MOVE_TO.value) {
+        result += length;
+      }
+      idx += 1;
+      if (command != Command.CLOSE_PATH.value) {
+        idx += length * 2;
+      }
+    }
+    return result;
+  }
+
+  /**
    * Adds features in a layer to this tile.
    *
    * @param layerName name of the layer in this tile to add the features to
@@ -587,9 +624,9 @@ public class VectorTile {
     // the sequence
 
     private final GeometryType geometryType;
+    private final IntArrayList result = new IntArrayList();
     private int overallX = 0;
     private int overallY = 0;
-    private final IntArrayList result = new IntArrayList();
 
     private VectorGeometryMerger(GeometryType geometryType) {
       this.geometryType = geometryType;
@@ -923,6 +960,22 @@ public class VectorTile {
         return this;
       }
     }
+
+    /**
+     * Returns the hilbert index of the zig-zag-encoded first point of this feature.
+     * <p>
+     * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+     * offsets take fewer bytes using protobuf varint encoding.
+     */
+    public int hilbertIndex() {
+      if (commands.length < 3) {
+        return 0;
+      }
+      int x = commands[1];
+      int y = commands[2];
+      return Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
+    }
+
   }
 
   /**

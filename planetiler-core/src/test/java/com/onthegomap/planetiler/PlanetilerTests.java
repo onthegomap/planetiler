@@ -2028,6 +2028,7 @@ class PlanetilerTests {
         "layer",
         "layer_bytes",
         "layer_features",
+        "layer_geometries",
         "layer_attr_bytes",
         "layer_attr_keys",
         "layer_attr_values"

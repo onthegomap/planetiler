@@ -15,12 +15,12 @@ class TilesetSummaryStatisticsTest {
     var updater1 = tileStats.threadLocalUpdater();
     var updater2 = tileStats.threadLocalUpdater();
     updater1.recordTile(TileCoord.ofXYZ(0, 0, 1), 123, List.of(
-      new TileSizeStats.LayerStats("a", 1, 2, 3, 4, 5),
-      new TileSizeStats.LayerStats("b", 6, 7, 8, 9, 10)
+      new TileSizeStats.LayerStats("a", 1, 2, 2, 3, 4, 5),
+      new TileSizeStats.LayerStats("b", 6, 7, 7, 8, 9, 10)
     ));
     updater2.recordTile(TileCoord.ofXYZ(0, 1, 1), 345, List.of(
-      new TileSizeStats.LayerStats("b", 1, 2, 3, 4, 5),
-      new TileSizeStats.LayerStats("c", 6, 7, 8, 9, 10)
+      new TileSizeStats.LayerStats("b", 1, 2, 2, 3, 4, 5),
+      new TileSizeStats.LayerStats("c", 6, 7, 7, 8, 9, 10)
     ));
     var summary = tileStats.summary();
     assertEquals(Set.of("a", "b", "c"), Set.copyOf(summary.layers()));
@@ -51,7 +51,7 @@ class TilesetSummaryStatisticsTest {
     assertEquals(2, summary.get().numTiles());
 
     updater1.recordTile(TileCoord.ofXYZ(0, 0, 2), 0, List.of(
-      new TileSizeStats.LayerStats("c", 10, 7, 8, 9, 10)
+      new TileSizeStats.LayerStats("c", 10, 7, 7, 8, 9, 10)
     ));
     assertEquals("""
                   z1    z2   all
@@ -101,8 +101,8 @@ class TilesetSummaryStatisticsTest {
     List<TilesetSummaryStatistics.TileSummary> summaries = new ArrayList<>();
     for (int i = 0; i < 20; i++) {
       var summary = new TilesetSummaryStatistics.TileSummary(TileCoord.decode(i), i, List.of(
-        new TileSizeStats.LayerStats("a", i * 2, i, 0, 0, 0),
-        new TileSizeStats.LayerStats("b", i * 3, i, 0, 0, 0)
+        new TileSizeStats.LayerStats("a", i * 2, i, i * 2, 0, 0, 0),
+        new TileSizeStats.LayerStats("b", i * 3, i, i * 2, 0, 0, 0)
       ));
       summaries.add(0, summary);
       (i % 2 == 0 ? updater1 : updater2).recordTile(summary.coord(), summary.archivedSize(), summary.layers());
@@ -140,21 +140,21 @@ class TilesetSummaryStatisticsTest {
     updater1.recordTile(
       TileCoord.ofXYZ(0, 0, 0),
       100,
-      List.of(new TileSizeStats.LayerStats("a", 10, 0, 0, 0, 0))
+      List.of(new TileSizeStats.LayerStats("a", 10, 0, 0, 0, 0, 0))
     );
     updater2.recordTile(
       TileCoord.ofXYZ(0, 0, 1),
       200,
       List.of(
-        new TileSizeStats.LayerStats("a", 20, 0, 0, 0, 0),
-        new TileSizeStats.LayerStats("b", 30, 0, 0, 0, 0)
+        new TileSizeStats.LayerStats("a", 20, 0, 0, 0, 0, 0),
+        new TileSizeStats.LayerStats("b", 30, 0, 0, 0, 0, 0)
       )
     );
     updater2.recordTile(
       TileCoord.ofXYZ(0, 0, 2), // no stats
       400,
       List.of(
-        new TileSizeStats.LayerStats("c", 40, 0, 0, 0, 0)
+        new TileSizeStats.LayerStats("c", 40, 0, 0, 0, 0, 0)
       )
     );
 
@@ -189,14 +189,14 @@ class TilesetSummaryStatisticsTest {
     updater1.recordTile(
       TileCoord.ofXYZ(0, 0, 0),
       100,
-      List.of(new TileSizeStats.LayerStats("a", 10, 0, 0, 0, 0))
+      List.of(new TileSizeStats.LayerStats("a", 10, 0, 0, 0, 0, 0))
     );
     updater2.recordTile(
       TileCoord.ofXYZ(0, 0, 1),
       200,
       List.of(
-        new TileSizeStats.LayerStats("a", 20, 0, 0, 0, 0),
-        new TileSizeStats.LayerStats("b", 30, 0, 0, 0, 0)
+        new TileSizeStats.LayerStats("a", 20, 0, 0, 0, 0, 0),
+        new TileSizeStats.LayerStats("b", 30, 0, 0, 0, 0, 0)
       )
     );
 

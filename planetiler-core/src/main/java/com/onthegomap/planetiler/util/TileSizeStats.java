@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchives;
@@ -175,6 +176,7 @@ public class TileSizeStats {
         layer.layer,
         layer.layerBytes,
         layer.layerFeatures,
+        layer.layerGeometries,
         layer.layerAttrBytes,
         layer.layerAttrKeys,
         layer.layerAttrValues
@@ -220,10 +222,15 @@ public class TileSizeStats {
       for (var value : layer.getValuesList()) {
         attrSize += value.getSerializedSize();
       }
+      int geomCount = 0;
+      for (var feature : layer.getFeaturesList()) {
+        geomCount += VectorTile.countGeometries(feature);
+      }
       result.add(new LayerStats(
         layer.getName(),
         layer.getSerializedSize(),
         layer.getFeaturesCount(),
+        geomCount,
         attrSize,
         layer.getKeysCount(),
         layer.getValuesCount()
@@ -243,6 +250,7 @@ public class TileSizeStats {
     "layer",
     "layer_bytes",
     "layer_features",
+    "layer_geometries",
     "layer_attr_bytes",
     "layer_attr_keys",
     "layer_attr_values"
@@ -257,6 +265,7 @@ public class TileSizeStats {
     String layer,
     int layerBytes,
     int layerFeatures,
+    int layerGeometries,
     int layerAttrBytes,
     int layerAttrKeys,
     int layerAttrValues
@@ -267,6 +276,7 @@ public class TileSizeStats {
     String layer,
     int layerBytes,
     int layerFeatures,
+    int layerGeometries,
     int layerAttrBytes,
     int layerAttrKeys,
     int layerAttrValues
