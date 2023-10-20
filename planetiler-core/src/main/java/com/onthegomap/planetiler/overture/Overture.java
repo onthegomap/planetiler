@@ -57,7 +57,7 @@ public class Overture implements Profile {
     var base = Path.of("data", "sources", "overture");
     var arguments = Arguments.fromEnvOrArgs(args);
     var sample = arguments.getBoolean("sample", "only download smallest file from parquet source", false);
-    var release = arguments.getString("release", "overture release", "2023-07-26-alpha.0");
+    var release = arguments.getString("release", "overture release", "2023-10-19-alpha.0");
 
     var pt = Planetiler.create(arguments)
       .addAvroParquetSource("overture", base)
