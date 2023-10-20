@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.examples;
 
 import com.onthegomap.planetiler.Planetiler;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveWriter;
 import com.onthegomap.planetiler.archive.TileArchives;
@@ -113,9 +114,10 @@ public class ToiletsOverlayLowLevelApi {
 
     // then process rendered features, grouped by tile, encoding them into binary vector tile format
     // and writing to the output mbtiles file.
-    try (WriteableTileArchive db = TileArchives.newWriter(output, config)) {
-      TileArchiveWriter.writeOutput(featureGroup, db, () -> FileUtils.fileSize(output), tileArchiveMetadata, config,
-        stats);
+    var archiveConfig = TileArchiveConfig.from(output.toString());
+    try (WriteableTileArchive db = TileArchives.newWriter(archiveConfig, config)) {
+      TileArchiveWriter.writeOutput(featureGroup, db, () -> FileUtils.fileSize(output), tileArchiveMetadata,
+        archiveConfig.getLocalPath(), config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
     }

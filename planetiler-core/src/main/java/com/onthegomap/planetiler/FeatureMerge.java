@@ -14,6 +14,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,9 @@ public class FeatureMerge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureMerge.class);
   private static final BufferParameters bufferOps = new BufferParameters();
+  // this is slightly faster than Comparator.comparingInt
+  private static final Comparator<WithIndex<?>> BY_HILBERT_INDEX =
+    (o1, o2) -> Integer.compare(o1.hilbert, o2.hilbert);
 
   static {
     bufferOps.setJoinStyle(BufferParameters.JOIN_MITRE);
@@ -85,6 +89,55 @@ public class FeatureMerge {
   public static List<VectorTile.Feature> mergeLineStrings(List<VectorTile.Feature> features,
     double minLength, double tolerance, double buffer) {
     return mergeLineStrings(features, minLength, tolerance, buffer, false);
+  }
+
+  /** Merges points with the same attributes into multipoints. */
+  public static List<VectorTile.Feature> mergeMultiPoint(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.POINT);
+  }
+
+  /**
+   * Merges polygons with the same attributes into multipolygons.
+   * <p>
+   * NOTE: This does not attempt to combine overlapping geometries, see {@link #mergeOverlappingPolygons(List, double)}
+   * or {@link #mergeNearbyPolygons(List, double, double, double, double)} for that.
+   */
+  public static List<VectorTile.Feature> mergeMultiPolygon(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.POLYGON);
+  }
+
+  /**
+   * Merges linestrings with the same attributes into multilinestrings.
+   * <p>
+   * NOTE: This does not attempt to connect linestrings that intersect at endpoints, see
+   * {@link #mergeLineStrings(List, double, double, double, boolean)} for that. Also, this removes extra detail that was
+   * preserved to improve connected-linestring merging, so you should only use one or the other.
+   */
+  public static List<VectorTile.Feature> mergeMultiLineString(List<VectorTile.Feature> features) {
+    return mergeGeometries(features, GeometryType.LINE);
+  }
+
+  private static List<VectorTile.Feature> mergeGeometries(
+    List<VectorTile.Feature> features,
+    GeometryType geometryType
+  ) {
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    var groupedByAttrs = groupByAttrs(features, result, geometryType);
+    for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
+      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      if (groupedFeatures.size() == 1) {
+        result.add(feature1);
+      } else {
+        VectorTile.VectorGeometryMerger combined = VectorTile.newMerger(geometryType);
+        groupedFeatures.stream()
+          .map(f -> new WithIndex<>(f, f.geometry().hilbertIndex()))
+          .sorted(BY_HILBERT_INDEX)
+          .map(d -> d.feature.geometry())
+          .forEachOrdered(combined);
+        result.add(feature1.copyWithNewGeometry(combined.finish()));
+      }
+    }
+    return result;
   }
 
   /**
@@ -133,7 +186,7 @@ public class FeatureMerge {
               if (simplified instanceof LineString simpleLineString) {
                 line = simpleLineString;
               } else {
-                LOGGER.warn("line string merge simplify emitted " + simplified.getGeometryType());
+                LOGGER.warn("line string merge simplify emitted {}", simplified.getGeometryType());
               }
             }
             if (buffer >= 0) {
@@ -144,6 +197,7 @@ public class FeatureMerge {
           }
         }
         if (!outputSegments.isEmpty()) {
+          outputSegments = sortByHilbertIndex(outputSegments);
           Geometry newGeometry = GeoUtils.combineLineStrings(outputSegments);
           result.add(feature1.copyWithNewGeometry(newGeometry));
         }
@@ -285,11 +339,20 @@ public class FeatureMerge {
         extractPolygons(merged, outPolygons, minArea, minHoleArea);
       }
       if (!outPolygons.isEmpty()) {
+        outPolygons = sortByHilbertIndex(outPolygons);
         Geometry combined = GeoUtils.combinePolygons(outPolygons);
         result.add(feature1.copyWithNewGeometry(combined));
       }
     }
     return result;
+  }
+
+  private static <G extends Geometry> List<G> sortByHilbertIndex(List<G> geometries) {
+    return geometries.stream()
+      .map(p -> new WithIndex<>(p, VectorTile.hilbertIndex(p)))
+      .sorted(BY_HILBERT_INDEX)
+      .map(d -> d.feature)
+      .toList();
   }
 
   public static List<VectorTile.Feature> mergeNearbyPolygons(List<VectorTile.Feature> features, double minArea,
@@ -485,4 +548,29 @@ public class FeatureMerge {
       }
     }
   }
+
+  /**
+   * Returns a new list of features with points that are more than {@code buffer} pixels outside the tile boundary
+   * removed, assuming a 256x256px tile.
+   */
+  public static List<VectorTile.Feature> removePointsOutsideBuffer(List<VectorTile.Feature> features, double buffer) {
+    if (!Double.isFinite(buffer)) {
+      return features;
+    }
+    List<VectorTile.Feature> result = new ArrayList<>(features.size());
+    for (var feature : features) {
+      var geometry = feature.geometry();
+      if (geometry.geomType() == GeometryType.POINT) {
+        var newGeometry = geometry.filterPointsOutsideBuffer(buffer);
+        if (!newGeometry.isEmpty()) {
+          result.add(feature.copyWithNewGeometry(newGeometry));
+        }
+      } else {
+        result.add(feature);
+      }
+    }
+    return result;
+  }
+
+  private record WithIndex<T> (T feature, int hilbert) {}
 }

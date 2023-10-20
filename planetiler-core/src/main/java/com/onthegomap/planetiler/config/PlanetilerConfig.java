@@ -1,5 +1,7 @@
 package com.onthegomap.planetiler.config;
 
+import com.onthegomap.planetiler.archive.TileArchiveConfig;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
@@ -20,11 +22,13 @@ public record PlanetilerConfig(
   int featureWriteThreads,
   int featureProcessThreads,
   int featureReadThreads,
+  int tileWriteThreads,
   Duration logInterval,
   int minzoom,
   int maxzoom,
   int maxzoomForRendering,
   boolean force,
+  boolean append,
   boolean gzipTempStorage,
   boolean mmapTempStorage,
   int sortMaxReaders,
@@ -48,7 +52,13 @@ public record PlanetilerConfig(
   boolean skipFilledTiles,
   int tileWarningSizeBytes,
   Boolean color,
-  boolean keepUnzippedSources
+  boolean keepUnzippedSources,
+  TileCompression tileCompression,
+  boolean outputLayerStats,
+  String debugUrlPattern,
+  Path tmpDir,
+  Path tileWeights,
+  double maxPointBuffer
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -111,6 +121,8 @@ public record PlanetilerConfig(
     int renderMaxzoom =
       arguments.getInteger("render_maxzoom", "maximum rendering zoom level up to " + MAX_MAXZOOM,
         Math.max(maxzoom, DEFAULT_MAXZOOM));
+    Path tmpDir = arguments.file("tmpdir", "temp directory", Path.of("data", "tmp"));
+
     return new PlanetilerConfig(
       arguments,
       bounds,
@@ -119,11 +131,19 @@ public record PlanetilerConfig(
       featureProcessThreads,
       arguments.getInteger("feature_read_threads", "number of threads to use when reading features at tile write time",
         threads < 32 ? 1 : 2),
+      arguments.getInteger("tile_write_threads",
+        "number of threads used to write tiles - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsConcurrentWrites).map(TileArchiveConfig.Format::id).toList(),
+        1),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       minzoom,
       maxzoom,
       renderMaxzoom,
       arguments.getBoolean("force", "overwriting output file and ignore disk/RAM warnings", false),
+      arguments.getBoolean("append",
+        "append to the output file - only supported by " + Stream.of(TileArchiveConfig.Format.values())
+          .filter(TileArchiveConfig.Format::supportsAppend).map(TileArchiveConfig.Format::id).toList(),
+        false),
       arguments.getBoolean("gzip_temp", "gzip temporary feature storage (uses more CPU, but less disk space)", false),
       arguments.getBoolean("mmap_temp", "use memory-mapped IO for temp feature files", true),
       arguments.getInteger("sort_max_readers", "maximum number of concurrent read threads to use when sorting chunks",
@@ -172,7 +192,23 @@ public record PlanetilerConfig(
         1d) * 1024 * 1024),
       arguments.getBooleanObject("color", "Color the terminal output"),
       arguments.getBoolean("keep_unzipped",
-        "keep unzipped sources by default after reading", false)
+        "keep unzipped sources by default after reading", false),
+      TileCompression
+        .fromId(arguments.getString("tile_compression",
+          "the tile compression, one of " +
+            TileCompression.availableValues().stream().map(TileCompression::id).toList(),
+          "gzip")),
+      arguments.getBoolean("output_layerstats", "output a tsv.gz file for each tile/layer size", false),
+      arguments.getString("debug_url", "debug url to use for displaying tiles with {z} {lat} {lon} placeholders",
+        "https://onthegomap.github.io/planetiler-demo/#{z}/{lat}/{lon}"),
+      tmpDir,
+      arguments.file("tile_weights", "tsv.gz file with columns z,x,y,loads to generate weighted average tile size stat",
+        tmpDir.resolveSibling("tile_weights.tsv.gz")),
+      arguments.getDouble("max_point_buffer",
+        "Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for " +
+          "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
+          "raster tile rendering",
+        Double.POSITIVE_INFINITY)
     );
   }
 

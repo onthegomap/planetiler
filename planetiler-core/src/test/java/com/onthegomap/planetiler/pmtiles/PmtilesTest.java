@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.SeekableInMemoryByteChannel;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -21,8 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 
@@ -188,17 +193,22 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
     in.finish(metadata);
-    var reader = new ReadablePmtiles(bytes);
-    var header = reader.getHeader();
-    assertEquals(1, header.numAddressedTiles());
-    assertEquals(1, header.numTileContents());
-    assertEquals(1, header.numTileEntries());
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
-    assertNull(reader.getTile(0, 0, 0));
-    assertNull(reader.getTile(0, 0, 2));
+    try (var reader = new ReadablePmtiles(bytes)) {
+      var header = reader.getHeader();
+      assertEquals(1, header.numAddressedTiles());
+      assertEquals(1, header.numTileContents());
+      assertEquals(1, header.numTileEntries());
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+      assertNull(reader.getTile(0, 0, 0));
+      assertNull(reader.getTile(0, 0, 2));
 
-    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-    assertEquals(1, coordset.size());
+      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(TileCoord.ofXYZ(0, 0, 1)), coordset);
+      Set<Tile> tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2})
+      ), tileset);
+    }
   }
 
   @Test
@@ -215,15 +225,18 @@ class PmtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
-      Map.of("other key", "other value")
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
     ));
   }
 
-  @Test
-  void testRoundtripMetadataMinimal() throws IOException {
+  @ParameterizedTest
+  @EnumSource(value = TileCompression.class, names = {"GZIP", "NONE"})
+  void testRoundtripMetadataMinimal(TileCompression tileCompression) throws IOException {
     roundTripMetadata(
-      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of()),
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+        tileCompression),
       new TileArchiveMetadata(null, null, null, null, null, null,
         new Envelope(-180, 180, -85.0511287, 85.0511287),
         new CoordinateXY(0, 0),
@@ -231,7 +244,8 @@ class PmtilesTest {
         0,
         15,
         null,
-        Map.of()
+        Map.of(),
+        tileCompression
       )
     );
   }
@@ -250,10 +264,11 @@ class PmtilesTest {
       writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
       in.finish(input);
-      var reader = new ReadablePmtiles(channel);
-      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+      try (var reader = new ReadablePmtiles(channel)) {
+        assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
 
-      assertEquals(output, reader.metadata());
+        assertEquals(output, reader.metadata());
+      }
     }
   }
 
@@ -291,17 +306,28 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
     in.finish(metadata);
-    var reader = new ReadablePmtiles(bytes);
-    var header = reader.getHeader();
-    assertEquals(3, header.numAddressedTiles());
-    assertEquals(1, header.numTileContents());
-    assertEquals(2, header.numTileEntries()); // z0 and z1 are contiguous
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 2));
+    try (var reader = new ReadablePmtiles(bytes)) {
+      var header = reader.getHeader();
+      assertEquals(3, header.numAddressedTiles());
+      assertEquals(1, header.numTileContents());
+      assertEquals(2, header.numTileEntries()); // z0 and z1 are contiguous
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 2));
 
-    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-    assertEquals(3, coordset.size());
+      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        TileCoord.ofXYZ(0, 0, 0),
+        TileCoord.ofXYZ(0, 0, 1),
+        TileCoord.ofXYZ(0, 0, 2)
+      ), coordset);
+      var tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 2), new byte[]{0xa, 0x2})
+      ), tileset);
+    }
   }
 
   @Test
@@ -317,17 +343,26 @@ class PmtilesTest {
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
 
     in.finish(metadata);
-    var reader = new ReadablePmtiles(bytes);
-    var header = reader.getHeader();
-    assertEquals(2, header.numAddressedTiles());
-    assertEquals(1, header.numTileContents());
-    assertEquals(2, header.numTileEntries());
-    assertFalse(header.clustered());
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
-    assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
+    try (var reader = new ReadablePmtiles(bytes)) {
+      var header = reader.getHeader();
+      assertEquals(2, header.numAddressedTiles());
+      assertEquals(1, header.numTileContents());
+      assertEquals(2, header.numTileEntries());
+      assertFalse(header.clustered());
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 0));
+      assertArrayEquals(new byte[]{0xa, 0x2}, reader.getTile(0, 0, 1));
 
-    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-    assertEquals(2, coordset.size());
+      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        TileCoord.ofXYZ(0, 0, 0),
+        TileCoord.ofXYZ(0, 0, 1)
+      ), coordset);
+      var tileset = reader.getAllTiles().stream().collect(Collectors.toSet());
+      assertEquals(Set.of(
+        new Tile(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}),
+        new Tile(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2})
+      ), tileset);
+    }
   }
 
   @Test
@@ -341,33 +376,41 @@ class PmtilesTest {
     var writer = in.newTileWriter();
 
     int ENTRIES = 20000;
+    Set<TileCoord> expectedCoords = new TreeSet<>();
+    Set<Tile> expectedTiles = new TreeSet<>();
 
     for (int i = 0; i < ENTRIES; i++) {
-      writer.write(new TileEncodingResult(TileCoord.hilbertDecode(i), ByteBuffer.allocate(4).putInt(i).array(),
-        OptionalLong.empty()));
+      var coord = TileCoord.hilbertDecode(i);
+      var data = ByteBuffer.allocate(4).putInt(i).array();
+      expectedCoords.add(coord);
+      expectedTiles.add(new Tile(coord, data));
+      writer.write(new TileEncodingResult(coord, data, OptionalLong.empty()));
     }
 
     in.finish(metadata);
-    var reader = new ReadablePmtiles(bytes);
-    var header = reader.getHeader();
-    assertEquals(ENTRIES, header.numAddressedTiles());
-    assertEquals(ENTRIES, header.numTileContents());
-    assertEquals(ENTRIES, header.numTileEntries());
-    assertTrue(header.leafDirectoriesLength() > 0);
+    try (var reader = new ReadablePmtiles(bytes)) {
+      var header = reader.getHeader();
+      assertEquals(ENTRIES, header.numAddressedTiles());
+      assertEquals(ENTRIES, header.numTileContents());
+      assertEquals(ENTRIES, header.numTileEntries());
+      assertTrue(header.leafDirectoriesLength() > 0);
 
-    for (int i = 0; i < ENTRIES; i++) {
-      var coord = TileCoord.hilbertDecode(i);
-      assertArrayEquals(ByteBuffer.allocate(4).putInt(i).array(), reader.getTile(coord.x(), coord.y(), coord.z()),
-        "tileCoord=%s did not match".formatted(coord.toString()));
-    }
+      for (int i = 0; i < ENTRIES; i++) {
+        var coord = TileCoord.hilbertDecode(i);
+        assertArrayEquals(ByteBuffer.allocate(4).putInt(i).array(), reader.getTile(coord.x(), coord.y(), coord.z()),
+          "tileCoord=%s did not match".formatted(coord.toString()));
+      }
 
-    Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toSet());
-    assertEquals(ENTRIES, coordset.size());
+      Set<TileCoord> coordset = reader.getAllTileCoords().stream().collect(Collectors.toCollection(TreeSet::new));
+      assertEquals(expectedCoords, coordset);
 
-    for (int i = 0; i < ENTRIES; i++) {
-      var coord = TileCoord.hilbertDecode(i);
-      assertTrue(coordset.contains(coord), "tileCoord=%s not in result".formatted(coord.toString()));
+      Set<Tile> tileset = reader.getAllTiles().stream().collect(Collectors.toCollection(TreeSet::new));
+      assertEquals(expectedTiles, tileset);
+
+      for (int i = 0; i < ENTRIES; i++) {
+        var coord = TileCoord.hilbertDecode(i);
+        assertTrue(coordset.contains(coord), "tileCoord=%s not in result".formatted(coord.toString()));
+      }
     }
   }
-
 }

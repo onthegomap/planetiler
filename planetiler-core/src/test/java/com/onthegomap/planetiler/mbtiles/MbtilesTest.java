@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.nio.file.Path;
@@ -49,18 +51,18 @@ class MbtilesTest {
       }
 
       assertNull(db.getTile(0, 0, 0));
-      Set<Mbtiles.TileEntry> expected = new TreeSet<>();
+      Set<Tile> expected = new TreeSet<>();
       try (var writer = db.newTileWriter()) {
         for (int i = 0; i < howMany; i++) {
           var dataHash = i - (i % 2);
           var dataBase = howMany + dataHash;
-          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
+          var entry = new Tile(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
             (byte) dataBase,
             (byte) (dataBase >> 8),
             (byte) (dataBase >> 16),
             (byte) (dataBase >> 24)
           });
-          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), OptionalLong.of(dataHash)));
+          writer.write(new TileEncodingResult(entry.coord(), entry.bytes(), OptionalLong.of(dataHash)));
           expected.add(entry);
         }
       }
@@ -68,13 +70,14 @@ class MbtilesTest {
       if (optimize) {
         db.vacuumAnalyze();
       }
-      var all = TestUtils.getAllTiles(db);
+      var all = TestUtils.getTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
-      assertEquals(expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
+      assertEquals(expected.stream().map(Tile::coord).collect(Collectors.toSet()),
         db.getAllTileCoords().stream().collect(Collectors.toSet()));
+      assertEquals(expected, db.getAllTiles().stream().collect(Collectors.toSet()));
       for (var expectedEntry : expected) {
-        var tile = expectedEntry.tile();
+        var tile = expectedEntry.coord();
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
         assertArrayEquals(expectedEntry.bytes(), data);
       }
@@ -156,15 +159,57 @@ class MbtilesTest {
       7d,
       8,
       9,
-      List.of(new LayerStats.VectorLayer("MyLayer", Map.of())),
-      Map.of("other key", "other value")
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
     ));
+  }
+
+  @Test
+  void testMetadataWithoutCompressionAssumesGzip() throws IOException {
+
+    final TileArchiveMetadata metadataIn = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      null
+    );
+
+    final TileArchiveMetadata expectedMetadataOut = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
+    );
+
+    roundTripMetadata(metadataIn, expectedMetadataOut);
   }
 
   @Test
   void testRoundTripMinimalMetadata() throws IOException {
     var empty =
-      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of());
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+        TileCompression.GZIP);
     roundTripMetadata(empty);
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTablesWithoutIndexes();
@@ -173,11 +218,16 @@ class MbtilesTest {
   }
 
   private static void roundTripMetadata(TileArchiveMetadata metadata) throws IOException {
+    roundTripMetadata(metadata, metadata);
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata metadata, TileArchiveMetadata expectedOut)
+    throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       db.createTablesWithoutIndexes();
       var metadataTable = db.metadataTable();
       metadataTable.set(metadata);
-      assertEquals(metadata, metadataTable.get());
+      assertEquals(expectedOut, metadataTable.get());
     }
   }
 
@@ -202,17 +252,17 @@ class MbtilesTest {
   @Test
   void testFullMetadataJson() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "full",
         Map.of(
-          "NUMBER_FIELD", LayerStats.FieldType.NUMBER,
-          "STRING_FIELD", LayerStats.FieldType.STRING,
-          "boolean field", LayerStats.FieldType.BOOLEAN
+          "NUMBER_FIELD", LayerAttrStats.FieldType.NUMBER,
+          "STRING_FIELD", LayerAttrStats.FieldType.STRING,
+          "boolean field", LayerAttrStats.FieldType.BOOLEAN
         )
       ).withDescription("full description")
         .withMinzoom(0)
         .withMaxzoom(5),
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "partial",
         Map.of()
       )

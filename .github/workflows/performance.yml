@@ -23,16 +23,16 @@ jobs:
     continue-on-error: true
     steps:
     - name: 'Cancel previous runs'
-      uses: styfle/cancel-workflow-action@0.11.0
+      uses: styfle/cancel-workflow-action@0.12.0
       with:
         access_token: ${{ github.token }}
     - name: 'Checkout branch'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         path: branch
         submodules: true
     - name: 'Checkout base'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         path: base
         ref: ${{ github.event.pull_request.base.sha }}

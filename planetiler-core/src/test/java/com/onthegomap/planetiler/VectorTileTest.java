@@ -19,16 +19,21 @@
 package com.onthegomap.planetiler;
 
 import static com.onthegomap.planetiler.TestUtils.*;
+import static com.onthegomap.planetiler.VectorTile.zigZagEncode;
 import static com.onthegomap.planetiler.geo.GeoUtils.JTS_FACTORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import com.google.common.primitives.Ints;
+import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.geo.GeometryException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -515,6 +520,124 @@ class VectorTileTest {
         })
       )
       ));
+  }
+
+  @Test
+  void testUnscaleDegenerate() throws GeometryException {
+    var lessThanOnePx = 256d / 4096 / 4;
+    var encoded = VectorTile.encodeGeometry(newLineString(0, 0, lessThanOnePx, lessThanOnePx), 2);
+    assertEquals(6, encoded.commands().length);
+    var unscaled = encoded.unscale();
+    assertEquals(0, unscaled.commands().length);
+    assertFalse(encoded.isEmpty());
+    assertTrue(unscaled.isEmpty());
+    assertEquals(GeoUtils.EMPTY_GEOMETRY, unscaled.decode());
+    var reEncoded = VectorTile.encodeGeometry(unscaled.decode());
+    assertEquals(0, reEncoded.commands().length);
+  }
+
+  @Test
+  void testFilterPointsOutsideBuffer() {
+    assertArrayEquals(
+      new int[0],
+      VectorTile.encodeGeometry(newPoint(-5, -5))
+        .filterPointsOutsideBuffer(4).commands()
+    );
+    assertArrayEquals(
+      new int[]{
+        VectorTile.Command.MOVE_TO.value | (1 << 3),
+        zigZagEncode((int) (-5d * 4096 / 256)),
+        zigZagEncode((int) (-5d * 4096 / 256)),
+      },
+      VectorTile.encodeGeometry(newPoint(-5, -5))
+        .filterPointsOutsideBuffer(5).commands()
+    );
+  }
+
+  @Test
+  void testFilterMultiPointsAllOutsideBuffer() {
+    assertArrayEquals(
+      new int[0],
+      VectorTile.encodeGeometry(newMultiPoint(
+        newPoint(-5, -5),
+        newPoint(261, 261)
+      )).filterPointsOutsideBuffer(4).commands()
+    );
+  }
+
+  @Test
+  void testFilterMultiPointsFirstOutsideBuffer() {
+    assertArrayEquals(
+      new int[]{
+        VectorTile.Command.MOVE_TO.value | (1 << 3),
+        zigZagEncode(4096),
+        zigZagEncode(4096),
+      },
+      VectorTile.encodeGeometry(newMultiPoint(
+        newPoint(-5, -5),
+        newPoint(256, 256)
+      )).filterPointsOutsideBuffer(4).commands()
+    );
+  }
+
+  @Test
+  void testFilterMultiPointsLastOutsideBuffer() {
+    assertArrayEquals(
+      new int[]{
+        VectorTile.Command.MOVE_TO.value | (1 << 3),
+        zigZagEncode(4096),
+        zigZagEncode(4096),
+      },
+      VectorTile.encodeGeometry(newMultiPoint(
+        newPoint(256, 256),
+        newPoint(-5, -5)
+      )).filterPointsOutsideBuffer(4).commands()
+    );
+  }
+
+  @TestFactory
+  Stream<DynamicTest> testCountInternalGeometries() {
+    record Case(int expected, Geometry geom) {}
+    return Stream.of(
+      new Case(1, newPoint(0, 0)),
+      new Case(2, newMultiPoint(newPoint(0, 0), newPoint(0, 1))),
+      new Case(3, newMultiPoint(newPoint(0, 0), newPoint(0, 1), newPoint(0, 2))),
+      new Case(1, newLineString(0, 0, 1, 1)),
+      new Case(2, newMultiLineString(
+        newLineString(0, 0, 1, 1),
+        newLineString(0, 0, 2, 2)
+      )),
+      new Case(3, newMultiLineString(
+        newLineString(0, 0, 1, 1),
+        newLineString(0, 0, 2, 2),
+        newLineString(0, 0, 2, 3)
+      )),
+      new Case(1, rectangle(0, 1)),
+      new Case(2, newMultiPolygon(
+        rectangle(0, 1),
+        rectangle(3, 4)
+      )),
+      new Case(3, newMultiPolygon(
+        rectangle(0, 1),
+        rectangle(3, 4),
+        rectangle(6, 8)
+      ))
+    ).map(test -> dynamicTest(test.toString(),
+      () -> {
+        var feature = new VectorTile.Feature(
+          "layer", 1, VectorTile.encodeGeometry(test.geom), Map.of()
+        );
+        var tile = new VectorTile()
+          .addLayerFeatures("layer", List.of(feature));
+        assertEquals(test.expected, VectorTile.countGeometries(tile.toProto().getLayers(0).getFeatures(0)));
+      }));
+  }
+
+  private static void assertArrayEquals(int[] a, int[] b) {
+    assertEquals(
+      IntStream.of(a).boxed().toList(),
+      IntStream.of(b).boxed().toList()
+    );
   }
 
   private void assertSameGeometry(Geometry expected, Geometry actual) {

@@ -9,7 +9,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
@@ -18,7 +20,7 @@ import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Format;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -198,6 +200,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     } catch (SQLException throwables) {
       throw new IllegalArgumentException("Unable to open " + url, throwables);
     }
+  }
+
+  private static TileCoord getResultCoord(ResultSet rs) throws SQLException {
+    int z = rs.getInt(TILES_COL_Z);
+    int rawy = rs.getInt(TILES_COL_Y);
+    int x = rs.getInt(TILES_COL_X);
+    return TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z);
   }
 
   @Override
@@ -422,7 +431,22 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
-    return new TileCoordIterator();
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_TABLE)
+      ),
+      Mbtiles::getResultCoord
+    );
+  }
+
+  @Override
+  public CloseableIterator<Tile> getAllTiles() {
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
+      ),
+      rs -> new Tile(getResultCoord(rs), rs.getBytes(TILES_COL_DATA))
+    );
   }
 
   public Connection connection() {
@@ -437,6 +461,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return compactDb;
   }
 
+  @FunctionalInterface
+  private interface SqlFunction<I, O> {
+    O apply(I t) throws SQLException;
+  }
+
   /**
    * Data contained in the {@code json} row of the metadata table
    *
@@ -445,10 +474,10 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    */
   // TODO add tilestats
   public record MetadataJson(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers
+    @JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers
   ) {
 
-    public MetadataJson(LayerStats.VectorLayer... layers) {
+    public MetadataJson(LayerAttrStats.VectorLayer... layers) {
       this(List.of(layers));
     }
 
@@ -466,47 +495,6 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException("Unable to encode as string: " + this, e);
       }
-    }
-  }
-
-  /** Contents of a row of the tiles table, or in case of compact mode in the tiles view. */
-  public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TileEntry tileEntry = (TileEntry) o;
-
-      if (!tile.equals(tileEntry.tile)) {
-        return false;
-      }
-      return Arrays.equals(bytes, tileEntry.bytes);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = tile.hashCode();
-      result = 31 * result + Arrays.hashCode(bytes);
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TileEntry{" +
-        "tile=" + tile +
-        ", bytes=" + Arrays.toString(bytes) +
-        '}';
-    }
-
-    @Override
-    public int compareTo(TileEntry o) {
-      return tile.compareTo(o.tile);
     }
   }
 
@@ -542,19 +530,21 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
   }
 
-  /** Iterates through tile coordinates one at a time without materializing the entire list in memory. */
-  private class TileCoordIterator implements CloseableIterator<TileCoord> {
-
+  /** Iterates through the results of a query one at a time without materializing the entire list in memory. */
+  private class QueryIterator<T> implements CloseableIterator<T> {
     private final Statement statement;
     private final ResultSet rs;
+    private final SqlFunction<ResultSet, T> rowMapper;
     private boolean hasNext = false;
 
-    private TileCoordIterator() {
+    private QueryIterator(
+      SqlFunction<Statement, ResultSet> query,
+      SqlFunction<ResultSet, T> rowMapper
+    ) {
+      this.rowMapper = rowMapper;
       try {
         this.statement = connection.createStatement();
-        this.rs = statement.executeQuery(
-          "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
-        );
+        this.rs = query.apply(statement);
         hasNext = rs.next();
       } catch (SQLException e) {
         throw new FileFormatException("Could not read tile coordinates from mbtiles file", e);
@@ -580,15 +570,12 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     @Override
-    public TileCoord next() {
+    public T next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
       try {
-        int z = rs.getInt(TILES_COL_Z);
-        int rawy = rs.getInt(TILES_COL_Y);
-        int x = rs.getInt(TILES_COL_X);
-        var result = TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z);
+        T result = rowMapper.apply(rs);
         hasNext = rs.next();
         if (!hasNext) {
           close();
@@ -687,7 +674,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
 
-  private class BatchedTileTableWriter extends BatchedTableWriterBase<TileEntry> {
+  private class BatchedTileTableWriter extends BatchedTableWriterBase<Tile> {
 
     private static final List<String> COLUMNS = List.of(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA);
 
@@ -696,10 +683,10 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     @Override
-    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileEntry tile)
+    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, Tile tile)
       throws SQLException {
 
-      TileCoord coord = tile.tile();
+      TileCoord coord = tile.coord();
       int x = coord.x();
       int y = coord.y();
       int z = coord.z();
@@ -764,7 +751,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
     @Override
     public void write(TileEncodingResult encodingResult) {
-      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
+      tableWriter.write(new Tile(encodingResult.coord(), encodingResult.tileData()));
     }
 
     @Override
@@ -888,6 +875,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
      *      specification</a>
      */
     public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
+
+      final TileCompression tileCompression = tileArchiveMetadata.tileCompression();
+      if (tileCompression != null && tileCompression != TileCompression.GZIP) {
+        LOGGER.warn("will use {} for tile compression, but the mbtiles specification actually requires gzip",
+          tileCompression.id());
+      }
+
       var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
 
       setMetadata(TileArchiveMetadata.FORMAT_KEY, tileArchiveMetadata.format());
@@ -929,6 +923,16 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       String[] center = map.containsKey(TileArchiveMetadata.CENTER_KEY) ?
         map.remove(TileArchiveMetadata.CENTER_KEY).split(",") : null;
       var metadataJson = MetadataJson.fromJson(map.remove("json"));
+
+
+      String tileCompressionRaw = map.remove(TileArchiveMetadata.COMPRESSION_KEY);
+      TileCompression tileCompression = tileCompressionRaw == null ? TileCompression.GZIP :
+        TileCompression.findById(tileCompressionRaw).orElseGet(() -> {
+          LOGGER.warn("unknown tile compression {}", tileCompressionRaw);
+          return TileCompression.UNKNWON;
+        });
+
+
       return new TileArchiveMetadata(
         map.remove(TileArchiveMetadata.NAME_KEY),
         map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
@@ -951,7 +955,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
         Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM_KEY)),
         metadataJson == null ? null : metadataJson.vectorLayers,
         // any left-overs:
-        map
+        map,
+        tileCompression
       );
     }
   }

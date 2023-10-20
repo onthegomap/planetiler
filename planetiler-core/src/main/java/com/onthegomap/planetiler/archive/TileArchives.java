@@ -4,6 +4,10 @@ import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
+import com.onthegomap.planetiler.stream.StreamArchiveConfig;
+import com.onthegomap.planetiler.stream.WriteableCsvArchive;
+import com.onthegomap.planetiler.stream.WriteableJsonStreamArchive;
+import com.onthegomap.planetiler.stream.WriteableProtoStreamArchive;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -39,12 +43,19 @@ public class TileArchives {
   public static WriteableTileArchive newWriter(TileArchiveConfig archive, PlanetilerConfig config)
     throws IOException {
     var options = archive.applyFallbacks(config.arguments());
-    return switch (archive.format()) {
+    var format = archive.format();
+    return switch (format) {
       case MBTILES ->
         // pass-through legacy arguments for fallback
         Mbtiles.newWriteToFileDatabase(archive.getLocalPath(), options.orElse(config.arguments()
           .subset(Mbtiles.LEGACY_VACUUM_ANALYZE, Mbtiles.LEGACY_COMPACT_DB, Mbtiles.LEGACY_SKIP_INDEX_CREATION)));
       case PMTILES -> WriteablePmtiles.newWriteToFile(archive.getLocalPath());
+      case CSV, TSV -> WriteableCsvArchive.newWriteToFile(format, archive.getLocalPath(),
+        new StreamArchiveConfig(config, options));
+      case PROTO, PBF -> WriteableProtoStreamArchive.newWriteToFile(archive.getLocalPath(),
+        new StreamArchiveConfig(config, options));
+      case JSON -> WriteableJsonStreamArchive.newWriteToFile(archive.getLocalPath(),
+        new StreamArchiveConfig(config, options));
     };
   }
 
@@ -59,6 +70,9 @@ public class TileArchives {
     return switch (archive.format()) {
       case MBTILES -> Mbtiles.newReadOnlyDatabase(archive.getLocalPath(), options);
       case PMTILES -> ReadablePmtiles.newReadFromFile(archive.getLocalPath());
+      case CSV, TSV -> throw new UnsupportedOperationException("reading CSV is not supported");
+      case PROTO, PBF -> throw new UnsupportedOperationException("reading PROTO is not supported");
+      case JSON -> throw new UnsupportedOperationException("reading JSON is not supported");
     };
   }
 
@@ -71,5 +85,4 @@ public class TileArchives {
   public static WriteableTileArchive newWriter(Path path, PlanetilerConfig config) throws IOException {
     return newWriter(path.toString(), config);
   }
-
 }

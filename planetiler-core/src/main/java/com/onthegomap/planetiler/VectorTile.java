@@ -26,16 +26,20 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
+import com.onthegomap.planetiler.util.Hilbert;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -176,7 +180,7 @@ public class VectorTile {
     return result.toArray();
   }
 
-  private static int zigZagEncode(int n) {
+  static int zigZagEncode(int n) {
     // https://developers.google.com/protocol-buffers/docs/encoding#types
     return (n << 1) ^ (n >> 31);
   }
@@ -206,6 +210,11 @@ public class VectorTile {
           length = commands[i++];
           command = length & ((1 << 3) - 1);
           length = length >> 3;
+          assert geomType != GeometryType.POINT || i == 1 : "Invalid multipoint, command found at index %d, expected 0"
+            .formatted(i);
+          assert geomType != GeometryType.POINT ||
+            (length * 2 + 1 == geometryCount) : "Invalid multipoint: int[%d] length=%d".formatted(geometryCount,
+              length);
         }
 
         if (length > 0) {
@@ -405,13 +414,56 @@ public class VectorTile {
   }
 
   /**
+   * Returns a new {@link VectorGeometryMerger} that combines encoded geometries of the same type into a merged
+   * multipoint, multilinestring, or multipolygon.
+   */
+  public static VectorGeometryMerger newMerger(GeometryType geometryType) {
+    return new VectorGeometryMerger(geometryType);
+  }
+
+  /**
+   * Returns the hilbert index of the zig-zag-encoded first point of {@code geometry}.
+   * <p>
+   * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+   * offsets take fewer bytes using protobuf varint encoding.
+   */
+  public static int hilbertIndex(Geometry geometry) {
+    Coordinate coord = geometry.getCoordinate();
+    int x = zigZagEncode((int) Math.round(coord.x * 4096 / 256));
+    int y = zigZagEncode((int) Math.round(coord.y * 4096 / 256));
+    return Hilbert.hilbertXYToIndex(15, x, y);
+  }
+
+  /**
+   * Returns the number of internal geometries in this feature including points/lines/polygons inside multigeometries.
+   */
+  public static int countGeometries(VectorTileProto.Tile.Feature feature) {
+    int result = 0;
+    int idx = 0;
+    int geomCount = feature.getGeometryCount();
+    while (idx < geomCount) {
+      int length = feature.getGeometry(idx);
+      int command = length & ((1 << 3) - 1);
+      length = length >> 3;
+      if (command == Command.MOVE_TO.value) {
+        result += length;
+      }
+      idx += 1;
+      if (command != Command.CLOSE_PATH.value) {
+        idx += length * 2;
+      }
+    }
+    return result;
+  }
+
+  /**
    * Adds features in a layer to this tile.
    *
    * @param layerName name of the layer in this tile to add the features to
    * @param features  features to add to the tile
    * @return this encoder for chaining
    */
-  public VectorTile addLayerFeatures(String layerName, List<? extends Feature> features) {
+  public VectorTile addLayerFeatures(String layerName, List<Feature> features) {
     if (features.isEmpty()) {
       return this;
     }
@@ -441,11 +493,9 @@ public class VectorTile {
   }
 
   /**
-   * Creates a vector tile protobuf with all features in this tile and serializes it as a byte array.
-   * <p>
-   * Does not compress the result.
+   * Returns a vector tile protobuf object with all features in this tile.
    */
-  public byte[] encode() {
+  public VectorTileProto.Tile toProto() {
     VectorTileProto.Tile.Builder tile = VectorTileProto.Tile.newBuilder();
     for (Map.Entry<String, Layer> e : layers.entrySet()) {
       String layerName = e.getKey();
@@ -492,7 +542,16 @@ public class VectorTile {
 
       tile.addLayers(tileLayer.build());
     }
-    return tile.build().toByteArray();
+    return tile.build();
+  }
+
+  /**
+   * Creates a vector tile protobuf with all features in this tile and serializes it as a byte array.
+   * <p>
+   * Does not compress the result.
+   */
+  public byte[] encode() {
+    return toProto().toByteArray();
   }
 
   /**
@@ -541,7 +600,7 @@ public class VectorTile {
     return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFillsOrEdges();
   }
 
-  private enum Command {
+  enum Command {
     MOVE_TO(1),
     LINE_TO(2),
     CLOSE_PATH(7);
@@ -550,6 +609,85 @@ public class VectorTile {
 
     Command(int value) {
       this.value = value;
+    }
+  }
+
+  /**
+   * Utility that combines encoded geometries of the same type into a merged multipoint, multilinestring, or
+   * multipolygon.
+   */
+  public static class VectorGeometryMerger implements Consumer<VectorGeometry> {
+    // For the most part this just concatenates the individual command arrays together
+    // EXCEPT we need to adjust the first coordinate of each subsequent linestring to
+    // be an offset from the end of the previous linestring.
+    // AND we need to combine all multipoint "move to" commands into one at the start of
+    // the sequence
+
+    private final GeometryType geometryType;
+    private final IntArrayList result = new IntArrayList();
+    private int overallX = 0;
+    private int overallY = 0;
+
+    private VectorGeometryMerger(GeometryType geometryType) {
+      this.geometryType = geometryType;
+    }
+
+    @Override
+    public void accept(VectorGeometry vectorGeometry) {
+      if (vectorGeometry.geomType != geometryType) {
+        throw new IllegalArgumentException(
+          "Cannot merge a " + vectorGeometry.geomType.name().toLowerCase(Locale.ROOT) + " geometry into a multi" +
+            vectorGeometry.geomType.name().toLowerCase(Locale.ROOT));
+      }
+      if (vectorGeometry.isEmpty()) {
+        return;
+      }
+      var commands = vectorGeometry.unscale().commands();
+      int x = 0;
+      int y = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int command = 0;
+      int i = 0;
+
+      result.ensureCapacity(result.elementsCount + commands.length);
+      // and multipoints will end up with only one command ("move to" with length=# points)
+      if (geometryType != GeometryType.POINT || result.isEmpty()) {
+        result.add(commands[0]);
+      }
+      result.add(zigZagEncode(zigZagDecode(commands[1]) - overallX));
+      result.add(zigZagEncode(zigZagDecode(commands[2]) - overallY));
+      if (commands.length > 3) {
+        result.add(commands, 3, commands.length - 3);
+      }
+
+      while (i < geometryCount) {
+        if (length <= 0) {
+          length = commands[i++];
+          command = length & ((1 << 3) - 1);
+          length = length >> 3;
+        }
+
+        if (length > 0) {
+          length--;
+          if (command != Command.CLOSE_PATH.value) {
+            x += zigZagDecode(commands[i++]);
+            y += zigZagDecode(commands[i++]);
+          }
+        }
+      }
+      overallX = x;
+      overallY = y;
+    }
+
+    /** Returns the merged multi-geometry. */
+    public VectorGeometry finish() {
+      // set the correct "move to" length for multipoints based on how many points were actually added
+      if (geometryType == GeometryType.POINT) {
+        result.buffer[0] = Command.MOVE_TO.value | (((result.size() - 1) / 2) << 3);
+      }
+      return new VectorGeometry(result.toArray(), geometryType, 0);
     }
   }
 
@@ -571,6 +709,7 @@ public class VectorTile {
     private static final int BOTTOM = 1 << 3;
     private static final int INSIDE = 0;
     private static final int ALL = TOP | LEFT | RIGHT | BOTTOM;
+    private static final VectorGeometry EMPTY_POINT = new VectorGeometry(new int[0], GeometryType.POINT, 0);
 
     public VectorGeometry {
       if (scale < 0) {
@@ -752,6 +891,91 @@ public class VectorTile {
       return visitedEnoughSides(allowEdges, visited);
     }
 
+    /** Returns true if there are no commands in this geometry. */
+    public boolean isEmpty() {
+      return commands.length == 0;
+    }
+
+    /**
+     * If this is a point, returns an empty geometry if more than {@code buffer} pixels outside the tile bounds, or if
+     * it is a multipoint than removes all points outside the buffer.
+     */
+    public VectorGeometry filterPointsOutsideBuffer(double buffer) {
+      if (geomType != GeometryType.POINT) {
+        return this;
+      }
+      IntArrayList result = null;
+
+      int extent = (EXTENT << scale);
+      int bufferInt = (int) Math.ceil(buffer * extent / 256);
+      int min = -bufferInt;
+      int max = extent + bufferInt;
+
+      int x = 0;
+      int y = 0;
+      int lastX = 0;
+      int lastY = 0;
+
+      int geometryCount = commands.length;
+      int length = 0;
+      int i = 0;
+
+      while (i < geometryCount) {
+        if (length <= 0) {
+          length = commands[i++] >> 3;
+          assert i <= 1 : "Bad index " + i;
+        }
+
+        if (length > 0) {
+          length--;
+          x += zigZagDecode(commands[i++]);
+          y += zigZagDecode(commands[i++]);
+          if (x < min || y < min || x > max || y > max) {
+            if (result == null) {
+              // short-circuit the common case of only a single point that gets filtered-out
+              if (commands.length == 3) {
+                return EMPTY_POINT;
+              }
+              result = new IntArrayList(commands.length);
+              result.add(commands, 0, i - 2);
+            }
+          } else {
+            if (result != null) {
+              result.add(zigZagEncode(x - lastX), zigZagEncode(y - lastY));
+            }
+            lastX = x;
+            lastY = y;
+          }
+        }
+      }
+      if (result != null) {
+        if (result.size() < 3) {
+          result.elementsCount = 0;
+        } else {
+          result.set(0, Command.MOVE_TO.value | (((result.size() - 1) / 2) << 3));
+        }
+
+        return new VectorGeometry(result.toArray(), geomType, scale);
+      } else {
+        return this;
+      }
+    }
+
+    /**
+     * Returns the hilbert index of the zig-zag-encoded first point of this feature.
+     * <p>
+     * This can be useful for sorting geometries to minimize encoded vector tile geometry command size since smaller
+     * offsets take fewer bytes using protobuf varint encoding.
+     */
+    public int hilbertIndex() {
+      if (commands.length < 3) {
+        return 0;
+      }
+      int x = commands[1];
+      int y = commands[2];
+      return Hilbert.hilbertXYToIndex(15, x >> scale, y >> scale);
+    }
+
   }
 
   /**
@@ -800,7 +1024,7 @@ public class VectorTile {
      * Returns a copy of this feature with {@code geometry} replaced with {@code newGeometry}.
      */
     public Feature copyWithNewGeometry(VectorGeometry newGeometry) {
-      return new Feature(
+      return newGeometry == geometry ? this : new Feature(
         layer,
         id,
         newGeometry,

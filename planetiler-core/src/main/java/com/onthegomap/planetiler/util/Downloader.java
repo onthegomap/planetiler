@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.net.URL;
 import java.net.URLConnection;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -99,7 +98,7 @@ public class Downloader {
   }
 
   public static URLConnection getUrlConnection(String urlString, PlanetilerConfig config) throws IOException {
-    var url = new URL(urlString);
+    var url = URI.create(urlString).toURL();
     var connection = url.openConnection();
     connection.setConnectTimeout((int) config.httpTimeout().toMillis());
     connection.setReadTimeout((int) config.httpTimeout().toMillis());

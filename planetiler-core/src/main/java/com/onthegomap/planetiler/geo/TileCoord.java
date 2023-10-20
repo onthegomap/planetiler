@@ -2,8 +2,10 @@ package com.onthegomap.planetiler.geo;
 
 import static com.onthegomap.planetiler.config.PlanetilerConfig.MAX_MAXZOOM;
 
-import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hilbert;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 import javax.annotation.concurrent.Immutable;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -126,19 +128,25 @@ public record TileCoord(int encoded, int x, int y, int z) implements Comparable<
   }
 
   /** Returns the latitude/longitude of the northwest corner of this tile. */
-  public Coordinate getLatLon() {
+  public Envelope getEnvelope() {
     double worldWidthAtZoom = Math.pow(2, z);
-    return new CoordinateXY(
+    return new Envelope(
       GeoUtils.getWorldLon(x / worldWidthAtZoom),
+      GeoUtils.getWorldLon((x + 1) / worldWidthAtZoom),
+      GeoUtils.getWorldLat((y + 1) / worldWidthAtZoom),
       GeoUtils.getWorldLat(y / worldWidthAtZoom)
     );
   }
 
 
   /** Returns a URL that displays the openstreetmap data for this tile. */
-  public String getDebugUrl() {
-    Coordinate coord = getLatLon();
-    return Format.osmDebugUrl(z, coord);
+  public String getDebugUrl(String pattern) {
+    Coordinate center = getEnvelope().centre();
+    DecimalFormat format = new DecimalFormat("0.#####", DecimalFormatSymbols.getInstance(Locale.US));
+    return pattern
+      .replaceAll("\\{(lat|latitude)}", format.format(center.y))
+      .replaceAll("\\{(lon|longitude)}", format.format(center.x))
+      .replaceAll("\\{(z|zoom)}", z + ".5");
   }
 
   /** Returns the pixel coordinate on this tile of a given latitude/longitude (assuming 256x256 px tiles). */
