@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.shapefile.ShapefileDataStoreFactory;
@@ -29,8 +31,6 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.operation.TransformException;
 
 class ShapefileReaderTest {
   @TempDir
