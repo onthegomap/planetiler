@@ -44,7 +44,7 @@ public class Overture implements Profile {
     this.config = config;
     this.connectors = config.arguments().getBoolean("connectors", "include connectors", true);
     this.splitRoads =
-      config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", false);
+      config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", true);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
     this.ids =
@@ -64,7 +64,7 @@ public class Overture implements Profile {
       .setProfile(planetiler -> new Overture(planetiler.config()))
       .overwriteOutput(Path.of("data", "output.pmtiles"));
 
-    if (arguments.getBoolean("download", "download overture files", true)) {
+    if (arguments.getBoolean("download", "download overture files", false)) {
       downloadFiles(base, pt, release, sample);
     }
 
@@ -96,8 +96,93 @@ public class Overture implements Profile {
         case "places/place" -> processPlace(avroFeature, features);
         case "transportation/connector" -> processConnector(avroFeature, features);
         case "transportation/segment" -> processSegment(avroFeature, features);
+        case "base/land" -> processLand(avroFeature, features);
+        case "base/landuse" -> processLandUse(avroFeature, features);
+        case "base/water" -> processWater(avroFeature, features);
+        default -> System.err.println("Not handled: " + sourceFeature.getSourceLayer());
       }
     }
+  }
+
+  private void processWater(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    // TODO
+    //    important river: 9
+    //    "river, canal", 12,
+    //    "stream, drain, ditch", 13
+    //    else 14
+    String clazz = sourceFeature.getStruct().get("class").asString();
+    var feature = sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
+      features.line(sourceFeature.getSourceLayer());
+    feature
+      .setMinZoom(switch (clazz) {
+      case "lake", "ocean", "reservoir" -> 0;
+      case "river" -> 9;
+      case "canal" -> 12;
+      default -> 14;
+      })
+      .inheritAttrFromSource("subType")
+      .inheritAttrFromSource("class")
+      .inheritAttrFromSource("isSalt")
+      .inheritAttrFromSource("isIntermittent")
+      .inheritAttrFromSource("wikidata")
+      .putAttrs(getCommonTags(sourceFeature.getStruct()))
+      .putAttrs(getNames(sourceFeature.getStruct().get("names")))
+      .putAttrs(getSourceTags(sourceFeature));
+    // subType: ["canal","humanMade","lake","ocean","physical","pond","reservoir","river","stream","water"]
+    //          default ["water"]
+    // class: string ["basin","canal","cape","ditch","dock","drain","fairway","fishPass","fishpond","lagoon","lake","lock","moat","ocean","oxbow","pond","reflectingPool","reservoir","river","saltPool","sewage","shoal","strait","stream","swimmingPool","tidalChannel","wastewater","water","water_storage"]
+    //          default ["water"]
+    // names
+    // isSalt: boolean
+    // isIntermittent: boolean
+  }
+
+  private void processLandUse(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    String clazz = sourceFeature.getStruct().get("class").asString();
+    (sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
+      sourceFeature.canBeLine() ? features.line(sourceFeature.getSourceLayer()) :
+      features.point(sourceFeature.getSourceLayer()))
+        .setMinZoom(sourceFeature.isPoint() ? 14 : switch (clazz) {
+        case "residential" -> 6;
+        default -> 9;
+        })
+        .inheritAttrFromSource("subType")
+        .inheritAttrFromSource("class")
+        .inheritAttrFromSource("surface")
+        .inheritAttrFromSource("wikidata")
+        .putAttrs(getCommonTags(sourceFeature.getStruct()))
+        .putAttrs(getNames(sourceFeature.getStruct().get("names")))
+        .putAttrs(getSourceTags(sourceFeature));
+    // subType: string ["agriculture","airport","aquaculture","campground","cemetary","conservation","construction","developed","education","entertainment","golf","horticulture","landfill","medical","military","park","public","protected","recreation","religious","residential","resourceExtraction","structure","transportation","winterSports"]
+    // class: string ["aboriginalLand","aerodrome","airfield","allotments","animalKeeping","aquaculture","barracks","base","brownfield","bunker","campSite","cemetery","churchyard","civicAdmin","clinic","college","commercial","common","conservation","construction","dam","dangerArea","depot","doctors","dogPark","drivingRange","education","environmental","fairway","farmland","farmyard","flowerbed","forest","garages","garden","golfCourse","grass","green","greenfield","greenhouseHorticulture","helipad","heliport","highway","hospital","industrial","institutional","landfill","lateralWaterHazard","logging","marina","meadow","military","militaryOther","nationalPark","naturalMonument","natureReserve","navalBase","nuclearExplosionSite","obstacleCourse","orchard","park","peatCutting","pier","pitch","plantNursery","playground","protectedLandscapeSeascape","public","quarry","range","recreationGround","religious","residential","retail","rough","saltPond","school","schoolyard","speciesManagementArea","stadium","statePark","staticCaravan","strictNatureReserve","tee","themePark","track","trafficIsland","trainingArea","trench","university","villageGreen","vineyard","waterHazard","waterPark","wildernessArea","winterSports","zoo"]
+    // names: name struct
+    // surface: string
+  }
+
+  private static Map<String, Object> getSourceTags(AvroParquetFeature sourceFeature) {
+    Map<String, Object> result = new HashMap<>();
+    for (var entry : sourceFeature.getStruct().get("sourceTags").asMap().entrySet()) {
+      result.put("sourceTags." + entry.getKey(), entry.getValue());
+    }
+    return result;
+  }
+
+  private void processLand(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    String clazz = sourceFeature.getStruct().get("class").asString();
+    features.polygon(sourceFeature.getSourceLayer())
+      .setMinZoom(switch (clazz) {
+      case "land" -> 0;
+      default -> 7;
+      })
+      .inheritAttrFromSource("subType")
+      .inheritAttrFromSource("class")
+      .inheritAttrFromSource("wikidata")
+      .putAttrs(getCommonTags(sourceFeature.getStruct()))
+      .putAttrs(getNames(sourceFeature.getStruct().get("names")))
+      .putAttrs(getSourceTags(sourceFeature));
+    // subType: string ["forest","glacier","grass","land","physical","reef","rock","sand","shrub","tree","wetland"]
+    // class: string ["bareRock","beach","dune","fell","forest","glacier","grass","grassland","heath","hill","land","meadow","peak","reef","rock","sand","scree","scrub","shingle","shrub","shrubbery","tree","treeRow","tundra","valley","volcano","wetland","wood"]
+    // names: name struct
   }
 
   @Override
@@ -107,10 +192,13 @@ public class Overture implements Profile {
       return items;
     }
     double tolerance = config.tolerance(zoom);
+    double minSize = config.minFeatureSize(zoom);
     if (layer.equals("admins/administrativeBoundary")) {
       return FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
     } else if (layer.equals("transportation/segment")) {
       return FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
+    } else if (layer.equals("base/land") || layer.equals("base/water")) {
+      return FeatureMerge.mergeOverlappingPolygons(items, minSize);
     }
     return items;
   }
@@ -133,14 +221,15 @@ public class Overture implements Profile {
 
   private void processSegment(AvroParquetFeature sourceFeature, FeatureCollector features) {
     Struct struct = sourceFeature.getStruct();
-    var subtype = struct.get("subtype").as(OvertureSchema.SegmentSubType.class);
+    // TODO overture bug: inconsistent casing
+    var subtype = struct.get("subType").orElse(struct.get("subtype")).as(OvertureSchema.SegmentSubType.class);
     var roadClass = struct.get("road", "class").as(OvertureSchema.RoadClass.class);
     if (roadClass == null) {
       LOGGER.warn("Invalid road class: {}", struct.get("road", "class"));
       return;
     }
     if (subtype == null) {
-      LOGGER.warn("Invalid subType: {}", struct.get("subtype"));
+      LOGGER.warn("Invalid subType: {}", struct);
       return;
     }
     int minzoom = switch (subtype) {
@@ -427,10 +516,12 @@ public class Overture implements Profile {
   private void processLocality(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (sourceFeature.canBePolygon()) {
       Struct struct = sourceFeature.getStruct();
+      // TODO overture bug: capitalization inconsistent
+      Integer adminLevel = struct.get("adminLevel").orElse(struct.get("adminlevel")).asInt();
       features.innermostPoint(sourceFeature.getSourceLayer())
-        .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
+        .setMinZoom(adminLevelMinZoom(adminLevel))
         .putAttrs(getNames(struct.get("names")))
-        .setAttr("adminLevel", struct.get("adminlevel").asInt())
+        .setAttr("adminLevel", adminLevel)
         .setAttr("subType", struct.get("subtype").asString())
         .setAttr("isoCountryCodeAlpha2", struct.get("isocountrycodealpha2").asString())
         .setAttr("isoSubCountryCode", struct.get("isosubcountrycode").asString())
@@ -496,10 +587,12 @@ public class Overture implements Profile {
 
   private void processAdministrativeBoundary(AvroParquetFeature sourceFeature, FeatureCollector features) {
     Struct struct = sourceFeature.getStruct();
+    // TODO overture bug: capitalization inconsistent
+    Integer adminLevel = struct.get("adminLevel").orElse(struct.get("adminlevel")).asInt();
     features.line(sourceFeature.getSourceLayer())
-      .setMinZoom(adminLevelMinZoom(struct.get("adminlevel").asInt()))
+      .setMinZoom(adminLevelMinZoom(adminLevel))
       .setMinPixelSize(0)
-      .setAttr("adminLevel", struct.get("adminlevel").asInt())
+      .setAttr("adminLevel", adminLevel)
       .setAttr("maritime", struct.get("maritime").asBoolean())
       .putAttrs(getCommonTags(struct));
   }

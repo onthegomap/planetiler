@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
@@ -45,6 +46,11 @@ public interface Struct {
     public Struct orElse(Struct other) {
       return other;
     }
+
+    @Override
+    public String toString() {
+      return asString();
+    }
   };
 
   static Struct of(Object value) {
@@ -75,6 +81,10 @@ public interface Struct {
           result.add(of(r.get("array_element")));
         } else if (d instanceof Map<?, ?> m && m.containsKey("array_element")) {
           result.add(of(m.get("array_element")));
+        } else if (d instanceof GenericRecord r && r.hasField("element")) {
+          result.add(of(r.get("element")));
+        } else if (d instanceof Map<?, ?> m && m.containsKey("element")) {
+          result.add(of(m.get("element")));
         } else {
           result.add(of(d));
         }
@@ -179,6 +189,10 @@ public interface Struct {
     return this;
   }
 
+  default Map<String, Object> asMap() {
+    return Map.of();
+  }
+
   abstract class AStruct<T> implements Struct {
 
     final T value;
@@ -200,6 +214,11 @@ public interface Struct {
         this.asJson = Struct.super.asJson();
       }
       return asJson;
+    }
+
+    @Override
+    public String toString() {
+      return asString();
     }
   }
 
@@ -229,6 +248,13 @@ public interface Struct {
     @Override
     public String asString() {
       return super.asJson();
+    }
+
+    @Override
+    public Map<String, Object> asMap() {
+      return value.entrySet().stream()
+        .map(e -> Map.entry(e.getKey(), e.getValue().rawValue()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
   }
 
