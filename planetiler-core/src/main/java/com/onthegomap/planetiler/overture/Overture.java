@@ -113,13 +113,17 @@ public class Overture implements Profile {
     String clazz = sourceFeature.getStruct().get("class").asString();
     var feature = sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
       features.line(sourceFeature.getSourceLayer());
-    feature
-      .setMinZoom(switch (clazz) {
+    int minzoom = switch (clazz) {
       case "lake", "ocean", "reservoir" -> 0;
       case "river" -> 9;
       case "canal" -> 12;
       default -> 14;
-      })
+    };
+    if (sourceFeature.canBePolygon()) {
+      minzoom = Math.min(minzoom, 6);
+    }
+    feature
+      .setMinZoom(minzoom)
       .inheritAttrFromSource("subType")
       .inheritAttrFromSource("class")
       .inheritAttrFromSource("isSalt")
@@ -128,6 +132,9 @@ public class Overture implements Profile {
       .putAttrs(getCommonTags(sourceFeature.getStruct()))
       .putAttrs(getNames(sourceFeature.getStruct().get("names")))
       .putAttrs(getSourceTags(sourceFeature));
+    if (minzoom == 0) {
+      feature.setMinPixelSize(0);
+    }
     // subType: ["canal","humanMade","lake","ocean","physical","pond","reservoir","river","stream","water"]
     //          default ["water"]
     // class: string ["basin","canal","cape","ditch","dock","drain","fairway","fishPass","fishpond","lagoon","lake","lock","moat","ocean","oxbow","pond","reflectingPool","reservoir","river","saltPool","sewage","shoal","strait","stream","swimmingPool","tidalChannel","wastewater","water","water_storage"]
@@ -169,17 +176,21 @@ public class Overture implements Profile {
 
   private void processLand(AvroParquetFeature sourceFeature, FeatureCollector features) {
     String clazz = sourceFeature.getStruct().get("class").asString();
-    features.polygon(sourceFeature.getSourceLayer())
-      .setMinZoom(switch (clazz) {
-      case "land" -> 0;
+    int minzoom = switch (clazz) {
+      case "land", "glacier" -> 0;
       default -> 7;
-      })
+    };
+    var feature = features.polygon(sourceFeature.getSourceLayer())
+      .setMinZoom(minzoom)
       .inheritAttrFromSource("subType")
       .inheritAttrFromSource("class")
       .inheritAttrFromSource("wikidata")
       .putAttrs(getCommonTags(sourceFeature.getStruct()))
       .putAttrs(getNames(sourceFeature.getStruct().get("names")))
       .putAttrs(getSourceTags(sourceFeature));
+    if (minzoom == 0) {
+      feature.setMinPixelSize(0);
+    }
     // subType: string ["forest","glacier","grass","land","physical","reef","rock","sand","shrub","tree","wetland"]
     // class: string ["bareRock","beach","dune","fell","forest","glacier","grass","grassland","heath","hill","land","meadow","peak","reef","rock","sand","scree","scrub","shingle","shrub","shrubbery","tree","treeRow","tundra","valley","volcano","wetland","wood"]
     // names: name struct
@@ -198,7 +209,13 @@ public class Overture implements Profile {
     } else if (layer.equals("transportation/segment")) {
       return FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
     } else if (layer.equals("base/land") || layer.equals("base/water")) {
-      return FeatureMerge.mergeOverlappingPolygons(items, minSize);
+      return FeatureMerge.mergeNearbyPolygons(
+        items,
+        minSize,
+        minSize,
+        0,
+        0
+      );
     }
     return items;
   }

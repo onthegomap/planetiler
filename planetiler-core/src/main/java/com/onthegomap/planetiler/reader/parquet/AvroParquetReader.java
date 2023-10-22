@@ -97,7 +97,9 @@ public class AvroParquetReader {
         FilterApi.ltEq(FilterApi.doubleColumn("bbox.miny"), latLonBounds.getMaxY())
       )
     ));
-    var inputFiles = sourcePath.stream().map(path -> new ParquetInputFile(path, filter)).toList();
+    var inputFiles = sourcePath.stream()
+      .filter(d -> !"_SUCCESS".equals(d.getFileName().toString()))
+      .map(path -> new ParquetInputFile(path, filter)).toList();
     long featureCount = inputFiles.stream().mapToLong(ParquetInputFile::getCount).sum();
     long blockCount = inputFiles.stream().mapToLong(ParquetInputFile::getBlockCount).sum();
     int readThreads = config.featureReadThreads();
