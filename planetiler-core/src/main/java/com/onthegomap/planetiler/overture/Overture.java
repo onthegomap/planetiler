@@ -107,11 +107,6 @@ public class Overture implements Profile {
   }
 
   private void processWater(AvroParquetFeature sourceFeature, FeatureCollector features) {
-    // TODO
-    //    important river: 9
-    //    "river, canal", 12,
-    //    "stream, drain, ditch", 13
-    //    else 14
     String clazz = sourceFeature.getStruct().get("class").asString();
     var feature = createAnyFeature(sourceFeature, features);
     int minzoom = switch (clazz) {
@@ -121,8 +116,12 @@ public class Overture implements Profile {
       case "stream" -> 13;
       default -> 14;
     };
-    if (sourceFeature.canBePolygon()) {
+    if (sourceFeature.isPoint()) {
+      minzoom = "ocean".equals(clazz) ? 0 : Math.max(8, minzoom);
+    } else if (sourceFeature.canBePolygon()) {
       minzoom = Math.min(minzoom, 6);
+    } else if (sourceFeature.canBeLine()) {
+      minzoom = Math.max(9, minzoom);
     }
     feature
       .setMinZoom(minzoom)
@@ -213,21 +212,13 @@ public class Overture implements Profile {
       return items;
     }
     double tolerance = config.tolerance(zoom);
-    double minSize = config.minFeatureSize(zoom);
-    if (layer.equals("admins/administrativeBoundary")) {
-      return FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
-    } else if (layer.equals("transportation/segment")) {
-      return FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
-    } else if (layer.equals("base/land") || layer.equals("base/water")) {
-      return FeatureMerge.mergeNearbyPolygons(
-        items,
-        minSize,
-        minSize,
-        0,
-        0
-      );
-    }
-    return items;
+    return switch (layer) {
+      case "admins/administrativeBoundary" -> FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
+      case "transportation/segment" -> FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
+      case "base/land", "base/water" -> zoom < 7 ? FeatureMerge.mergeNearbyPolygons(items, 1, 0, 0.1, 0.1) :
+        FeatureMerge.mergeOverlappingPolygons(items, 1);
+      default -> items;
+    };
   }
 
   @Override
