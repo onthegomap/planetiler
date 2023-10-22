@@ -55,7 +55,9 @@ public class Overture implements Profile {
 
   public static void main(String[] args) throws Exception {
     var base = Path.of("data", "sources", "overture");
-    var arguments = Arguments.fromEnvOrArgs(args);
+    var arguments = Arguments.fromEnvOrArgs(args).orElse(Arguments.of(Map.of(
+      "tile_warning_size_mb", "10"
+    )));
     var sample = arguments.getBoolean("sample", "only download smallest file from parquet source", false);
     var release = arguments.getString("release", "overture release", "2023-10-19-alpha.0");
 
@@ -111,12 +113,12 @@ public class Overture implements Profile {
     //    "stream, drain, ditch", 13
     //    else 14
     String clazz = sourceFeature.getStruct().get("class").asString();
-    var feature = sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
-      features.line(sourceFeature.getSourceLayer());
+    var feature = createAnyFeature(sourceFeature, features);
     int minzoom = switch (clazz) {
       case "lake", "ocean", "reservoir" -> 0;
       case "river" -> 9;
       case "canal" -> 12;
+      case "stream" -> 13;
       default -> 14;
     };
     if (sourceFeature.canBePolygon()) {
@@ -146,20 +148,18 @@ public class Overture implements Profile {
 
   private void processLandUse(AvroParquetFeature sourceFeature, FeatureCollector features) {
     String clazz = sourceFeature.getStruct().get("class").asString();
-    (sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
-      sourceFeature.canBeLine() ? features.line(sourceFeature.getSourceLayer()) :
-      features.point(sourceFeature.getSourceLayer()))
-        .setMinZoom(sourceFeature.isPoint() ? 14 : switch (clazz) {
-        case "residential" -> 6;
-        default -> 9;
-        })
-        .inheritAttrFromSource("subType")
-        .inheritAttrFromSource("class")
-        .inheritAttrFromSource("surface")
-        .inheritAttrFromSource("wikidata")
-        .putAttrs(getCommonTags(sourceFeature.getStruct()))
-        .putAttrs(getNames(sourceFeature.getStruct().get("names")))
-        .putAttrs(getSourceTags(sourceFeature));
+    createAnyFeature(sourceFeature, features)
+      .setMinZoom(sourceFeature.isPoint() ? 14 : switch (clazz) {
+      case "residential" -> 6;
+      default -> 9;
+      })
+      .inheritAttrFromSource("subType")
+      .inheritAttrFromSource("class")
+      .inheritAttrFromSource("surface")
+      .inheritAttrFromSource("wikidata")
+      .putAttrs(getCommonTags(sourceFeature.getStruct()))
+      .putAttrs(getNames(sourceFeature.getStruct().get("names")))
+      .putAttrs(getSourceTags(sourceFeature));
     // subType: string ["agriculture","airport","aquaculture","campground","cemetary","conservation","construction","developed","education","entertainment","golf","horticulture","landfill","medical","military","park","public","protected","recreation","religious","residential","resourceExtraction","structure","transportation","winterSports"]
     // class: string ["aboriginalLand","aerodrome","airfield","allotments","animalKeeping","aquaculture","barracks","base","brownfield","bunker","campSite","cemetery","churchyard","civicAdmin","clinic","college","commercial","common","conservation","construction","dam","dangerArea","depot","doctors","dogPark","drivingRange","education","environmental","fairway","farmland","farmyard","flowerbed","forest","garages","garden","golfCourse","grass","green","greenfield","greenhouseHorticulture","helipad","heliport","highway","hospital","industrial","institutional","landfill","lateralWaterHazard","logging","marina","meadow","military","militaryOther","nationalPark","naturalMonument","natureReserve","navalBase","nuclearExplosionSite","obstacleCourse","orchard","park","peatCutting","pier","pitch","plantNursery","playground","protectedLandscapeSeascape","public","quarry","range","recreationGround","religious","residential","retail","rough","saltPond","school","schoolyard","speciesManagementArea","stadium","statePark","staticCaravan","strictNatureReserve","tee","themePark","track","trafficIsland","trainingArea","trench","university","villageGreen","vineyard","waterHazard","waterPark","wildernessArea","winterSports","zoo"]
     // names: name struct
@@ -180,7 +180,10 @@ public class Overture implements Profile {
       case "land", "glacier" -> 0;
       default -> 7;
     };
-    var feature = features.polygon(sourceFeature.getSourceLayer())
+    if (sourceFeature.isPoint()) {
+      minzoom = 14;
+    }
+    var feature = createAnyFeature(sourceFeature, features)
       .setMinZoom(minzoom)
       .inheritAttrFromSource("subType")
       .inheritAttrFromSource("class")
@@ -194,6 +197,13 @@ public class Overture implements Profile {
     // subType: string ["forest","glacier","grass","land","physical","reef","rock","sand","shrub","tree","wetland"]
     // class: string ["bareRock","beach","dune","fell","forest","glacier","grass","grassland","heath","hill","land","meadow","peak","reef","rock","sand","scree","scrub","shingle","shrub","shrubbery","tree","treeRow","tundra","valley","volcano","wetland","wood"]
     // names: name struct
+  }
+
+  private static FeatureCollector.Feature createAnyFeature(AvroParquetFeature sourceFeature,
+    FeatureCollector features) {
+    return sourceFeature.isPoint() ? features.point(sourceFeature.getSourceLayer()) :
+      sourceFeature.canBePolygon() ? features.polygon(sourceFeature.getSourceLayer()) :
+      features.line(sourceFeature.getSourceLayer());
   }
 
   @Override
