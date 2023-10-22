@@ -215,8 +215,10 @@ public class Overture implements Profile {
     return switch (layer) {
       case "admins/administrativeBoundary" -> FeatureMerge.mergeLineStrings(items, 0, tolerance, 4, true);
       case "transportation/segment" -> FeatureMerge.mergeLineStrings(items, 0.25, tolerance, 4, true);
-      case "base/land", "base/water" -> zoom < 7 ? FeatureMerge.mergeNearbyPolygons(items, 1, 0, 0.1, 0.1) :
+      case "base/land" -> zoom < 7 ? FeatureMerge.mergeNearbyPolygons(items, 1, 0, 0.1, 0.1) :
         FeatureMerge.mergeOverlappingPolygons(items, 1);
+      case "base/water" -> zoom < 7 ? FeatureMerge.mergeNearbyPolygons(items, 1, 1, 0.1, 0.1) :
+        FeatureMerge.mergeNearbyPolygons(items, 1, 1, 0, 0);
       default -> items;
     };
   }
