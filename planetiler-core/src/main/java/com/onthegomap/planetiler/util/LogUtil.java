@@ -14,7 +14,7 @@ public class LogUtil {
 
   /** Prepends {@code [stage]} to all subsequent logs from this thread. */
   public static void setStage(String stage) {
-    MDC.put(STAGE_KEY, stage);
+    MDC.put(STAGE_KEY, "[%s] ".formatted(stage));
   }
 
   /** Removes {@code [stage]} from subsequent logs from this thread. */
