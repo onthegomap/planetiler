@@ -14,6 +14,12 @@
 
   <properties>
     <mainClass>com.onthegomap.planetiler.Main</mainClass>
+    <!--
+    compile against an earlier version so that Main runs but can emit a more readable
+    error when running on an older version of Java
+    -->
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
     <image.version>${project.version}</image.version>
     <image>ghcr.io/onthegomap/planetiler:${image.version}</image>
     <assembly-phase>package</assembly-phase>
@@ -54,7 +60,7 @@
           <skip>false</skip>
           <from>
             <image>
-              eclipse-temurin:17-jre
+              eclipse-temurin:21-jre
             </image>
             <platforms>
               <platform>

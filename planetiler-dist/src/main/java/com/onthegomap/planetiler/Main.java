@@ -25,6 +25,15 @@ import org.openmaptiles.util.VerifyMonaco;
  * public static void main(String[] args)} methods of runnable classes.
  */
 public class Main {
+  static {
+    int version = Runtime.version().feature();
+    if (version < 21) {
+      System.err.println(
+        "You are using Java " + version +
+          " but Planetiler requires 21 or later, for more details on upgrading see: https://github.com/onthegomap/planetiler/blob/main/CONTRIBUTING.md");
+      System.exit(1);
+    }
+  }
 
   private static final EntryPoint DEFAULT_TASK = OpenMapTilesMain::main;
   private static final Map<String, EntryPoint> ENTRY_POINTS = Map.ofEntries(

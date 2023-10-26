@@ -17,8 +17,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.15.3</jackson.version>
     <junit.version>5.10.0</junit.version>
@@ -203,7 +203,7 @@
           </execution>
         </executions>
       </plugin>
-      <!-- require building with jdk 17 -->
+      <!-- require building with jdk 21 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -217,7 +217,7 @@
             <configuration>
               <rules>
                 <requireJavaVersion>
-                  <version>17</version>
+                  <version>21</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
@@ -245,8 +245,18 @@
         <artifactId>maven-deploy-plugin</artifactId>
         <version>3.1.1</version>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <compilerArgs>
+            <arg>-proc:full</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
     </plugins>
-
+    
     <pluginManagement>
       <plugins>
         <plugin>
