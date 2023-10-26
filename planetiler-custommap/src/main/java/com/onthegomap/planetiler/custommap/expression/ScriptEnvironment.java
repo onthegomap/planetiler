@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * @param clazz        Class of the input context type
  * @param <T>          The runtime expression context type
  */
-public record ScriptEnvironment<T extends ScriptContext> (List<Decl> declarations, Class<T> clazz, Contexts.Root root) {
+public record ScriptEnvironment<T extends ScriptContext>(List<Decl> declarations, Class<T> clazz, Contexts.Root root) {
   private static <T> List<T> concat(List<T> a, List<T> b) {
     return Stream.concat(a.stream(), b.stream()).toList();
   }
