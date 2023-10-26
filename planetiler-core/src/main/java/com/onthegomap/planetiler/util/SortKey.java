@@ -13,7 +13,7 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
  * To sort by a field descending, specify its range from high to low.
  * <p>
  * For example this SQL ordering:
- * 
+ *
  * <pre>
  * {@code
  * ORDER BY rank ASC,
@@ -23,7 +23,7 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
  * </pre>
  * <p>
  * would become:
- * 
+ *
  * <pre>
  * {@code
  * feature.setSortKey(
@@ -125,7 +125,7 @@ public class SortKey {
     }
     int levels = end + 1 - start;
     if (value < start || value > end) {
-      value = Math.max(start, Math.min(end, value));
+      value = Math.clamp(value, start, end);
     }
     return accumulate(value, start, levels);
   }
@@ -141,7 +141,7 @@ public class SortKey {
       return thenByDouble(start - value, end, start, levels);
     }
     if (value < start || value > end) {
-      value = Math.max(start, Math.min(end, value));
+      value = Math.clamp(value, start, end);
     }
 
     int intVal = doubleRangeToInt(value, start, end, levels);
@@ -160,7 +160,7 @@ public class SortKey {
     }
     assert start > 0 : "log thresholds must be > 0 got [" + start + ", " + end + "]";
     if (value < start || value > end) {
-      value = Math.max(start, Math.min(end, value));
+      value = Math.clamp(value, start, end);
     }
 
     int intVal = doubleRangeToInt(Math.log(value), Math.log(start), Math.log(end), levels);

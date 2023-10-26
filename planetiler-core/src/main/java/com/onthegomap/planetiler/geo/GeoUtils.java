@@ -416,7 +416,7 @@ public class GeoUtils {
   /** Returns a point approximately {@code ratio} of the way from start to end and {@code offset} units to the right. */
   public static Point pointAlongOffset(LineString lineString, double ratio, double offset) {
     int numPoints = lineString.getNumPoints();
-    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * ratio)));
+    int middle = Math.clamp((int) (numPoints * ratio), 0, numPoints - 2);
     Coordinate a = lineString.getCoordinateN(middle);
     Coordinate b = lineString.getCoordinateN(middle + 1);
     LineSegment segment = new LineSegment(a, b);

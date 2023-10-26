@@ -95,7 +95,7 @@ class ArrayLongLongMapMmap implements LongLongMap.ParallelWrites {
     int minChunks = 1;
     int maxChunks = (int) (MAX_BYTES_TO_USE / chunkSize);
     int targetChunks = (int) (ProcessInfo.getMaxMemoryBytes() * 0.5d / chunkSize);
-    return Math.min(maxChunks, Math.max(minChunks, targetChunks));
+    return Math.clamp(targetChunks, minChunks, maxChunks);
   }
 
   public void init() {
