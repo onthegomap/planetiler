@@ -58,14 +58,14 @@ public interface Try<T> {
    */
   <O> Try<O> map(FunctionThatThrows<T, O> fn);
 
-  record Success<T> (T get) implements Try<T> {
+  record Success<T>(T get) implements Try<T> {
 
     @Override
     public <O> Try<O> map(FunctionThatThrows<T, O> fn) {
       return Try.apply(() -> fn.apply(get));
     }
   }
-  record Failure<T> (@Override Exception exception) implements Try<T> {
+  record Failure<T>(@Override Exception exception) implements Try<T> {
 
     @Override
     public T get() {

@@ -15,7 +15,7 @@ import java.util.Objects;
  *
  * @param <T>            Type of the expression context
  */
-public record BooleanExpressionScript<T extends ScriptContext> (
+public record BooleanExpressionScript<T extends ScriptContext>(
   String expressionText,
   ConfigExpressionScript<T, Boolean> expression,
   Class<T> inputClass

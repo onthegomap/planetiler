@@ -178,7 +178,7 @@
             <importOrder/>
             <removeUnusedImports/>
             <eclipse>
-              <version>4.21.0</version>
+              <version>4.29</version>
               <!--suppress UnresolvedMavenProperty -->
               <file>${maven.multiModuleProjectDirectory}/eclipse-formatter.xml</file>
             </eclipse>
@@ -256,7 +256,7 @@
         </configuration>
       </plugin>
     </plugins>
-    
+
     <pluginManagement>
       <plugins>
         <plugin>

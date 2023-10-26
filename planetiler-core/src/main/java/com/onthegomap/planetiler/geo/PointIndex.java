@@ -21,7 +21,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 @ThreadSafe
 public class PointIndex<T> {
 
-  private record GeomWithData<T> (Coordinate coord, T data) {}
+  private record GeomWithData<T>(Coordinate coord, T data) {}
 
   private final STRtree index = new STRtree();
 

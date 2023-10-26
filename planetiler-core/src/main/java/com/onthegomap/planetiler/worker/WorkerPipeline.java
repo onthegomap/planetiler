@@ -34,7 +34,7 @@ import java.util.function.Consumer;
  *
  * @param <T> input type of this pipeline
  */
-public record WorkerPipeline<T> (
+public record WorkerPipeline<T>(
   String name,
   WorkerPipeline<?> previous,
   WorkQueue<T> inputQueue,
@@ -219,7 +219,7 @@ public record WorkerPipeline<T> (
    *
    * @param <O> type of elements that the next step must process
    */
-  public record Builder<O> (
+  public record Builder<O>(
     String prefix,
     String name,
     // keep track of previous elements so that build can wire-up the computation graph

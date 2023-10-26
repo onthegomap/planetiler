@@ -572,5 +572,5 @@ public class FeatureMerge {
     return result;
   }
 
-  private record WithIndex<T> (T feature, int hilbert) {}
+  private record WithIndex<T>(T feature, int hilbert) {}
 }
