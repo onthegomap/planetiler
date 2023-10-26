@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> type of data value associated with each expression
  */
-public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifiable<MultiExpression<T>> {
+public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplifiable<MultiExpression<T>> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiExpression.class);
   private static final Comparator<WithId> BY_ID = Comparator.comparingInt(WithId::id);
@@ -358,13 +358,13 @@ public record MultiExpression<T>(List<Entry<T>> expressions) implements Simplifi
   }
 
   /** An expression/value pair with unique ID to store whether we evaluated it yet. */
-  private record EntryWithId<T>(T result, Expression expression, @Override int id) implements WithId {}
+  private record EntryWithId<T> (T result, Expression expression, @Override int id) implements WithId {}
 
   /**
    * An {@code expression} to evaluate on input elements and {@code result} value to return when the element matches.
    */
-  public record Entry<T>(T result, Expression expression) {}
+  public record Entry<T> (T result, Expression expression) {}
 
   /** The result when an expression matches, along with the input element tag {@code keys} that triggered the match. */
-  public record Match<T>(T match, List<String> keys, @Override int id) implements WithId {}
+  public record Match<T> (T match, List<String> keys, @Override int id) implements WithId {}
 }

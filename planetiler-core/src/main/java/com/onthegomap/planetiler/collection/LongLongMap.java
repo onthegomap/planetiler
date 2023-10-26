@@ -51,10 +51,10 @@ public interface LongLongMap extends Closeable, MemoryEstimator.HasEstimate, Dis
         AppendStore.Longs.create(storage, params.resolve("values"))
       );
       case ARRAY -> switch (storage) {
-        case MMAP -> new ArrayLongLongMapMmap(params.path(), params.madvise());
-        case RAM -> new ArrayLongLongMapRam(false);
-        case DIRECT -> new ArrayLongLongMapRam(true);
-      };
+          case MMAP -> new ArrayLongLongMapMmap(params.path(), params.madvise());
+          case RAM -> new ArrayLongLongMapRam(false);
+          case DIRECT -> new ArrayLongLongMapRam(true);
+        };
     };
   }
 

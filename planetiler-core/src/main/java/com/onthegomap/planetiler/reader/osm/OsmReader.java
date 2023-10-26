@@ -592,7 +592,7 @@ public class OsmReader implements Closeable, MemoryEstimator.HasEstimate {
    * @param role     "role" of the relation member
    * @param relation user-provided data about the relation from pass1
    */
-  public record RelationMember<T extends OsmRelationInfo>(String role, T relation) {}
+  public record RelationMember<T extends OsmRelationInfo> (String role, T relation) {}
 
   /** Raw relation membership data that gets encoded/decoded into a long. */
   private record RelationMembership(String role, long relationId) {}

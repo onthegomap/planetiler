@@ -175,6 +175,12 @@
         <version>2.40.0</version>
         <configuration>
           <java>
+            <includes>
+              <include>*.java</include>
+            </includes>
+            <excludes>
+              <exclude>planetiler-openmaptiles/**/*.java</exclude>
+            </excludes>
             <importOrder/>
             <removeUnusedImports/>
             <eclipse>

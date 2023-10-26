@@ -128,7 +128,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private Geometry computeCentroidIfConvex() throws GeometryException {
     if (!canBePolygon()) {
       return centroid();
-    } else if (polygon() instanceof Polygon poly &&
+    } else if (polygon()instanceof Polygon poly &&
       poly.getNumInteriorRing() == 0 &&
       GeoUtils.isConvex(poly.getExteriorRing())) {
       return centroid();
