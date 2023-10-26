@@ -54,7 +54,7 @@
           <skip>false</skip>
           <from>
             <image>
-              eclipse-temurin:17-jre
+              eclipse-temurin:21-jre
             </image>
             <platforms>
               <platform>

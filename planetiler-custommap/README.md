@@ -144,6 +144,7 @@ to regenerate:
 
 cat planetiler-custommap/planetiler.schema.json | jq -r '.properties.args.properties | to_entries[] | "- `" + .key + "` - " + .value.description' | pbcopy
 -->
+
 - `threads` - Default number of threads to use.
 - `write_threads` - Default number of threads to use when writing temp features
 - `process_threads` - Default number of threads to use when processing input features
@@ -292,15 +293,18 @@ Specific tile post processing operations for merging features may be defined:
 
 - `merge_line_strings` - Combines linestrings with the same set of attributes into a multilinestring where segments with
   touching endpoints are merged.
-- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons
+- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching
+  polygons
   are combined into fewer polygons covering the same area.
 
 The follow attributes for `merge_line_strings` may be set:
+
 - `min_length` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings.
 - `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step.
 - `buffer` - Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step.
 
 The follow attribute for `merge_polygons` may be set:
+
 - `min_area` - Minimum area in square tile pixels of polygons to emit.
 
 For example:
@@ -476,7 +480,7 @@ nested, so each child context can also access the variables from its parent.
 >> ##### process feature context
 >>
 >> Context available when processing an input feature, for example testing whether to include it from `include_when`.
->> Available variables:
+> > Available variables:
 >>
 >> - `feature.tags` - map with key/value tags from the input feature
 >> - `feature.id` - numeric ID of the input feature
@@ -493,7 +497,7 @@ nested, so each child context can also access the variables from its parent.
 >>>> ##### configure attribute context
 >>>>
 >>>> Context available after the value of an attribute has been computed, for example: set min zoom to render an
->>>> attribute. Adds variables:
+> > > > attribute. Adds variables:
 >>>>
 >>>> - `value` the value that was computed for this key
 
@@ -534,7 +538,7 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
   - `<string>.replace(from, to, limit)` returns the input string with the first N occurrences of from replaced by to
   - `<string>.replaceRegex(pattern, value)` replaces every occurrence of regular expression with value from the string
     it was called on using java's
-    built-in [replaceAll](<https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String)>)
+    built-in [replaceAll](<https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String)>)
     behavior
   - `<string>.split(separator)` returns a list of strings split from the input by a separator
   - `<string>.split(separator, limit)` splits the list into up to N parts
