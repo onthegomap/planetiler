@@ -390,22 +390,22 @@ public class GeoUtils {
   }
 
   private static void getLineStrings(Geometry input, List<LineString> output) throws GeometryException {
-    if (input instanceof LinearRing linearRing) {
-      output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
-    } else if (input instanceof LineString lineString) {
-      output.add(lineString);
-    } else if (input instanceof Polygon polygon) {
-      getLineStrings(polygon.getExteriorRing(), output);
-      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-        getLineStrings(polygon.getInteriorRingN(i), output);
+    switch (input) {
+      case LinearRing linearRing -> output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
+      case LineString lineString -> output.add(lineString);
+      case Polygon polygon -> {
+        getLineStrings(polygon.getExteriorRing(), output);
+        for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+          getLineStrings(polygon.getInteriorRingN(i), output);
+        }
       }
-    } else if (input instanceof GeometryCollection gc) {
-      for (int i = 0; i < gc.getNumGeometries(); i++) {
-        getLineStrings(gc.getGeometryN(i), output);
+      case GeometryCollection gc -> {
+        for (int i = 0; i < gc.getNumGeometries(); i++) {
+          getLineStrings(gc.getGeometryN(i), output);
+        }
       }
-    } else {
-      throw new GeometryException("get_line_strings_bad_type",
-        "unrecognized geometry type: " + input.getGeometryType());
+      case null, default -> throw new GeometryException("get_line_strings_bad_type",
+        "unrecognized geometry type: " + (input == null ? "null" : input.getGeometryType()));
     }
   }
 

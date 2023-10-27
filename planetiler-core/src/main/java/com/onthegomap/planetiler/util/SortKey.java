@@ -14,18 +14,14 @@ import com.onthegomap.planetiler.collection.FeatureGroup;
  * <p>
  * For example this SQL ordering:
  *
- * <pre>
- * {@code
+ * {@snippet lang = "sql" :
  * ORDER BY rank ASC,
  * population DESC,
  * length(name) ASC
  * }
- * </pre>
  * <p>
  * would become:
- *
- * <pre>
- * {@code
+ * {@snippet :
  * feature.setSortKey(
  *   SortKey
  *     .orderByInt(rank, MIN_RANK, MAX_RANK)

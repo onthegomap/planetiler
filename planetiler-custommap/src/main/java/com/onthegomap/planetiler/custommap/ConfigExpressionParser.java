@@ -86,7 +86,7 @@ public class ConfigExpressionParser<I extends ScriptContext> {
         return cast(signature(output), child, dataType);
       } else {
         var keys = map.keySet();
-        if (keys.equals(Set.of("coalesce")) && map.get("coalesce")instanceof Collection<?> cases) {
+        if (keys.equals(Set.of("coalesce")) && map.get("coalesce") instanceof Collection<?> cases) {
           return coalesce(cases.stream().map(item -> parse(item, output)).toList());
         } else if (keys.equals(Set.of("match"))) {
           return parseMatch(map.get("match"), true, output);

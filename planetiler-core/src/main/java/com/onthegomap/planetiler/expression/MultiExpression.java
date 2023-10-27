@@ -50,19 +50,15 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
    * when a particular key is present on the input.
    */
   private static boolean mustAlwaysEvaluate(Expression expression) {
-    if (expression instanceof Expression.Or or) {
-      return or.children().stream().anyMatch(MultiExpression::mustAlwaysEvaluate);
-    } else if (expression instanceof Expression.And and) {
-      return and.children().stream().allMatch(MultiExpression::mustAlwaysEvaluate);
-    } else if (expression instanceof Expression.Not not) {
-      return !mustAlwaysEvaluate(not.child());
-    } else if (expression instanceof Expression.MatchAny any && any.matchWhenMissing()) {
-      return true;
-    } else {
-      return !(expression instanceof Expression.MatchAny) &&
-        !(expression instanceof Expression.MatchField) &&
-        !FALSE.equals(expression);
-    }
+    return switch (expression) {
+      case Expression.Or(var children) -> children.stream().anyMatch(MultiExpression::mustAlwaysEvaluate);
+      case Expression.And(var children) -> children.stream().allMatch(MultiExpression::mustAlwaysEvaluate);
+      case Expression.Not(var child) -> !mustAlwaysEvaluate(child);
+      case Expression.MatchAny any when any.matchWhenMissing() -> true;
+      case null, default -> !(expression instanceof Expression.MatchAny) &&
+          !(expression instanceof Expression.MatchField) &&
+          !FALSE.equals(expression);
+    };
   }
 
   /** Calls {@code acceptKey} for every tag that could possibly cause {@code exp} to match an input element. */

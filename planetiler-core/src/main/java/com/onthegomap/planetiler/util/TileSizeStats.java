@@ -44,7 +44,7 @@ import vector_tile.VectorTileProto;
  * archive, or run the following an existing archive:
  *
  * <pre>
- * {@code
+ * {@snippet lang="bash" :
  * java -jar planetiler.jar stats --input=<path to pmtiles or mbtiles> --output=layerstats.tsv.gz
  * }
  * </pre>

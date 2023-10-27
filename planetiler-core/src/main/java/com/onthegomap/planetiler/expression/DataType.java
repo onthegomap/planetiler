@@ -34,19 +34,14 @@ public enum DataType implements BiFunction<WithTags, String, Object> {
 
   /** Returns the data type associated with {@code value}, or {@link #GET_TAG} as a fallback. */
   public static DataType typeOf(Object value) {
-    if (value instanceof String) {
-      return GET_STRING;
-    } else if (value instanceof Integer) {
-      return GET_INT;
-    } else if (value instanceof Long) {
-      return GET_LONG;
-    } else if (value instanceof Double) {
-      return GET_DOUBLE;
-    } else if (value instanceof Boolean) {
-      return GET_BOOLEAN;
-    } else {
-      return GET_TAG;
-    }
+    return switch (value) {
+      case String ignored -> GET_STRING;
+      case Integer ignored -> GET_INT;
+      case Long ignored -> GET_LONG;
+      case Double ignored -> GET_DOUBLE;
+      case Boolean ignored -> GET_BOOLEAN;
+      default -> GET_TAG;
+    };
   }
 
   /** Returns the data type associated with {@code id}, or {@link #GET_TAG} as a fallback. */

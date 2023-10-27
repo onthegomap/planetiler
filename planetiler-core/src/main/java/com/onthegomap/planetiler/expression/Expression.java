@@ -23,12 +23,9 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Calling {@code toString()} on any expression will generate code that can be used to recreate an identical copy of the
  * original expression, assuming that the generated code includes:
- *
- * <pre>
- * {@code
+ * {@snippet :
  * import static com.onthegomap.planetiler.expression.Expression.*;
  * }
- * </pre>
  */
 // TODO rename to BooleanExpression
 public interface Expression extends Simplifiable<Expression> {
@@ -141,14 +138,13 @@ public interface Expression extends Simplifiable<Expression> {
   default Expression replace(Predicate<Expression> replace, Expression b) {
     if (replace.test(this)) {
       return b;
-    } else if (this instanceof Not not) {
-      return new Not(not.child.replace(replace, b));
-    } else if (this instanceof Or or) {
-      return new Or(or.children.stream().map(child -> child.replace(replace, b)).toList());
-    } else if (this instanceof And and) {
-      return new And(and.children.stream().map(child -> child.replace(replace, b)).toList());
     } else {
-      return this;
+      return switch (this) {
+        case Not(var child) -> new Not(child.replace(replace, b));
+        case Or(var children) -> new Or(children.stream().map(child -> child.replace(replace, b)).toList());
+        case And(var children) -> new And(children.stream().map(child -> child.replace(replace, b)).toList());
+        default -> this;
+      };
     }
   }
 
@@ -156,14 +152,13 @@ public interface Expression extends Simplifiable<Expression> {
   default boolean contains(Predicate<Expression> filter) {
     if (filter.test(this)) {
       return true;
-    } else if (this instanceof Not not) {
-      return not.child.contains(filter);
-    } else if (this instanceof Or or) {
-      return or.children.stream().anyMatch(child -> child.contains(filter));
-    } else if (this instanceof And and) {
-      return and.children.stream().anyMatch(child -> child.contains(filter));
     } else {
-      return false;
+      return switch (this) {
+        case Not(var child) -> child.contains(filter);
+        case Or(var children) -> children.stream().anyMatch(child -> child.contains(filter));
+        case And(var children) -> children.stream().anyMatch(child -> child.contains(filter));
+        default -> false;
+      };
     }
   }
 

@@ -220,21 +220,15 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         if (entry.getValue() != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
           Object value = entry.getValue();
-          if (value instanceof String string) {
-            packer.packValue(ValueFactory.newString(string));
-          } else if (value instanceof Integer integer) {
-            packer.packValue(ValueFactory.newInteger(integer.longValue()));
-          } else if (value instanceof Long longValue) {
-            packer.packValue(ValueFactory.newInteger(longValue));
-          } else if (value instanceof Float floatValue) {
-            packer.packValue(ValueFactory.newFloat(floatValue));
-          } else if (value instanceof Double doubleValue) {
-            packer.packValue(ValueFactory.newFloat(doubleValue));
-          } else if (value instanceof Boolean booleanValue) {
-            packer.packValue(ValueFactory.newBoolean(booleanValue));
-          } else {
-            packer.packValue(ValueFactory.newString(value.toString()));
-          }
+          packer.packValue(switch (value) {
+            case String string -> ValueFactory.newString(string);
+            case Integer integer -> ValueFactory.newInteger(integer.longValue());
+            case Long longValue -> ValueFactory.newInteger(longValue);
+            case Float floatValue -> ValueFactory.newFloat(floatValue);
+            case Double doubleValue -> ValueFactory.newFloat(doubleValue);
+            case Boolean booleanValue -> ValueFactory.newBoolean(booleanValue);
+            default -> ValueFactory.newString(value.toString());
+          });
         }
       }
       // Use the same binary format for encoding geometries in output vector tiles. Benchmarking showed
