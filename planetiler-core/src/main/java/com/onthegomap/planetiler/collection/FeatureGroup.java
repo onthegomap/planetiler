@@ -217,9 +217,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
-        if (entry.getValue() != null) {
+        Object value = entry.getValue();
+        if (value != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
-          Object value = entry.getValue();
           packer.packValue(switch (value) {
             case String string -> ValueFactory.newString(string);
             case Integer integer -> ValueFactory.newInteger(integer.longValue());
@@ -227,7 +227,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
             case Float floatValue -> ValueFactory.newFloat(floatValue);
             case Double doubleValue -> ValueFactory.newFloat(doubleValue);
             case Boolean booleanValue -> ValueFactory.newBoolean(booleanValue);
-            default -> ValueFactory.newString(value.toString());
+            case Object other -> ValueFactory.newString(other.toString());
           });
         }
       }

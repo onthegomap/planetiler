@@ -516,7 +516,7 @@ public class VectorTile {
           case Float floatValue -> tileValue.setFloatValue(floatValue);
           case Double doubleValue -> tileValue.setDoubleValue(doubleValue);
           case Boolean booleanValue -> tileValue.setBoolValue(booleanValue);
-          case Object ignored -> tileValue.setStringValue(value.toString());
+          case Object other -> tileValue.setStringValue(other.toString());
         }
         tileLayer.addValues(tileValue.build());
       }

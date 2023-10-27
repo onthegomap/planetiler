@@ -17,7 +17,6 @@ import java.util.function.Consumer;
  * A mini-framework for chaining sequential steps that run in dedicated threads with a queue between each.
  * <p>
  * For example:
- *
  * {@snippet :
  * WorkerPipeline.start("name", stats)
  *   .readFrom("reader", List.of(1, 2, 3))
