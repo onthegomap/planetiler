@@ -160,7 +160,7 @@ class VectorTileTest {
 
     List<VectorTile.Feature> decoded = VectorTile.decode(encoded);
     assertEquals(1, decoded.size());
-    Map<String, Object> decodedAttributes = decoded.get(0).attrs();
+    Map<String, Object> decodedAttributes = decoded.getFirst().attrs();
     assertEquals("value1", decodedAttributes.get("key1"));
     assertEquals(123L, decodedAttributes.get("key2"));
     assertEquals(234.1f, decodedAttributes.get("key3"));
@@ -220,7 +220,7 @@ class VectorTileTest {
 
     var features = VectorTile.decode(encoded);
     assertEquals(1, features.size());
-    MultiPolygon mp2 = (MultiPolygon) decodeSilently(features.get(0).geometry());
+    MultiPolygon mp2 = (MultiPolygon) decodeSilently(features.getFirst().geometry());
     assertEquals(mp.getNumGeometries(), mp2.getNumGeometries());
   }
 

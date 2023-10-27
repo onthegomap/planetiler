@@ -172,7 +172,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
      */
     default O getOrElse(WithTags input, O defaultValue) {
       List<O> matches = getMatches(input);
-      return matches.isEmpty() ? defaultValue : matches.get(0);
+      return matches.isEmpty() ? defaultValue : matches.getFirst();
     }
 
     /**
@@ -180,7 +180,7 @@ public record MultiExpression<T> (List<Entry<T>> expressions) implements Simplif
      */
     default O getOrElse(Map<String, Object> tags, O defaultValue) {
       List<O> matches = getMatches(WithTags.from(tags));
-      return matches.isEmpty() ? defaultValue : matches.get(0);
+      return matches.isEmpty() ? defaultValue : matches.getFirst();
     }
 
     /** Returns true if any expression matches that tags from an input element. */

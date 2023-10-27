@@ -124,7 +124,7 @@ public class FeatureMerge {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, geometryType);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       if (groupedFeatures.size() == 1) {
         result.add(feature1);
       } else {
@@ -158,7 +158,7 @@ public class FeatureMerge {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       double lengthLimit = lengthLimitCalculator.apply(feature1.attrs());
 
       // as a shortcut, can skip line merging only if:
@@ -300,7 +300,7 @@ public class FeatureMerge {
     Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       List<Polygon> outPolygons = new ArrayList<>();
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       List<Geometry> geometries = new ArrayList<>(groupedFeatures.size());
       for (var feature : groupedFeatures) {
         try {
@@ -331,7 +331,7 @@ public class FeatureMerge {
           }
           merged = GeoUtils.snapAndFixPolygon(merged, stats, "merge").reverse();
         } else {
-          merged = polygonGroup.get(0);
+          merged = polygonGroup.getFirst();
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
@@ -572,5 +572,5 @@ public class FeatureMerge {
     return result;
   }
 
-  private record WithIndex<T> (T feature, int hilbert) {}
+  private record WithIndex<T>(T feature, int hilbert) {}
 }

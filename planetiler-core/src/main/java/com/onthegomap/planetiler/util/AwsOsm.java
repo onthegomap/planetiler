@@ -95,7 +95,7 @@ public class AwsOsm {
       } else if (results.size() > 1) {
         throw new IllegalArgumentException("Found multiple AWS osm download URLs for " + searchQuery + ": " + results);
       }
-      return results.get(0);
+      return results.getFirst();
     }
   }
 

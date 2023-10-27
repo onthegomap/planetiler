@@ -232,7 +232,7 @@ public class OsmMultipolygon {
     if (numPolygons == 0) {
       return shells;
     }
-    shells.add(polygons.get(0));
+    shells.add(polygons.getFirst());
     if (numPolygons == 1) {
       return shells;
     }

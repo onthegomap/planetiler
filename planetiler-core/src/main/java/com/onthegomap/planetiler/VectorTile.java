@@ -263,7 +263,7 @@ public class VectorTile {
             lineStrings.add(gf.createLineString(coordSeq));
           }
           if (lineStrings.size() == 1) {
-            geometry = lineStrings.get(0);
+            geometry = lineStrings.getFirst();
           } else if (lineStrings.size() > 1) {
             geometry = gf.createMultiLineString(lineStrings.toArray(new LineString[0]));
           }
@@ -305,12 +305,12 @@ public class VectorTile {
           }
           List<Polygon> polygons = new ArrayList<>();
           for (List<LinearRing> rings : polygonRings) {
-            LinearRing shell = rings.get(0);
+            LinearRing shell = rings.getFirst();
             LinearRing[] holes = rings.subList(1, rings.size()).toArray(new LinearRing[rings.size() - 1]);
             polygons.add(gf.createPolygon(shell, holes));
           }
           if (polygons.size() == 1) {
-            geometry = polygons.get(0);
+            geometry = polygons.getFirst();
           }
           if (polygons.size() > 1) {
             geometry = gf.createMultiPolygon(GeometryFactory.toPolygonArray(polygons));

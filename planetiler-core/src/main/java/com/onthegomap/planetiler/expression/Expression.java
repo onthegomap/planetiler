@@ -229,7 +229,7 @@ public interface Expression extends Simplifiable<Expression> {
         return TRUE;
       }
       if (children.size() == 1) {
-        return children.get(0).simplifyOnce();
+        return children.getFirst().simplifyOnce();
       }
       if (children.contains(FALSE)) {
         return FALSE;
@@ -283,7 +283,7 @@ public interface Expression extends Simplifiable<Expression> {
         return FALSE;
       }
       if (children.size() == 1) {
-        return children.get(0).simplifyOnce();
+        return children.getFirst().simplifyOnce();
       }
       if (children.contains(TRUE)) {
         return TRUE;

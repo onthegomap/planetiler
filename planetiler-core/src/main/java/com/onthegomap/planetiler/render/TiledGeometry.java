@@ -258,7 +258,7 @@ public class TiledGeometry {
             TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
             double tileY = worldY - y;
             tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-              .get(0)
+              .getFirst()
               .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
           }
         }
@@ -384,7 +384,7 @@ public class TiledGeometry {
     for (var entry : inProgressShapes.entrySet()) {
       TileCoord tileID = entry.getKey();
       List<CoordinateSequence> inSeqs = entry.getValue();
-      if (area && inSeqs.get(0).size() < 4) {
+      if (area && inSeqs.getFirst().size() < 4) {
         // not enough points in outer polygon, ignore
         continue;
       }
@@ -573,20 +573,20 @@ public class TiledGeometry {
               }
               /*
               A tile is inside a filled region when there is an odd number of vertical edges to the left and right
-              
+
               for example a simple shape:
                      ---------
                out   |  in   | out
                (0/2) | (1/1) | (2/0)
                      ---------
-              
+
               or a more complex shape
                      ---------       ---------
                out   |  in   | out   | in    |
                (0/4) | (1/3) | (2/2) | (3/1) |
                      |       ---------       |
                      -------------------------
-              
+
               So we keep track of this number by xor'ing the left and right fills repeatedly,
               then and'ing them together at the end.
                */

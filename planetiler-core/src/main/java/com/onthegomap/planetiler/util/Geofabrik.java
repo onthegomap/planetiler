@@ -106,7 +106,7 @@ public class Geofabrik {
         "Multiple " + name + " for '" + searchQuery + "': " + values.stream().map(d -> d.id).collect(
           Collectors.joining(", ")));
     } else if (values.size() == 1) {
-      return values.get(0).urls.get("pbf");
+      return values.getFirst().urls.get("pbf");
     } else {
       return null;
     }

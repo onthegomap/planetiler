@@ -281,15 +281,15 @@ public class GeoUtils {
   }
 
   public static Geometry combineLineStrings(List<LineString> lineStrings) {
-    return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
+    return lineStrings.size() == 1 ? lineStrings.getFirst() : createMultiLineString(lineStrings);
   }
 
   public static Geometry combinePolygons(List<Polygon> polys) {
-    return polys.size() == 1 ? polys.get(0) : createMultiPolygon(polys);
+    return polys.size() == 1 ? polys.getFirst() : createMultiPolygon(polys);
   }
 
   public static Geometry combinePoints(List<Point> points) {
-    return points.size() == 1 ? points.get(0) : createMultiPoint(points);
+    return points.size() == 1 ? points.getFirst() : createMultiPoint(points);
   }
 
   /**
@@ -383,7 +383,7 @@ public class GeoUtils {
     if (lineStrings.isEmpty()) {
       throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
-      return lineStrings.get(0);
+      return lineStrings.getFirst();
     } else {
       return createMultiLineString(lineStrings);
     }
@@ -530,7 +530,7 @@ public class GeoUtils {
         innerGeometries.add(geom);
       }
     }
-    return innerGeometries.size() == 1 ? innerGeometries.get(0) :
+    return innerGeometries.size() == 1 ? innerGeometries.getFirst() :
       JTS_FACTORY.createGeometryCollection(innerGeometries.toArray(Geometry[]::new));
   }
 

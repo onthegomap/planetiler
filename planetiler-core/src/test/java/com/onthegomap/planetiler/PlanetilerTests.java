@@ -827,7 +827,7 @@ class PlanetilerTests {
 
     var tileContents = results.tiles.get(TileCoord.ofXYZ(0, 0, 0));
     assertEquals(1, tileContents.size());
-    Geometry geom = tileContents.get(0).geometry().geom();
+    Geometry geom = tileContents.getFirst().geometry().geom();
     assertTrue(geom instanceof MultiPolygon, geom.toString());
     MultiPolygon multiPolygon = (MultiPolygon) geom;
     assertSameNormalizedFeature(newPolygon(
@@ -1884,7 +1884,7 @@ class PlanetilerTests {
       var point = newPoint(tileX, tileY);
 
       assertEquals(1, problematicTile.size());
-      var geomCompare = problematicTile.get(0).geometry();
+      var geomCompare = problematicTile.getFirst().geometry();
       geomCompare.validate();
       var geom = geomCompare.geom();
 

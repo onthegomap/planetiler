@@ -47,7 +47,7 @@ public class BenchmarkMbtilesRead {
     List<TileCoord> randomCoordsToFetchPerRepetition = new LinkedList<>();
 
     do {
-      try (var db = Mbtiles.newReadOnlyDatabase(mbtilesPaths.get(0))) {
+      try (var db = Mbtiles.newReadOnlyDatabase(mbtilesPaths.getFirst())) {
         try (var statement = db.connection().prepareStatement(SELECT_RANDOM_COORDS)) {
           statement.setInt(1, nrTileReads - randomCoordsToFetchPerRepetition.size());
           var rs = statement.executeQuery();
