@@ -244,7 +244,7 @@ public class Downloader {
 
   CompletableFuture<ResourceMetadata> httpHead(String url) {
     return client
-      .sendAsync(newHttpRequest(url).method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
+      .sendAsync(newHttpRequest(url).HEAD().build(),
         responseInfo -> {
           int status = responseInfo.statusCode();
           Optional<String> location = Optional.empty();

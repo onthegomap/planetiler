@@ -54,33 +54,33 @@ public class Worker {
   public Worker(String prefix, Stats stats, int threads, IntConsumerThatThrows task) {
     this.prefix = prefix;
     stats.gauge(prefix + "_threads", threads);
-    var es = Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix));
-    String parentStage = LogUtil.getStage();
-    List<CompletableFuture<?>> results = new ArrayList<>();
-    for (int i = 0; i < threads; i++) {
-      final int threadId = i;
-      results.add(CompletableFuture.runAsync(() -> {
-        LogUtil.setStage(parentStage, prefix);
-        String id = Thread.currentThread().getName();
-        LOGGER.trace("Starting worker");
-        try {
-          long start = System.nanoTime();
-          task.accept(threadId);
-          stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
-        } catch (Throwable e) {
-          System.err.println("Worker " + id + " died");
-          // when one worker dies it may close resources causing others to die as well, so only log the first
-          if (firstWorkerDied.compareAndSet(false, true)) {
-            e.printStackTrace(); // NOSONAR
+    try (var es = Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix))) {
+      String parentStage = LogUtil.getStage();
+      List<CompletableFuture<?>> results = new ArrayList<>();
+      for (int i = 0; i < threads; i++) {
+        final int threadId = i;
+        results.add(CompletableFuture.runAsync(() -> {
+          LogUtil.setStage(parentStage, prefix);
+          String id = Thread.currentThread().getName();
+          LOGGER.trace("Starting worker");
+          try {
+            long start = System.nanoTime();
+            task.accept(threadId);
+            stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
+          } catch (Throwable e) {
+            System.err.println("Worker " + id + " died");
+            // when one worker dies it may close resources causing others to die as well, so only log the first
+            if (firstWorkerDied.compareAndSet(false, true)) {
+              e.printStackTrace(); // NOSONAR
+            }
+            throwFatalException(e);
+          } finally {
+            LOGGER.trace("Finished worker");
           }
-          throwFatalException(e);
-        } finally {
-          LOGGER.trace("Finished worker");
-        }
-      }, es));
+        }, es));
+      }
+      done = joinFutures(results);
     }
-    es.shutdown();
-    done = joinFutures(results);
   }
 
   /**

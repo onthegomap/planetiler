@@ -417,7 +417,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         GeometryType geomType = decodeGeomType(geomTypeAndScale);
         int scale = decodeScale(geomTypeAndScale);
         int mapSize = unpacker.unpackMapHeader();
-        Map<String, Object> attrs = new HashMap<>(mapSize);
+        Map<String, Object> attrs = HashMap.newHashMap(mapSize);
         for (int i = 0; i < mapSize; i++) {
           String key = commonValueStrings.decode(unpacker.unpackInt());
           Value v = unpacker.unpackValue();

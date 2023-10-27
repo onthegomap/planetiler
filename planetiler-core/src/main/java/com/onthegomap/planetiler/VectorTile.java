@@ -376,7 +376,7 @@ public class VectorTile {
 
         for (VectorTileProto.Tile.Feature feature : layer.getFeaturesList()) {
           int tagsCount = feature.getTagsCount();
-          Map<String, Object> attrs = new HashMap<>(tagsCount / 2);
+          Map<String, Object> attrs = HashMap.newHashMap(tagsCount / 2);
           int tagIdx = 0;
           while (tagIdx < feature.getTagsCount()) {
             String key = keys.get(feature.getTags(tagIdx++));

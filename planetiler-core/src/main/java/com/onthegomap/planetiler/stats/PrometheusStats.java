@@ -213,7 +213,7 @@ class PrometheusStats implements Stats {
 
   @Override
   public void close() {
-    executor.shutdown();
+    executor.close();
     push();
   }
 

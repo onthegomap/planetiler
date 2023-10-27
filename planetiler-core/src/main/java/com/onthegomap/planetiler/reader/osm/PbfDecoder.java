@@ -133,7 +133,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
   private Map<String, Object> buildTags(int num, IntUnaryOperator key, IntUnaryOperator value) {
     if (num > 0) {
-      Map<String, Object> tags = new HashMap<>(num);
+      Map<String, Object> tags = HashMap.newHashMap(num);
       for (int i = 0; i < num; i++) {
         String k = fieldDecoder.decodeString(key.applyAsInt(i));
         String v = fieldDecoder.decodeString(value.applyAsInt(i));
@@ -366,7 +366,7 @@ public class PbfDecoder implements Iterable<OsmElement> {
 
         if (tags == null) {
           // divide by 2 as key&value, multiply by 2 because of the better approximation
-          tags = new HashMap<>(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
+          tags = HashMap.newHashMap(Math.max(3, 2 * (nodes.getKeysValsCount() / 2) / nodes.getKeysValsCount()));
         }
 
         tags.put(fieldDecoder.decodeString(keyIndex), fieldDecoder.decodeString(valueIndex));
