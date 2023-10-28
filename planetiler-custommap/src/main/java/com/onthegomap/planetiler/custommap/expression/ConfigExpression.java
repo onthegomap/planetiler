@@ -164,7 +164,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
     public ConfigExpression<I, O> simplifyOnce() {
       return switch (children.size()) {
         case 0 -> constOf(null);
-        case 1 -> children.get(0);
+        case 1 -> children.getFirst();
         default -> {
           var result = children.stream()
             .flatMap(

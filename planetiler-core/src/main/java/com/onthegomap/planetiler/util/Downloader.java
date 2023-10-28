@@ -43,15 +43,12 @@ import org.slf4j.LoggerFactory;
  * changes.
  * <p>
  * For example:
- *
- * <pre>
- * {@code
+ * {@snippet :
  * Downloader.create(PlanetilerConfig.defaults())
  *   .add("natural_earth", "http://url/of/natural_earth.zip", Path.of("natural_earth.zip"))
  *   .add("osm", "http://url/of/file.osm.pbf", Path.of("file.osm.pbf"))
  *   .run();
  * }
- * </pre>
  * <p>
  * As a shortcut to find the URL of a file to download from the <a href="https://download.geofabrik.de/">Geofabrik
  * download site</a>, you can use "geofabrik:extract name" (i.e. "geofabrik:monaco" or "geofabrik:australia") to look up
@@ -247,7 +244,7 @@ public class Downloader {
 
   CompletableFuture<ResourceMetadata> httpHead(String url) {
     return client
-      .sendAsync(newHttpRequest(url).method("HEAD", HttpRequest.BodyPublishers.noBody()).build(),
+      .sendAsync(newHttpRequest(url).HEAD().build(),
         responseInfo -> {
           int status = responseInfo.statusCode();
           Optional<String> location = Optional.empty();

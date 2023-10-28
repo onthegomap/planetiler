@@ -19,7 +19,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 @ThreadSafe
 public class PolygonIndex<T> {
 
-  private record GeomWithData<T> (Polygon poly, T data) {}
+  private record GeomWithData<T>(Polygon poly, T data) {}
 
   private final STRtree index = new STRtree();
 
@@ -45,7 +45,7 @@ public class PolygonIndex<T> {
   /** Returns the data associated with the first polygon containing {@code point}. */
   public T getOnlyContaining(Point point) {
     List<T> result = getContaining(point);
-    return result.isEmpty() ? null : result.get(0);
+    return result.isEmpty() ? null : result.getFirst();
   }
 
   /** Returns the data associated with all polygons containing {@code point}. */
@@ -77,7 +77,7 @@ public class PolygonIndex<T> {
     List<?> items = index.query(point.getEnvelopeInternal());
     // optimization: if there's only one then skip checking contains/distance
     if (items.size() == 1) {
-      if (items.get(0)instanceof GeomWithData<?> value) {
+      if (items.getFirst() instanceof GeomWithData<?> value) {
         @SuppressWarnings("unchecked") T t = (T) value.data;
         return List.of(t);
       }
@@ -108,7 +108,7 @@ public class PolygonIndex<T> {
   /** Returns the data associated with a polygon that contains {@code point} or nearest polygon if none are found. */
   public T get(Point point) {
     List<T> nearests = getContainingOrNearest(point);
-    return nearests.isEmpty() ? null : nearests.get(0);
+    return nearests.isEmpty() ? null : nearests.getFirst();
   }
 
   /** Indexes {@code item} for all polygons contained in {@code geom}. */

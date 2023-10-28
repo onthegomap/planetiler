@@ -410,7 +410,7 @@ public class Contexts {
     }
 
     public String matchKey() {
-      return matchKeys().isEmpty() ? null : matchKeys().get(0);
+      return matchKeys().isEmpty() ? null : matchKeys().getFirst();
     }
 
     public Object matchValue() {

@@ -122,7 +122,7 @@ class GeometryCoordinateSequences {
   static Geometry reassemblePolygons(List<List<CoordinateSequence>> groups) throws GeometryException {
     int numGeoms = groups.size();
     if (numGeoms == 1) {
-      return reassemblePolygon(groups.get(0));
+      return reassemblePolygon(groups.getFirst());
     } else {
       Polygon[] polygons = new Polygon[numGeoms];
       for (int i = 0; i < numGeoms; i++) {
@@ -135,7 +135,7 @@ class GeometryCoordinateSequences {
   /** Returns a {@link Polygon} built from all outer/inner rings in {@code group}, reversing all inner rings. */
   private static Polygon reassemblePolygon(List<CoordinateSequence> group) throws GeometryException {
     try {
-      LinearRing first = GeoUtils.JTS_FACTORY.createLinearRing(group.get(0));
+      LinearRing first = GeoUtils.JTS_FACTORY.createLinearRing(group.getFirst());
       LinearRing[] rest = new LinearRing[group.size() - 1];
       for (int j = 1; j < group.size(); j++) {
         CoordinateSequence seq = group.get(j);

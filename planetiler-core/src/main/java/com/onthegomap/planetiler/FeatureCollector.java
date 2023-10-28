@@ -22,16 +22,13 @@ import org.locationtech.jts.geom.Geometry;
  * feature.
  * <p>
  * For example to add a polygon feature for a lake and a center label point with its name:
- *
- * <pre>
- * {@code
+ * {@snippet :
  * featureCollector.polygon("water")
  *   .setAttr("class", "lake");
  * featureCollector.centroid("water_name")
  *   .setAttr("class", "lake")
  *   .setAttr("name", element.getString("name"));
  * }
- * </pre>
  */
 public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 

@@ -47,7 +47,7 @@ class FeatureRendererTest {
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
     return new FeatureCollector.Factory(config, stats)
-      .get(SimpleFeature.create(latLonGeom, new HashMap<>(0), null, null,
+      .get(SimpleFeature.create(latLonGeom, HashMap.newHashMap(0), null, null,
         1));
   }
 

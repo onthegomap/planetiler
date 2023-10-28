@@ -10,15 +10,12 @@ import javax.annotation.concurrent.Immutable;
  * A utility for measuring the wall and CPU time that this JVM consumes between snapshots.
  * <p>
  * For example:
- *
- * <pre>
- * {@code
+ * {@snippet :
  * var start = ProcessTime.now();
  * // do expensive work...
- * var end - ProcessTime.now();
+ * var end = ProcessTime.now();
  * LOGGER.log("Expensive work took " + end.minus(start));
  * }
- * </pre>
  */
 @Immutable
 public record ProcessTime(Duration wall, Optional<Duration> cpu, Duration gc) {

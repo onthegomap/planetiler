@@ -217,24 +217,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
-        if (entry.getValue() != null) {
+        Object value = entry.getValue();
+        if (value != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
-          Object value = entry.getValue();
-          if (value instanceof String string) {
-            packer.packValue(ValueFactory.newString(string));
-          } else if (value instanceof Integer integer) {
-            packer.packValue(ValueFactory.newInteger(integer.longValue()));
-          } else if (value instanceof Long longValue) {
-            packer.packValue(ValueFactory.newInteger(longValue));
-          } else if (value instanceof Float floatValue) {
-            packer.packValue(ValueFactory.newFloat(floatValue));
-          } else if (value instanceof Double doubleValue) {
-            packer.packValue(ValueFactory.newFloat(doubleValue));
-          } else if (value instanceof Boolean booleanValue) {
-            packer.packValue(ValueFactory.newBoolean(booleanValue));
-          } else {
-            packer.packValue(ValueFactory.newString(value.toString()));
-          }
+          packer.packValue(switch (value) {
+            case String string -> ValueFactory.newString(string);
+            case Integer integer -> ValueFactory.newInteger(integer.longValue());
+            case Long longValue -> ValueFactory.newInteger(longValue);
+            case Float floatValue -> ValueFactory.newFloat(floatValue);
+            case Double doubleValue -> ValueFactory.newFloat(doubleValue);
+            case Boolean booleanValue -> ValueFactory.newBoolean(booleanValue);
+            case Object other -> ValueFactory.newString(other.toString());
+          });
         }
       }
       // Use the same binary format for encoding geometries in output vector tiles. Benchmarking showed
@@ -423,7 +417,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         GeometryType geomType = decodeGeomType(geomTypeAndScale);
         int scale = decodeScale(geomTypeAndScale);
         int mapSize = unpacker.unpackMapHeader();
-        Map<String, Object> attrs = new HashMap<>(mapSize);
+        Map<String, Object> attrs = HashMap.newHashMap(mapSize);
         for (int i = 0; i < mapSize; i++) {
           String key = commonValueStrings.decode(unpacker.unpackInt());
           Value v = unpacker.unpackValue();

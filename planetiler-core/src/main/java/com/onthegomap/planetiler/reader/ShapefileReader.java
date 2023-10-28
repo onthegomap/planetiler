@@ -137,7 +137,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
           latLonGeometry = JTS.transform(source, transformToLatLon);
         }
         if (latLonGeometry != null) {
-          SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
+          SimpleFeature geom = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
             sourceName, layer, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));

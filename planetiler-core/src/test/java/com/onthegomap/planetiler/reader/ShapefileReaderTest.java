@@ -94,9 +94,9 @@ class ShapefileReaderTest {
       assertEquals(1, reader.getFeatureCount());
       List<SimpleFeature> features = new ArrayList<>();
       reader.readFeatures(features::add);
-      assertEquals(10.5113, features.get(0).latLonGeometry().getCentroid().getX(), 1e-4);
-      assertEquals(0, features.get(0).latLonGeometry().getCentroid().getY(), 1e-4);
-      assertEquals(3, features.get(0).getTag("value"));
+      assertEquals(10.5113, features.getFirst().latLonGeometry().getCentroid().getX(), 1e-4);
+      assertEquals(0, features.getFirst().latLonGeometry().getCentroid().getY(), 1e-4);
+      assertEquals(3, features.getFirst().getTag("value"));
     }
   }
 
