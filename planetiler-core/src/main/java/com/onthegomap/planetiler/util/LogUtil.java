@@ -24,7 +24,8 @@ public class LogUtil {
 
   /** Returns the current {@code [stage]} value prepended to log for this thread. */
   public static String getStage() {
-    return MDC.get(STAGE_KEY);
+    // strip out the "[stage] " wrapper
+    return MDC.get(STAGE_KEY) instanceof String s ? s.substring(1, s.length() - 2) : null;
   }
 
   /** Prepends {@code [parent:child]} to all subsequent logs from this thread. */
