@@ -69,7 +69,6 @@ public class Downloader {
   private final long chunkSizeBytes;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
   private final RateLimiter rateLimiter;
-  private final Semaphore concurrentDownloads;
 
   Downloader(PlanetilerConfig config, long chunkSizeBytes) {
     this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
@@ -81,7 +80,6 @@ public class Downloader {
       .followRedirects(HttpClient.Redirect.NEVER)
       .executor(executor)
       .build();
-    this.concurrentDownloads = new Semaphore(config.downloadThreads());
   }
 
   public static Downloader create(PlanetilerConfig config) {
@@ -168,8 +166,7 @@ public class Downloader {
     for (var toDownload : toDownloadList) {
       try {
         long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
-        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true)
-          .addFileSize(toDownload.tmpPath());
+        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
@@ -259,9 +256,10 @@ public class Downloader {
       chunks.add(new Range(start, end));
     }
     FileUtils.setLength(tmpPath, metadata.size);
+    Semaphore perFileLimiter = new Semaphore(config.downloadThreads());
     Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
-      concurrentDownloads.acquire();
+      perFileLimiter.acquire();
       var counter = resource.progress.counterForThread();
       try (
         var fc = FileChannel.open(tmpPath, WRITE);
@@ -290,7 +288,7 @@ public class Downloader {
           }
         }
       } finally {
-        concurrentDownloads.release();
+        perFileLimiter.release();
       }
     }), executor)).toArray(CompletableFuture[]::new)).get();
   }

@@ -919,7 +919,7 @@ public class Planetiler {
   private void ensureInputFilesExist() {
     for (InputPath inputPath : inputPaths) {
       if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
-        throw new IllegalArgumentException(inputPath.path + " does not exist");
+        throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
       }
     }
   }
