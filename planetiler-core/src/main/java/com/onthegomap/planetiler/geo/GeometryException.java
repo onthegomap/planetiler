@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.stats.Stats;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +15,7 @@ public class GeometryException extends Exception {
 
   private final String stat;
   private final boolean nonFatal;
+  private Supplier<String> detailsSupplier;
 
   /**
    * Constructs a new exception with a detailed error message caused by {@code cause}.
@@ -51,6 +53,11 @@ public class GeometryException extends Exception {
     this.nonFatal = nonFatal;
   }
 
+  public GeometryException addDetails(Supplier<String> detailsSupplier) {
+    this.detailsSupplier = detailsSupplier;
+    return this;
+  }
+
   /** Returns the unique code for this error condition to use for counting the number of occurrences in stats. */
   public String stat() {
     return stat;
@@ -70,6 +77,17 @@ public class GeometryException extends Exception {
   void logMessage(String log) {
     LOGGER.warn(log);
     assert nonFatal : log; // make unit tests fail if fatal
+  }
+
+
+  /** Logs the error but if {@code logDetails} is true, then also prints detailed debugging info. */
+  public void log(Stats stats, String statPrefix, String logPrefix, boolean logDetails) {
+    if (logDetails && detailsSupplier != null) {
+      stats.dataError(statPrefix + "_" + stat());
+      logMessage(logPrefix + ": " + getMessage() + "\n" + detailsSupplier.get());
+    } else {
+      log(stats, statPrefix, logPrefix);
+    }
   }
 
   /**

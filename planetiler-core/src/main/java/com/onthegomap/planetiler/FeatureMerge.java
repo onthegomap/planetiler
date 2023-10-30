@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.geotools.geometry.jts.WKTWriter2;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -28,6 +29,7 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -410,7 +412,7 @@ public class FeatureMerge {
    * Merges nearby polygons by expanding each individual polygon by {@code buffer}, unioning them, and contracting the
    * result.
    */
-  private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) {
+  private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) throws GeometryException {
     /*
      * A simpler alternative that might initially appear faster would be:
      *
@@ -424,11 +426,27 @@ public class FeatureMerge {
      * The following approach is slower most of the time, but faster on average because it does
      * not choke on dense nearby polygons:
      */
-    for (int i = 0; i < polygonGroup.size(); i++) {
-      polygonGroup.set(i, buffer(buffer, polygonGroup.get(i)));
+    List<Geometry> buffered = new ArrayList<>(polygonGroup.size());
+    for (Geometry geometry : polygonGroup) {
+      buffered.add(buffer(buffer, geometry));
     }
-    Geometry merged = GeoUtils.createGeometryCollection(polygonGroup);
-    merged = union(merged);
+    Geometry merged = GeoUtils.createGeometryCollection(buffered);
+    try {
+      merged = union(merged);
+    } catch (TopologyException e) {
+      throw new GeometryException("buffer_union_failure", "Error unioning buffered polygons", e).addDetails(() -> {
+        var wktWriter = new WKTWriter2();
+        return """
+          Original polygons: %s
+          Buffer: %f
+          Buffered: %s
+          """.formatted(
+          wktWriter.write(GeoUtils.createGeometryCollection(polygonGroup)),
+          buffer,
+          wktWriter.write(GeoUtils.createGeometryCollection(buffered))
+        );
+      });
+    }
     merged = unbuffer(buffer, merged);
     return merged;
   }

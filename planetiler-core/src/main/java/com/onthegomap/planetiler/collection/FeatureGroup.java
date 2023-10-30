@@ -488,7 +488,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         // log failures, only throwing when it's a fatal error
         if (e instanceof GeometryException geoe) {
           geoe.log(stats, "postprocess_layer",
-            "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
+            "Caught error postprocessing features for " + layer + " layer on " + tileCoord, config.logJtsExceptions());
         } else if (e instanceof Error err) {
           LOGGER.error("Caught fatal error postprocessing features {} {}", layer, tileCoord, e);
           throw err;
