@@ -82,9 +82,12 @@ public class GeometryException extends Exception {
 
   /** Logs the error but if {@code logDetails} is true, then also prints detailed debugging info. */
   public void log(Stats stats, String statPrefix, String logPrefix, boolean logDetails) {
-    if (logDetails && detailsSupplier != null) {
+    if (logDetails) {
       stats.dataError(statPrefix + "_" + stat());
-      String log = logPrefix + ": " + getMessage() + "\n" + detailsSupplier.get();
+      String log = logPrefix + ": " + getMessage();
+      if (detailsSupplier != null) {
+        log += "\n" + detailsSupplier.get();
+      }
       LOGGER.warn(log, this);
       assert nonFatal : log; // make unit tests fail if fatal
     } else {
