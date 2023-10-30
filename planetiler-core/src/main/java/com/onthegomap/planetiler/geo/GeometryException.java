@@ -84,7 +84,9 @@ public class GeometryException extends Exception {
   public void log(Stats stats, String statPrefix, String logPrefix, boolean logDetails) {
     if (logDetails && detailsSupplier != null) {
       stats.dataError(statPrefix + "_" + stat());
-      logMessage(logPrefix + ": " + getMessage() + "\n" + detailsSupplier.get());
+      String log = logPrefix + ": " + getMessage() + "\n" + detailsSupplier.get();
+      LOGGER.warn(log, this);
+      assert nonFatal : log; // make unit tests fail if fatal
     } else {
       log(stats, statPrefix, logPrefix);
     }

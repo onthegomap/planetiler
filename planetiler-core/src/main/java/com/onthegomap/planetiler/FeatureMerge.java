@@ -19,7 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.geotools.geometry.jts.WKTWriter2;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Envelope;
@@ -31,6 +30,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.index.strtree.STRtree;
+import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.locationtech.jts.operation.linemerge.LineMerger;
@@ -435,7 +435,7 @@ public class FeatureMerge {
       merged = union(merged);
     } catch (TopologyException e) {
       throw new GeometryException("buffer_union_failure", "Error unioning buffered polygons", e).addDetails(() -> {
-        var wktWriter = new WKTWriter2();
+        var wktWriter = new WKTWriter();
         return """
           Original polygons: %s
           Buffer: %f

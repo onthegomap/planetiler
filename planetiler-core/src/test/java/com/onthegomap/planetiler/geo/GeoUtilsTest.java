@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.List;
-import org.geotools.geometry.jts.WKTReader2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -18,6 +17,7 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 
 class GeoUtilsTest {
 
@@ -367,7 +367,7 @@ class GeoUtilsTest {
 
   @Test
   void testSnapAndFixIssue511() throws ParseException, GeometryException {
-    var result = GeoUtils.snapAndFixPolygon(new WKTReader2().read(
+    var result = GeoUtils.snapAndFixPolygon(new WKTReader().read(
       """
         MULTIPOLYGON (((198.83750000000003 46.07500000000004, 199.0625 46.375, 199.4375 46.0625, 199.5 46.43750000000001, 199.5625 46, 199.3125 45.5, 198.8912037037037 46.101851851851876, 198.83750000000003 46.07500000000004)), ((198.43750000000003 46.49999999999999, 198.5625 46.43750000000001, 198.6875 46.25, 198.1875 46.25, 198.43750000000003 46.49999999999999)), ((198.6875 46.25, 198.81249999999997 46.062500000000014, 198.6875 46.00000000000002, 198.6875 46.25)), ((196.55199579831933 46.29359243697479, 196.52255639097743 46.941259398496236, 196.5225563909774 46.941259398496236, 196.49999999999997 47.43750000000001, 196.875 47.125, 197 47.5625, 197.47880544905414 46.97729334004497, 197.51505401161464 46.998359569801956, 197.25 47.6875, 198.0625 47.6875, 198.5 46.625, 198.34375 46.546875, 198.34375000000003 46.54687499999999, 197.875 46.3125, 197.875 46.25, 197.875 46.0625, 197.82894736842107 46.20065789473683, 197.25 46.56250000000001, 197.3125 46.125, 196.9375 46.1875, 196.9375 46.21527777777778, 196.73250000000002 46.26083333333334, 196.5625 46.0625, 196.55199579831933 46.29359243697479)), ((196.35213414634146 45.8170731707317, 197.3402027027027 45.93108108108108, 197.875 45.99278846153846, 197.875 45.93750000000002, 197.93749999999997 45.99999999999999, 197.9375 46, 197.90625 45.96874999999999, 197.90625 45.96875, 196.75000000000006 44.81250000000007, 197.1875 45.4375, 196.3125 45.8125, 196.35213414634146 45.8170731707317)), ((195.875 46.124999999999986, 195.8125 46.5625, 196.5 46.31250000000001, 195.9375 46.4375, 195.875 46.124999999999986)), ((196.49999999999997 46.93749999999999, 196.125 46.875, 196.3125 47.125, 196.49999999999997 46.93749999999999)))
         """),
@@ -377,7 +377,7 @@ class GeoUtilsTest {
 
   @Test
   void testSnapAndFixIssue546() throws GeometryException, ParseException {
-    var orig = new WKTReader2().read(
+    var orig = new WKTReader().read(
       """
         POLYGON(
           (
@@ -404,7 +404,7 @@ class GeoUtilsTest {
 
   @Test
   void testSnapAndFixIssue546_2() throws GeometryException, ParseException {
-    var orig = new WKTReader2().read(
+    var orig = new WKTReader().read(
       """
         POLYGON(
           (
@@ -423,7 +423,7 @@ class GeoUtilsTest {
 
   @Test
   void testSnapAndFixIssue546_3() throws GeometryException, ParseException {
-    var orig = new WKTReader2().read(
+    var orig = new WKTReader().read(
       """
         POLYGON(
           (
