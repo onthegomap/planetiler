@@ -10,18 +10,21 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
-import org.geotools.data.FeatureSource;
+import org.geotools.api.data.FeatureSource;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.filter.Filter;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.api.referencing.operation.MathTransform;
+import org.geotools.api.referencing.operation.OperationNotFoundException;
+import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.MathTransform;
-import org.opengis.referencing.operation.TransformException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility that reads {@link SourceFeature SourceFeatures} from the geometries contained in an ESRI shapefile.
@@ -33,8 +36,9 @@ import org.opengis.referencing.operation.TransformException;
  *      Shapefile Specification</a>
  */
 public class ShapefileReader extends SimpleReader<SimpleFeature> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ShapefileReader.class);
 
-  private final FeatureCollection<SimpleFeatureType, org.opengis.feature.simple.SimpleFeature> inputSource;
+  private final FeatureCollection<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> inputSource;
   private final String[] attributeNames;
   private final ShapefileDataStore dataStore;
   private final String layer;
@@ -46,14 +50,14 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
     dataStore = open(input);
     try {
       String typeName = dataStore.getTypeNames()[0];
-      FeatureSource<SimpleFeatureType, org.opengis.feature.simple.SimpleFeature> source = dataStore
+      FeatureSource<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> source = dataStore
         .getFeatureSource(typeName);
 
       inputSource = source.getFeatures(Filter.INCLUDE);
       CoordinateReferenceSystem src =
         sourceProjection == null ? source.getSchema().getCoordinateReferenceSystem() : CRS.decode(sourceProjection);
       CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
-      transformToLatLon = CRS.findMathTransform(src, dest);
+      transformToLatLon = findMathTransform(input, src, dest);
       if (transformToLatLon.isIdentity()) {
         transformToLatLon = null;
       }
@@ -65,6 +69,19 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       throw new UncheckedIOException(e);
     } catch (FactoryException e) {
       throw new FileFormatException("Bad reference system", e);
+    }
+  }
+
+  private static MathTransform findMathTransform(Path input, CoordinateReferenceSystem src,
+    CoordinateReferenceSystem dest) throws FactoryException {
+    try {
+      return CRS.findMathTransform(src, dest);
+    } catch (OperationNotFoundException e) {
+      var result = CRS.findMathTransform(src, dest, true);
+      LOGGER.warn(
+        "Failed to parse projection from {} (\"{}\") using lenient mode instead which may result in data inconsistencies",
+        input.getFileName(), e.getMessage());
+      return result;
     }
   }
 
@@ -113,14 +130,14 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
     long id = 0;
     try (var iter = inputSource.features()) {
       while (iter.hasNext()) {
-        org.opengis.feature.simple.SimpleFeature feature = iter.next();
+        org.geotools.api.feature.simple.SimpleFeature feature = iter.next();
         Geometry source = (Geometry) feature.getDefaultGeometry();
         Geometry latLonGeometry = source;
         if (transformToLatLon != null) {
           latLonGeometry = JTS.transform(source, transformToLatLon);
         }
         if (latLonGeometry != null) {
-          SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
+          SimpleFeature geom = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
             sourceName, layer, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));

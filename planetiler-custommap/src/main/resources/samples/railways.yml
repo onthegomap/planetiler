@@ -1,0 +1,43 @@
+schema_name: Railways
+schema_description: Railways (layers outputting merged & un-merged lines)
+attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>
+args:
+  area:
+    description: Geofabrik area to download
+    default: greater-london
+  osm_url:
+    description: OSM URL to download
+    default: '${ args.area == "planet" ? "aws:latest" : ("geofabrik:" + args.area) }'
+sources:
+  osm:
+    type: osm
+    url: '${ args.osm_url }'
+layers:
+- id: railways_merged
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 4
+    min_size: 0
+    include_when:
+      __all__:
+      - railway: rail
+      - usage: main
+    exclude_when:
+      service: __any__
+  tile_post_process:
+    merge_line_strings:
+      min_length: 0
+      tolerance: -1
+      buffer: -1
+- id: railways_unmerged
+  features:
+  - source: osm
+    geometry: line
+    min_zoom: 4
+    include_when:
+      __all__:
+      - railway: rail
+      - usage: main
+    exclude_when:
+      service: __any__

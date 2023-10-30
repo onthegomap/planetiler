@@ -65,7 +65,7 @@ public class TypeConversion {
     return d % 1 == 0 ? Long.toString(d.longValue()) : d.toString();
   }
 
-  private record Converter<I, O> (Class<I> in, Class<O> out, Function<I, O> fn) implements Function<Object, O> {
+  private record Converter<I, O>(Class<I> in, Class<O> out, Function<I, O> fn) implements Function<Object, O> {
     @Override
     public O apply(Object in) {
       @SuppressWarnings("unchecked") I converted = (I) in;

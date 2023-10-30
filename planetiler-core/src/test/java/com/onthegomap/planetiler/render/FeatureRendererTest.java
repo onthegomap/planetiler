@@ -47,7 +47,7 @@ class FeatureRendererTest {
   private FeatureCollector collector(Geometry worldGeom) {
     var latLonGeom = GeoUtils.worldToLatLonCoords(worldGeom);
     return new FeatureCollector.Factory(config, stats)
-      .get(SimpleFeature.create(latLonGeom, new HashMap<>(0), null, null,
+      .get(SimpleFeature.create(latLonGeom, HashMap.newHashMap(0), null, null,
         1));
   }
 
@@ -77,7 +77,7 @@ class FeatureRendererTest {
 
   @Test
   void testEmptyGeometry() {
-    var feature = collector(emptyGeometry()).point("layer");
+    var feature = collector(GeoUtils.JTS_FACTORY.createPoint()).point("layer");
     assertSameNormalizedFeatures(Map.of(), renderGeometry(feature));
   }
 

@@ -128,7 +128,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private Geometry computeCentroidIfConvex() throws GeometryException {
     if (!canBePolygon()) {
       return centroid();
-    } else if (polygon()instanceof Polygon poly &&
+    } else if (polygon() instanceof Polygon poly &&
       poly.getNumInteriorRing() == 0 &&
       GeoUtils.isConvex(poly.getExteriorRing())) {
       return centroid();
@@ -169,7 +169,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
    */
   public final Geometry line() throws GeometryException {
     if (!canBeLine()) {
-      throw new GeometryException("feature_not_line", "cannot be line");
+      throw new GeometryException("feature_not_line", "cannot be line", true);
     }
     if (linearGeometry == null) {
       linearGeometry = computeLine();
@@ -198,7 +198,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
    */
   public final Geometry polygon() throws GeometryException {
     if (!canBePolygon()) {
-      throw new GeometryException("feature_not_polygon", "cannot be polygon");
+      throw new GeometryException("feature_not_polygon", "cannot be polygon", true);
     }
     return polygonGeometry != null ? polygonGeometry : (polygonGeometry = computePolygon());
   }
@@ -222,7 +222,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
    */
   public final Geometry validatedPolygon() throws GeometryException {
     if (!canBePolygon()) {
-      throw new GeometryException("feature_not_polygon", "cannot be polygon");
+      throw new GeometryException("feature_not_polygon", "cannot be polygon", true);
     }
     return validPolygon != null ? validPolygon : (validPolygon = computeValidPolygon());
   }

@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <li>then build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
  * {@code java -cp target/*-fatjar.jar com.onthegomap.planetiler.examples.ToiletsOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles=data/output.mbtiles}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light data/output.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
@@ -103,7 +103,7 @@ public class ToiletsOverlay implements Profile {
       // override this default with osm_path="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput("mbtiles", Path.of("data", "toilets.mbtiles"))
+      .overwriteOutput(Path.of("data", "toilets.mbtiles"))
       .run();
   }
 }

@@ -4,11 +4,14 @@ import static com.onthegomap.planetiler.expression.MultiExpression.Entry;
 import static java.util.Map.entry;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.Profile;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.custommap.configschema.FeatureLayer;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
 import com.onthegomap.planetiler.expression.MultiExpression;
 import com.onthegomap.planetiler.expression.MultiExpression.Index;
+import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SourceFeature;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,6 +28,8 @@ public class ConfiguredProfile implements Profile {
 
   private final SchemaConfig schema;
 
+  private final Collection<FeatureLayer> layers;
+  private final Map<String, FeatureLayer> layersById = new HashMap<>();
   private final Map<String, Index<ConfiguredFeature>> featureLayerMatcher;
   private final TagValueProducer tagValueProducer;
   private final Contexts.Root rootContext;
@@ -33,7 +38,7 @@ public class ConfiguredProfile implements Profile {
     this.schema = schema;
     this.rootContext = rootContext;
 
-    Collection<FeatureLayer> layers = schema.layers();
+    layers = schema.layers();
     if (layers == null || layers.isEmpty()) {
       throw new IllegalArgumentException("No layers defined");
     }
@@ -44,6 +49,7 @@ public class ConfiguredProfile implements Profile {
 
     for (var layer : layers) {
       String layerId = layer.id();
+      layersById.put(layerId, layer);
       for (var feature : layer.features()) {
         var configuredFeature = new ConfiguredFeature(layerId, tagValueProducer, feature, rootContext);
         var entry = new Entry<>(configuredFeature, configuredFeature.matchExpression());
@@ -85,6 +91,36 @@ public class ConfiguredProfile implements Profile {
   }
 
   @Override
+  public List<VectorTile.Feature> postProcessLayerFeatures(String layer, int zoom,
+    List<VectorTile.Feature> items) throws GeometryException {
+    FeatureLayer featureLayer = findFeatureLayer(layer);
+
+    if (featureLayer.postProcess() == null) {
+      return items;
+    }
+
+    if (featureLayer.postProcess().mergeLineStrings() != null) {
+      var merge = featureLayer.postProcess().mergeLineStrings();
+
+      items = FeatureMerge.mergeLineStrings(items,
+        merge.minLength(), // after merging, remove lines that are still less than {minLength}px long
+        merge.tolerance(), // simplify output linestrings using a {tolerance}px tolerance
+        merge.buffer() // remove any detail more than {buffer}px outside the tile boundary
+      );
+    }
+
+    if (featureLayer.postProcess().mergePolygons() != null) {
+      var merge = featureLayer.postProcess().mergePolygons();
+
+      items = FeatureMerge.mergeOverlappingPolygons(items,
+        merge.minArea() // after merging, remove polygons that are still less than {minArea} in square tile pixels
+      );
+    }
+
+    return items;
+  }
+
+  @Override
   public String description() {
     return schema.schemaDescription();
   }
@@ -97,5 +133,9 @@ public class ConfiguredProfile implements Profile {
       sources.add(new Source(key, value.type(), url, path == null ? null : Path.of(path)));
     });
     return sources;
+  }
+
+  public FeatureLayer findFeatureLayer(String layerId) {
+    return layersById.get(layerId);
   }
 }

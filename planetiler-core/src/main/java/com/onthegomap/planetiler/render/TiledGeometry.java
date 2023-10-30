@@ -258,7 +258,7 @@ public class TiledGeometry {
             TileCoord tile = TileCoord.ofXYZ(wrappedX, y, z);
             double tileY = worldY - y;
             tileContents.computeIfAbsent(tile, t -> List.of(new ArrayList<>()))
-              .get(0)
+              .getFirst()
               .add(GeoUtils.coordinateSequence(tileX * 256, tileY * 256));
           }
         }
@@ -384,7 +384,7 @@ public class TiledGeometry {
     for (var entry : inProgressShapes.entrySet()) {
       TileCoord tileID = entry.getKey();
       List<CoordinateSequence> inSeqs = entry.getValue();
-      if (area && inSeqs.get(0).size() < 4) {
+      if (area && inSeqs.getFirst().size() < 4) {
         // not enough points in outer polygon, ignore
         continue;
       }
@@ -517,7 +517,7 @@ public class TiledGeometry {
 
     // keep a record of filled tiles that we skipped because an edge of the polygon that gets processed
     // later may intersect the edge of a filled tile, and we'll need to replay all the edges we skipped
-    record SkippedSegment(Direction side, int lo, int hi) {}
+    record SkippedSegment(Direction side, int lo, int hi, boolean asc) {}
     List<SkippedSegment> skipped = null;
 
     for (int i = 0; i < stripeSegment.size() - 1; i++) {
@@ -537,8 +537,8 @@ public class TiledGeometry {
       int endY = Math.min(extentMaxY - 1, (int) Math.floor(maxY + neighborBuffer));
 
       // inside a fill if one edge of the polygon runs straight down the right side or up the left side of the column
-      boolean onRightEdge = area && ax == bx && ax == rightEdge && by > ay;
-      boolean onLeftEdge = area && ax == bx && ax == leftEdge && by < ay;
+      boolean onRightEdge = area && ax == bx && ax == rightEdge;
+      boolean onLeftEdge = area && ax == bx && ax == leftEdge;
 
       for (int y = startY; y <= endY; y++) {
         // skip over filled tiles until we get to the next tile that already has detail on it
@@ -553,23 +553,47 @@ public class TiledGeometry {
             Integer next = tileYsWithDetail.ceiling(y);
             int nextNonEdgeTile = next == null ? startEndY : Math.min(next, startEndY);
             int endSkip = nextNonEdgeTile - 1;
-            if (skipped == null) {
-              skipped = new ArrayList<>();
-            }
             // save the Y range that we skipped in case a later edge intersects a filled tile
-            skipped.add(new SkippedSegment(
-              onLeftEdge ? Direction.LEFT : Direction.RIGHT,
-              y,
-              endSkip
-            ));
+            if (endSkip >= y) {
+              if (skipped == null) {
+                skipped = new ArrayList<>();
+              }
+              var skippedSegment = new SkippedSegment(
+                onLeftEdge ? Direction.LEFT : Direction.RIGHT,
+                y,
+                endSkip,
+                by > ay
+              );
+              skipped.add(skippedSegment);
 
-            if (rightFilled == null) {
-              rightFilled = new IntRangeSet();
-              leftFilled = new IntRangeSet();
+              //              System.err.println("    " + skippedSegment);
+              if (rightFilled == null) {
+                rightFilled = new IntRangeSet();
+                leftFilled = new IntRangeSet();
+              }
+              /*
+              A tile is inside a filled region when there is an odd number of vertical edges to the left and right
+
+              for example a simple shape:
+                     ---------
+               out   |  in   | out
+               (0/2) | (1/1) | (2/0)
+                     ---------
+
+              or a more complex shape
+                     ---------       ---------
+               out   |  in   | out   | in    |
+               (0/4) | (1/3) | (2/2) | (3/1) |
+                     |       ---------       |
+                     -------------------------
+
+              So we keep track of this number by xor'ing the left and right fills repeatedly,
+              then and'ing them together at the end.
+               */
+              (onRightEdge ? rightFilled : leftFilled).xor(y, endSkip);
+
+              y = nextNonEdgeTile;
             }
-            (onRightEdge ? rightFilled : leftFilled).add(y, endSkip);
-
-            y = nextNonEdgeTile;
           }
         }
 
@@ -606,13 +630,11 @@ public class TiledGeometry {
               if (skippedSegment.lo <= y && skippedSegment.hi >= y) {
                 double top = y - buffer;
                 double bottom = y + 1 + buffer;
-                if (skippedSegment.side == Direction.LEFT) {
-                  slice.addPoint(-buffer, bottom);
-                  slice.addPoint(-buffer, top);
-                } else { // side == RIGHT
-                  slice.addPoint(1 + buffer, top);
-                  slice.addPoint(1 + buffer, bottom);
-                }
+                double start = skippedSegment.asc ? top : bottom;
+                double end = skippedSegment.asc ? bottom : top;
+                double edgeX = skippedSegment.side == Direction.LEFT ? -buffer : (1 + buffer);
+                slice.addPoint(edgeX, start);
+                slice.addPoint(edgeX, end);
               }
             }
           }
@@ -677,7 +699,7 @@ public class TiledGeometry {
   }
 
   private void addFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {
@@ -692,7 +714,7 @@ public class TiledGeometry {
   }
 
   private void removeFilledRange(int x, IntRangeSet yRange) {
-    if (yRange == null) {
+    if (yRange == null || yRange.isEmpty()) {
       return;
     }
     if (filledRanges == null) {

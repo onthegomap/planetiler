@@ -15,6 +15,9 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -199,13 +202,24 @@ public class TestUtils {
     return round(input, 1e5);
   }
 
-  public static Map<TileCoord, List<ComparableFeature>> getTileMap(Mbtiles db) throws SQLException, IOException {
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db)
+    throws IOException {
+    return getTileMap(db, TileCompression.GZIP);
+  }
+
+  public static Map<TileCoord, List<ComparableFeature>> getTileMap(ReadableTileArchive db,
+    TileCompression tileCompression)
+    throws IOException {
     Map<TileCoord, List<ComparableFeature>> tiles = new TreeMap<>();
-    for (var tile : getAllTiles(db)) {
-      var bytes = gunzip(tile.bytes());
+    for (var tile : getTiles(db)) {
+      var bytes = switch (tileCompression) {
+        case GZIP -> gunzip(tile.bytes());
+        case NONE -> tile.bytes();
+        case UNKNWON -> throw new IllegalArgumentException("cannot decompress \"UNKNOWN\"");
+      };
       var decoded = VectorTile.decode(bytes).stream()
         .map(feature -> feature(decodeSilently(feature.geometry()), feature.attrs())).toList();
-      tiles.put(tile.tile(), decoded);
+      tiles.put(tile.coord(), decoded);
     }
     return tiles;
   }
@@ -218,21 +232,8 @@ public class TestUtils {
     }
   }
 
-  public static Set<Mbtiles.TileEntry> getAllTiles(Mbtiles db) throws SQLException {
-    Set<Mbtiles.TileEntry> result = new HashSet<>();
-    try (Statement statement = db.connection().createStatement()) {
-      ResultSet rs = statement.executeQuery("select zoom_level, tile_column, tile_row, tile_data from tiles");
-      while (rs.next()) {
-        int z = rs.getInt("zoom_level");
-        int rawy = rs.getInt("tile_row");
-        int x = rs.getInt("tile_column");
-        result.add(new Mbtiles.TileEntry(
-          TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z),
-          rs.getBytes("tile_data")
-        ));
-      }
-    }
-    return result;
+  public static Set<Tile> getTiles(ReadableTileArchive db) {
+    return db.getAllTiles().stream().collect(Collectors.toSet());
   }
 
   public static int getTilesDataCount(Mbtiles db) throws SQLException {
@@ -414,6 +415,7 @@ public class TestUtils {
   public static Map<String, Object> toMap(FeatureCollector.Feature feature, int zoom) {
     TreeMap<String, Object> result = new TreeMap<>(feature.getAttrsAtZoom(zoom));
     Geometry geom = feature.getGeometry();
+    result.put("_id", feature.getId());
     result.put("_minzoom", feature.getMinZoom());
     result.put("_maxzoom", feature.getMaxZoom());
     result.put("_buffer", feature.getBufferPixelsAtZoom(zoom));
@@ -531,7 +533,9 @@ public class TestUtils {
 
   @JacksonXmlRootElement(localName = "node")
   public record Node(
-    long id, double lat, double lon
+    long id, double lat, double lon,
+    @JacksonXmlProperty(localName = "tag")
+    @JacksonXmlElementWrapper(useWrapping = false) List<Tag> tags
   ) {}
 
   @JacksonXmlRootElement(localName = "nd")

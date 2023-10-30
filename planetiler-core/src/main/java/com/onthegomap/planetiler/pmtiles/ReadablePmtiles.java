@@ -1,13 +1,20 @@
 package com.onthegomap.planetiler.pmtiles;
 
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Gzip;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
-import java.util.Iterator;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -20,6 +27,10 @@ public class ReadablePmtiles implements ReadableTileArchive {
     this.channel = channel;
 
     this.header = Pmtiles.Header.fromBytes(getBytes(0, Pmtiles.HEADER_LEN));
+  }
+
+  public static ReadableTileArchive newReadFromFile(Path path) throws IOException {
+    return new ReadablePmtiles(FileChannel.open(path, StandardOpenOption.READ));
   }
 
   private synchronized byte[] getBytes(long start, int length) throws IOException {
@@ -103,61 +114,90 @@ public class ReadablePmtiles implements ReadableTileArchive {
     return Pmtiles.JsonMetadata.fromBytes(buf);
   }
 
-  private static class TileCoordIterator implements CloseableIterator<TileCoord> {
-    private final Stream<TileCoord> stream;
-    private final Iterator<TileCoord> iterator;
+  @Override
+  public TileArchiveMetadata metadata() {
 
-    public TileCoordIterator(Stream<TileCoord> stream) {
-      this.stream = stream;
-      this.iterator = stream.iterator();
-    }
+    TileCompression tileCompression = switch (header.tileCompression()) {
+      case GZIP -> TileCompression.GZIP;
+      case NONE -> TileCompression.NONE;
+      case UNKNOWN -> TileCompression.UNKNWON;
+    };
 
-    @Override
-    public void close() {
-      stream.close();
-    }
+    String format = switch (header.tileType()) {
+      case MVT -> TileArchiveMetadata.MVT_FORMAT;
+      default -> null;
+    };
 
-    @Override
-    public boolean hasNext() {
-      return this.iterator.hasNext();
-    }
-
-    @Override
-    public TileCoord next() {
-      return this.iterator.next();
+    try {
+      var jsonMetadata = getJsonMetadata();
+      var map = new LinkedHashMap<>(jsonMetadata.otherMetadata());
+      return new TileArchiveMetadata(
+        map.remove(TileArchiveMetadata.NAME_KEY),
+        map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
+        map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
+        map.remove(TileArchiveMetadata.VERSION_KEY),
+        map.remove(TileArchiveMetadata.TYPE_KEY),
+        format,
+        header.bounds(),
+        header.center(),
+        (double) header.centerZoom(),
+        (int) header.minZoom(),
+        (int) header.maxZoom(),
+        jsonMetadata.vectorLayers(),
+        map,
+        tileCompression
+      );
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 
-  private List<Pmtiles.Entry> readDir(long offset, int length) throws IOException {
-    var buf = getBytes(offset, length);
-    if (header.internalCompression() == Pmtiles.Compression.GZIP) {
-      buf = Gzip.gunzip(buf);
+  private List<Pmtiles.Entry> readDir(long offset, int length) {
+    try {
+      var buf = getBytes(offset, length);
+      if (header.internalCompression() == Pmtiles.Compression.GZIP) {
+        buf = Gzip.gunzip(buf);
+      }
+      return Pmtiles.directoryFromBytes(buf);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
-    return Pmtiles.directoryFromBytes(buf);
   }
 
   // Warning: this will only work on z15 or less pmtiles which planetiler creates
   private Stream<TileCoord> getTileCoords(List<Pmtiles.Entry> dir) {
-    return dir.stream().flatMap(entry -> {
+    return dir.stream().flatMap(entry -> entry.runLength() == 0 ?
+      getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
+        .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode));
+  }
+
+  private Stream<Tile> getTiles(List<Pmtiles.Entry> dir) {
+    return dir.stream().mapMulti((entry, next) -> {
       try {
-        return entry.runLength() == 0 ?
-          getTileCoords(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())) : IntStream
-            .range((int) entry.tileId(), (int) entry.tileId() + entry.runLength()).mapToObj(TileCoord::hilbertDecode);
+        if (entry.runLength == 0) {
+          getTiles(readDir(header.leafDirectoriesOffset() + entry.offset(), entry.length())).forEach(next);
+        } else {
+          var data = getBytes(header.tileDataOffset() + entry.offset(), entry.length());
+          for (int i = 0; i < entry.runLength(); i++) {
+            next.accept(new Tile(TileCoord.hilbertDecode((int) (entry.tileId() + i)), data));
+          }
+        }
       } catch (IOException e) {
-        throw new IllegalStateException(e);
+        throw new IllegalStateException("Failed to iterate through pmtiles archive ", e);
       }
     });
   }
 
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
-    List<Pmtiles.Entry> rootDir;
-    try {
-      rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
-      return new TileCoordIterator(getTileCoords(rootDir));
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    List<Pmtiles.Entry> rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+    return CloseableIterator.of(getTileCoords(rootDir));
+  }
+
+  @Override
+  public CloseableIterator<Tile> getAllTiles() {
+    List<Pmtiles.Entry> rootDir = readDir(header.rootDirOffset(), (int) header.rootDirLength());
+    return CloseableIterator.of(getTiles(rootDir));
   }
 
   @Override

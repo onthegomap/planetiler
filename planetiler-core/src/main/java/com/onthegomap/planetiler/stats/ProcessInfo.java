@@ -38,7 +38,7 @@ public class ProcessInfo {
     for (GarbageCollectorMXBean garbageCollectorMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
       if (garbageCollectorMXBean instanceof NotificationEmitter emitter) {
         emitter.addNotificationListener((notification, handback) -> {
-          if (notification.getUserData()instanceof CompositeData compositeData) {
+          if (notification.getUserData() instanceof CompositeData compositeData) {
             var info = GarbageCollectionNotificationInfo.from(compositeData);
             GcInfo gcInfo = info.getGcInfo();
             postGcMemoryUsage.set(gcInfo.getMemoryUsageAfterGc().entrySet().stream()
@@ -142,7 +142,7 @@ public class ProcessInfo {
    * Returns the total amount of memory available on the system if available.
    */
   public static OptionalLong getSystemMemoryBytes() {
-    if (ManagementFactory.getOperatingSystemMXBean()instanceof com.sun.management.OperatingSystemMXBean osBean) {
+    if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean osBean) {
       return OptionalLong.of(osBean.getTotalMemorySize());
     } else {
       return OptionalLong.empty();

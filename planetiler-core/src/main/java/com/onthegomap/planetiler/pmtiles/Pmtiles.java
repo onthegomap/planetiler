@@ -11,7 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.reader.FileFormatException;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.VarInt;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Envelope;
 
 public class Pmtiles {
   public enum Compression {
@@ -201,6 +203,22 @@ public class Pmtiles {
         throw new FileFormatException("Failed to read enough bytes for PMTiles header.");
       }
     }
+
+    public Envelope bounds() {
+      return new Envelope(
+        minLonE7 / 1e7,
+        maxLonE7 / 1e7,
+        minLatE7 / 1e7,
+        maxLatE7 / 1e7
+      );
+    }
+
+    public CoordinateXY center() {
+      return new CoordinateXY(
+        centerLonE7 / 1e7,
+        centerLatE7 / 1e7
+      );
+    }
   }
 
   public static final class Entry implements Comparable<Entry> {
@@ -344,13 +362,18 @@ public class Pmtiles {
    * stores name, attribution, created_at, planetiler build SHA, vector_layers, etc.
    */
   public record JsonMetadata(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers,
-    @JsonAnyGetter @JsonAnySetter Map<String, String> otherMetadata
+    @JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers,
+    @JsonAnyGetter Map<String, String> otherMetadata
   ) {
 
     @JsonCreator
-    JsonMetadata(@JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers) {
+    public JsonMetadata(@JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers) {
       this(vectorLayers, new HashMap<>());
+    }
+
+    @JsonAnySetter
+    private void setExtraMetadata(String key, String val) {
+      otherMetadata.put(key, val);
     }
 
     public byte[] toBytes() {
@@ -366,7 +389,7 @@ public class Pmtiles {
       try {
         return objectMapper.readValue(bytes, JsonMetadata.class);
       } catch (IOException e) {
-        throw new IllegalStateException("Invalid metadata json: " + bytes, e);
+        throw new IllegalStateException("Invalid metadata json: " + new String(bytes, StandardCharsets.UTF_8), e);
       }
     }
   }

@@ -4,7 +4,7 @@ This is a minimal example project that shows how to create custom maps with Plan
 
 Requirements:
 
-- Java 17+ (see [CONTIRBUTING.md](../CONTRIBUTING.md))
+- Java 21+ (see [CONTIRBUTING.md](../CONTRIBUTING.md))
   - on mac: `brew install --cask temurin`
 - [Maven](https://maven.apache.org/install.html)
   - on mac: `brew install maven`
@@ -105,7 +105,7 @@ java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.MyProfile
 Then, to inspect the tiles:
 
 ```bash
-tileserver-gl-light --mbtiles data/toilets.mbtiles
+tileserver-gl-light data/toilets.mbtiles
 ```
 
 Finally, open http://localhost:8080 to see your tiles.
@@ -143,7 +143,7 @@ public void integrationTest(@TempDir Path tmpDir) throws Exception {
   MyProfile.main(
     "--osm_path=" + TestUtils.pathToResource("monaco-latest.osm.pbf"),
     "--tmp=" + tmpDir,
-    "--mbtiles=" + mbtilesPath,
+    "--output=" + mbtilesPath,
   ));
   try (Mbtiles mbtiles = Mbtiles.newReadOnlyDatabase(mbtilesPath)) {
     Map<String, String> metadata = mbtiles.metadata().getAll();

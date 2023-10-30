@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.TileOrder;
-import com.onthegomap.planetiler.util.LayerStats;
 import java.io.Closeable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -15,21 +14,12 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public interface WriteableTileArchive extends Closeable {
 
-  interface TileWriter extends Closeable {
-
-    void write(TileEncodingResult encodingResult);
-
-    // TODO: exists for compatibility reasons
-    default void write(com.onthegomap.planetiler.mbtiles.TileEncodingResult encodingResult) {
-      write(new TileEncodingResult(encodingResult.coord(), encodingResult.tileData(), encodingResult.tileDataHash()));
-    }
-
-    @Override
-    void close();
-
-    default void printStats() {}
-  }
-
+  /**
+   * Returns true if this tile archive deduplicates tiles with the same content.
+   * <p>
+   * If false, then {@link TileWriter} will skip computing tile hashes.
+   */
+  boolean deduplicates();
 
   /**
    * Specify the preferred insertion order for this archive, e.g. {@link TileOrder#TMS} or {@link TileOrder#HILBERT}.
@@ -40,7 +30,7 @@ public interface WriteableTileArchive extends Closeable {
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any
    * required state here.
    */
-  void initialize(PlanetilerConfig config, TileArchiveMetadata metadata, LayerStats layerStats);
+  default void initialize(TileArchiveMetadata metadata) {}
 
   /**
    * Implementations should return a object that implements {@link TileWriter} The specific TileWriter returned might
@@ -52,7 +42,17 @@ public interface WriteableTileArchive extends Closeable {
    * Called after all tiles are written into {@link TileWriter}. After this is called, the archive should be complete on
    * disk.
    */
-  void finish(PlanetilerConfig config);
+  default void finish(TileArchiveMetadata tileArchiveMetadata) {}
+
+  interface TileWriter extends Closeable {
+
+    void write(TileEncodingResult encodingResult);
+
+    @Override
+    void close();
+
+    default void printStats() {}
+  }
 
   // TODO update archive metadata
 }

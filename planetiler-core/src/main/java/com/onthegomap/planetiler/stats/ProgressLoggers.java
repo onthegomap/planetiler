@@ -275,7 +275,7 @@ public class ProgressLoggers {
 
   /** Adds the CPU utilization of every thread starting with {@code prefix} since the last log to output. */
   public ProgressLoggers addThreadPoolStats(String name, String prefix) {
-    boolean first = loggers.isEmpty() || !(loggers.get(loggers.size() - 1) instanceof WorkerPipelineLogger);
+    boolean first = loggers.isEmpty() || !(loggers.getLast() instanceof WorkerPipelineLogger);
     try {
       Map<Long, ProcessInfo.ThreadState> lastThreads = ProcessInfo.getThreadStats();
       AtomicLong lastTime = new AtomicLong(System.nanoTime());

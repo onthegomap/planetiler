@@ -13,7 +13,7 @@ import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.CloseableConsumer;
 import com.onthegomap.planetiler.util.CommonStringEncoder;
 import com.onthegomap.planetiler.util.DiskBacked;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.Closeable;
 import java.io.IOException;
@@ -59,47 +59,36 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
   private final CommonStringEncoder commonValueStrings = new CommonStringEncoder(100_000);
   private final Stats stats;
-  private final LayerStats layerStats = new LayerStats();
+  private final LayerAttrStats layerStats = new LayerAttrStats();
+  private final PlanetilerConfig config;
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
 
 
-  FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, Stats stats) {
+  FeatureGroup(FeatureSort sorter, TileOrder tileOrder, Profile profile, PlanetilerConfig config, Stats stats) {
     this.sorter = sorter;
     this.tileOrder = tileOrder;
     this.profile = profile;
+    this.config = config;
     this.stats = stats;
   }
 
   /** Returns a feature grouper that stores all feature in-memory. Only suitable for toy use-cases like unit tests. */
-  public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, Stats stats) {
-    return new FeatureGroup(FeatureSort.newInMemory(), tileOrder, profile, stats);
+  public static FeatureGroup newInMemoryFeatureGroup(TileOrder tileOrder, Profile profile, PlanetilerConfig config,
+    Stats stats) {
+    return new FeatureGroup(FeatureSort.newInMemory(), tileOrder, profile, config, stats);
   }
+
 
   /**
    * Returns a feature grouper that writes all elements to disk in chunks, sorts each chunk, then reads back in order
    * from those chunks. Suitable for making maps up to planet-scale.
    */
   public static FeatureGroup newDiskBackedFeatureGroup(TileOrder tileOrder, Path tempDir, Profile profile,
-    PlanetilerConfig config,
-    Stats stats) {
+    PlanetilerConfig config, Stats stats) {
     return new FeatureGroup(
       new ExternalMergeSort(tempDir, config, stats),
-      tileOrder, profile, stats
-    );
-  }
-
-  /** backwards compatibility **/
-  public static FeatureGroup newInMemoryFeatureGroup(Profile profile, Stats stats) {
-    return new FeatureGroup(FeatureSort.newInMemory(), TileOrder.TMS, profile, stats);
-  }
-
-  /** backwards compatibility **/
-  public static FeatureGroup newDiskBackedFeatureGroup(Path tempDir, Profile profile, PlanetilerConfig config,
-    Stats stats) {
-    return new FeatureGroup(
-      new ExternalMergeSort(tempDir, config, stats),
-      TileOrder.TMS, profile, stats
+      tileOrder, profile, config, stats
     );
   }
 
@@ -156,7 +145,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
    * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
    * features on elements in that layer, and their types.
    */
-  public LayerStats layerStats() {
+  public LayerAttrStats layerStats() {
     return layerStats;
   }
 
@@ -206,7 +195,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     var vectorTileFeature = feature.vectorTileFeature();
     byte encodedLayer = commonLayerStrings.encode(vectorTileFeature.layer());
 
-
     return encodeKey(
       this.tileOrder.encode(feature.tile()),
       encodedLayer,
@@ -229,24 +217,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
-        if (entry.getValue() != null) {
+        Object value = entry.getValue();
+        if (value != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
-          Object value = entry.getValue();
-          if (value instanceof String string) {
-            packer.packValue(ValueFactory.newString(string));
-          } else if (value instanceof Integer integer) {
-            packer.packValue(ValueFactory.newInteger(integer.longValue()));
-          } else if (value instanceof Long longValue) {
-            packer.packValue(ValueFactory.newInteger(longValue));
-          } else if (value instanceof Float floatValue) {
-            packer.packValue(ValueFactory.newFloat(floatValue));
-          } else if (value instanceof Double doubleValue) {
-            packer.packValue(ValueFactory.newFloat(doubleValue));
-          } else if (value instanceof Boolean booleanValue) {
-            packer.packValue(ValueFactory.newBoolean(booleanValue));
-          } else {
-            packer.packValue(ValueFactory.newString(value.toString()));
-          }
+          packer.packValue(switch (value) {
+            case String string -> ValueFactory.newString(string);
+            case Integer integer -> ValueFactory.newInteger(integer.longValue());
+            case Long longValue -> ValueFactory.newInteger(longValue);
+            case Float floatValue -> ValueFactory.newFloat(floatValue);
+            case Double doubleValue -> ValueFactory.newFloat(doubleValue);
+            case Boolean booleanValue -> ValueFactory.newBoolean(booleanValue);
+            case Object other -> ValueFactory.newString(other.toString());
+          });
         }
       }
       // Use the same binary format for encoding geometries in output vector tiles. Benchmarking showed
@@ -362,13 +344,23 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       this.tileCoord = tileOrder.decode(lastTileId);
     }
 
-    private static void unscale(List<VectorTile.Feature> features) {
+    private static void unscaleAndRemovePointsOutsideBuffer(List<VectorTile.Feature> features, double maxPointBuffer) {
+      boolean checkPoints = maxPointBuffer <= 256 && maxPointBuffer >= -128;
       for (int i = 0; i < features.size(); i++) {
         var feature = features.get(i);
         if (feature != null) {
           VectorTile.VectorGeometry geometry = feature.geometry();
+          var orig = geometry;
           if (geometry.scale() != 0) {
-            features.set(i, feature.copyWithNewGeometry(geometry.unscale()));
+            geometry = geometry.unscale();
+          }
+          if (checkPoints && geometry.geomType() == GeometryType.POINT && !geometry.isEmpty()) {
+            geometry = geometry.filterPointsOutsideBuffer(maxPointBuffer);
+          }
+          if (geometry.isEmpty()) {
+            features.set(i, null);
+          } else if (geometry != orig) {
+            features.set(i, feature.copyWithNewGeometry(geometry));
           }
         }
       }
@@ -457,8 +449,8 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       }
     }
 
-    public VectorTile getVectorTileEncoder() {
-      VectorTile encoder = new VectorTile();
+    public VectorTile getVectorTile() {
+      VectorTile tile = new VectorTile();
       List<VectorTile.Feature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
       for (SortableFeature entry : entries) {
@@ -468,15 +460,15 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         if (currentLayer == null) {
           currentLayer = layer;
         } else if (!currentLayer.equals(layer)) {
-          postProcessAndAddLayerFeatures(encoder, currentLayer, items);
+          postProcessAndAddLayerFeatures(tile, currentLayer, items);
           currentLayer = layer;
           items.clear();
         }
 
         items.add(feature);
       }
-      postProcessAndAddLayerFeatures(encoder, currentLayer, items);
-      return encoder;
+      postProcessAndAddLayerFeatures(tile, currentLayer, items);
+      return tile;
     }
 
     private void postProcessAndAddLayerFeatures(VectorTile encoder, String layer,
@@ -488,7 +480,9 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         // lines are stored using a higher precision so that rounding does not
         // introduce artificial intersections between endpoints to confuse line merging,
         // so we have to reduce the precision here, now that line merging is done.
-        unscale(features);
+        unscaleAndRemovePointsOutsideBuffer(features, config.maxPointBuffer());
+        // also remove points more than --max-point-buffer pixels outside the tile if the
+        // user has requested a narrower buffer than the profile provides by default
       } catch (Throwable e) { // NOSONAR - OK to catch Throwable since we re-throw Errors
         // failures in tile post-processing happen very late so err on the side of caution and
         // log failures, only throwing when it's a fatal error

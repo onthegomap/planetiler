@@ -15,66 +15,66 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-          submodules: true
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Analyze with SonarCloud
-        run: |
-          mvn -Dspotless.check.skip -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-        env:
-          # Needed to get some information about the pull request, if any
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Read-only user, use this token to link SonarLint to SonarCloud as well
-          SONAR_TOKEN: c2cfe8bd7368ced07e84a620b7c2487846e220eb
-      - name: Wait for SonarCloud API to update...
-        run: "sleep 10"
-      - name: Upload annotations on PRs
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const pr = context.payload.pull_request.number;
-            const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
-            console.log("Fetching " + url);
-            const response = await github.request(url);
-            console.log("Got " + JSON.stringify(response.data));
-            response.data.issues.forEach(issue => {
-              try {
-                if (issue.severity === 'INFO') return;
-                const textRange = issue.textRange;
-                const rule = encodeURIComponent(issue.rule);
-                const message = [
-                  issue.message,
-                  '',
-                  `rule: ${issue.rule} (https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule})`,
-                  `issue url: https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
-                ].join('\n');
-                const args = {
-                  title: `${issue.severity} ${issue.type}`,
-                  file: issue.component.replace(/^[^:]*:/, ''),
-                  startLine: textRange.startLine,
-                  endLine: textRange.endLine,
-                  startColumn: textRange.startOffset,
-                  endColumn: textRange.endOffset
-                };
-                core.warning(message, args);
-                console.log(args);
-              } catch (e) {
-                core.error(`Unable to parse sonar issue: ${JSON.stringify(issue)}`);
-              }
-            });
+    - uses: actions/checkout@v4
+      with:
+        # Disabling shallow clone is recommended for improving relevancy of reporting
+        fetch-depth: 0
+        submodules: true
+    - name: Set up JDK 21
+      uses: actions/setup-java@v3
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+    - name: Cache SonarCloud packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+    - name: Analyze with SonarCloud
+      run: |
+        mvn -Dspotless.check.skip -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+      env:
+        # Needed to get some information about the pull request, if any
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Read-only user, use this token to link SonarLint to SonarCloud as well
+        SONAR_TOKEN: c2cfe8bd7368ced07e84a620b7c2487846e220eb
+    - name: Wait for SonarCloud API to update...
+      run: "sleep 10"
+    - name: Upload annotations on PRs
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const pr = context.payload.pull_request.number;
+          const url = `https://sonarcloud.io/api/issues/search?pullRequest=${pr}&s=FILE_LINE&resolved=false&sinceLeakPeriod=true&ps=100&facets=severities%2Ctypes&componentKeys=onthegomap_planetiler&organization=onthegomap&additionalFields=_all`;
+          console.log("Fetching " + url);
+          const response = await github.request(url);
+          console.log("Got " + JSON.stringify(response.data));
+          response.data.issues.forEach(issue => {
+            try {
+              if (issue.severity === 'INFO') return;
+              const textRange = issue.textRange;
+              const rule = encodeURIComponent(issue.rule);
+              const message = [
+                issue.message,
+                '',
+                `rule: ${issue.rule} (https://sonarcloud.io/organizations/onthegomap/rules?open=${rule}&rule_key=${rule})`,
+                `issue url: https://sonarcloud.io/project/issues?pullRequest=${pr}&open=${encodeURIComponent(issue.key)}&id=onthegomap_planetiler`
+              ].join('\n');
+              const args = {
+                title: `${issue.severity} ${issue.type}`,
+                file: issue.component.replace(/^[^:]*:/, ''),
+                startLine: textRange.startLine,
+                endLine: textRange.endLine,
+                startColumn: textRange.startOffset,
+                endColumn: textRange.endOffset
+              };
+              core.warning(message, args);
+              console.log(args);
+            } catch (e) {
+              core.error(`Unable to parse sonar issue: ${JSON.stringify(issue)}`);
+            }
+          });

@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
  * profile (like zoom range, min pixel size, output attributes and their zoom ranges).
  */
 public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Closeable {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureRenderer.class);
   private static final VectorTile.VectorGeometry FILL = VectorTile.encodeGeometry(GeoUtils.JTS_FACTORY
     .createPolygon(GeoUtils.JTS_FACTORY.createLinearRing(new PackedCoordinateSequence.Double(new double[]{
@@ -92,7 +91,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderPoint(FeatureCollector.Feature feature, Coordinate... origCoords) {
-    long id = feature.getSourceId();
+    long id = feature.getId();
     boolean hasLabelGrid = feature.hasLabelGrid();
     Coordinate[] coords = new Coordinate[origCoords.length];
     for (int i = 0; i < origCoords.length; i++) {
@@ -170,7 +169,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
   }
 
   private void renderLineOrPolygon(FeatureCollector.Feature feature, Geometry input) {
-    long id = feature.getSourceId();
+    long id = feature.getId();
     boolean area = input instanceof Polygonal;
     double worldLength = (area || input.getNumGeometries() > 1) ? 0 : input.getLength();
     String numPointsAttr = feature.getNumPointsAttr();
@@ -240,7 +239,7 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
            * See https://docs.mapbox.com/vector-tiles/specification/#simplification for issues that can arise from naive
            * coordinate rounding.
            */
-          geom = GeoUtils.snapAndFixPolygon(geom);
+          geom = GeoUtils.snapAndFixPolygon(geom, stats, "render");
           // JTS utilities "fix" the geometry to be clockwise outer/CCW inner but vector tiles flip Y coordinate,
           // so we need outer CCW/inner clockwise
           geom = geom.reverse();

@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.mbtiles;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
+import static com.onthegomap.planetiler.util.Format.joinCoordinates;
 
 import com.carrotsearch.hppc.LongIntHashMap;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,17 +9,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
+import com.onthegomap.planetiler.archive.Tile;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import com.onthegomap.planetiler.util.Format;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
+import com.onthegomap.planetiler.util.Parse;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -27,21 +30,20 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
-import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,17 @@ import org.sqlite.SQLiteConfig;
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md">MBTiles Specification</a>
  */
 public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive {
+
+  // Options that can be set through "file.mbtiles?compact=true" query parameters
+  // or "file.mbtiles" with "--mbtiles-compact=true" command-line flag
+  public static final String COMPACT_DB = "compact";
+  public static final String SKIP_INDEX_CREATION = "no_index";
+  public static final String VACUUM_ANALYZE = "vacuum_analyze";
+
+  public static final String LEGACY_COMPACT_DB = "compact_db";
+  public static final String LEGACY_SKIP_INDEX_CREATION = "skip_mbtiles_index_creation";
+  public static final String LEGACY_VACUUM_ANALYZE = "optimize_db";
+
 
   // https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
   private static final int MBTILES_APPLICATION_ID = 0x4d504258;
@@ -93,62 +106,112 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   private final Connection connection;
   private final boolean compactDb;
+  private final boolean skipIndexCreation;
+  private final boolean vacuumAnalyze;
   private PreparedStatement getTileStatement = null;
 
-  private Mbtiles(Connection connection, boolean compactDb) {
+  private Mbtiles(Connection connection, Arguments arguments) {
     this.connection = connection;
-    this.compactDb = compactDb;
+    this.compactDb = arguments.getBoolean(
+      COMPACT_DB + "|" + LEGACY_COMPACT_DB,
+      "mbtiles: reduce the DB size by separating and deduping the tile data",
+      true
+    );
+    this.skipIndexCreation = arguments.getBoolean(
+      SKIP_INDEX_CREATION + "|" + LEGACY_SKIP_INDEX_CREATION,
+      "mbtiles: skip adding index to sqlite DB",
+      false
+    );
+    this.vacuumAnalyze = arguments.getBoolean(
+      VACUUM_ANALYZE + "|" + LEGACY_VACUUM_ANALYZE,
+      "mbtiles: vacuum analyze sqlite DB after writing",
+      false
+    );
   }
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
   public static Mbtiles newInMemoryDatabase(boolean compactDb) {
-    try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite::memory:", config.toProperties()), compactDb);
-    } catch (SQLException throwables) {
-      throw new IllegalStateException("Unable to create in-memory database", throwables);
-    }
+    return newInMemoryDatabase(Arguments.of(COMPACT_DB, compactDb ? "true" : "false"));
   }
 
-  /** @see {@link #newInMemoryDatabase(boolean)} */
+  /** Returns an in-memory database with extra mbtiles and pragma options set from {@code options}. */
+  public static Mbtiles newInMemoryDatabase(Arguments options) {
+    SQLiteConfig config = new SQLiteConfig();
+    config.setApplicationId(MBTILES_APPLICATION_ID);
+    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options);
+  }
+
+  /** Alias for {@link #newInMemoryDatabase(boolean)} */
   public static Mbtiles newInMemoryDatabase() {
     return newInMemoryDatabase(true);
   }
 
-  /** Returns a new connection to an mbtiles file optimized for fast bulk writes. */
-  public static Mbtiles newWriteToFileDatabase(Path path, boolean compactDb) {
-    try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setJournalMode(SQLiteConfig.JournalMode.OFF);
-      config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
-      config.setCacheSize(1_000_000); // 1GB
-      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
-      config.setTempStore(SQLiteConfig.TempStore.MEMORY);
-      config.setApplicationId(MBTILES_APPLICATION_ID);
-      return new Mbtiles(DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties()),
-        compactDb);
-    } catch (SQLException throwables) {
-      throw new IllegalArgumentException("Unable to open " + path, throwables);
-    }
+  /**
+   * Returns a new connection to an mbtiles file optimized for fast bulk writes with extra mbtiles and pragma options
+   * set from {@code options}.
+   */
+  public static Mbtiles newWriteToFileDatabase(Path path, Arguments options) {
+    Objects.requireNonNull(path);
+    SQLiteConfig sqliteConfig = new SQLiteConfig();
+    sqliteConfig.setJournalMode(SQLiteConfig.JournalMode.OFF);
+    sqliteConfig.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
+    sqliteConfig.setCacheSize(1_000_000); // 1GB
+    sqliteConfig.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+    sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
+    sqliteConfig.setApplicationId(MBTILES_APPLICATION_ID);
+    var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
+    return new Mbtiles(connection, options);
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
   public static Mbtiles newReadOnlyDatabase(Path path) {
+    return newReadOnlyDatabase(path, Arguments.of());
+  }
+
+  /**
+   * Returns a new connection to an mbtiles file optimized for reads with extra mbtiles and pragma options set from
+   * {@code options}.
+   */
+  public static Mbtiles newReadOnlyDatabase(Path path, Arguments options) {
+    Objects.requireNonNull(path);
+    SQLiteConfig config = new SQLiteConfig();
+    config.setReadOnly(true);
+    config.setCacheSize(100_000);
+    config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
+    config.setPageSize(32_768);
+    // helps with 3 or more threads concurrently accessing:
+    // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
+    Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, options);
+    return new Mbtiles(connection, options);
+  }
+
+  private static Connection newConnection(String url, SQLiteConfig defaults, Arguments args) {
     try {
-      SQLiteConfig config = new SQLiteConfig();
-      config.setReadOnly(true);
-      config.setCacheSize(100_000);
-      config.setLockingMode(SQLiteConfig.LockingMode.EXCLUSIVE);
-      config.setPageSize(32_768);
-      // helps with 3 or more threads concurrently accessing:
-      // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
-      Connection connection = DriverManager
-        .getConnection("jdbc:sqlite:" + path.toAbsolutePath(), config.toProperties());
-      return new Mbtiles(connection, false /* in read-only mode, it's irrelevant if compact or not */);
+      args = args.copy().silence();
+      var config = new SQLiteConfig(defaults.toProperties());
+      for (var pragma : SQLiteConfig.Pragma.values()) {
+        var value = args.getString(pragma.getPragmaName(), pragma.getPragmaName(), null);
+        if (value != null) {
+          LOGGER.info("Setting custom mbtiles sqlite pragma {}={}", pragma.getPragmaName(), value);
+          config.setPragma(pragma, value);
+        }
+      }
+      return DriverManager.getConnection(url, config.toProperties());
     } catch (SQLException throwables) {
-      throw new IllegalArgumentException("Unable to open " + path, throwables);
+      throw new IllegalArgumentException("Unable to open " + url, throwables);
     }
+  }
+
+  private static TileCoord getResultCoord(ResultSet rs) throws SQLException {
+    int z = rs.getInt(TILES_COL_Z);
+    int rawy = rs.getInt(TILES_COL_Y);
+    int x = rs.getInt(TILES_COL_X);
+    return TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z);
+  }
+
+  @Override
+  public boolean deduplicates() {
+    return compactDb;
   }
 
   @Override
@@ -157,8 +220,8 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void initialize(PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, LayerStats layerStats) {
-    if (config.skipIndexCreation()) {
+  public void initialize(TileArchiveMetadata tileArchiveMetadata) {
+    if (skipIndexCreation) {
       createTablesWithoutIndexes();
       if (LOGGER.isInfoEnabled()) {
         LOGGER.info("Skipping index creation. Add later by executing: {}",
@@ -168,26 +231,12 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       createTablesWithIndexes();
     }
 
-    var metadata = metadata()
-      .setName(tileArchiveMetadata.name())
-      .setFormat("pbf")
-      .setDescription(tileArchiveMetadata.description())
-      .setAttribution(tileArchiveMetadata.attribution())
-      .setVersion(tileArchiveMetadata.version())
-      .setType(tileArchiveMetadata.type())
-      .setBoundsAndCenter(config.bounds().latLon())
-      .setMinzoom(config.minzoom())
-      .setMaxzoom(config.maxzoom())
-      .setJson(new MetadataJson(layerStats.getTileStats()));
-
-    for (var entry : tileArchiveMetadata.planetilerSpecific().entrySet()) {
-      metadata.setMetadata(entry.getKey(), entry.getValue());
-    }
+    metadataTable().set(tileArchiveMetadata);
   }
 
   @Override
-  public void finish(PlanetilerConfig config) {
-    if (config.optimizeDb()) {
+  public void finish(TileArchiveMetadata tileArchiveMetadata) {
+    if (vacuumAnalyze) {
       vacuumAnalyze();
     }
   }
@@ -341,8 +390,13 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     return newTileWriter();
   }
 
+  @Override
+  public TileArchiveMetadata metadata() {
+    return new Metadata().get();
+  }
+
   /** Returns the contents of the metadata table. */
-  public Metadata metadata() {
+  public Metadata metadataTable() {
     return new Metadata();
   }
 
@@ -377,11 +431,39 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
   @Override
   public CloseableIterator<TileCoord> getAllTileCoords() {
-    return new TileCoordIterator();
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_TABLE)
+      ),
+      Mbtiles::getResultCoord
+    );
+  }
+
+  @Override
+  public CloseableIterator<Tile> getAllTiles() {
+    return new QueryIterator<>(
+      statement -> statement.executeQuery(
+        "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
+      ),
+      rs -> new Tile(getResultCoord(rs), rs.getBytes(TILES_COL_DATA))
+    );
   }
 
   public Connection connection() {
     return connection;
+  }
+
+  public boolean skipIndexCreation() {
+    return skipIndexCreation;
+  }
+
+  public boolean compactDb() {
+    return compactDb;
+  }
+
+  @FunctionalInterface
+  private interface SqlFunction<I, O> {
+    O apply(I t) throws SQLException;
   }
 
   /**
@@ -390,17 +472,18 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#vector-tileset-metadata">MBtiles
    *      schema</a>
    */
+  // TODO add tilestats
   public record MetadataJson(
-    @JsonProperty("vector_layers") List<LayerStats.VectorLayer> vectorLayers
+    @JsonProperty("vector_layers") List<LayerAttrStats.VectorLayer> vectorLayers
   ) {
 
-    public MetadataJson(LayerStats.VectorLayer... layers) {
+    public MetadataJson(LayerAttrStats.VectorLayer... layers) {
       this(List.of(layers));
     }
 
     public static MetadataJson fromJson(String json) {
       try {
-        return objectMapper.readValue(json, MetadataJson.class);
+        return json == null ? null : objectMapper.readValue(json, MetadataJson.class);
       } catch (JsonProcessingException e) {
         throw new IllegalStateException("Invalid metadata json: " + json, e);
       }
@@ -415,52 +498,12 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
   }
 
-  /** Contents of a row of the tiles table, or in case of compact mode in the tiles view. */
-  public record TileEntry(TileCoord tile, byte[] bytes) implements Comparable<TileEntry> {
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      TileEntry tileEntry = (TileEntry) o;
-
-      if (!tile.equals(tileEntry.tile)) {
-        return false;
-      }
-      return Arrays.equals(bytes, tileEntry.bytes);
-    }
-
-    @Override
-    public int hashCode() {
-      int result = tile.hashCode();
-      result = 31 * result + Arrays.hashCode(bytes);
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "TileEntry{" +
-        "tile=" + tile +
-        ", bytes=" + Arrays.toString(bytes) +
-        '}';
-    }
-
-    @Override
-    public int compareTo(TileEntry o) {
-      return tile.compareTo(o.tile);
-    }
-  }
-
   /** Contents of a row of the tiles_shallow table. */
   private record TileShallowEntry(TileCoord coord, int tileDataId) {}
 
   /** Contents of a row of the tiles_data table. */
   private record TileDataEntry(int tileDataId, byte[] tileData) {
+
     @Override
     public String toString() {
       return "TileDataEntry [tileDataId=" + tileDataId + ", tileData=" + Arrays.toString(tileData) + "]";
@@ -487,18 +530,21 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
   }
 
-  /** Iterates through tile coordinates one at a time without materializing the entire list in memory. */
-  private class TileCoordIterator implements CloseableIterator<TileCoord> {
+  /** Iterates through the results of a query one at a time without materializing the entire list in memory. */
+  private class QueryIterator<T> implements CloseableIterator<T> {
     private final Statement statement;
     private final ResultSet rs;
+    private final SqlFunction<ResultSet, T> rowMapper;
     private boolean hasNext = false;
 
-    private TileCoordIterator() {
+    private QueryIterator(
+      SqlFunction<Statement, ResultSet> query,
+      SqlFunction<ResultSet, T> rowMapper
+    ) {
+      this.rowMapper = rowMapper;
       try {
         this.statement = connection.createStatement();
-        this.rs = statement.executeQuery(
-          "select %s, %s, %s, %s from %s".formatted(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA, TILES_TABLE)
-        );
+        this.rs = query.apply(statement);
         hasNext = rs.next();
       } catch (SQLException e) {
         throw new FileFormatException("Could not read tile coordinates from mbtiles file", e);
@@ -524,15 +570,12 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     @Override
-    public TileCoord next() {
+    public T next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
       try {
-        int z = rs.getInt(TILES_COL_Z);
-        int rawy = rs.getInt(TILES_COL_Y);
-        int x = rs.getInt(TILES_COL_X);
-        var result = TileCoord.ofXYZ(x, (1 << z) - 1 - rawy, z);
+        T result = rowMapper.apply(rs);
         hasNext = rs.next();
         if (!hasNext) {
           close();
@@ -563,7 +606,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       insertStmtTableName = tableName;
       insertStmtInsertIgnore = insertIgnore;
       insertStmtValuesPlaceHolder = columns.stream().map(c -> "?").collect(Collectors.joining(",", "(", ")"));
-      insertStmtColumnsCsv = columns.stream().collect(Collectors.joining(","));
+      insertStmtColumnsCsv = String.join(",", columns);
       batchStatement = createBatchInsertPreparedStatement(batchLimit);
     }
 
@@ -631,7 +674,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
 
-  private class BatchedTileTableWriter extends BatchedTableWriterBase<TileEntry> {
+  private class BatchedTileTableWriter extends BatchedTableWriterBase<Tile> {
 
     private static final List<String> COLUMNS = List.of(TILES_COL_Z, TILES_COL_X, TILES_COL_Y, TILES_COL_DATA);
 
@@ -640,10 +683,10 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     }
 
     @Override
-    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, TileEntry tile)
+    protected int setParamsInStatementForItem(int positionOffset, PreparedStatement statement, Tile tile)
       throws SQLException {
 
-      TileCoord coord = tile.tile();
+      TileCoord coord = tile.coord();
       int x = coord.x();
       int y = coord.y();
       int z = coord.z();
@@ -708,7 +751,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
 
     @Override
     public void write(TileEncodingResult encodingResult) {
-      tableWriter.write(new TileEntry(encodingResult.coord(), encodingResult.tileData()));
+      tableWriter.write(new Tile(encodingResult.coord(), encodingResult.tileData()));
     }
 
     @Override
@@ -774,16 +817,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   /** Data contained in the metadata table. */
   public class Metadata {
 
-    private static final NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-
-    static {
-      nf.setMaximumFractionDigits(5);
-    }
-
-    private static String join(double... items) {
-      return DoubleStream.of(items).mapToObj(nf::format).collect(Collectors.joining(","));
-    }
-
+    /** Inserts a row into the metadata table that sets {@code name=value}. */
     public Metadata setMetadata(String name, Object value) {
       if (value != null) {
         String stringValue = value.toString();
@@ -805,79 +839,15 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       return this;
     }
 
-    public Metadata setName(String value) {
-      return setMetadata("name", value);
-    }
-
-    /** Format of the tile data, should always be pbf {@code pbf}. */
-    public Metadata setFormat(String format) {
-      return setMetadata("format", format);
-    }
-
-    public Metadata setBounds(double left, double bottom, double right, double top) {
-      return setMetadata("bounds", join(left, bottom, right, top));
-    }
-
-    public Metadata setBounds(Envelope envelope) {
-      return setBounds(envelope.getMinX(), envelope.getMinY(), envelope.getMaxX(), envelope.getMaxY());
-    }
-
-    public Metadata setCenter(double longitude, double latitude, double zoom) {
-      return setMetadata("center", join(longitude, latitude, zoom));
-    }
-
-    public Metadata setBoundsAndCenter(Envelope envelope) {
-      return setBounds(envelope).setCenter(envelope);
-    }
-
-    /** Estimate a reasonable center for the map to fit an envelope. */
-    public Metadata setCenter(Envelope envelope) {
-      Coordinate center = envelope.centre();
-      double zoom = Math.ceil(GeoUtils.getZoomFromLonLatBounds(envelope));
-      return setCenter(center.x, center.y, zoom);
-    }
-
-    public Metadata setMinzoom(int value) {
-      return setMetadata("minzoom", value);
-    }
-
-    public Metadata setMaxzoom(int maxZoom) {
-      return setMetadata("maxzoom", maxZoom);
-    }
-
-    public Metadata setAttribution(String value) {
-      return setMetadata("attribution", value);
-    }
-
-    public Metadata setDescription(String value) {
-      return setMetadata("description", value);
-    }
-
-    /** {@code overlay} or {@code baselayer}. */
-    public Metadata setType(String value) {
-      return setMetadata("type", value);
-    }
-
-    public Metadata setTypeIsOverlay() {
-      return setType("overlay");
-    }
-
-    public Metadata setTypeIsBaselayer() {
-      return setType("baselayer");
-    }
-
-    public Metadata setVersion(String value) {
-      return setMetadata("version", value);
-    }
-
-    public Metadata setJson(String value) {
-      return setMetadata("json", value);
-    }
-
+    /**
+     * Inserts a row into the metadata table that sets the value for {@code "json"} key to {@code value} serialized as a
+     * string.
+     */
     public Metadata setJson(MetadataJson value) {
-      return value == null ? this : setJson(value.toJson());
+      return value == null ? this : setMetadata("json", value.toJson());
     }
 
+    /** Returns all key-value pairs from the metadata table. */
     public Map<String, String> getAll() {
       TreeMap<String, String> result = new TreeMap<>();
       try (Statement statement = connection.createStatement()) {
@@ -890,10 +860,104 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
           );
         }
       } catch (SQLException throwables) {
-        LOGGER.warn("Error retrieving metadata: " + throwables);
+        LOGGER.warn("Error retrieving metadata: {}", throwables.toString());
         LOGGER.trace("Error retrieving metadata details: ", throwables);
       }
       return result;
+    }
+
+    /**
+     * Inserts rows into the metadata table that set all of the well-known metadata keys from
+     * {@code tileArchiveMetadata} and passes through the raw values of any options not explicitly called out in the
+     * MBTiles specification.
+     *
+     * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBTiles 1.3
+     *      specification</a>
+     */
+    public Metadata set(TileArchiveMetadata tileArchiveMetadata) {
+
+      final TileCompression tileCompression = tileArchiveMetadata.tileCompression();
+      if (tileCompression != null && tileCompression != TileCompression.GZIP) {
+        LOGGER.warn("will use {} for tile compression, but the mbtiles specification actually requires gzip",
+          tileCompression.id());
+      }
+
+      var map = new LinkedHashMap<>(tileArchiveMetadata.toMap());
+
+      setMetadata(TileArchiveMetadata.FORMAT_KEY, tileArchiveMetadata.format());
+      var center = tileArchiveMetadata.center();
+      var zoom = tileArchiveMetadata.zoom();
+      if (center != null) {
+        if (zoom != null) {
+          setMetadata(TileArchiveMetadata.CENTER_KEY, joinCoordinates(center.x, center.y, Math.ceil(zoom)));
+        } else {
+          setMetadata(TileArchiveMetadata.CENTER_KEY, joinCoordinates(center.x, center.y));
+        }
+      }
+      var bounds = tileArchiveMetadata.bounds();
+      if (bounds != null) {
+        setMetadata(TileArchiveMetadata.BOUNDS_KEY,
+          joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
+      }
+      setJson(new MetadataJson(tileArchiveMetadata.vectorLayers()));
+
+      map.remove(TileArchiveMetadata.FORMAT_KEY);
+      map.remove(TileArchiveMetadata.CENTER_KEY);
+      map.remove(TileArchiveMetadata.ZOOM_KEY);
+      map.remove(TileArchiveMetadata.BOUNDS_KEY);
+      map.remove(TileArchiveMetadata.VECTOR_LAYERS_KEY);
+
+      for (var entry : map.entrySet()) {
+        setMetadata(entry.getKey(), entry.getValue());
+      }
+      return this;
+    }
+
+    /**
+     * Returns a {@link TileArchiveMetadata} instance parsed from all the rows in the metadata table.
+     */
+    public TileArchiveMetadata get() {
+      Map<String, String> map = new HashMap<>(getAll());
+      String[] bounds = map.containsKey(TileArchiveMetadata.BOUNDS_KEY) ?
+        map.remove(TileArchiveMetadata.BOUNDS_KEY).split(",") : null;
+      String[] center = map.containsKey(TileArchiveMetadata.CENTER_KEY) ?
+        map.remove(TileArchiveMetadata.CENTER_KEY).split(",") : null;
+      var metadataJson = MetadataJson.fromJson(map.remove("json"));
+
+
+      String tileCompressionRaw = map.remove(TileArchiveMetadata.COMPRESSION_KEY);
+      TileCompression tileCompression = tileCompressionRaw == null ? TileCompression.GZIP :
+        TileCompression.findById(tileCompressionRaw).orElseGet(() -> {
+          LOGGER.warn("unknown tile compression {}", tileCompressionRaw);
+          return TileCompression.UNKNWON;
+        });
+
+
+      return new TileArchiveMetadata(
+        map.remove(TileArchiveMetadata.NAME_KEY),
+        map.remove(TileArchiveMetadata.DESCRIPTION_KEY),
+        map.remove(TileArchiveMetadata.ATTRIBUTION_KEY),
+        map.remove(TileArchiveMetadata.VERSION_KEY),
+        map.remove(TileArchiveMetadata.TYPE_KEY),
+        map.remove(TileArchiveMetadata.FORMAT_KEY),
+        bounds == null || bounds.length < 4 ? null : new Envelope(
+          Double.parseDouble(bounds[0]),
+          Double.parseDouble(bounds[2]),
+          Double.parseDouble(bounds[1]),
+          Double.parseDouble(bounds[3])
+        ),
+        center == null || center.length < 2 ? null : new CoordinateXY(
+          Double.parseDouble(center[0]),
+          Double.parseDouble(center[1])
+        ),
+        center == null || center.length < 3 ? null : Double.parseDouble(center[2]),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MINZOOM_KEY)),
+        Parse.parseIntOrNull(map.remove(TileArchiveMetadata.MAXZOOM_KEY)),
+        metadataJson == null ? null : metadataJson.vectorLayers,
+        // any left-overs:
+        map,
+        tileCompression
+      );
     }
   }
 }

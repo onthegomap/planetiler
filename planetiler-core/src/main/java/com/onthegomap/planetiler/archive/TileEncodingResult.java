@@ -2,15 +2,26 @@ package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
+import javax.annotation.Nonnull;
 
 public record TileEncodingResult(
   TileCoord coord,
-  byte[] tileData,
-  /** will always be empty in non-compact mode and might also be empty in compact mode */
-  OptionalLong tileDataHash
+  @Nonnull byte[] tileData,
+  int rawTileSize,
+  /* will always be empty in non-compact mode and might also be empty in compact mode */
+  OptionalLong tileDataHash,
+  List<String> layerStats
 ) {
+  public TileEncodingResult(
+    TileCoord coord,
+    byte[] tileData,
+    OptionalLong tileDataHash
+  ) {
+    this(coord, tileData, tileData.length, tileDataHash, List.of());
+  }
 
   @Override
   public int hashCode() {
@@ -23,15 +34,10 @@ public record TileEncodingResult(
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (!(obj instanceof TileEncodingResult)) {
-      return false;
-    }
-    TileEncodingResult other = (TileEncodingResult) obj;
-    return Objects.equals(coord, other.coord) && Arrays.equals(tileData, other.tileData) &&
-      Objects.equals(tileDataHash, other.tileDataHash);
+    return this == obj || (obj instanceof TileEncodingResult other &&
+      Objects.equals(coord, other.coord) &&
+      Arrays.equals(tileData, other.tileData) &&
+      Objects.equals(tileDataHash, other.tileDataHash));
   }
 
   @Override
@@ -39,5 +45,4 @@ public record TileEncodingResult(
     return "TileEncodingResult [coord=" + coord + ", tileData=" + Arrays.toString(tileData) + ", tileDataHash=" +
       tileDataHash + "]";
   }
-
 }

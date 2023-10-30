@@ -13,7 +13,8 @@ updates:
     labels:
       - dependencies
     ignore:
-      - dependency-name: "com.graphhopper:graphhopper-reader-osm"
+      - dependency-name: "com.google.protobuf:protobuf-java"
+        versions: [ "3.23.3" ]
   - package-ecosystem: maven
     # workaround for non-standard pom.xml filename (https://github.com/dependabot/dependabot-core/issues/4425)
     directory: "/.github/planetiler-examples-dependabot"

@@ -189,7 +189,7 @@ public class Verify {
   }
 
   private void checkBasicStructure() {
-    check("contains name attribute", () -> mbtiles.metadata().getAll().containsKey("name"));
+    check("contains name attribute", () -> mbtiles.metadata().toMap().containsKey("name"));
     check("contains at least one tile", () -> mbtiles.getAllTileCoords().stream().findAny().isPresent());
     checkWithMessage("all tiles are valid", () -> {
       List<String> invalidTiles = mbtiles.getAllTileCoords().stream()

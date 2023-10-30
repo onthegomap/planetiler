@@ -22,73 +22,73 @@ jobs:
     timeout-minutes: 20
     continue-on-error: true
     steps:
-      - name: 'Cancel previous runs'
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-      - name: 'Checkout branch'
-        uses: actions/checkout@v3
-        with:
-          path: branch
-          submodules: true
-      - name: 'Checkout base'
-        uses: actions/checkout@v3
-        with:
-          path: base
-          ref: ${{ github.event.pull_request.base.sha }}
-          submodules: true
-      - name: Cache data/sources
-        uses: ./branch/.github/cache-sources-action
-        with:
-          basedir: branch
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'temurin'
-          cache: 'maven'
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-      - run: npm install -g strip-ansi-cli@3.0.2
+    - name: 'Cancel previous runs'
+      uses: styfle/cancel-workflow-action@0.12.0
+      with:
+        access_token: ${{ github.token }}
+    - name: 'Checkout branch'
+      uses: actions/checkout@v4
+      with:
+        path: branch
+        submodules: true
+    - name: 'Checkout base'
+      uses: actions/checkout@v4
+      with:
+        path: base
+        ref: ${{ github.event.pull_request.base.sha }}
+        submodules: true
+    - name: Cache data/sources
+      uses: ./branch/.github/cache-sources-action
+      with:
+        basedir: branch
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '14'
+    - run: npm install -g strip-ansi-cli@3.0.2
 
-      - name: 'Build branch'
-        run: ./scripts/build.sh
-        working-directory: branch
-      - name: 'Build base'
-        run: ./scripts/build.sh
-        working-directory: base
+    - name: 'Build branch'
+      run: ./scripts/build.sh
+      working-directory: branch
+    - name: 'Build base'
+      run: ./scripts/build.sh
+      working-directory: base
 
-      - name: 'Download data'
-        run: |
-          set -eo pipefail
-          cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
-          cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
+    - name: 'Download data'
+      run: |
+        set -eo pipefail
+        cp base/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
+        cp branch/planetiler-dist/target/*with-deps.jar run.jar && java -jar run.jar --only-download --area="${{ env.AREA }}"
 
-      - name: 'Store build info'
-        run: |
-          mkdir build-info
-          echo "${{ github.event.pull_request.base.sha }}" > build-info/base_sha
-          echo "${{ github.sha }}" > build-info/branch_sha
-          echo "${{ github.event.number }}" > build-info/pull_request_number
+    - name: 'Store build info'
+      run: |
+        mkdir build-info
+        echo "${{ github.event.pull_request.base.sha }}" > build-info/base_sha
+        echo "${{ github.sha }}" > build-info/branch_sha
+        echo "${{ github.event.number }}" > build-info/pull_request_number
 
-      - name: 'Run branch'
-        run: |
-          rm -rf data/out.mbtiles data/tmp
-          cp branch/planetiler-dist/target/*with-deps.jar run.jar
-          java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --mbtiles=data/out.mbtiles 2>&1 | tee log
-          ls -alh run.jar | tee -a log
-          cat log | strip-ansi > build-info/branchlogs.txt
-      - name: 'Run base'
-        run: |
-          rm -rf data/out.mbtiles data/tmp
-          cp base/planetiler-dist/target/*with-deps.jar run.jar
-          java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --mbtiles=data/out.mbtiles 2>&1 | tee log
-          ls -alh run.jar | tee -a log
-          cat log | strip-ansi > build-info/baselogs.txt
+    - name: 'Run branch'
+      run: |
+        rm -rf data/out.mbtiles data/tmp
+        cp branch/planetiler-dist/target/*with-deps.jar run.jar
+        java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --output=data/out.mbtiles --keep-unzipped 2>&1 | tee log
+        ls -alh run.jar | tee -a log
+        cat log | strip-ansi > build-info/branchlogs.txt
+    - name: 'Run base'
+      run: |
+        rm -rf data/out.mbtiles data/tmp
+        cp base/planetiler-dist/target/*with-deps.jar run.jar
+        java -Xms${{ env.RAM }} -Xmx${{ env.RAM }} -jar run.jar --area="${{ env.AREA }}" "${{ env.BOUNDS_ARG }}" --output=data/out.mbtiles --keep-unzipped 2>&1 | tee log
+        ls -alh run.jar | tee -a log
+        cat log | strip-ansi > build-info/baselogs.txt
 
-      - name: 'Upload build-info'
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-info
-          path: ./build-info
+    - name: 'Upload build-info'
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-info
+        path: ./build-info

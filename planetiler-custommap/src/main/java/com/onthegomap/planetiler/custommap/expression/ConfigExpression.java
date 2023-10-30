@@ -70,7 +70,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that always returns {@code value}. */
-  record Const<I extends ScriptContext, O> (O value) implements ConfigExpression<I, O> {
+  record Const<I extends ScriptContext, O>(O value) implements ConfigExpression<I, O> {
 
     @Override
     public O apply(I i) {
@@ -79,7 +79,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that returns the value associated with the first matching boolean expression. */
-  record Match<I extends ScriptContext, O> (
+  record Match<I extends ScriptContext, O>(
     Signature<I, O> signature,
     MultiExpression<ConfigExpression<I, O>> multiExpression,
     ConfigExpression<I, O> fallback,
@@ -146,7 +146,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that returns the first non-null result of evaluating each child expression. */
-  record Coalesce<I extends ScriptContext, O> (List<? extends ConfigExpression<I, O>> children)
+  record Coalesce<I extends ScriptContext, O>(List<? extends ConfigExpression<I, O>> children)
     implements ConfigExpression<I, O> {
 
     @Override
@@ -164,7 +164,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
     public ConfigExpression<I, O> simplifyOnce() {
       return switch (children.size()) {
         case 0 -> constOf(null);
-        case 1 -> children.get(0);
+        case 1 -> children.getFirst();
         default -> {
           var result = children.stream()
             .flatMap(
@@ -184,7 +184,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that returns the value associated a given variable name at runtime. */
-  record Variable<I extends ScriptContext, O> (
+  record Variable<I extends ScriptContext, O>(
     Signature<I, O> signature,
     String name
   ) implements ConfigExpression<I, O> {
@@ -202,7 +202,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that returns the value associated a given tag of the input feature at runtime. */
-  record GetTag<I extends ScriptContext, O> (
+  record GetTag<I extends ScriptContext, O>(
     Signature<I, O> signature,
     ConfigExpression<I, String> tag
   ) implements ConfigExpression<I, O> {
@@ -219,7 +219,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that returns the value associated a given argument at runtime. */
-  record GetArg<I extends ScriptContext, O> (
+  record GetArg<I extends ScriptContext, O>(
     Signature<I, O> signature,
     ConfigExpression<I, String> arg
   ) implements ConfigExpression<I, O> {
@@ -242,7 +242,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
   }
 
   /** An expression that converts the input to a desired output {@link DataType} at runtime. */
-  record Cast<I extends ScriptContext, O> (
+  record Cast<I extends ScriptContext, O>(
     Signature<I, O> signature,
     ConfigExpression<I, ?> input,
     DataType output
@@ -268,7 +268,7 @@ public interface ConfigExpression<I extends ScriptContext, O>
     }
   }
 
-  record Signature<I extends ScriptContext, O> (ScriptEnvironment<I> in, Class<O> out) {
+  record Signature<I extends ScriptContext, O>(ScriptEnvironment<I> in, Class<O> out) {
 
     public <O2> Signature<I, O2> withOutput(Class<O2> newOut) {
       return new Signature<>(in, newOut);

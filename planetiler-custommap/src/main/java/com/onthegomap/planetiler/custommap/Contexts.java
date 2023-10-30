@@ -187,8 +187,6 @@ public class Contexts {
       argumentValues.put("minzoom", config.minzoom());
       argumentValues.put("maxzoom", config.maxzoom());
       argumentValues.put("render_maxzoom", config.maxzoomForRendering());
-      argumentValues.put("skip_mbtiles_index_creation", config.skipIndexCreation());
-      argumentValues.put("optimize_db", config.optimizeDb());
       argumentValues.put("force", config.force());
       argumentValues.put("gzip_temp", config.gzipTempStorage());
       argumentValues.put("mmap_temp", config.mmapTempStorage());
@@ -209,7 +207,6 @@ public class Contexts {
       argumentValues.put("min_feature_size", config.minFeatureSizeBelowMaxZoom());
       argumentValues.put("simplify_tolerance_at_max_zoom", config.simplifyToleranceAtMaxZoom());
       argumentValues.put("simplify_tolerance", config.simplifyToleranceBelowMaxZoom());
-      argumentValues.put("compact_db", config.compactDb());
       argumentValues.put("skip_filled_tiles", config.skipFilledTiles());
       argumentValues.put("tile_warning_size_mb", config.tileWarningSizeBytes());
       builtInArgs = Set.copyOf(argumentValues.keySet());
@@ -413,7 +410,7 @@ public class Contexts {
     }
 
     public String matchKey() {
-      return matchKeys().isEmpty() ? null : matchKeys().get(0);
+      return matchKeys().isEmpty() ? null : matchKeys().getFirst();
     }
 
     public Object matchValue() {

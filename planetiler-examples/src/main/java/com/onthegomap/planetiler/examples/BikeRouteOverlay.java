@@ -22,7 +22,7 @@ import java.util.List;
  * <li>then build the examples: {@code mvn clean package}</li>
  * <li>then run this example:
  * {@code java -cp target/*-with-deps.jar com.onthegomap.planetiler.examples.BikeRouteOverlay osm_path="path/to/data.osm.pbf" mbtiles="data/output.mbtiles"}</li>
- * <li>then run the demo tileserver: {@code tileserver-gl-light --mbtiles data/bikeroutes.mbtiles}</li>
+ * <li>then run the demo tileserver: {@code tileserver-gl-light data/bikeroutes.mbtiles}</li>
  * <li>and view the output at <a href="http://localhost:8080">localhost:8080</a></li>
  * </ol>
  */
@@ -64,11 +64,11 @@ public class BikeRouteOverlay implements Profile {
           relation.getString("route"),
           // except map network abbreviation to a human-readable value
           switch (relation.getString("network", "")) {
-          case "icn" -> "international";
-          case "ncn" -> "national";
-          case "rcn" -> "regional";
-          case "lcn" -> "local";
-          default -> "other";
+            case "icn" -> "international";
+            case "ncn" -> "national";
+            case "rcn" -> "regional";
+            case "lcn" -> "local";
+            default -> "other";
           }
         ));
       }
@@ -175,7 +175,7 @@ public class BikeRouteOverlay implements Profile {
       // override this default with osm_path="path/to/data.osm.pbf"
       .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
       // override this default with mbtiles="path/to/output.mbtiles"
-      .overwriteOutput("mbtiles", Path.of("data", "bikeroutes.mbtiles"))
+      .overwriteOutput(Path.of("data", "bikeroutes.mbtiles"))
       .run();
   }
 }

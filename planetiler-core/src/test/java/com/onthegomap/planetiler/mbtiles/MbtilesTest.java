@@ -5,24 +5,29 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.common.math.IntMath;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.archive.Tile;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileCompression;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
-import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
-import com.onthegomap.planetiler.util.LayerStats;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.io.IOException;
 import java.math.RoundingMode;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 
 class MbtilesTest {
@@ -33,11 +38,12 @@ class MbtilesTest {
   private static final int TILES_DATA_BATCH = MAX_PARAMETERS_IN_PREPARED_STATEMENT / 2;
 
 
-  private static final
-
-    void testWriteTiles(int howMany, boolean skipIndexCreation, boolean optimize, boolean compactDb)
-      throws IOException, SQLException {
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase(compactDb)) {
+  private static void testWriteTiles(Path path, int howMany, boolean skipIndexCreation, boolean optimize,
+    boolean compactDb) throws IOException, SQLException {
+    var options = Arguments.of("compact", Boolean.toString(compactDb));
+    try (
+      Mbtiles db = path == null ? Mbtiles.newInMemoryDatabase(options) : Mbtiles.newWriteToFileDatabase(path, options)
+    ) {
       if (skipIndexCreation) {
         db.createTablesWithoutIndexes();
       } else {
@@ -45,18 +51,18 @@ class MbtilesTest {
       }
 
       assertNull(db.getTile(0, 0, 0));
-      Set<Mbtiles.TileEntry> expected = new TreeSet<>();
+      Set<Tile> expected = new TreeSet<>();
       try (var writer = db.newTileWriter()) {
         for (int i = 0; i < howMany; i++) {
           var dataHash = i - (i % 2);
           var dataBase = howMany + dataHash;
-          var entry = new Mbtiles.TileEntry(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
+          var entry = new Tile(TileCoord.ofXYZ(i, i + 1, 14), new byte[]{
             (byte) dataBase,
             (byte) (dataBase >> 8),
             (byte) (dataBase >> 16),
             (byte) (dataBase >> 24)
           });
-          writer.write(new TileEncodingResult(entry.tile(), entry.bytes(), OptionalLong.of(dataHash)));
+          writer.write(new TileEncodingResult(entry.coord(), entry.bytes(), OptionalLong.of(dataHash)));
           expected.add(entry);
         }
       }
@@ -64,13 +70,14 @@ class MbtilesTest {
       if (optimize) {
         db.vacuumAnalyze();
       }
-      var all = TestUtils.getAllTiles(db);
+      var all = TestUtils.getTiles(db);
       assertEquals(howMany, all.size());
       assertEquals(expected, all);
-      assertEquals(expected.stream().map(Mbtiles.TileEntry::tile).collect(Collectors.toSet()),
+      assertEquals(expected.stream().map(Tile::coord).collect(Collectors.toSet()),
         db.getAllTileCoords().stream().collect(Collectors.toSet()));
+      assertEquals(expected, db.getAllTiles().stream().collect(Collectors.toSet()));
       for (var expectedEntry : expected) {
-        var tile = expectedEntry.tile();
+        var tile = expectedEntry.coord();
         byte[] data = db.getTile(tile.x(), tile.y(), tile.z());
         assertArrayEquals(expectedEntry.bytes(), data);
       }
@@ -84,24 +91,42 @@ class MbtilesTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 1, TILES_BATCH, TILES_BATCH + 1, 2 * TILES_BATCH, 2 * TILES_BATCH + 1})
   void testWriteTilesDifferentSizeInNonCompactMode(int howMany) throws IOException, SQLException {
-    testWriteTiles(howMany, false, false, false);
+    testWriteTiles(null, howMany, false, false, false);
   }
 
   @ParameterizedTest
   @ValueSource(ints = {0, 1, TILES_DATA_BATCH, TILES_DATA_BATCH + 1, 2 * TILES_DATA_BATCH, 2 * TILES_DATA_BATCH + 1,
     TILES_SHALLOW_BATCH, TILES_SHALLOW_BATCH + 1, 2 * TILES_SHALLOW_BATCH, 2 * TILES_SHALLOW_BATCH + 1})
   void testWriteTilesDifferentSizeInCompactMode(int howMany) throws IOException, SQLException {
-    testWriteTiles(howMany, false, false, true);
+    testWriteTiles(null, howMany, false, false, true);
   }
 
   @Test
   void testSkipIndexCreation() throws IOException, SQLException {
-    testWriteTiles(10, true, false, false);
+    testWriteTiles(null, 10, true, false, false);
   }
 
   @Test
   void testVacuumAnalyze() throws IOException, SQLException {
-    testWriteTiles(10, false, true, false);
+    testWriteTiles(null, 10, false, true, false);
+  }
+
+  @Test
+  void testWriteToFile(@TempDir Path tmpDir) throws IOException, SQLException {
+    testWriteTiles(tmpDir.resolve("archive.mbtiles"), 10, false, false, true);
+  }
+
+  @Test
+  void testCustomPragma() throws IOException, SQLException {
+    try (
+      Mbtiles db = Mbtiles.newInMemoryDatabase(Arguments.of(
+        "cache-size", "123",
+        "garbage", "456"
+      ));
+    ) {
+      int result = db.connection().createStatement().executeQuery("pragma cache_size").getInt(1);
+      assertEquals(123, result);
+    }
   }
 
   @ParameterizedTest
@@ -121,71 +146,94 @@ class MbtilesTest {
   }
 
   @Test
-  void testAddMetadata() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setName("name value");
-      expected.put("name", "name value");
-
-      metadata.setFormat("pbf");
-      expected.put("format", "pbf");
-
-      metadata.setAttribution("attribution value");
-      expected.put("attribution", "attribution value");
-
-      metadata.setBoundsAndCenter(GeoUtils.toLatLonBoundsBounds(new Envelope(0.25, 0.75, 0.25, 0.75)));
-      expected.put("bounds", "-90,-66.51326,90,66.51326");
-      expected.put("center", "0,0,1");
-
-      metadata.setDescription("description value");
-      expected.put("description", "description value");
-
-      metadata.setMinzoom(1);
-      expected.put("minzoom", "1");
-
-      metadata.setMaxzoom(13);
-      expected.put("maxzoom", "13");
-
-      metadata.setVersion("1.2.3");
-      expected.put("version", "1.2.3");
-
-      metadata.setTypeIsBaselayer();
-      expected.put("type", "baselayer");
-
-      assertEquals(expected, metadata.getAll());
-    }
+  void testRoundTripMetadata() throws IOException {
+    roundTripMetadata(new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
+    ));
   }
 
   @Test
-  void testAddMetadataWorldBounds() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
-    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setBoundsAndCenter(GeoUtils.WORLD_LAT_LON_BOUNDS);
-      expected.put("bounds", "-180,-85.05113,180,85.05113");
-      expected.put("center", "0,0,0");
+  void testMetadataWithoutCompressionAssumesGzip() throws IOException {
 
-      assertEquals(expected, metadata.getAll());
-    }
+    final TileArchiveMetadata metadataIn = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      null
+    );
+
+    final TileArchiveMetadata expectedMetadataOut = new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new CoordinateXY(5, 6),
+      7d,
+      8,
+      9,
+      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
+    );
+
+    roundTripMetadata(metadataIn, expectedMetadataOut);
   }
 
   @Test
-  void testAddMetadataSmallBounds() throws IOException {
-    Map<String, String> expected = new TreeMap<>();
+  void testRoundTripMinimalMetadata() throws IOException {
+    var empty =
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+        TileCompression.GZIP);
+    roundTripMetadata(empty);
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
-      metadata.setBoundsAndCenter(new Envelope(-73.6632, -69.7598, 41.1274, 43.0185));
-      expected.put("bounds", "-73.6632,41.1274,-69.7598,43.0185");
-      expected.put("center", "-71.7115,42.07295,7");
+      db.createTablesWithoutIndexes();
+      assertEquals(empty, db.metadata());
+    }
+  }
 
-      assertEquals(expected, metadata.getAll());
+  private static void roundTripMetadata(TileArchiveMetadata metadata) throws IOException {
+    roundTripMetadata(metadata, metadata);
+  }
+
+  private static void roundTripMetadata(TileArchiveMetadata metadata, TileArchiveMetadata expectedOut)
+    throws IOException {
+    try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
+      db.createTablesWithoutIndexes();
+      var metadataTable = db.metadataTable();
+      metadataTable.set(metadata);
+      assertEquals(expectedOut, metadataTable.get());
     }
   }
 
   private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
-      var metadata = db.createTablesWithoutIndexes().metadata();
+      var metadata = db.createTablesWithoutIndexes().metadataTable();
       metadata.setJson(object);
       var actual = metadata.getAll().get("json");
       assertSameJson(expected, actual);
@@ -204,17 +252,17 @@ class MbtilesTest {
   @Test
   void testFullMetadataJson() throws IOException {
     testMetadataJson(new Mbtiles.MetadataJson(
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "full",
         Map.of(
-          "NUMBER_FIELD", LayerStats.FieldType.NUMBER,
-          "STRING_FIELD", LayerStats.FieldType.STRING,
-          "boolean field", LayerStats.FieldType.BOOLEAN
+          "NUMBER_FIELD", LayerAttrStats.FieldType.NUMBER,
+          "STRING_FIELD", LayerAttrStats.FieldType.STRING,
+          "boolean field", LayerAttrStats.FieldType.BOOLEAN
         )
       ).withDescription("full description")
         .withMinzoom(0)
         .withMaxzoom(5),
-      new LayerStats.VectorLayer(
+      new LayerAttrStats.VectorLayer(
         "partial",
         Map.of()
       )

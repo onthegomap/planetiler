@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -22,6 +23,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.geom.util.GeometryTransformer;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -264,24 +266,38 @@ public class GeoUtils {
     }
   }
 
+  /**
+   * More aggressive fix for self-intersections than {@link #fixPolygon(Geometry)} that expands then contracts the shape
+   * by {@code buffer}.
+   *
+   * @throws GeometryException if a robustness error occurred
+   */
+  public static Geometry fixPolygon(Geometry geom, double buffer) throws GeometryException {
+    try {
+      return geom.buffer(buffer).buffer(-buffer);
+    } catch (TopologyException e) {
+      throw new GeometryException("fix_polygon_buffer_topology_error", "robustness error fixing polygon: " + e);
+    }
+  }
+
   public static Geometry combineLineStrings(List<LineString> lineStrings) {
-    return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
+    return lineStrings.size() == 1 ? lineStrings.getFirst() : createMultiLineString(lineStrings);
   }
 
   public static Geometry combinePolygons(List<Polygon> polys) {
-    return polys.size() == 1 ? polys.get(0) : createMultiPolygon(polys);
+    return polys.size() == 1 ? polys.getFirst() : createMultiPolygon(polys);
   }
 
   public static Geometry combinePoints(List<Point> points) {
-    return points.size() == 1 ? points.get(0) : createMultiPoint(points);
+    return points.size() == 1 ? points.getFirst() : createMultiPoint(points);
   }
 
   /**
    * Returns a copy of {@code geom} with coordinates rounded to {@link #TILE_PRECISION} and fixes any polygon
    * self-intersections or overlaps that may have caused.
    */
-  public static Geometry snapAndFixPolygon(Geometry geom) throws GeometryException {
-    return snapAndFixPolygon(geom, TILE_PRECISION);
+  public static Geometry snapAndFixPolygon(Geometry geom, Stats stats, String stage) throws GeometryException {
+    return snapAndFixPolygon(geom, TILE_PRECISION, stats, stage);
   }
 
   /**
@@ -290,21 +306,29 @@ public class GeoUtils {
    *
    * @throws GeometryException if an unrecoverable robustness exception prevents us from fixing the geometry
    */
-  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision) throws GeometryException {
+  public static Geometry snapAndFixPolygon(Geometry geom, PrecisionModel tilePrecision, Stats stats, String stage)
+    throws GeometryException {
     try {
+      if (!geom.isValid()) {
+        geom = fixPolygon(geom);
+        stats.dataError(stage + "_snap_fix_input");
+      }
       return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-    } catch (IllegalArgumentException e) {
+    } catch (TopologyException | IllegalArgumentException e) {
       // precision reduction fails if geometry is invalid, so attempt
       // to fix it then try again
-      geom = fixPolygon(geom);
+      geom = GeometryFixer.fix(geom);
+      stats.dataError(stage + "_snap_fix_input2");
       try {
         return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-      } catch (IllegalArgumentException e2) {
-        // give it one last try, just in case
-        geom = fixPolygon(geom);
+      } catch (TopologyException | IllegalArgumentException e2) {
+        // give it one last try but with more aggressive fixing, just in case (see issue #511)
+        geom = fixPolygon(geom, tilePrecision.gridSize() / 2);
+        stats.dataError(stage + "_snap_fix_input3");
         try {
           return GeometryPrecisionReducer.reduce(geom, tilePrecision);
-        } catch (IllegalArgumentException e3) {
+        } catch (TopologyException | IllegalArgumentException e3) {
+          stats.dataError(stage + "_snap_fix_input3_failed");
           throw new GeometryException("snap_third_time_failed", "Error reducing precision");
         }
       }
@@ -359,29 +383,29 @@ public class GeoUtils {
     if (lineStrings.isEmpty()) {
       throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
-      return lineStrings.get(0);
+      return lineStrings.getFirst();
     } else {
       return createMultiLineString(lineStrings);
     }
   }
 
   private static void getLineStrings(Geometry input, List<LineString> output) throws GeometryException {
-    if (input instanceof LinearRing linearRing) {
-      output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
-    } else if (input instanceof LineString lineString) {
-      output.add(lineString);
-    } else if (input instanceof Polygon polygon) {
-      getLineStrings(polygon.getExteriorRing(), output);
-      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-        getLineStrings(polygon.getInteriorRingN(i), output);
+    switch (input) {
+      case LinearRing linearRing -> output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
+      case LineString lineString -> output.add(lineString);
+      case Polygon polygon -> {
+        getLineStrings(polygon.getExteriorRing(), output);
+        for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+          getLineStrings(polygon.getInteriorRingN(i), output);
+        }
       }
-    } else if (input instanceof GeometryCollection gc) {
-      for (int i = 0; i < gc.getNumGeometries(); i++) {
-        getLineStrings(gc.getGeometryN(i), output);
+      case GeometryCollection gc -> {
+        for (int i = 0; i < gc.getNumGeometries(); i++) {
+          getLineStrings(gc.getGeometryN(i), output);
+        }
       }
-    } else {
-      throw new GeometryException("get_line_strings_bad_type",
-        "unrecognized geometry type: " + input.getGeometryType());
+      case null, default -> throw new GeometryException("get_line_strings_bad_type",
+        "unrecognized geometry type: " + (input == null ? "null" : input.getGeometryType()));
     }
   }
 
@@ -392,7 +416,7 @@ public class GeoUtils {
   /** Returns a point approximately {@code ratio} of the way from start to end and {@code offset} units to the right. */
   public static Point pointAlongOffset(LineString lineString, double ratio, double offset) {
     int numPoints = lineString.getNumPoints();
-    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * ratio)));
+    int middle = Math.clamp((int) (numPoints * ratio), 0, numPoints - 2);
     Coordinate a = lineString.getCoordinateN(middle);
     Coordinate b = lineString.getCoordinateN(middle + 1);
     LineSegment segment = new LineSegment(a, b);
@@ -506,7 +530,7 @@ public class GeoUtils {
         innerGeometries.add(geom);
       }
     }
-    return innerGeometries.size() == 1 ? innerGeometries.get(0) :
+    return innerGeometries.size() == 1 ? innerGeometries.getFirst() :
       JTS_FACTORY.createGeometryCollection(innerGeometries.toArray(Geometry[]::new));
   }
 

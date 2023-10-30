@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.BinPack;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
 import com.onthegomap.planetiler.util.CloseableConsumer;
+import com.onthegomap.planetiler.util.FastGzipOutputStream;
 import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.BufferedInputStream;
@@ -41,9 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,7 +185,7 @@ class ExternalMergeSort implements FeatureSort {
       .sinkToConsumer("worker", workers, group -> {
         try {
           readSemaphore.acquire();
-          var chunk = group.get(0);
+          var chunk = group.getFirst();
           var others = group.stream().skip(1).toList();
           var toSort = time(reading, () -> {
             // merge all chunks into first one, and remove the others
@@ -280,15 +279,6 @@ class ExternalMergeSort implements FeatureSort {
 
     @Override
     void close();
-  }
-
-  /** Compresses bytes with minimal impact on write performance. Equivalent to {@code gzip -1} */
-  private static class FastGzipOutputStream extends GZIPOutputStream {
-
-    public FastGzipOutputStream(OutputStream out) throws IOException {
-      super(out);
-      def.setLevel(Deflater.BEST_SPEED);
-    }
   }
 
   /** Read all features from a chunk file using a {@link BufferedInputStream}. */
