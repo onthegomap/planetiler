@@ -62,7 +62,7 @@ public class TopOsmTiles {
   TopOsmTiles(PlanetilerConfig config, Stats stats) {
     this.config = config;
     this.stats = stats;
-    downloader = Downloader.create(config, stats);
+    downloader = Downloader.create(config);
   }
 
   Reader fetch(LocalDate date) throws IOException {

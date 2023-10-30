@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
-import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
 import com.onthegomap.planetiler.worker.Worker;
 import java.io.IOException;
@@ -67,18 +66,15 @@ public class Downloader {
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
   private final HttpClient client;
   private final ExecutorService executor;
-  private final Stats stats;
   private final long chunkSizeBytes;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
   private final RateLimiter rateLimiter;
   private final Semaphore concurrentDownloads;
-  private final Semaphore concurrentDiskWrites;
 
-  Downloader(PlanetilerConfig config, Stats stats, long chunkSizeBytes) {
+  Downloader(PlanetilerConfig config, long chunkSizeBytes) {
     this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
     this.chunkSizeBytes = chunkSizeBytes;
     this.config = config;
-    this.stats = stats;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
     this.client = HttpClient.newBuilder()
       // explicitly follow redirects to capture final redirect url
@@ -86,11 +82,10 @@ public class Downloader {
       .executor(executor)
       .build();
     this.concurrentDownloads = new Semaphore(config.downloadThreads());
-    this.concurrentDiskWrites = new Semaphore(10);
   }
 
-  public static Downloader create(PlanetilerConfig config, Stats stats) {
-    return new Downloader(config, stats, config.downloadChunkSizeMB() * 1_000_000L);
+  public static Downloader create(PlanetilerConfig config) {
+    return new Downloader(config, config.downloadChunkSizeMB() * 1_000_000L);
   }
 
   private static URLConnection getUrlConnection(String urlString, PlanetilerConfig config) throws IOException {

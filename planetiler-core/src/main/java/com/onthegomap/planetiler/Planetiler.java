@@ -906,7 +906,7 @@ public class Planetiler {
 
   private void download() {
     var timer = stats.startStage("download");
-    Downloader downloader = Downloader.create(config(), stats());
+    Downloader downloader = Downloader.create(config());
     for (ToDownload toDownload : toDownload) {
       if (profile.caresAboutSource(toDownload.id)) {
         downloader.add(toDownload.id, toDownload.url, toDownload.path);

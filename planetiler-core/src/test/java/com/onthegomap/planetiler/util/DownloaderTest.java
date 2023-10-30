@@ -3,7 +3,6 @@ package com.onthegomap.planetiler.util;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
-import com.onthegomap.planetiler.stats.Stats;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -24,11 +23,10 @@ class DownloaderTest {
   @TempDir
   Path path;
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
-  private final Stats stats = Stats.inMemory();
   private AtomicLong downloads = new AtomicLong(0);
 
   private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange) {
-    return new Downloader(config, stats, 2L) {
+    return new Downloader(config, 2L) {
 
       @Override
       InputStream openStream(String url) {
@@ -119,7 +117,7 @@ class DownloaderTest {
 
   @Test
   void testDownloadFailsIfTooBig() {
-    var downloader = new Downloader(config, stats, 2L) {
+    var downloader = new Downloader(config, 2L) {
 
       @Override
       InputStream openStream(String url) {
