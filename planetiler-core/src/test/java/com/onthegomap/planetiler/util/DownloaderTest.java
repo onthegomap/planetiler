@@ -9,12 +9,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,25 +25,25 @@ class DownloaderTest {
   Path path;
   private final PlanetilerConfig config = PlanetilerConfig.defaults();
   private final Stats stats = Stats.inMemory();
-  private long downloads = 0;
+  private AtomicLong downloads = new AtomicLong(0);
 
-  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange, int maxLength) {
+  private Downloader mockDownloader(Map<String, byte[]> resources, boolean supportsRange) {
     return new Downloader(config, stats, 2L) {
 
       @Override
       InputStream openStream(String url) {
-        downloads++;
+        downloads.incrementAndGet();
         assertTrue(resources.containsKey(url), "no resource for " + url);
         byte[] bytes = resources.get(url);
-        return new ByteArrayInputStream(maxLength < bytes.length ? Arrays.copyOf(bytes, maxLength) : bytes);
+        return new ByteArrayInputStream(bytes);
       }
 
       @Override
       InputStream openStreamRange(String url, long start, long end) {
         assertTrue(supportsRange, "does not support range");
-        downloads++;
+        downloads.incrementAndGet();
         assertTrue(resources.containsKey(url), "no resource for " + url);
-        byte[] result = new byte[Math.min(maxLength, (int) (end - start))];
+        byte[] result = new byte[(int) (end - start)];
         byte[] bytes = resources.get(url);
         for (int i = (int) start; i < start + result.length; i++) {
           result[(int) (i - start)] = bytes[i];
@@ -53,31 +52,28 @@ class DownloaderTest {
       }
 
       @Override
-      CompletableFuture<ResourceMetadata> httpHead(String url) {
+      ResourceMetadata httpHead(String url) {
         String[] parts = url.split("#");
         if (parts.length > 1) {
           int redirectNum = Integer.parseInt(parts[1]);
           String next = redirectNum <= 1 ? parts[0] : (parts[0] + "#" + (redirectNum - 1));
-          return CompletableFuture.supplyAsync(
-            () -> new ResourceMetadata(Optional.of(next), url, 0, supportsRange));
+          return new ResourceMetadata(Optional.of(next), url, 0, supportsRange);
         }
         byte[] bytes = resources.get(url);
-        return CompletableFuture.supplyAsync(
-          () -> new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange));
+        return new ResourceMetadata(Optional.empty(), url, bytes.length, supportsRange);
       }
     };
   }
 
   @ParameterizedTest
   @CsvSource({
-    "false,100,0",
-    "true,100,0",
-    "true,2,0",
-    "false,100,1",
-    "false,100,2",
-    "true,2,4",
+    "false,0",
+    "true,0",
+    "false,1",
+    "false,2",
+    "true,4",
   })
-  void testDownload(boolean range, int maxLength, int redirects) throws Exception {
+  void testDownload(boolean range, int redirects) throws Exception {
     Path dest = path.resolve("out");
     String string = "0123456789";
     String url = "http://url";
@@ -85,7 +81,7 @@ class DownloaderTest {
     Map<String, byte[]> resources = new ConcurrentHashMap<>();
 
     byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
-    Downloader downloader = mockDownloader(resources, range, maxLength);
+    Downloader downloader = mockDownloader(resources, range);
 
     // fails if no data
     var resource1 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
@@ -102,10 +98,10 @@ class DownloaderTest {
     assertEquals(10, resource2.bytesDownloaded());
 
     // does not re-request if size is the same
-    downloads = 0;
+    downloads.set(0);
     var resource3 = new Downloader.ResourceToDownload("resource", initialUrl, dest);
     downloader.downloadIfNecessary(resource3).get();
-    assertEquals(0, downloads);
+    assertEquals(0, downloads.get());
     assertEquals(string, Files.readString(dest));
     assertEquals(FileUtils.size(path), FileUtils.size(dest));
     assertEquals(0, resource3.bytesDownloaded());
@@ -115,7 +111,7 @@ class DownloaderTest {
     String newContent = "54321";
     resources.put(url, newContent.getBytes(StandardCharsets.UTF_8));
     downloader.downloadIfNecessary(resource4).get();
-    assertTrue(downloads > 0, "downloads were " + downloads);
+    assertTrue(downloads.get() > 0, "downloads were " + downloads);
     assertEquals(newContent, Files.readString(dest));
     assertEquals(FileUtils.size(path), FileUtils.size(dest));
     assertEquals(5, resource4.bytesDownloaded());
@@ -136,8 +132,8 @@ class DownloaderTest {
       }
 
       @Override
-      CompletableFuture<ResourceMetadata> httpHead(String url) {
-        return CompletableFuture.completedFuture(new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true));
+      ResourceMetadata httpHead(String url) {
+        return new ResourceMetadata(Optional.empty(), url, Long.MAX_VALUE, true);
       }
     };
 

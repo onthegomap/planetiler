@@ -5,6 +5,7 @@ import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.worker.RunnableThatThrows;
@@ -18,9 +19,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,15 +65,14 @@ public class Downloader {
   private static final Logger LOGGER = LoggerFactory.getLogger(Downloader.class);
   private final PlanetilerConfig config;
   private final List<ResourceToDownload> toDownloadList = new ArrayList<>();
-  private final HttpClient client = HttpClient.newBuilder()
-    // explicitly follow redirects to capture final redirect url
-    .followRedirects(HttpClient.Redirect.NEVER).build();
+  private final HttpClient client;
   private final ExecutorService executor;
   private final Stats stats;
   private final long chunkSizeBytes;
   private final ResourceUsage diskSpaceCheck = new ResourceUsage("download");
   private final RateLimiter rateLimiter;
   private final Semaphore concurrentDownloads;
+  private final Semaphore concurrentDiskWrites;
 
   Downloader(PlanetilerConfig config, Stats stats, long chunkSizeBytes) {
     this.rateLimiter = config.downloadMaxBandwidth() == 0 ? null : RateLimiter.create(config.downloadMaxBandwidth());
@@ -83,7 +80,13 @@ public class Downloader {
     this.config = config;
     this.stats = stats;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
+    this.client = HttpClient.newBuilder()
+      // explicitly follow redirects to capture final redirect url
+      .followRedirects(HttpClient.Redirect.NEVER)
+      .executor(executor)
+      .build();
     this.concurrentDownloads = new Semaphore(config.downloadThreads());
+    this.concurrentDiskWrites = new Semaphore(10);
   }
 
   public static Downloader create(PlanetilerConfig config, Stats stats) {
@@ -170,7 +173,8 @@ public class Downloader {
     for (var toDownload : toDownloadList) {
       try {
         long size = toDownload.metadata.get(10, TimeUnit.SECONDS).size;
-        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true);
+        loggers.addStorageRatePercentCounter(toDownload.id, size, toDownload::bytesDownloaded, true)
+          .addFileSize(toDownload.tmpPath());
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IllegalStateException("Error getting size of " + toDownload.url, e);
@@ -188,6 +192,7 @@ public class Downloader {
       LogUtil.setStage("download", resourceToDownload.id);
       long existingSize = FileUtils.size(resourceToDownload.output);
       var metadata = httpHeadFollowRedirects(resourceToDownload.url, 0);
+      Path tmpPath = resourceToDownload.tmpPath();
       resourceToDownload.metadata.complete(metadata);
       if (metadata.size == existingSize) {
         LOGGER.info("Skipping {}: {} already up-to-date", resourceToDownload.id, resourceToDownload.output);
@@ -199,18 +204,18 @@ public class Downloader {
         LOGGER.info("Downloading {}{} to {}", resourceToDownload.url, redirectInfo, resourceToDownload.output);
         FileUtils.delete(resourceToDownload.output);
         FileUtils.createParentDirectories(resourceToDownload.output);
-        Path tmpPath = resourceToDownload.tmpPath();
         FileUtils.delete(tmpPath);
         FileUtils.deleteOnExit(tmpPath);
         diskSpaceCheck.addDisk(tmpPath, metadata.size, resourceToDownload.id);
         diskSpaceCheck.checkAgainstLimits(config.force(), false);
         httpDownload(resourceToDownload, tmpPath);
         Files.move(tmpPath, resourceToDownload.output);
-        FileUtils.delete(tmpPath);
         LOGGER.info("Finished downloading {} to {}", resourceToDownload.url, resourceToDownload.output);
       } catch (Exception e) {
         LOGGER.error("Error downloading {} to {}", resourceToDownload.url, resourceToDownload.output, e);
         throw e;
+      } finally {
+        FileUtils.delete(tmpPath);
       }
     }), executor);
   }
@@ -247,24 +252,10 @@ public class Downloader {
   }
 
   private void httpDownload(ResourceToDownload resource, Path tmpPath)
-    throws ExecutionException, InterruptedException, IOException {
-    /*
-     * Alternative using async HTTP client:
-     *
-     *   return client.sendAsync(newHttpRequest(url).GET().build(), responseInfo -> {
-     *     assertOK(responseInfo);
-     *     return HttpResponse.BodyHandlers.ofFile(path).apply(responseInfo);
-     *
-     * But it is slower on large files
-     */
+    throws ExecutionException, InterruptedException {
     var metadata = resource.metadata().get();
     String canonicalUrl = metadata.canonicalUrl();
-    record Range(long start, long end) {
-
-      long size() {
-        return end - start;
-      }
-    }
+    record Range(long start, long end) {}
     List<Range> chunks = new ArrayList<>();
     boolean ranges = metadata.acceptRange && config.downloadThreads() > 1;
     long chunkSize = ranges ? chunkSizeBytes : metadata.size;
@@ -272,36 +263,41 @@ public class Downloader {
       long end = Math.min(start + chunkSize, metadata.size);
       chunks.add(new Range(start, end));
     }
-    Files.createFile(tmpPath);
-    Worker.joinFutures(chunks.stream().map(chunk -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
+    FileUtils.setLength(tmpPath, metadata.size);
+    Worker.joinFutures(chunks.stream().map(range -> CompletableFuture.runAsync(RunnableThatThrows.wrap(() -> {
       LogUtil.setStage("download", resource.id);
       concurrentDownloads.acquire();
-      try (var fileChannel = FileChannel.open(tmpPath, WRITE)) {
-        var range = chunk;
-        while (range.size() > 0) {
-          try (
-            var inputStream = (ranges || range.start > 0) ? openStreamRange(canonicalUrl, range.start, range.end) :
-              openStream(canonicalUrl);
-            var input = new ProgressChannel(Channels.newChannel(inputStream), resource.progress, rateLimiter)
-          ) {
-            // ensure this file has been allocated up to the start of this block
-            fileChannel.write(ByteBuffer.allocate(1), range.start);
-            fileChannel.position(range.start);
-            long transferred = fileChannel.transferFrom(input, range.start, range.size());
-            if (transferred == 0) {
-              throw new IOException("Transferred 0 bytes but " + range.size() + " expected: " + canonicalUrl);
-            } else if (transferred != range.size() && !metadata.acceptRange) {
-              throw new IOException(
-                "Transferred " + transferred + " bytes but " + range.size() + " expected: " + canonicalUrl +
-                  " and server does not support range requests");
+      var counter = resource.progress.counterForThread();
+      try (
+        var fc = FileChannel.open(tmpPath, WRITE);
+        var inputStream = (ranges || range.start > 0) ?
+          openStreamRange(canonicalUrl, range.start, range.end) :
+          openStream(canonicalUrl);
+      ) {
+        long offset = range.start;
+        byte[] buffer = new byte[16384];
+        int read;
+        while (offset < range.end && (read = inputStream.read(buffer, 0, 16384)) >= 0) {
+          counter.incBy(read);
+          if (rateLimiter != null) {
+            rateLimiter.acquire(read);
+          }
+          int position = 0;
+          int remaining = read;
+          while (remaining > 0) {
+            int written = fc.write(ByteBuffer.wrap(buffer, position, remaining), offset);
+            if (written <= 0) {
+              throw new IOException("Failed to write to " + tmpPath);
             }
-            range = new Range(range.start + transferred, range.end);
+            position += written;
+            remaining -= written;
+            offset += written;
           }
         }
       } finally {
         concurrentDownloads.release();
       }
-    }), executor)).toArray(CompletableFuture[]::new));
+    }), executor)).toArray(CompletableFuture[]::new)).get();
   }
 
   private HttpRequest.Builder newHttpRequest(String url) {
@@ -313,11 +309,12 @@ public class Downloader {
   record ResourceMetadata(Optional<String> redirect, String canonicalUrl, long size, boolean acceptRange) {}
 
   record ResourceToDownload(
-    String id, String url, Path output, CompletableFuture<ResourceMetadata> metadata, AtomicLong progress
+    String id, String url, Path output, CompletableFuture<ResourceMetadata> metadata,
+    Counter.MultiThreadCounter progress
   ) {
 
     ResourceToDownload(String id, String url, Path output) {
-      this(id, url, output, new CompletableFuture<>(), new AtomicLong(0));
+      this(id, url, output, new CompletableFuture<>(), Counter.newMultiThreadCounter());
     }
 
     public Path tmpPath() {
@@ -326,35 +323,6 @@ public class Downloader {
 
     public long bytesDownloaded() {
       return progress.get();
-    }
-  }
-
-  /**
-   * Wrapper for a {@link ReadableByteChannel} that captures progress information.
-   */
-  private record ProgressChannel(ReadableByteChannel inner, AtomicLong progress, RateLimiter rateLimiter)
-    implements ReadableByteChannel {
-
-    @Override
-    public int read(ByteBuffer dst) throws IOException {
-      int n = inner.read(dst);
-      if (n > 0) {
-        if (rateLimiter != null) {
-          rateLimiter.acquire(n);
-        }
-        progress.addAndGet(n);
-      }
-      return n;
-    }
-
-    @Override
-    public boolean isOpen() {
-      return inner.isOpen();
-    }
-
-    @Override
-    public void close() throws IOException {
-      inner.close();
     }
   }
 }
