@@ -411,7 +411,6 @@ public class FeatureMerge {
    * Merges nearby polygons by expanding each individual polygon by {@code buffer}, unioning them, and contracting the
    * result.
    */
-  @SuppressWarnings("java:S6203")
   private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) throws GeometryException {
     /*
      * A simpler alternative that might initially appear faster would be:
