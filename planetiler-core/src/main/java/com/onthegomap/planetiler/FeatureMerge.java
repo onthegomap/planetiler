@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.stats.DefaultStats;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
@@ -30,6 +31,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.index.strtree.STRtree;
+import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.io.WKTWriter;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -412,6 +414,7 @@ public class FeatureMerge {
    * Merges nearby polygons by expanding each individual polygon by {@code buffer}, unioning them, and contracting the
    * result.
    */
+  @SuppressWarnings("java:S6203")
   private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) throws GeometryException {
     /*
      * A simpler alternative that might initially appear faster would be:
@@ -433,17 +436,27 @@ public class FeatureMerge {
     Geometry merged = GeoUtils.createGeometryCollection(buffered);
     try {
       merged = union(merged);
+      if (merged != null)
+        throw new TopologyException("e");
     } catch (TopologyException e) {
       throw new GeometryException("buffer_union_failure", "Error unioning buffered polygons", e).addDetails(() -> {
+        var base64 = Base64.getEncoder();
         var wktWriter = new WKTWriter();
+        var wkbWriter = new WKBWriter();
+        var original = GeoUtils.createGeometryCollection(polygonGroup);
+        var bufferedGeoms = GeoUtils.createGeometryCollection(buffered);
         return """
           Original polygons: %s
+          WKB: %s
           Buffer: %f
           Buffered: %s
+          WKB: %s
           """.formatted(
           wktWriter.write(GeoUtils.createGeometryCollection(polygonGroup)),
+          base64.encodeToString(wkbWriter.write(original)),
           buffer,
-          wktWriter.write(GeoUtils.createGeometryCollection(buffered))
+          wktWriter.write(GeoUtils.createGeometryCollection(buffered)),
+          base64.encodeToString(wkbWriter.write(bufferedGeoms))
         );
       });
     }
