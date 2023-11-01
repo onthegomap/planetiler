@@ -906,7 +906,7 @@ public class Planetiler {
 
   private void download() {
     var timer = stats.startStage("download");
-    Downloader downloader = Downloader.create(config(), stats());
+    Downloader downloader = Downloader.create(config());
     for (ToDownload toDownload : toDownload) {
       if (profile.caresAboutSource(toDownload.id)) {
         downloader.add(toDownload.id, toDownload.url, toDownload.path);
@@ -919,7 +919,7 @@ public class Planetiler {
   private void ensureInputFilesExist() {
     for (InputPath inputPath : inputPaths) {
       if (profile.caresAboutSource(inputPath.id) && !Files.exists(inputPath.path)) {
-        throw new IllegalArgumentException(inputPath.path + " does not exist");
+        throw new IllegalArgumentException(inputPath.path + " does not exist. Run with --download to fetch it");
       }
     }
   }
