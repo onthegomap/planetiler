@@ -205,7 +205,7 @@ public class Downloader {
         LOGGER.info("Finished downloading {} to {}", resourceToDownload.url, resourceToDownload.output);
       } catch (Exception e) {
         LOGGER.error("Error downloading {} to {}", resourceToDownload.url, resourceToDownload.output, e);
-        throw e;
+        throw new IOException("Error downloading " + resourceToDownload.url, e);
       } finally {
         FileUtils.delete(tmpPath);
       }
