@@ -203,9 +203,9 @@ public class Downloader {
         httpDownload(resourceToDownload, tmpPath);
         Files.move(tmpPath, resourceToDownload.output);
         LOGGER.info("Finished downloading {} to {}", resourceToDownload.url, resourceToDownload.output);
-      } catch (Exception e) {
+      } catch (Exception e) { // NOSONAR
         LOGGER.error("Error downloading {} to {}", resourceToDownload.url, resourceToDownload.output, e);
-        throw new IOException("Error downloading " + resourceToDownload.url, e);
+        throw e;
       } finally {
         FileUtils.delete(tmpPath);
       }
