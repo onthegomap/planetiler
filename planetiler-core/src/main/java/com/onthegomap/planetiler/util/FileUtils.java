@@ -1,8 +1,13 @@
 package com.onthegomap.planetiler.util;
 
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.WRITE;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
@@ -263,7 +268,7 @@ public class FileUtils {
    * @throws UncheckedIOException if an IO exception occurs
    */
   public static void safeCopy(InputStream inputStream, Path destPath) {
-    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+    try (var outputStream = Files.newOutputStream(destPath, StandardOpenOption.CREATE, WRITE)) {
       int totalSize = 0;
 
       int nBytes;
@@ -310,7 +315,7 @@ public class FileUtils {
 
           try (
             var out = Files.newOutputStream(destination, StandardOpenOption.CREATE_NEW,
-              StandardOpenOption.WRITE)
+              WRITE)
           ) {
             totalEntryArchive++;
             while ((nBytes = zip.read(buffer)) > 0) {
@@ -364,6 +369,18 @@ public class FileUtils {
       return Files.notExists(dest) || getLastModifiedTime(src) > getLastModifiedTime(dest);
     } catch (IOException e) {
       return true;
+    }
+  }
+
+  /** Expands the file at {@code path} to {@code size} bytes. */
+  public static void setLength(Path path, long size) {
+    try (var fc = FileChannel.open(path, CREATE, WRITE)) {
+      int written = fc.write(ByteBuffer.allocate(1), size - 1);
+      if (written != 1) {
+        throw new IOException("Unable to expand " + path + " to " + size);
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 }

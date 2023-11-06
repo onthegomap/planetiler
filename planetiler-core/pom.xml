@@ -19,7 +19,7 @@
     <geotools.version>30.0</geotools.version>
     <log4j.version>2.21.1</log4j.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <protobuf.version>3.24.4</protobuf.version>
+    <protobuf.version>3.25.0</protobuf.version>
     <geopackage.version>6.6.3</geopackage.version>
   </properties>
 
@@ -67,7 +67,7 @@
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
-      <version>3.43.2.1</version>
+      <version>3.43.2.2</version>
     </dependency>
     <dependency>
       <groupId>org.msgpack</groupId>
@@ -142,7 +142,7 @@
     <dependency>
       <groupId>com.ibm.icu</groupId>
       <artifactId>icu4j</artifactId>
-      <version>73.2</version>
+      <version>74.1</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

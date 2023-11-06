@@ -29,9 +29,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.geotools.geometry.jts.WKTReader2;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 
 /** Verifies that a profile maps input elements map to expected output vector tile features. */
@@ -164,7 +164,7 @@ public class SchemaValidator {
       default -> geometry;
     };
     try {
-      return new WKTReader2().read(wkt);
+      return new WKTReader().read(wkt);
     } catch (ParseException e) {
       throw new IllegalArgumentException("""
         Bad geometry: "%s", must be "point" "line" "polygon" or a valid WKT string.

@@ -152,4 +152,11 @@ class FileUtilsTest {
       List.of("/shapefile/stations.shp", "/shapefile/stations.shx"),
       matchingPaths.stream().map(Path::toString).sorted().toList());
   }
+
+  @Test
+  void testExpandFile() throws IOException {
+    Path path = tmpDir.resolve("toExpand");
+    FileUtils.setLength(path, 1000);
+    assertEquals(1000, Files.size(path));
+  }
 }

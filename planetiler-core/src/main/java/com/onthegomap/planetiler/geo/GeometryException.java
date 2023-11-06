@@ -1,6 +1,12 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.stats.Stats;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.function.Supplier;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.WKBWriter;
+import org.locationtech.jts.io.WKTWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +20,7 @@ public class GeometryException extends Exception {
 
   private final String stat;
   private final boolean nonFatal;
+  private final ArrayList<Supplier<String>> detailsSuppliers = new ArrayList<>();
 
   /**
    * Constructs a new exception with a detailed error message caused by {@code cause}.
@@ -51,6 +58,11 @@ public class GeometryException extends Exception {
     this.nonFatal = nonFatal;
   }
 
+  public GeometryException addDetails(Supplier<String> detailsSupplier) {
+    this.detailsSuppliers.add(detailsSupplier);
+    return this;
+  }
+
   /** Returns the unique code for this error condition to use for counting the number of occurrences in stats. */
   public String stat() {
     return stat;
@@ -70,6 +82,38 @@ public class GeometryException extends Exception {
   void logMessage(String log) {
     LOGGER.warn(log);
     assert nonFatal : log; // make unit tests fail if fatal
+  }
+
+
+  /** Logs the error but if {@code logDetails} is true, then also prints detailed debugging info. */
+  public void log(Stats stats, String statPrefix, String logPrefix, boolean logDetails) {
+    if (logDetails) {
+      stats.dataError(statPrefix + "_" + stat());
+      StringBuilder log = new StringBuilder(logPrefix + ": " + getMessage());
+      for (var details : detailsSuppliers) {
+        log.append("\n").append(details.get());
+      }
+      var str = log.toString();
+      LOGGER.warn(str, this.getCause() == null ? this : this.getCause());
+      assert nonFatal : log.toString(); // make unit tests fail if fatal
+    } else {
+      log(stats, statPrefix, logPrefix);
+    }
+  }
+
+  public GeometryException addGeometryDetails(String original, Geometry geometryCollection) {
+    return addDetails(() -> {
+      var wktWriter = new WKTWriter();
+      var wkbWriter = new WKBWriter();
+      var base64 = Base64.getEncoder();
+      return """
+        %s (wkt): %s
+        %s (wkb): %s
+        """.formatted(
+        original, wktWriter.write(geometryCollection),
+        original, base64.encodeToString(wkbWriter.write(geometryCollection))
+      ).strip();
+    });
   }
 
   /**
