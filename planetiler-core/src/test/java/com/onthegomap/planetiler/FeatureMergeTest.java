@@ -10,7 +10,9 @@ import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
+import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -20,11 +22,14 @@ import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -852,5 +857,28 @@ class FeatureMergeTest {
         4d
       )
     );
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "/issue_700/exception_1.wkb",
+    "/issue_700/exception_2.wkb",
+    "/issue_700/exception_3.wkb",
+    "/issue_700/exception_4.wkb",
+    "/issue_700/exception_5.wkb",
+    "/issue_700/exception_6.wkb",
+    "/issue_700/exception_7.wkb",
+    "/issue_700/exception_8.wkb",
+    "/issue_700/exception_9.wkb",
+  })
+  void testIssue700BufferUnionUnbufferFailure(String path) throws IOException, ParseException {
+    try (var is = getClass().getResource(path).openStream()) {
+      GeometryCollection collection = (GeometryCollection) new WKBReader().read(is.readAllBytes());
+      List<Geometry> geometries = new ArrayList<>();
+      for (int i = 0; i < collection.getNumGeometries(); i++) {
+        geometries.add(collection.getGeometryN(i));
+      }
+      FeatureMerge.bufferUnionUnbuffer(0.5, geometries, Stats.inMemory());
+    }
   }
 }
