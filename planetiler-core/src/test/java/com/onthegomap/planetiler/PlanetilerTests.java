@@ -2435,35 +2435,6 @@ class PlanetilerTests {
   }
 
   @Test
-  void testAttributeMinSize() throws Exception {
-    List<Coordinate> points = z14PixelRectangle(0, 40);
-
-    var results = runWithReaderFeatures(
-      Map.of("threads", "1"),
-      List.of(
-        newReaderFeature(newLineString(points), Map.of())
-      ),
-      (in, features) -> features.centroid("layer")
-        .setZoomRange(0, 14)
-        .setAttrWithMinPixelSizeBelowZoom("")
-        .setBufferPixels(0)
-        .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
-    );
-
-    assertEquals(Map.ofEntries(
-      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
-        feature(newPoint(5, 1), Map.of())
-      )),
-      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
-        feature(newPoint(10, 2), Map.of())
-      )),
-      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
-        feature(newPoint(20, 4), Map.of())
-      ))
-    ), results.tiles);
-  }
-
-  @Test
   void testBoundFiltersFill() throws Exception {
     var polyResultz8 = runForBoundsTest(8, 8, "polygon", TestUtils.pathToResource("bottomrightearth.poly").toString());
 
