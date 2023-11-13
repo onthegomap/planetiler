@@ -592,6 +592,15 @@ class PlanetilerTests {
     return points;
   }
 
+  public List<Coordinate> z14PixelRectangle(double min, double max) {
+    List<Coordinate> points = rectangleCoordList(min / 256d, max / 256d);
+    points.forEach(c -> {
+      c.x = GeoUtils.getWorldLon(0.5 + c.x * Z14_WIDTH);
+      c.y = GeoUtils.getWorldLat(0.5 + c.y * Z14_WIDTH);
+    });
+    return points;
+  }
+
   public List<Coordinate> z14CoordinatePixelList(double... coords) {
     return z14CoordinateList(DoubleStream.of(coords).map(c -> c / 256d).toArray());
   }
@@ -2339,6 +2348,90 @@ class PlanetilerTests {
     // but besides the omitted tile, the rest should be the same
     bboxResult.tiles.remove(TileCoord.ofXYZ(2, 2, 2));
     assertEquals(bboxResult.tiles, polyResult.tiles);
+  }
+
+  @Test
+  void testSimplePolygon() throws Exception {
+    List<Coordinate> points = z14PixelRectangle(0, 40);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newPolygon(points), Map.of())
+      ),
+      (in, features) -> features.polygon("layer")
+        .setZoomRange(0, 14)
+        .setBufferPixels(0)
+        .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
+    );
+
+    assertEquals(Map.ofEntries(
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPolygon(rectangleCoordList(0, 10)), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPolygon(rectangleCoordList(0, 20)), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(newPolygon(rectangleCoordList(0, 40)), Map.of())
+      ))
+    ), results.tiles);
+  }
+
+  @Test
+  void testCentroidWithPolygonMinSize() throws Exception {
+    List<Coordinate> points = z14PixelRectangle(0, 40);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newPolygon(points), Map.of())
+      ),
+      (in, features) -> features.centroid("layer")
+        .setZoomRange(0, 14)
+        .setBufferPixels(0)
+        .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
+    );
+
+    assertEquals(Map.ofEntries(
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPoint(5, 5), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPoint(10, 10), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(newPoint(20, 20), Map.of())
+      ))
+    ), results.tiles);
+  }
+
+  @Test
+  void testCentroidWithLineMinSize() throws Exception {
+    List<Coordinate> points = z14CoordinatePixelList(0, 4, 40, 4);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(points), Map.of())
+      ),
+      (in, features) -> features.centroid("layer")
+        .setZoomRange(0, 14)
+        .setBufferPixels(0)
+        .setMinPixelSize(10) // should only show up z14 (40) z13 (20) and z12 (10)
+    );
+
+    assertEquals(Map.ofEntries(
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPoint(5, 1), Map.of())
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPoint(10, 2), Map.of())
+      )),
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(newPoint(20, 4), Map.of())
+      ))
+    ), results.tiles);
   }
 
   @Test

@@ -614,5 +614,4 @@ class FeatureCollectorTest {
       )
     ), collector);
   }
-
 }

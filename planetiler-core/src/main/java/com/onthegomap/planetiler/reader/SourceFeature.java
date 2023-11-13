@@ -39,6 +39,7 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private Geometry validPolygon = null;
   private double area = Double.NaN;
   private double length = Double.NaN;
+  private double size = Double.NaN;
 
   /**
    * Constructs a new input feature.
@@ -245,6 +246,14 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
       (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
+  /**
+   * Returns and caches sqrt of {@link #area()} if polygon or {@link #length()} if a line string.
+   */
+  public double size() throws GeometryException {
+    return Double.isNaN(size) ? (size = canBePolygon() ? Math.sqrt(Math.abs(area())) : canBeLine() ? length() : 0) :
+      size;
+  }
+
   /** Returns the ID of the source that this feature came from. */
   public String getSource() {
     return source;
@@ -292,4 +301,5 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   public boolean hasRelationInfo() {
     return relationInfos != null && !relationInfos.isEmpty();
   }
+
 }

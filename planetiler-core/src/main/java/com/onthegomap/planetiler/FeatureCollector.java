@@ -230,6 +230,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       this.geom = geom;
       this.geometryType = GeometryType.typeOf(geom);
       this.id = id;
+      if (geometryType == GeometryType.POINT) {
+        minPixelSizeAtMaxZoom = 0;
+        defaultMinPixelSize = 0;
+      }
     }
 
     /** Returns the original ID of the source feature that this feature came from (i.e. OSM node/way ID). */
@@ -727,6 +731,16 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         ", geom=" + geom.getGeometryType() +
         ", attrs=" + attrs +
         '}';
+    }
+
+    /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+    public double getSourceFeaturePixelSizeAtZoom(int zoom) {
+      try {
+        return source.size() * (256 << zoom);
+      } catch (GeometryException e) {
+        e.log(stats, "point_get_size_failure", "Error getting min size for point from geometry " + source.id());
+        return 0;
+      }
     }
   }
 }
