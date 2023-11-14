@@ -195,9 +195,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
   }
 
-  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 5%. */
+  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 10%. */
   public Feature innermostPoint(String layer) {
-    return innermostPoint(layer, 0.05);
+    return innermostPoint(layer, 0.1);
   }
 
   /**
