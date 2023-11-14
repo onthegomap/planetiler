@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -173,6 +174,33 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
+   * Starts building a new point map feature at the furthest interior point of a polygon from its edge using
+   * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
+   * <p>
+   * NOTE: This is substantially more expensive to compute than {@link #centroid(String)} or
+   * {@link #pointOnSurface(String)}, especially for small {@code tolerance} values.
+   *
+   * @param layer     the output vector tile layer this feature will be written to
+   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
+   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between 5%
+   *                  and 10% are a good compromise of performance vs. precision.
+   * @return a feature that can be configured further.
+   */
+  public Feature innermostPoint(String layer, double tolerance) {
+    try {
+      return geometry(layer, source.innermostPoint(tolerance));
+    } catch (GeometryException e) {
+      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
+  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 10%. */
+  public Feature innermostPoint(String layer) {
+    return innermostPoint(layer, 0.1);
+  }
+
+  /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
   public record Factory(PlanetilerConfig config, Stats stats) {
@@ -263,8 +291,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /**
      * Sets the value by which features are sorted within a layer in the output vector tile. Sort key gets packed into
-     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to {@code
-     * (2^(bits-1))-1}.
+     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to
+     * {@code (2^(bits-1))-1}.
      * <p>
      * Circles, lines, and polygons are rendered in the order they appear in each layer, so features that appear later
      * (higher sort key) show up on top of features with a lower sort key.
