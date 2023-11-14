@@ -35,6 +35,8 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private Geometry centroid = null;
   private Geometry pointOnSurface = null;
   private Geometry centroidIfConvex = null;
+  private double innermostPointTolerance = Double.NaN;
+  private Geometry innermostPoint = null;
   private Geometry linearGeometry = null;
   private Geometry polygonGeometry = null;
   private Geometry validPolygon = null;
@@ -136,7 +138,12 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
    */
   public final Geometry innermostPoint(double tolerance) throws GeometryException {
     if (canBePolygon()) {
-      return MaximumInscribedCircle.getCenter(polygon(), Math.sqrt(area()) * tolerance);
+      // cache as long as the tolerance hasn't changed
+      if (tolerance != innermostPointTolerance || innermostPoint == null) {
+        innermostPoint = MaximumInscribedCircle.getCenter(polygon(), Math.sqrt(area()) * tolerance);
+        innermostPointTolerance = tolerance;
+      }
+      return innermostPoint;
     } else {
       return pointOnSurface();
     }
