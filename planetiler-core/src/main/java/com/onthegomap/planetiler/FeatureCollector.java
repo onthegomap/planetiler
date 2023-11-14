@@ -178,7 +178,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
    * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
    * <p>
    * NOTE: This is substantially more expensive to compute than {@link #centroid(String)} or
-   * {@link #pointOnSurface(String)}.
+   * {@link #pointOnSurface(String)}, especially for small {@code tolerance} values.
    *
    * @param layer     the output vector tile layer this feature will be written to
    * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
