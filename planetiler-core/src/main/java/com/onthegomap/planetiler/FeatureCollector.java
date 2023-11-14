@@ -176,6 +176,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   /**
    * Starts building a new point map feature at the furthest interior point of a polygon from its edge using
    * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
+   * <p>
+   * NOTE: This is substantially more expensive to compute than {@link #centroid(String)} or
+   * {@link #pointOnSurface(String)}.
    *
    * @param layer     the output vector tile layer this feature will be written to
    * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
@@ -288,8 +291,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /**
      * Sets the value by which features are sorted within a layer in the output vector tile. Sort key gets packed into
-     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to {@code
-     * (2^(bits-1))-1}.
+     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to
+     * {@code (2^(bits-1))-1}.
      * <p>
      * Circles, lines, and polygons are rendered in the order they appear in each layer, so features that appear later
      * (higher sort key) show up on top of features with a lower sort key.
