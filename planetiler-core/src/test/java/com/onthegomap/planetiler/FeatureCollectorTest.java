@@ -503,9 +503,9 @@ class FeatureCollectorTest {
     var sourceLine = newReaderFeature(newPolygon(worldToLatLon(
       0, 0,
       1, 0,
-      1, 0.25,
-      0.25, 0.25,
-      0.25, 1,
+      1, 0.5,
+      0.5, 0.5,
+      0.5, 1,
       0, 1,
       0, 0
     )), Map.of());
@@ -516,7 +516,7 @@ class FeatureCollectorTest {
 
     var item = iter.next();
     assertEquals(GeometryType.POINT, item.getGeometryType());
-    assertEquals(round(newPoint(0.14, 0.14)), round(item.getGeometry(), 1e2));
+    assertEquals(round(newPoint(0.28, 0.28)), round(item.getGeometry(), 1e2));
 
     assertFalse(iter.hasNext());
   }
