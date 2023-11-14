@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -170,6 +171,30 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       e.log(stats, "feature_point_on_surface", "Error constructing point on surface for " + source.id());
       return new Feature(layer, EMPTY_GEOM, source.id());
     }
+  }
+
+  /**
+   * Starts building a new point map feature at the furthest interior point of a polygon from its edge using
+   * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
+   *
+   * @param layer     the output vector tile layer this feature will be written to
+   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
+   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between 5%
+   *                  and 10% are a good compromise of performance vs. precision.
+   * @return a feature that can be configured further.
+   */
+  public Feature innermostPoint(String layer, double tolerance) {
+    try {
+      return geometry(layer, source.innermostPoint(tolerance));
+    } catch (GeometryException e) {
+      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
+  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 5%. */
+  public Feature innermostPoint(String layer) {
+    return innermostPoint(layer, 0.05);
   }
 
   /**

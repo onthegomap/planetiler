@@ -494,6 +494,34 @@ class FeatureCollectorTest {
   }
 
   @Test
+  void testInnermostPoint() {
+    /*
+      _____
+     | · __|
+     |__|
+     */
+    var sourceLine = newReaderFeature(newPolygon(worldToLatLon(
+      0, 0,
+      1, 0,
+      1, 0.25,
+      0.25, 0.25,
+      0.25, 1,
+      0, 1,
+      0, 0
+    )), Map.of());
+
+    var fc = factory.get(sourceLine);
+    fc.innermostPoint("layer").setZoomRange(0, 10);
+    var iter = fc.iterator();
+
+    var item = iter.next();
+    assertEquals(GeometryType.POINT, item.getGeometryType());
+    assertEquals(round(newPoint(0.14, 0.14)), round(item.getGeometry(), 1e2));
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
   void testMultiPolygonCoercion() throws GeometryException {
     var sourceLine = newReaderFeature(newMultiPolygon(
       newPolygon(worldToLatLon(
