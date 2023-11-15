@@ -87,6 +87,8 @@ class PlanetilerTests {
   private static final double Z13_WIDTH = 1d / Z13_TILES;
   private static final int Z12_TILES = 1 << 12;
   private static final double Z12_WIDTH = 1d / Z12_TILES;
+  private static final int Z11_TILES = 1 << 11;
+  private static final double Z11_WIDTH = 1d / Z11_TILES;
   private static final int Z4_TILES = 1 << 4;
   private static final Polygon WORLD_POLYGON = newPolygon(
     worldCoordinateList(
@@ -2430,6 +2432,74 @@ class PlanetilerTests {
       )),
       newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
         feature(newPoint(20, 4), Map.of())
+      ))
+    ), results.tiles);
+  }
+
+  @Test
+  void testAttributeMinSizeLine() throws Exception {
+    List<Coordinate> points = z14CoordinatePixelList(0, 4, 40, 4);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(points), Map.of())
+      ),
+      (in, features) -> features.line("layer")
+        .setZoomRange(11, 14)
+        .setBufferPixels(0)
+        .setAttrWithMinSize("a", "1", 10)
+        .setAttrWithMinSize("b", "2", 20)
+        .setAttrWithMinSize("c", "3", 40)
+        .setAttrWithMinSize("d", "4", 40, 0, 13) // should show up at z13 and above
+    );
+
+    assertEquals(Map.ofEntries(
+      newTileEntry(Z11_TILES / 2, Z11_TILES / 2, 11, List.of(
+        feature(newLineString(0, 0.5, 5, 0.5), Map.of())
+      )),
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newLineString(0, 1, 10, 1), Map.of("a", "1"))
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newLineString(0, 2, 20, 2), Map.of("a", "1", "b", "2", "d", "4"))
+      )),
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(newLineString(0, 4, 40, 4), Map.of("a", "1", "b", "2", "c", "3", "d", "4"))
+      ))
+    ), results.tiles);
+  }
+
+  @Test
+  void testAttributeMinSizePoint() throws Exception {
+    List<Coordinate> points = z14CoordinatePixelList(0, 4, 40, 4);
+
+    var results = runWithReaderFeatures(
+      Map.of("threads", "1"),
+      List.of(
+        newReaderFeature(newLineString(points), Map.of())
+      ),
+      (in, features) -> features.centroid("layer")
+        .setZoomRange(11, 14)
+        .setBufferPixels(0)
+        .setAttrWithMinSize("a", "1", 10)
+        .setAttrWithMinSize("b", "2", 20)
+        .setAttrWithMinSize("c", "3", 40)
+        .setAttrWithMinSize("d", "4", 40, 0, 13) // should show up at z13 and above
+    );
+
+    assertEquals(Map.ofEntries(
+      newTileEntry(Z11_TILES / 2, Z11_TILES / 2, 11, List.of(
+        feature(newPoint(2.5, 0.5), Map.of())
+      )),
+      newTileEntry(Z12_TILES / 2, Z12_TILES / 2, 12, List.of(
+        feature(newPoint(5, 1), Map.of("a", "1"))
+      )),
+      newTileEntry(Z13_TILES / 2, Z13_TILES / 2, 13, List.of(
+        feature(newPoint(10, 2), Map.of("a", "1", "b", "2", "d", "4"))
+      )),
+      newTileEntry(Z14_TILES / 2, Z14_TILES / 2, 14, List.of(
+        feature(newPoint(20, 4), Map.of("a", "1", "b", "2", "c", "3", "d", "4"))
       ))
     ), results.tiles);
   }

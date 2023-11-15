@@ -447,4 +447,30 @@ class GeoUtilsTest {
     assertTrue(result.isValid());
     assertFalse(result.contains(point));
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "1,0,0",
+    "1,10,0",
+    "1,255,0",
+
+    "0.5,0,0",
+    "0.5,128,0",
+    "0.5,129,1",
+    "0.5,256,1",
+
+    "0.25,0,0",
+    "0.25,128,1",
+    "0.25,129,2",
+    "0.25,256,2",
+  })
+  void minZoomForPixelSize(double worldGeometrySize, double minPixelSize, int expectedMinZoom) {
+    assertEquals(expectedMinZoom, GeoUtils.minZoomForPixelSize(worldGeometrySize, minPixelSize));
+  }
+
+  @Test
+  void minZoomForPixelSizesAtZ9_10() {
+    assertEquals(10, GeoUtils.minZoomForPixelSize(3.1 / (256 << 10), 3));
+    assertEquals(9, GeoUtils.minZoomForPixelSize(6.1 / (256 << 10), 3));
+  }
 }

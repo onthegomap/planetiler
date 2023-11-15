@@ -704,6 +704,27 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
+     * size.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize) {
+      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
+    }
+
+    /**
+     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
+     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
+     * {@code minPixelSize} pixels in size.
+     * <p>
+     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
+      int minZoomToShowAlways) {
+      return setAttrWithMinzoom(key, value,
+        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    /**
      * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
      * {@code minzoom}.
      * <p>
@@ -766,8 +787,19 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       try {
         return source.size() * (256 << zoom);
       } catch (GeometryException e) {
-        e.log(stats, "point_get_size_failure", "Error getting min size for point from geometry " + source.id());
+        e.log(stats, "source_feature_pixel_size_at_zoom_failure",
+          "Error getting source feature pixel size at zoom from geometry " + source.id());
         return 0;
+      }
+    }
+
+    /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
+    public int getMinZoomForPixelSize(double pixelSize) {
+      try {
+        return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
+      } catch (GeometryException e) {
+        e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
+        return config.maxzoom();
       }
     }
   }
