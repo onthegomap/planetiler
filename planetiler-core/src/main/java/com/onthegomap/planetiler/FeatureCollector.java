@@ -200,6 +200,28 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return innermostPoint(layer, 0.1);
   }
 
+  /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
+  public int getMinZoomForPixelSize(double pixelSize) {
+    try {
+      return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
+    } catch (GeometryException e) {
+      e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
+      return config.maxzoom();
+    }
+  }
+
+
+  /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+  public double getPixelSizeAtZoom(int zoom) {
+    try {
+      return source.size() * (256 << zoom);
+    } catch (GeometryException e) {
+      e.log(stats, "source_feature_pixel_size_at_zoom_failure",
+        "Error getting source feature pixel size at zoom from geometry " + source.id());
+      return 0;
+    }
+  }
+
   /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
@@ -757,20 +779,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
+     * before slicing it into tiles.
+     */
+    public String getNumPointsAttr() {
+      return numPointsAttr;
+    }
+
+    /**
      * Sets a special attribute key that the renderer will use to store the number of points in the simplified geometry
      * before slicing it into tiles.
      */
     public Feature setNumPointsAttr(String numPointsAttr) {
       this.numPointsAttr = numPointsAttr;
       return this;
-    }
-
-    /**
-     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
-     * before slicing it into tiles.
-     */
-    public String getNumPointsAttr() {
-      return numPointsAttr;
     }
 
     @Override
@@ -784,23 +806,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
     public double getSourceFeaturePixelSizeAtZoom(int zoom) {
-      try {
-        return source.size() * (256 << zoom);
-      } catch (GeometryException e) {
-        e.log(stats, "source_feature_pixel_size_at_zoom_failure",
-          "Error getting source feature pixel size at zoom from geometry " + source.id());
-        return 0;
-      }
-    }
-
-    /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
-    public int getMinZoomForPixelSize(double pixelSize) {
-      try {
-        return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
-      } catch (GeometryException e) {
-        e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
-        return config.maxzoom();
-      }
+      return getPixelSizeAtZoom(zoom);
     }
   }
 }
