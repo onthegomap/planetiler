@@ -738,7 +738,9 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
      * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
      * {@code minPixelSize} pixels in size.
      * <p>
-     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly.
+     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
+     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
+     * zoom level.
      */
     public Feature setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
       int minZoomToShowAlways) {
