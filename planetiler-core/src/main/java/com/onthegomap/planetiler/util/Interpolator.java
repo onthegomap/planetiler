@@ -1,7 +1,8 @@
 package com.onthegomap.planetiler.util;
 
-import java.util.TreeMap;
+import com.carrotsearch.hppc.DoubleArrayList;
 import java.util.function.DoubleUnaryOperator;
+import org.apache.commons.lang3.ArrayUtils;
 
 public class Interpolator<T extends Interpolator<T>> implements DoubleUnaryOperator {
   private static final DoubleUnaryOperator IDENTITY = x -> x;
@@ -10,13 +11,14 @@ public class Interpolator<T extends Interpolator<T>> implements DoubleUnaryOpera
   private DoubleUnaryOperator reverseTransform = IDENTITY;
   private boolean clamp = false;
   private double defaultValue = Double.NaN;
-  private final TreeMap<Double, Double> stops = new TreeMap<>();
-  private TreeMap<Double, Double> forwardMap;
-  private TreeMap<Double, Double> reverseMap;
+  private final DoubleArrayList domain = new DoubleArrayList();
+  private final DoubleArrayList range = new DoubleArrayList();
+  private DoubleUnaryOperator fn;
   private double minKey = Double.POSITIVE_INFINITY;
   private double maxKey = Double.NEGATIVE_INFINITY;
 
   T setTransforms(DoubleUnaryOperator forward, DoubleUnaryOperator reverse) {
+    fn = null;
     this.transform = forward;
     this.reverseTransform = reverse;
     return self();
@@ -30,29 +32,76 @@ public class Interpolator<T extends Interpolator<T>> implements DoubleUnaryOpera
     if (Double.isNaN(operand)) {
       return defaultValue;
     }
-    var lo = stops.floorEntry(operand);
-    var hi = stops.higherEntry(operand);
-    if (lo == null) {
-      if (hi == null) {
-        return defaultValue;
-      }
-      lo = hi;
-      hi = stops.higherEntry(lo.getKey());
-      if (hi == null) {
-        return lo.getValue();
-      }
-    } else if (hi == null) {
-      hi = lo;
-      lo = stops.lowerEntry(hi.getKey());
-      if (lo == null) {
-        return hi.getValue();
-      }
+    if (fn == null) {
+      fn = rescale();
     }
-    double x = transform.applyAsDouble(operand);
-    double x1 = transform.applyAsDouble(lo.getKey()),
-      x2 = transform.applyAsDouble(hi.getKey()),
-      y1 = lo.getValue(), y2 = hi.getValue();
-    return (x - x1) / (x2 - x1) * (y2 - y1) + y1;
+    return fn.applyAsDouble(transform.applyAsDouble(operand));
+  }
+
+  private DoubleUnaryOperator rescale() {
+    if (domain.size() > 2) {
+      int j = Math.min(domain.size(), range.size()) - 1;
+      DoubleUnaryOperator[] d = new DoubleUnaryOperator[j];
+      DoubleUnaryOperator[] r = new DoubleUnaryOperator[j];
+      int i = -1;
+
+      double[] domainItems = new double[domain.size()];
+      for (int k = 0; k < domainItems.length; k++) {
+        domainItems[k] = transform.applyAsDouble(domain.get(k));
+      }
+      double[] rangeItems = range.toArray();
+
+      // Reverse descending domains.
+      if (domainItems[j] < domainItems[0]) {
+        ArrayUtils.reverse(domainItems);
+        ArrayUtils.reverse(rangeItems);
+      }
+
+      while (++i < j) {
+        d[i] = normalize(domainItems[i], domainItems[i + 1]);
+        r[i] = interpolate(rangeItems[i], rangeItems[i + 1]);
+      }
+
+      return x -> {
+        int ii = bisect(domainItems, x, 1, j) - 1;
+        return r[ii].applyAsDouble(d[ii].applyAsDouble(x));
+      };
+    } else {
+      double d0 = transform.applyAsDouble(domain.get(0)), d1 = transform.applyAsDouble(domain.get(1)),
+        r0 = range.get(0), r1 = range.get(1);
+      boolean reverse = d1 < d0;
+      final double dlo = reverse ? d1 : d0;
+      final double dhi = reverse ? d0 : d1;
+      final double rlo = reverse ? r1 : r0;
+      final double rhi = reverse ? r0 : r1;
+      double delta = dhi - dlo;
+      return x -> {
+        double t = delta == 0 ? 0.5 : Double.isNaN(delta) ? Double.NaN : (x - dlo) / delta;
+        return rlo * (1 - t) + rhi * t;
+      };
+    }
+  }
+
+  private static int bisect(double[] a, double x, int lo, int hi) {
+    if (lo < hi) {
+      do {
+        int mid = (lo + hi) >>> 1;
+        if (a[mid] <= x)
+          lo = mid + 1;
+        else
+          hi = mid;
+      } while (lo < hi);
+    }
+    return lo;
+  }
+
+  private static DoubleUnaryOperator interpolate(double a, double b) {
+    return t -> a * (1 - t) + b * t;
+  }
+
+  private static DoubleUnaryOperator normalize(double a, double b) {
+    double delta = b - a;
+    return delta == 0 ? x -> 0.5 : Double.isNaN(delta) ? x -> Double.NaN : x -> (x - a) / delta;
   }
 
   @SuppressWarnings("unchecked")
@@ -71,20 +120,23 @@ public class Interpolator<T extends Interpolator<T>> implements DoubleUnaryOpera
   }
 
   public T put(double stop, double value) {
+    fn = null;
     minKey = Math.min(stop, minKey);
     maxKey = Math.max(stop, maxKey);
-    stops.put(stop, value);
+    domain.add(stop);
+    range.add(value);
     return self();
   }
 
   private static class Inverted extends Interpolator<Inverted> {}
 
   public DoubleUnaryOperator invert() {
-    var result = new Inverted().setTransforms(IDENTITY, IDENTITY);
-    for (var entry : stops.entrySet()) {
-      result.put(entry.getValue(), transform.applyAsDouble(entry.getKey()));
+    Interpolator<?> result = new Inverted();
+    result.domain.addAll(range);
+    for (int i = 0; i < domain.size(); i++) {
+      result.range.add(transform.applyAsDouble(domain.get(i)));
     }
-    DoubleUnaryOperator retVal = result.andThen(reverseTransform);
+    DoubleUnaryOperator retVal = reverseTransform == IDENTITY ? result : result.andThen(reverseTransform);
     return clamp ? retVal.andThen(x -> Math.clamp(x, minKey, maxKey)) : retVal;
   }
 

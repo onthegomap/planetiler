@@ -31,16 +31,20 @@ public class BenchmarkInterpolator {
 
   private static void benchmark(String name, double start, double end, long steps,
     Supplier<DoubleUnaryOperator> build) {
-    long a = System.currentTimeMillis();
     double delta = (end - start) / steps;
     double x = start;
     double result = 0;
+    for (long i = 0; i < steps / 10_000; i++) {
+      result += build.get().applyAsDouble(x += delta);
+    }
+    x = start;
+    long a = System.currentTimeMillis();
     for (long i = 0; i < steps; i++) {
       result += build.get().applyAsDouble(x += delta);
     }
-    long b = System.currentTimeMillis();
     x = start;
     var preBuilt = build.get();
+    long b = System.currentTimeMillis();
     for (long i = 0; i < steps; i++) {
       result += preBuilt.applyAsDouble(x += delta);
     }
