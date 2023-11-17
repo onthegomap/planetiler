@@ -105,6 +105,46 @@ class InterpolatorTest {
     assertClose(clamp ? 16 : 25, interpolator.invert().applyAsDouble(2.5));
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testMultipartDescending(boolean clamp) {
+    var interpolator = Interpolator.linear()
+      .put(4, 1)
+      .put(2, 2)
+      .put(1, 4)
+      .clamp(clamp);
+    assertTransform(interpolator, 4, 1);
+    assertTransform(interpolator, 3, 1.5);
+    assertTransform(interpolator, 2, 2);
+    assertTransform(interpolator, 1.5, 3);
+    assertTransform(interpolator, 1, 4);
+    // clamp
+    assertClose(clamp ? 1 : 0.5, interpolator.applyAsDouble(5));
+    assertClose(clamp ? 4 : 5, interpolator.invert().applyAsDouble(0.5));
+    assertClose(clamp ? 4 : 6, interpolator.applyAsDouble(0));
+    assertClose(clamp ? 1 : 0, interpolator.invert().applyAsDouble(6));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testMultipartAscending(boolean clamp) {
+    var interpolator = Interpolator.linear()
+      .put(1, 4)
+      .put(2, 2)
+      .put(4, 1)
+      .clamp(clamp);
+    assertTransform(interpolator, 1, 4);
+    assertTransform(interpolator, 1.5, 3);
+    assertTransform(interpolator, 2, 2);
+    assertTransform(interpolator, 3, 1.5);
+    assertTransform(interpolator, 4, 1);
+    // clamp
+    assertClose(clamp ? 1 : 0.5, interpolator.invert().applyAsDouble(5));
+    assertClose(clamp ? 4 : 5, interpolator.applyAsDouble(0.5));
+    assertClose(clamp ? 4 : 6, interpolator.invert().applyAsDouble(0));
+    assertClose(clamp ? 1 : 0, interpolator.applyAsDouble(6));
+  }
+
   @Test
   void testUnknown() {
     var interpolator = Interpolator.linear()
