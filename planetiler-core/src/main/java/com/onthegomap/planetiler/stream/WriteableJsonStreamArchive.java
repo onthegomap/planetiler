@@ -209,17 +209,14 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
 
   record FinishEntry(TileArchiveMetadata metadata) implements Entry {}
 
-  private interface TileArchiveMetadataMixin {
+  private record TileArchiveMetadataMixin(
 
-    @JsonIgnore(false)
-    Envelope bounds();
+    @JsonIgnore(false) Envelope bounds,
 
-    @JsonIgnore(false)
-    CoordinateXY center();
+    @JsonIgnore(false) CoordinateXY center,
 
-    @JsonIgnore(false)
-    List<LayerAttrStats.VectorLayer> vectorLayers();
-  }
+    @JsonIgnore(false) List<LayerAttrStats.VectorLayer> vectorLayers
+  ) {}
 
   @JsonIncludeProperties({"minX", "maxX", "minY", "maxY"})
   private abstract static class EnvelopeMixin {
