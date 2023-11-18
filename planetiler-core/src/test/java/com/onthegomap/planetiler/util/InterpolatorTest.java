@@ -11,8 +11,8 @@ class InterpolatorTest {
   @ValueSource(booleans = {false, true})
   void testLinear(boolean clamp) {
     var interpolator = Interpolator.linear()
-      .put(0, 10)
-      .put(1, 20)
+      .put(0, 10d)
+      .put(1, 20d)
       .clamp(clamp);
     assertTransform(interpolator, 0, 10);
     assertTransform(interpolator, 1, 20);
@@ -28,8 +28,8 @@ class InterpolatorTest {
   @ValueSource(booleans = {false, true})
   void testLog(boolean clamp) {
     var interpolator = Interpolator.log()
-      .put(10, 1)
-      .put(1_000, 2)
+      .put(10, 1d)
+      .put(1_000, 2d)
       .clamp(clamp);
     assertTransform(interpolator, 10, 1);
     assertTransform(interpolator, 100, 1.5);
@@ -46,8 +46,8 @@ class InterpolatorTest {
   void testLog2(boolean clamp) {
     var interpolator = Interpolator.log()
       .base(2)
-      .put(2, 1)
-      .put(8, 2)
+      .put(2, 1d)
+      .put(8, 2d)
       .clamp(clamp);
     assertTransform(interpolator, 2, 1);
     assertTransform(interpolator, 4, 1.5);
@@ -64,8 +64,8 @@ class InterpolatorTest {
   void testPower(boolean clamp) {
     var interpolator = Interpolator.power()
       .exponent(2)
-      .put(Math.sqrt(2), 1)
-      .put(Math.sqrt(4), 2)
+      .put(Math.sqrt(2), 1d)
+      .put(Math.sqrt(4), 2d)
       .clamp(clamp);
     assertTransform(interpolator, Math.sqrt(2), 1);
     assertTransform(interpolator, Math.sqrt(3), 1.5);
@@ -81,8 +81,8 @@ class InterpolatorTest {
   void testNegativePower() {
     var interpolator = Interpolator.power()
       .exponent(-1)
-      .put(1, 0)
-      .put(2, 1);
+      .put(1, 0d)
+      .put(2, 1d);
     assertTransform(interpolator, 1, 0);
     assertTransform(interpolator, 1.5, 2d / 3);
     assertTransform(interpolator, 2, 1);
@@ -92,8 +92,8 @@ class InterpolatorTest {
   @ValueSource(booleans = {false, true})
   void testSqrt(boolean clamp) {
     var interpolator = Interpolator.sqrt()
-      .put(4, 1)
-      .put(16, 2)
+      .put(4, 1d)
+      .put(16, 2d)
       .clamp(clamp);
     assertTransform(interpolator, 4, 1);
     assertTransform(interpolator, 9, 1.5);
@@ -109,9 +109,9 @@ class InterpolatorTest {
   @ValueSource(booleans = {false, true})
   void testMultipartDescending(boolean clamp) {
     var interpolator = Interpolator.linear()
-      .put(4, 1)
-      .put(2, 2)
-      .put(1, 4)
+      .put(4, 1d)
+      .put(2, 2d)
+      .put(1, 4d)
       .clamp(clamp);
     assertTransform(interpolator, 4, 1);
     assertTransform(interpolator, 3, 1.5);
@@ -129,9 +129,9 @@ class InterpolatorTest {
   @ValueSource(booleans = {false, true})
   void testMultipartAscending(boolean clamp) {
     var interpolator = Interpolator.linear()
-      .put(1, 4)
-      .put(2, 2)
-      .put(4, 1)
+      .put(1, 4d)
+      .put(2, 2d)
+      .put(4, 1d)
       .clamp(clamp);
     assertTransform(interpolator, 1, 4);
     assertTransform(interpolator, 1.5, 3);
@@ -148,9 +148,9 @@ class InterpolatorTest {
   @Test
   void testUnknown() {
     var interpolator = Interpolator.linear()
-      .put(0, 10)
-      .put(1, 20)
-      .defaultValue(100);
+      .put(0, 10d)
+      .put(1, 20d)
+      .defaultValue(100d);
     assertEquals(100, interpolator.applyAsDouble(Double.NaN));
   }
 
@@ -158,7 +158,7 @@ class InterpolatorTest {
     assertEquals(expected, actual, 1e-10);
   }
 
-  private static void assertTransform(Interpolator<?> interp, double x, double y) {
+  private static void assertTransform(Interpolator<?, ?> interp, double x, double y) {
     assertClose(y, interp.applyAsDouble(x));
     assertClose(x, interp.invert().applyAsDouble(y));
   }

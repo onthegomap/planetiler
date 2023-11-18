@@ -18,14 +18,14 @@ public class BenchmarkInterpolator {
     System.err.println(sum);
   }
 
-  private static void benchmarkInterpolator(String name, long times, Supplier<Interpolator<?>> get) {
-    benchmarkAndInverted(name + "_2", 1, 2, times, () -> get.get().put(1, 1).put(2, 2));
-    benchmarkAndInverted(name + "_3", 1, 2, times, () -> get.get().put(1, 1).put(1.5, 2).put(2, 3));
+  private static void benchmarkInterpolator(String name, long times, Supplier<Interpolator<?, Double>> get) {
+    benchmarkAndInverted(name + "_2", 1, 2, times, () -> get.get().put(1, 1d).put(2, 2d));
+    benchmarkAndInverted(name + "_3", 1, 2, times, () -> get.get().put(1, 1d).put(1.5, 2d).put(2, 3d));
   }
 
   private static void benchmarkAndInverted(String name, double start, double end, long steps,
-    Supplier<Interpolator<?>> build) {
-    benchmark(name + "_f", start, end, steps, build::get);
+    Supplier<Interpolator<?, Double>> build) {
+    benchmark(name + "_f", start, end, steps, () -> build.get()::applyAsDouble);
     benchmark(name + "_i", start, end, steps, () -> build.get().invert());
   }
 
