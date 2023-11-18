@@ -3,12 +3,11 @@ package com.onthegomap.planetiler.util;
 import com.carrotsearch.hppc.DoubleArrayList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.DoubleFunction;
 import java.util.function.DoubleUnaryOperator;
 import org.apache.commons.lang3.ArrayUtils;
 
-public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunction<V> {
+public class Interpolator<T extends Interpolator<T, V>, V> implements IInterpolator<T, V> {
   private static final ValueInterpolator<Double> INTERPOLATE_NUMERIC =
     (a, b) -> t -> a * (1 - t) + b * t;
   private static final DoubleUnaryOperator IDENTITY = x -> x;
@@ -117,7 +116,7 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
   }
 
   @SuppressWarnings("unchecked")
-  private T self() {
+  public T self() {
     return (T) this;
   }
 
@@ -143,19 +142,7 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
   // TODO
   //  private static class Inverted extends Interpolator<Inverted, Double> {}
 
-  public DoubleUnaryOperator invert() {
-    // TODO static or instance?
-    var result = linear();
-    int j = Math.min(domain.size(), range.size());
-    for (int i = 0; i < j; i++) {
-      result.put((Double) range.get(i), transform.applyAsDouble(domain.get(i)));
-    }
-    DoubleUnaryOperator retVal =
-      reverseTransform == IDENTITY ? result::applyAsDouble : x -> reverseTransform.applyAsDouble(result.apply(x));
-    return clamp ? retVal.andThen(x -> Math.clamp(x, minKey, maxKey)) : retVal;
-  }
-
-  public static <T extends Interpolator<T, ? extends Number>> DoubleUnaryOperator invert(
+  public static <T extends Interpolator<T, ? extends Number>> DoubleUnaryOperator invertIt(
     Interpolator<T, ? extends Number> interpolator) {
     var result = linear();
     int j = Math.min(interpolator.domain.size(), interpolator.range.size());
@@ -169,19 +156,32 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
     return interpolator.clamp ? retVal.andThen(x -> Math.clamp(x, interpolator.minKey, interpolator.maxKey)) : retVal;
   }
 
-  public static class Power<V> extends Interpolator<Power<V>, V> {
+  public static class Power<T extends Power<T, V>, V> extends Interpolator<T, V> {
 
     public Power(ValueInterpolator<V> valueInterpolator) {
       super(valueInterpolator);
     }
 
-    public Power<V> exponent(double exponent) {
+    public T exponent(double exponent) {
       double inverse = 1d / exponent;
       return setTransforms(x -> Math.pow(x, exponent), y -> Math.pow(y, inverse));
     }
+
+    public static class Numeric extends Power<Numeric, Double> implements IInterpolator.Continuous<Numeric> {
+
+      public Numeric(ValueInterpolator<Double> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
+    public static class Other<V> extends Power<Other<V>, V> {
+
+      public Other(ValueInterpolator<V> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
   }
 
-  public static class Log<V> extends Interpolator<Log<V>, V> {
+  public static class Log<T extends Log<T, V>, V> extends Interpolator<T, V> {
 
     public Log(ValueInterpolator<V> valueInterpolator) {
       super(valueInterpolator);
@@ -192,7 +192,7 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
       return x -> Math.log(x) / logBase;
     }
 
-    public Log<V> base(double base) {
+    public T base(double base) {
       DoubleUnaryOperator forward =
         base == 10d ? Math::log10 :
           base == Math.E ? Math::log :
@@ -202,42 +202,71 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
           x -> Math.pow(base, x);
       return setTransforms(forward, reverse);
     }
+
+    public static class Numeric extends Log<Log.Numeric, Double> implements IInterpolator.Continuous<Log.Numeric> {
+
+      public Numeric(ValueInterpolator<Double> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
+    public static class Other<V> extends Log<Log.Other<V>, V> {
+
+      public Other(ValueInterpolator<V> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
   }
 
-  public static class Linear<V> extends Interpolator<Linear<V>, V> {
+  public static class Linear<T extends Linear<T, V>, V> extends Interpolator<T, V> {
 
     public Linear(ValueInterpolator<V> valueInterpolator) {
       super(valueInterpolator);
     }
+
+    public static class Numeric extends Linear<Linear.Numeric, Double>
+      implements IInterpolator.Continuous<Linear.Numeric> {
+
+      public Numeric(ValueInterpolator<Double> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
+    public static class Other<V> extends Linear<Linear.Other<V>, V> {
+
+      public Other(ValueInterpolator<V> valueInterpolator) {
+        super(valueInterpolator);
+      }
+    }
   }
 
-  public static <V> Linear<V> linear(ValueInterpolator<V> valueInterpolator) {
-    return new Linear<>(valueInterpolator);
+  public static Linear.Numeric linear(ValueInterpolator<Double> valueInterpolator) {
+    return new Linear.Numeric(valueInterpolator);
   }
 
-  public static Linear<Double> linear() {
-    return new Linear<>(INTERPOLATE_NUMERIC);
+  public static Linear.Numeric linear() {
+    return new Linear.Numeric(INTERPOLATE_NUMERIC);
   }
 
-  public static <V> Log<V> log(ValueInterpolator<V> valueInterpolator) {
-    return new Log<>(valueInterpolator).base(10);
+  public static Log.Numeric log(ValueInterpolator<Double> valueInterpolator) {
+    return new Log.Numeric(valueInterpolator).base(10);
   }
 
-  public static Log<Double> log() {
+  public static Log.Numeric log() {
     return log(INTERPOLATE_NUMERIC).base(10);
   }
 
-  public static <V> Power<V> power(ValueInterpolator<V> valueInterpolator) {
-    return new Power<>(valueInterpolator).exponent(1);
+
+  //  TODO specialized double implementation without boxing (interpolator, values?) ?
+  //  TODO set special args before returning reusable thing? forget self type
+
+  public static Power.Numeric npower(ValueInterpolator<Double> valueInterpolator) {
+    return new Power.Numeric(valueInterpolator).exponent(1);
   }
 
-  public static Power<Double> power() {
-    return new Power<>(INTERPOLATE_NUMERIC).exponent(1);
+  public static Power.Numeric power() {
+    return npower(INTERPOLATE_NUMERIC).exponent(1);
   }
 
-  public static Power<Double> sqrt() {
-    return power(INTERPOLATE_NUMERIC).exponent(0.5);
+  public static Power.Numeric sqrt() {
+    return power().exponent(0.5);
   }
-
-  public interface ValueInterpolator<V> extends BiFunction<V, V, DoubleFunction<V>> {}
 }

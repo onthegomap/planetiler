@@ -10,9 +10,9 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testLinear(boolean clamp) {
-    var interpolator = Interpolator.linear()
-      .put(0, 10d)
-      .put(1, 20d)
+    var interpolator = Scales.linear()
+      .put(0, 10)
+      .put(1, 20)
       .clamp(clamp);
     assertTransform(interpolator, 0, 10);
     assertTransform(interpolator, 1, 20);
@@ -27,7 +27,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testLog(boolean clamp) {
-    var interpolator = Interpolator.log()
+    var interpolator = Scales.log(10)
       .put(10, 1d)
       .put(1_000, 2d)
       .clamp(clamp);
@@ -44,8 +44,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testLog2(boolean clamp) {
-    var interpolator = Interpolator.log()
-      .base(2)
+    var interpolator = Scales.log(2)
       .put(2, 1d)
       .put(8, 2d)
       .clamp(clamp);
@@ -62,8 +61,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testPower(boolean clamp) {
-    var interpolator = Interpolator.power()
-      .exponent(2)
+    var interpolator = Scales.power(2)
       .put(Math.sqrt(2), 1d)
       .put(Math.sqrt(4), 2d)
       .clamp(clamp);
@@ -79,8 +77,7 @@ class InterpolatorTest {
 
   @Test
   void testNegativePower() {
-    var interpolator = Interpolator.power()
-      .exponent(-1)
+    var interpolator = Scales.power(-1)
       .put(1, 0d)
       .put(2, 1d);
     assertTransform(interpolator, 1, 0);
@@ -91,7 +88,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testSqrt(boolean clamp) {
-    var interpolator = Interpolator.sqrt()
+    var interpolator = Scales.sqrt()
       .put(4, 1d)
       .put(16, 2d)
       .clamp(clamp);
@@ -108,7 +105,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testMultipartDescending(boolean clamp) {
-    var interpolator = Interpolator.linear()
+    var interpolator = Scales.linear()
       .put(4, 1d)
       .put(2, 2d)
       .put(1, 4d)
@@ -128,7 +125,7 @@ class InterpolatorTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void testMultipartAscending(boolean clamp) {
-    var interpolator = Interpolator.linear()
+    var interpolator = Scales.linear()
       .put(1, 4d)
       .put(2, 2d)
       .put(4, 1d)
@@ -147,7 +144,7 @@ class InterpolatorTest {
 
   @Test
   void testUnknown() {
-    var interpolator = Interpolator.linear()
+    var interpolator = Scales.linear()
       .put(0, 10d)
       .put(1, 20d)
       .defaultValue(100d);
@@ -158,7 +155,7 @@ class InterpolatorTest {
     assertEquals(expected, actual, 1e-10);
   }
 
-  private static void assertTransform(Interpolator<?, ?> interp, double x, double y) {
+  private static void assertTransform(Scales.DoubleContinuous interp, double x, double y) {
     assertClose(y, interp.applyAsDouble(x));
     assertClose(x, interp.invert().applyAsDouble(y));
   }
