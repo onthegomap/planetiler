@@ -26,7 +26,7 @@ public class BenchmarkInterpolator {
   private static void benchmarkAndInverted(String name, double start, double end, long steps,
     Supplier<Interpolator<?, Double>> build) {
     benchmark(name + "_f", start, end, steps, () -> build.get()::applyAsDouble);
-    benchmark(name + "_i", start, end, steps, () -> build.get().invert());
+    benchmark(name + "_i", start, end, steps, () -> Interpolator.invert(build.get()));
   }
 
   private static void benchmark(String name, double start, double end, long steps,

@@ -14,15 +14,15 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
   private static final DoubleUnaryOperator IDENTITY = x -> x;
   private final ValueInterpolator<V> valueInterpolator;
 
-  private DoubleUnaryOperator transform = IDENTITY;
-  private DoubleUnaryOperator reverseTransform = IDENTITY;
-  private boolean clamp = false;
+  DoubleUnaryOperator transform = IDENTITY;
+  DoubleUnaryOperator reverseTransform = IDENTITY;
+  boolean clamp = false;
   private V defaultValue;
-  private final DoubleArrayList domain = new DoubleArrayList();
-  private final List<V> range = new ArrayList<>();
+  final DoubleArrayList domain = new DoubleArrayList();
+  final List<V> range = new ArrayList<>();
   private DoubleFunction<V> fn;
-  private double minKey = Double.POSITIVE_INFINITY;
-  private double maxKey = Double.NEGATIVE_INFINITY;
+  double minKey = Double.POSITIVE_INFINITY;
+  double maxKey = Double.NEGATIVE_INFINITY;
 
   protected Interpolator(ValueInterpolator<V> valueInterpolator) {
     this.valueInterpolator = valueInterpolator;
@@ -144,6 +144,7 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
   //  private static class Inverted extends Interpolator<Inverted, Double> {}
 
   public DoubleUnaryOperator invert() {
+    // TODO static or instance?
     var result = linear();
     int j = Math.min(domain.size(), range.size());
     for (int i = 0; i < j; i++) {
@@ -152,6 +153,20 @@ public class Interpolator<T extends Interpolator<T, V>, V> implements DoubleFunc
     DoubleUnaryOperator retVal =
       reverseTransform == IDENTITY ? result::applyAsDouble : x -> reverseTransform.applyAsDouble(result.apply(x));
     return clamp ? retVal.andThen(x -> Math.clamp(x, minKey, maxKey)) : retVal;
+  }
+
+  public static <T extends Interpolator<T, ? extends Number>> DoubleUnaryOperator invert(
+    Interpolator<T, ? extends Number> interpolator) {
+    var result = linear();
+    int j = Math.min(interpolator.domain.size(), interpolator.range.size());
+    for (int i = 0; i < j; i++) {
+      result.put(interpolator.range.get(i).doubleValue(),
+        interpolator.transform.applyAsDouble(interpolator.domain.get(i)));
+    }
+    DoubleUnaryOperator retVal =
+      interpolator.reverseTransform == IDENTITY ? result::applyAsDouble :
+        x -> interpolator.reverseTransform.applyAsDouble(result.apply(x));
+    return interpolator.clamp ? retVal.andThen(x -> Math.clamp(x, interpolator.minKey, interpolator.maxKey)) : retVal;
   }
 
   public static class Power<V> extends Interpolator<Power<V>, V> {
