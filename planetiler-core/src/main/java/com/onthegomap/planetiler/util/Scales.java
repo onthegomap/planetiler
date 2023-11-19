@@ -6,32 +6,15 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.DoubleFunction;
 import java.util.function.DoubleUnaryOperator;
-import java.util.function.Function;
 import org.apache.commons.lang3.ArrayUtils;
 
 public class Scales {
-  private static final DoubleInterpolator INTERPOLATE_NUMERIC =
+  private static final Interpolator<Double> INTERPOLATE_NUMERIC =
     (a, b) -> t -> a * (1 - t) + b * t;
 
   public interface Interpolator<V> extends BiFunction<V, V, DoubleFunction<V>> {}
 
-  @FunctionalInterface
-  public interface DoubleInterpolator extends Interpolator<Double> {
-
-    DoubleUnaryOperator apply(double x, double y);
-
-    @Override
-    default DoubleFunction<Double> apply(Double x, Double y) {
-      return apply(x.doubleValue(), y.doubleValue())::applyAsDouble;
-    }
-  }
-
-  private interface Scale<T extends Scale<T, V>, V> extends DoubleFunction<V>, Function<Double, V> {
-
-    @Override
-    default V apply(Double x) {
-      return apply(x.doubleValue());
-    }
+  private interface Scale<T extends Scale<T, V>, V> extends DoubleFunction<V> {
 
     T defaultValue(V defaultValue);
 
