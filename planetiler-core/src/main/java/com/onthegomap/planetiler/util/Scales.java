@@ -12,6 +12,7 @@ public class Scales {
   private static final Interpolator<Double> INTERPOLATE_NUMERIC =
     (a, b) -> t -> a * (1 - t) + b * t;
 
+
   public interface Interpolator<V> extends BiFunction<V, V, DoubleFunction<V>> {}
 
   private interface Scale<T extends Scale<T, V>, V> extends DoubleFunction<V> {
@@ -31,17 +32,80 @@ public class Scales {
     T clamp(boolean clamp);
   }
 
-  private interface Threshold<T extends Threshold<T, V>, V> {
+  private interface Threshold<T extends Threshold<T, V>, V> extends Scale<T, V> {
 
-    T putBelow(double x, V y);
-
-    T putAbove(V y);
+    T putAbove(double x, V y);
 
     double invertMin(V x);
 
     double invertMax(V x);
 
-    double[] invertExtent(V x);
+    Extent invertExtent(V x);
+  }
+
+  public record Extent(double min, double max) {}
+
+  public static class ThresholdScale<V> implements Threshold<ThresholdScale<V>, V> {
+
+    private V defaultValue = null;
+    private final List<Double> domain = new ArrayList<>();
+    private final List<V> range = new ArrayList<>();
+    private double[] domainArray = null;
+
+    private ThresholdScale(V minValue) {
+      range.add(minValue);
+    }
+
+    @Override
+    public ThresholdScale<V> putAbove(double x, V y) {
+      domainArray = null;
+      domain.add(x);
+      range.add(y);
+      return self();
+    }
+
+    @Override
+    public double invertMin(V x) {
+      int idx = range.indexOf(x);
+      return idx < 0 ? Double.NaN : idx == 0 ? Double.NEGATIVE_INFINITY : domain.get(idx - 1);
+    }
+
+    @Override
+    public double invertMax(V x) {
+      int idx = range.indexOf(x);
+      return idx < 0 ? Double.NaN : idx == range.size() - 1 ? Double.POSITIVE_INFINITY : domain.get(idx);
+    }
+
+    @Override
+    public Extent invertExtent(V x) {
+      int idx = range.indexOf(x);
+      return new Extent(
+        idx < 0 ? Double.NaN : idx == 0 ? Double.NEGATIVE_INFINITY : domain.get(idx - 1),
+        idx < 0 ? Double.NaN : idx == range.size() - 1 ? Double.POSITIVE_INFINITY : domain.get(idx)
+      );
+    }
+
+    @Override
+    public ThresholdScale<V> defaultValue(V defaultValue) {
+      this.defaultValue = defaultValue;
+      return self();
+    }
+
+    @Override
+    public V apply(double x) {
+      if (domainArray == null) {
+        domainArray = new double[domain.size()];
+        int i = 0;
+        for (Double d : domain) {
+          domainArray[i++] = d;
+        }
+      }
+      if (Double.isNaN(x)) {
+        return defaultValue;
+      }
+      int idx = bisect(domainArray, x, 0, Math.min(domainArray.length, range.size() - 1));
+      return range.get(idx);
+    }
   }
 
   private interface ContinuousDoubleScale<T extends ContinuousDoubleScale<T>>
@@ -73,7 +137,7 @@ public class Scales {
     double minKey = Double.POSITIVE_INFINITY;
     double maxKey = Double.NEGATIVE_INFINITY;
 
-    protected BaseContinuous(Interpolator<V> valueInterpolator, DoubleUnaryOperator transform) {
+    private BaseContinuous(Interpolator<V> valueInterpolator, DoubleUnaryOperator transform) {
       this.valueInterpolator = valueInterpolator;
       this.transform = transform;
     }
@@ -133,19 +197,6 @@ public class Scales {
       }
     }
 
-    private static int bisect(double[] a, double x, int lo, int hi) {
-      if (lo < hi) {
-        do {
-          int mid = (lo + hi) >>> 1;
-          if (a[mid] <= x)
-            lo = mid + 1;
-          else
-            hi = mid;
-        } while (lo < hi);
-      }
-      return lo;
-    }
-
     private static DoubleUnaryOperator normalize(double a, double b) {
       double delta = b - a;
       return delta == 0 ? x -> 0.5 : Double.isNaN(delta) ? x -> Double.NaN : x -> (x - a) / delta;
@@ -174,11 +225,25 @@ public class Scales {
     }
   }
 
+
+  private static int bisect(double[] a, double x, int lo, int hi) {
+    if (lo < hi) {
+      do {
+        int mid = (lo + hi) >>> 1;
+        if (a[mid] <= x)
+          lo = mid + 1;
+        else
+          hi = mid;
+      } while (lo < hi);
+    }
+    return lo;
+  }
+
   public static class DoubleContinuous extends BaseContinuous<DoubleContinuous, Double>
     implements ContinuousDoubleScale<DoubleContinuous> {
     private final DoubleUnaryOperator reverseTransform;
 
-    protected DoubleContinuous(Interpolator<Double> valueInterpolator, DoubleUnaryOperator transform,
+    private DoubleContinuous(Interpolator<Double> valueInterpolator, DoubleUnaryOperator transform,
       DoubleUnaryOperator reverseTransform) {
       super(valueInterpolator, transform);
       this.reverseTransform = reverseTransform;
@@ -200,7 +265,7 @@ public class Scales {
 
   public static class OtherContinuous<V> extends BaseContinuous<OtherContinuous<V>, V> {
 
-    protected OtherContinuous(Interpolator<V> valueInterpolator, DoubleUnaryOperator transform) {
+    private OtherContinuous(Interpolator<V> valueInterpolator, DoubleUnaryOperator transform) {
       super(valueInterpolator, transform);
     }
   }
@@ -257,5 +322,9 @@ public class Scales {
 
   public static <V> OtherContinuous<V> log(double base, Interpolator<V> valueInterpolator) {
     return new OtherContinuous<>(valueInterpolator, logFn(base));
+  }
+
+  public static <V> ThresholdScale<V> threshold(V minValue) {
+    return new ThresholdScale<>(minValue);
   }
 }

@@ -151,6 +151,29 @@ class InterpolatorTest {
     assertEquals(100, interpolator.applyAsDouble(Double.NaN));
   }
 
+  @Test
+  void testThreshold() {
+    var scale = Scales.threshold("a")
+      .putAbove(1.5, "b")
+      .putAbove(3, "c");
+    assertEquals("a", scale.apply(1.4));
+    assertEquals("b", scale.apply(1.5));
+    assertEquals("b", scale.apply(2.99));
+    assertEquals("c", scale.apply(3));
+    assertEquals("c", scale.apply(3.1));
+
+    testInvert(scale, "a", Double.NEGATIVE_INFINITY, 1.5);
+    testInvert(scale, "b", 1.5, 3);
+    testInvert(scale, "c", 3, Double.POSITIVE_INFINITY);
+    testInvert(scale, "d", Double.NaN, Double.NaN);
+  }
+
+  private static <V> void testInvert(Scales.ThresholdScale<V> scale, V val, double min, double max) {
+    assertEquals(min, scale.invertMin(val));
+    assertEquals(max, scale.invertMax(val));
+    assertEquals(max, scale.invertMax(val));
+  }
+
   private static void assertClose(double expected, double actual) {
     assertEquals(expected, actual, 1e-10);
   }
