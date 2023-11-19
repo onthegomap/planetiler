@@ -210,9 +210,11 @@ public class Scales {
         final double dhi = reverse ? d0 : d1;
         final V rlo = reverse ? r1 : r0;
         final V rhi = reverse ? r0 : r1;
-        DoubleUnaryOperator normalize = normalize(dlo, dhi);
         DoubleFunction<V> interpolate = valueInterpolator.apply(rlo, rhi);
-        return x -> interpolate.apply(normalize.applyAsDouble(x));
+        return x -> {
+          double value = (x - dlo) / (dhi - dlo);
+          return interpolate.apply(value);
+        };
       }
     }
 
@@ -293,6 +295,10 @@ public class Scales {
     return new DoubleContinuous(INTERPOLATE_NUMERIC, BaseContinuous.IDENTITY, BaseContinuous.IDENTITY);
   }
 
+  public static DoubleContinuous linearDouble(Interpolator<Double> interp) {
+    return new DoubleContinuous(interp, BaseContinuous.IDENTITY, BaseContinuous.IDENTITY);
+  }
+
   public static <V> OtherContinuous<V> linear(Interpolator<V> valueInterpolator) {
     return new OtherContinuous<>(valueInterpolator, BaseContinuous.IDENTITY);
   }
@@ -324,10 +330,6 @@ public class Scales {
     return x -> Math.log(x) / logBase;
   }
 
-  public static DoubleContinuous log(double base) {
-    return new DoubleContinuous(INTERPOLATE_NUMERIC, logFn(base), expFn(base));
-  }
-
   private static DoubleUnaryOperator expFn(double base) {
     return base == Math.E ? Math::exp :
       x -> Math.pow(base, x);
@@ -339,9 +341,30 @@ public class Scales {
       logBase(base);
   }
 
+  public static DoubleContinuous log(double base) {
+    return new DoubleContinuous(INTERPOLATE_NUMERIC, logFn(base), expFn(base));
+  }
+
   public static <V> OtherContinuous<V> log(double base, Interpolator<V> valueInterpolator) {
     return new OtherContinuous<>(valueInterpolator, logFn(base));
   }
+
+  public static DoubleContinuous exponential(double base) {
+    return new DoubleContinuous(INTERPOLATE_NUMERIC, expFn(base), logFn(base));
+  }
+
+  public static <V> OtherContinuous<V> exponential(double base, Interpolator<V> valueInterpolator) {
+    return new OtherContinuous<>(valueInterpolator, expFn(base));
+  }
+
+  public static OtherContinuous<Double> bezier(double x1, double y1, double x2, double y2) {
+    var bezier = new UnitBezier(x1, y1, x2, y2);
+    return new OtherContinuous<>((a, b) -> {
+      double diff = b - a;
+      return t -> bezier.solve(t) * diff + a;
+    }, BaseContinuous.IDENTITY);
+  }
+
 
   public static <V> ThresholdScale<V> threshold(V minValue) {
     return new ThresholdScale<>(minValue);

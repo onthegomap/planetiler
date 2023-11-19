@@ -185,6 +185,40 @@ class InterpolatorTest {
     assertEquals("c", scale.apply(99));
   }
 
+  @Test
+  void testExponential() {
+    var scale = Scales.exponential(2)
+      .put(1, 2)
+      .put(3, 6)
+      .clamp(true);
+
+    assertClose(2, scale.apply(0));
+    assertClose(2, scale.apply(1));
+    assertClose(3.3333333333, scale.apply(2));
+    assertClose(6, scale.apply(3));
+    assertClose(6, scale.apply(5));
+  }
+
+  @Test
+  void testBezier() {
+    var scale = Scales.bezier(0.42, 0, 0.58, 1)
+      .put(0, 0d)
+      .put(100, 100d)
+      .clamp(true);
+
+    assertEquals(0, scale.apply(0), 1e-4);
+    assertEquals(1.97224, scale.apply(10), 1e-4);
+    assertEquals(8.16597, scale.apply(20), 1e-4);
+    assertEquals(18.7395, scale.apply(30), 1e-4);
+    assertEquals(33.1883, scale.apply(40), 1e-4);
+    assertEquals(50, scale.apply(50), 1e-4);
+    assertEquals(66.8116, scale.apply(60), 1e-4);
+    assertEquals(81.2604, scale.apply(70), 1e-4);
+    assertEquals(91.834, scale.apply(80), 1e-4);
+    assertEquals(98.0277, scale.apply(90), 1e-4);
+    assertEquals(100, scale.apply(100), 1e-4);
+  }
+
   private static <V> void testInvert(Scales.ThresholdScale<V> scale, V val, double min, double max) {
     assertEquals(min, scale.invertMin(val));
     assertEquals(max, scale.invertMax(val));
