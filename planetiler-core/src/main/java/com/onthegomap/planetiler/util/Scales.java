@@ -12,6 +12,25 @@ public class Scales {
   private static final Interpolator<Double> INTERPOLATE_NUMERIC =
     (a, b) -> t -> a * (1 - t) + b * t;
 
+  public static <V> ThresholdScale<V> quantize(int min, int max, V minValue, V... values) {
+    ThresholdScale<V> result = threshold(minValue);
+    int n = values.length;
+    for (int i = 0; i < n; i++) {
+      result.putAbove(((i + 1d) * max - (i - n) * min) / (n + 1), values[i]);
+    }
+    return result;
+  }
+
+  public static <V> ThresholdScale<V> quantize(int min, int max, List<V> values) {
+    ThresholdScale<V> result = threshold(values.getFirst());
+    int n = values.size() - 1;
+    int i = -1;
+    while (++i < n) {
+      result.putAbove(((i + 1d) * max - (i - n) * min) / (n + 1), values.get(i + 1));
+    }
+    return result;
+  }
+
 
   public interface Interpolator<V> extends BiFunction<V, V, DoubleFunction<V>> {}
 

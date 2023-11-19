@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -166,6 +167,22 @@ class InterpolatorTest {
     testInvert(scale, "b", 1.5, 3);
     testInvert(scale, "c", 3, Double.POSITIVE_INFINITY);
     testInvert(scale, "d", Double.NaN, Double.NaN);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testQuantize(boolean list) {
+    var scale = list ?
+      Scales.quantize(0, 3, List.of("a", "b", "c")) :
+      Scales.quantize(0, 3, "a", "b", "c");
+    assertEquals("a", scale.apply(0));
+    assertEquals("a", scale.apply(0.99));
+    assertEquals("b", scale.apply(1));
+    assertEquals("b", scale.apply(1.01));
+    assertEquals("b", scale.apply(1.99));
+    assertEquals("c", scale.apply(2));
+    assertEquals("c", scale.apply(2.01));
+    assertEquals("c", scale.apply(99));
   }
 
   private static <V> void testInvert(Scales.ThresholdScale<V> scale, V val, double min, double max) {
