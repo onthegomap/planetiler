@@ -200,6 +200,28 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     return innermostPoint(layer, 0.1);
   }
 
+  /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
+  public int getMinZoomForPixelSize(double pixelSize) {
+    try {
+      return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
+    } catch (GeometryException e) {
+      e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
+      return config.maxzoom();
+    }
+  }
+
+
+  /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+  public double getPixelSizeAtZoom(int zoom) {
+    try {
+      return source.size() * (256 << zoom);
+    } catch (GeometryException e) {
+      e.log(stats, "source_feature_pixel_size_at_zoom_failure",
+        "Error getting source feature pixel size at zoom from geometry " + source.id());
+      return 0;
+    }
+  }
+
   /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
@@ -704,6 +726,29 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
+     * size.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize) {
+      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
+    }
+
+    /**
+     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
+     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
+     * {@code minPixelSize} pixels in size.
+     * <p>
+     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
+     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
+     * zoom level.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
+      int minZoomToShowAlways) {
+      return setAttrWithMinzoom(key, value,
+        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    /**
      * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
      * {@code minzoom}.
      * <p>
@@ -736,20 +781,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
+     * before slicing it into tiles.
+     */
+    public String getNumPointsAttr() {
+      return numPointsAttr;
+    }
+
+    /**
      * Sets a special attribute key that the renderer will use to store the number of points in the simplified geometry
      * before slicing it into tiles.
      */
     public Feature setNumPointsAttr(String numPointsAttr) {
       this.numPointsAttr = numPointsAttr;
       return this;
-    }
-
-    /**
-     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
-     * before slicing it into tiles.
-     */
-    public String getNumPointsAttr() {
-      return numPointsAttr;
     }
 
     @Override
@@ -763,12 +808,7 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
     public double getSourceFeaturePixelSizeAtZoom(int zoom) {
-      try {
-        return source.size() * (256 << zoom);
-      } catch (GeometryException e) {
-        e.log(stats, "point_get_size_failure", "Error getting min size for point from geometry " + source.id());
-        return 0;
-      }
+      return getPixelSizeAtZoom(zoom);
     }
   }
 }
