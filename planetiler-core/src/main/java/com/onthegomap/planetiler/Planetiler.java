@@ -491,6 +491,10 @@ public class Planetiler {
     return this;
   }
 
+  public List<String> getDefaultLanguages() {
+    return languages;
+  }
+
   /**
    * Updates {@link #translations()} to use name translations fetched from wikidata based on the
    * <a href="https://www.wikidata.org/wiki/Wikidata:OpenStreetMap">wikidata tag</a> on OSM elements.

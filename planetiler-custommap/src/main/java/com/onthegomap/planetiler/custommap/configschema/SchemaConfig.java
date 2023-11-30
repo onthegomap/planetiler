@@ -1,7 +1,7 @@
 package com.onthegomap.planetiler.custommap.configschema;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.onthegomap.planetiler.custommap.YAML;
+import com.onthegomap.planetiler.util.YAML;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;

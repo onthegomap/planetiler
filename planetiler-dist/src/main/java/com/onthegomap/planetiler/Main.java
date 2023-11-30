@@ -10,6 +10,8 @@ import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
+import com.onthegomap.planetiler.experimental.lua.LuaMain;
+import com.onthegomap.planetiler.experimental.lua.LuaValidator;
 import com.onthegomap.planetiler.mbtiles.Verify;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TopOsmTiles;
@@ -43,12 +45,19 @@ public class Main {
     entry("generate-custom", ConfiguredMapMain::main),
     entry("custom", ConfiguredMapMain::main),
 
+    entry("lua", LuaMain::main),
+
     entry("generate-shortbread", bundledSchema("shortbread.yml")),
     entry("shortbread", bundledSchema("shortbread.yml")),
 
-    entry("verify", SchemaValidator::main),
+    entry("verify", validate()),
     entry("verify-custom", SchemaValidator::main),
     entry("verify-schema", SchemaValidator::main),
+    entry("verify-lua", LuaValidator::main),
+    entry("validate", validate()),
+    entry("validate-custom", SchemaValidator::main),
+    entry("validate-schema", SchemaValidator::main),
+    entry("validate-lua", LuaValidator::main),
 
     entry("example-bikeroutes", BikeRouteOverlay::main),
     entry("example-toilets", ToiletsOverlay::main),
@@ -73,6 +82,16 @@ public class Main {
     ).toArray(String[]::new));
   }
 
+  private static EntryPoint validate() {
+    return args -> {
+      if (Arrays.stream(args).anyMatch(d -> d.endsWith(".lua"))) {
+        LuaValidator.main(args);
+      } else {
+        SchemaValidator.main(args);
+      }
+    };
+  }
+
   public static void main(String[] args) throws Exception {
     EntryPoint task = DEFAULT_TASK;
 
@@ -81,6 +100,9 @@ public class Main {
       if (maybeTask.matches("^.*\\.ya?ml$")) {
         task = ConfiguredMapMain::main;
         args[0] = "--schema=" + args[0];
+      } else if (maybeTask.matches("^.*\\.lua$")) {
+        task = LuaMain::main;
+        args[0] = "--script=" + args[0];
       } else {
         EntryPoint taskFromArg0 = ENTRY_POINTS.get(maybeTask);
         if (taskFromArg0 != null) {

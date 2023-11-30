@@ -6,6 +6,9 @@
   "java.sources.organizeImports.starThreshold": 999,
   "java.saveActions.organizeImports": true,
   "yaml.schemas": {
-    "./planetiler-custommap/planetiler.schema.json": "planetiler-custommap/**/*.yml"
+    "./planetiler-custommap/planetiler.schema.json": [
+      "planetiler-custommap/**/*.y*ml",
+      "planetiler-experimental/**/*.y*ml"
+    ]
   }
 }

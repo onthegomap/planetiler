@@ -26,7 +26,9 @@
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
-    <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
+    <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*,
+      planetiler-experimental/src/main/java/org/luaj/**/*
+    </sonar.exclusions>
     <revision>0.7-SNAPSHOT</revision>
     <timestamp>${maven.build.timestamp}</timestamp>
   </properties>
@@ -87,6 +89,7 @@
     <module>planetiler-core</module>
     <module>planetiler-openmaptiles/submodule.pom.xml</module>
     <module>planetiler-custommap</module>
+    <module>planetiler-experimental</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>

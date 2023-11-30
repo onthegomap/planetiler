@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.custommap.configschema.SchemaConfig;
+import com.onthegomap.planetiler.validator.BaseSchemaValidator;
+import com.onthegomap.planetiler.validator.SchemaSpecification;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -22,7 +25,7 @@ class SchemaValidatorTest {
   @TempDir
   Path tmpDir;
 
-  record Result(SchemaValidator.Result output, String cliOutput) {}
+  record Result(BaseSchemaValidator.Result output, String cliOutput) {}
 
   private Result validate(String schema, String spec) throws IOException {
     var result = SchemaValidator.validate(
@@ -57,53 +60,11 @@ class SchemaValidatorTest {
       var baos = new ByteArrayOutputStream();
       var printStream = new PrintStream(baos, true, StandardCharsets.UTF_8)
     ) {
-      SchemaValidator.validateFromCli(
-        path,
-        printStream
-      );
+      new SchemaValidator(Arguments.of(), path.toString(), printStream).validateFromCli();
       return baos.toString(StandardCharsets.UTF_8);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-  }
-
-  String waterSchema = """
-    sources:
-      osm:
-        type: osm
-        url: geofabrik:rhode-island
-    layers:
-    - id: water
-      features:
-      - source: osm
-        geometry: polygon
-        min_size: 10
-        include_when:
-          natural: water
-        attributes:
-        - key: natural
-    """;
-
-  private Result validateWater(String layer, String geometry, String tags, String allowExtraTags) throws IOException {
-    return validate(
-      waterSchema,
-      """
-        examples:
-        - name: test output
-          input:
-            source: osm
-            geometry: polygon
-            tags:
-              natural: water
-          output:
-            layer: %s
-            geometry: %s
-            %s
-            tags:
-              %s
-        """.formatted(layer, geometry, allowExtraTags == null ? "" : allowExtraTags,
-        tags == null ? "" : tags.indent(6).strip())
-    );
   }
 
   @ParameterizedTest
@@ -128,7 +89,40 @@ class SchemaValidatorTest {
   })
   void testValidateWaterPolygon(boolean shouldBeOk, String layer, String geometry, String tags, String allowExtraTags)
     throws IOException {
-    var results = validateWater(layer, geometry, tags, allowExtraTags);
+    var results = validate(
+      """
+        sources:
+          osm:
+            type: osm
+            url: geofabrik:rhode-island
+        layers:
+        - id: water
+          features:
+          - source: osm
+            geometry: polygon
+            min_size: 10
+            include_when:
+              natural: water
+            attributes:
+            - key: natural
+        """,
+      """
+        examples:
+        - name: test output
+          input:
+            source: osm
+            geometry: polygon
+            tags:
+              natural: water
+          output:
+            layer: %s
+            geometry: %s
+            %s
+            tags:
+              %s
+        """.formatted(layer, geometry, allowExtraTags == null ? "" : allowExtraTags,
+        tags == null ? "" : tags.indent(6).strip())
+    );
     assertEquals(1, results.output.results().size());
     assertEquals("test output", results.output.results().get(0).example().name());
     if (shouldBeOk) {
@@ -138,47 +132,6 @@ class SchemaValidatorTest {
       assertFalse(results.output.ok(), "Expected an issue, but there were none");
       assertTrue(results.cliOutput.contains("FAIL"), "did not contain FAIL but should have: " + results.cliOutput);
     }
-  }
-
-  @Test
-  void testValidationFailsWrongNumberOfFeatures() throws IOException {
-    var results = validate(
-      waterSchema,
-      """
-        examples:
-        - name: test output
-          input:
-            source: osm
-            geometry: polygon
-            tags:
-              natural: water
-          output:
-        """
-    );
-    assertFalse(results.output.ok(), results.toString());
-
-    results = validate(
-      waterSchema,
-      """
-        examples:
-        - name: test output
-          input:
-            source: osm
-            geometry: polygon
-            tags:
-              natural: water
-          output:
-          - layer: water
-            geometry: polygon
-            tags:
-              natural: water
-          - layer: water2
-            geometry: polygon
-            tags:
-              natural: water2
-        """
-    );
-    assertFalse(results.output.ok(), results.toString());
   }
 
   @Test

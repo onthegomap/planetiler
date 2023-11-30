@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.custommap;
+package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;

@@ -1,0 +1,39 @@
+# test cases for power.lua
+examples:
+- name: power line
+  input:
+    geometry: line
+    tags:
+      power: line
+      voltage: voltage
+      cables: cables
+      operator: operator
+  output:
+    layer: power
+    geometry: line
+    min_zoom: 7
+    allow_extra_tags: false
+    tags:
+      power: line
+      cables: cables
+      operator: operator
+      voltage: voltage
+
+- name: pole
+  input:
+    geometry: point
+    tags:
+      power: pole
+      ref: ref
+      height: height
+      operator: operator
+  output:
+    layer: power
+    geometry: point
+    min_zoom: 13
+    allow_extra_tags: false
+    tags:
+      power: pole
+      ref: ref
+      height: height
+      operator: operator
