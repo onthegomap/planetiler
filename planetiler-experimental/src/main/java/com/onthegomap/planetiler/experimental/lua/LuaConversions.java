@@ -169,6 +169,21 @@ public interface LuaConversions {
       consumer.accept(toJava(arg, itemClass));
       return NIL;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o ||
+        (o instanceof LuaConsumer<?> other &&
+          itemClass.equals(other.itemClass) &&
+          consumer.equals(other.consumer));
+    }
+
+    @Override
+    public int hashCode() {
+      int result = itemClass.hashCode();
+      result = 31 * result + consumer.hashCode();
+      return result;
+    }
   }
 
   static <I, O> LuaValue functionToLua(Function<I, O> fn, Class<I> inputClass) {
@@ -188,6 +203,21 @@ public interface LuaConversions {
     @Override
     public LuaValue call(LuaValue arg) {
       return toLua(fn.apply(toJava(arg, inputClass)));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o ||
+        (o instanceof FunctionWrapper<?, ?> other &&
+          inputClass.equals(other.inputClass) &&
+          fn.equals(other.fn));
+    }
+
+    @Override
+    public int hashCode() {
+      int result = inputClass.hashCode();
+      result = 31 * result + fn.hashCode();
+      return result;
     }
   }
 }

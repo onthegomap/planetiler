@@ -23,6 +23,11 @@
       <artifactId>planetiler-openmaptiles</artifactId>
       <version>${revision}</version>
     </dependency>
+    <dependency>
+      <groupId>com.onthegomap.planetiler</groupId>
+      <artifactId>planetiler-experimental</artifactId>
+      <version>${revision}</version>
+    </dependency>
   </dependencies>
 
   <build>

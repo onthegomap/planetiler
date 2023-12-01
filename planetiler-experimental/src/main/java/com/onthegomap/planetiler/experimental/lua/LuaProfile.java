@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Implementation of {@link Profile} that delegates to a lua script.
  */
+@SuppressWarnings("java:S1168")
 public class LuaProfile implements Profile {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LuaProfile.class);

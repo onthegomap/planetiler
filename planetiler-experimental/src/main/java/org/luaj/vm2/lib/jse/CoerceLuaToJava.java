@@ -282,6 +282,8 @@ public class CoerceLuaToJava {
     }
   }
 
+  private static final Map<Class<?>, Map<Class<?>, Integer>> inheritanceLevelsCache = new ConcurrentHashMap<>();
+
   /**
    * Determine levels of inheritance between a base class and a subclass
    *
@@ -294,10 +296,19 @@ public class CoerceLuaToJava {
       return SCORE_UNCOERCIBLE;
     if (baseclass == subclass)
       return 0;
+    Map<Class<?>, Integer> map = inheritanceLevelsCache.get(baseclass);
+    if (map == null) {
+      map = inheritanceLevelsCache.computeIfAbsent(baseclass, k -> new ConcurrentHashMap<>());
+    }
+    Integer result = map.get(subclass);
+    if (result != null) {
+      return result;
+    }
     int min = Math.min(SCORE_UNCOERCIBLE, inheritanceLevels(baseclass, subclass.getSuperclass()) + 1);
     Class<?>[] ifaces = subclass.getInterfaces();
     for (Class<?> iface : ifaces)
       min = Math.min(min, inheritanceLevels(baseclass, iface) + 1);
+    map.put(subclass, min);
     return min;
   }
 
@@ -313,20 +324,14 @@ public class CoerceLuaToJava {
     }
 
     public int score(LuaValue value) {
-      switch (value.type()) {
-        case LuaValue.TNUMBER:
-          return inheritanceLevels(targetType, value.isint() ? Integer.class : Double.class);
-        case LuaValue.TBOOLEAN:
-          return inheritanceLevels(targetType, Boolean.class);
-        case LuaValue.TSTRING:
-          return inheritanceLevels(targetType, String.class);
-        case LuaValue.TUSERDATA:
-          return inheritanceLevels(targetType, value.touserdata().getClass());
-        case LuaValue.TNIL:
-          return SCORE_NULL_VALUE;
-        default:
-          return inheritanceLevels(targetType, value.getClass());
-      }
+      return switch (value.type()) {
+        case LuaValue.TNUMBER -> inheritanceLevels(targetType, value.isint() ? Integer.class : Double.class);
+        case LuaValue.TBOOLEAN -> inheritanceLevels(targetType, Boolean.class);
+        case LuaValue.TSTRING -> inheritanceLevels(targetType, String.class);
+        case LuaValue.TUSERDATA -> inheritanceLevels(targetType, value.touserdata().getClass());
+        case LuaValue.TNIL -> SCORE_NULL_VALUE;
+        default -> inheritanceLevels(targetType, value.getClass());
+      };
     }
 
     public Object coerce(LuaValue value) {

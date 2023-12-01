@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * All instance fields annotated with {@link ExposeToLua} will be exposed to lua as global variables.
  */
-@SuppressWarnings({"java:S1104", "java:S116", "unused"})
+@SuppressWarnings({"java:S1104", "java:S116", "unused", "java:S100"})
 public class LuaEnvironment {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LuaEnvironment.class);
@@ -223,7 +223,7 @@ public class LuaEnvironment {
         }
         String filename = url
           .replaceFirst("^https?://", "")
-          .replaceAll("\\W&&[^.]+", "_");
+          .replaceAll("[\\W&&[^.]]+", "_");
         if (type.equals("osm") && !filename.endsWith(".pbf")) {
           filename = filename + ".osm.pbf";
         }
