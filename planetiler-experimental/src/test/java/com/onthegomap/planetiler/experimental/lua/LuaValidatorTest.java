@@ -38,9 +38,13 @@ class LuaValidatorTest {
         assertNotNull(example.issues().get());
       }
     }
+    Path schemaPath = tmpDir.resolve("schema.lua");
+    Path specPath = tmpDir.resolve("spec.yml");
+    System.err
+      .println("tmpdir: " + tmpDir + " schema: " + schemaPath + " spec: " + specPath);
     // also exercise the cli writer and return what it would have printed to stdout
-    var cliOutput = validateCli(Files.writeString(tmpDir.resolve("schema"),
-      schema + "\nplanetiler.examples= '" + Files.writeString(tmpDir.resolve("spec.yml"), spec) + "'"));
+    var cliOutput = validateCli(Files.writeString(schemaPath,
+      schema + "\nplanetiler.examples= '" + Files.writeString(specPath, spec) + "'"));
 
     return new Result(result, cliOutput);
   }
