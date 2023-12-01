@@ -41,9 +41,8 @@ class LuaValidatorTest {
     Path schemaPath = tmpDir.resolve("schema.lua");
     Path specPath = tmpDir.resolve("spec.yml");
     // also exercise the cli writer and return what it would have printed to stdout
-    String script = schema + "\nplanetiler.examples= '" + Files.writeString(specPath, spec) + "'";
-    System.err
-      .println("tmpdir: " + tmpDir + " schema: " + schemaPath + " spec: " + specPath + " script:\n" + script);
+    String script = schema + "\nplanetiler.examples= '" +
+      Files.writeString(specPath, spec).toString().replace("\\", "\\\\").replace("'", "\\'") + "'";
     var cliOutput = validateCli(Files.writeString(schemaPath, script));
 
     return new Result(result, cliOutput);
