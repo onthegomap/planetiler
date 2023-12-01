@@ -8,7 +8,7 @@ planetiler.output.description = "Simple"
 planetiler.output.attribution =
 '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy;OpenStreetMap contributors</a>'
 planetiler.examples = "power.spec.yaml"
-planetiler.output.path = { "data", "buildings.pmtiles" }
+planetiler.output.path = { "data", "power.pmtiles" }
 
 local area = planetiler.args:get_string("area", "geofabrik area to download", "massachusetts")
 

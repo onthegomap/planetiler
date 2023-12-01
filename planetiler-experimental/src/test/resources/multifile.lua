@@ -7,8 +7,8 @@ planetiler.add_source('osm', {
 })
 
 local layers = {
-  require("planetiler-experimental.src.test.resources.multifile_building"),
-  require("planetiler-experimental.src.test.resources.multifile_housenumber"),
+  require("multifile_building"),
+  require("multifile_housenumber"),
 }
 
 -- TODO make a java utility that does this in a more complete, less verbose way

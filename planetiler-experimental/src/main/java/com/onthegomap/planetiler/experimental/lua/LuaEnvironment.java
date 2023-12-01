@@ -71,19 +71,21 @@ public class LuaEnvironment {
   }
 
   public static LuaEnvironment loadScript(Arguments arguments, Path script) throws IOException {
-    return loadScript(arguments, Files.readString(script), script.getFileName().toString());
+    return loadScript(arguments, Files.readString(script), script.getFileName().toString(), Map.of(),
+      ConcurrentHashMap.newKeySet(), script);
   }
 
   public static LuaEnvironment loadScript(Arguments args, Path scriptPath, Set<Path> pathsToWatch) throws IOException {
-    return loadScript(args, Files.readString(scriptPath), scriptPath.getFileName().toString(), Map.of(), pathsToWatch);
+    return loadScript(args, Files.readString(scriptPath), scriptPath.getFileName().toString(), Map.of(), pathsToWatch,
+      scriptPath);
   }
 
   public static LuaEnvironment loadScript(Arguments arguments, String script, String fileName) {
-    return loadScript(arguments, script, fileName, Map.of(), ConcurrentHashMap.newKeySet());
+    return loadScript(arguments, script, fileName, Map.of(), ConcurrentHashMap.newKeySet(), Path.of("."));
   }
 
   public static LuaEnvironment loadScript(Arguments arguments, String script, String fileName, Map<String, ?> extras,
-    Set<Path> filesLoaded) {
+    Set<Path> filesLoaded, Path scriptPath) {
     ExtraPlanetilerCoercions.install();
     boolean luajc = arguments.getBoolean("luajc", "compile lua to java bytecode", true);
     Globals globals = JsePlatform.standardGlobals();
@@ -96,8 +98,12 @@ public class LuaEnvironment {
     extras.forEach((name, java) -> globals.set(name, toLua(java)));
     var oldFilder = globals.finder;
     globals.finder = filename -> {
-      filesLoaded.add(Path.of(filename));
-      return oldFilder.findResource(filename);
+      Path path = Path.of(filename);
+      if (!Files.exists(path)) {
+        path = scriptPath.resolveSibling(filename);
+      }
+      filesLoaded.add(path);
+      return oldFilder.findResource(path.toString());
     };
     globals.load(script, fileName).call();
     LuaProfile profile = new LuaProfile(env);
@@ -107,7 +113,7 @@ public class LuaEnvironment {
   }
 
   public static LuaEnvironment loadScript(Arguments args, String script, String filename, Map<String, ?> map) {
-    return loadScript(args, script, filename, map, ConcurrentHashMap.newKeySet());
+    return loadScript(args, script, filename, map, ConcurrentHashMap.newKeySet(), Path.of(filename));
   }
 
   public void run() throws Exception {
