@@ -38,9 +38,6 @@ public interface LuaConversions {
   );
 
   static LuaValue toLua(Object sourceFeature) {
-    if (sourceFeature instanceof List<?> list) {
-      return LuaValue.listOf(list.stream().map(LuaConversions::toLua).toArray(LuaValue[]::new));
-    }
     return CoerceJavaToLua.coerce(sourceFeature);
   }
 
