@@ -64,11 +64,11 @@ class JavaClass extends JavaInstance {
 
   static final LuaValue NEW = valueOf("new");
 
-  private final Map<LuaValue, Field> fields;
-  private final Map<LuaValue, LuaValue> methods;
-  private final Map<LuaValue, Getter> getters;
-  private final Map<LuaValue, Setter> setters;
-  private final Map<LuaValue, Class<?>> innerclasses;
+  private final Map<LuaValue, Field> fields = new HashMap<>();
+  private final Map<LuaValue, LuaValue> methods = new HashMap<>();
+  private final Map<LuaValue, Getter> getters = new HashMap<>();
+  private final Map<LuaValue, Setter> setters = new HashMap<>();
+  private final Map<LuaValue, Class<?>> innerclasses = new HashMap<>();
   public final boolean bindMethods;
 
   static JavaClass forClass(Class<?> c) {
@@ -85,20 +85,16 @@ class JavaClass extends JavaInstance {
     this.jclass = this;
     this.bindMethods = c.isAnnotationPresent(LuaBindMethods.class);
     // planetiler change: compute these maps eagerly
-    fields = computeFields();
-    var result = computeMethods();
-    methods = result.methods;
-    getters = result.getters;
-    setters = result.setters;
-    innerclasses = computeInnerClasses();
+    computeFields();
+    computeMethods();
+    computeInnerClasses();
   }
 
   private Map<LuaValue, Field> computeFields() {
-    Map<LuaValue, Field> tmpFields = new HashMap<>();
     Field[] f = ((Class<?>) m_instance).getFields();
     for (Field fi : f) {
       if (Modifier.isPublic(fi.getModifiers())) {
-        tmpFields.put(LuaValue.valueOf(fi.getName()), fi);
+        fields.put(LuaValue.valueOf(fi.getName()), fi);
         try {
           if (!fi.isAccessible()) {
             fi.setAccessible(true);
@@ -109,14 +105,11 @@ class JavaClass extends JavaInstance {
     }
 
     // planetiler change: add snake_case aliases for camelCase methods
-    putAliases(tmpFields);
-    return Map.copyOf(tmpFields);
+    putAliases(fields);
+    return fields;
   }
 
-  private Methods computeMethods() {
-    Map<LuaValue, LuaValue> tmpMethods = new HashMap<>();
-    Map<LuaValue, Getter> tmpGettters = new HashMap<>();
-    Map<LuaValue, Setter> tmpSetters = new HashMap<>();
+  private void computeMethods() {
     Map<String, List<JavaMethod>> namedlists = new HashMap<>();
     Class<?> clazz = (Class<?>) m_instance;
     Set<String> recordComponents =
@@ -129,9 +122,9 @@ class JavaClass extends JavaInstance {
         // also allow record components to be accessed as properties
         if ((recordComponents.contains(name) || mi.isAnnotationPresent(LuaGetter.class)) &&
           mi.getParameterCount() == 0) {
-          tmpGettters.put(LuaString.valueOf(name), new Getter(mi));
+          getters.put(LuaString.valueOf(name), new Getter(mi));
         } else if (mi.isAnnotationPresent(LuaSetter.class)) {
-          tmpSetters.put(LuaString.valueOf(name), new Setter(mi, mi.getParameterTypes()[0]));
+          setters.put(LuaString.valueOf(name), new Setter(mi, mi.getParameterTypes()[0]));
         }
         namedlists.computeIfAbsent(name, k -> new ArrayList<>()).add(JavaMethod.forMethod(mi));
       }
@@ -147,10 +140,10 @@ class JavaClass extends JavaInstance {
       case 0:
         break;
       case 1:
-        tmpMethods.put(NEW, list.get(0));
+        methods.put(NEW, list.get(0));
         break;
       default:
-        tmpMethods.put(NEW,
+        methods.put(NEW,
           JavaConstructor.forConstructors(list.toArray(JavaConstructor[]::new)));
         break;
     }
@@ -161,31 +154,22 @@ class JavaClass extends JavaInstance {
       LuaValue luaMethod = classMethods.size() == 1 ?
         classMethods.get(0) :
         JavaMethod.forMethods(classMethods.toArray(JavaMethod[]::new));
-      tmpMethods.put(LuaValue.valueOf(name), luaMethod);
+      methods.put(LuaValue.valueOf(name), luaMethod);
     }
 
     // planetiler change: add snake_case aliases for camelCase methods
-    putAliases(tmpMethods);
-    putAliases(tmpGettters);
-    putAliases(tmpSetters);
-    return new Methods(
-      Map.copyOf(tmpMethods),
-      Map.copyOf(tmpGettters),
-      Map.copyOf(tmpSetters)
-    );
+    putAliases(methods);
+    putAliases(getters);
+    putAliases(setters);
   }
 
-  record Methods(Map<LuaValue, LuaValue> methods, Map<LuaValue, Getter> getters, Map<LuaValue, Setter> setters) {}
-
-  private Map<LuaValue, Class<?>> computeInnerClasses() {
-    Map<LuaValue, Class<?>> result = new HashMap<>();
+  private void computeInnerClasses() {
     Class<?>[] c = ((Class<?>) m_instance).getClasses();
     for (Class<?> ci : c) {
       String name = ci.getName();
       String stub = name.substring(Math.max(name.lastIndexOf('$'), name.lastIndexOf('.')) + 1);
-      result.put(LuaValue.valueOf(stub), ci);
+      innerclasses.put(LuaValue.valueOf(stub), ci);
     }
-    return Map.copyOf(result);
   }
 
   private <T> void putAliases(Map<LuaValue, T> map) {

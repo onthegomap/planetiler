@@ -124,7 +124,7 @@ class JavaInstance extends LuaUserdata {
 
   public LuaValue get(LuaValue key) {
     // planetiler change: allow lists to be accessed as tables
-    if (key.isnumber() && m_instance instanceof List<?> c) {
+    if (m_instance instanceof List<?> c) {
       int idx = key.toint();
       return idx <= 0 || idx > c.size() ? LuaValue.NIL : CoerceJavaToLua.coerce(c.get(idx - 1));
     }

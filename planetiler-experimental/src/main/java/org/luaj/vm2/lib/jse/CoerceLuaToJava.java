@@ -282,7 +282,9 @@ public class CoerceLuaToJava {
     }
   }
 
-  private static final Map<Class<?>, Map<Class<?>, Integer>> inheritanceLevelsCache = new ConcurrentHashMap<>();
+  private static final Map<ClassPair, Integer> inheritanceLevelsCache = new ConcurrentHashMap<>();
+
+  private record ClassPair(Class<?> baseClass, Class<?> subclass) {}
 
   /**
    * Determine levels of inheritance between a base class and a subclass
@@ -296,11 +298,9 @@ public class CoerceLuaToJava {
       return SCORE_UNCOERCIBLE;
     if (baseclass == subclass)
       return 0;
-    Map<Class<?>, Integer> map = inheritanceLevelsCache.get(baseclass);
-    if (map == null) {
-      map = inheritanceLevelsCache.computeIfAbsent(baseclass, k -> new ConcurrentHashMap<>());
-    }
-    Integer result = map.get(subclass);
+    // planetiler change: cache result of this value to improve performance
+    ClassPair key = new ClassPair(baseclass, subclass);
+    Integer result = inheritanceLevelsCache.get(key);
     if (result != null) {
       return result;
     }
@@ -308,7 +308,8 @@ public class CoerceLuaToJava {
     Class<?>[] ifaces = subclass.getInterfaces();
     for (Class<?> iface : ifaces)
       min = Math.min(min, inheritanceLevels(baseclass, iface) + 1);
-    map.put(subclass, min);
+    // best-effort cache, might end up computing a few times but that's ok
+    inheritanceLevelsCache.put(key, min);
     return min;
   }
 

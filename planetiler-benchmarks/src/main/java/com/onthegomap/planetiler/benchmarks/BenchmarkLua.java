@@ -21,17 +21,20 @@ public class BenchmarkLua {
       LuaEnvironment.loadScript(Arguments.of(), Path.of("planetiler-experimental/src/test/resources/power.lua"));
     var feature = SimpleFeature.createFakeOsmFeature(GeoUtils.JTS_FACTORY.createPoint(new CoordinateXY(0, 0)), Map.of(),
       "", "", 1, List.of());
+    int batch = 1_000_000;
     var fc = new FeatureCollector.Factory(PlanetilerConfig.defaults(), Stats.inMemory());
-    for (int i = 0; i < 1_000; i++) {
+    for (int i = 0; i < batch; i++) {
       env.profile.processFeature(feature, fc.get(feature));
     }
     long start = System.currentTimeMillis();
-    int num = 2_000_000;
-    for (int i = 0; i < num; i++) {
-      env.profile.processFeature(feature, fc.get(feature));
-    }
+    int num = 0;
+    do {
+      for (int i = 0; i < batch; i++) {
+        env.profile.processFeature(feature, fc.get(feature));
+      }
+      num += batch;
+    } while (System.currentTimeMillis() - start < 1_000);
     long end = System.currentTimeMillis();
-    System.err.println("took " + (end - start) + "ms " +
-      Format.defaultInstance().numeric(num / ((end - start) / 1000.0)) + " features/sec");
+    System.err.println(Format.defaultInstance().numeric(num / ((end - start) / 1000.0)) + " calls/sec");
   }
 }
