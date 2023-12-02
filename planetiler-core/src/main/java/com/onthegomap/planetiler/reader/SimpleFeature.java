@@ -1,8 +1,10 @@
 package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
+import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,29 +78,73 @@ public class SimpleFeature extends SourceFeature {
     return new SimpleFeature(latLonGeometry, null, tags, null, null, idGenerator.incrementAndGet(), null);
   }
 
+  private static class SimpleOsmFeature extends SimpleFeature implements OsmSourceFeature {
+
+    private final String area;
+    private final OsmElement.Info info;
+
+    private SimpleOsmFeature(Geometry latLonGeometry, Geometry worldGeometry, Map<String, Object> tags, String source,
+      String sourceLayer, long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations, OsmElement.Info info) {
+      super(latLonGeometry, worldGeometry, tags, source, sourceLayer, id, relations);
+      this.area = (String) tags.get("area");
+      this.info = info;
+    }
+
+    @Override
+    public boolean canBePolygon() {
+      return latLonGeometry() instanceof Polygonal || (latLonGeometry() instanceof LineString line &&
+        OsmReader.canBePolygon(line.isClosed(), area, latLonGeometry().getNumPoints()));
+    }
+
+    @Override
+    public boolean canBeLine() {
+      return latLonGeometry() instanceof MultiLineString || (latLonGeometry() instanceof LineString line &&
+        OsmReader.canBeLine(line.isClosed(), area, latLonGeometry().getNumPoints()));
+    }
+
+    @Override
+    protected Geometry computePolygon() {
+      var geom = worldGeometry();
+      return geom instanceof LineString line ? GeoUtils.JTS_FACTORY.createPolygon(line.getCoordinates()) : geom;
+    }
+
+
+    @Override
+    public OsmElement originalElement() {
+      return new OsmElement() {
+        @Override
+        public long id() {
+          return SimpleOsmFeature.this.id();
+        }
+
+        @Override
+        public Info info() {
+          return info;
+        }
+
+        @Override
+        public int cost() {
+          return 1;
+        }
+
+        @Override
+        public Map<String, Object> tags() {
+          return tags();
+        }
+      };
+    }
+  }
+
   /** Returns a new feature with OSM relation info. Useful for setting up inputs for OSM unit tests. */
   public static SimpleFeature createFakeOsmFeature(Geometry latLonGeometry, Map<String, Object> tags, String source,
     String sourceLayer, long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations) {
-    String area = (String) tags.get("area");
-    return new SimpleFeature(latLonGeometry, null, tags, source, sourceLayer, id, relations) {
-      @Override
-      public boolean canBePolygon() {
-        return latLonGeometry instanceof Polygonal || (latLonGeometry instanceof LineString line &&
-          OsmReader.canBePolygon(line.isClosed(), area, latLonGeometry.getNumPoints()));
-      }
+    return createFakeOsmFeature(latLonGeometry, tags, source, sourceLayer, id, relations, null);
+  }
 
-      @Override
-      public boolean canBeLine() {
-        return latLonGeometry instanceof MultiLineString || (latLonGeometry instanceof LineString line &&
-          OsmReader.canBeLine(line.isClosed(), area, latLonGeometry.getNumPoints()));
-      }
-
-      @Override
-      protected Geometry computePolygon() {
-        var geom = worldGeometry();
-        return geom instanceof LineString line ? GeoUtils.JTS_FACTORY.createPolygon(line.getCoordinates()) : geom;
-      }
-    };
+  /** Returns a new feature with OSM relation info and metadata. Useful for setting up inputs for OSM unit tests. */
+  public static SimpleFeature createFakeOsmFeature(Geometry latLonGeometry, Map<String, Object> tags, String source,
+    String sourceLayer, long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations, OsmElement.Info info) {
+    return new SimpleOsmFeature(latLonGeometry, null, tags, source, sourceLayer, id, relations, info);
   }
 
   @Override

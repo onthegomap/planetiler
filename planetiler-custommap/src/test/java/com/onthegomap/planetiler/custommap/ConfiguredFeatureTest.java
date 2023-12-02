@@ -22,6 +22,7 @@ import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.reader.SimpleFeature;
 import com.onthegomap.planetiler.reader.SourceFeature;
+import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.stats.Stats;
 import java.nio.file.Path;
 import java.util.List;
@@ -40,6 +41,7 @@ class ConfiguredFeatureTest {
   private static final Function<String, Path> TEST_RESOURCE = TestConfigurableUtils::pathToTestResource;
   private static final Function<String, Path> SAMPLE_RESOURCE = TestConfigurableUtils::pathToSample;
   private static final Function<String, Path> TEST_INVALID_RESOURCE = TestConfigurableUtils::pathToTestInvalidResource;
+  private static final OsmElement.Info OSM_INFO = new OsmElement.Info(2, 3, 4, 5, "user");
 
   private static final Map<String, Object> waterTags = Map.of(
     "natural", "water",
@@ -130,14 +132,15 @@ class ConfiguredFeatureTest {
   private void testPolygon(String config, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
-      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList(),
+        OSM_INFO);
     testFeature(config, sf, test, expectedMatchCount);
   }
 
   private void testPoint(String config, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
-      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), tags, "osm", null, 1, emptyList());
+      SimpleFeature.createFakeOsmFeature(newPoint(0, 0), tags, "osm", null, 1, emptyList(), OSM_INFO);
     testFeature(config, sf, test, expectedMatchCount);
   }
 
@@ -145,21 +148,22 @@ class ConfiguredFeatureTest {
   private void testLinestring(String config,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
-      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList(), OSM_INFO);
     testFeature(config, sf, test, expectedMatchCount);
   }
 
   private void testPolygon(Function<String, Path> pathFunction, String schemaFilename, Map<String, Object> tags,
     Consumer<Feature> test, int expectedMatchCount) {
     var sf =
-      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList());
+      SimpleFeature.createFakeOsmFeature(newPolygon(0, 0, 1, 0, 1, 1, 0, 0), tags, "osm", null, 1, emptyList(),
+        OSM_INFO);
     testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
   }
 
   private void testLinestring(Function<String, Path> pathFunction, String schemaFilename,
     Map<String, Object> tags, Consumer<Feature> test, int expectedMatchCount) {
     var sf =
-      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList());
+      SimpleFeature.createFakeOsmFeature(newLineString(0, 0, 1, 0, 1, 1), tags, "osm", null, 1, emptyList(), OSM_INFO);
     testFeature(pathFunction, schemaFilename, sf, test, expectedMatchCount);
   }
 
@@ -547,6 +551,11 @@ class ConfiguredFeatureTest {
     "\\\\${feature.id}|\\${feature.id}",
     "${feature.source}|osm",
     "${feature.source_layer}|null",
+    "${feature.osm_changeset}|2",
+    "${feature.osm_timestamp}|3",
+    "${feature.osm_user_id}|4",
+    "${feature.osm_version}|5",
+    "${feature.osm_user_name}|user",
     "${coalesce(feature.source_layer, 'missing')}|missing",
     "{match: {test: {natural: water}}}|test",
     "{match: {test: {natural: not_water}}}|null",
