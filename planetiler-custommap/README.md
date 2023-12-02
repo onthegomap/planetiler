@@ -485,6 +485,11 @@ nested, so each child context can also access the variables from its parent.
 >> - `feature.id` - numeric ID of the input feature
 >> - `feature.source` - string source ID this feature came from
 >> - `feature.source_layer` - optional layer within the source the feature came from
+>> - `feature.osm_changeset` - optional OSM changeset ID for this feature
+>> - `feature.osm_version` - optional OSM element version for this feature
+>> - `feature.osm_timestamp` - optional OSM last modified timestamp for this feature
+>> - `feature.osm_user_id` - optional ID of the OSM user that last modified this feature
+>> - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
 >>
 >>> ##### post-match context
 >>>
