@@ -133,6 +133,20 @@ public class SimpleFeature extends SourceFeature {
         }
       };
     }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o || (o instanceof SimpleOsmFeature other && super.equals(other) &&
+        Objects.equals(area, other.area) && Objects.equals(info, other.info));
+    }
+
+    @Override
+    public int hashCode() {
+      int result = super.hashCode();
+      result = 31 * result + (area != null ? area.hashCode() : 0);
+      result = 31 * result + (info != null ? info.hashCode() : 0);
+      return result;
+    }
   }
 
   /** Returns a new feature with OSM relation info. Useful for setting up inputs for OSM unit tests. */
