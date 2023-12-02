@@ -26,9 +26,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import org.luaj.vm2.lib.MathLib;
 
 /**
+ * Modified version of LuaString that includes some performance improvements and bug fixes.
+ * <p>
  * Subclass of {@link LuaValue} for representing lua strings.
  * <p>
  * Because lua string values are more nearly sequences of bytes than sequences of characters or unicode code points, the
@@ -78,12 +81,15 @@ public class LuaString extends LuaValue {
 
   /** The hashcode for this string. Computed at construct time. */
   private final int m_hashcode;
+  // planetiler change: cache the string
+  private volatile String m_string;
 
+  // planetiler change: cache more strings
   /**
    * Size of cache of recent short strings. This is the maximum number of LuaStrings that will be retained in the cache
    * of recent short strings. Exposed to package for testing.
    */
-  static final int RECENT_STRINGS_CACHE_SIZE = 128;
+  static final int RECENT_STRINGS_CACHE_SIZE = 4096;
 
   /**
    * Maximum length of a string to be considered for recent short strings caching. This effectively limits the total
@@ -269,7 +275,15 @@ public class LuaString extends LuaValue {
   }
 
   public String tojstring() {
-    return decodeAsUtf8(m_bytes, m_offset, m_length);
+    // planetiler change: cache this value
+    if (m_string == null) {
+      synchronized (this) {
+        if (m_string == null) {
+          m_string = decodeAsUtf8(m_bytes, m_offset, m_length);
+        }
+      }
+    }
+    return m_string;
   }
 
   // unary operators
@@ -835,22 +849,8 @@ public class LuaString extends LuaValue {
    * @see #isValidUtf8()
    */
   public static String decodeAsUtf8(byte[] bytes, int offset, int length) {
-    int i, j, n, b;
-    for (i = offset, j = offset + length, n = 0; i < j; ++n) {
-      switch (0xE0 & bytes[i++]) {
-        case 0xE0:
-          ++i;
-        case 0xC0:
-          ++i;
-      }
-    }
-    char[] chars = new char[n];
-    for (i = offset, j = offset + length, n = 0; i < j;) {
-      chars[n++] = (char) (((b = bytes[i++]) >= 0 || i >= j) ? b :
-        (b < -32 || i + 1 >= j) ? (((b & 0x3f) << 6) | (bytes[i++] & 0x3f)) :
-        (((b & 0xf) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f)));
-    }
-    return new String(chars);
+    // planetiler change: use java built-in UTF-8 decoding, which is faster
+    return new String(bytes, offset, length, StandardCharsets.UTF_8);
   }
 
   /**
