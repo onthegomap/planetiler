@@ -81,8 +81,9 @@ public class LuaString extends LuaValue {
 
   /** The hashcode for this string. Computed at construct time. */
   private final int m_hashcode;
-  // planetiler change: cache the string
-  private volatile String m_string;
+  // planetiler change: cache some values that are expensive to recompute
+  private volatile String cached_string;
+  private volatile Boolean cached_utf8;
 
   // planetiler change: cache more strings
   /**
@@ -276,14 +277,14 @@ public class LuaString extends LuaValue {
 
   public String tojstring() {
     // planetiler change: cache this value
-    if (m_string == null) {
+    if (cached_string == null) {
       synchronized (this) {
-        if (m_string == null) {
-          m_string = decodeAsUtf8(m_bytes, m_offset, m_length);
+        if (cached_string == null) {
+          cached_string = decodeAsUtf8(m_bytes, m_offset, m_length);
         }
       }
     }
-    return m_string;
+    return cached_string;
   }
 
   // unary operators
@@ -912,6 +913,19 @@ public class LuaString extends LuaValue {
    * @see #decodeAsUtf8(byte[], int, int)
    */
   public boolean isValidUtf8() {
+
+    // planetiler change: cache the result of this
+    if (cached_utf8 == null) {
+      synchronized (this) {
+        if (cached_utf8 == null) {
+          cached_utf8 = computeIsValidUtf8();
+        }
+      }
+    }
+    return cached_utf8;
+  }
+
+  private boolean computeIsValidUtf8() {
     for (int i = m_offset, j = m_offset + m_length; i < j;) {
       int c = m_bytes[i++];
       if (c >= 0)
