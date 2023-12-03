@@ -18,11 +18,14 @@ import com.onthegomap.planetiler.util.Parse;
 import com.onthegomap.planetiler.util.SortKey;
 import com.onthegomap.planetiler.util.Translations;
 import com.onthegomap.planetiler.util.ZoomFunction;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -105,7 +108,12 @@ public class LuaEnvironment {
       filesLoaded.add(path);
       return oldFilder.findResource(path.toString());
     };
-    globals.load(script, fileName).call();
+    // ensure source is treated as UTF-8
+    try (var in = new ByteArrayInputStream(script.getBytes(StandardCharsets.UTF_8))) {
+      globals.load(in, fileName, "t", globals).call();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
     LuaProfile profile = new LuaProfile(env);
     env.profile = new LuaProfile(env);
     env.main = globals.get("main");

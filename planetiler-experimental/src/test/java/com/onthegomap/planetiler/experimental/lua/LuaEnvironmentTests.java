@@ -724,6 +724,20 @@ class LuaEnvironmentTests {
     assertConvertsTo(2, env.main.call());
   }
 
+  @Test
+  void testEmoji() {
+    var env = load("""
+      function main()
+        return '👍'
+      end
+      """, Map.of("obj", new Object() {
+      public int[] call() {
+        return new int[]{1};
+      }
+    }));
+    assertConvertsTo("👍", env.main.call());
+  }
+
   private static <T> void assertConvertsTo(T java, LuaValue lua) {
     assertConvertsTo(java.getClass(), java, lua);
   }
