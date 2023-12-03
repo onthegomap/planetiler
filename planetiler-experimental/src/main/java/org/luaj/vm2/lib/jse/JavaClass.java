@@ -82,7 +82,6 @@ class JavaClass extends JavaInstance {
 
   JavaClass(Class<?> c) {
     super(c);
-    this.jclass = this;
     this.bindMethods = c.isAnnotationPresent(LuaBindMethods.class);
     // planetiler change: compute these maps eagerly
     computeFields();

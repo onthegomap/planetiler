@@ -50,14 +50,16 @@ import org.luaj.vm2.Varargs;
  */
 class JavaInstance extends LuaUserdata {
 
-  volatile JavaClass jclass;
+  private final JavaClass jclass;
   private final Map<LuaValue, LuaValue> boundMethods;
 
   JavaInstance(Object instance) {
     super(instance);
     // planetiler change: when class annotated with @LuaBindMethods, allow methods to be called with instance.method()
-    if (m_instance.getClass().isAnnotationPresent(LuaBindMethods.class)) {
-      boundMethods = jclass().getMethods().entrySet().stream().collect(Collectors.toMap(
+    var clazz = m_instance.getClass();
+    jclass = this instanceof JavaClass c ? c : JavaClass.forClass(clazz);
+    if (clazz.isAnnotationPresent(LuaBindMethods.class)) {
+      boundMethods = jclass.getMethods().entrySet().stream().collect(Collectors.toMap(
         Map.Entry::getKey,
         entry -> new BoundMethod(entry.getValue())
       ));
@@ -111,25 +113,13 @@ class JavaInstance extends LuaUserdata {
     }
   }
 
-  private JavaClass jclass() {
-    if (jclass == null) {
-      synchronized (this) {
-        if (jclass == null) {
-          jclass = JavaClass.forClass(m_instance.getClass());
-        }
-      }
-    }
-    return jclass;
-  }
-
   public LuaValue get(LuaValue key) {
     // planetiler change: allow lists to be accessed as tables
     if (m_instance instanceof List<?> c) {
       int idx = key.toint();
       return idx <= 0 || idx > c.size() ? LuaValue.NIL : CoerceJavaToLua.coerce(c.get(idx - 1));
     }
-    JavaClass clazz = jclass();
-    Field f = clazz.getField(key);
+    Field f = jclass.getField(key);
     if (f != null)
       try {
         return CoerceJavaToLua.coerce(f.get(m_instance));
@@ -137,7 +127,7 @@ class JavaInstance extends LuaUserdata {
         throw new LuaError(e);
       }
     // planetiler change: allow getter methods
-    var getter = clazz.getGetter(key);
+    var getter = jclass.getGetter(key);
     if (getter != null) {
       try {
         return CoerceJavaToLua.coerce(getter.get(m_instance));
@@ -145,10 +135,10 @@ class JavaInstance extends LuaUserdata {
         throw new LuaError(e);
       }
     }
-    LuaValue m = boundMethods != null ? boundMethods.get(key) : clazz.getMethod(key);
+    LuaValue m = boundMethods != null ? boundMethods.get(key) : jclass.getMethod(key);
     if (m != null)
       return m;
-    Class<?> c = clazz.getInnerClass(key);
+    Class<?> c = jclass.getInnerClass(key);
     if (c != null)
       return JavaClass.forClass(c);
 
@@ -171,8 +161,7 @@ class JavaInstance extends LuaUserdata {
       c.set(key.toint() - 1, CoerceLuaToJava.coerce(value, Object.class));
       return;
     }
-    JavaClass clazz = jclass();
-    Field f = clazz.getField(key);
+    Field f = jclass.getField(key);
     if (f != null)
       try {
         f.set(m_instance, CoerceLuaToJava.coerce(value, f.getType()));
@@ -181,7 +170,7 @@ class JavaInstance extends LuaUserdata {
         throw new LuaError(e);
       }
     // planetiler change: allow setter methods
-    var setter = clazz.getSetter(key);
+    var setter = jclass.getSetter(key);
     if (setter != null) {
       try {
         setter.set(m_instance, CoerceLuaToJava.coerce(value, setter.type()));

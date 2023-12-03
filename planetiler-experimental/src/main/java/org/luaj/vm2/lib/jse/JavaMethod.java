@@ -24,6 +24,8 @@ package org.luaj.vm2.lib.jse;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.luaj.vm2.LuaError;
@@ -148,10 +150,25 @@ class JavaMethod extends JavaMember {
    */
   static class Overload extends LuaFunction {
 
-    final JavaMethod[] methods;
+    private final JavaMethod[][] methodsByArgCount;
 
     Overload(JavaMethod[] methods) {
-      this.methods = methods;
+      int max = 0;
+      // planetiler change: precompute which methods are valid based on number of args
+      for (JavaMethod method : methods) {
+        max = Math.max(max, method.fixedargs.length + (method.varargs != null ? 2 : 0));
+      }
+      this.methodsByArgCount = new JavaMethod[max + 1][];
+      for (int nargs = 0; nargs <= max; nargs++) {
+        List<JavaMethod> methodsForCount = new ArrayList<>();
+        for (JavaMethod javaMethod : methods) {
+          int fixed = javaMethod.fixedargs.length;
+          if (nargs == fixed || nargs > fixed && javaMethod.varargs != null) {
+            methodsForCount.add(javaMethod);
+          }
+        }
+        methodsByArgCount[nargs] = methodsForCount.isEmpty() ? methods : methodsForCount.toArray(JavaMethod[]::new);
+      }
     }
 
     public LuaValue call() {
@@ -176,14 +193,22 @@ class JavaMethod extends JavaMember {
 
     private LuaValue invokeBestMethod(Object instance, Varargs args) {
       JavaMethod best = null;
-      int score = Integer.MAX_VALUE;
-      for (int i = 0; i < methods.length; i++) {
-        int s = methods[i].score(args);
-        if (s < score) {
-          score = s;
-          best = methods[i];
-          if (score == 0)
-            break;
+
+      // first pass: filter possible methods by number of args provided
+      JavaMethod[] methods = methodsByArgCount[Math.min(methodsByArgCount.length - 1, args.narg())];
+      if (methods.length == 1) {
+        best = methods[0];
+      } else if (methods.length != 0) {
+        int score = Integer.MAX_VALUE;
+        // if there are multiple, then pick the one with the best score
+        for (JavaMethod javaMethod : methods) {
+          int s = javaMethod.score(args);
+          if (s < score) {
+            score = s;
+            best = javaMethod;
+            if (score == 0)
+              break;
+          }
         }
       }
 
