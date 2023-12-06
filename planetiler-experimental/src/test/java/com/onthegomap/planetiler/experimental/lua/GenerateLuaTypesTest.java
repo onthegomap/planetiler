@@ -491,6 +491,6 @@ class GenerateLuaTypesTest {
   }
 
   private static String fixNewlines(String input) {
-    return input.replaceAll("[\n\r]]", System.lineSeparator());
+    return input.replaceAll("[\n\r]", System.lineSeparator());
   }
 }
