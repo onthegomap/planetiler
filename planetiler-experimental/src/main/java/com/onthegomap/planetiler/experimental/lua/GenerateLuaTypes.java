@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -126,13 +127,27 @@ public class GenerateLuaTypes {
   }
 
   private static String transformMemberName(String fieldName) {
-    if (!fieldName.contains("_") && fieldName.matches("^.*[A-Z].*$") && fieldName.matches("^.*[a-z].*$")) {
+    if (isLowerCamelCase(fieldName)) {
       fieldName = CAMEL_TO_SNAKE_CASE.convert(fieldName);
     }
-    if (LuaConversions.LUA_AND_NOT_JAVA_KEYWORDS.contains(fieldName)) {
-      fieldName = fieldName.toUpperCase(Locale.ROOT);
+    if (LuaConversions.LUA_KEYWORDS.contains(fieldName)) {
+      fieldName = Objects.requireNonNull(fieldName).toUpperCase(Locale.ROOT);
     }
     return fieldName;
+  }
+
+  private static boolean isLowerCamelCase(String fieldName) {
+    var chars = fieldName.toCharArray();
+    if (!Character.isLowerCase(chars[0])) {
+      return false;
+    }
+    boolean upper = false, lower = false, underscore = false;
+    for (char c : chars) {
+      upper |= Character.isUpperCase(c);
+      lower |= Character.isLowerCase(c);
+      underscore |= c == '_';
+    }
+    return upper && lower && !underscore;
   }
 
   private void write(String line) {

@@ -175,7 +175,7 @@ public class JavaClass extends JavaInstance {
     for (var entry : List.copyOf(map.entrySet())) {
       String key = entry.getKey().tojstring();
       String key2;
-      if (LuaConversions.LUA_AND_NOT_JAVA_KEYWORDS.contains(key)) {
+      if (LuaConversions.LUA_KEYWORDS.contains(key)) {
         key2 = key.toUpperCase();
       } else {
         key2 = CAMEL_TO_SNAKE_CASE.convert(key);

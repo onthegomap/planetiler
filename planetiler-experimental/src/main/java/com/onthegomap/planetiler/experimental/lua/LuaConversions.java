@@ -22,19 +22,11 @@ import org.luaj.vm2.lib.jse.CoerceLuaToJava;
  * Helper methods to convert between lua and java types.
  */
 public interface LuaConversions {
-  Set<String> LUA_AND_NOT_JAVA_KEYWORDS = Set.of(
-    "and",
-    "elseif",
-    "end",
-    "function",
-    "in",
-    "local",
-    "nil",
-    "not",
-    "or",
-    "repeat",
-    "then",
-    "until"
+  Set<String> LUA_KEYWORDS = Set.of(
+    "and", "break", "do", "else", "elseif",
+    "end", "false", "for", "function", "if",
+    "in", "local", "nil", "not", "or",
+    "repeat", "return", "then", "true", "until", "while"
   );
 
   static LuaValue toLua(Object sourceFeature) {
