@@ -10,6 +10,7 @@ import com.onthegomap.planetiler.examples.BikeRouteOverlay;
 import com.onthegomap.planetiler.examples.OsmQaTiles;
 import com.onthegomap.planetiler.examples.ToiletsOverlay;
 import com.onthegomap.planetiler.examples.ToiletsOverlayLowLevelApi;
+import com.onthegomap.planetiler.experimental.lua.GenerateLuaTypes;
 import com.onthegomap.planetiler.experimental.lua.LuaMain;
 import com.onthegomap.planetiler.experimental.lua.LuaValidator;
 import com.onthegomap.planetiler.mbtiles.Verify;
@@ -46,6 +47,7 @@ public class Main {
     entry("custom", ConfiguredMapMain::main),
 
     entry("lua", LuaMain::main),
+    entry("lua-types", GenerateLuaTypes::main),
 
     entry("generate-shortbread", bundledSchema("shortbread.yml")),
     entry("shortbread", bundledSchema("shortbread.yml")),

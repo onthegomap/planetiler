@@ -738,6 +738,88 @@ class LuaEnvironmentTests {
     assertConvertsTo("👍", env.main.call());
   }
 
+  @Test
+  void testArrayLength() {
+    var env = load("""
+      function main()
+        return #{1}
+      end
+      """, Map.of("obj", new Object() {
+      public int[] call() {
+        return new int[]{1};
+      }
+    }));
+    assertConvertsTo(1, env.main.call());
+  }
+
+  @Test
+  void testJavaArrayLength() {
+    var env = load("""
+      function main()
+        return #obj:call()
+      end
+      """, Map.of("obj", new Object() {
+      public int[] call() {
+        return new int[]{1};
+      }
+    }));
+    assertConvertsTo(1, env.main.call());
+  }
+
+  @Test
+  void testJavaListLength() {
+    var env = load("""
+      function main()
+        return #obj:call()
+      end
+      """, Map.of("obj", new Object() {
+      public List<Integer> call() {
+        return List.of(1);
+      }
+    }));
+    assertConvertsTo(1, env.main.call());
+  }
+
+  @Test
+  void testEnum() {
+    enum MyEnum {
+      A,
+      B,
+      C
+    };
+    var env = load("""
+      function main()
+        return {
+           obj:call(0),
+           obj:call('B'),
+           obj:call(enum.C),
+           obj:call2(0)
+        }
+      end
+      """, Map.of("enum", MyEnum.class, "obj", new Object() {
+
+      public int call(MyEnum e) {
+        return e.ordinal();
+      }
+
+      public MyEnum call2(int ordinal) {
+        return MyEnum.values()[ordinal];
+      }
+    }));
+    assertConvertsTo(List.class, List.of(
+      0, 1, 2, MyEnum.A
+    ), env.main.call());
+  }
+
+  public static class MyObj {
+    public int value = 1;
+    public static int staticValue = 1;
+
+    public static int get() {
+      return 1;
+    }
+  }
+
   private static <T> void assertConvertsTo(T java, LuaValue lua) {
     assertConvertsTo(java.getClass(), java, lua);
   }

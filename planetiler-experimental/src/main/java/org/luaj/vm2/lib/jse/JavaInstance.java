@@ -113,6 +113,14 @@ class JavaInstance extends LuaUserdata {
     }
   }
 
+  @Override
+  public LuaValue len() {
+    if (m_instance instanceof List<?> c) {
+      return LuaValue.valueOf(c.size());
+    }
+    return super.len();
+  }
+
   public LuaValue get(LuaValue key) {
     // planetiler change: allow lists to be accessed as tables
     if (m_instance instanceof List<?> c) {

@@ -56,7 +56,7 @@ import org.luaj.vm2.LuaValue;
  * @see CoerceJavaToLua
  * @see CoerceLuaToJava
  */
-class JavaClass extends JavaInstance {
+public class JavaClass extends JavaInstance {
   private static final Converter<String, String> CAMEL_TO_SNAKE_CASE =
     CaseFormat.LOWER_CAMEL.converterTo(CaseFormat.LOWER_UNDERSCORE);
 
@@ -71,7 +71,7 @@ class JavaClass extends JavaInstance {
   private final Map<LuaValue, Class<?>> innerclasses = new HashMap<>();
   public final boolean bindMethods;
 
-  static JavaClass forClass(Class<?> c) {
+  public static JavaClass forClass(Class<?> c) {
     // planetiler change: use ConcurrentHashMap instead of synchronized map to improve performance
     JavaClass j = classes.get(c);
     if (j == null) {

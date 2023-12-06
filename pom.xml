@@ -19,6 +19,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
+    <!-- include parameter names so GenerateLuaTypes can generate lua type definitions through reflection API -->
+    <maven.compiler.parameters>true</maven.compiler.parameters>
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.16.0</jackson.version>
     <junit.version>5.10.1</junit.version>

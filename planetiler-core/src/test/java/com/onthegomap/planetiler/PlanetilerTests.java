@@ -207,18 +207,6 @@ class PlanetilerTests {
   private PlanetilerResults runWithOsmElements(
     Map<String, String> args,
     List<OsmElement> features,
-    BiConsumer<SourceFeature, FeatureCollector> profileFunction
-  ) throws Exception {
-    return run(
-      args,
-      (featureGroup, profile, config) -> processOsmFeatures(featureGroup, profile, config, features),
-      TestProfile.processSourceFeatures(profileFunction)
-    );
-  }
-
-  private PlanetilerResults runWithOsmElements(
-    Map<String, String> args,
-    List<OsmElement> features,
     Profile profileToUse
   ) throws Exception {
     return run(

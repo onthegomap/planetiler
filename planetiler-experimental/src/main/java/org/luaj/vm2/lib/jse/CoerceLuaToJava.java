@@ -22,8 +22,10 @@
 package org.luaj.vm2.lib.jse;
 
 import java.lang.reflect.Array;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.luaj.vm2.LuaInteger;
 import org.luaj.vm2.LuaString;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
@@ -282,6 +284,40 @@ public class CoerceLuaToJava {
     }
   }
 
+  static final class EnumCoercion implements Coercion {
+    private final Map<LuaValue, Object> lookup = new HashMap<>();
+    private final Class<?> enumType;
+
+
+    public EnumCoercion(Class<?> enumType) {
+      this.enumType = enumType;
+      for (Object e : enumType.getEnumConstants()) {
+        lookup.put(LuaString.valueOf(e.toString()), e);
+        lookup.put(LuaInteger.valueOf(((Enum<?>) e).ordinal()), e);
+      }
+    }
+
+    public String toString() {
+      return "EnumCoercion(" + enumType.getName() + ")";
+    }
+
+    public int score(LuaValue value) {
+      return switch (value.type()) {
+        case LuaValue.TNUMBER, LuaValue.TSTRING -> 0;
+        case LuaValue.TUSERDATA -> value.touserdata().getClass() == enumType ? 0 : SCORE_UNCOERCIBLE;
+        default -> SCORE_UNCOERCIBLE;
+      };
+    }
+
+    public Object coerce(LuaValue value) {
+      return switch (value.type()) {
+        case LuaValue.TNUMBER, LuaValue.TSTRING -> lookup.get(value);
+        case LuaValue.TUSERDATA -> value.touserdata();
+        default -> null;
+      };
+    }
+  }
+
   private static final Map<ClassPair, Integer> inheritanceLevelsCache = new ConcurrentHashMap<>();
 
   private record ClassPair(Class<?> baseClass, Class<?> subclass) {}
@@ -387,6 +423,8 @@ public class CoerceLuaToJava {
     }
     if (c.isArray()) {
       co = new ArrayCoercion(c.getComponentType());
+    } else if (c.isEnum()) {
+      co = new EnumCoercion(c);
     } else {
       co = new ObjectCoercion(c);
     }

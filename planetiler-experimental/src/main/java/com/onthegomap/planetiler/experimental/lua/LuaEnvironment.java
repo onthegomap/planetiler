@@ -37,8 +37,10 @@ import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.jse.ExtraPlanetilerCoercions;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.lib.jse.LuaBindMethods;
+import org.luaj.vm2.lib.jse.LuaFunctionType;
 import org.luaj.vm2.lib.jse.LuaGetter;
 import org.luaj.vm2.lib.jse.LuaSetter;
+import org.luaj.vm2.lib.jse.LuaType;
 import org.luaj.vm2.luajc.LuaJC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +54,7 @@ import org.slf4j.LoggerFactory;
 public class LuaEnvironment {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LuaEnvironment.class);
-  private static final Set<Class<?>> CLASSES_TO_EXPOSE = Set.of(
+  static final Set<Class<?>> CLASSES_TO_EXPOSE = Set.of(
     ZoomFunction.class,
     FeatureMerge.class,
     Parse.class,
@@ -173,17 +175,29 @@ public class LuaEnvironment {
     public final Stats stats = runner.stats();
     public final Arguments args = runner.arguments();
     public final PlanetilerOutput output = new PlanetilerOutput();
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue process_feature;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue cares_about_source;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue cares_about_wikidata_translation;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue estimate_ram_required;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue estimate_intermediate_disk_bytes;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue estimate_output_bytes;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue finish;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue preprocess_osm_node;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue preprocess_osm_way;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue preprocess_osm_relation;
+    @LuaFunctionType(target = LuaProfile.class)
     public LuaValue release;
+    @LuaFunctionType(target = LuaProfile.class, method = "postProcessLayerFeatures")
     public LuaValue post_process;
     public String examples;
 
@@ -215,7 +229,9 @@ public class LuaEnvironment {
       runner.fetchWikidataNameTranslations(Path.of("data", "sources", "wikidata_names.json"));
     }
 
-    public void add_source(String name, LuaValue map) {
+    public void add_source(
+      String name,
+      @LuaType("{type: 'osm'|'shapefile'|'geopackage'|'naturalearth', path: string|string[], url: string, projection: string, glob: string}") LuaValue map) {
       String type = get(map, "type", String.class);
       Path path = get(map, "path", Path.class);
       if (name == null || type == null) {
