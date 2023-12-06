@@ -99,7 +99,7 @@ public class GenerateLuaTypes {
 
   public static void main(String[] args) {
     var generator = new GenerateLuaTypes().generatePlanetiler();
-    System.out.println(generator);
+    System.out.println(generator.toString().replaceAll("[\r\n]+", NEWLINE));
   }
 
   private static String luaClassName(Class<?> clazz) {
