@@ -88,6 +88,7 @@ public class GenerateLuaTypes {
   private final Deque<String> debugStack = new LinkedList<>();
   private final Set<String> handled = new HashSet<>();
   private final StringBuilder builder = new StringBuilder();
+  private static final String NEWLINE = System.lineSeparator();
 
   GenerateLuaTypes() {
     write("""
@@ -151,7 +152,7 @@ public class GenerateLuaTypes {
   }
 
   private void write(String line) {
-    builder.append(line).append("\n");
+    builder.append(line).append(NEWLINE);
   }
 
   GenerateLuaTypes generatePlanetiler() {
@@ -487,7 +488,7 @@ public class GenerateLuaTypes {
         nameToUse += "__enum";
         builder.append("---@alias %s%n".formatted(name));
         builder.append("---|%s%n".formatted(nameToUse));
-        builder.append("---|integer\n");
+        builder.append("---|integer").append(NEWLINE);
         for (var constant : type.getRawType().getEnumConstants()) {
           builder.append("---|%s%n".formatted(Format.quote(constant.toString())));
         }
@@ -496,7 +497,7 @@ public class GenerateLuaTypes {
       if (!parents.isEmpty()) {
         builder.append(" : ").append(String.join(", ", parents));
       }
-      builder.append("\n");
+      builder.append(NEWLINE);
       for (var field : fields.values()) {
         field.write(builder);
       }

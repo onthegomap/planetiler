@@ -362,9 +362,7 @@ class GenerateLuaTypesTest {
 
   @Test
   void testStaticLuaInstanceWithConsructors() {
-    var g = new GenerateLuaTypes();
-    var actual = g.getStaticTypeDefinition(StaticClass.class).trim();
-    assertEquals(
+    assertGeneratedStatic(
       """
         ---@class (exact) com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class
         ---@field CONSTANT integer
@@ -380,7 +378,7 @@ class GenerateLuaTypesTest {
         function types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class:static_method(arg) end
                 """
         .trim(),
-      actual, "got:\n\n" + actual + "\n\n");
+      StaticClass.class);
   }
 
   @Test
@@ -479,8 +477,20 @@ class GenerateLuaTypesTest {
   }
 
   private static void assertGenerated(String expected, Class<?> clazz) {
+    assertGenerated(expected, clazz, false);
+  }
+
+  private static void assertGeneratedStatic(String expected, Class<?> clazz) {
+    assertGenerated(expected, clazz, true);
+  }
+
+  private static void assertGenerated(String expected, Class<?> clazz, boolean staticType) {
     var g = new GenerateLuaTypes();
-    var actual = g.getTypeDefinition(clazz).trim();
-    assertEquals(expected.trim(), actual, "got:\n\n" + actual + "\n\n");
+    var actual = (staticType ? g.getStaticTypeDefinition(clazz) : g.getTypeDefinition(clazz)).trim();
+    assertEquals(fixNewlines(expected.trim()), fixNewlines(actual), "got:%n%n%s%n%n".formatted(actual));
+  }
+
+  private static String fixNewlines(String input) {
+    return input.replaceAll("[\n\r]]", System.lineSeparator());
   }
 }
