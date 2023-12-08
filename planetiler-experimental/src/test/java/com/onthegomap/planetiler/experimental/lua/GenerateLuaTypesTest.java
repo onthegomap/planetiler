@@ -342,7 +342,20 @@ class GenerateLuaTypesTest {
       LuaValues.class);
   }
 
-  public static class StaticClass {
+  public static class StaticClassSuper {
+    public static final int SUPER_CONSTANT = 1;
+    public final int superInstanceField = 1;
+
+    public int superInstance(int arg) {
+      return 1;
+    }
+
+    public static String superStaticMethod(String arg) {
+      return "";
+    }
+  }
+
+  public static class StaticClass extends StaticClassSuper {
     public static final int CONSTANT = 1;
     public static int staticField;
     public int instanceField;
@@ -366,6 +379,7 @@ class GenerateLuaTypesTest {
       """
         ---@class (exact) com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class
         ---@field CONSTANT integer
+        ---@field SUPER_CONSTANT integer
         ---@field static_field integer
         types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class = {}
         ---@param i integer
@@ -376,6 +390,9 @@ class GenerateLuaTypesTest {
         ---@param arg integer
         ---@return integer
         function types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class:static_method(arg) end
+        ---@param arg string
+        ---@return string
+        function types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_StaticClass__class:super_static_method(arg) end
                 """
         .trim(),
       StaticClass.class);

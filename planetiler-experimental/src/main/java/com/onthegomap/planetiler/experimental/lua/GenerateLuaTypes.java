@@ -243,19 +243,21 @@ public class GenerateLuaTypes {
     TypeToken<?> type = TypeToken.of(clazz);
     var definition = new LuaTypeDefinition(type, suffix, isStatic);
 
-    Type superclass = clazz.getGenericSuperclass();
-    if (superclass != null && superclass != Object.class) {
-      definition.addParent(type.resolveType(superclass));
-    }
-    for (var iface : clazz.getGenericInterfaces()) {
-      definition.addParent(type.resolveType(iface));
+    if (!isStatic) {
+      Type superclass = clazz.getGenericSuperclass();
+      if (superclass != null && superclass != Object.class) {
+        definition.addParent(type.resolveType(superclass));
+      }
+      for (var iface : clazz.getGenericInterfaces()) {
+        definition.addParent(type.resolveType(iface));
+      }
     }
 
     for (var field : clazz.getFields()) {
       TypeToken<?> rawType = TypeToken.of(field.getDeclaringClass()).resolveType(field.getGenericType());
       TypeToken<?> typeOnThisClass = type.resolveType(field.getGenericType());
       if (Modifier.isPublic(field.getModifiers()) && isStatic == Modifier.isStatic(field.getModifiers()) &&
-        (field.getDeclaringClass() == clazz || !rawType.equals(typeOnThisClass))) {
+        (isStatic || field.getDeclaringClass() == clazz || !rawType.equals(typeOnThisClass))) {
         definition.addField(field);
       }
     }
@@ -268,7 +270,7 @@ public class GenerateLuaTypes {
     for (var method : clazz.getMethods()) {
       if (Modifier.isPublic(method.getModifiers()) && isStatic == Modifier.isStatic(method.getModifiers())) {
         Invokable<?, ?> invokable = type.method(method);
-        if (!invokable.getOwnerType().equals(type) && !differentFromParents(invokable, type)) {
+        if (!isStatic && !invokable.getOwnerType().equals(type) && !differentFromParents(invokable, type)) {
           continue;
         }
         if (hasMethod(Object.class, method)) {
