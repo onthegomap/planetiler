@@ -21,9 +21,7 @@
  ******************************************************************************/
 package org.luaj.vm2.lib.jse;
 
-import com.google.common.base.CaseFormat;
-import com.google.common.base.Converter;
-import com.onthegomap.planetiler.experimental.lua.LuaConversions;
+import com.onthegomap.planetiler.experimental.lua.JavaToLuaCase;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
@@ -57,8 +55,6 @@ import org.luaj.vm2.LuaValue;
  * @see CoerceLuaToJava
  */
 public class JavaClass extends JavaInstance {
-  private static final Converter<String, String> CAMEL_TO_SNAKE_CASE =
-    CaseFormat.LOWER_CAMEL.converterTo(CaseFormat.LOWER_UNDERSCORE);
 
   static final Map<Class<?>, JavaClass> classes = new ConcurrentHashMap<>();
 
@@ -174,12 +170,7 @@ public class JavaClass extends JavaInstance {
   private <T> void putAliases(Map<LuaValue, T> map) {
     for (var entry : List.copyOf(map.entrySet())) {
       String key = entry.getKey().tojstring();
-      String key2;
-      if (LuaConversions.LUA_KEYWORDS.contains(key)) {
-        key2 = key.toUpperCase();
-      } else {
-        key2 = CAMEL_TO_SNAKE_CASE.convert(key);
-      }
+      String key2 = JavaToLuaCase.transformMemberName(key);
       map.putIfAbsent(LuaValue.valueOf(key2), entry.getValue());
     }
   }

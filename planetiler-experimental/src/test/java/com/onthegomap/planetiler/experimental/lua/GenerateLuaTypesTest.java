@@ -488,6 +488,21 @@ class GenerateLuaTypesTest {
   }
 
   @Test
+  void testAbbreviationInName() {
+    interface Test {
+
+      int setSRID(Integer n);
+    }
+    assertGenerated("""
+      ---@class (exact) com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_2Test
+      types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_2Test = {}
+      ---@param n integer
+      ---@return integer
+      function types.com_onthegomap_planetiler_experimental_lua_GenerateLuaTypesTest_2Test:set_srid(n) end
+      """, Test.class);
+  }
+
+  @Test
   void testGeneratedMetaFileCompiles() {
     String types = new GenerateLuaTypes().generatePlanetiler().toString();
     LuaEnvironment.loadScript(Arguments.of("luajc", "false"), types, "types.lua");

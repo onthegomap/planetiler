@@ -781,6 +781,20 @@ class LuaEnvironmentTests {
   }
 
   @Test
+  void testAbbreviation() {
+    var env = load("""
+      function main()
+        return obj:set_srid(1)
+      end
+      """, Map.of("obj", new Object() {
+      public int setSRID(int a) {
+        return a + 1;
+      }
+    }));
+    assertConvertsTo(2, env.main.call());
+  }
+
+  @Test
   void testEnum() {
     enum MyEnum {
       A,

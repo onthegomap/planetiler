@@ -1,9 +1,9 @@
 package com.onthegomap.planetiler.experimental.lua;
 
+import static com.onthegomap.planetiler.experimental.lua.JavaToLuaCase.transformMemberName;
 import static java.util.Map.entry;
 
 import com.google.common.base.CaseFormat;
-import com.google.common.base.Converter;
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.TypeToken;
 import com.onthegomap.planetiler.util.Format;
@@ -24,9 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -81,8 +79,6 @@ public class GenerateLuaTypes {
     entry(Void.class, "nil"),
     entry(void.class, "nil")
   );
-  private static final Converter<String, String> CAMEL_TO_SNAKE_CASE =
-    CaseFormat.LOWER_CAMEL.converterTo(CaseFormat.LOWER_UNDERSCORE);
   private static final TypeToken<List<?>> LIST_TYPE = new TypeToken<>() {};
   private static final TypeToken<Map<?, ?>> MAP_TYPE = new TypeToken<>() {};
   private final Deque<String> debugStack = new LinkedList<>();
@@ -125,30 +121,6 @@ public class GenerateLuaTypes {
     } catch (NoSuchMethodException e) {
       return false;
     }
-  }
-
-  private static String transformMemberName(String fieldName) {
-    if (isLowerCamelCase(fieldName)) {
-      fieldName = CAMEL_TO_SNAKE_CASE.convert(fieldName);
-    }
-    if (LuaConversions.LUA_KEYWORDS.contains(fieldName)) {
-      fieldName = Objects.requireNonNull(fieldName).toUpperCase(Locale.ROOT);
-    }
-    return fieldName;
-  }
-
-  private static boolean isLowerCamelCase(String fieldName) {
-    var chars = fieldName.toCharArray();
-    if (!Character.isLowerCase(chars[0])) {
-      return false;
-    }
-    boolean upper = false, lower = false, underscore = false;
-    for (char c : chars) {
-      upper |= Character.isUpperCase(c);
-      lower |= Character.isLowerCase(c);
-      underscore |= c == '_';
-    }
-    return upper && lower && !underscore;
   }
 
   private void write(String line) {
