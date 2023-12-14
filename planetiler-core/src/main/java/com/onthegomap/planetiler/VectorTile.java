@@ -81,7 +81,7 @@ public class VectorTile {
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
-  private LayerAttrStats.Updater.ForZoom layerStatsTracker = LayerAttrStats.Updater.ForZoom.NO_OP;
+  private LayerAttrStats.Updater.ForZoom layerStatsTracker = LayerAttrStats.Updater.ForZoom.NOOP;
 
   private static int[] getCommands(Geometry input, int scale) {
     var encoder = new CommandEncoder(scale);
@@ -599,6 +599,11 @@ public class VectorTile {
     return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFillsOrEdges();
   }
 
+  /**
+   * Call back to {@code layerStats} as vector tile features are being encoded in
+   * {@link #addLayerFeatures(String, List)} to track attribute types present on features in each layer, for example to
+   * emit in tilejson metadata stats.
+   */
   public void trackLayerStats(LayerAttrStats.Updater.ForZoom layerStats) {
     this.layerStatsTracker = layerStats;
   }

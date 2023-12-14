@@ -61,6 +61,7 @@ public class LayerAttrStats {
       .toList();
   }
 
+  /** Shortcut for tests */
   void accept(String layer, int zoom, String key, Object value) {
     handlerForThread().forZoom(zoom).forLayer(layer).accept(key, value);
   }
@@ -160,7 +161,7 @@ public class LayerAttrStats {
 
     interface ForZoom {
 
-      ForZoom NO_OP = layer -> (key, value) -> {
+      ForZoom NOOP = layer -> (key, value) -> {
       };
 
       ForLayer forLayer(String layer);
@@ -171,7 +172,7 @@ public class LayerAttrStats {
     }
   }
 
-  public static class StatsForLayer {
+  private static class StatsForLayer {
 
     private final String layer;
     private final Map<String, FieldType> fields = new HashMap<>();
