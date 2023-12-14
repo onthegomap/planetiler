@@ -76,7 +76,7 @@ class WriteableProtoStreamArchiveTest {
     final var tile0 = new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty());
     final var tile1 = new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.of(1));
     try (var archive = WriteableProtoStreamArchive.newWriteToFile(csvFile, defaultConfig)) {
-      archive.initialize(maxMetadataIn);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(tile0);
         tileWriter.write(tile1);
@@ -86,7 +86,7 @@ class WriteableProtoStreamArchiveTest {
 
     try (InputStream in = Files.newInputStream(csvFile)) {
       assertEquals(
-        List.of(wrapInit(maxMetadataOut), toEntry(tile0), toEntry(tile1), wrapFinish(minMetadataOut)),
+        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(minMetadataOut)),
         readAllEntries(in)
       );
     }
@@ -105,7 +105,7 @@ class WriteableProtoStreamArchiveTest {
     final var tile3 = new TileEncodingResult(TileCoord.ofXYZ(41, 42, 4), new byte[]{3}, OptionalLong.empty());
     final var tile4 = new TileEncodingResult(TileCoord.ofXYZ(51, 52, 5), new byte[]{4}, OptionalLong.empty());
     try (var archive = WriteableProtoStreamArchive.newWriteToFile(csvFilePrimary, defaultConfig)) {
-      archive.initialize(minMetadataIn);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(tile0);
         tileWriter.write(tile1);
@@ -122,7 +122,7 @@ class WriteableProtoStreamArchiveTest {
 
     try (InputStream in = Files.newInputStream(csvFilePrimary)) {
       assertEquals(
-        List.of(wrapInit(minMetadataOut), toEntry(tile0), toEntry(tile1), wrapFinish(maxMetadataOut)),
+        List.of(wrapInit(), toEntry(tile0), toEntry(tile1), wrapFinish(maxMetadataOut)),
         readAllEntries(in)
       );
     }
@@ -167,10 +167,8 @@ class WriteableProtoStreamArchiveTest {
       .build();
   }
 
-  private static StreamArchiveProto.Entry wrapInit(StreamArchiveProto.Metadata metadata) {
-    return StreamArchiveProto.Entry.newBuilder()
-      .setInitialization(StreamArchiveProto.InitializationEntry.newBuilder().setMetadata(metadata).build())
-      .build();
+  private static StreamArchiveProto.Entry wrapInit() {
+    return StreamArchiveProto.Entry.newBuilder().build();
   }
 
   private static StreamArchiveProto.Entry wrapFinish(StreamArchiveProto.Metadata metadata) {

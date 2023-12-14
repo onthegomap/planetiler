@@ -27,6 +27,7 @@ import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.MutableCoordinateSequence;
 import com.onthegomap.planetiler.util.Hilbert;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -80,6 +81,7 @@ public class VectorTile {
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
   private final Map<String, Layer> layers = new LinkedHashMap<>();
+  private LayerAttrStats.Updater.ForZoom layerStatsTracker = LayerAttrStats.Updater.ForZoom.NO_OP;
 
   private static int[] getCommands(Geometry input, int scale) {
     var encoder = new CommandEncoder(scale);
@@ -467,12 +469,12 @@ public class VectorTile {
     if (features.isEmpty()) {
       return this;
     }
-
     Layer layer = layers.get(layerName);
     if (layer == null) {
       layer = new Layer();
       layers.put(layerName, layer);
     }
+    var statsTracker = layerStatsTracker.forLayer(layerName);
 
     for (Feature inFeature : features) {
       if (inFeature != null && inFeature.geometry().commands().length > 0) {
@@ -481,8 +483,11 @@ public class VectorTile {
         for (Map.Entry<String, ?> e : inFeature.attrs().entrySet()) {
           // skip attribute without value
           if (e.getValue() != null) {
-            outFeature.tags.add(layer.key(e.getKey()));
-            outFeature.tags.add(layer.value(e.getValue()));
+            String key = e.getKey();
+            Object value = e.getValue();
+            outFeature.tags.add(layer.key(key));
+            outFeature.tags.add(layer.value(value));
+            statsTracker.accept(key, value);
           }
         }
 
@@ -592,6 +597,10 @@ public class VectorTile {
    */
   public boolean likelyToBeDuplicated() {
     return layers.values().stream().allMatch(v -> v.encodedFeatures.isEmpty()) || containsOnlyFillsOrEdges();
+  }
+
+  public void trackLayerStats(LayerAttrStats.Updater.ForZoom layerStats) {
+    this.layerStatsTracker = layerStats;
   }
 
   enum Command {
