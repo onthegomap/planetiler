@@ -40,7 +40,7 @@ jobs:
     - run: sha256sum planetiler-dist/target/*with-deps.jar
     - run: md5sum planetiler-dist/target/*with-deps.jar
     - name: 'Upload artifact'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: planetiler-build
         path: planetiler-dist/target/*with-deps.jar
