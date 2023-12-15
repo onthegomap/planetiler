@@ -50,14 +50,8 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
   }
 
   @Override
-  public void initialize(TileArchiveMetadata metadata) {
-    writeEntry(
-      StreamArchiveProto.Entry.newBuilder()
-        .setInitialization(
-          StreamArchiveProto.InitializationEntry.newBuilder().setMetadata(toExportData(metadata)).build()
-        )
-        .build()
-    );
+  public void initialize() {
+    writeEntry(StreamArchiveProto.Entry.newBuilder().build());
   }
 
   @Override

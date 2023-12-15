@@ -1,4 +1,3 @@
-
 syntax = "proto3";
 
 package com.onthegomap.planetiler.proto;
@@ -19,7 +18,6 @@ message TileEntry {
 }
 
 message InitializationEntry {
-  Metadata metadata = 1;
 }
 
 message FinishEntry {

@@ -32,7 +32,7 @@ class WriteableCsvArchiveTest {
     final Path csvFile = tempDir.resolve("out.csv");
 
     try (var archive = WriteableCsvArchive.newWriteToFile(format, csvFile, defaultConfig)) {
-      archive.initialize(defaultMetadata); // ignored
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.of(1)));
@@ -67,7 +67,7 @@ class WriteableCsvArchiveTest {
     try (
       var archive = WriteableCsvArchive.newWriteToFile(TileArchiveConfig.Format.CSV, csvFilePrimary, defaultConfig)
     ) {
-      archive.initialize(defaultMetadata); // ignored
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(11, 12, 1), new byte[]{0}, OptionalLong.empty()));
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(21, 22, 2), new byte[]{1}, OptionalLong.empty()));
@@ -159,7 +159,7 @@ class WriteableCsvArchiveTest {
     final Path csvFile = tempDir.resolve("out.csv");
 
     try (var archive = WriteableCsvArchive.newWriteToFile(TileArchiveConfig.Format.CSV, csvFile, config)) {
-      archive.initialize(defaultMetadata);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0, 1}, OptionalLong.empty()));
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 1, 1), new byte[]{2, 3}, OptionalLong.empty()));

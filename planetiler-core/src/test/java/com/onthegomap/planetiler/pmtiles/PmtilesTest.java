@@ -188,7 +188,7 @@ class PmtilesTest {
 
     var config = PlanetilerConfig.defaults();
     var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
-    in.initialize(metadata);
+    in.initialize();
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
@@ -259,7 +259,7 @@ class PmtilesTest {
       var channel = new SeekableInMemoryByteChannel(0);
       var in = WriteablePmtiles.newWriteToMemory(channel)
     ) {
-      in.initialize(input);
+      in.initialize();
       var writer = in.newTileWriter();
       writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.empty()));
 
@@ -299,7 +299,7 @@ class PmtilesTest {
 
     var config = PlanetilerConfig.defaults();
     var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
-    in.initialize(metadata);
+    in.initialize();
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
@@ -337,7 +337,7 @@ class PmtilesTest {
 
     var config = PlanetilerConfig.defaults();
     var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
-    in.initialize(metadata);
+    in.initialize();
     var writer = in.newTileWriter();
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 1), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
     writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0xa, 0x2}, OptionalLong.of(42)));
@@ -372,7 +372,7 @@ class PmtilesTest {
 
     var config = PlanetilerConfig.defaults();
     var metadata = new TileArchiveMetadata(new Profile.NullProfile(), config);
-    in.initialize(metadata);
+    in.initialize();
     var writer = in.newTileWriter();
 
     int ENTRIES = 20000;

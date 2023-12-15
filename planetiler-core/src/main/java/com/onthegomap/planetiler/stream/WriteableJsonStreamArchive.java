@@ -76,11 +76,11 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
   }
 
   @Override
-  public void initialize(TileArchiveMetadata metadata) {
+  public void initialize() {
     if (writeTilesOnly) {
       return;
     }
-    writeEntryFlush(new InitializationEntry(metadata));
+    writeEntryFlush(new InitializationEntry());
   }
 
   @Override
@@ -204,7 +204,7 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
     }
   }
 
-  record InitializationEntry(TileArchiveMetadata metadata) implements Entry {}
+  record InitializationEntry() implements Entry {}
 
 
   record FinishEntry(TileArchiveMetadata metadata) implements Entry {}
