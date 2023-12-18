@@ -153,7 +153,7 @@ public class GeoPackageReader extends SimpleReader<SimpleFeature> {
         Geometry latLonGeom = (transform.isIdentity()) ? featureGeom : JTS.transform(featureGeom, transform);
 
         FeatureColumns columns = feature.getColumns();
-        SimpleFeature geom = SimpleFeature.create(latLonGeom, new HashMap<>(columns.columnCount()),
+        SimpleFeature geom = SimpleFeature.create(latLonGeom, HashMap.newHashMap(columns.columnCount()),
           sourceName, featureName, ++id);
 
         for (int i = 0; i < columns.columnCount(); ++i) {

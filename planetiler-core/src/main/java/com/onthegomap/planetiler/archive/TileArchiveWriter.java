@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.stats.Timer;
 import com.onthegomap.planetiler.util.DiskBacked;
 import com.onthegomap.planetiler.util.Format;
 import com.onthegomap.planetiler.util.Hashing;
+import com.onthegomap.planetiler.util.LayerAttrStats;
 import com.onthegomap.planetiler.util.TileSizeStats;
 import com.onthegomap.planetiler.util.TileWeights;
 import com.onthegomap.planetiler.util.TilesetSummaryStatistics;
@@ -59,6 +60,7 @@ public class TileArchiveWriter {
   private final AtomicReference<TileCoord> lastTileWritten = new AtomicReference<>();
   private final TileArchiveMetadata tileArchiveMetadata;
   private final TilesetSummaryStatistics tileStats;
+  private final LayerAttrStats layerAttrStats = new LayerAttrStats();
 
   private TileArchiveWriter(Iterable<FeatureGroup.TileFeatures> inputTiles, WriteableTileArchive archive,
     PlanetilerConfig config, TileArchiveMetadata tileArchiveMetadata, Stats stats) {
@@ -105,9 +107,7 @@ public class TileArchiveWriter {
       readWorker = reader.readWorker();
     }
 
-    TileArchiveWriter writer =
-      new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata.withLayerStats(features.layerStats()
-        .getTileStats()), stats);
+    TileArchiveWriter writer = new TileArchiveWriter(inputTiles, output, config, tileArchiveMetadata, stats);
 
     var pipeline = WorkerPipeline.start("archive", stats);
 
@@ -260,6 +260,7 @@ public class TileArchiveWriter {
     boolean skipFilled = config.skipFilledTiles();
 
     var tileStatsUpdater = tileStats.threadLocalUpdater();
+    var layerAttrStatsUpdater = layerAttrStats.handlerForThread();
     for (TileBatch batch : prev) {
       List<TileEncodingResult> result = new ArrayList<>(batch.size());
       FeatureGroup.TileFeatures last = null;
@@ -277,7 +278,7 @@ public class TileArchiveWriter {
           layerStats = lastLayerStats;
           memoizedTiles.inc();
         } else {
-          VectorTile tile = tileFeatures.getVectorTile();
+          VectorTile tile = tileFeatures.getVectorTile(layerAttrStatsUpdater);
           if (skipFilled && (lastIsFill = tile.containsOnlyFills())) {
             encoded = null;
             layerStats = null;
@@ -333,7 +334,7 @@ public class TileArchiveWriter {
     var f = NumberFormat.getNumberInstance(Locale.getDefault());
     f.setMaximumFractionDigits(5);
 
-    archive.initialize(tileArchiveMetadata);
+    archive.initialize();
     var order = archive.tileOrder();
 
     TileCoord lastTile = null;
@@ -371,7 +372,7 @@ public class TileArchiveWriter {
       LOGGER.info("Finished z{} in {}", currentZ, time.stop());
     }
 
-    archive.finish(tileArchiveMetadata);
+    archive.finish(tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats()));
   }
 
   @SuppressWarnings("java:S2629")

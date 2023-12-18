@@ -76,11 +76,11 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
   }
 
   @Override
-  public void initialize(TileArchiveMetadata metadata) {
+  public void initialize() {
     if (writeTilesOnly) {
       return;
     }
-    writeEntryFlush(new InitializationEntry(metadata));
+    writeEntryFlush(new InitializationEntry());
   }
 
   @Override
@@ -204,22 +204,19 @@ public final class WriteableJsonStreamArchive extends WriteableStreamArchive {
     }
   }
 
-  record InitializationEntry(TileArchiveMetadata metadata) implements Entry {}
+  record InitializationEntry() implements Entry {}
 
 
   record FinishEntry(TileArchiveMetadata metadata) implements Entry {}
 
-  private interface TileArchiveMetadataMixin {
+  private record TileArchiveMetadataMixin(
 
-    @JsonIgnore(false)
-    Envelope bounds();
+    @JsonIgnore(false) Envelope bounds,
 
-    @JsonIgnore(false)
-    CoordinateXY center();
+    @JsonIgnore(false) CoordinateXY center,
 
-    @JsonIgnore(false)
-    List<LayerAttrStats.VectorLayer> vectorLayers();
-  }
+    @JsonIgnore(false) List<LayerAttrStats.VectorLayer> vectorLayers
+  ) {}
 
   @JsonIncludeProperties({"minX", "maxX", "minY", "maxY"})
   private abstract static class EnvelopeMixin {

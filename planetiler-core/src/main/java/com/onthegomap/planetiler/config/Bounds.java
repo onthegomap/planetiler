@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 public class Bounds {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Bounds.class);
+  public static final Bounds WORLD = new Bounds(null);
 
   private Envelope latLon;
   private Envelope world;
@@ -24,12 +25,8 @@ public class Bounds {
 
   private Geometry shape;
 
-  Bounds(Envelope latLon) {
+  public Bounds(Envelope latLon) {
     set(latLon);
-  }
-
-  public boolean isWorld() {
-    return latLon == null || latLon.contains(GeoUtils.WORLD_LAT_LON_BOUNDS);
   }
 
   public Envelope latLon() {
@@ -38,6 +35,10 @@ public class Bounds {
 
   public Envelope world() {
     return world == null ? GeoUtils.WORLD_BOUNDS : world;
+  }
+
+  public boolean isWorld() {
+    return latLon == null || latLon.equals(GeoUtils.WORLD_LAT_LON_BOUNDS);
   }
 
   public TileExtents tileExtents() {

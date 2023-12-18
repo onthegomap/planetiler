@@ -42,12 +42,12 @@ jobs:
       with:
         basedir: branch
     - name: Set up JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
-        java-version: 17
+        java-version: 21
         distribution: 'temurin'
         cache: 'maven'
-    - uses: actions/setup-node@v3
+    - uses: actions/setup-node@v4
       with:
         node-version: '14'
     - run: npm install -g strip-ansi-cli@3.0.2
@@ -88,7 +88,7 @@ jobs:
         cat log | strip-ansi > build-info/baselogs.txt
 
     - name: 'Upload build-info'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-info
         path: ./build-info

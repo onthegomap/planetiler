@@ -292,15 +292,18 @@ Specific tile post processing operations for merging features may be defined:
 
 - `merge_line_strings` - Combines linestrings with the same set of attributes into a multilinestring where segments with
   touching endpoints are merged.
-- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching polygons
+- `merge_polygons` - Combines polygons with the same set of attributes into a multipolygon where overlapping/touching
+  polygons
   are combined into fewer polygons covering the same area.
 
 The follow attributes for `merge_line_strings` may be set:
+
 - `min_length` - Minimum tile pixel length of features to emit, or 0 to emit all merged linestrings.
 - `tolerance` - After merging, simplify linestrings using this pixel tolerance, or -1 to skip simplification step.
 - `buffer` - Number of pixels outside the visible tile area to include detail for, or -1 to skip clipping step.
 
 The follow attribute for `merge_polygons` may be set:
+
 - `min_area` - Minimum area in square tile pixels of polygons to emit.
 
 For example:
@@ -482,6 +485,11 @@ nested, so each child context can also access the variables from its parent.
 >> - `feature.id` - numeric ID of the input feature
 >> - `feature.source` - string source ID this feature came from
 >> - `feature.source_layer` - optional layer within the source the feature came from
+>> - `feature.osm_changeset` - optional OSM changeset ID for this feature
+>> - `feature.osm_version` - optional OSM element version for this feature
+>> - `feature.osm_timestamp` - optional OSM last modified timestamp for this feature
+>> - `feature.osm_user_id` - optional ID of the OSM user that last modified this feature
+>> - `feature.osm_user_name` - optional name of the OSM user that last modified this feature
 >>
 >>> ##### post-match context
 >>>
@@ -534,7 +542,7 @@ in [PlanetilerStdLib](src/main/java/com/onthegomap/planetiler/custommap/expressi
   - `<string>.replace(from, to, limit)` returns the input string with the first N occurrences of from replaced by to
   - `<string>.replaceRegex(pattern, value)` replaces every occurrence of regular expression with value from the string
     it was called on using java's
-    built-in [replaceAll](<https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String)>)
+    built-in [replaceAll](<https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/regex/Matcher.html#replaceAll(java.lang.String)>)
     behavior
   - `<string>.split(separator)` returns a list of strings split from the input by a separator
   - `<string>.split(separator, limit)` splits the list into up to N parts

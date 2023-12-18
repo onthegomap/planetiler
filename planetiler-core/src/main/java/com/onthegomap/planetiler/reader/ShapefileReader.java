@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.reader;
 
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.collection.FeatureGroup;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.io.IOException;
@@ -19,9 +20,13 @@ import org.geotools.api.referencing.operation.MathTransform;
 import org.geotools.api.referencing.operation.OperationNotFoundException;
 import org.geotools.api.referencing.operation.TransformException;
 import org.geotools.data.shapefile.ShapefileDataStore;
+import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
+import org.geotools.util.factory.GeoTools;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +50,10 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
   private MathTransform transformToLatLon;
 
   public ShapefileReader(String sourceProjection, String sourceName, Path input) {
+    this(sourceProjection, sourceName, input, Bounds.WORLD);
+  }
+
+  public ShapefileReader(String sourceProjection, String sourceName, Path input, Bounds bounds) {
     super(sourceName);
     this.layer = input.getFileName().toString().replaceAll("\\.shp$", "");
     dataStore = open(input);
@@ -52,8 +61,6 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       String typeName = dataStore.getTypeNames()[0];
       FeatureSource<SimpleFeatureType, org.geotools.api.feature.simple.SimpleFeature> source = dataStore
         .getFeatureSource(typeName);
-
-      inputSource = source.getFeatures(Filter.INCLUDE);
       CoordinateReferenceSystem src =
         sourceProjection == null ? source.getSchema().getCoordinateReferenceSystem() : CRS.decode(sourceProjection);
       CoordinateReferenceSystem dest = CRS.decode("EPSG:4326", true);
@@ -61,6 +68,26 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
       if (transformToLatLon.isIdentity()) {
         transformToLatLon = null;
       }
+
+      Filter filter = Filter.INCLUDE;
+
+      Envelope env = bounds.latLon();
+      if (!bounds.isWorld()) {
+        var ff = CommonFactoryFinder.getFilterFactory(GeoTools.getDefaultHints());
+        var schema = source.getSchema();
+
+        String geometryPropertyName = schema.getGeometryDescriptor().getLocalName();
+
+        var bbox = new ReferencedEnvelope(env.getMinX(), env.getMaxX(), env.getMinY(), env.getMaxY(), dest);
+        try {
+          var bbox2 = bbox.transform(schema.getGeometryDescriptor().getCoordinateReferenceSystem(), true);
+          filter = ff.bbox(ff.property(geometryPropertyName), bbox2);
+        } catch (TransformException e) {
+          // just use include filter
+        }
+      }
+
+      inputSource = source.getFeatures(filter);
       attributeNames = new String[inputSource.getSchema().getAttributeCount()];
       for (int i = 0; i < attributeNames.length; i++) {
         attributeNames[i] = inputSource.getSchema().getDescriptor(i).getLocalName();
@@ -105,7 +132,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
     SourceFeatureProcessor.processFiles(
       sourceName,
       sourcePaths,
-      path -> new ShapefileReader(sourceProjection, sourceName, path),
+      path -> new ShapefileReader(sourceProjection, sourceName, path, config.bounds()),
       writer, config, profile, stats
     );
   }
@@ -137,7 +164,7 @@ public class ShapefileReader extends SimpleReader<SimpleFeature> {
           latLonGeometry = JTS.transform(source, transformToLatLon);
         }
         if (latLonGeometry != null) {
-          SimpleFeature geom = SimpleFeature.create(latLonGeometry, new HashMap<>(attributeNames.length),
+          SimpleFeature geom = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(attributeNames.length),
             sourceName, layer, ++id);
           for (int i = 1; i < attributeNames.length; i++) {
             geom.setTag(attributeNames[i], feature.getAttribute(i));

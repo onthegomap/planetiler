@@ -32,7 +32,7 @@ import org.locationtech.jts.geom.Envelope;
 class WriteableJsonStreamArchiveTest {
 
   private static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, Arguments.of());
-  private static final TileArchiveMetadata maxMetadataIn =
+  private static final TileArchiveMetadata MAX_METADATA_IN =
     new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
       new CoordinateXY(1.3, 3.7), 1.0, 2, 3,
       List.of(
@@ -46,7 +46,7 @@ class WriteableJsonStreamArchiveTest {
       ),
       ImmutableMap.of("a", "b", "c", "d"),
       TileCompression.GZIP);
-  private static final String maxMetadataOut = """
+  private static final String MAX_METADATA_OUT = """
     {
       "name":"name",
       "description":"description",
@@ -88,7 +88,7 @@ class WriteableJsonStreamArchiveTest {
       "c":"d"
     }""".lines().map(String::trim).collect(Collectors.joining(""));
 
-  private static final TileArchiveMetadata minMetadataIn =
+  private static final TileArchiveMetadata MIN_METADATA_IN =
     new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   private static final String MIN_METADATA_OUT = "{}";
 
@@ -98,21 +98,21 @@ class WriteableJsonStreamArchiveTest {
     final Path csvFile = tempDir.resolve("out.json");
 
     try (var archive = WriteableJsonStreamArchive.newWriteToFile(csvFile, defaultConfig)) {
-      archive.initialize(maxMetadataIn);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.of(1)));
       }
-      archive.finish(minMetadataIn);
+      archive.finish(MIN_METADATA_IN);
     }
 
     assertEqualsDelimitedJson(
       """
-        {"type":"initialization","metadata":%s}
+        {"type":"initialization"}
         {"type":"tile","x":0,"y":0,"z":0,"encodedData":"AA=="}
         {"type":"tile","x":1,"y":2,"z":3,"encodedData":"AQ=="}
         {"type":"finish","metadata":%s}
-        """.formatted(maxMetadataOut, MIN_METADATA_OUT),
+        """.formatted(MIN_METADATA_OUT),
       Files.readString(csvFile)
     );
 
@@ -132,7 +132,7 @@ class WriteableJsonStreamArchiveTest {
     final var tile3 = new TileEncodingResult(TileCoord.ofXYZ(41, 42, 4), new byte[]{3}, OptionalLong.empty());
     final var tile4 = new TileEncodingResult(TileCoord.ofXYZ(51, 52, 5), new byte[]{4}, OptionalLong.empty());
     try (var archive = WriteableJsonStreamArchive.newWriteToFile(csvFilePrimary, defaultConfig)) {
-      archive.initialize(minMetadataIn);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(tile0);
         tileWriter.write(tile1);
@@ -144,16 +144,16 @@ class WriteableJsonStreamArchiveTest {
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(tile4);
       }
-      archive.finish(maxMetadataIn);
+      archive.finish(MAX_METADATA_IN);
     }
 
     assertEqualsDelimitedJson(
       """
-        {"type":"initialization","metadata":%s}
+        {"type":"initialization"}
         {"type":"tile","x":11,"y":12,"z":1,"encodedData":"AA=="}
         {"type":"tile","x":21,"y":22,"z":2,"encodedData":"AQ=="}
         {"type":"finish","metadata":%s}
-        """.formatted(MIN_METADATA_OUT, maxMetadataOut),
+        """.formatted(MAX_METADATA_OUT),
       Files.readString(csvFilePrimary)
     );
 
@@ -199,11 +199,11 @@ class WriteableJsonStreamArchiveTest {
 
     final String expectedJson =
       """
-        {"type":"initialization","metadata":%s}
+        {"type":"initialization"}
         {"type":"tile","x":0,"y":0,"z":0,"encodedData":"AA=="}
         {"type":"tile","x":1,"y":2,"z":3,"encodedData":"AQ=="}
         {"type":"finish","metadata":%s}
-        """.formatted(MIN_METADATA_OUT, maxMetadataOut)
+        """.formatted(MAX_METADATA_OUT)
         .replace('\n', ' ');
 
     testTileOptions(tempDir, config, expectedJson);
@@ -216,12 +216,12 @@ class WriteableJsonStreamArchiveTest {
     final Path csvFile = tempDir.resolve("out.json");
 
     try (var archive = WriteableJsonStreamArchive.newWriteToFile(csvFile, config)) {
-      archive.initialize(minMetadataIn);
+      archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.empty()));
       }
-      archive.finish(maxMetadataIn);
+      archive.finish(MAX_METADATA_IN);
     }
 
     assertEqualsDelimitedJson(expectedJson, Files.readString(csvFile));

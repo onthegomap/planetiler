@@ -76,10 +76,12 @@ public class OsmQaTiles implements Profile {
         }
         feature
           .setAttr("@id", sourceFeature.id())
-          .setAttr("@type", element instanceof OsmElement.Node ? "node" :
-            element instanceof OsmElement.Way ? "way" :
-            element instanceof OsmElement.Relation ? "relation" : null
-          );
+          .setAttr("@type", switch (element) {
+            case OsmElement.Node ignored -> "node";
+            case OsmElement.Way ignored -> "way";
+            case OsmElement.Relation ignored -> "relation";
+            default -> null;
+          });
         var info = element.info();
         if (info != null) {
           feature

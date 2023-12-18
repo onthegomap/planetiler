@@ -21,11 +21,11 @@ public class TileExtents implements Predicate<TileCoord> {
   }
 
   private static int quantizeDown(double value, int levels) {
-    return Math.max(0, Math.min(levels, (int) Math.floor(value * levels)));
+    return Math.clamp((int) Math.floor(value * levels), 0, levels);
   }
 
   private static int quantizeUp(double value, int levels) {
-    return Math.max(0, Math.min(levels, (int) Math.ceil(value * levels)));
+    return Math.clamp((int) Math.ceil(value * levels), 0, levels);
   }
 
   /** Returns a filter to tiles that intersect {@code worldBounds} (specified in world web mercator coordinates). */

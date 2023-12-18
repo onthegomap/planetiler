@@ -28,6 +28,8 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.TopologyException;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -124,7 +126,7 @@ public class FeatureMerge {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, geometryType);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       if (groupedFeatures.size() == 1) {
         result.add(feature1);
       } else {
@@ -158,7 +160,7 @@ public class FeatureMerge {
     List<VectorTile.Feature> result = new ArrayList<>(features.size());
     var groupedByAttrs = groupByAttrs(features, result, GeometryType.LINE);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       double lengthLimit = lengthLimitCalculator.apply(feature1.attrs());
 
       // as a shortcut, can skip line merging only if:
@@ -300,7 +302,7 @@ public class FeatureMerge {
     Collection<List<VectorTile.Feature>> groupedByAttrs = groupByAttrs(features, result, GeometryType.POLYGON);
     for (List<VectorTile.Feature> groupedFeatures : groupedByAttrs) {
       List<Polygon> outPolygons = new ArrayList<>();
-      VectorTile.Feature feature1 = groupedFeatures.get(0);
+      VectorTile.Feature feature1 = groupedFeatures.getFirst();
       List<Geometry> geometries = new ArrayList<>(groupedFeatures.size());
       for (var feature : groupedFeatures) {
         try {
@@ -322,7 +324,7 @@ public class FeatureMerge {
             // spinning for a very long time on very dense tiles.
             // TODO use some heuristic to choose bufferUnbuffer vs. bufferUnionUnbuffer based on the number small
             //      polygons in the group?
-            merged = bufferUnionUnbuffer(buffer, polygonGroup);
+            merged = bufferUnionUnbuffer(buffer, polygonGroup, stats);
           } else {
             merged = buffer(buffer, GeoUtils.createGeometryCollection(polygonGroup));
           }
@@ -331,7 +333,7 @@ public class FeatureMerge {
           }
           merged = GeoUtils.snapAndFixPolygon(merged, stats, "merge").reverse();
         } else {
-          merged = polygonGroup.get(0);
+          merged = polygonGroup.getFirst();
           if (!(merged instanceof Polygonal) || merged.getEnvelopeInternal().getArea() < minArea) {
             continue;
           }
@@ -410,7 +412,7 @@ public class FeatureMerge {
    * Merges nearby polygons by expanding each individual polygon by {@code buffer}, unioning them, and contracting the
    * result.
    */
-  private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) {
+  static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup, Stats stats) {
     /*
      * A simpler alternative that might initially appear faster would be:
      *
@@ -424,11 +426,20 @@ public class FeatureMerge {
      * The following approach is slower most of the time, but faster on average because it does
      * not choke on dense nearby polygons:
      */
-    for (int i = 0; i < polygonGroup.size(); i++) {
-      polygonGroup.set(i, buffer(buffer, polygonGroup.get(i)));
+    List<Geometry> buffered = new ArrayList<>(polygonGroup.size());
+    for (Geometry geometry : polygonGroup) {
+      buffered.add(buffer(buffer, geometry));
     }
-    Geometry merged = GeoUtils.createGeometryCollection(polygonGroup);
-    merged = union(merged);
+    Geometry merged = GeoUtils.createGeometryCollection(buffered);
+    try {
+      merged = union(merged);
+    } catch (TopologyException e) {
+      // buffer result is sometimes invalid, which makes union throw so fix
+      // it and try again (see #700)
+      stats.dataError("buffer_union_unbuffer_union_failed");
+      merged = GeometryFixer.fix(merged);
+      merged = union(merged);
+    }
     merged = unbuffer(buffer, merged);
     return merged;
   }
@@ -572,5 +583,5 @@ public class FeatureMerge {
     return result;
   }
 
-  private record WithIndex<T> (T feature, int hilbert) {}
+  private record WithIndex<T>(T feature, int hilbert) {}
 }

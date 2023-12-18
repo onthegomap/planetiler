@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.msgpack.core.MessageBufferPacker;
@@ -59,7 +58,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
   private final CommonStringEncoder commonValueStrings = new CommonStringEncoder(100_000);
   private final Stats stats;
-  private final LayerAttrStats layerStats = new LayerAttrStats();
   private final PlanetilerConfig config;
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
@@ -141,14 +139,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
   }
 
-  /**
-   * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
-   * features on elements in that layer, and their types.
-   */
-  public LayerAttrStats layerStats() {
-    return layerStats;
-  }
-
   public long numFeaturesWritten() {
     return sorter.numFeaturesWritten();
   }
@@ -159,16 +149,13 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       // This method gets called billions of times when generating the planet, so these optimizations make a big difference:
       // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
       private final MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-      // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
-      private final Consumer<RenderedFeature> threadLocalLayerStats = layerStats.handlerForThread();
-      // 3) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
+      // 2) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
       // FeatureRenderer ensures that a separate VectorTileEncoder.Feature is used for each zoom level
       private VectorTile.Feature lastFeature = null;
       private byte[] lastEncodedValue = null;
 
       @Override
       public SortableFeature apply(RenderedFeature feature) {
-        threadLocalLayerStats.accept(feature);
         var group = feature.group().orElse(null);
         var thisFeature = feature.vectorTileFeature();
         byte[] encodedValue;
@@ -217,24 +204,18 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       var attrs = vectorTileFeature.attrs();
       packer.packMapHeader((int) attrs.values().stream().filter(Objects::nonNull).count());
       for (Map.Entry<String, Object> entry : attrs.entrySet()) {
-        if (entry.getValue() != null) {
+        Object value = entry.getValue();
+        if (value != null) {
           packer.packInt(commonValueStrings.encode(entry.getKey()));
-          Object value = entry.getValue();
-          if (value instanceof String string) {
-            packer.packValue(ValueFactory.newString(string));
-          } else if (value instanceof Integer integer) {
-            packer.packValue(ValueFactory.newInteger(integer.longValue()));
-          } else if (value instanceof Long longValue) {
-            packer.packValue(ValueFactory.newInteger(longValue));
-          } else if (value instanceof Float floatValue) {
-            packer.packValue(ValueFactory.newFloat(floatValue));
-          } else if (value instanceof Double doubleValue) {
-            packer.packValue(ValueFactory.newFloat(doubleValue));
-          } else if (value instanceof Boolean booleanValue) {
-            packer.packValue(ValueFactory.newBoolean(booleanValue));
-          } else {
-            packer.packValue(ValueFactory.newString(value.toString()));
-          }
+          packer.packValue(switch (value) {
+            case String string -> ValueFactory.newString(string);
+            case Integer integer -> ValueFactory.newInteger(integer.longValue());
+            case Long longValue -> ValueFactory.newInteger(longValue);
+            case Float floatValue -> ValueFactory.newFloat(floatValue);
+            case Double doubleValue -> ValueFactory.newFloat(doubleValue);
+            case Boolean booleanValue -> ValueFactory.newBoolean(booleanValue);
+            case Object other -> ValueFactory.newString(other.toString());
+          });
         }
       }
       // Use the same binary format for encoding geometries in output vector tiles. Benchmarking showed
@@ -423,7 +404,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         GeometryType geomType = decodeGeomType(geomTypeAndScale);
         int scale = decodeScale(geomTypeAndScale);
         int mapSize = unpacker.unpackMapHeader();
-        Map<String, Object> attrs = new HashMap<>(mapSize);
+        Map<String, Object> attrs = HashMap.newHashMap(mapSize);
         for (int i = 0; i < mapSize; i++) {
           String key = commonValueStrings.decode(unpacker.unpackInt());
           Value v = unpacker.unpackValue();
@@ -456,7 +437,14 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     public VectorTile getVectorTile() {
+      return getVectorTile(null);
+    }
+
+    public VectorTile getVectorTile(LayerAttrStats.Updater layerStats) {
       VectorTile tile = new VectorTile();
+      if (layerStats != null) {
+        tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
+      }
       List<VectorTile.Feature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
       for (SortableFeature entry : entries) {
@@ -494,7 +482,7 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
         // log failures, only throwing when it's a fatal error
         if (e instanceof GeometryException geoe) {
           geoe.log(stats, "postprocess_layer",
-            "Caught error postprocessing features for " + layer + " layer on " + tileCoord);
+            "Caught error postprocessing features for " + layer + " layer on " + tileCoord, config.logJtsExceptions());
         } else if (e instanceof Error err) {
           LOGGER.error("Caught fatal error postprocessing features {} {}", layer, tileCoord, e);
           throw err;

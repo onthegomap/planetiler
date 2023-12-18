@@ -18,4 +18,8 @@ public interface RunnableThatThrows {
       throwFatalException(e);
     }
   }
+
+  static Runnable wrap(RunnableThatThrows thrower) {
+    return thrower::runAndWrapException;
+  }
 }

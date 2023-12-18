@@ -74,7 +74,7 @@ public class Overture implements Profile {
   }
 
   private static void downloadFiles(Path base, Planetiler pt, String release, boolean sample) {
-    var d = Downloader.create(pt.config(), pt.stats());
+    var d = Downloader.create(pt.config());
     var urls = sample ?
       OvertureUrls.sampleSmallest(pt.config(), "release/" + release) :
       OvertureUrls.getAll(pt.config(), "release/" + release);
@@ -149,8 +149,8 @@ public class Overture implements Profile {
     String clazz = sourceFeature.getStruct().get("class").asString();
     createAnyFeature(sourceFeature, features)
       .setMinZoom(sourceFeature.isPoint() ? 14 : switch (clazz) {
-      case "residential" -> 6;
-      default -> 9;
+        case "residential" -> 6;
+        default -> 9;
       })
       .inheritAttrFromSource("subType")
       .inheritAttrFromSource("class")
@@ -254,24 +254,24 @@ public class Overture implements Profile {
     }
     int minzoom = switch (subtype) {
       case ROAD -> switch (roadClass) {
-          case MOTORWAY -> 4;
-          case TRUNK -> 5;
-          case PRIMARY -> 7;
-          case SECONDARY -> 9;
-          case TERTIARY -> 11;
-          case RESIDENTIAL -> 12;
-          case LIVINGSTREET -> 13;
-          case UNCLASSIFIED -> 14;
-          case PARKINGAISLE -> 14;
-          case DRIVEWAY -> 14;
-          case PEDESTRIAN -> 14;
-          case FOOTWAY -> 14;
-          case STEPS -> 14;
-          case TRACK -> 14;
-          case CYCLEWAY -> 14;
-          case BRIDLEWAY -> 14;
-          case UNKNOWN -> 14;
-        };
+        case MOTORWAY -> 4;
+        case TRUNK -> 5;
+        case PRIMARY -> 7;
+        case SECONDARY -> 9;
+        case TERTIARY -> 11;
+        case RESIDENTIAL -> 12;
+        case LIVINGSTREET -> 13;
+        case UNCLASSIFIED -> 14;
+        case PARKINGAISLE -> 14;
+        case DRIVEWAY -> 14;
+        case PEDESTRIAN -> 14;
+        case FOOTWAY -> 14;
+        case STEPS -> 14;
+        case TRACK -> 14;
+        case CYCLEWAY -> 14;
+        case BRIDLEWAY -> 14;
+        case UNKNOWN -> 14;
+      };
       case RAIL -> 8;
       case WATER -> 10;
     };
@@ -433,7 +433,7 @@ public class Overture implements Profile {
 
   private static final Range<Double> FULL_LENGTH = Range.closedOpen(0.0, 1.0);
 
-  record Partial<T> (T value, Range<Double> at) {}
+  record Partial<T>(T value, Range<Double> at) {}
 
   private void processConnector(AvroParquetFeature sourceFeature, FeatureCollector features) {
     if (connectors) {

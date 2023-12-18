@@ -30,7 +30,7 @@ public interface WriteableTileArchive extends Closeable {
    * Called before any tiles are written into {@link TileWriter}. Implementations of TileArchive should set up any
    * required state here.
    */
-  default void initialize(TileArchiveMetadata metadata) {}
+  default void initialize() {}
 
   /**
    * Implementations should return a object that implements {@link TileWriter} The specific TileWriter returned might

@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ public class GeoUtils {
   public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
+  private static final double LOG2 = Math.log(2);
   /**
    * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
    * latitude/longitude coordinates.
@@ -281,15 +283,15 @@ public class GeoUtils {
   }
 
   public static Geometry combineLineStrings(List<LineString> lineStrings) {
-    return lineStrings.size() == 1 ? lineStrings.get(0) : createMultiLineString(lineStrings);
+    return lineStrings.size() == 1 ? lineStrings.getFirst() : createMultiLineString(lineStrings);
   }
 
   public static Geometry combinePolygons(List<Polygon> polys) {
-    return polys.size() == 1 ? polys.get(0) : createMultiPolygon(polys);
+    return polys.size() == 1 ? polys.getFirst() : createMultiPolygon(polys);
   }
 
   public static Geometry combinePoints(List<Point> points) {
-    return points.size() == 1 ? points.get(0) : createMultiPoint(points);
+    return points.size() == 1 ? points.getFirst() : createMultiPoint(points);
   }
 
   /**
@@ -383,29 +385,29 @@ public class GeoUtils {
     if (lineStrings.isEmpty()) {
       throw new GeometryException("polygon_to_linestring_empty", "No line strings");
     } else if (lineStrings.size() == 1) {
-      return lineStrings.get(0);
+      return lineStrings.getFirst();
     } else {
       return createMultiLineString(lineStrings);
     }
   }
 
   private static void getLineStrings(Geometry input, List<LineString> output) throws GeometryException {
-    if (input instanceof LinearRing linearRing) {
-      output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
-    } else if (input instanceof LineString lineString) {
-      output.add(lineString);
-    } else if (input instanceof Polygon polygon) {
-      getLineStrings(polygon.getExteriorRing(), output);
-      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-        getLineStrings(polygon.getInteriorRingN(i), output);
+    switch (input) {
+      case LinearRing linearRing -> output.add(JTS_FACTORY.createLineString(linearRing.getCoordinateSequence()));
+      case LineString lineString -> output.add(lineString);
+      case Polygon polygon -> {
+        getLineStrings(polygon.getExteriorRing(), output);
+        for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+          getLineStrings(polygon.getInteriorRingN(i), output);
+        }
       }
-    } else if (input instanceof GeometryCollection gc) {
-      for (int i = 0; i < gc.getNumGeometries(); i++) {
-        getLineStrings(gc.getGeometryN(i), output);
+      case GeometryCollection gc -> {
+        for (int i = 0; i < gc.getNumGeometries(); i++) {
+          getLineStrings(gc.getGeometryN(i), output);
+        }
       }
-    } else {
-      throw new GeometryException("get_line_strings_bad_type",
-        "unrecognized geometry type: " + input.getGeometryType());
+      case null, default -> throw new GeometryException("get_line_strings_bad_type",
+        "unrecognized geometry type: " + (input == null ? "null" : input.getGeometryType()));
     }
   }
 
@@ -416,7 +418,7 @@ public class GeoUtils {
   /** Returns a point approximately {@code ratio} of the way from start to end and {@code offset} units to the right. */
   public static Point pointAlongOffset(LineString lineString, double ratio, double offset) {
     int numPoints = lineString.getNumPoints();
-    int middle = Math.max(0, Math.min(numPoints - 2, (int) (numPoints * ratio)));
+    int middle = Math.clamp((int) (numPoints * ratio), 0, numPoints - 2);
     Coordinate a = lineString.getCoordinateN(middle);
     Coordinate b = lineString.getCoordinateN(middle + 1);
     LineSegment segment = new LineSegment(a, b);
@@ -530,8 +532,20 @@ public class GeoUtils {
         innerGeometries.add(geom);
       }
     }
-    return innerGeometries.size() == 1 ? innerGeometries.get(0) :
+    return innerGeometries.size() == 1 ? innerGeometries.getFirst() :
       JTS_FACTORY.createGeometryCollection(innerGeometries.toArray(Geometry[]::new));
+  }
+
+  /**
+   * For a feature of size {@code worldGeometrySize} (where 1=full planet), determine the minimum zoom level at which
+   * the feature appears at least {@code minPixelSize} pixels large.
+   * <p>
+   * The result will be clamped to the range [0, {@link PlanetilerConfig#MAX_MAXZOOM}].
+   */
+  public static int minZoomForPixelSize(double worldGeometrySize, double minPixelSize) {
+    double worldPixels = worldGeometrySize * 256;
+    return Math.clamp((int) Math.ceil(Math.log(minPixelSize / worldPixels) / LOG2), 0,
+      PlanetilerConfig.MAX_MAXZOOM);
   }
 
   /** Helper class to sort polygons by area of their outer shell. */

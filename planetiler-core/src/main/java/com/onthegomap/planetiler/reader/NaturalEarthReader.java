@@ -177,7 +177,7 @@ public class NaturalEarthReader extends SimpleReader<SimpleFeature> {
 
             // create the feature and pass to next stage
             Geometry latLonGeometry = GeoUtils.WKB_READER.read(geometry);
-            SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, new HashMap<>(column.length - 1),
+            SimpleFeature readerGeometry = SimpleFeature.create(latLonGeometry, HashMap.newHashMap(column.length - 1),
               sourceName, table, ++id);
             for (int c = 0; c < column.length; c++) {
               if (c != geometryColumn) {

@@ -58,7 +58,8 @@ public record PlanetilerConfig(
   String debugUrlPattern,
   Path tmpDir,
   Path tileWeights,
-  double maxPointBuffer
+  double maxPointBuffer,
+  boolean logJtsExceptions
 ) {
 
   public static final int MIN_MINZOOM = 0;
@@ -208,7 +209,8 @@ public record PlanetilerConfig(
         "Max tile pixels to include points outside tile bounds. Set to a lower value to reduce tile size for " +
           "clients that handle label collisions across tiles (most web and native clients). NOTE: Do not reduce if you need to support " +
           "raster tile rendering",
-        Double.POSITIVE_INFINITY)
+        Double.POSITIVE_INFINITY),
+      arguments.getBoolean("log_jts_exceptions", "Emit verbose details to debug JTS geometry errors", false)
     );
   }
 

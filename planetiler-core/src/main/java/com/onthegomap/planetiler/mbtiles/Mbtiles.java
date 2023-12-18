@@ -220,7 +220,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   }
 
   @Override
-  public void initialize(TileArchiveMetadata tileArchiveMetadata) {
+  public void initialize() {
     if (skipIndexCreation) {
       createTablesWithoutIndexes();
       if (LOGGER.isInfoEnabled()) {
@@ -230,12 +230,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     } else {
       createTablesWithIndexes();
     }
-
-    metadataTable().set(tileArchiveMetadata);
   }
 
   @Override
   public void finish(TileArchiveMetadata tileArchiveMetadata) {
+    metadataTable().set(tileArchiveMetadata);
     if (vacuumAnalyze) {
       vacuumAnalyze();
     }
