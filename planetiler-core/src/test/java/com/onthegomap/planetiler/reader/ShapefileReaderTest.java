@@ -1,9 +1,11 @@
 package com.onthegomap.planetiler.reader;
 
+import static com.onthegomap.planetiler.TestUtils.newPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.config.Bounds;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.util.FileUtils;
@@ -11,9 +13,9 @@ import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.geotools.api.data.SimpleFeatureStore;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.operation.TransformException;
@@ -29,12 +31,18 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 
 class ShapefileReaderTest {
   @TempDir
   private Path tempDir;
+  private static final Envelope env = newPoint(-77.12911152370515, 38.79930767201779).getEnvelopeInternal();
+  private static final int numInEnv = 18;
+  static {
+    env.expandBy(0.1);
+  }
 
   @Test
   @Timeout(30)
@@ -53,6 +61,35 @@ class ShapefileReaderTest {
     var dest = tempDir.resolve("shapefile.zip");
     FileUtils.unzipResource("/shapefile.zip", dest);
     testReadShapefile(dest.resolve("shapefile").resolve("stations.shp"));
+  }
+
+  @Test
+  @Timeout(30)
+  void testReadShapefileWithBoundingBox() {
+    var dest = tempDir.resolve("shapefile.zip");
+    FileUtils.unzipResource("/shapefile.zip", dest);
+    try (
+      var reader = new ShapefileReader(null, "test", dest.resolve("shapefile").resolve("stations.shp"), new Bounds(env))
+    ) {
+      for (int i = 1; i <= 2; i++) {
+        assertEquals(numInEnv, reader.getFeatureCount());
+        List<Geometry> points = new CopyOnWriteArrayList<>();
+        WorkerPipeline.start("test", Stats.inMemory())
+          .fromGenerator("source", reader::readFeatures)
+          .addBuffer("reader_queue", 100, 1)
+          .sinkToConsumer("counter", 1, elem -> {
+            assertTrue(elem.getTag("name") instanceof String);
+            assertEquals("test", elem.getSource());
+            assertEquals("stations", elem.getSourceLayer());
+            points.add(elem.latLonGeometry());
+          }).await();
+        assertEquals(numInEnv, points.size());
+        var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
+        var centroid = gc.getCentroid();
+        assertEquals(-77.0934256, centroid.getX(), 1e-5, "iter " + i);
+        assertEquals(38.8509022, centroid.getY(), 1e-5, "iter " + i);
+      }
+    }
   }
 
   @Test
@@ -82,7 +119,7 @@ class ShapefileReaderTest {
       featureStore.setTransaction(transaction);
       var collection = new DefaultFeatureCollection();
       var featureBuilder = new SimpleFeatureBuilder(type);
-      featureBuilder.add(TestUtils.newPoint(1, 2));
+      featureBuilder.add(newPoint(1, 2));
       featureBuilder.add(3);
       var feature = featureBuilder.buildFeature(null);
       collection.add(feature);
@@ -92,7 +129,7 @@ class ShapefileReaderTest {
 
     try (var reader = new ShapefileReader(null, "test", shpPath)) {
       assertEquals(1, reader.getFeatureCount());
-      List<SimpleFeature> features = new ArrayList<>();
+      List<SimpleFeature> features = new CopyOnWriteArrayList<>();
       reader.readFeatures(features::add);
       assertEquals(10.5113, features.getFirst().latLonGeometry().getCentroid().getX(), 1e-4);
       assertEquals(0, features.getFirst().latLonGeometry().getCentroid().getY(), 1e-4);
@@ -105,8 +142,8 @@ class ShapefileReaderTest {
 
       for (int i = 1; i <= 2; i++) {
         assertEquals(86, reader.getFeatureCount());
-        List<Geometry> points = new ArrayList<>();
-        List<String> names = new ArrayList<>();
+        List<Geometry> points = new CopyOnWriteArrayList<>();
+        List<String> names = new CopyOnWriteArrayList<>();
         WorkerPipeline.start("test", Stats.inMemory())
           .fromGenerator("source", reader::readFeatures)
           .addBuffer("reader_queue", 100, 1)
@@ -117,12 +154,13 @@ class ShapefileReaderTest {
             points.add(elem.latLonGeometry());
             names.add(elem.getTag("name").toString());
           }).await();
+        assertEquals(numInEnv, points.stream().filter(point -> env.contains(point.getCoordinate())).count());
         assertEquals(86, points.size());
         assertTrue(names.contains("Van Dörn Street"));
         var gc = GeoUtils.JTS_FACTORY.createGeometryCollection(points.toArray(new Geometry[0]));
         var centroid = gc.getCentroid();
-        assertEquals(-77.0297995, centroid.getX(), 5, "iter " + i);
-        assertEquals(38.9119684, centroid.getY(), 5, "iter " + i);
+        assertEquals(-77.0297995, centroid.getX(), 1e-5, "iter " + i);
+        assertEquals(38.9119684, centroid.getY(), 1e-5, "iter " + i);
       }
     }
   }
