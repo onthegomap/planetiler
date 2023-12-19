@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
@@ -98,11 +99,12 @@ public class ParquetInputFile {
 
         @Override
         public Iterator<Block> iterator() {
-          return metadata.getBlocks().stream().map(block -> {
+          return IntStream.range(0, metadata.getBlocks().size()).mapToObj(blockIndex -> {
+            var block = metadata.getBlocks().get(blockIndex);
             try {
               // happens in reader thread
               // TODO read smaller set of rows to reduce memory usage
-              var group = reader.readRowGroup(block.getOrdinal());
+              var group = reader.readRowGroup(blockIndex);
               return (Block) new Block() {
                 @Override
                 public Path getFileName() {

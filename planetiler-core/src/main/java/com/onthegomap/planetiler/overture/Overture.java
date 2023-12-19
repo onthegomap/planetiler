@@ -54,7 +54,7 @@ public class Overture implements Profile {
   }
 
   public static void main(String[] args) throws Exception {
-    var base = Path.of("data", "sources", "overture");
+    var base = Path.of("data", "sources", "overture-12-23-ma");
     var arguments = Arguments.fromEnvOrArgs(args).orElse(Arguments.of(Map.of(
       "tile_warning_size_mb", "10"
     )));
@@ -94,16 +94,26 @@ public class Overture implements Profile {
       switch (sourceFeature.getSourceLayer()) {
         case "admins/administrativeBoundary" -> processAdministrativeBoundary(avroFeature, features);
         case "admins/locality" -> processLocality(avroFeature, features);
+        case "admins/localityArea" -> processLocalityArea(avroFeature, features);
         case "buildings/building" -> processBuilding(avroFeature, features);
+        case "buildings/part" -> processBuildingPart(avroFeature, features);
         case "places/place" -> processPlace(avroFeature, features);
         case "transportation/connector" -> processConnector(avroFeature, features);
         case "transportation/segment" -> processSegment(avroFeature, features);
         case "base/land" -> processLand(avroFeature, features);
-        case "base/landuse" -> processLandUse(avroFeature, features);
+        case "base/landUse" -> processLandUse(avroFeature, features);
         case "base/water" -> processWater(avroFeature, features);
         default -> System.err.println("Not handled: " + sourceFeature.getSourceLayer());
       }
     }
+  }
+
+  private void processBuildingPart(AvroParquetFeature avroFeature, FeatureCollector features) {
+    // TODO
+  }
+
+  private void processLocalityArea(AvroParquetFeature avroFeature, FeatureCollector features) {
+    // TODO
   }
 
   private void processWater(AvroParquetFeature sourceFeature, FeatureCollector features) {
@@ -267,6 +277,8 @@ public class Overture implements Profile {
         case PEDESTRIAN -> 14;
         case FOOTWAY -> 14;
         case STEPS -> 14;
+        case SIDEWALK -> 14;
+        case CROSSWALK -> 14;
         case TRACK -> 14;
         case CYCLEWAY -> 14;
         case BRIDLEWAY -> 14;

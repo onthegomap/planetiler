@@ -280,10 +280,10 @@ public class OvertureSchema {
     }
   }
 
-  record Partial<T> (List<T> value, Range at) {
+  record Partial<T>(List<T> value, Range at) {
     public static <T> Partial<T> parse(Object obj, Class<T> innerClass) {
       return obj instanceof Map<?, ?> map ? new Partial<>(
-        map.get("value")instanceof String s ?
+        map.get("value") instanceof String s ?
           List.of(mapper.convertValue(s, innerClass)) :
           ((List<?>) map.get("value")).stream().map(item -> mapper.convertValue(item, innerClass)).toList(),
         mapper.convertValue(map.get("at"), Range.class)
@@ -526,6 +526,10 @@ public class OvertureSchema {
     CYCLEWAY("cycleway"),
     @JsonProperty("bridleway")
     BRIDLEWAY("bridleway"),
+    @JsonProperty("sidewalk")
+    SIDEWALK("sidewalk"),
+    @JsonProperty("crosswalk")
+    CROSSWALK("crosswalk"),
     @JsonProperty("unknown")
     UNKNOWN("unknown");
 
