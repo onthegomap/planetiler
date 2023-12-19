@@ -95,8 +95,7 @@ public class Overture implements Profile {
         case "admins/administrativeBoundary" -> processAdministrativeBoundary(avroFeature, features);
         case "admins/locality" -> processLocality(avroFeature, features);
         case "admins/localityArea" -> processLocalityArea(avroFeature, features);
-        case "buildings/building" -> processBuilding(avroFeature, features);
-        case "buildings/part" -> processBuildingPart(avroFeature, features);
+        case "buildings/building", "buildings/part" -> processBuilding(avroFeature, features);
         case "places/place" -> processPlace(avroFeature, features);
         case "transportation/connector" -> processConnector(avroFeature, features);
         case "transportation/segment" -> processSegment(avroFeature, features);
@@ -108,12 +107,15 @@ public class Overture implements Profile {
     }
   }
 
-  private void processBuildingPart(AvroParquetFeature avroFeature, FeatureCollector features) {
-    // TODO
-  }
-
-  private void processLocalityArea(AvroParquetFeature avroFeature, FeatureCollector features) {
-    // TODO
+  private void processLocalityArea(AvroParquetFeature sourceFeature, FeatureCollector features) {
+    // not really worth showing anything, the center shows up in locality point
+    //    if (sourceFeature.canBePolygon()) {
+    //      Struct struct = sourceFeature.getStruct();
+    //      features.polygon(sourceFeature.getSourceLayer())
+    //        .setMinZoom(13)
+    //        .setAttr("localityArea", struct.get("localityArea").asString())
+    //        .putAttrs(getCommonTags(struct));
+    //    }
   }
 
   private void processWater(AvroParquetFeature sourceFeature, FeatureCollector features) {
@@ -530,7 +532,20 @@ public class Overture implements Profile {
       var commonTags = getCommonTags(struct);
       commonTags.put("class", struct.get("class").asString());
       commonTags.put("height", struct.get("height").asDouble());
-      commonTags.put("numFloors", struct.get("numfloors").asInt());
+      commonTags.put("numFloors", struct.get("numFloors").asInt());
+      commonTags.put("roofShape", struct.get("roofShape").asString());
+      commonTags.put("roofOrientation", struct.get("roofOrientation").asString());
+      commonTags.put("roofDirection", struct.get("roofDirection").asDouble());
+      commonTags.put("eaveHeight", struct.get("eaveHeight").asDouble());
+      commonTags.put("roofMaterial", struct.get("roofMaterial").asString());
+      commonTags.put("facadeMaterial", struct.get("facadeMaterial").asString());
+      commonTags.put("facadeColor", struct.get("facadeColor").asString());
+      commonTags.put("roofColor", struct.get("roofColor").asString());
+      commonTags.put("buildingId", struct.get("buildingId").asString());
+      if (Boolean.TRUE.equals(struct.get("hasParts").asBoolean())) {
+        commonTags.put("hasParts", true);
+        commonTags.put("id", struct.get("id").asString());
+      }
       features.polygon(sourceFeature.getSourceLayer())
         .setMinZoom(13)
         .setMinPixelSize(2)
@@ -546,15 +561,19 @@ public class Overture implements Profile {
   }
 
   private void processLocality(AvroParquetFeature sourceFeature, FeatureCollector features) {
-    if (sourceFeature.canBePolygon()) {
+    if (sourceFeature.isPoint()) {
       Struct struct = sourceFeature.getStruct();
       // TODO overture bug: capitalization inconsistent
       Integer adminLevel = struct.get("adminLevel").orElse(struct.get("adminlevel")).asInt();
-      features.innermostPoint(sourceFeature.getSourceLayer())
-        .setMinZoom(adminLevelMinZoom(adminLevel))
+      features.point(sourceFeature.getSourceLayer())
+        .setMinZoom(adminLevel != null ? adminLevelMinZoom(adminLevel) :
+          localityTypeToMinzoom(struct.get("localityType").asString()))
         .putAttrs(getNames(struct.get("names")))
         .setAttr("adminLevel", adminLevel)
+        .setAttr("drivingSide", struct.get("drivingSide").asString())
         .setAttr("subType", struct.get("subtype").asString())
+        .setAttr("localityType", struct.get("localityType").asString())
+        .setAttr("defaultLanguage", struct.get("defaultLanguage").asString())
         .setAttr("isoCountryCodeAlpha2", struct.get("isocountrycodealpha2").asString())
         .setAttr("isoSubCountryCode", struct.get("isosubcountrycode").asString())
         .putAttrs(getCommonTags(struct));
@@ -597,7 +616,7 @@ public class Overture implements Profile {
   }
 
   private Map<String, Object> getCommonTags(Struct info) {
-    Map<String, Object> results = new HashMap<>(4);
+    Map<String, Object> results = HashMap.newHashMap(4);
     if (metadata) {
       results.put("version", info.get("version").asInt());
       results.put("updateTime", Instant.ofEpochMilli(info.get("updatetime").asLong()).toString());
@@ -614,6 +633,7 @@ public class Overture implements Profile {
         return d.get("dataset").asString() + (recordId == null ? "" : (":" + recordId));
       }).sorted().distinct().collect(Collectors.joining(",")));
     }
+    results.put("level", info.get("level").asInt());
     return results;
   }
 
@@ -626,14 +646,26 @@ public class Overture implements Profile {
       .setMinPixelSize(0)
       .setAttr("adminLevel", adminLevel)
       .setAttr("maritime", struct.get("maritime").asBoolean())
+      .setAttr("geopolDisplay", struct.get("geopolDisplay").asString())
       .putAttrs(getCommonTags(struct));
   }
-
 
   private static int adminLevelMinZoom(int adminLevel) {
     return adminLevel < 4 ? 0 :
       adminLevel <= 4 ? 4 :
       adminLevel <= 6 ? 9 :
       adminLevel <= 8 ? 11 : 12;
+  }
+
+  private static int localityTypeToMinzoom(String localityType) {
+    return switch (localityType) {
+      case "country" -> 0;
+      case "region", "province", "state" -> 4;
+      case "county" -> 6;
+      case "district" -> 9;
+      case "city", "municipality" -> 11;
+      case "town", "village", "hamlet", "borough", "suburb", "neighborhood" -> 12;
+      default -> throw new IllegalArgumentException("unhandled locality type: " + localityType);
+    };
   }
 }
