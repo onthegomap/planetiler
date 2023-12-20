@@ -244,7 +244,7 @@ public class Overture implements Profile {
   public String attribution() {
     return """
       <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a>
-      <a href="https://overturemaps.org/download/overture-july-alpha-release-notes/" target="_blank">&copy; Overture Foundation</a>
+      <a href="https://overturemaps.org/overture-december-2023-release-notes/" target="_blank">&copy; Overture Foundation</a>
       """
       .replaceAll("\n", " ")
       .trim();
@@ -273,18 +273,8 @@ public class Overture implements Profile {
         case TERTIARY -> 11;
         case RESIDENTIAL -> 12;
         case LIVINGSTREET -> 13;
-        case UNCLASSIFIED -> 14;
-        case PARKINGAISLE -> 14;
-        case DRIVEWAY -> 14;
-        case PEDESTRIAN -> 14;
-        case FOOTWAY -> 14;
-        case STEPS -> 14;
-        case SIDEWALK -> 14;
-        case CROSSWALK -> 14;
-        case TRACK -> 14;
-        case CYCLEWAY -> 14;
-        case BRIDLEWAY -> 14;
-        case UNKNOWN -> 14;
+        case UNCLASSIFIED, PARKINGAISLE, DRIVEWAY, PEDESTRIAN, FOOTWAY, STEPS, SIDEWALK, CROSSWALK, TRACK, CYCLEWAY,
+          BRIDLEWAY, UNKNOWN -> 14;
       };
       case RAIL -> 8;
       case WATER -> 10;

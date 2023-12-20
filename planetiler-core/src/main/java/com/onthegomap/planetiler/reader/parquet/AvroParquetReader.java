@@ -18,9 +18,11 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
+import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.predicate.FilterApi;
@@ -108,6 +110,7 @@ public class AvroParquetReader {
     var blocksRead = Counter.newMultiThreadCounter();
     var featuresRead = Counter.newMultiThreadCounter();
     var featuresWritten = Counter.newMultiThreadCounter();
+    Map<String, Integer> workingOn = new ConcurrentHashMap<>();
 
     var pipeline = WorkerPipeline.start(sourceName, stats)
       .readFromTiny("inputFiles", inputFiles).<ParquetInputFile.Block>addWorker("read", readThreads, (prev, next) -> {
@@ -127,6 +130,7 @@ public class AvroParquetReader {
         try (FeatureRenderer renderer = newFeatureRenderer(writer, config, next)) {
           for (var block : prev) {
             String layer = layerParser.apply(block.getFileName());
+            workingOn.merge(layer, 1, Integer::sum);
             for (var item : block) {
               if (item != null) {
                 var sourceFeature = new AvroParquetFeature(
@@ -152,6 +156,7 @@ public class AvroParquetReader {
               elements.inc();
             }
             blocks.inc();
+            workingOn.merge(layer, -1, Integer::sum);
           }
         }
       })
@@ -171,6 +176,12 @@ public class AvroParquetReader {
       .addRatePercentCounter("blocks", blockCount, blocksRead, false)
       .addRateCounter("write", featuresWritten)
       .addFileSize(writer)
+      .newLine()
+      .add(() -> workingOn.entrySet().stream()
+        .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+        .filter(d -> d.getValue() > 0)
+        .map(d -> d.getKey() + ": " + d.getValue())
+        .collect(Collectors.joining(", ")))
       .newLine()
       .addProcessStats()
       .newLine()
