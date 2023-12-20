@@ -521,25 +521,25 @@ public class Overture implements Profile {
       Struct struct = sourceFeature.getStruct();
       var commonTags = getCommonTags(struct);
       commonTags.put("class", struct.get("class").asString());
-      commonTags.put("height", struct.get("height").asDouble());
-      commonTags.put("numFloors", struct.get("numFloors").asInt());
-      commonTags.put("roofShape", struct.get("roofShape").asString());
-      commonTags.put("roofOrientation", struct.get("roofOrientation").asString());
-      commonTags.put("roofDirection", struct.get("roofDirection").asDouble());
-      commonTags.put("eaveHeight", struct.get("eaveHeight").asDouble());
-      commonTags.put("roofMaterial", struct.get("roofMaterial").asString());
-      commonTags.put("facadeMaterial", struct.get("facadeMaterial").asString());
-      commonTags.put("facadeColor", struct.get("facadeColor").asString());
-      commonTags.put("roofColor", struct.get("roofColor").asString());
-      commonTags.put("buildingId", struct.get("buildingId").asString());
-      if (Boolean.TRUE.equals(struct.get("hasParts").asBoolean())) {
-        commonTags.put("hasParts", true);
-        commonTags.put("id", struct.get("id").asString());
-      }
-      features.polygon(sourceFeature.getSourceLayer())
+      var feature = features.polygon(sourceFeature.getSourceLayer())
         .setMinZoom(13)
         .setMinPixelSize(2)
-        .putAttrs(commonTags);
+        .putAttrs(commonTags)
+        .setAttr("height", struct.get("height").asDouble())
+        .setAttr("numFloors", struct.get("numFloors").asInt())
+        .setAttr("roofShape", struct.get("roofShape").asString())
+        .setAttr("roofOrientation", struct.get("roofOrientation").asString())
+        .setAttr("roofDirection", struct.get("roofDirection").asDouble())
+        .setAttr("eaveHeight", struct.get("eaveHeight").asDouble())
+        .setAttr("roofMaterial", struct.get("roofMaterial").asString())
+        .setAttr("facadeMaterial", struct.get("facadeMaterial").asString())
+        .setAttr("facadeColor", struct.get("facadeColor").asString())
+        .setAttr("roofColor", struct.get("roofColor").asString())
+        .setAttr("buildingId", struct.get("buildingId").asString());
+      if (Boolean.TRUE.equals(struct.get("hasParts").asBoolean())) {
+        feature.setAttr("hasParts", true)
+          .setAttr("id", struct.get("id").asString());
+      }
       var names = getNames(struct.get("names"));
       if (!names.isEmpty()) {
         features.centroidIfConvex(sourceFeature.getSourceLayer())
