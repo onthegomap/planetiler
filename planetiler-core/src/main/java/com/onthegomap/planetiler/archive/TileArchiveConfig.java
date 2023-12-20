@@ -3,7 +3,10 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.stream.StreamArchiveUtils;
 import com.onthegomap.planetiler.util.FileUtils;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Definition for a tileset, parsed from a URI-like string.
@@ -147,7 +151,30 @@ public record TileArchiveConfig(
    * Returns {@code true} if the archive already exists, {@code false} otherwise.
    */
   public boolean exists() {
-    return getLocalPath() != null && Files.exists(getLocalPath());
+    return exists(getLocalPath());
+  }
+
+  /**
+   * @param p path to the archive
+   * @return {@code true} if the archive already exists, {@code false} otherwise.
+   */
+  public boolean exists(Path p) {
+    if (p == null) {
+      return false;
+    }
+    if (format() != Format.FILES) {
+      return Files.exists(p);
+    } else {
+      if (!Files.exists(p)) {
+        return false;
+      }
+      // file-archive exists only if it has any contents
+      try (Stream<Path> paths = Files.list(p)) {
+        return paths.findAny().isPresent();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
   }
 
   /**
@@ -165,6 +192,14 @@ public record TileArchiveConfig(
     return Arguments.of(options).orElse(arguments.withPrefix(format.id));
   }
 
+  public Path getPathForMultiThreadedWriter(int index) {
+    return switch (format) {
+      case CSV, TSV, JSON, PROTO, PBF -> StreamArchiveUtils.constructIndexedPath(getLocalPath(), index);
+      case FILES -> getLocalPath();
+      default -> throw new UnsupportedOperationException("not supported by " + format);
+    };
+  }
+
   public enum Format {
     MBTILES("mbtiles",
       false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
@@ -179,7 +214,9 @@ public record TileArchiveConfig(
     /** identical to {@link Format#PROTO} */
     PBF("pbf", true, true),
 
-    JSON("json", true, true);
+    JSON("json", true, true),
+
+    FILES("files", true, true);
 
     private final String id;
     private final boolean supportsAppend;

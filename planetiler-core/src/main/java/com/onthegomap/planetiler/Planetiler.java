@@ -19,7 +19,6 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.stats.ProcessInfo;
 import com.onthegomap.planetiler.stats.Stats;
 import com.onthegomap.planetiler.stats.Timers;
-import com.onthegomap.planetiler.stream.StreamArchiveUtils;
 import com.onthegomap.planetiler.util.AnsiColors;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.ByteBufferUtil;
@@ -683,15 +682,15 @@ public class Planetiler {
         throw new IllegalArgumentException(output.format() + " doesn't support concurrent writes");
       }
       IntStream.range(1, config.tileWriteThreads())
-        .mapToObj(index -> StreamArchiveUtils.constructIndexedPath(output.getLocalPath(), index))
+        .mapToObj(output::getPathForMultiThreadedWriter)
         .forEach(p -> {
           if (!config.append() && (overwrite || config.force())) {
             FileUtils.delete(p);
           }
-          if (config.append() && !Files.exists(p)) {
-            throw new IllegalArgumentException("indexed file \"" + p + "\" must exist when appending");
-          } else if (!config.append() && Files.exists(p)) {
-            throw new IllegalArgumentException("indexed file \"" + p + "\" must not exist when not appending");
+          if (config.append() && !output.exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
+          } else if (!config.append() && output.exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
           }
         });
     }

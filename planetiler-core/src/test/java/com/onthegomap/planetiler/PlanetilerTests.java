@@ -15,6 +15,7 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.LongLongMultimap;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.files.ReadableFilesArchive;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -1942,6 +1943,7 @@ class PlanetilerTests {
     "--output-format=proto",
     "--output-format=pbf",
     "--output-format=json",
+    "--output-format=files",
     "--tile-compression=none",
     "--tile-compression=gzip",
     "--output-layerstats",
@@ -1953,7 +1955,18 @@ class PlanetilerTests {
     final TileCompression tileCompression = extractTileCompression(args);
 
     final TileArchiveConfig.Format format = extractFormat(args);
-    final Path output = tempDir.resolve("output." + format.id());
+    final String outputUri;
+    final Path outputPath;
+    switch (format) {
+      case FILES -> {
+        outputPath = tempDir.resolve("output");
+        outputUri = outputPath.toString() + "?format=files";
+      }
+      default -> {
+        outputPath = tempDir.resolve("output." + format.id());
+        outputUri = outputPath.toString();
+      }
+    }
 
     final ReadableTileArchiveFactory readableTileArchiveFactory = switch (format) {
       case MBTILES -> Mbtiles::newReadOnlyDatabase;
@@ -1962,6 +1975,7 @@ class PlanetilerTests {
       case JSON -> InMemoryStreamArchive::fromJson;
       case PMTILES -> ReadablePmtiles::newReadFromFile;
       case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
+      case FILES -> ReadableFilesArchive::newReader;
     };
 
 
@@ -1983,7 +1997,7 @@ class PlanetilerTests {
       .addNaturalEarthSource("ne", TestUtils.pathToResource("natural_earth_vector.sqlite"))
       .addShapefileSource("shapefile", TestUtils.pathToResource("shapefile.zip"))
       .addGeoPackageSource("geopackage", TestUtils.pathToResource("geopackage.gpkg.zip"), null)
-      .setOutput(output)
+      .setOutput(outputUri)
       .run();
 
     // make sure it got deleted after write
@@ -1991,7 +2005,7 @@ class PlanetilerTests {
       assertFalse(Files.exists(tempOsm));
     }
 
-    try (var db = readableTileArchiveFactory.create(output)) {
+    try (var db = readableTileArchiveFactory.create(outputPath)) {
       int features = 0;
       var tileMap = TestUtils.getTileMap(db, tileCompression);
       for (var tile : tileMap.values()) {
@@ -2022,7 +2036,7 @@ class PlanetilerTests {
       }
     }
 
-    final Path layerstats = output.resolveSibling(output.getFileName().toString() + ".layerstats.tsv.gz");
+    final Path layerstats = outputPath.resolveSibling(outputPath.getFileName().toString() + ".layerstats.tsv.gz");
     if (args.contains("--output-layerstats")) {
       assertTrue(Files.exists(layerstats));
       byte[] data = Files.readAllBytes(layerstats);
@@ -2063,7 +2077,7 @@ class PlanetilerTests {
 
       // ensure tilestats standalone executable produces same output
       var standaloneLayerstatsOutput = tempDir.resolve("layerstats2.tsv.gz");
-      TileSizeStats.main("--input=" + output, "--output=" + standaloneLayerstatsOutput);
+      TileSizeStats.main("--input=" + outputPath, "--output=" + standaloneLayerstatsOutput);
       byte[] standaloneData = Files.readAllBytes(standaloneLayerstatsOutput);
       byte[] standaloneUncompressed = Gzip.gunzip(standaloneData);
       assertEquals(

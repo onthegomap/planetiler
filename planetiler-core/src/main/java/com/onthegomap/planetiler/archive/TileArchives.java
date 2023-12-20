@@ -1,6 +1,8 @@
 package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.files.ReadableFilesArchive;
+import com.onthegomap.planetiler.files.WriteableFilesArchive;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
@@ -56,6 +58,7 @@ public class TileArchives {
         new StreamArchiveConfig(config, options));
       case JSON -> WriteableJsonStreamArchive.newWriteToFile(archive.getLocalPath(),
         new StreamArchiveConfig(config, options));
+      case FILES -> WriteableFilesArchive.newWriter(archive.getLocalPath());
     };
   }
 
@@ -73,6 +76,7 @@ public class TileArchives {
       case CSV, TSV -> throw new UnsupportedOperationException("reading CSV is not supported");
       case PROTO, PBF -> throw new UnsupportedOperationException("reading PROTO is not supported");
       case JSON -> throw new UnsupportedOperationException("reading JSON is not supported");
+      case FILES -> ReadableFilesArchive.newReader(archive.getLocalPath());
     };
   }
 
