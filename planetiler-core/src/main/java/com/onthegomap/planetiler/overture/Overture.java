@@ -39,18 +39,22 @@ public class Overture implements Profile {
   private final PlanetilerConfig config;
   private final boolean splitRoads;
   private final boolean sources;
+  private final boolean sourceNames;
 
   Overture(PlanetilerConfig config) {
     this.config = config;
-    this.connectors = config.arguments().getBoolean("connectors", "include connectors", true);
+    this.connectors = config.arguments().getBoolean("connectors", "include connectors", false);
     this.splitRoads =
       config.arguments().getBoolean("split_roads", "split roads based on \"at\" ranges on tag values", true);
     this.metadata =
       config.arguments().getBoolean("metadata", "include element metadata (version, update time)", false);
     this.ids =
-      config.arguments().getBoolean("ids", "include ids on output features", true);
+      config.arguments().getBoolean("ids", "include ids on output features", false);
     this.sources =
-      config.arguments().getBoolean("sources", "include sources on output features", true);
+      config.arguments().getBoolean("sources", "include source names and IDs on output features", false);
+    this.sourceNames =
+      config.arguments().getBoolean("sourcenames", "include just source names (not IDs) at z14 on output features",
+        true);
   }
 
   public static void main(String[] args) throws Exception {
@@ -622,6 +626,12 @@ public class Overture implements Profile {
         }
         return d.get("dataset").asString() + (recordId == null ? "" : (":" + recordId));
       }).sorted().distinct().collect(Collectors.joining(",")));
+    } else if (sourceNames) {
+      results.put("source", info.get("sources").asList().stream()
+        .map(d -> d.get("dataset").asString())
+        .sorted()
+        .distinct().collect(Collectors.joining(","))
+      );
     }
     results.put("level", info.get("level").asInt());
     return results;
