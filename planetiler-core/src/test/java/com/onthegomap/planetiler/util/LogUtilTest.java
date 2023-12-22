@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 class LogUtilTest {
   @Test
   void testStageHandling() {
+    LogUtil.clearStage();
     assertNull(LogUtil.getStage());
     LogUtil.setStage("test");
     assertEquals("test", LogUtil.getStage());

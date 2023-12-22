@@ -98,6 +98,10 @@ public class FeatureRenderer implements Consumer<FeatureCollector.Feature>, Clos
       coords[i] = origCoords[i].copy();
     }
     for (int zoom = feature.getMaxZoom(); zoom >= feature.getMinZoom(); zoom--) {
+      double minSize = feature.getMinPixelSizeAtZoom(zoom);
+      if (minSize > 0 && feature.getSourceFeaturePixelSizeAtZoom(zoom) < minSize) {
+        continue;
+      }
       Map<String, Object> attrs = feature.getAttrsAtZoom(zoom);
       double buffer = feature.getBufferPixelsAtZoom(zoom) / 256;
       int tilesAtZoom = 1 << zoom;

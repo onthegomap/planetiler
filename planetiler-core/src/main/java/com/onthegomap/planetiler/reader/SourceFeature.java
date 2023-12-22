@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
@@ -34,11 +35,14 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   private Geometry centroid = null;
   private Geometry pointOnSurface = null;
   private Geometry centroidIfConvex = null;
+  private double innermostPointTolerance = Double.NaN;
+  private Geometry innermostPoint = null;
   private Geometry linearGeometry = null;
   private Geometry polygonGeometry = null;
   private Geometry validPolygon = null;
   private double area = Double.NaN;
   private double length = Double.NaN;
+  private double size = Double.NaN;
 
   /**
    * Constructs a new input feature.
@@ -123,6 +127,26 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
       canBePolygon() ? polygon().getInteriorPoint() :
         canBeLine() ? line().getInteriorPoint() :
         worldGeometry().getInteriorPoint());
+  }
+
+  /**
+   * Returns {@link MaximumInscribedCircle#getCenter()} of this geometry in world web mercator coordinates.
+   *
+   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
+   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between
+   *                  0.05-0.1 are a good compromise of performance vs. precision.
+   */
+  public final Geometry innermostPoint(double tolerance) throws GeometryException {
+    if (canBePolygon()) {
+      // cache as long as the tolerance hasn't changed
+      if (tolerance != innermostPointTolerance || innermostPoint == null) {
+        innermostPoint = MaximumInscribedCircle.getCenter(polygon(), Math.sqrt(area()) * tolerance);
+        innermostPointTolerance = tolerance;
+      }
+      return innermostPoint;
+    } else {
+      return pointOnSurface();
+    }
   }
 
   private Geometry computeCentroidIfConvex() throws GeometryException {
@@ -245,6 +269,14 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
       (isPoint() || canBePolygon() || canBeLine()) ? worldGeometry().getLength() : 0) : length;
   }
 
+  /**
+   * Returns and caches sqrt of {@link #area()} if polygon or {@link #length()} if a line string.
+   */
+  public double size() throws GeometryException {
+    return Double.isNaN(size) ? (size = canBePolygon() ? Math.sqrt(Math.abs(area())) : canBeLine() ? length() : 0) :
+      size;
+  }
+
   /** Returns the ID of the source that this feature came from. */
   public String getSource() {
     return source;
@@ -292,4 +324,5 @@ public abstract class SourceFeature implements WithTags, WithGeometryType {
   public boolean hasRelationInfo() {
     return relationInfos != null && !relationInfos.isEmpty();
   }
+
 }

@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.msgpack.core.MessageBufferPacker;
@@ -59,7 +58,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
   private final CommonStringEncoder.AsByte commonLayerStrings = new CommonStringEncoder.AsByte();
   private final CommonStringEncoder commonValueStrings = new CommonStringEncoder(100_000);
   private final Stats stats;
-  private final LayerAttrStats layerStats = new LayerAttrStats();
   private final PlanetilerConfig config;
   private volatile boolean prepared = false;
   private final TileOrder tileOrder;
@@ -141,14 +139,6 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     return (byte) ((geometry.geomType().asByte() & 0xff) | (geometry.scale() << 3));
   }
 
-  /**
-   * Returns statistics about each layer written through {@link #newRenderedFeatureEncoder()} including min/max zoom,
-   * features on elements in that layer, and their types.
-   */
-  public LayerAttrStats layerStats() {
-    return layerStats;
-  }
-
   public long numFeaturesWritten() {
     return sorter.numFeaturesWritten();
   }
@@ -159,16 +149,13 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
       // This method gets called billions of times when generating the planet, so these optimizations make a big difference:
       // 1) Re-use the same buffer packer to avoid allocating and resizing new byte arrays for every feature.
       private final MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-      // 2) Avoid a ThreadLocal lookup on every layer stats call by getting the handler for this thread once
-      private final Consumer<RenderedFeature> threadLocalLayerStats = layerStats.handlerForThread();
-      // 3) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
+      // 2) Avoid re-encoding values for identical filled geometries (i.e. ocean) by memoizing the encoded values
       // FeatureRenderer ensures that a separate VectorTileEncoder.Feature is used for each zoom level
       private VectorTile.Feature lastFeature = null;
       private byte[] lastEncodedValue = null;
 
       @Override
       public SortableFeature apply(RenderedFeature feature) {
-        threadLocalLayerStats.accept(feature);
         var group = feature.group().orElse(null);
         var thisFeature = feature.vectorTileFeature();
         byte[] encodedValue;
@@ -450,7 +437,14 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
 
     public VectorTile getVectorTile() {
+      return getVectorTile(null);
+    }
+
+    public VectorTile getVectorTile(LayerAttrStats.Updater layerStats) {
       VectorTile tile = new VectorTile();
+      if (layerStats != null) {
+        tile.trackLayerStats(layerStats.forZoom(tileCoord.z()));
+      }
       List<VectorTile.Feature> items = new ArrayList<>(entries.size());
       String currentLayer = null;
       for (SortableFeature entry : entries) {

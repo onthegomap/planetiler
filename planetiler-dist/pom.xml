@@ -79,6 +79,8 @@
               </org.opencontainers.image.source>
             </labels>
             <mainClass>${mainClass}</mainClass>
+            <creationTime>${maven.build.timestamp}</creationTime>
+            <filesModificationTime>${maven.build.timestamp}</filesModificationTime>
           </container>
         </configuration>
       </plugin>

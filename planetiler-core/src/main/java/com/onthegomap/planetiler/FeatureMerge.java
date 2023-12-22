@@ -29,6 +29,7 @@ import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.TopologyException;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -323,7 +324,7 @@ public class FeatureMerge {
             // spinning for a very long time on very dense tiles.
             // TODO use some heuristic to choose bufferUnbuffer vs. bufferUnionUnbuffer based on the number small
             //      polygons in the group?
-            merged = bufferUnionUnbuffer(buffer, polygonGroup);
+            merged = bufferUnionUnbuffer(buffer, polygonGroup, stats);
           } else {
             merged = buffer(buffer, GeoUtils.createGeometryCollection(polygonGroup));
           }
@@ -411,7 +412,7 @@ public class FeatureMerge {
    * Merges nearby polygons by expanding each individual polygon by {@code buffer}, unioning them, and contracting the
    * result.
    */
-  private static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup) throws GeometryException {
+  static Geometry bufferUnionUnbuffer(double buffer, List<Geometry> polygonGroup, Stats stats) {
     /*
      * A simpler alternative that might initially appear faster would be:
      *
@@ -433,10 +434,11 @@ public class FeatureMerge {
     try {
       merged = union(merged);
     } catch (TopologyException e) {
-      throw new GeometryException("buffer_union_failure", "Error unioning buffered polygons", e)
-        .addGeometryDetails("original", GeoUtils.createGeometryCollection(polygonGroup))
-        .addDetails(() -> "buffer: " + buffer)
-        .addGeometryDetails("buffered", GeoUtils.createGeometryCollection(buffered));
+      // buffer result is sometimes invalid, which makes union throw so fix
+      // it and try again (see #700)
+      stats.dataError("buffer_union_unbuffer_union_failed");
+      merged = GeometryFixer.fix(merged);
+      merged = union(merged);
     }
     merged = unbuffer(buffer, merged);
     return merged;

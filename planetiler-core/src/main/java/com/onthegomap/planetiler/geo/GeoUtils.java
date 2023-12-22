@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.geo;
 
 import com.onthegomap.planetiler.collection.LongLongMap;
+import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ public class GeoUtils {
   public static final double WORLD_CIRCUMFERENCE_METERS = Math.PI * 2 * WORLD_RADIUS_METERS;
   private static final double RADIANS_PER_DEGREE = Math.PI / 180;
   private static final double DEGREES_PER_RADIAN = 180 / Math.PI;
+  private static final double LOG2 = Math.log(2);
   /**
    * Transform web mercator coordinates where top-left corner of the planet is (0,0) and bottom-right is (1,1) to
    * latitude/longitude coordinates.
@@ -532,6 +534,18 @@ public class GeoUtils {
     }
     return innerGeometries.size() == 1 ? innerGeometries.getFirst() :
       JTS_FACTORY.createGeometryCollection(innerGeometries.toArray(Geometry[]::new));
+  }
+
+  /**
+   * For a feature of size {@code worldGeometrySize} (where 1=full planet), determine the minimum zoom level at which
+   * the feature appears at least {@code minPixelSize} pixels large.
+   * <p>
+   * The result will be clamped to the range [0, {@link PlanetilerConfig#MAX_MAXZOOM}].
+   */
+  public static int minZoomForPixelSize(double worldGeometrySize, double minPixelSize) {
+    double worldPixels = worldGeometrySize * 256;
+    return Math.clamp((int) Math.ceil(Math.log(minPixelSize / worldPixels) / LOG2), 0,
+      PlanetilerConfig.MAX_MAXZOOM);
   }
 
   /** Helper class to sort polygons by area of their outer shell. */

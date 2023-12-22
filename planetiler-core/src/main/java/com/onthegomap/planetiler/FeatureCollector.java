@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.geom.Geometry;
 
 /**
@@ -173,6 +174,55 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
   }
 
   /**
+   * Starts building a new point map feature at the furthest interior point of a polygon from its edge using
+   * {@link MaximumInscribedCircle} (aka "pole of inaccessibility") of the source feature.
+   * <p>
+   * NOTE: This is substantially more expensive to compute than {@link #centroid(String)} or
+   * {@link #pointOnSurface(String)}, especially for small {@code tolerance} values.
+   *
+   * @param layer     the output vector tile layer this feature will be written to
+   * @param tolerance precision for calculating maximum inscribed circle. 0.01 means 1% of the square root of the area.
+   *                  Smaller values for a more precise tolerance become very expensive to compute. Values between 5%
+   *                  and 10% are a good compromise of performance vs. precision.
+   * @return a feature that can be configured further.
+   */
+  public Feature innermostPoint(String layer, double tolerance) {
+    try {
+      return geometry(layer, source.innermostPoint(tolerance));
+    } catch (GeometryException e) {
+      e.log(stats, "feature_innermost_point", "Error constructing innermost point for " + source.id());
+      return new Feature(layer, EMPTY_GEOM, source.id());
+    }
+  }
+
+  /** Alias for {@link #innermostPoint(String, double)} with a default tolerance of 10%. */
+  public Feature innermostPoint(String layer) {
+    return innermostPoint(layer, 0.1);
+  }
+
+  /** Returns the minimum zoom level at which this feature is at least {@code pixelSize} pixels large. */
+  public int getMinZoomForPixelSize(double pixelSize) {
+    try {
+      return GeoUtils.minZoomForPixelSize(source.size(), pixelSize);
+    } catch (GeometryException e) {
+      e.log(stats, "min_zoom_for_size_failure", "Error getting min zoom for size from geometry " + source.id());
+      return config.maxzoom();
+    }
+  }
+
+
+  /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+  public double getPixelSizeAtZoom(int zoom) {
+    try {
+      return source.size() * (256 << zoom);
+    } catch (GeometryException e) {
+      e.log(stats, "source_feature_pixel_size_at_zoom_failure",
+        "Error getting source feature pixel size at zoom from geometry " + source.id());
+      return 0;
+    }
+  }
+
+  /**
    * Creates new feature collector instances for each source feature that we encounter.
    */
   public record Factory(PlanetilerConfig config, Stats stats) {
@@ -230,6 +280,10 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
       this.geom = geom;
       this.geometryType = GeometryType.typeOf(geom);
       this.id = id;
+      if (geometryType == GeometryType.POINT) {
+        minPixelSizeAtMaxZoom = 0;
+        defaultMinPixelSize = 0;
+      }
     }
 
     /** Returns the original ID of the source feature that this feature came from (i.e. OSM node/way ID). */
@@ -259,8 +313,8 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
 
     /**
      * Sets the value by which features are sorted within a layer in the output vector tile. Sort key gets packed into
-     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to {@code
-     * (2^(bits-1))-1}.
+     * {@link FeatureGroup#SORT_KEY_BITS} bits so the range of this is limited to {@code -(2^(bits-1))} to
+     * {@code (2^(bits-1))-1}.
      * <p>
      * Circles, lines, and polygons are rendered in the order they appear in each layer, so features that appear later
      * (higher sort key) show up on top of features with a lower sort key.
@@ -672,6 +726,29 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Sets the value for {@code key} only at zoom levels where the feature is at least {@code minPixelSize} pixels in
+     * size.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize) {
+      return setAttrWithMinzoom(key, value, getMinZoomForPixelSize(minPixelSize));
+    }
+
+    /**
+     * Sets the value for {@code key} so that it always shows when {@code zoom_level >= minZoomToShowAlways} but only
+     * shows when {@code minZoomIfBigEnough <= zoom_level < minZoomToShowAlways} when it is at least
+     * {@code minPixelSize} pixels in size.
+     * <p>
+     * If you need more flexibility, use {@link #getMinZoomForPixelSize(double)} directly, or create a
+     * {@link ZoomFunction} that calculates {@link #getPixelSizeAtZoom(int)} and applies a custom threshold based on the
+     * zoom level.
+     */
+    public Feature setAttrWithMinSize(String key, Object value, double minPixelSize, int minZoomIfBigEnough,
+      int minZoomToShowAlways) {
+      return setAttrWithMinzoom(key, value,
+        Math.clamp(getMinZoomForPixelSize(minPixelSize), minZoomIfBigEnough, minZoomToShowAlways));
+    }
+
+    /**
      * Inserts all key/value pairs in {@code attrs} into the set of attribute to emit on the output feature at or above
      * {@code minzoom}.
      * <p>
@@ -704,20 +781,20 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
     }
 
     /**
+     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
+     * before slicing it into tiles.
+     */
+    public String getNumPointsAttr() {
+      return numPointsAttr;
+    }
+
+    /**
      * Sets a special attribute key that the renderer will use to store the number of points in the simplified geometry
      * before slicing it into tiles.
      */
     public Feature setNumPointsAttr(String numPointsAttr) {
       this.numPointsAttr = numPointsAttr;
       return this;
-    }
-
-    /**
-     * Returns the attribute key that the renderer should use to store the number of points in the simplified geometry
-     * before slicing it into tiles.
-     */
-    public String getNumPointsAttr() {
-      return numPointsAttr;
     }
 
     @Override
@@ -727,6 +804,11 @@ public class FeatureCollector implements Iterable<FeatureCollector.Feature> {
         ", geom=" + geom.getGeometryType() +
         ", attrs=" + attrs +
         '}';
+    }
+
+    /** Returns the actual pixel size of the source feature at {@code zoom} (length if line, sqrt(area) if polygon). */
+    public double getSourceFeaturePixelSizeAtZoom(int zoom) {
+      return getPixelSizeAtZoom(zoom);
     }
   }
 }
