@@ -1,9 +1,11 @@
 package com.onthegomap.planetiler.files;
 
 import com.google.common.base.Preconditions;
+import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -16,7 +18,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
   private WriteableFilesArchive(Path basePath) {
     this.basePath = basePath;
     if (!Files.exists(basePath)) {
-      mkdirs(basePath);
+      FileUtils.createDirectory(basePath);
     }
     Preconditions.checkArgument(
       Files.isDirectory(basePath),
@@ -44,16 +46,14 @@ public class WriteableFilesArchive implements WriteableTileArchive {
   }
 
   @Override
-  public void close() throws IOException {
-    // nothing to do here
+  public void finish(TileArchiveMetadata tileArchiveMetadata) {
+    // tile
+
   }
 
-  private static void mkdirs(Path p) {
-    try {
-      Files.createDirectories(p);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+  @Override
+  public void close() throws IOException {
+    // nothing to do here
   }
 
   private static class FilesWriter implements TileWriter {
@@ -74,7 +74,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
 
       // tiny optimization in order to avoid too many unnecessary "folder-exists-checks" (I/O)
       if (!lastCheckedFolder.equals(folder) && !Files.exists(folder)) {
-        mkdirs(folder);
+        FileUtils.createDirectory(folder);
       }
       lastCheckedFolder = folder;
       try {

@@ -87,7 +87,7 @@ class WriteableFilesArchiveTest {
     try (var archive = WriteableFilesArchive.newWriter(outputPath)) {
       try (var writer = archive.newTileWriter()) {
         final var r = new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty());
-        assertThrows(UncheckedIOException.class, () -> writer.write(r));
+        assertThrows(IllegalStateException.class, () -> writer.write(r));
       }
     }
   }

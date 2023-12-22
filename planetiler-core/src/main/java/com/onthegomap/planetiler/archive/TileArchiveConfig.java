@@ -81,11 +81,14 @@ public record TileArchiveConfig(
 
   private static TileArchiveConfig.Format getFormat(URI uri) {
     String format = parseQuery(uri).get("format");
+    if (format == null && uri.getPath().endsWith("/")) {
+      return TileArchiveConfig.Format.FILES; // no format query param and ends with / => assume files - regardless of the extension
+    }
     if (format == null) {
       format = getExtension(uri);
     }
     if (format == null) {
-      return TileArchiveConfig.Format.MBTILES;
+      return TileArchiveConfig.Format.FILES; // no extension => assume files
     }
     for (var value : TileArchiveConfig.Format.values()) {
       if (value.id().equals(format)) {
@@ -115,7 +118,11 @@ public record TileArchiveConfig(
    */
   public static TileArchiveConfig from(URI uri) {
     if (uri.getScheme() == null) {
-      String base = Path.of(uri.getPath()).toAbsolutePath().toUri().normalize().toString();
+      final String path = uri.getPath();
+      String base = Path.of(path).toAbsolutePath().toUri().normalize().toString();
+      if (path.endsWith("/")) {
+        base = base + "/";
+      }
       if (uri.getRawQuery() != null) {
         base += "?" + uri.getRawQuery();
       }

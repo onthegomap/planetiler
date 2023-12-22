@@ -33,7 +33,7 @@ public class ReadableFilesArchive implements ReadableTileArchive {
   }
 
   @Override
-  @SuppressWarnings("java:S1168") // returning null is in sync with other mbtiles/pmtiles implementation
+  @SuppressWarnings("java:S1168") // returning null is in sync with other implementations: mbtiles and pmtiles
   public byte[] getTile(int x, int y, int z) {
     final Path absolute = absolutePathFromTileCoord(basePath, TileCoord.ofXYZ(x, y, z));
     if (!Files.exists(absolute)) {

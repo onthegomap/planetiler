@@ -13,6 +13,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 class TileArchiveConfigTest {
@@ -88,5 +89,26 @@ class TileArchiveConfigTest {
     assertFalse(config.exists());
     Files.createFile(mbtilesOut);
     assertTrue(config.exists());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    // standard cases
+    "output,FILES",
+    "output.mbtiles,MBTILES",
+    "output.pmtiles,PMTILES",
+    "output.pbf,PBF",
+    "output.proto,PROTO",
+    "output.json,JSON",
+    "output.csv,CSV",
+    "output.tsv,TSV",
+    // special cases
+    "output.mbtiles/,FILES", // trailing slash => files - regardless of the extension
+    "output/,FILES",
+    "output.mbtiles/?format=proto,PROTO", // format query param has precedence
+  })
+  void testPathMapping(String path, TileArchiveConfig.Format format) {
+    final var config = TileArchiveConfig.from(path);
+    assertEquals(format, config.format());
   }
 }
