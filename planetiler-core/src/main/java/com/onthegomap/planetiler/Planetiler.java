@@ -773,8 +773,8 @@ public class Planetiler {
 
       featureGroup.prepare();
 
-      TileArchiveWriter.writeOutput(featureGroup, archive, output::size, tileArchiveMetadata, layerStatsPath, config,
-        stats);
+      TileArchiveWriter.writeOutput(featureGroup, archive, archive::bytesWritten, tileArchiveMetadata, layerStatsPath,
+        config, stats);
     } catch (IOException e) {
       throw new IllegalStateException("Unable to write to " + output, e);
     }

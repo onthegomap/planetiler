@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -179,10 +180,13 @@ public class TileArchiveWriter {
     loggers.newLine()
       .add(writer::getLastTileLogDetails);
 
-    var doneFuture = joinFutures(
-      writeBranch.done(),
-      layerStatsBranch == null ? CompletableFuture.completedFuture(null) : layerStatsBranch.done(),
-      encodeBranch.done());
+    final CompletableFuture<Void> tileWritersFuture = writeBranch.done();
+    final CompletableFuture<Void> layerStatsFuture =
+      layerStatsBranch == null ? CompletableFuture.completedFuture(null) : layerStatsBranch.done();
+    final CompletableFuture<Void> archiveFinisher =
+      CompletableFuture.allOf(tileWritersFuture, layerStatsFuture).thenRun(writer::finishArchive);
+
+    var doneFuture = joinFutures(tileWritersFuture, layerStatsFuture, encodeBranch.done(), archiveFinisher);
     loggers.awaitAndLog(doneFuture, config.logInterval());
     writer.printTileStats();
     timer.stop();
@@ -330,11 +334,18 @@ public class TileArchiveWriter {
     }
   }
 
+  private final AtomicBoolean firstTileWriterTracker = new AtomicBoolean(true);
+
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
+
+    final boolean firstTileWriter = firstTileWriterTracker.compareAndExchange(true, false);
+    if (firstTileWriter) {
+      archive.initialize();
+    }
+
     var f = NumberFormat.getNumberInstance(Locale.getDefault());
     f.setMaximumFractionDigits(5);
 
-    archive.initialize();
     var order = archive.tileOrder();
 
     TileCoord lastTile = null;
@@ -350,10 +361,15 @@ public class TileArchiveWriter {
           lastTile = encodedTile.coord();
           int z = tileCoord.z();
           if (z != currentZ) {
-            if (time == null) {
-              LOGGER.info("Starting z{}", z);
-            } else {
-              LOGGER.info("Finished z{} in {}, now starting z{}", currentZ, time.stop(), z);
+            // for multiple writers the starting/finish log message of the _first_ tilewriter
+            // is not 100% accurate in terms of overall "zoom-progress",
+            // but it should be a "good-enough" indicator for "zoom-progress"-logging
+            if (firstTileWriter) {
+              if (time == null) {
+                LOGGER.info("Starting z{}", z);
+              } else {
+                LOGGER.info("Finished z{} in {}, now starting z{}", currentZ, time.stop(), z);
+              }
             }
             time = Timer.start();
             currentZ = z;
@@ -371,8 +387,6 @@ public class TileArchiveWriter {
     if (time != null) {
       LOGGER.info("Finished z{} in {}", currentZ, time.stop());
     }
-
-    archive.finish(tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats()));
   }
 
   @SuppressWarnings("java:S2629")
@@ -384,6 +398,11 @@ public class TileArchiveWriter {
 
   private long tilesEmitted() {
     return Stream.of(tilesByZoom).mapToLong(c -> c.get()).sum();
+  }
+
+  private void finishArchive() {
+    archive.finish(tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats()));
+    archive.printStats();
   }
 
   /**

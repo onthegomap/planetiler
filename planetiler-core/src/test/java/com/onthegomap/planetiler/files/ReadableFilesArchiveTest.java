@@ -80,7 +80,8 @@ class ReadableFilesArchiveTest {
   @Test
   void testRequiresExistingPath(@TempDir Path tempDir) {
     final Path tilesDir = tempDir.resolve("tiles");
-    assertThrows(IllegalArgumentException.class, () -> ReadableFilesArchive.newReader(tilesDir, Arguments.of()));
+    final Arguments options = Arguments.of();
+    assertThrows(IllegalArgumentException.class, () -> ReadableFilesArchive.newReader(tilesDir, options));
   }
 
   @ParameterizedTest

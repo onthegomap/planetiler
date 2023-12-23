@@ -185,9 +185,10 @@ class WriteableFilesArchiveTest {
   void testFailsIfBasePathIsNoDirectory(@TempDir Path tempDir) throws IOException {
     final Path tilesDir = tempDir.resolve("tiles");
     Files.createFile(tilesDir);
+    final Arguments options = Arguments.of();
     assertThrows(
       IllegalArgumentException.class,
-      () -> WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)
+      () -> WriteableFilesArchive.newWriter(tilesDir, options, false)
     );
   }
 

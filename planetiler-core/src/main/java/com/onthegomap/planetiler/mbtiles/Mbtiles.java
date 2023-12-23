@@ -13,6 +13,7 @@ import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.reader.FileFormatException;
 import com.onthegomap.planetiler.util.CloseableIterator;
+import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.Format;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.TreeMap;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -96,7 +98,9 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   private final boolean vacuumAnalyze;
   private PreparedStatement getTileStatement = null;
 
-  private Mbtiles(Connection connection, Arguments arguments) {
+  private final LongSupplier bytesWritten;
+
+  private Mbtiles(Connection connection, Arguments arguments, LongSupplier bytesWritten) {
     this.connection = connection;
     this.compactDb = arguments.getBoolean(
       COMPACT_DB + "|" + LEGACY_COMPACT_DB,
@@ -113,6 +117,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
       "mbtiles: vacuum analyze sqlite DB after writing",
       false
     );
+    this.bytesWritten = bytesWritten;
   }
 
   /** Returns a new mbtiles file that won't get written to disk. Useful for toy use-cases like unit tests. */
@@ -124,7 +129,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
   public static Mbtiles newInMemoryDatabase(Arguments options) {
     SQLiteConfig config = new SQLiteConfig();
     config.setApplicationId(MBTILES_APPLICATION_ID);
-    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options);
+    return new Mbtiles(newConnection("jdbc:sqlite::memory:", config, options), options, () -> 0);
   }
 
   /** Alias for {@link #newInMemoryDatabase(boolean)} */
@@ -146,7 +151,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     sqliteConfig.setTempStore(SQLiteConfig.TempStore.MEMORY);
     sqliteConfig.setApplicationId(MBTILES_APPLICATION_ID);
     var connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), sqliteConfig, options);
-    return new Mbtiles(connection, options);
+    return new Mbtiles(connection, options, () -> FileUtils.size(path));
   }
 
   /** Returns a new connection to an mbtiles file optimized for reads. */
@@ -168,7 +173,7 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     // helps with 3 or more threads concurrently accessing:
     // config.setOpenMode(SQLiteOpenMode.NOMUTEX);
     Connection connection = newConnection("jdbc:sqlite:" + path.toAbsolutePath(), config, options);
-    return new Mbtiles(connection, options);
+    return new Mbtiles(connection, options, () -> 0);
   }
 
   private static Connection newConnection(String url, SQLiteConfig defaults, Arguments args) {
@@ -224,6 +229,11 @@ public final class Mbtiles implements WriteableTileArchive, ReadableTileArchive 
     if (vacuumAnalyze) {
       vacuumAnalyze();
     }
+  }
+
+  @Override
+  public long bytesWritten() {
+    return bytesWritten.getAsLong();
   }
 
   @Override

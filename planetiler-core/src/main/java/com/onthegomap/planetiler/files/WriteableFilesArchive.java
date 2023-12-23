@@ -8,15 +8,19 @@ import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.util.CountingOutputStream;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
 public class WriteableFilesArchive implements WriteableTileArchive {
+
+  private final LongAdder bytesWritten = new LongAdder();
 
   private final Path basePath;
   private final Path metadataPath;
@@ -63,11 +67,16 @@ public class WriteableFilesArchive implements WriteableTileArchive {
     if (metadataPath == null) {
       return;
     }
-    try (OutputStream s = Files.newOutputStream(metadataPath)) {
+    try (OutputStream s = new CountingOutputStream(Files.newOutputStream(metadataPath), bytesWritten::add)) {
       TileArchiveMetadataDeSer.mbtilesMapper().writeValue(s, tileArchiveMetadata);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  @Override
+  public long bytesWritten() {
+    return bytesWritten.sum();
   }
 
   @Override

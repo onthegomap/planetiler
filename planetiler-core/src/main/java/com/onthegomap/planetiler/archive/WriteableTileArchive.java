@@ -44,6 +44,10 @@ public interface WriteableTileArchive extends Closeable {
    */
   default void finish(TileArchiveMetadata tileArchiveMetadata) {}
 
+  default void printStats() {}
+
+  long bytesWritten();
+
   interface TileWriter extends Closeable {
 
     void write(TileEncodingResult encodingResult);

@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +20,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * thread-local handler that can update stats without contention.
  * </p>
  *
- * @see Mbtiles.MetadataJson
+ * @see com.onthegomap.planetiler.archive.TileArchiveMetadata.TileArchiveMetadataJson
  * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#content">MBtiles spec</a>
  */
 @ThreadSafe
