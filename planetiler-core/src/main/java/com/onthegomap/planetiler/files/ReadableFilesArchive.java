@@ -1,8 +1,5 @@
 package com.onthegomap.planetiler.files;
 
-import static com.onthegomap.planetiler.files.FilesArchiveUtils.PBF_FILE_ENDING;
-import static com.onthegomap.planetiler.files.FilesArchiveUtils.absolutePathFromTileCoord;
-
 import com.google.common.base.Preconditions;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
@@ -16,13 +13,17 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.math.NumberUtils;
 
 public class ReadableFilesArchive implements ReadableTileArchive {
 
   private final Path basePath;
   private final Path metadataPath;
+  private final Function<TileCoord, Path> tileSchemeEncoder;
+  private final Function<Path, Optional<TileCoord>> tileSchemeDecoder;
+
+  private final int searchDepth;
 
   private ReadableFilesArchive(Path basePath, Arguments options) {
     this.basePath = basePath;
@@ -31,6 +32,10 @@ public class ReadableFilesArchive implements ReadableTileArchive {
       "require \"" + basePath + "\" to be an existing directory"
     );
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
+    final String tileScheme = FilesArchiveUtils.tilesScheme(options);
+    this.tileSchemeEncoder = FilesArchiveUtils.tileSchemeEncoder(basePath, tileScheme);
+    this.tileSchemeDecoder = FilesArchiveUtils.tileSchemeDecoder(basePath, tileScheme);
+    this.searchDepth = FilesArchiveUtils.searchDepth(tileScheme);
   }
 
   public static ReadableFilesArchive newReader(Path basePath, Arguments options) {
@@ -40,7 +45,7 @@ public class ReadableFilesArchive implements ReadableTileArchive {
   @Override
   @SuppressWarnings("java:S1168") // returning null is in sync with other implementations: mbtiles and pmtiles
   public byte[] getTile(int x, int y, int z) {
-    final Path absolute = absolutePathFromTileCoord(basePath, TileCoord.ofXYZ(x, y, z));
+    final Path absolute = tileSchemeEncoder.apply(TileCoord.ofXYZ(x, y, z));
     if (!Files.exists(absolute)) {
       return null;
     }
@@ -55,8 +60,8 @@ public class ReadableFilesArchive implements ReadableTileArchive {
   public CloseableIterator<TileCoord> getAllTileCoords() {
 
     try {
-      final Stream<TileCoord> it = Files.find(basePath, 3, (p, a) -> a.isRegularFile())
-        .map(this::mapFileToTileCoord)
+      final Stream<TileCoord> it = Files.find(basePath, searchDepth, (p, a) -> a.isRegularFile())
+        .map(tileSchemeDecoder)
         .flatMap(Optional::stream);
       return CloseableIterator.of(it);
     } catch (IOException e) {
@@ -79,33 +84,5 @@ public class ReadableFilesArchive implements ReadableTileArchive {
   @Override
   public void close() {
     // nothing to do here
-  }
-
-  private Optional<TileCoord> mapFileToTileCoord(Path path) {
-    final Path relative = basePath.relativize(path);
-    if (relative.getNameCount() != 3) {
-      return Optional.empty();
-    }
-    final int z = NumberUtils.toInt(relative.getName(0).toString(), -1);
-    if (z < 0) {
-      return Optional.empty();
-    }
-    final int x = NumberUtils.toInt(relative.getName(1).toString(), -1);
-    if (x < 0) {
-      return Optional.empty();
-    }
-    final String yPbf = relative.getName(2).toString();
-    int dotIdx = yPbf.indexOf('.');
-    if (dotIdx < 1) {
-      return Optional.empty();
-    }
-    final int y = NumberUtils.toInt(yPbf.substring(0, dotIdx), -1);
-    if (y < 0) {
-      return Optional.empty();
-    }
-    if (!PBF_FILE_ENDING.equals(yPbf.substring(dotIdx))) {
-      return Optional.empty();
-    }
-    return Optional.of(TileCoord.ofXYZ(x, y, z));
   }
 }

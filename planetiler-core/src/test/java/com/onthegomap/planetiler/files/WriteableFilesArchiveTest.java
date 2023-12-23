@@ -18,13 +18,15 @@ import java.util.OptionalLong;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class WriteableFilesArchiveTest {
 
   @Test
   void testWrite(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
@@ -35,7 +37,7 @@ class WriteableFilesArchiveTest {
       archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
     }
 
-    try (Stream<Path> s = Files.find(outputPath, 100, (p, attrs) -> attrs.isRegularFile())) {
+    try (Stream<Path> s = Files.find(tilesDir, 100, (p, attrs) -> attrs.isRegularFile())) {
       final List<Path> filesInDir = s.sorted().toList();
       assertEquals(
         List.of(
@@ -45,7 +47,7 @@ class WriteableFilesArchiveTest {
           Paths.get("4", "1", "3.pbf"),
           Paths.get("metadata.json")
         ),
-        filesInDir.stream().map(outputPath::relativize).toList()
+        filesInDir.stream().map(tilesDir::relativize).toList()
       );
       assertArrayEquals(new byte[]{0}, Files.readAllBytes(filesInDir.get(0)));
       assertArrayEquals(new byte[]{1}, Files.readAllBytes(filesInDir.get(1)));
@@ -58,58 +60,82 @@ class WriteableFilesArchiveTest {
     }
   }
 
-  private void testMetadataWrite(Arguments options, Path archiveOutput, Path metadataOutputPath) throws IOException {
+  @ParameterizedTest
+  @CsvSource(textBlock = """
+    {z}/{x}/{y}.pbf,    3/1/2.pbf
+    {x}/{y}/{z}.pbf,    1/2/3.pbf
+    {x}-{y}-{z}.pbf,    1-2-3.pbf
+    {x}/a/{y}/b{z}.pbf, 1/a/2/b3.pbf
+    {z}/{x}/{y}.pbf.gz, 3/1/2.pbf.gz
+    {z}/{xs}/{ys}.pbf,  3/000/001/000/002.pbf
+    {z}/{x}/{ys}.pbf,   3/1/000/002.pbf
+    {z}/{xs}/{y}.pbf,   3/000/001/2.pbf
+    """
+  )
+  void testWriteCustomScheme(String tileScheme, Path expectedFile, @TempDir Path tempDir) throws IOException {
+    final Path tilesDir = tempDir.resolve("tiles");
+    expectedFile = tilesDir.resolve(expectedFile);
+    final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_TILE_SCHEME, tileScheme));
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, options, false)) {
+      try (var tileWriter = archive.newTileWriter()) {
+        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.empty()));
+      }
+    }
+    assertTrue(Files.exists(expectedFile));
+  }
+
+  private void testMetadataWrite(Arguments options, Path archiveOutput, Path metadataTilesDir) throws IOException {
     try (var archive = WriteableFilesArchive.newWriter(archiveOutput, options, false)) {
       archive.initialize();
       archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
     }
 
-    assertTrue(Files.exists(metadataOutputPath));
+    assertTrue(Files.exists(metadataTilesDir));
     TestUtils.assertSameJson(
       TestUtils.MAX_METADATA_SERIALIZED,
-      Files.readString(metadataOutputPath)
+      Files.readString(metadataTilesDir)
     );
   }
 
   @Test
   void testMetadataWriteDefault(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    testMetadataWrite(Arguments.of(), outputPath, outputPath.resolve("metadata.json"));
+    final Path tilesDir = tempDir.resolve("tiles");
+    testMetadataWrite(Arguments.of(), tilesDir, tilesDir.resolve("metadata.json"));
   }
 
   @Test
   void testMetadataWriteRelative(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
+    final Path tilesDir = tempDir.resolve("tiles");
     final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, "x.y"));
-    testMetadataWrite(options, outputPath, outputPath.resolve("x.y"));
+    testMetadataWrite(options, tilesDir, tilesDir.resolve("x.y"));
   }
 
   @Test
   void testMetadataWriteAbsolute(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
+    final Path tilesDir = tempDir.resolve("tiles");
     final Path p = Files.createDirectory(tempDir.resolve("abs")).toAbsolutePath().resolve("abc.json");
     final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, p.toString()));
-    testMetadataWrite(options, outputPath, p);
+    testMetadataWrite(options, tilesDir, p);
   }
 
   @Test
   void testMetadataWriteNone(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
+    final Path tilesDir = tempDir.resolve("tiles");
     final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, "none"));
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, options, false)) {
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, options, false)) {
       archive.initialize();
       archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
     }
-    try (Stream<Path> ps = Files.find(outputPath, 100, (p, a) -> a.isRegularFile())) {
+    try (Stream<Path> ps = Files.find(tilesDir, 100, (p, a) -> a.isRegularFile())) {
       assertEquals(List.of(), ps.toList());
     }
   }
 
   @Test
   void testMetadataFailsIfNotFile(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, outputPath.toString()));
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, options, false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, tilesDir.toString()));
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, options, false)) {
       fail();
     } catch (IllegalArgumentException e) {
       // expected
@@ -118,10 +144,10 @@ class WriteableFilesArchiveTest {
 
   @Test
   void testMetadataOverwriteOff(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    Files.createDirectory(outputPath);
-    Files.writeString(outputPath.resolve("metadata.json"), "something");
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    Files.createDirectory(tilesDir);
+    Files.writeString(tilesDir.resolve("metadata.json"), "something");
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       fail();
     } catch (IllegalArgumentException e) {
       // expected
@@ -130,11 +156,11 @@ class WriteableFilesArchiveTest {
 
   @Test
   void testMetadataOverwriteOn(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    final Path metadataPath = outputPath.resolve("metadata.json");
-    Files.createDirectory(outputPath);
+    final Path tilesDir = tempDir.resolve("tiles");
+    final Path metadataPath = tilesDir.resolve("metadata.json");
+    Files.createDirectory(tilesDir);
     Files.writeString(metadataPath, "something");
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), true)) {
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), true)) {
       archive.initialize();
       archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
     }
@@ -146,31 +172,31 @@ class WriteableFilesArchiveTest {
 
   @Test
   void testCreatesPathIfNotExists(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       try (var writer = archive.newTileWriter()) {
         writer.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
       }
     }
-    assertTrue(Files.isRegularFile(outputPath.resolve(Paths.get("0", "0", "0.pbf"))));
+    assertTrue(Files.isRegularFile(tilesDir.resolve(Paths.get("0", "0", "0.pbf"))));
   }
 
   @Test
   void testFailsIfBasePathIsNoDirectory(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    Files.createFile(outputPath);
+    final Path tilesDir = tempDir.resolve("tiles");
+    Files.createFile(tilesDir);
     assertThrows(
       IllegalArgumentException.class,
-      () -> WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)
+      () -> WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)
     );
   }
 
   @Test
   void testFailsIfTileExistsAsDir(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    final Path tileAsDirPath = outputPath.resolve(Paths.get("0", "0", "0.pbf"));
+    final Path tilesDir = tempDir.resolve("tiles");
+    final Path tileAsDirPath = tilesDir.resolve(Paths.get("0", "0", "0.pbf"));
     Files.createDirectories(tileAsDirPath);
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       try (var writer = archive.newTileWriter()) {
         final var r = new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty());
         assertThrows(UncheckedIOException.class, () -> writer.write(r));
@@ -180,10 +206,10 @@ class WriteableFilesArchiveTest {
 
   @Test
   void testFailsIfDirExistsAsFile(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    Files.createDirectories(outputPath);
-    Files.createFile(outputPath.resolve("0"));
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    Files.createDirectories(tilesDir);
+    Files.createFile(tilesDir.resolve("0"));
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       try (var writer = archive.newTileWriter()) {
         final var r = new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty());
         assertThrows(IllegalStateException.class, () -> writer.write(r));
@@ -193,9 +219,9 @@ class WriteableFilesArchiveTest {
 
   @Test
   void testSettings(@TempDir Path tempDir) throws IOException {
-    final Path outputPath = tempDir.resolve("tiles");
-    Files.createDirectories(outputPath);
-    try (var archive = WriteableFilesArchive.newWriter(outputPath, Arguments.of(), false)) {
+    final Path tilesDir = tempDir.resolve("tiles");
+    Files.createDirectories(tilesDir);
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       assertFalse(archive.deduplicates());
       assertEquals(TileOrder.TMS, archive.tileOrder());
 
