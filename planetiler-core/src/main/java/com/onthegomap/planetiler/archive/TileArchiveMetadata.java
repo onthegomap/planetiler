@@ -1,36 +1,34 @@
 package com.onthegomap.planetiler.archive;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_ABSENT;
-import static com.onthegomap.planetiler.util.Format.joinCoordinates;
-
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.LayerAttrStats;
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Metadata associated with a tile archive. */
+/**
+ * Metadata associated with a tile archive.
+ * <p>
+ * The default (de-)serialization corresponds to the
+ * <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#metadata">mbtiles spec</a>. As such each
+ * value is a string.
+ */
 public record TileArchiveMetadata(
   @JsonProperty(NAME_KEY) String name,
   @JsonProperty(DESCRIPTION_KEY) String description,
@@ -38,13 +36,19 @@ public record TileArchiveMetadata(
   @JsonProperty(VERSION_KEY) String version,
   @JsonProperty(TYPE_KEY) String type,
   @JsonProperty(FORMAT_KEY) String format,
-  @JsonIgnore Envelope bounds,
-  @JsonIgnore CoordinateXY center,
-  @JsonProperty(ZOOM_KEY) Double zoom,
-  @JsonProperty(MINZOOM_KEY) Integer minzoom,
-  @JsonProperty(MAXZOOM_KEY) Integer maxzoom,
-  @JsonIgnore List<LayerAttrStats.VectorLayer> vectorLayers,
-  @JsonAnyGetter @JsonDeserialize(using = EmptyMapIfNullDeserializer.class) Map<String, String> others,
+  @JsonSerialize(using = TileArchiveMetadataDeSer.EnvelopeSerializer.class)
+  @JsonDeserialize(using = TileArchiveMetadataDeSer.EnvelopeDeserializer.class) Envelope bounds,
+  @JsonSerialize(using = TileArchiveMetadataDeSer.CoordinateSerializer.class)
+  @JsonDeserialize(using = TileArchiveMetadataDeSer.CoordinateDeserializer.class) Coordinate center,
+  @JsonProperty(MINZOOM_KEY)
+  @JsonSerialize(using = ToStringSerializer.class) Integer minzoom,
+  @JsonProperty(MAXZOOM_KEY)
+  @JsonSerialize(using = ToStringSerializer.class) Integer maxzoom,
+  @JsonProperty(JSON_KEY)
+  @JsonSerialize(using = TileArchiveMetadataDeSer.MetadataJsonSerializer.class)
+  @JsonDeserialize(using = TileArchiveMetadataDeSer.MetadataJsonDeserializer.class) TileArchiveMetadataJson json,
+  @JsonAnyGetter
+  @JsonDeserialize(using = TileArchiveMetadataDeSer.EmptyMapIfNullDeserializer.class) Map<String, String> others,
   @JsonProperty(COMPRESSION_KEY) TileCompression tileCompression
 ) {
 
@@ -62,12 +66,11 @@ public record TileArchiveMetadata(
   public static final String VECTOR_LAYERS_KEY = "vector_layers";
   public static final String COMPRESSION_KEY = "compression";
 
+  public static final String JSON_KEY = "json";
+
   public static final String MVT_FORMAT = "pbf";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TileArchiveMetadata.class);
-  private static final ObjectMapper mapper = new ObjectMapper()
-    .registerModules(new Jdk8Module())
-    .setSerializationInclusion(NON_ABSENT);
 
   public TileArchiveMetadata(Profile profile, PlanetilerConfig config) {
     this(profile, config, null);
@@ -82,14 +85,35 @@ public record TileArchiveMetadata(
       getString(config, TYPE_KEY, profile.isOverlay() ? "overlay" : "baselayer"),
       getString(config, FORMAT_KEY, MVT_FORMAT),
       config.bounds().latLon(),
-      new CoordinateXY(config.bounds().latLon().centre()),
-      GeoUtils.getZoomFromLonLatBounds(config.bounds().latLon()),
+      new Coordinate(
+        config.bounds().latLon().centre().getX(),
+        config.bounds().latLon().centre().getY(),
+        GeoUtils.getZoomFromLonLatBounds(config.bounds().latLon())
+      ),
       config.minzoom(),
       config.maxzoom(),
-      vectorLayers,
+      vectorLayers == null ? null : new TileArchiveMetadataJson(vectorLayers),
       mapWithBuildInfo(),
       config.tileCompression()
     );
+  }
+
+  // just used for the "internal map"-serialization - ignored by default
+  @JsonIgnore
+  @JsonProperty(ZOOM_KEY)
+  public Double zoom() {
+    if (center == null) {
+      return null;
+    }
+    final double z = center.getZ();
+    return Double.isNaN(z) ? null : z;
+  }
+
+  // just used for the "internal map"-serialization - ignored by default
+  @JsonIgnore
+  @JsonProperty(VECTOR_LAYERS_KEY)
+  public List<LayerAttrStats.VectorLayer> vectorLayers() {
+    return json == null ? null : json.vectorLayers;
   }
 
   private static String getString(PlanetilerConfig config, String key, String fallback) {
@@ -127,27 +151,22 @@ public record TileArchiveMetadata(
    * keys.
    */
   public Map<String, String> toMap() {
-    Map<String, String> result = new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
-    if (bounds != null) {
-      result.put(BOUNDS_KEY, joinCoordinates(bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(), bounds.getMaxY()));
-    }
-    if (center != null) {
-      result.put(CENTER_KEY, joinCoordinates(center.getX(), center.getY()));
-    }
-    if (vectorLayers != null) {
-      try {
-        result.put(VECTOR_LAYERS_KEY, mapper.writeValueAsString(vectorLayers));
-      } catch (JsonProcessingException e) {
-        LOGGER.warn("Error encoding vector_layers as json", e);
-      }
-    }
-    return result;
+    final JsonMapper mapper = TileArchiveMetadataDeSer.internalMapMapper();
+    return new LinkedHashMap<>(mapper.convertValue(this, new TypeReference<>() {}));
   }
 
-  /** Returns a copy of this instance with {@link #vectorLayers} set to {@code layerStats}. */
+  /** Returns a copy of this instance with {@link #json} set to {@code layerStats}. */
   public TileArchiveMetadata withLayerStats(List<LayerAttrStats.VectorLayer> layerStats) {
-    return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, zoom, minzoom,
-      maxzoom, layerStats, others, tileCompression);
+    return withJson(json == null ? TileArchiveMetadataJson.create(layerStats) : json.withLayers(layerStats));
+  }
+
+  /**
+   * Returns a copy of this instance with {@link #json}'s {@link TileArchiveMetadataJson#vectorLayers()} set to
+   * {@code layerStats}.
+   */
+  public TileArchiveMetadata withJson(TileArchiveMetadataJson json) {
+    return new TileArchiveMetadata(name, description, attribution, version, type, format, bounds, center, minzoom,
+      maxzoom, json, others, tileCompression);
   }
 
   /*
@@ -161,16 +180,16 @@ public record TileArchiveMetadata(
     others.put(name, value);
   }
 
-  private static class EmptyMapIfNullDeserializer extends JsonDeserializer<Map<String, String>> {
-    @SuppressWarnings("unchecked")
-    @Override
-    public Map<String, String> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-      return p.readValueAs(HashMap.class);
+
+  public record TileArchiveMetadataJson(
+    @JsonProperty(VECTOR_LAYERS_KEY) List<LayerAttrStats.VectorLayer> vectorLayers
+  ) {
+    public TileArchiveMetadataJson withLayers(List<LayerAttrStats.VectorLayer> vectorLayers) {
+      return TileArchiveMetadataJson.create(vectorLayers);
     }
 
-    @Override
-    public Map<String, String> getNullValue(DeserializationContext ctxt) {
-      return new HashMap<>();
+    public static TileArchiveMetadataJson create(List<LayerAttrStats.VectorLayer> vectorLayers) {
+      return vectorLayers == null ? null : new TileArchiveMetadataJson(vectorLayers);
     }
   }
 }

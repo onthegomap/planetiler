@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
 class WriteableProtoStreamArchiveTest {
@@ -31,15 +31,17 @@ class WriteableProtoStreamArchiveTest {
   private static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, null);
   private static final TileArchiveMetadata maxMetadataIn =
     new TileArchiveMetadata("name", "description", "attribution", "version", "type", "format", new Envelope(0, 1, 2, 3),
-      new CoordinateXY(1.3, 3.7), 1.0, 2, 3,
-      List.of(
-        new LayerAttrStats.VectorLayer("vl0",
-          Map.of("1", LayerAttrStats.FieldType.BOOLEAN, "2", LayerAttrStats.FieldType.NUMBER, "3",
-            LayerAttrStats.FieldType.STRING),
-          Optional.of("description"), OptionalInt.of(1), OptionalInt.of(2)),
-        new LayerAttrStats.VectorLayer("vl1",
-          Map.of(),
-          Optional.empty(), OptionalInt.empty(), OptionalInt.empty())
+      new Coordinate(1.3, 3.7, 1.0), 2, 3,
+      TileArchiveMetadata.TileArchiveMetadataJson.create(
+        List.of(
+          new LayerAttrStats.VectorLayer("vl0",
+            Map.of("1", LayerAttrStats.FieldType.BOOLEAN, "2", LayerAttrStats.FieldType.NUMBER, "3",
+              LayerAttrStats.FieldType.STRING),
+            Optional.of("description"), OptionalInt.of(1), OptionalInt.of(2)),
+          new LayerAttrStats.VectorLayer("vl1",
+            Map.of(),
+            Optional.empty(), OptionalInt.empty(), OptionalInt.empty())
+        )
       ),
       Map.of("a", "b", "c", "d"),
       TileCompression.GZIP);
@@ -47,8 +49,8 @@ class WriteableProtoStreamArchiveTest {
     .setName("name").setDescription("description").setAttribution("attribution").setVersion("version")
     .setType("type").setFormat("format")
     .setBounds(StreamArchiveProto.Envelope.newBuilder().setMinX(0).setMaxX(1).setMinY(2).setMaxY(3).build())
-    .setCenter(StreamArchiveProto.CoordinateXY.newBuilder().setX(1.3).setY(3.7))
-    .setZoom(1.0).setMinZoom(2).setMaxZoom(3)
+    .setCenter(StreamArchiveProto.Coordinate.newBuilder().setX(1.3).setY(3.7).setZ(1.0))
+    .setMinZoom(2).setMaxZoom(3)
     .addVectorLayers(
       StreamArchiveProto.VectorLayer.newBuilder()
         .setId("vl0").setDescription("description").setMinZoom(1).setMaxZoom(2)
@@ -63,7 +65,7 @@ class WriteableProtoStreamArchiveTest {
     .build();
 
   private static final TileArchiveMetadata minMetadataIn =
-    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, null,
+    new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null,
       TileCompression.NONE);
   private static final StreamArchiveProto.Metadata minMetadataOut = StreamArchiveProto.Metadata.newBuilder()
     .setTileCompression(StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE)

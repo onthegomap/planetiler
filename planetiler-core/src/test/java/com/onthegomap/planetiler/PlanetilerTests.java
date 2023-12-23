@@ -1975,7 +1975,7 @@ class PlanetilerTests {
       case JSON -> InMemoryStreamArchive::fromJson;
       case PMTILES -> ReadablePmtiles::newReadFromFile;
       case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
-      case FILES -> ReadableFilesArchive::newReader;
+      case FILES -> p -> ReadableFilesArchive.newReader(p, Arguments.of());
     };
 
 

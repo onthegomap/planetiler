@@ -58,7 +58,7 @@ public class TileArchives {
         new StreamArchiveConfig(config, options));
       case JSON -> WriteableJsonStreamArchive.newWriteToFile(archive.getLocalPath(),
         new StreamArchiveConfig(config, options));
-      case FILES -> WriteableFilesArchive.newWriter(archive.getLocalPath());
+      case FILES -> WriteableFilesArchive.newWriter(archive.getLocalPath(), options, config.force() || config.append());
     };
   }
 
@@ -76,7 +76,7 @@ public class TileArchives {
       case CSV, TSV -> throw new UnsupportedOperationException("reading CSV is not supported");
       case PROTO, PBF -> throw new UnsupportedOperationException("reading PROTO is not supported");
       case JSON -> throw new UnsupportedOperationException("reading JSON is not supported");
-      case FILES -> ReadableFilesArchive.newReader(archive.getLocalPath());
+      case FILES -> ReadableFilesArchive.newReader(archive.getLocalPath(), options);
     };
   }
 

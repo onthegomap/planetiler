@@ -11,7 +11,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.function.Consumer;
-import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -83,7 +83,6 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
     setIfNotNull(metaDataBuilder::setFormat, metadata.format());
     setIfNotNull(metaDataBuilder::setBounds, toExportData(metadata.bounds()));
     setIfNotNull(metaDataBuilder::setCenter, toExportData(metadata.center()));
-    setIfNotNull(metaDataBuilder::setZoom, metadata.zoom());
     setIfNotNull(metaDataBuilder::setMinZoom, metadata.minzoom());
     setIfNotNull(metaDataBuilder::setMaxZoom, metadata.maxzoom());
     final StreamArchiveProto.TileCompression tileCompression = switch (metadata.tileCompression()) {
@@ -114,13 +113,14 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
       .build();
   }
 
-  private static StreamArchiveProto.CoordinateXY toExportData(CoordinateXY coord) {
+  private static StreamArchiveProto.Coordinate toExportData(Coordinate coord) {
     if (coord == null) {
       return null;
     }
-    return StreamArchiveProto.CoordinateXY.newBuilder()
+    return StreamArchiveProto.Coordinate.newBuilder()
       .setX(coord.getX())
       .setY(coord.getY())
+      .setZ(coord.getZ())
       .build();
   }
 

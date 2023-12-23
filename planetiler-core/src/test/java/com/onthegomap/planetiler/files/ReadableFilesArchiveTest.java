@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.onthegomap.planetiler.TestUtils;
 import com.onthegomap.planetiler.archive.Tile;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -12,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,7 +45,7 @@ class ReadableFilesArchiveTest {
       Files.write(files.get(i), new byte[]{(byte) i});
     }
 
-    try (var reader = ReadableFilesArchive.newReader(outputPath)) {
+    try (var reader = ReadableFilesArchive.newReader(outputPath, Arguments.of())) {
       final List<Tile> tiles = reader.getAllTiles().stream().sorted().toList();
       assertEquals(
         List.of(
@@ -58,7 +61,7 @@ class ReadableFilesArchiveTest {
   void testGetTileNotExists(@TempDir Path tempDir) throws IOException {
     final Path outputPath = tempDir.resolve("tiles");
     Files.createDirectories(outputPath);
-    try (var reader = ReadableFilesArchive.newReader(outputPath)) {
+    try (var reader = ReadableFilesArchive.newReader(outputPath, Arguments.of())) {
       assertNull(reader.getTile(0, 0, 0));
     }
   }
@@ -67,7 +70,7 @@ class ReadableFilesArchiveTest {
   void testFailsToReadTileFromDir(@TempDir Path tempDir) throws IOException {
     final Path outputPath = tempDir.resolve("tiles");
     Files.createDirectories(outputPath.resolve(Paths.get("0", "0", "0.pbf")));
-    try (var reader = ReadableFilesArchive.newReader(outputPath)) {
+    try (var reader = ReadableFilesArchive.newReader(outputPath, Arguments.of())) {
       assertThrows(UncheckedIOException.class, () -> reader.getTile(0, 0, 0));
     }
   }
@@ -75,14 +78,60 @@ class ReadableFilesArchiveTest {
   @Test
   void testRequiresExistingPath(@TempDir Path tempDir) {
     final Path outputPath = tempDir.resolve("tiles");
-    assertThrows(IllegalArgumentException.class, () -> ReadableFilesArchive.newReader(outputPath));
+    assertThrows(IllegalArgumentException.class, () -> ReadableFilesArchive.newReader(outputPath, Arguments.of()));
   }
 
   @Test
   void testHasNoMetaData(@TempDir Path tempDir) throws IOException {
     final Path outputPath = tempDir.resolve("tiles");
     Files.createDirectories(outputPath);
-    try (var reader = ReadableFilesArchive.newReader(outputPath)) {
+    try (var reader = ReadableFilesArchive.newReader(outputPath, Arguments.of())) {
+      assertNull(reader.metadata());
+    }
+  }
+
+  private void testMetadata(Path basePath, Arguments options, Path metadataPath) throws IOException {
+    try (var reader = ReadableFilesArchive.newReader(basePath, options)) {
+      assertNull(reader.metadata());
+
+      Files.writeString(metadataPath, TestUtils.MAX_METADATA_SERIALIZED);
+      assertEquals(TestUtils.MAX_METADATA_DESERIALIZED, reader.metadata());
+    }
+  }
+
+  @Test
+  void testMetadataDefault(@TempDir Path tempDir) throws IOException {
+    final Path outputPath = Files.createDirectories(tempDir.resolve("tiles"));
+    testMetadata(outputPath, Arguments.of(), outputPath.resolve("metadata.json"));
+  }
+
+  @Test
+  void testMetadataRelative(@TempDir Path tempDir) throws IOException {
+    final Path outputPath = Files.createDirectories(tempDir.resolve("tiles"));
+    final Path meteadataPath = outputPath.resolve("x.y");
+    final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, "x.y"));
+    testMetadata(outputPath, options, meteadataPath);
+  }
+
+  @Test
+  void testMetadataAbsolute(@TempDir Path tempDir) throws IOException {
+    final Path outputPath = Files.createDirectories(tempDir.resolve("tiles"));
+    final Path meteadataPath = Files.createDirectories(tempDir.resolve(Paths.get("abs"))).resolve("x.y");
+    final Arguments options =
+      Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, meteadataPath.toAbsolutePath().toString()));
+    testMetadata(outputPath, options, meteadataPath);
+  }
+
+  @Test
+  void testMetadataNone(@TempDir Path tempDir) throws IOException {
+    final Path outputPath = Files.createDirectories(tempDir.resolve("tiles"));
+    final Path meteadataPath = outputPath.resolve("none");
+    final Arguments options = Arguments.of(Map.of(FilesArchiveUtils.OPTION_METADATA_PATH, "none"));
+
+    try (var reader = ReadableFilesArchive.newReader(outputPath, options)) {
+      assertNull(reader.metadata());
+
+      Files.writeString(meteadataPath, TestUtils.MAX_METADATA_SERIALIZED);
       assertNull(reader.metadata());
     }
   }

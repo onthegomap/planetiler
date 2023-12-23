@@ -6,9 +6,12 @@ import static com.onthegomap.planetiler.files.FilesArchiveUtils.absolutePathFrom
 import com.google.common.base.Preconditions;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
+import com.onthegomap.planetiler.archive.TileArchiveMetadataDeSer;
+import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,17 +22,19 @@ import org.apache.commons.lang3.math.NumberUtils;
 public class ReadableFilesArchive implements ReadableTileArchive {
 
   private final Path basePath;
+  private final Path metadataPath;
 
-  private ReadableFilesArchive(Path basePath) {
+  private ReadableFilesArchive(Path basePath, Arguments options) {
     this.basePath = basePath;
     Preconditions.checkArgument(
       Files.isDirectory(basePath),
       "require \"" + basePath + "\" to be an existing directory"
     );
+    this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
   }
 
-  public static ReadableFilesArchive newReader(Path basePath) {
-    return new ReadableFilesArchive(basePath);
+  public static ReadableFilesArchive newReader(Path basePath, Arguments options) {
+    return new ReadableFilesArchive(basePath, options);
   }
 
   @Override
@@ -61,6 +66,13 @@ public class ReadableFilesArchive implements ReadableTileArchive {
 
   @Override
   public TileArchiveMetadata metadata() {
+    if (metadataPath != null && Files.exists(metadataPath)) {
+      try (InputStream is = Files.newInputStream(metadataPath)) {
+        return TileArchiveMetadataDeSer.mbtilesMapper().readValue(is, TileArchiveMetadata.class);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
     return null;
   }
 
