@@ -234,6 +234,7 @@ public class ProcessInfo {
   public static ThreadState getCurrentThreadState() {
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     ThreadInfo thread = threadMXBean.getThreadInfo(Thread.currentThread().getId());
-    return new ThreadState(threadMXBean, thread);
+    // null for virtual - tmp workaround
+    return thread == null ? null : new ThreadState(threadMXBean, thread);
   }
 }

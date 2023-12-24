@@ -268,8 +268,16 @@ public record WorkerPipeline<T>(
      * Runs {@code step} simultaneously in {@code threads} threads that consumes items but does not emit any.
      */
     public WorkerPipeline<O> sinkTo(String name, int threads, SinkStep<O> step) {
+      return sinkTo(name, threads, ExecutorType.FIXED, step);
+    }
+
+    /**
+     * Runs {@code step} simultaneously in {@code threads} threads that consumes items but does not emit any.
+     */
+    public WorkerPipeline<O> sinkTo(String name, int threads, ExecutorType executorType, SinkStep<O> step) {
       var previousPipeline = build();
-      var worker = new Worker(prefix + "_" + name, stats, threads, () -> step.run(outputQueue.threadLocalReader()));
+      var worker =
+        new Worker(prefix + "_" + name, stats, threads, executorType, () -> step.run(outputQueue.threadLocalReader()));
       var doneFuture = joinFutures(worker.done(), previousPipeline.done);
       return new WorkerPipeline<>(name, previousPipeline, outputQueue, worker, doneFuture);
     }

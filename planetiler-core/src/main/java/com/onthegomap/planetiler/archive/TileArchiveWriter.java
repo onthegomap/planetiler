@@ -152,7 +152,7 @@ public class TileArchiveWriter {
 
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
     WorkerPipeline<TileBatch> writeBranch = pipeline.readFromQueue(writerQueue)
-      .sinkTo("write", tileWriteThreads, writer::tileWriter);
+      .sinkTo("write", tileWriteThreads, config.tileWriteExecutorType(), writer::tileWriter);
 
     WorkerPipeline<TileBatch> layerStatsBranch = null;
 

@@ -115,7 +115,11 @@ public class Timers {
   public void finishedWorker(String prefix, Duration elapsed) {
     Stage stage = currentStage.get();
     if (stage != null) {
-      stage.threadStats.add(new ThreadInfo(ProcessInfo.getCurrentThreadState(), prefix, elapsed));
+      final ProcessInfo.ThreadState threadState = ProcessInfo.getCurrentThreadState();
+      // null for virtual - tmp workaround
+      if (threadState != null) {
+        stage.threadStats.add(new ThreadInfo(threadState, prefix, elapsed));
+      }
     }
   }
 
