@@ -54,13 +54,13 @@ class PmtilesTest {
     Pmtiles.TileType tileType = Pmtiles.TileType.MVT;
     byte minZoom = 1;
     byte maxZoom = 3;
-    int minLonE7 = -10_000_000;
-    int minLatE7 = -20_000_000;
-    int maxLonE7 = 10_000_000;
-    int maxLatE7 = 20_000_000;
+    int minLonE7 = -10_100_000;
+    int minLatE7 = -20_200_000;
+    int maxLonE7 = 10_100_000;
+    int maxLatE7 = 20_200_000;
     byte centerZoom = 2;
-    int centerLonE7 = -5_000_000;
-    int centerLatE7 = -6_000_000;
+    int centerLonE7 = -5_500_000;
+    int centerLatE7 = -6_600_000;
 
     Pmtiles.Header in = new Pmtiles.Header(
       specVersion,
@@ -220,8 +220,8 @@ class PmtilesTest {
       "MyVersion",
       "baselayer",
       TileArchiveMetadata.MVT_FORMAT,
-      new Envelope(1, 2, 3, 4),
-      new CoordinateXY(5, 6),
+      new Envelope(1.1, 2.2, 3.3, 4.4),
+      new CoordinateXY(5.5, 6.6),
       7d,
       8,
       9,

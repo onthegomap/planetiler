@@ -199,8 +199,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
         (int) (bounds.getMaxX() * 10_000_000),
         (int) (bounds.getMaxY() * 10_000_000),
         (byte) zoom,
-        (int) center.x * 10_000_000,
-        (int) center.y * 10_000_000
+        (int) (center.x * 10_000_000),
+        (int) (center.y * 10_000_000)
       );
 
       LOGGER.info("Writing metadata and leaf directories...");
