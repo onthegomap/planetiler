@@ -154,6 +154,10 @@
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.snakeyaml</groupId>
+      <artifactId>snakeyaml-engine</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

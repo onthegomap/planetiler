@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.expression.Expression.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.onthegomap.planetiler.expression.Expression;
+import com.onthegomap.planetiler.util.YAML;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 

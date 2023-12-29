@@ -1,0 +1,41 @@
+# test cases for roads.lua and roads_main.lua
+examples:
+- name: trunk
+  input:
+    geometry: line
+    tags:
+      highway: trunk
+  output:
+    layer: road
+    geometry: line
+    min_zoom: 5
+    allow_extra_tags: false
+    tags:
+      highway: trunk
+
+- name: track
+  input:
+    geometry: line
+    tags:
+      highway: track
+  output:
+    layer: road
+    geometry: line
+    min_zoom: 12
+    allow_extra_tags: false
+    tags:
+      highway: track
+
+- name: service
+  input:
+    geometry: line
+    tags:
+      highway: service
+  output:
+    layer: road
+    geometry: line
+    min_zoom: 13
+    allow_extra_tags: false
+    tags:
+      highway: service
+

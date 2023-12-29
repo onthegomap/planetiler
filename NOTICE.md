@@ -4,7 +4,7 @@ Planetiler licensed under the Apache license, Version 2.0
 
 Copyright 2021 Michael Barry and Planetiler Contributors.
 
-The `planetiler-core` module includes the following software:
+Planetiler includes the following software:
 
 - Maven Dependencies:
   - Jackson for JSON/XML handling (Apache license)
@@ -29,6 +29,8 @@ The `planetiler-core` module includes the following software:
   - org.snakeyaml:snakeyaml-engine (Apache license)
   - org.commonmark:commonmark (BSD 2-clause license)
   - org.tukaani:xz (public domain)
+  - org.luaj:luaj-jse (MIT license)
+  - org.apache.bcel:bcel (Apache license)
 - Adapted code:
   - `DouglasPeuckerSimplifier` from [JTS](https://github.com/locationtech/jts) (EDL)
   - `OsmMultipolygon` from [imposm3](https://github.com/omniscale/imposm3) (Apache license)
@@ -48,6 +50,7 @@ The `planetiler-core` module includes the following software:
   - `SeekableInMemoryByteChannel`
     from [Apache Commons compress](https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/utils/SeekableInMemoryByteChannel.html) (
     Apache License)
+  - Several classes in `org.luaj.vm2.*` from [luaj](https://github.com/luaj/luaj) (MIT License)
 - [`planetiler-openmaptiles`](https://github.com/openmaptiles/planetiler-openmaptiles) submodule (BSD 3-Clause License)
 - Schema
   - The cartography and visual design features of the map tile schema are licensed

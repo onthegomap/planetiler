@@ -426,13 +426,17 @@ public class Arguments {
   public Stats getStats() {
     String prometheus = getArg("pushgateway");
     if (prometheus != null && !prometheus.isBlank()) {
-      LOGGER.info("argument: stats=use prometheus push gateway stats");
+      if (!silent) {
+        LOGGER.info("argument: stats=use prometheus push gateway stats");
+      }
       String job = getString("pushgateway.job", "prometheus pushgateway job ID", "planetiler");
       Duration interval = getDuration("pushgateway.interval", "how often to send stats to prometheus push gateway",
         "15s");
       return Stats.prometheusPushGateway(prometheus, job, interval);
     } else {
-      LOGGER.info("argument: stats=use in-memory stats");
+      if (!silent) {
+        LOGGER.info("argument: stats=use in-memory stats");
+      }
       return Stats.inMemory();
     }
   }

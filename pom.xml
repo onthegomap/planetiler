@@ -19,6 +19,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
+    <!-- include parameter names so GenerateLuaTypes can generate lua type definitions through reflection API -->
+    <maven.compiler.parameters>true</maven.compiler.parameters>
     <maven.source.excludeResources>true</maven.source.excludeResources>
     <jackson.version>2.16.1</jackson.version>
     <junit.version>5.10.1</junit.version>
@@ -26,7 +28,9 @@
     <sonar.organization>onthegomap</sonar.organization>
     <sonar.projectKey>onthegomap_planetiler</sonar.projectKey>
     <sonar.moduleKey>${project.artifactId}</sonar.moduleKey>
-    <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*</sonar.exclusions>
+    <sonar.exclusions>planetiler-benchmarks/**/*, planetiler-openmaptiles/**/*,
+      planetiler-experimental/src/main/java/org/luaj/**/*
+    </sonar.exclusions>
     <revision>0.7-SNAPSHOT</revision>
     <timestamp>${maven.build.timestamp}</timestamp>
   </properties>
@@ -87,6 +91,7 @@
     <module>planetiler-core</module>
     <module>planetiler-openmaptiles/submodule.pom.xml</module>
     <module>planetiler-custommap</module>
+    <module>planetiler-experimental</module>
     <module>planetiler-benchmarks</module>
     <module>planetiler-examples</module>
     <module>planetiler-dist</module>

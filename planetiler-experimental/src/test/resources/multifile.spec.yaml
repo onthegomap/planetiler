@@ -1,0 +1,43 @@
+# test cases for multifile.lua
+examples:
+- name: building
+  input:
+    geometry: polygon
+    source: osm
+    tags:
+      building: yes
+  output:
+    min_zoom: 14
+    layer: building
+    tags:
+      class: building
+- name: not building
+  input:
+    geometry: polygon
+    source: osm
+    tags:
+      building: no
+      aeroway: hangar
+  output: [ ]
+- name: airport hangar
+  input:
+    geometry: polygon
+    source: osm
+    tags:
+      aeroway: hangar
+  output:
+    min_zoom: 14
+    layer: building
+    tags:
+      class: aeroway
+- name: housenumber
+  input:
+    geometry: point
+    source: osm
+    tags:
+      addr:housenumber: 123
+  output:
+    min_zoom: 14
+    layer: housenumber
+    tags:
+      housenumber: 123

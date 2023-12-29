@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.util.Wikidata;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
@@ -114,7 +115,9 @@ public interface Profile {
    *
    * @see <a href="https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md#metadata">MBTiles specification</a>
    */
-  String name();
+  default String name() {
+    return getClass().getSimpleName().toLowerCase(Locale.ROOT);
+  }
 
   /**
    * Returns the description of the generated tileset to put into {@link Mbtiles} metadata
