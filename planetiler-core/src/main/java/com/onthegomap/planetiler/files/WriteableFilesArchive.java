@@ -8,6 +8,7 @@ import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.util.CountingOutputStream;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -15,17 +16,40 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
+/**
+ * Writes tiles as separate files. The default tile scheme is z/x/y.pbf.
+ * <p/>
+ * Supported arguments
+ * <dl>
+ * <dt>(files_)tile_scheme</dt>
+ * <dd>The tile scheme e.g. {x}/{y}/{z}.pbf. The default is {z}/{x}/{y}.pbf. See {@link TileSchemeEncoding} for more
+ * details.</dd>
+ * <dt>(files_)metadata_path</dt>
+ * <dd>The path the meta data should be written to. The default is BASEPATH/metadata.json. "none" can be used to
+ * suppress writing metadata.</dd>
+ * </ul>
+ *
+ * Usage:
+ *
+ * <pre>
+ * --output=/path/to/tiles/ --files_tile_scheme={z}/{x}/{y}.pbf --files_metadata_path=/some/other/path/metadata.json
+ * </pre>
+ *
+ * @see ReadableFilesArchive
+ * @see TileSchemeEncoding
+ */
 public class WriteableFilesArchive implements WriteableTileArchive {
 
-  private final LongAdder bytesWritten = new LongAdder();
+  private final Counter.MultiThreadCounter bytesWritten = Counter.newMultiThreadCounter();
 
   private final Path basePath;
   private final Path metadataPath;
 
   private final Function<TileCoord, Path> tileSchemeEncoder;
+
+  private final TileOrder tileOrder;
 
   private WriteableFilesArchive(Path basePath, Arguments options, boolean overwriteMetadata) {
     this.basePath = createValidateDirectory(basePath);
@@ -39,8 +63,9 @@ public class WriteableFilesArchive implements WriteableTileArchive {
         throw new IllegalArgumentException("require " + this.metadataPath + " to be a regular file");
       }
     }
-    final String tileScheme = FilesArchiveUtils.tilesScheme(options);
-    this.tileSchemeEncoder = FilesArchiveUtils.tileSchemeEncoder(basePath, tileScheme);
+    final TileSchemeEncoding tileSchemeEncoding = FilesArchiveUtils.tilesSchemeEncoding(options, basePath);
+    this.tileSchemeEncoder = tileSchemeEncoding.encoder();
+    this.tileOrder = tileSchemeEncoding.preferredTileOrder();
   }
 
   public static WriteableFilesArchive newWriter(Path basePath, Arguments options, boolean overwriteMetadata) {
@@ -54,12 +79,12 @@ public class WriteableFilesArchive implements WriteableTileArchive {
 
   @Override
   public TileOrder tileOrder() {
-    return TileOrder.TMS;
+    return tileOrder;
   }
 
   @Override
   public TileWriter newTileWriter() {
-    return new FilesWriter(basePath, tileSchemeEncoder);
+    return new TileFilesWriter(basePath, tileSchemeEncoder, bytesWritten.counterForThread());
   }
 
   @Override
@@ -67,7 +92,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
     if (metadataPath == null) {
       return;
     }
-    try (OutputStream s = new CountingOutputStream(Files.newOutputStream(metadataPath), bytesWritten::add)) {
+    try (OutputStream s = new CountingOutputStream(Files.newOutputStream(metadataPath), bytesWritten::incBy)) {
       TileArchiveMetadataDeSer.mbtilesMapper().writeValue(s, tileArchiveMetadata);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -76,7 +101,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
 
   @Override
   public long bytesWritten() {
-    return bytesWritten.sum();
+    return bytesWritten.get();
   }
 
   @Override
@@ -95,18 +120,22 @@ public class WriteableFilesArchive implements WriteableTileArchive {
     return p;
   }
 
-  private static class FilesWriter implements TileWriter {
+  private static class TileFilesWriter implements TileWriter {
 
     private final Function<TileCoord, Path> tileSchemeEncoder;
+    private final Counter bytesWritten;
     private Path lastCheckedFolder;
 
-    FilesWriter(Path basePath, Function<TileCoord, Path> tileSchemeEncoder) {
+    TileFilesWriter(Path basePath, Function<TileCoord, Path> tileSchemeEncoder, Counter bytesWritten) {
       this.tileSchemeEncoder = tileSchemeEncoder;
       this.lastCheckedFolder = basePath;
+      this.bytesWritten = bytesWritten;
     }
 
     @Override
-    public void write(TileEncodingResult encodingResult) {
+    public final void write(TileEncodingResult encodingResult) {
+
+      final byte[] data = encodingResult.tileData();
 
       final Path file = tileSchemeEncoder.apply(encodingResult.coord());
       final Path folder = file.getParent();
@@ -118,10 +147,12 @@ public class WriteableFilesArchive implements WriteableTileArchive {
       }
       lastCheckedFolder = folder;
       try {
-        Files.write(file, encodingResult.tileData());
+        Files.write(file, data);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
+
+      bytesWritten.incBy(data.length);
     }
 
     @Override
@@ -129,6 +160,4 @@ public class WriteableFilesArchive implements WriteableTileArchive {
       // nothing to do here
     }
   }
-
-
 }

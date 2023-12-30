@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.stream;
 
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.stats.Counter;
 import com.onthegomap.planetiler.util.CountingOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -11,7 +12,6 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
 
 /**
@@ -36,7 +36,7 @@ import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
  */
 abstract class WriteableStreamArchive implements WriteableTileArchive {
 
-  private final LongAdder bytesWritten = new LongAdder();
+  private final Counter.MultiThreadCounter bytesWritten = Counter.newMultiThreadCounter();
 
   private final OutputStream primaryOutputStream;
   private final OutputStreamSupplier outputStreamFactory;
@@ -47,7 +47,7 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
 
   private WriteableStreamArchive(OutputStreamSupplier outputStreamFactory, StreamArchiveConfig config) {
     this.outputStreamFactory =
-      i -> new CountingOutputStream(outputStreamFactory.newOutputStream(i), bytesWritten::add);
+      i -> new CountingOutputStream(outputStreamFactory.newOutputStream(i), bytesWritten::incBy);
     this.config = config;
 
     this.primaryOutputStream = this.outputStreamFactory.newOutputStream(0);
@@ -85,7 +85,7 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
 
   @Override
   public long bytesWritten() {
-    return bytesWritten.sum();
+    return bytesWritten.get();
   }
 
   protected abstract TileWriter newTileWriter(OutputStream outputStream);

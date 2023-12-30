@@ -16,6 +16,22 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+/**
+ * Reads tiles from a folder structure (e.g. BASEPATH/{z}/{x}{y}.pbf). Counterpart to {@link WriteableFilesArchive}.
+ * <p/>
+ * Supported arguments
+ * <dl>
+ * <dt>(files_)tile_scheme</dt>
+ * <dd>The tile scheme e.g. {x}/{y}/{z}.pbf. The default is {z}/{x}/{y}.pbf. See {@link TileSchemeEncoding} for more
+ * details.</dd>
+ * <dt>(files_)metadata_path</dt>
+ * <dd>The path the meta data should be written to. The default is BASEPATH/metadata.json. "none" can be used to
+ * suppress writing metadata.</dd>
+ * </ul>
+ *
+ * @see WriteableFilesArchive
+ * @see TileSchemeEncoding
+ */
 public class ReadableFilesArchive implements ReadableTileArchive {
 
   private final Path basePath;
@@ -32,10 +48,10 @@ public class ReadableFilesArchive implements ReadableTileArchive {
       "require \"" + basePath + "\" to be an existing directory"
     );
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
-    final String tileScheme = FilesArchiveUtils.tilesScheme(options);
-    this.tileSchemeEncoder = FilesArchiveUtils.tileSchemeEncoder(basePath, tileScheme);
-    this.tileSchemeDecoder = FilesArchiveUtils.tileSchemeDecoder(basePath, tileScheme);
-    this.searchDepth = FilesArchiveUtils.searchDepth(tileScheme);
+    final TileSchemeEncoding tileSchemeEncoding = FilesArchiveUtils.tilesSchemeEncoding(options, basePath);
+    this.tileSchemeEncoder = tileSchemeEncoding.encoder();
+    this.tileSchemeDecoder = tileSchemeEncoding.decoder();
+    this.searchDepth = tileSchemeEncoding.searchDepth();
   }
 
   public static ReadableFilesArchive newReader(Path basePath, Arguments options) {

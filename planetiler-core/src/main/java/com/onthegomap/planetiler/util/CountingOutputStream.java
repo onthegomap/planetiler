@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.function.LongConsumer;
 
+/**
+ * {@link OutputStream} decorator that notifies the callback about the written bytes.
+ */
 public class CountingOutputStream extends OutputStream {
 
   private final OutputStream wrapped;

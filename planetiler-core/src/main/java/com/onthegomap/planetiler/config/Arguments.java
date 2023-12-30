@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -483,6 +484,13 @@ public class Arguments {
     long parsed = Long.parseLong(value);
     logArgValue(key, description, parsed);
     return parsed;
+  }
+
+  public <T> T getObject(String key, String description, T defaultValue, Function<String, T> converter) {
+    final String serializedValue = getArg(key);
+    final T value = serializedValue == null ? defaultValue : converter.apply(serializedValue);
+    logArgValue(key, description, value);
+    return value;
   }
 
   /**
