@@ -6,7 +6,6 @@ import com.onthegomap.planetiler.collection.LongLongMap;
 import com.onthegomap.planetiler.collection.Storage;
 import com.onthegomap.planetiler.reader.osm.PolyFileReader;
 import com.onthegomap.planetiler.util.Parse;
-import com.onthegomap.planetiler.worker.ExecutorType;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -24,7 +23,6 @@ public record PlanetilerConfig(
   int featureProcessThreads,
   int featureReadThreads,
   int tileWriteThreads,
-  ExecutorType tileWriteExecutorType,
   Duration logInterval,
   int minzoom,
   int maxzoom,
@@ -138,8 +136,6 @@ public record PlanetilerConfig(
         "number of threads used to write tiles - only supported by " + Stream.of(TileArchiveConfig.Format.values())
           .filter(TileArchiveConfig.Format::supportsConcurrentWrites).map(TileArchiveConfig.Format::id).toList(),
         1),
-      arguments.getObject("tile_write_executor", "the executor to use for tile writing - fixed or virtual",
-        ExecutorType.FIXED, s -> ExecutorType.valueOf(s.toUpperCase())),
       arguments.getDuration("loginterval", "time between logs", "10s"),
       minzoom,
       maxzoom,

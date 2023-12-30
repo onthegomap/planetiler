@@ -32,10 +32,10 @@ public class ReadableFilesArchive implements ReadableTileArchive {
       "require \"" + basePath + "\" to be an existing directory"
     );
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
-    final TileSchemeEncoding tileSchemeEncoding = FilesArchiveUtils.tilesSchemeEncoding(options, basePath);
-    this.tileSchemeEncoder = tileSchemeEncoding.encoder();
-    this.tileSchemeDecoder = tileSchemeEncoding.decoder();
-    this.searchDepth = tileSchemeEncoding.searchDepth();
+    final String tileScheme = FilesArchiveUtils.tilesScheme(options);
+    this.tileSchemeEncoder = FilesArchiveUtils.tileSchemeEncoder(basePath, tileScheme);
+    this.tileSchemeDecoder = FilesArchiveUtils.tileSchemeDecoder(basePath, tileScheme);
+    this.searchDepth = FilesArchiveUtils.searchDepth(tileScheme);
   }
 
   public static ReadableFilesArchive newReader(Path basePath, Arguments options) {

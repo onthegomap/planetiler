@@ -42,20 +42,6 @@ public class Worker {
   }
 
   /**
-   * Constructs a new worker and immediately starts {@code threads} thread all running {@code task}.
-   *
-   * @param prefix       string ID to add to logs and stats
-   * @param stats        stats collector for this thread pool
-   * @param threads      number of parallel threads to run {@code task} in
-   * @param executorType the type of executor to use
-   * @param task         the work to do in each thread
-   */
-  @SuppressWarnings("java:S1181")
-  public Worker(String prefix, Stats stats, int threads, ExecutorType executorType, RunnableThatThrows task) {
-    this(prefix, stats, threads, executorType, i -> task.run());
-  }
-
-  /**
    * Constructs a new reader and immediately starts {@code threads} thread all running {@code task}.
    *
    * @param prefix  string ID to add to logs and stats
@@ -66,26 +52,9 @@ public class Worker {
    */
   @SuppressWarnings("java:S1181")
   public Worker(String prefix, Stats stats, int threads, IntConsumerThatThrows task) {
-    this(prefix, stats, threads, ExecutorType.FIXED, task);
-  }
-
-  /**
-   * Constructs a new reader and immediately starts {@code threads} thread all running {@code task}.
-   *
-   * @param prefix       string ID to add to logs and stats
-   * @param stats        stats collector for this thread pool
-   * @param threads      number of parallel threads to run {@code task} in
-   * @param executorType the type of executor to use
-   * @param task         the work to do in each thread, called with the ID of this thread, from {@code 0} to
-   *                     {@code threads - 1}.
-   */
-  public Worker(String prefix, Stats stats, int threads, ExecutorType executorType, IntConsumerThatThrows task) {
     this.prefix = prefix;
     stats.gauge(prefix + "_threads", threads);
-    @SuppressWarnings("java:S2095") var es = switch (executorType) {
-      case FIXED -> Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix));
-      case VIRTUAL -> Executors.newVirtualThreadPerTaskExecutor();
-    };
+    var es = Executors.newFixedThreadPool(threads, new NamedThreadFactory(prefix));
     String parentStage = LogUtil.getStage();
     List<CompletableFuture<?>> results = new ArrayList<>();
     for (int i = 0; i < threads; i++) {
@@ -98,7 +67,7 @@ public class Worker {
           long start = System.nanoTime();
           task.accept(threadId);
           stats.timers().finishedWorker(prefix, Duration.ofNanos(System.nanoTime() - start));
-        } catch (@SuppressWarnings("java:S1181") Throwable e) {
+        } catch (Throwable e) {
           System.err.println("Worker " + id + " died");
           // when one worker dies it may close resources causing others to die as well, so only log the first
           if (firstWorkerDied.compareAndSet(false, true)) {

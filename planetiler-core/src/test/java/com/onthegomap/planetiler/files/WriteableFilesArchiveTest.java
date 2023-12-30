@@ -20,19 +20,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.NullSource;
 
 class WriteableFilesArchiveTest {
 
-  @ParameterizedTest
-  @EnumSource(WriteableFilesArchive.WriteMode.class)
-  @NullSource
-  void testWrite(WriteableFilesArchive.WriteMode writeMode, @TempDir Path tempDir) throws IOException {
+  @Test
+  void testWrite(@TempDir Path tempDir) throws IOException {
     final Path tilesDir = tempDir.resolve("tiles");
-    final Arguments options = writeMode == null ? Arguments.of() :
-      Arguments.of(Map.of(FilesArchiveUtils.OPTION_WRITE_MODE, writeMode.name().toLowerCase()));
-    try (var archive = WriteableFilesArchive.newWriter(tilesDir, options, false)) {
+    try (var archive = WriteableFilesArchive.newWriter(tilesDir, Arguments.of(), false)) {
       archive.initialize();
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}, OptionalLong.empty()));
