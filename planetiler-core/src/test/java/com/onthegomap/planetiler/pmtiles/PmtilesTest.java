@@ -221,8 +221,7 @@ class PmtilesTest {
       "baselayer",
       TileArchiveMetadata.MVT_FORMAT,
       new Envelope(1.1, 2.2, 3.3, 4.4),
-      new CoordinateXY(5.5, 6.6),
-      7d,
+      new Coordinate(5.5, 6.6, 7d),
       8,
       9,
       TileArchiveMetadata.TileArchiveMetadataJson.create(

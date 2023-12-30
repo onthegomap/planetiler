@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * <pre>
  * --output=/path/to/tiles/ --files_tile_scheme={z}/{x}/{y}.pbf --files_metadata_path=/some/other/path/metadata.json
  * --output=/path/to/tiles/{z}/{x}/{y}.pbf
- * --output=/path/to/tiles?format=files&tile_scheme={z}/{x}/{y}.pbf
+ * --output=/path/to/tiles?format=files&amp;tile_scheme={z}/{x}/{y}.pbf
  * </pre>
  *
  * @see ReadableFilesArchive

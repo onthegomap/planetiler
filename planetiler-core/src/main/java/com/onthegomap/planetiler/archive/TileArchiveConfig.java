@@ -171,7 +171,7 @@ public record TileArchiveConfig(
    */
   public void delete() {
     if (scheme == Scheme.FILE) {
-      FileUtils.delete(getLocalPath());
+      FileUtils.delete(getLocalBasePath());
     }
   }
 

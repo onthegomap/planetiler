@@ -150,6 +150,9 @@ public class TileArchiveWriter {
       .addBuffer("reader_queue", queueSize)
       .sinkTo("encode", processThreads, writer::tileEncoderSink);
 
+    // ensure to initialize the archive BEFORE starting to write any tiles
+    output.initialize();
+
     // the tile writer will wait on the result of each batch to ensure tiles are written in order
     WorkerPipeline<TileBatch> writeBranch = pipeline.readFromQueue(writerQueue)
       .sinkTo("write", tileWriteThreads, writer::tileWriter);
@@ -339,9 +342,6 @@ public class TileArchiveWriter {
   private void tileWriter(Iterable<TileBatch> tileBatches) throws ExecutionException, InterruptedException {
 
     final boolean firstTileWriter = firstTileWriterTracker.compareAndExchange(true, false);
-    if (firstTileWriter) {
-      archive.initialize();
-    }
 
     var f = NumberFormat.getNumberInstance(Locale.getDefault());
     f.setMaximumFractionDigits(5);

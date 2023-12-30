@@ -115,23 +115,23 @@ class TileArchiveConfigTest {
 
   @ParameterizedTest
   @CsvSource({
-    "/a/output.mbtiles,/a/output.mbtiles",
-    "/a/tiles/{x}/{y}/{z}.pbf,/a/tiles",
-    "/a/tiles/{x}/{y}/{z}.pbf?format=proto,/a/tiles/{x}/{y}/{z}.pbf"
+    "a/output.mbtiles,a/output.mbtiles",
+    "a/tiles/{x}/{y}/{z}.pbf,a/tiles",
+    "a/tiles/{x}/{y}/{z}.pbf?format=proto,a/tiles/{x}/{y}/{z}.pbf"
   })
-  void testLocalBasePath(String path, Path localBasePath) {
-    final var config = TileArchiveConfig.from(path);
-    assertEquals(localBasePath, config.getLocalBasePath());
+  void testLocalBasePath(String path, Path localBasePath, @TempDir Path tempDir) {
+    final var config = TileArchiveConfig.from(tempDir.toString() + "/" + path);
+    assertEquals(tempDir.resolve(localBasePath), config.getLocalBasePath());
   }
 
   @ParameterizedTest
   @CsvSource({
-    "/a/output.mbtiles,/a/output.mbtiles",
-    "/a/tiles/{x}/{y}/{z}.pbf,/a/tiles/{x}/{y}/{z}.pbf",
-    "/a/tiles/{x}/{y}/{z}.pbf?format=proto,/a/tiles/{x}/{y}/{z}.pbf"
+    "a/output.mbtiles,a/output.mbtiles",
+    "a/tiles/{x}/{y}/{z}.pbf,a/tiles/{x}/{y}/{z}.pbf",
+    "a/tiles/{x}/{y}/{z}.pbf?format=proto,a/tiles/{x}/{y}/{z}.pbf"
   })
-  void testLocalPath(String path, Path localPath) {
-    final var config = TileArchiveConfig.from(path);
-    assertEquals(localPath, config.getLocalPath());
+  void testLocalPath(String path, Path localPath, @TempDir Path tempDir) {
+    final var config = TileArchiveConfig.from(tempDir.toString() + "/" + path);
+    assertEquals(tempDir.resolve(localPath), config.getLocalPath());
   }
 }

@@ -756,7 +756,7 @@ public class Planetiler {
       stats.monitorFile("nodes", nodeDbPath);
       stats.monitorFile("features", featureDbPath);
       stats.monitorFile("multipolygons", multipolygonPath);
-      stats.monitorFile("archive", output.getLocalPath());
+      stats.monitorFile("archive", output.getLocalPath(), archive::bytesWritten);
 
       for (Stage stage : stages) {
         stage.task.run();

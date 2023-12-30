@@ -50,6 +50,7 @@ class PrometheusStats implements Stats {
   private ScheduledExecutorService executor;
   private final String job;
   private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
+  private final Map<String, LongSupplier> sizesOfFilesToMonitor = new ConcurrentSkipListMap<>();
   private final Map<String, Long> dataErrorCounters = new ConcurrentHashMap<>();
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
 
@@ -176,6 +177,11 @@ class PrometheusStats implements Stats {
   }
 
   @Override
+  public Map<String, LongSupplier> monitoredFileSizes() {
+    return sizesOfFilesToMonitor;
+  }
+
+  @Override
   public void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object) {
     heapObjectsToMonitor.put(name, object);
   }
@@ -251,8 +257,10 @@ class PrometheusStats implements Stats {
       for (var file : filesToMonitor.entrySet()) {
         String name = sanitizeMetricName(file.getKey());
         Path path = file.getValue();
+        var sizeSupplier = monitoredFileSizes().getOrDefault(file.getKey(), () -> FileUtils.size(path));
+        long size = sizeSupplier.getAsLong();
         results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
-          FileUtils.size(path)));
+          size));
         if (Files.exists(path)) {
           try {
             FileStore fileStore = Files.getFileStore(path);
