@@ -718,7 +718,7 @@ public class Planetiler {
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
     Files.createDirectories(tmpDir);
-    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalPath());
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
 
     if (!toDownload.isEmpty()) {
       download();

@@ -106,9 +106,32 @@ class TileArchiveConfigTest {
     "output.mbtiles/,FILES", // trailing slash => files - regardless of the extension
     "output/,FILES",
     "output.mbtiles/?format=proto,PROTO", // format query param has precedence
+    "tiles/{x}/{y}/{z}.pbf,FILES"
   })
   void testPathMapping(String path, TileArchiveConfig.Format format) {
     final var config = TileArchiveConfig.from(path);
     assertEquals(format, config.format());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "/a/output.mbtiles,/a/output.mbtiles",
+    "/a/tiles/{x}/{y}/{z}.pbf,/a/tiles",
+    "/a/tiles/{x}/{y}/{z}.pbf?format=proto,/a/tiles/{x}/{y}/{z}.pbf"
+  })
+  void testLocalBasePath(String path, Path localBasePath) {
+    final var config = TileArchiveConfig.from(path);
+    assertEquals(localBasePath, config.getLocalBasePath());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "/a/output.mbtiles,/a/output.mbtiles",
+    "/a/tiles/{x}/{y}/{z}.pbf,/a/tiles/{x}/{y}/{z}.pbf",
+    "/a/tiles/{x}/{y}/{z}.pbf?format=proto,/a/tiles/{x}/{y}/{z}.pbf"
+  })
+  void testLocalPath(String path, Path localPath) {
+    final var config = TileArchiveConfig.from(path);
+    assertEquals(localPath, config.getLocalPath());
   }
 }

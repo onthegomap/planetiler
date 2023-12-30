@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-final class FilesArchiveUtils {
+public final class FilesArchiveUtils {
 
   static final String OPTION_METADATA_PATH = "metadata_path";
   static final String OPTION_TILE_SCHEME = "tile_scheme";
@@ -33,14 +33,41 @@ final class FilesArchiveUtils {
     }
   }
 
-  static TileSchemeEncoding tilesSchemeEncoding(Arguments options, Path basePath) {
+  static TileSchemeEncoding tilesSchemeEncoding(Arguments options, Path basePath, String defaultTileScheme) {
     final String tileScheme = options.getString(
       OPTION_TILE_SCHEME,
       "the tile scheme (e.g. {z}/{x}/{y}.pbf, {x}/{y}/{z}.pbf)" +
         " - instead of {x}/{y} {xs}/{ys} can be used which splits the x/y into 2 directories each" +
         " which ensures <1000 files per directory",
-      Path.of(Z_TEMPLATE, X_TEMPLATE, Y_TEMPLATE + ".pbf").toString()
+      defaultTileScheme
     );
     return new TileSchemeEncoding(tileScheme, basePath);
   }
+
+  static BasePathWithTileSchemeEncoding basePathWithTileSchemeEncoding(Arguments options, Path basePath) {
+    final String basePathStr = basePath.toString();
+    final int curlyIndex = basePathStr.indexOf('{');
+    if (curlyIndex >= 0) {
+      final Path newBasePath = Paths.get(basePathStr.substring(0, curlyIndex));
+      return new BasePathWithTileSchemeEncoding(
+        newBasePath,
+        tilesSchemeEncoding(options, newBasePath, basePathStr.substring(curlyIndex))
+      );
+    } else {
+      return new BasePathWithTileSchemeEncoding(
+        basePath,
+        tilesSchemeEncoding(options, basePath, Path.of(Z_TEMPLATE, X_TEMPLATE, Y_TEMPLATE + ".pbf").toString()));
+    }
+  }
+
+  public static Path cleanBasePath(Path basePath) {
+    final String basePathStr = basePath.toString();
+    final int curlyIndex = basePathStr.indexOf('{');
+    if (curlyIndex >= 0) {
+      return Paths.get(basePathStr.substring(0, curlyIndex));
+    }
+    return basePath;
+  }
+
+  record BasePathWithTileSchemeEncoding(Path basePath, TileSchemeEncoding tileSchemeEncoding) {}
 }

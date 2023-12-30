@@ -1,6 +1,7 @@
 package com.onthegomap.planetiler.files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -108,6 +109,26 @@ class ReadableFilesArchiveTest {
         List.of(TileCoord.ofXYZ(1, 2, 3)),
         archive.getAllTileCoords().stream().toList()
       );
+    }
+  }
+
+  @Test
+  void testTileSchemeFromBasePath(@TempDir Path tempDir) throws IOException {
+    final Path tilesDir = tempDir.resolve("tiles");
+    final Path basePath = tilesDir.resolve(Paths.get("{x}", "{y}", "{z}.pbf"));
+    final Path tileFile = tilesDir.resolve(Paths.get("1", "2", "3.pbf"));
+    Files.createDirectories(tileFile.getParent());
+    Files.write(tileFile, new byte[]{1});
+
+    final Path metadataFile = tilesDir.resolve("metadata.json");
+    Files.writeString(metadataFile, TestUtils.MAX_METADATA_SERIALIZED);
+
+    try (var archive = ReadableFilesArchive.newReader(basePath, Arguments.of())) {
+      assertEquals(
+        List.of(TileCoord.ofXYZ(1, 2, 3)),
+        archive.getAllTileCoords().stream().toList()
+      );
+      assertNotNull(archive.metadata());
     }
   }
 

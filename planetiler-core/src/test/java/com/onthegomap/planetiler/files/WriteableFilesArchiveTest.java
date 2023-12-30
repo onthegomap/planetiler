@@ -84,6 +84,21 @@ class WriteableFilesArchiveTest {
     assertTrue(Files.exists(expectedFile));
   }
 
+  @Test
+  void testTileSchemeFromBasePath(@TempDir Path tempDir) throws IOException {
+    final Path tilesDir = tempDir.resolve("tiles");
+    final Path basePath = tilesDir.resolve(Paths.get("{x}", "{y}", "{z}.pbf"));
+    try (var archive = WriteableFilesArchive.newWriter(basePath, Arguments.of(), false)) {
+      try (var tileWriter = archive.newTileWriter()) {
+        tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.empty()));
+      }
+      archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
+    }
+
+    assertTrue(Files.exists(tilesDir.resolve(Paths.get("1", "2", "3.pbf"))));
+    assertTrue(Files.exists(tilesDir.resolve("metadata.json")));
+  }
+
   private void testMetadataWrite(Arguments options, Path archiveOutput, Path metadataTilesDir) throws IOException {
     try (var archive = WriteableFilesArchive.newWriter(archiveOutput, options, false)) {
       archive.initialize();

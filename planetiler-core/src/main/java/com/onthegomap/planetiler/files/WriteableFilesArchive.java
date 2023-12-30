@@ -17,6 +17,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Writes tiles as separate files. The default tile scheme is z/x/y.pbf.
@@ -31,16 +33,20 @@ import java.util.function.Function;
  * suppress writing metadata.</dd>
  * </ul>
  *
- * Usage:
+ * Usages:
  *
  * <pre>
  * --output=/path/to/tiles/ --files_tile_scheme={z}/{x}/{y}.pbf --files_metadata_path=/some/other/path/metadata.json
+ * --output=/path/to/tiles/{z}/{x}/{y}.pbf
+ * --output=/path/to/tiles?format=files&tile_scheme={z}/{x}/{y}.pbf
  * </pre>
  *
  * @see ReadableFilesArchive
  * @see TileSchemeEncoding
  */
 public class WriteableFilesArchive implements WriteableTileArchive {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(WriteableFilesArchive.class);
 
   private final Counter.MultiThreadCounter bytesWritten = Counter.newMultiThreadCounter();
 
@@ -52,6 +58,12 @@ public class WriteableFilesArchive implements WriteableTileArchive {
   private final TileOrder tileOrder;
 
   private WriteableFilesArchive(Path basePath, Arguments options, boolean overwriteMetadata) {
+
+    final var pathAndScheme = FilesArchiveUtils.basePathWithTileSchemeEncoding(options, basePath);
+    basePath = pathAndScheme.basePath();
+
+    LOGGER.atInfo().log("using {} as base files archive path", basePath);
+
     this.basePath = createValidateDirectory(basePath);
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options)
       .flatMap(p -> FilesArchiveUtils.metadataPath(p.getParent(), options))
@@ -63,7 +75,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
         throw new IllegalArgumentException("require " + this.metadataPath + " to be a regular file");
       }
     }
-    final TileSchemeEncoding tileSchemeEncoding = FilesArchiveUtils.tilesSchemeEncoding(options, basePath);
+    final TileSchemeEncoding tileSchemeEncoding = pathAndScheme.tileSchemeEncoding();
     this.tileSchemeEncoder = tileSchemeEncoding.encoder();
     this.tileOrder = tileSchemeEncoding.preferredTileOrder();
   }

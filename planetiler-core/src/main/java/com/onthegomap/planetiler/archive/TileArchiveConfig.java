@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.archive;
 import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
+import com.onthegomap.planetiler.files.FilesArchiveUtils;
 import com.onthegomap.planetiler.stream.StreamArchiveUtils;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -43,6 +44,12 @@ public record TileArchiveConfig(
   Map<String, String> options
 ) {
 
+  // be more generous and encode some characters for the users
+  private static final Map<String, String> URI_ENCODINGS = Map.of(
+    "{", "%7B",
+    "}", "%7D"
+  );
+
   private static TileArchiveConfig.Scheme getScheme(URI uri) {
     String scheme = uri.getScheme();
     if (scheme == null) {
@@ -81,21 +88,20 @@ public record TileArchiveConfig(
 
   private static TileArchiveConfig.Format getFormat(URI uri) {
     String format = parseQuery(uri).get("format");
-    if (format == null && uri.getPath().endsWith("/")) {
-      return TileArchiveConfig.Format.FILES; // no format query param and ends with / => assume files - regardless of the extension
-    }
-    if (format == null) {
-      format = getExtension(uri);
-    }
-    if (format == null) {
-      return TileArchiveConfig.Format.FILES; // no extension => assume files
-    }
     for (var value : TileArchiveConfig.Format.values()) {
-      if (value.id().equals(format)) {
+      if (value.isQueryFormatSupported(format)) {
         return value;
       }
     }
-    throw new IllegalArgumentException("Unsupported format " + format + " from " + uri);
+    if (format != null) {
+      throw new IllegalArgumentException("Unsupported format " + format + " from " + uri);
+    }
+    for (var value : TileArchiveConfig.Format.values()) {
+      if (value.isUriSupported(uri)) {
+        return value;
+      }
+    }
+    throw new IllegalArgumentException("Unsupported format " + getExtension(uri) + " from " + uri);
   }
 
   /**
@@ -110,6 +116,10 @@ public record TileArchiveConfig(
         string += "?" + parts[1];
       }
     }
+    for (Map.Entry<String, String> uriEncoding : URI_ENCODINGS.entrySet()) {
+      string = string.replace(uriEncoding.getKey(), uriEncoding.getValue());
+    }
+
     return from(URI.create(string));
   }
 
@@ -144,6 +154,17 @@ public record TileArchiveConfig(
     return scheme == Scheme.FILE ? Path.of(URI.create(uri.toString().replaceAll("\\?.*$", ""))) : null;
   }
 
+  /**
+   * Returns the local <b>base</b> path for this archive, for which directories should be pre-created for.
+   */
+  public Path getLocalBasePath() {
+    Path p = getLocalPath();
+    if (format() == Format.FILES) {
+      p = FilesArchiveUtils.cleanBasePath(p);
+    }
+    return p;
+  }
+
 
   /**
    * Deletes the archive if possible.
@@ -158,7 +179,7 @@ public record TileArchiveConfig(
    * Returns {@code true} if the archive already exists, {@code false} otherwise.
    */
   public boolean exists() {
-    return exists(getLocalPath());
+    return exists(getLocalBasePath());
   }
 
   /**
@@ -213,6 +234,16 @@ public record TileArchiveConfig(
       false),
     PMTILES("pmtiles", false, false),
 
+    // should be before PBF in order to avoid collisions
+    FILES("files", true, true) {
+      @Override
+      boolean isUriSupported(URI uri) {
+        final String path = uri.getPath();
+        return path != null && (path.endsWith("/") || path.contains("{") /* template string */ ||
+          !path.contains(".") /* no extension => assume files */);
+      }
+    },
+
     CSV("csv", true, true),
     /** identical to {@link Format#CSV} - except for the column separator */
     TSV("tsv", true, true),
@@ -221,9 +252,7 @@ public record TileArchiveConfig(
     /** identical to {@link Format#PROTO} */
     PBF("pbf", true, true),
 
-    JSON("json", true, true),
-
-    FILES("files", true, true);
+    JSON("json", true, true);
 
     private final String id;
     private final boolean supportsAppend;
@@ -245,6 +274,15 @@ public record TileArchiveConfig(
 
     public boolean supportsConcurrentWrites() {
       return supportsConcurrentWrites;
+    }
+
+    boolean isUriSupported(URI uri) {
+      final String path = uri.getPath();
+      return path != null && path.endsWith("." + id);
+    }
+
+    boolean isQueryFormatSupported(String queryFormat) {
+      return id.equals(queryFormat);
     }
   }
 

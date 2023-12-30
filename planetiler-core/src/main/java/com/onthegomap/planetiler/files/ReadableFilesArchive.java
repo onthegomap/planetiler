@@ -15,6 +15,8 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Reads tiles from a folder structure (e.g. BASEPATH/{z}/{x}{y}.pbf). Counterpart to {@link WriteableFilesArchive}.
@@ -34,6 +36,8 @@ import java.util.stream.Stream;
  */
 public class ReadableFilesArchive implements ReadableTileArchive {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(ReadableFilesArchive.class);
+
   private final Path basePath;
   private final Path metadataPath;
   private final Function<TileCoord, Path> tileSchemeEncoder;
@@ -42,13 +46,19 @@ public class ReadableFilesArchive implements ReadableTileArchive {
   private final int searchDepth;
 
   private ReadableFilesArchive(Path basePath, Arguments options) {
+
+    final var pathAndScheme = FilesArchiveUtils.basePathWithTileSchemeEncoding(options, basePath);
+    basePath = pathAndScheme.basePath();
+
+    LOGGER.atInfo().log(() -> "using " + pathAndScheme.basePath() + " as base files archive path");
+
     this.basePath = basePath;
     Preconditions.checkArgument(
       Files.isDirectory(basePath),
       "require \"" + basePath + "\" to be an existing directory"
     );
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
-    final TileSchemeEncoding tileSchemeEncoding = FilesArchiveUtils.tilesSchemeEncoding(options, basePath);
+    final TileSchemeEncoding tileSchemeEncoding = pathAndScheme.tileSchemeEncoding();
     this.tileSchemeEncoder = tileSchemeEncoding.encoder();
     this.tileSchemeDecoder = tileSchemeEncoding.decoder();
     this.searchDepth = tileSchemeEncoding.searchDepth();
