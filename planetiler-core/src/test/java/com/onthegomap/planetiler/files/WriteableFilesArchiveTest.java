@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -84,19 +85,32 @@ class WriteableFilesArchiveTest {
     assertTrue(Files.exists(expectedFile));
   }
 
-  @Test
-  void testTileSchemeFromBasePath(@TempDir Path tempDir) throws IOException {
-    final Path tilesDir = tempDir.resolve("tiles");
-    final Path basePath = tilesDir.resolve(Paths.get("{x}", "{y}", "{z}.pbf"));
-    try (var archive = WriteableFilesArchive.newWriter(basePath, Arguments.of(), false)) {
+  @ParameterizedTest
+  @CsvSource(textBlock = """
+    {z}/{x}/{y}.pbf           ,      , 3/1/2.pbf
+    tiles/{z}/{x}/{y}.pbf     , tiles, tiles/3/1/2.pbf
+    tiles/z{z}/{x}/{y}.pbf    , tiles, tiles/z3/1/2.pbf
+    z{z}/x{x}/y{y}.pbf        ,      , z3/x1/y2.pbf
+    tiles/tile-{z}-{x}-{y}.pbf, tiles, tiles/tile-3-1-2.pbf
+    """
+  )
+  void testTileSchemeFromBasePath(Path shortcutBasePath, Path actualBasePath, Path tileFile, @TempDir Path tempDir)
+    throws IOException {
+    final Path testBase = tempDir.resolve("tiles");
+
+    shortcutBasePath = testBase.resolve(shortcutBasePath);
+    actualBasePath = testBase.resolve(Objects.requireNonNullElse(actualBasePath, Paths.get("")));
+    tileFile = testBase.resolve(tileFile);
+
+    try (var archive = WriteableFilesArchive.newWriter(shortcutBasePath, Arguments.of(), false)) {
       try (var tileWriter = archive.newTileWriter()) {
         tileWriter.write(new TileEncodingResult(TileCoord.ofXYZ(1, 2, 3), new byte[]{1}, OptionalLong.empty()));
       }
       archive.finish(TestUtils.MAX_METADATA_DESERIALIZED);
     }
 
-    assertTrue(Files.exists(tilesDir.resolve(Paths.get("1", "2", "3.pbf"))));
-    assertTrue(Files.exists(tilesDir.resolve("metadata.json")));
+    assertTrue(Files.exists(tileFile));
+    assertTrue(Files.exists(actualBasePath.resolve("metadata.json")));
   }
 
   private void testMetadataWrite(Arguments options, Path archiveOutput, Path metadataTilesDir) throws IOException {

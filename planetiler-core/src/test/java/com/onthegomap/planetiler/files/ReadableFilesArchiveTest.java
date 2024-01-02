@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -112,18 +113,29 @@ class ReadableFilesArchiveTest {
     }
   }
 
-  @Test
-  void testTileSchemeFromBasePath(@TempDir Path tempDir) throws IOException {
-    final Path tilesDir = tempDir.resolve("tiles");
-    final Path basePath = tilesDir.resolve(Paths.get("{x}", "{y}", "{z}.pbf"));
-    final Path tileFile = tilesDir.resolve(Paths.get("1", "2", "3.pbf"));
+  @ParameterizedTest
+  @CsvSource(textBlock = """
+    {z}/{x}/{y}.pbf           ,      , 3/1/2.pbf
+    tiles/{z}/{x}/{y}.pbf     , tiles, tiles/3/1/2.pbf
+    tiles/z{z}/{x}/{y}.pbf    , tiles, tiles/z3/1/2.pbf
+    z{z}/x{x}/y{y}.pbf        ,      , z3/x1/y2.pbf
+    tiles/tile-{z}-{x}-{y}.pbf, tiles, tiles/tile-3-1-2.pbf
+    """
+  )
+  void testTileSchemeFromBasePath(Path shortcutBasePath, Path actualBasePath, Path tileFile, @TempDir Path tempDir)
+    throws IOException {
+    final Path testBase = tempDir.resolve("tiles");
+
+    shortcutBasePath = testBase.resolve(shortcutBasePath);
+    actualBasePath = testBase.resolve(Objects.requireNonNullElse(actualBasePath, Paths.get("")));
+    tileFile = testBase.resolve(tileFile);
     Files.createDirectories(tileFile.getParent());
     Files.write(tileFile, new byte[]{1});
 
-    final Path metadataFile = tilesDir.resolve("metadata.json");
+    final Path metadataFile = actualBasePath.resolve("metadata.json");
     Files.writeString(metadataFile, TestUtils.MAX_METADATA_SERIALIZED);
 
-    try (var archive = ReadableFilesArchive.newReader(basePath, Arguments.of())) {
+    try (var archive = ReadableFilesArchive.newReader(shortcutBasePath, Arguments.of())) {
       assertEquals(
         List.of(TileCoord.ofXYZ(1, 2, 3)),
         archive.getAllTileCoords().stream().toList()

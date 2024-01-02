@@ -47,7 +47,7 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
 
   private WriteableStreamArchive(OutputStreamSupplier outputStreamFactory, StreamArchiveConfig config) {
     this.outputStreamFactory =
-      i -> new CountingOutputStream(outputStreamFactory.newOutputStream(i), bytesWritten::incBy);
+      i -> new CountingOutputStream(outputStreamFactory.newOutputStream(i), bytesWritten.counterForThread()::incBy);
     this.config = config;
 
     this.primaryOutputStream = this.outputStreamFactory.newOutputStream(0);

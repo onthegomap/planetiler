@@ -402,7 +402,6 @@ public class TileArchiveWriter {
 
   private void finishArchive() {
     archive.finish(tileArchiveMetadata.withLayerStats(layerAttrStats.getTileStats()));
-    archive.printStats();
   }
 
   /**

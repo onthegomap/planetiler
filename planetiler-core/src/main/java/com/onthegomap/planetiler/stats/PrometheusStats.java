@@ -1,6 +1,5 @@
 package com.onthegomap.planetiler.stats;
 
-import com.onthegomap.planetiler.util.FileUtils;
 import com.onthegomap.planetiler.util.MemoryEstimator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -49,8 +48,7 @@ class PrometheusStats implements Stats {
   private PushGateway pg;
   private ScheduledExecutorService executor;
   private final String job;
-  private final Map<String, Path> filesToMonitor = new ConcurrentSkipListMap<>();
-  private final Map<String, LongSupplier> sizesOfFilesToMonitor = new ConcurrentSkipListMap<>();
+  private final Map<String, MonitoredFile> filesToMonitor = new ConcurrentSkipListMap<>();
   private final Map<String, Long> dataErrorCounters = new ConcurrentHashMap<>();
   private final Map<String, MemoryEstimator.HasEstimate> heapObjectsToMonitor = new ConcurrentSkipListMap<>();
 
@@ -172,13 +170,8 @@ class PrometheusStats implements Stats {
   }
 
   @Override
-  public Map<String, Path> monitoredFiles() {
+  public Map<String, MonitoredFile> monitoredFiles() {
     return filesToMonitor;
-  }
-
-  @Override
-  public Map<String, LongSupplier> monitoredFileSizes() {
-    return sizesOfFilesToMonitor;
   }
 
   @Override
@@ -254,11 +247,11 @@ class PrometheusStats implements Stats {
     @Override
     public List<MetricFamilySamples> collect() {
       List<Collector.MetricFamilySamples> results = new ArrayList<>();
-      for (var file : filesToMonitor.entrySet()) {
-        String name = sanitizeMetricName(file.getKey());
-        Path path = file.getValue();
-        var sizeSupplier = monitoredFileSizes().getOrDefault(file.getKey(), () -> FileUtils.size(path));
-        long size = sizeSupplier.getAsLong();
+      for (var entry : filesToMonitor.entrySet()) {
+        String name = sanitizeMetricName(entry.getKey());
+        MonitoredFile monitoredFile = entry.getValue();
+        Path path = monitoredFile.path();
+        long size = monitoredFile.sizeProvider().getAsLong();
         results.add(new GaugeMetricFamily(BASE + "file_" + name + "_size_bytes", "Size of " + name + " in bytes",
           size));
         if (Files.exists(path)) {

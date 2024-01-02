@@ -5,6 +5,7 @@ import com.onthegomap.planetiler.geo.TileOrder;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -161,4 +162,22 @@ public class TileSchemeEncoding {
     return tileScheme;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    return this == o || (o instanceof TileSchemeEncoding that && Objects.equals(tileScheme, that.tileScheme) &&
+      Objects.equals(basePath, that.basePath));
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(tileScheme, basePath);
+  }
+
+  @Override
+  public String toString() {
+    return "TileSchemeEncoding[" +
+      "tileScheme='" + tileScheme + '\'' +
+      ", basePath=" + basePath +
+      ']';
+  }
 }

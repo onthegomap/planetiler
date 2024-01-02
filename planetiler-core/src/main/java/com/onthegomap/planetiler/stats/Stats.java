@@ -60,8 +60,7 @@ public interface Stats extends AutoCloseable {
       timers().printSummary();
       logger.info("-".repeat(40));
       for (var entry : monitoredFiles().entrySet()) {
-        var sizeSupplier = monitoredFileSizes().getOrDefault(entry.getKey(), () -> FileUtils.size(entry.getValue()));
-        long size = sizeSupplier.getAsLong();
+        long size = entry.getValue().sizeProvider().getAsLong();
         if (size > 0) {
           logger.info("\t{}\t{}B", entry.getKey(), format.storage(size, false));
         }
@@ -119,9 +118,7 @@ public interface Stats extends AutoCloseable {
   Timers timers();
 
   /** Returns all the files being monitored. */
-  Map<String, Path> monitoredFiles();
-
-  Map<String, LongSupplier> monitoredFileSizes();
+  Map<String, MonitoredFile> monitoredFiles();
 
   /** Adds a stat that will track the size of a file or directory located at {@code path}. */
   default void monitorFile(String name, Path path) {
@@ -130,10 +127,7 @@ public interface Stats extends AutoCloseable {
 
   default void monitorFile(String name, Path path, LongSupplier sizeProvider) {
     if (path != null) {
-      monitoredFiles().put(name, path);
-    }
-    if (sizeProvider != null) {
-      monitoredFileSizes().put(name, sizeProvider);
+      monitoredFiles().put(name, new MonitoredFile(path, sizeProvider));
     }
   }
 
@@ -199,8 +193,7 @@ public interface Stats extends AutoCloseable {
     private InMemory() {}
 
     private final Timers timers = new Timers();
-    private final Map<String, Path> monitoredFiles = new ConcurrentSkipListMap<>();
-    private final Map<String, LongSupplier> monitoredFileSizes = new ConcurrentSkipListMap<>();
+    private final Map<String, MonitoredFile> monitoredFiles = new ConcurrentSkipListMap<>();
     private final Map<String, Long> dataErrors = new ConcurrentHashMap<>();
 
     @Override
@@ -212,13 +205,8 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public Map<String, Path> monitoredFiles() {
+    public Map<String, MonitoredFile> monitoredFiles() {
       return monitoredFiles;
-    }
-
-    @Override
-    public Map<String, LongSupplier> monitoredFileSizes() {
-      return monitoredFileSizes;
     }
 
     @Override
@@ -257,6 +245,13 @@ public interface Stats extends AutoCloseable {
     @Override
     public void close() {
 
+    }
+  }
+
+  record MonitoredFile(Path path, LongSupplier sizeProvider) {
+    public MonitoredFile(Path path, LongSupplier sizeProvider) {
+      this.path = path;
+      this.sizeProvider = sizeProvider != null ? sizeProvider : () -> FileUtils.size(path);
     }
   }
 }
