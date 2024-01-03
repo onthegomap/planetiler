@@ -60,7 +60,7 @@ public interface Stats extends AutoCloseable {
       timers().printSummary();
       logger.info("-".repeat(40));
       for (var entry : monitoredFiles().entrySet()) {
-        long size = FileUtils.size(entry.getValue());
+        long size = entry.getValue().sizeProvider().getAsLong();
         if (size > 0) {
           logger.info("\t{}\t{}B", entry.getKey(), format.storage(size, false));
         }
@@ -118,14 +118,19 @@ public interface Stats extends AutoCloseable {
   Timers timers();
 
   /** Returns all the files being monitored. */
-  Map<String, Path> monitoredFiles();
+  Map<String, MonitoredFile> monitoredFiles();
 
   /** Adds a stat that will track the size of a file or directory located at {@code path}. */
   default void monitorFile(String name, Path path) {
+    monitorFile(name, path, null);
+  }
+
+  default void monitorFile(String name, Path path, LongSupplier sizeProvider) {
     if (path != null) {
-      monitoredFiles().put(name, path);
+      monitoredFiles().put(name, new MonitoredFile(path, sizeProvider));
     }
   }
+
 
   /** Adds a stat that will track the estimated in-memory size of {@code object}. */
   void monitorInMemoryObject(String name, MemoryEstimator.HasEstimate object);
@@ -188,7 +193,7 @@ public interface Stats extends AutoCloseable {
     private InMemory() {}
 
     private final Timers timers = new Timers();
-    private final Map<String, Path> monitoredFiles = new ConcurrentSkipListMap<>();
+    private final Map<String, MonitoredFile> monitoredFiles = new ConcurrentSkipListMap<>();
     private final Map<String, Long> dataErrors = new ConcurrentHashMap<>();
 
     @Override
@@ -200,7 +205,7 @@ public interface Stats extends AutoCloseable {
     }
 
     @Override
-    public Map<String, Path> monitoredFiles() {
+    public Map<String, MonitoredFile> monitoredFiles() {
       return monitoredFiles;
     }
 
@@ -240,6 +245,13 @@ public interface Stats extends AutoCloseable {
     @Override
     public void close() {
 
+    }
+  }
+
+  record MonitoredFile(Path path, LongSupplier sizeProvider) {
+    public MonitoredFile(Path path, LongSupplier sizeProvider) {
+      this.path = path;
+      this.sizeProvider = sizeProvider != null ? sizeProvider : () -> FileUtils.size(path);
     }
   }
 }

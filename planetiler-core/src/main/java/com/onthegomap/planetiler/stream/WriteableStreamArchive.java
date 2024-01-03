@@ -2,6 +2,8 @@ package com.onthegomap.planetiler.stream;
 
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.geo.TileOrder;
+import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.util.CountingOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -34,6 +36,8 @@ import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
  */
 abstract class WriteableStreamArchive implements WriteableTileArchive {
 
+  private final Counter.MultiThreadCounter bytesWritten = Counter.newMultiThreadCounter();
+
   private final OutputStream primaryOutputStream;
   private final OutputStreamSupplier outputStreamFactory;
   @SuppressWarnings("unused")
@@ -42,10 +46,11 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
   private final AtomicInteger tileWriterCounter = new AtomicInteger(0);
 
   private WriteableStreamArchive(OutputStreamSupplier outputStreamFactory, StreamArchiveConfig config) {
-    this.outputStreamFactory = outputStreamFactory;
+    this.outputStreamFactory =
+      i -> new CountingOutputStream(outputStreamFactory.newOutputStream(i), bytesWritten.counterForThread()::incBy);
     this.config = config;
 
-    this.primaryOutputStream = outputStreamFactory.newOutputStream(0);
+    this.primaryOutputStream = this.outputStreamFactory.newOutputStream(0);
   }
 
   protected WriteableStreamArchive(Path p, StreamArchiveConfig config) {
@@ -76,6 +81,11 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
       return newTileWriter(outputStreamFactory.newOutputStream(tileWriterIndex));
     }
 
+  }
+
+  @Override
+  public long bytesWritten() {
+    return bytesWritten.get();
   }
 
   protected abstract TileWriter newTileWriter(OutputStream outputStream);

@@ -33,13 +33,12 @@ message Metadata {
   string type = 5;
   string format = 6;
   Envelope bounds = 7;
-  CoordinateXY center = 8;
-  double zoom = 9;
-  int32 min_zoom = 10;
-  int32 max_zoom = 11;
-  repeated VectorLayer vector_layers = 12;
-  map<string, string> others = 13;
-  TileCompression tile_compression = 14;
+  Coordinate center = 8;
+  int32 min_zoom = 9;
+  int32 max_zoom = 10;
+  repeated VectorLayer vector_layers = 11;
+  map<string, string> others = 12;
+  TileCompression tile_compression = 13;
 }
 
 message Envelope {
@@ -49,9 +48,10 @@ message Envelope {
   double max_y = 4;
 }
 
-message CoordinateXY {
+message Coordinate {
   double x = 1;
   double y = 2;
+  double z = 3;
 }
 
 message VectorLayer {

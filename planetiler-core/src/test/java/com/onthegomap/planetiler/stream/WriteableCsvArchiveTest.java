@@ -23,7 +23,7 @@ class WriteableCsvArchiveTest {
 
   private static final StreamArchiveConfig defaultConfig = new StreamArchiveConfig(false, Arguments.of());
   private static final TileArchiveMetadata defaultMetadata =
-    new TileArchiveMetadata("start", null, null, null, null, null, null, null, null, null, null, null, null, null);
+    new TileArchiveMetadata("start", null, null, null, null, null, null, null, null, null, null, null, null);
 
   @ParameterizedTest
   @EnumSource(value = TileArchiveConfig.Format.class, names = {"CSV", "TSV"})

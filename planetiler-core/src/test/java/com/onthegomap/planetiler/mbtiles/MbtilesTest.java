@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 
 class MbtilesTest {
@@ -147,21 +147,10 @@ class MbtilesTest {
 
   @Test
   void testRoundTripMetadata() throws IOException {
-    roundTripMetadata(new TileArchiveMetadata(
-      "MyName",
-      "MyDescription",
-      "MyAttribution",
-      "MyVersion",
-      "baselayer",
-      TileArchiveMetadata.MVT_FORMAT,
-      new Envelope(1, 2, 3, 4),
-      new CoordinateXY(5, 6),
-      7d,
-      8,
-      9,
-      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
-      Map.of("other key", "other value"),
-      TileCompression.GZIP
+    roundTripMetadata(metadataWithJson(
+      TileArchiveMetadata.TileArchiveMetadataJson.create(
+        List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of()))
+      )
     ));
   }
 
@@ -176,11 +165,13 @@ class MbtilesTest {
       "baselayer",
       TileArchiveMetadata.MVT_FORMAT,
       new Envelope(1, 2, 3, 4),
-      new CoordinateXY(5, 6),
-      7d,
+      new Coordinate(5, 6, 7d),
       8,
       9,
-      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      TileArchiveMetadata.TileArchiveMetadataJson.create(
+        List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of()))
+
+      ),
       Map.of("other key", "other value"),
       null
     );
@@ -193,11 +184,12 @@ class MbtilesTest {
       "baselayer",
       TileArchiveMetadata.MVT_FORMAT,
       new Envelope(1, 2, 3, 4),
-      new CoordinateXY(5, 6),
-      7d,
+      new Coordinate(5, 6, 7d),
       8,
       9,
-      List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of())),
+      TileArchiveMetadata.TileArchiveMetadataJson.create(
+        List.of(new LayerAttrStats.VectorLayer("MyLayer", Map.of()))
+      ),
       Map.of("other key", "other value"),
       TileCompression.GZIP
     );
@@ -208,7 +200,7 @@ class MbtilesTest {
   @Test
   void testRoundTripMinimalMetadata() throws IOException {
     var empty =
-      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, null, Map.of(),
+      new TileArchiveMetadata(null, null, null, null, null, null, null, null, null, null, null, Map.of(),
         TileCompression.GZIP);
     roundTripMetadata(empty);
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
@@ -231,10 +223,30 @@ class MbtilesTest {
     }
   }
 
-  private void testMetadataJson(Mbtiles.MetadataJson object, String expected) throws IOException {
+  private static TileArchiveMetadata metadataWithJson(TileArchiveMetadata.TileArchiveMetadataJson metadataJson) {
+    return new TileArchiveMetadata(
+      "MyName",
+      "MyDescription",
+      "MyAttribution",
+      "MyVersion",
+      "baselayer",
+      TileArchiveMetadata.MVT_FORMAT,
+      new Envelope(1, 2, 3, 4),
+      new Coordinate(5, 6, 7d),
+      8,
+      9,
+      metadataJson,
+      Map.of("other key", "other value"),
+      TileCompression.GZIP
+    );
+  }
+
+
+  private void testMetadataJson(TileArchiveMetadata.TileArchiveMetadataJson metadataJson, String expected)
+    throws IOException {
     try (Mbtiles db = Mbtiles.newInMemoryDatabase()) {
       var metadata = db.createTablesWithoutIndexes().metadataTable();
-      metadata.setJson(object);
+      metadata.set(metadataWithJson(metadataJson));
       var actual = metadata.getAll().get("json");
       assertSameJson(expected, actual);
     }
@@ -242,7 +254,7 @@ class MbtilesTest {
 
   @Test
   void testMetadataJsonNoLayers() throws IOException {
-    testMetadataJson(new Mbtiles.MetadataJson(), """
+    testMetadataJson(TileArchiveMetadata.TileArchiveMetadataJson.create(List.of()), """
       {
         "vector_layers": []
       }
@@ -251,20 +263,22 @@ class MbtilesTest {
 
   @Test
   void testFullMetadataJson() throws IOException {
-    testMetadataJson(new Mbtiles.MetadataJson(
-      new LayerAttrStats.VectorLayer(
-        "full",
-        Map.of(
-          "NUMBER_FIELD", LayerAttrStats.FieldType.NUMBER,
-          "STRING_FIELD", LayerAttrStats.FieldType.STRING,
-          "boolean field", LayerAttrStats.FieldType.BOOLEAN
+    testMetadataJson(new TileArchiveMetadata.TileArchiveMetadataJson(
+      List.of(
+        new LayerAttrStats.VectorLayer(
+          "full",
+          Map.of(
+            "NUMBER_FIELD", LayerAttrStats.FieldType.NUMBER,
+            "STRING_FIELD", LayerAttrStats.FieldType.STRING,
+            "boolean field", LayerAttrStats.FieldType.BOOLEAN
+          )
+        ).withDescription("full description")
+          .withMinzoom(0)
+          .withMaxzoom(5),
+        new LayerAttrStats.VectorLayer(
+          "partial",
+          Map.of()
         )
-      ).withDescription("full description")
-        .withMinzoom(0)
-        .withMaxzoom(5),
-      new LayerAttrStats.VectorLayer(
-        "partial",
-        Map.of()
       )
     ), """
       {

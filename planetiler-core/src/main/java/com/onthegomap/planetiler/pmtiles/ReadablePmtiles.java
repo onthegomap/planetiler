@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.locationtech.jts.geom.Coordinate;
 
 public class ReadablePmtiles implements ReadableTileArchive {
   private final SeekableByteChannel channel;
@@ -139,11 +140,14 @@ public class ReadablePmtiles implements ReadableTileArchive {
         map.remove(TileArchiveMetadata.TYPE_KEY),
         format,
         header.bounds(),
-        header.center(),
-        (double) header.centerZoom(),
+        new Coordinate(
+          header.center().getX(),
+          header.center().getY(),
+          header.centerZoom()
+        ),
         (int) header.minZoom(),
         (int) header.maxZoom(),
-        jsonMetadata.vectorLayers(),
+        TileArchiveMetadata.TileArchiveMetadataJson.create(jsonMetadata.vectorLayers()),
         map,
         tileCompression
       );
