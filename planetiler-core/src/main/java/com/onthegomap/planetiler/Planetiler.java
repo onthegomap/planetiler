@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -656,18 +655,8 @@ public class Planetiler {
       System.exit(0);
     } else if (onlyDownloadSources) {
       // don't check files if not generating map
-    } else if (config.append()) {
-      if (!output.format().supportsAppend()) {
-        throw new IllegalArgumentException("cannot append to " + output.format().id());
-      }
-      if (!output.exists()) {
-        throw new IllegalArgumentException(output.uri() + " must exist when appending");
-      }
-    } else if (overwrite || config.force()) {
-      output.delete();
-    } else if (output.exists()) {
-      throw new IllegalArgumentException(
-        output.uri() + " already exists, use the --force argument to overwrite or --append.");
+    } else {
+      output.setup(config.force() || overwrite, config.append(), config.tileWriteThreads());
     }
 
     Path layerStatsPath = arguments.file("layer_stats", "layer stats output path",
@@ -676,23 +665,6 @@ public class Planetiler {
 
     if (config.tileWriteThreads() < 1) {
       throw new IllegalArgumentException("require tile_write_threads >= 1");
-    }
-    if (config.tileWriteThreads() > 1) {
-      if (!output.format().supportsConcurrentWrites()) {
-        throw new IllegalArgumentException(output.format() + " doesn't support concurrent writes");
-      }
-      IntStream.range(1, config.tileWriteThreads())
-        .mapToObj(output::getPathForMultiThreadedWriter)
-        .forEach(p -> {
-          if (!config.append() && (overwrite || config.force())) {
-            FileUtils.delete(p);
-          }
-          if (config.append() && !output.exists(p)) {
-            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
-          } else if (!config.append() && output.exists(p)) {
-            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
-          }
-        });
     }
 
     LOGGER.info("Building {} profile into {} in these phases:", profile.getClass().getSimpleName(), output.uri());
@@ -718,7 +690,7 @@ public class Planetiler {
     // in case any temp files are left from a previous run...
     FileUtils.delete(tmpDir, nodeDbPath, featureDbPath, multipolygonPath);
     Files.createDirectories(tmpDir);
-    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath, output.getLocalBasePath());
+    FileUtils.createParentDirectories(nodeDbPath, featureDbPath, multipolygonPath);
 
     if (!toDownload.isEmpty()) {
       download();

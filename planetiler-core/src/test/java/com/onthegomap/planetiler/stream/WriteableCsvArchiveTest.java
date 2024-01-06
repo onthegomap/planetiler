@@ -113,7 +113,7 @@ class WriteableCsvArchiveTest {
   void testColumnSeparator(@TempDir Path tempDir) throws IOException {
 
     final StreamArchiveConfig config =
-      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_COLUMN_SEPARATOR, "' '")));
+      new StreamArchiveConfig(false, Arguments.of(Map.of(StreamArchiveUtils.CSV_OPTION_COLUMN_SEPARATOR, "' '")));
 
     final String expectedCsv =
       """
@@ -128,7 +128,7 @@ class WriteableCsvArchiveTest {
   void testLineSeparator(@TempDir Path tempDir) throws IOException {
 
     final StreamArchiveConfig config =
-      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_LINE_SEPARTATOR, "'\\r'")));
+      new StreamArchiveConfig(false, Arguments.of(Map.of(StreamArchiveUtils.CSV_OPTION_LINE_SEPARATOR, "'\\r'")));
 
     final String expectedCsv =
       """
@@ -143,7 +143,7 @@ class WriteableCsvArchiveTest {
   void testHexEncoding(@TempDir Path tempDir) throws IOException {
 
     final StreamArchiveConfig config =
-      new StreamArchiveConfig(false, Arguments.of(Map.of(WriteableCsvArchive.OPTION_BINARY_ENCODING, "hex")));
+      new StreamArchiveConfig(false, Arguments.of(Map.of(StreamArchiveUtils.CSV_OPTION_BINARY_ENCODING, "hex")));
 
     final String expectedCsv =
       """

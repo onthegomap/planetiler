@@ -770,7 +770,7 @@ public class TestUtils {
       if (!failures.isEmpty()) {
         fail(String.join(System.lineSeparator(), failures));
       }
-    } catch (GeometryException | IOException e) {
+    } catch (GeometryException e) {
       fail(e);
     }
   }

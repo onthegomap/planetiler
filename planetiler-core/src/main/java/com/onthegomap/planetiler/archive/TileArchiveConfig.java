@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -158,14 +159,13 @@ public record TileArchiveConfig(
   /**
    * Returns the local <b>base</b> path for this archive, for which directories should be pre-created for.
    */
-  public Path getLocalBasePath() {
+  Path getLocalBasePath() {
     Path p = getLocalPath();
     if (format() == Format.FILES) {
       p = FilesArchiveUtils.cleanBasePath(p);
     }
     return p;
   }
-
 
   /**
    * Deletes the archive if possible.
@@ -187,7 +187,7 @@ public record TileArchiveConfig(
    * @param p path to the archive
    * @return {@code true} if the archive already exists, {@code false} otherwise.
    */
-  public boolean exists(Path p) {
+  private boolean exists(Path p) {
     if (p == null) {
       return false;
     }
@@ -227,6 +227,41 @@ public record TileArchiveConfig(
       case FILES -> getLocalPath();
       default -> throw new UnsupportedOperationException("not supported by " + format);
     };
+  }
+
+  public void setup(boolean force, boolean append, int tileWriteThreads) {
+    if (append) {
+      if (!format().supportsAppend()) {
+        throw new IllegalArgumentException("cannot append to " + format().id());
+      }
+      if (!exists()) {
+        throw new IllegalArgumentException(uri() + " must exist when appending");
+      }
+    } else if (force) {
+      delete();
+    } else if (exists()) {
+      throw new IllegalArgumentException(uri() + " already exists, use the --force argument to overwrite or --append.");
+    }
+
+    if (tileWriteThreads > 1) {
+      if (!format().supportsConcurrentWrites()) {
+        throw new IllegalArgumentException(format() + " doesn't support concurrent writes");
+      }
+      IntStream.range(1, tileWriteThreads)
+        .mapToObj(this::getPathForMultiThreadedWriter)
+        .forEach(p -> {
+          if (!append && force) {
+            FileUtils.delete(p);
+          }
+          if (append && !exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must exist when appending");
+          } else if (!append && exists(p)) {
+            throw new IllegalArgumentException("indexed archive \"" + p + "\" must not exist when not appending");
+          }
+        });
+    }
+
+    FileUtils.createParentDirectories(getLocalBasePath());
   }
 
   public enum Format {

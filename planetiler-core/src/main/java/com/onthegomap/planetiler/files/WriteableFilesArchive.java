@@ -159,12 +159,17 @@ public class WriteableFilesArchive implements WriteableTileArchive {
       }
       lastCheckedFolder = folder;
       try {
-        Files.write(file, data);
+        if (data == null) {
+          Files.createFile(file);
+        } else {
+          Files.write(file, data);
+        }
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
-
-      bytesWritten.incBy(data.length);
+      if (data != null) {
+        bytesWritten.incBy(data.length);
+      }
     }
 
     @Override

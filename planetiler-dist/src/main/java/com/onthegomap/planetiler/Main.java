@@ -2,6 +2,7 @@ package com.onthegomap.planetiler;
 
 import static java.util.Map.entry;
 
+import com.onthegomap.planetiler.archive.TileCopy;
 import com.onthegomap.planetiler.benchmarks.LongLongMapBench;
 import com.onthegomap.planetiler.benchmarks.OpenMapTilesMapping;
 import com.onthegomap.planetiler.custommap.ConfiguredMapMain;
@@ -65,7 +66,9 @@ public class Main {
     entry("verify-monaco", VerifyMonaco::main),
     entry("stats", TileSizeStats::main),
     entry("top-osm-tiles", TopOsmTiles::main),
-    entry("compare", CompareArchives::main)
+    entry("compare", CompareArchives::main),
+
+    entry("tile-copy", TileCopy::main)
   );
 
   private static EntryPoint bundledSchema(String path) {

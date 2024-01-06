@@ -31,7 +31,10 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.stats.Stats;
-import com.onthegomap.planetiler.stream.InMemoryStreamArchive;
+import com.onthegomap.planetiler.stream.ReadableCsvArchive;
+import com.onthegomap.planetiler.stream.ReadableJsonStreamArchive;
+import com.onthegomap.planetiler.stream.ReadableProtoStreamArchive;
+import com.onthegomap.planetiler.stream.StreamArchiveConfig;
 import com.onthegomap.planetiler.util.BuildInfo;
 import com.onthegomap.planetiler.util.Gzip;
 import com.onthegomap.planetiler.util.TileSizeStats;
@@ -2040,11 +2043,12 @@ class PlanetilerTests {
 
     final ReadableTileArchiveFactory readableTileArchiveFactory = switch (format) {
       case MBTILES -> Mbtiles::newReadOnlyDatabase;
-      case CSV -> p -> InMemoryStreamArchive.fromCsv(p, ",");
-      case TSV -> p -> InMemoryStreamArchive.fromCsv(p, "\t");
-      case JSON -> InMemoryStreamArchive::fromJson;
+      case CSV, TSV ->
+        p -> ReadableCsvArchive.newReader(format, p, new StreamArchiveConfig(false, Arguments.of()));
+      case JSON -> p -> ReadableJsonStreamArchive.newReader(p, new StreamArchiveConfig(false, Arguments.of()));
       case PMTILES -> ReadablePmtiles::newReadFromFile;
-      case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
+      case PROTO, PBF ->
+        p -> ReadableProtoStreamArchive.newReader(p, new StreamArchiveConfig(false, Arguments.of()));
       case FILES -> p -> ReadableFilesArchive.newReader(p, Arguments.of());
     };
 

@@ -1,10 +1,10 @@
 package com.onthegomap.planetiler.stream;
 
 import com.onthegomap.planetiler.config.Arguments;
-import com.onthegomap.planetiler.config.PlanetilerConfig;
+import com.onthegomap.planetiler.config.CommonConfigs;
 
-public record StreamArchiveConfig(boolean appendToFile, Arguments moreOptions) {
-  public StreamArchiveConfig(PlanetilerConfig planetilerConfig, Arguments moreOptions) {
-    this(planetilerConfig.append(), moreOptions);
+public record StreamArchiveConfig(boolean appendToFile, Arguments formatOptions) {
+  public StreamArchiveConfig(Arguments baseArguments, Arguments formatOptions) {
+    this(CommonConfigs.appendToArchive(baseArguments), formatOptions);
   }
 }
