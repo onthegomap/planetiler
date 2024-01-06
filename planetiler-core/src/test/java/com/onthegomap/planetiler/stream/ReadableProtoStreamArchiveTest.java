@@ -52,8 +52,13 @@ class ReadableProtoStreamArchiveTest {
       new Tile(TileCoord.ofXYZ(1, 2, 3), new byte[]{1})
     );
     try (var reader = ReadableProtoStreamArchive.newReader(p, new StreamArchiveConfig(false, Arguments.of()))) {
-      assertEquals(expectedTiles, reader.getAllTiles().stream().toList());
-      assertEquals(expectedTiles, reader.getAllTiles().stream().toList());
+      try (var s = reader.getAllTiles().stream()) {
+        assertEquals(expectedTiles, s.toList());
+      }
+      try (var s = reader.getAllTiles().stream()) {
+        assertEquals(expectedTiles, s.toList());
+      }
+      assertEquals(metadataDeserialized, reader.metadata());
       assertEquals(metadataDeserialized, reader.metadata());
     }
   }

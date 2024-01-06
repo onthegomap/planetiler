@@ -63,8 +63,12 @@ class ReadableCsvStreamArchiveTest {
     );
 
     try (var reader = ReadableCsvArchive.newReader(TileArchiveConfig.Format.CSV, csvFile, config)) {
-      assertEquals(expectedTiles, reader.getAllTiles().stream().toList());
-      assertEquals(expectedTiles, reader.getAllTiles().stream().toList());
+      try (var s = reader.getAllTiles().stream()) {
+        assertEquals(expectedTiles, s.toList());
+      }
+      try (var s = reader.getAllTiles().stream()) {
+        assertEquals(expectedTiles, s.toList());
+      }
       assertNull(reader.metadata());
       assertNull(reader.metadata());
       assertArrayEquals(expectedTiles.get(1).bytes(), reader.getTile(TileCoord.ofXYZ(1, 2, 3)));

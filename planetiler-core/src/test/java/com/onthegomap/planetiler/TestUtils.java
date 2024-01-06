@@ -294,7 +294,9 @@ public class TestUtils {
   }
 
   public static Set<Tile> getTiles(ReadableTileArchive db) {
-    return db.getAllTiles().stream().collect(Collectors.toSet());
+    try (var t = db.getAllTiles(); var s = t.stream()) {
+      return s.collect(Collectors.toUnmodifiableSet());
+    }
   }
 
   public static int getTilesDataCount(Mbtiles db) throws SQLException {

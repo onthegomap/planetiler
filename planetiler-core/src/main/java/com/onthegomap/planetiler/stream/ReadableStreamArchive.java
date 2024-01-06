@@ -26,7 +26,9 @@ abstract class ReadableStreamArchive<E> implements ReadableTileArchive {
 
   @Override
   public final byte[] getTile(TileCoord coord) {
-    return getAllTiles().stream().filter(c -> c.coord().equals(coord)).map(Tile::bytes).findFirst().orElse(null);
+    try (var tiles = getAllTiles(); var s = tiles.stream()) {
+      return s.filter(c -> c.coord().equals(coord)).map(Tile::bytes).findFirst().orElse(null);
+    }
   }
 
   @Override
@@ -34,11 +36,17 @@ abstract class ReadableStreamArchive<E> implements ReadableTileArchive {
     return getTile(TileCoord.ofXYZ(x, y, z));
   }
 
+  /**
+   * Callers MUST make sure to close the iterator/derived stream!
+   */
   @Override
   public final CloseableIterator<TileCoord> getAllTileCoords() {
     return getAllTiles().map(Tile::coord);
   }
 
+  /**
+   * Callers MUST make sure to close the iterator/derived stream!
+   */
   @Override
   public final CloseableIterator<Tile> getAllTiles() {
     return createIterator()
@@ -53,8 +61,8 @@ abstract class ReadableStreamArchive<E> implements ReadableTileArchive {
   }
 
   private TileArchiveMetadata loadMetadata() {
-    try (var it = createIterator()) {
-      return it.stream().map(this::mapEntryToMetadata).flatMap(Optional::stream).findFirst().orElse(null);
+    try (var i = createIterator(); var s = i.stream()) {
+      return s.map(this::mapEntryToMetadata).flatMap(Optional::stream).findFirst().orElse(null);
     }
   }
 

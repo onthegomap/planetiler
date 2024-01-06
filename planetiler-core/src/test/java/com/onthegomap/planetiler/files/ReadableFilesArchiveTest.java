@@ -49,8 +49,12 @@ class ReadableFilesArchiveTest {
       Files.write(files.get(i), new byte[]{(byte) i});
     }
 
-    try (var reader = ReadableFilesArchive.newReader(tilesDir, Arguments.of())) {
-      final List<Tile> tiles = reader.getAllTiles().stream().sorted().toList();
+    try (
+      var reader = ReadableFilesArchive.newReader(tilesDir, Arguments.of());
+      var t = reader.getAllTiles();
+      var s = t.stream()
+    ) {
+      final List<Tile> tiles = s.sorted().toList();
       assertEquals(
         List.of(
           new Tile(TileCoord.ofXYZ(0, 0, 0), new byte[]{0}),
