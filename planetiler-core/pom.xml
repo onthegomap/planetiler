@@ -154,6 +154,11 @@
       <artifactId>geopackage</artifactId>
       <version>${geopackage.version}</version>
     </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>2.22.12</version>
+    </dependency>
   </dependencies>
 
   <build>

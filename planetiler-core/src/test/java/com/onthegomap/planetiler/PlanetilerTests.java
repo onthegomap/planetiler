@@ -1976,6 +1976,7 @@ class PlanetilerTests {
       case PMTILES -> ReadablePmtiles::newReadFromFile;
       case PROTO, PBF -> InMemoryStreamArchive::fromProtobuf;
       case FILES -> p -> ReadableFilesArchive.newReader(p, Arguments.of());
+      case S3 -> throw new UnsupportedOperationException();
     };
 
 

@@ -6,6 +6,8 @@ import com.onthegomap.planetiler.files.WriteableFilesArchive;
 import com.onthegomap.planetiler.mbtiles.Mbtiles;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
+import com.onthegomap.planetiler.s3.ReadableS3Archive;
+import com.onthegomap.planetiler.s3.WriteableS3Archive;
 import com.onthegomap.planetiler.stream.StreamArchiveConfig;
 import com.onthegomap.planetiler.stream.WriteableCsvArchive;
 import com.onthegomap.planetiler.stream.WriteableJsonStreamArchive;
@@ -59,6 +61,7 @@ public class TileArchives {
       case JSON -> WriteableJsonStreamArchive.newWriteToFile(archive.getLocalPath(),
         new StreamArchiveConfig(config, options));
       case FILES -> WriteableFilesArchive.newWriter(archive.getLocalPath(), options, config.force() || config.append());
+      case S3 -> WriteableS3Archive.newWriter(archive.uri(), options);
     };
   }
 
@@ -77,6 +80,7 @@ public class TileArchives {
       case PROTO, PBF -> throw new UnsupportedOperationException("reading PROTO is not supported");
       case JSON -> throw new UnsupportedOperationException("reading JSON is not supported");
       case FILES -> ReadableFilesArchive.newReader(archive.getLocalPath(), options);
+      case S3 -> ReadableS3Archive.newReader(archive.uri(), options);
     };
   }
 

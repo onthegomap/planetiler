@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.files;
+package com.onthegomap.planetiler.archive;
 
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.geo.TileOrder;
@@ -59,25 +59,35 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class TileSchemeEncoding {
 
-  static final String X_TEMPLATE = "{x}";
-  static final String X_SAFE_TEMPLATE = "{xs}";
-  static final String Y_TEMPLATE = "{y}";
-  static final String Y_SAFE_TEMPLATE = "{ys}";
-  static final String Z_TEMPLATE = "{z}";
+  public static final String X_TEMPLATE = "{x}";
+  public static final String X_SAFE_TEMPLATE = "{xs}";
+  public static final String Y_TEMPLATE = "{y}";
+  public static final String Y_SAFE_TEMPLATE = "{ys}";
+  public static final String Z_TEMPLATE = "{z}";
+
+  public static final String ARGUMENT_DESCRIPTION = "the tile scheme (e.g. {z}/{x}/{y}.pbf, {x}/{y}/{z}.pbf)" +
+    " - instead of {x}/{y} {xs}/{ys} can be used which splits the x/y into 2 directories each" +
+    " which ensures <1000 files per directory";
 
   private final String tileScheme;
-  private final Path basePath;
+  private final String prefix;
+  private final String delimiter;
 
   /**
    * @param tileScheme the tile scheme to use e.g. {z}/{x}/{y}.pbf
    * @param basePath   the base path to append the generated relative tile path to
    */
   public TileSchemeEncoding(String tileScheme, Path basePath) {
-    this.tileScheme = validate(tileScheme);
-    this.basePath = basePath;
+    this(checkTileSchemePathNotAbsolute(tileScheme), basePath.toAbsolutePath().toString(), File.separator);
   }
 
-  public Function<TileCoord, Path> encoder() {
+  public TileSchemeEncoding(String tileScheme, String prefix, String delimiter) {
+    this.tileScheme = validate(tileScheme);
+    this.prefix = prefix;
+    this.delimiter = delimiter;
+  }
+
+  public Function<TileCoord, String> encoder() {
     final boolean xSafe = tileScheme.contains(X_SAFE_TEMPLATE);
     final boolean ySafe = tileScheme.contains(Y_SAFE_TEMPLATE);
     return tileCoord -> {
@@ -86,25 +96,24 @@ public class TileSchemeEncoding {
 
       if (xSafe) {
         final String colStr = String.format("%06d", tileCoord.x());
-        p = p.replace(X_SAFE_TEMPLATE, Paths.get(colStr.substring(0, 3), colStr.substring(3)).toString());
+        p = p.replace(X_SAFE_TEMPLATE, String.join(delimiter, colStr.substring(0, 3), colStr.substring(3)));
       } else {
         p = p.replace(X_TEMPLATE, Integer.toString(tileCoord.x()));
       }
 
       if (ySafe) {
         final String rowStr = String.format("%06d", tileCoord.y());
-        p = p.replace(Y_SAFE_TEMPLATE, Paths.get(rowStr.substring(0, 3), rowStr.substring(3)).toString());
+        p = p.replace(Y_SAFE_TEMPLATE, String.join(delimiter, rowStr.substring(0, 3), rowStr.substring(3)));
       } else {
         p = p.replace(Y_TEMPLATE, Integer.toString(tileCoord.y()));
       }
-
-      return basePath.resolve(Paths.get(p));
+      return appendToPrefix(p);
     };
   }
 
-  Function<Path, Optional<TileCoord>> decoder() {
+  public Function<String, Optional<TileCoord>> decoder() {
 
-    final String tmpPath = basePath.resolve(tileScheme).toAbsolutePath().toString();
+    final String tmpPath = appendToPrefix(tileScheme);
 
     @SuppressWarnings("java:S1075") final String escapedPathSeparator = "\\" + File.separator;
 
@@ -120,8 +129,8 @@ public class TileSchemeEncoding {
     final boolean xSafe = tileScheme.contains(X_SAFE_TEMPLATE);
     final boolean ySafe = tileScheme.contains(Y_SAFE_TEMPLATE);
 
-    return path -> {
-      final Matcher m = pathPattern.matcher(path.toAbsolutePath().toString());
+    return key -> {
+      final Matcher m = pathPattern.matcher(key);
       if (!m.matches()) {
         return Optional.empty();
       }
@@ -133,19 +142,23 @@ public class TileSchemeEncoding {
     };
   }
 
-  int searchDepth() {
-    return Paths.get(tileScheme).getNameCount() +
+  public int searchDepth() {
+    return tileScheme.split(Pattern.quote(delimiter)).length +
       StringUtils.countMatches(tileScheme, X_SAFE_TEMPLATE) +
       StringUtils.countMatches(tileScheme, Y_SAFE_TEMPLATE);
   }
 
-  TileOrder preferredTileOrder() {
+  public TileOrder preferredTileOrder() {
     // there's only TMS currently - but once there are more, this can be changed according to the scheme
     return TileOrder.TMS;
   }
 
+  private String appendToPrefix(String s) {
+    return "".equals(prefix) ? s : prefix + delimiter + s;
+  }
+
   private static String validate(String tileScheme) {
-    if (Paths.get(tileScheme).isAbsolute()) {
+    if (tileScheme.startsWith("/")) {
       throw new IllegalArgumentException("tile scheme is not allowed to be absolute");
     }
     if (StringUtils.countMatches(tileScheme, Z_TEMPLATE) != 1 ||
@@ -162,22 +175,30 @@ public class TileSchemeEncoding {
     return tileScheme;
   }
 
+  private static String checkTileSchemePathNotAbsolute(String tileScheme) {
+    if (Paths.get(tileScheme).isAbsolute()) {
+      throw new IllegalArgumentException("tile scheme is not allowed to be absolute");
+    }
+    return tileScheme;
+  }
+
   @Override
   public boolean equals(Object o) {
     return this == o || (o instanceof TileSchemeEncoding that && Objects.equals(tileScheme, that.tileScheme) &&
-      Objects.equals(basePath, that.basePath));
+      Objects.equals(prefix, that.prefix) && Objects.equals(delimiter, that.delimiter));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(tileScheme, basePath);
+    return Objects.hash(tileScheme, prefix, delimiter);
   }
 
   @Override
   public String toString() {
     return "TileSchemeEncoding[" +
       "tileScheme='" + tileScheme + '\'' +
-      ", basePath=" + basePath +
+      ", prefix=" + prefix +
+      ", delimiter=" + delimiter +
       ']';
   }
 }
