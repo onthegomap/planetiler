@@ -12,7 +12,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 
 /**
  * Base archive for all kinds of simple file streams. This is primarily useful when the file is a named pipe. In that
@@ -95,7 +95,7 @@ abstract class WriteableStreamArchive implements WriteableTileArchive {
      * the outputstream of the first writer must be closed by the archive and not the tile writer
      * since the primary stream can be used to send meta data, as well
      */
-    return new CloseShieldOutputStream(primaryOutputStream);
+    return CloseShieldOutputStream.wrap(primaryOutputStream);
   }
 
   @FunctionalInterface
