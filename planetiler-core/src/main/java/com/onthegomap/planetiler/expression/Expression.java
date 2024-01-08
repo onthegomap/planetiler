@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.expression;
 
 import static com.onthegomap.planetiler.expression.DataType.GET_TAG;
 
+import com.google.common.base.Joiner;
 import com.onthegomap.planetiler.reader.WithGeometryType;
 import com.onthegomap.planetiler.reader.WithTags;
 import com.onthegomap.planetiler.util.Format;
@@ -14,7 +15,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -362,7 +362,7 @@ public interface Expression extends Simplifiable<Expression> {
 
       return new MatchAny(field, values,
         Set.copyOf(exactMatches),
-        patterns.isEmpty() ? null : Pattern.compile("(" + Strings.join(patterns, '|') + ")"),
+        patterns.isEmpty() ? null : Pattern.compile("(" + Joiner.on('|').join(patterns) + ")"),
         matchWhenMissing,
         valueGetter
       );
