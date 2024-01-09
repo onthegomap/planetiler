@@ -362,7 +362,7 @@ public interface Expression extends Simplifiable<Expression> {
 
       return new MatchAny(field, values,
         Set.copyOf(exactMatches),
-        patterns.isEmpty() ? null : Pattern.compile("(" + Joiner.on('|').join(patterns) + ")"),
+        patterns.isEmpty() ? null : Pattern.compile(patterns.stream().collect(Collectors.joining("|", "(", ")"))),
         matchWhenMissing,
         valueGetter
       );
