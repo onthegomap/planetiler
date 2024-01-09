@@ -4,6 +4,7 @@ import static com.onthegomap.planetiler.util.LanguageUtils.nullIfEmpty;
 
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.files.FilesArchiveUtils;
+import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.stream.StreamArchiveUtils;
 import com.onthegomap.planetiler.util.FileUtils;
 import java.io.IOException;
@@ -231,11 +232,11 @@ public record TileArchiveConfig(
   public enum Format {
     MBTILES("mbtiles",
       false /* TODO mbtiles could support append in the future by using insert statements with an "on conflict"-clause (i.e. upsert) and by creating tables only if they don't exist, yet */,
-      false),
-    PMTILES("pmtiles", false, false),
+      false, TileOrder.TMS),
+    PMTILES("pmtiles", false, false, TileOrder.HILBERT),
 
     // should be before PBF in order to avoid collisions
-    FILES("files", true, true) {
+    FILES("files", true, true, TileOrder.TMS) {
       @Override
       boolean isUriSupported(URI uri) {
         final String path = uri.getPath();
@@ -244,24 +245,30 @@ public record TileArchiveConfig(
       }
     },
 
-    CSV("csv", true, true),
+    CSV("csv", true, true, TileOrder.TMS),
     /** identical to {@link Format#CSV} - except for the column separator */
-    TSV("tsv", true, true),
+    TSV("tsv", true, true, TileOrder.TMS),
 
-    PROTO("proto", true, true),
+    PROTO("proto", true, true, TileOrder.TMS),
     /** identical to {@link Format#PROTO} */
-    PBF("pbf", true, true),
+    PBF("pbf", true, true, TileOrder.TMS),
 
-    JSON("json", true, true);
+    JSON("json", true, true, TileOrder.TMS);
 
     private final String id;
     private final boolean supportsAppend;
     private final boolean supportsConcurrentWrites;
+    private final TileOrder order;
 
-    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites) {
+    Format(String id, boolean supportsAppend, boolean supportsConcurrentWrites, TileOrder order) {
       this.id = id;
       this.supportsAppend = supportsAppend;
       this.supportsConcurrentWrites = supportsConcurrentWrites;
+      this.order = order;
+    }
+
+    public TileOrder preferredOrder() {
+      return order;
     }
 
     public String id() {
