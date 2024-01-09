@@ -3,6 +3,7 @@ package com.onthegomap.planetiler.stream;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.stats.Counter;
+import com.onthegomap.planetiler.util.CloseShieldOutputStream;
 import com.onthegomap.planetiler.util.CountingOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -12,7 +13,6 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.logging.log4j.core.util.CloseShieldOutputStream;
 
 /**
  * Base archive for all kinds of simple file streams. This is primarily useful when the file is a named pipe. In that
