@@ -88,7 +88,7 @@ public final class WriteableProtoStreamArchive extends WriteableStreamArchive {
     final StreamArchiveProto.TileCompression tileCompression = switch (metadata.tileCompression()) {
       case GZIP -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_GZIP;
       case NONE -> StreamArchiveProto.TileCompression.TILE_COMPRESSION_NONE;
-      case UNKNWON -> throw new IllegalArgumentException("should not produce \"UNKNOWN\" compression");
+      case UNKNOWN -> throw new IllegalArgumentException("should not produce \"UNKNOWN\" compression");
     };
     metaDataBuilder.setTileCompression(tileCompression);
     if (metadata.vectorLayers() != null) {

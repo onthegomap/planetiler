@@ -121,7 +121,7 @@ public class ReadablePmtiles implements ReadableTileArchive {
     TileCompression tileCompression = switch (header.tileCompression()) {
       case GZIP -> TileCompression.GZIP;
       case NONE -> TileCompression.NONE;
-      case UNKNOWN -> TileCompression.UNKNWON;
+      case UNKNOWN -> TileCompression.UNKNOWN;
     };
 
     String format = switch (header.tileType()) {

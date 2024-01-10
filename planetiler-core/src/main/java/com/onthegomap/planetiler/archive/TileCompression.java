@@ -20,7 +20,7 @@ public enum TileCompression {
   @JsonProperty("gzip")
   GZIP("gzip"),
   @JsonProperty("unknown")
-  UNKNWON("unknown");
+  UNKNOWN("unknown");
 
   private final String id;
 
@@ -42,7 +42,7 @@ public enum TileCompression {
   }
 
   public static Set<TileCompression> availableValues() {
-    return Arrays.stream(TileCompression.values()).filter(tc -> tc != UNKNWON).collect(Collectors.toUnmodifiableSet());
+    return Arrays.stream(TileCompression.values()).filter(tc -> tc != UNKNOWN).collect(Collectors.toUnmodifiableSet());
   }
 
   public String id() {
@@ -52,7 +52,7 @@ public enum TileCompression {
   static class Deserializer extends JsonDeserializer<TileCompression> {
     @Override
     public TileCompression deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-      return findById(p.getValueAsString()).orElse(TileCompression.UNKNWON);
+      return findById(p.getValueAsString()).orElse(TileCompression.UNKNOWN);
     }
 
     @Override
