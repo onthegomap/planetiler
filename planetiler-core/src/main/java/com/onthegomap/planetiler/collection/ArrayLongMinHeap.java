@@ -109,9 +109,9 @@ class ArrayLongMinHeap implements LongMinHeap {
     }
     long prev = vals[index];
     vals[index] = value;
-    if (value > prev) {
+    if (value > prev) { // TODO
       percolateDown(index);
-    } else if (value < prev) {
+    } else if (value < prev) { // TODO
       percolateUp(index);
     }
   }
@@ -162,7 +162,7 @@ class ArrayLongMinHeap implements LongMinHeap {
     // the finish condition (index==0) is covered here automatically because we set vals[0]=-inf
     int parent;
     long parentValue;
-    while (val < (parentValue = vals[parent = parent(index)])) {
+    while (val < (parentValue = vals[parent = parent(index)])) { // TODO
       vals[index] = parentValue;
       positions[tree[index] = tree[parent]] = index;
       index = parent;
@@ -193,22 +193,22 @@ class ArrayLongMinHeap implements LongMinHeap {
       int minChild = child;
       long minValue = vals[child], value;
       if (++child <= size) {
-        if ((value = vals[child]) < minValue) {
+        if ((value = vals[child]) < minValue) { // TODO
           minChild = child;
           minValue = value;
         }
         if (++child <= size) {
-          if ((value = vals[child]) < minValue) {
+          if ((value = vals[child]) < minValue) { // TODO
             minChild = child;
             minValue = value;
           }
-          if (++child <= size && (value = vals[child]) < minValue) {
+          if (++child <= size && (value = vals[child]) < minValue) { // TODO
             minChild = child;
             minValue = value;
           }
         }
       }
-      if (minValue >= val) {
+      if (minValue >= val) { // TODO ???
         break;
       }
       vals[index] = minValue;
