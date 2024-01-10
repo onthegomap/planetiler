@@ -107,8 +107,8 @@ public class CompareArchives {
           archive2: {}
           """, reader1.metadata(), reader2.metadata());
       }
-      compression = metadata1 == null ? TileCompression.UNKNWON : metadata1.tileCompression();
-      TileCompression compression2 = metadata2 == null ? TileCompression.UNKNWON : metadata2.tileCompression();
+      compression = metadata1 == null ? TileCompression.UNKNOWN : metadata1.tileCompression();
+      TileCompression compression2 = metadata2 == null ? TileCompression.UNKNOWN : metadata2.tileCompression();
       if (compression != compression2) {
         throw new IllegalArgumentException(
           "input1 and input2 must have the same compression, got " + compression + " and " +
@@ -123,7 +123,7 @@ public class CompareArchives {
     var total = new AtomicLong(0);
     var diffs = new AtomicLong(0);
     record Diff(Tile a, Tile b) {}
-    var pipeline = WorkerPipeline.start("tilestats", stats)
+    var pipeline = WorkerPipeline.start("compare", stats)
       .<Diff>fromGenerator("enumerate", next -> {
         try (
           var reader1 = TileArchives.newReader(input1, config);
@@ -270,7 +270,7 @@ public class CompareArchives {
     byte[] decompressed = switch (tileCompression) {
       case GZIP -> Gzip.gunzip(bytes);
       case NONE -> bytes;
-      case UNKNWON -> throw new IllegalArgumentException("Unknown compression");
+      case UNKNOWN -> throw new IllegalArgumentException("Unknown compression");
     };
     return VectorTileProto.Tile.parseFrom(decompressed);
   }

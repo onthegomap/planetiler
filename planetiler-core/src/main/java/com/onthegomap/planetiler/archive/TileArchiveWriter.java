@@ -296,7 +296,7 @@ public class TileArchiveWriter {
             bytes = switch (config.tileCompression()) {
               case GZIP -> gzip(encoded);
               case NONE -> encoded;
-              case UNKNWON -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
+              case UNKNOWN -> throw new IllegalArgumentException("cannot compress \"UNKNOWN\"");
             };
             layerStats = TileSizeStats.computeTileStats(proto);
             if (encoded.length > config.tileWarningSizeBytes()) {
