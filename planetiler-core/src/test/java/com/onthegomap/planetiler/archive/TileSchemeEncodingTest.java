@@ -1,4 +1,4 @@
-package com.onthegomap.planetiler.files;
+package com.onthegomap.planetiler.archive;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,7 +31,7 @@ class TileSchemeEncodingTest {
     final Path tilesDir = tempDir.resolve("tiles");
     tilePath = tilesDir.resolve(tilePath);
     assertEquals(
-      tilePath,
+      tilePath.toAbsolutePath().toString(),
       new TileSchemeEncoding(tileScheme, tilesDir).encoder().apply(TileCoord.ofXYZ(1, 2, 3))
     );
   }
@@ -60,12 +60,12 @@ class TileSchemeEncodingTest {
     if (valid) {
       assertEquals(
         Optional.of(TileCoord.ofXYZ(1, 2, 3)),
-        new TileSchemeEncoding(tileScheme, tilesDir).decoder().apply(tilePath)
+        new TileSchemeEncoding(tileScheme, tilesDir).decoder().apply(tilePath.toAbsolutePath().toString())
       );
     } else {
       assertEquals(
         Optional.empty(),
-        new TileSchemeEncoding(tileScheme, tilesDir).decoder().apply(tilePath)
+        new TileSchemeEncoding(tileScheme, tilesDir).decoder().apply(tilePath.toAbsolutePath().toString())
       );
     }
   }

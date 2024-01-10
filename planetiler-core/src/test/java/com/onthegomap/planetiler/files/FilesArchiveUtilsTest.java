@@ -2,6 +2,7 @@ package com.onthegomap.planetiler.files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.onthegomap.planetiler.archive.TileSchemeEncoding;
 import com.onthegomap.planetiler.config.Arguments;
 import java.nio.file.Path;
 import java.nio.file.Paths;

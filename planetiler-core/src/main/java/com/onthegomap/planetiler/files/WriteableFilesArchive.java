@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveMetadataDeSer;
 import com.onthegomap.planetiler.archive.TileEncodingResult;
+import com.onthegomap.planetiler.archive.TileSchemeEncoding;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
@@ -16,6 +17,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +78,7 @@ public class WriteableFilesArchive implements WriteableTileArchive {
       }
     }
     final TileSchemeEncoding tileSchemeEncoding = pathAndScheme.tileSchemeEncoding();
-    this.tileSchemeEncoder = tileSchemeEncoding.encoder();
+    this.tileSchemeEncoder = tileSchemeEncoding.encoder().andThen(Paths::get);
     this.tileOrder = tileSchemeEncoding.preferredTileOrder();
   }
 

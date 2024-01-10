@@ -159,7 +159,7 @@ public record TileArchiveConfig(
    */
   public Path getLocalBasePath() {
     Path p = getLocalPath();
-    if (format() == Format.FILES) {
+    if (p != null && format() == Format.FILES) {
       p = FilesArchiveUtils.cleanBasePath(p);
     }
     return p;
@@ -223,7 +223,7 @@ public record TileArchiveConfig(
   public Path getPathForMultiThreadedWriter(int index) {
     return switch (format) {
       case CSV, TSV, JSON, PROTO, PBF -> StreamArchiveUtils.constructIndexedPath(getLocalPath(), index);
-      case FILES -> getLocalPath();
+      case FILES, S3 -> getLocalPath();
       default -> throw new UnsupportedOperationException("not supported by " + format);
     };
   }
@@ -239,8 +239,10 @@ public record TileArchiveConfig(
       @Override
       boolean isUriSupported(URI uri) {
         final String path = uri.getPath();
-        return path != null && (path.endsWith("/") || path.contains("{") /* template string */ ||
-          !path.contains(".") /* no extension => assume files */);
+        final String scheme = uri.getScheme();
+        return Scheme.FILE.id().equals(scheme) && path != null &&
+          (path.endsWith("/") || path.contains("{") /* template string */ ||
+            !path.contains(".") /* no extension => assume files */);
       }
     },
 
@@ -252,7 +254,13 @@ public record TileArchiveConfig(
     /** identical to {@link Format#PROTO} */
     PBF("pbf", true, true),
 
-    JSON("json", true, true);
+    JSON("json", true, true),
+    S3("s3", true, true) {
+      @Override
+      boolean isUriSupported(URI uri) {
+        return uri.getScheme().equals(Scheme.S3.id());
+      }
+    };
 
     private final String id;
     private final boolean supportsAppend;
@@ -278,7 +286,8 @@ public record TileArchiveConfig(
 
     boolean isUriSupported(URI uri) {
       final String path = uri.getPath();
-      return path != null && path.endsWith("." + id);
+      final String scheme = uri.getScheme();
+      return Scheme.FILE.id().equals(scheme) && path != null && path.endsWith("." + id);
     }
 
     boolean isQueryFormatSupported(String queryFormat) {
@@ -287,7 +296,8 @@ public record TileArchiveConfig(
   }
 
   public enum Scheme {
-    FILE("file");
+    FILE("file"),
+    S3("s3");
 
     private final String id;
 

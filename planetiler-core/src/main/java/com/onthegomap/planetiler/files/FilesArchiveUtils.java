@@ -1,9 +1,10 @@
 package com.onthegomap.planetiler.files;
 
-import static com.onthegomap.planetiler.files.TileSchemeEncoding.X_TEMPLATE;
-import static com.onthegomap.planetiler.files.TileSchemeEncoding.Y_TEMPLATE;
-import static com.onthegomap.planetiler.files.TileSchemeEncoding.Z_TEMPLATE;
+import static com.onthegomap.planetiler.archive.TileSchemeEncoding.X_TEMPLATE;
+import static com.onthegomap.planetiler.archive.TileSchemeEncoding.Y_TEMPLATE;
+import static com.onthegomap.planetiler.archive.TileSchemeEncoding.Z_TEMPLATE;
 
+import com.onthegomap.planetiler.archive.TileSchemeEncoding;
 import com.onthegomap.planetiler.config.Arguments;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,13 +36,8 @@ public final class FilesArchiveUtils {
   }
 
   static TileSchemeEncoding tilesSchemeEncoding(Arguments options, Path basePath, String defaultTileScheme) {
-    final String tileScheme = options.getString(
-      OPTION_TILE_SCHEME,
-      "the tile scheme (e.g. {z}/{x}/{y}.pbf, {x}/{y}/{z}.pbf)" +
-        " - instead of {x}/{y} {xs}/{ys} can be used which splits the x/y into 2 directories each" +
-        " which ensures <1000 files per directory",
-      defaultTileScheme
-    );
+    final String tileScheme =
+      options.getString(OPTION_TILE_SCHEME, TileSchemeEncoding.ARGUMENT_DESCRIPTION, defaultTileScheme);
     return new TileSchemeEncoding(tileScheme, basePath);
   }
 

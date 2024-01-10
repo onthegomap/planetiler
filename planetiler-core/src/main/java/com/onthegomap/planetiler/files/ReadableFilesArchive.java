@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.onthegomap.planetiler.archive.ReadableTileArchive;
 import com.onthegomap.planetiler.archive.TileArchiveMetadata;
 import com.onthegomap.planetiler.archive.TileArchiveMetadataDeSer;
+import com.onthegomap.planetiler.archive.TileSchemeEncoding;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.util.CloseableIterator;
@@ -12,6 +13,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -59,8 +61,9 @@ public class ReadableFilesArchive implements ReadableTileArchive {
     );
     this.metadataPath = FilesArchiveUtils.metadataPath(basePath, options).orElse(null);
     final TileSchemeEncoding tileSchemeEncoding = pathAndScheme.tileSchemeEncoding();
-    this.tileSchemeEncoder = tileSchemeEncoding.encoder();
-    this.tileSchemeDecoder = tileSchemeEncoding.decoder();
+    final Function<String, Optional<TileCoord>> tileSchemeDecoderStr = tileSchemeEncoding.decoder();
+    this.tileSchemeEncoder = tileSchemeEncoding.encoder().andThen(Paths::get);
+    this.tileSchemeDecoder = p -> tileSchemeDecoderStr.apply(p.toAbsolutePath().toString());
     this.searchDepth = tileSchemeEncoding.searchDepth();
   }
 

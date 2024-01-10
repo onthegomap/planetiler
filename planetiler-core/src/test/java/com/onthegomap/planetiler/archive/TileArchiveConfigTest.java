@@ -65,7 +65,7 @@ class TileArchiveConfigTest {
       assertEquals(config.getLocalPath(), config.getPathForMultiThreadedWriter(0));
       final Path p = config.getPathForMultiThreadedWriter(1);
       switch (format) {
-        case FILES -> assertEquals(p, config.getLocalPath());
+        case FILES, S3 -> assertEquals(p, config.getLocalPath());
         default -> assertEquals(config.getLocalPath().getParent().resolve(Paths.get("output1")), p);
       }
     }
