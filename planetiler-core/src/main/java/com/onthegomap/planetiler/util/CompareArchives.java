@@ -158,7 +158,7 @@ public class CompareArchives {
           }
         }
       })
-      .addBuffer("diffs", 1_000)
+      .addBuffer("diffs", 50_000, 1_000)
       .sinkTo("process", config.featureProcessThreads(), prev -> {
         for (var diff : prev) {
           var a = diff.a();
