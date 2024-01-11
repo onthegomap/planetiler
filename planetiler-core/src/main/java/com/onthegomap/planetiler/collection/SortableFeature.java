@@ -1,16 +1,20 @@
 package com.onthegomap.planetiler.collection;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 public record SortableFeature(@Override long key, byte[] value) implements Comparable<SortableFeature>, HasLongSortKey {
+  public static final Comparator<SortableFeature> COMPARE_BYTES = (a, b) -> Arrays.compareUnsigned(a.value, b.value);
 
   @Override
   public int compareTo(SortableFeature o) {
-    int cmp = Long.compare(key, o.key);
-    if (cmp == 0) {
-      cmp = Arrays.compareUnsigned(value, o.value);
+    if (key < o.key) {
+      return -1;
+    } else if (key == o.key) {
+      return Arrays.compareUnsigned(value, o.value);
+    } else {
+      return 1;
     }
-    return cmp;
   }
 
   @Override

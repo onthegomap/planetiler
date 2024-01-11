@@ -131,7 +131,7 @@ interface FeatureSort extends Iterable<SortableFeature>, DiskBacked, MemoryEstim
         }
       }
     });
-    return new ParallelIterator(reader, LongMerger.mergeSuppliers(queues, Comparator.naturalOrder()));
+    return new ParallelIterator(reader, LongMerger.mergeSuppliers(queues, SortableFeature.COMPARE_BYTES));
   }
 
   record ParallelIterator(Worker reader, @Override Iterator<SortableFeature> iterator)
