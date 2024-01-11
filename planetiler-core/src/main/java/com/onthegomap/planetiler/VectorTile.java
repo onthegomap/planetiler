@@ -81,6 +81,7 @@ public class VectorTile {
   // TODO make these configurable
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
+  // use a treemap to ensure that layers are encoded in a consistent order
   private final Map<String, Layer> layers = new TreeMap<>();
   private LayerAttrStats.Updater.ForZoom layerStatsTracker = LayerAttrStats.Updater.ForZoom.NOOP;
 

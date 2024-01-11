@@ -34,10 +34,6 @@ public class LongMerger {
     };
   }
 
-  private static <T extends HasLongSortKey> boolean lessThan(long ak, long bk, T a, T b, Comparator<T> tieBreaker) {
-    return ak < bk || (ak == bk && a != null && b != null && tieBreaker.compare(a, b) < 0);
-  }
-
   private static class TwoWayMerge<T extends HasLongSortKey> implements Iterator<T> {
 
     private final Comparator<T> tieBreaker;
@@ -67,7 +63,7 @@ public class LongMerger {
     @Override
     public T next() {
       T result;
-      if (lessThan(ak, bk, a, b, tieBreaker)) {
+      if (lessThan(ak, bk, a, b)) {
         result = a;
         if (inputA.hasNext()) {
           a = inputA.next();
@@ -89,6 +85,10 @@ public class LongMerger {
         }
       }
       return result;
+    }
+
+    private boolean lessThan(long ak, long bk, T a, T b) {
+      return ak < bk || (ak == bk && a != null && b != null && tieBreaker.compare(a, b) < 0);
     }
   }
 
@@ -127,8 +127,8 @@ public class LongMerger {
     public T next() {
       T result;
       // use at most 2 comparisons to get the next item
-      if (lessThan(ak, bk, a, b, tieBreaker)) {
-        if (lessThan(ak, ck, a, c, tieBreaker)) {
+      if (lessThan(ak, bk, a, b)) {
+        if (lessThan(ak, ck, a, c)) {
           // ACB / ABC
           result = a;
           if (inputA.hasNext()) {
@@ -149,7 +149,7 @@ public class LongMerger {
             ck = Long.MAX_VALUE;
           }
         }
-      } else if (lessThan(ck, bk, c, b, tieBreaker)) { /* (ck < bk) {*/
+      } else if (lessThan(ck, bk, c, b)) {
         // CAB
         result = c;
         if (inputC.hasNext()) {
@@ -174,6 +174,21 @@ public class LongMerger {
       }
       return result;
     }
+
+    private boolean lessThan(long ak, long bk, T a, T b) {
+      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
+    }
+  }
+
+  private static <T> boolean lessThanCmp(T a, T b, Comparator<T> tieBreaker) {
+    // nulls go at the end
+    if (a == null) {
+      return false;
+    } else if (b == null) {
+      return true;
+    } else {
+      return tieBreaker.compare(a, b) < 0;
+    }
   }
 
   private static class KWayMerge<T extends HasLongSortKey> implements Iterator<T> {
@@ -185,10 +200,7 @@ public class LongMerger {
     KWayMerge(List<? extends Iterator<T>> inputIterators, Comparator<T> tieBreaker) {
       this.iterators = new Iterator[inputIterators.size()];
       this.items = (T[]) new HasLongSortKey[inputIterators.size()];
-      final int size = inputIterators.size();
-      this.heap = LongMinHeap.newArrayHeap(inputIterators.size(), (a, b) -> {
-        return a >= size || b >= size ? 0 : tieBreaker.compare(items[a], items[b]);
-      });
+      this.heap = LongMinHeap.newArrayHeap(inputIterators.size(), (a, b) -> tieBreaker.compare(items[a], items[b]));
       int outIdx = 0;
       for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {
