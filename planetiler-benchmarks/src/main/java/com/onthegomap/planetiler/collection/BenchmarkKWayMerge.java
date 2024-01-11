@@ -15,7 +15,7 @@ public class BenchmarkKWayMerge {
   public static void main(String[] args) {
     for (int i = 0; i < 4; i++) {
       System.err.println();
-      testMinHeap("quaternary", LongMinHeap::newArrayHeap);
+      testMinHeap("quaternary", n -> LongMinHeap.newArrayHeap(n, Integer::compare));
       System.err.println(String.join("\t",
         "priorityqueue",
         Long.toString(testPriorityQueue(10).toMillis()),
