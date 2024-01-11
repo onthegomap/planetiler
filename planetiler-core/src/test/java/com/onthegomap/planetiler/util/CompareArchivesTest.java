@@ -83,7 +83,7 @@ class CompareArchivesTest {
       ), Map.of(
         "layer1", Map.of(
           "values list unique values", 1L,
-          "feature ids", 1L
+          "feature id", 1L
         )
       )
     ), result);
