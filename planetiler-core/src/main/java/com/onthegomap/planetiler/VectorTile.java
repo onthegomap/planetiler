@@ -35,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -80,7 +81,7 @@ public class VectorTile {
   // TODO make these configurable
   private static final int EXTENT = 4096;
   private static final double SIZE = 256d;
-  private final Map<String, Layer> layers = new LinkedHashMap<>();
+  private final Map<String, Layer> layers = new TreeMap<>();
   private LayerAttrStats.Updater.ForZoom layerStatsTracker = LayerAttrStats.Updater.ForZoom.NOOP;
 
   private static int[] getCommands(Geometry input, int scale) {

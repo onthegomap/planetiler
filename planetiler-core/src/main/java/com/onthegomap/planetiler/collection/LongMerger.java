@@ -30,7 +30,7 @@ public class LongMerger {
       case 1 -> iterators.get(0);
       case 2 -> new TwoWayMerge<>(iterators.get(0), iterators.get(1), tieBreaker);
       case 3 -> new ThreeWayMerge<>(iterators.get(0), iterators.get(1), iterators.get(2), tieBreaker);
-      default -> new KWayMerge<>(iterators);
+      default -> new KWayMerge<>(iterators, tieBreaker);
     };
   }
 
@@ -182,10 +182,13 @@ public class LongMerger {
     private final LongMinHeap heap;
 
     @SuppressWarnings("unchecked")
-    KWayMerge(List<? extends Iterator<T>> inputIterators) {
+    KWayMerge(List<? extends Iterator<T>> inputIterators, Comparator<T> tieBreaker) {
       this.iterators = new Iterator[inputIterators.size()];
       this.items = (T[]) new HasLongSortKey[inputIterators.size()];
-      this.heap = LongMinHeap.newArrayHeap(inputIterators.size());
+      final int size = inputIterators.size();
+      this.heap = LongMinHeap.newArrayHeap(inputIterators.size(), (a, b) -> {
+        return a >= size || b >= size ? 0 : tieBreaker.compare(items[a], items[b]);
+      });
       int outIdx = 0;
       for (Iterator<T> iter : inputIterators) {
         if (iter.hasNext()) {

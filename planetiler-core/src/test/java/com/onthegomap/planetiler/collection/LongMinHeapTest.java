@@ -29,6 +29,8 @@ import com.carrotsearch.hppc.IntSet;
 import java.util.PriorityQueue;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 
 /**
@@ -42,7 +44,7 @@ class LongMinHeapTest {
   protected LongMinHeap heap;
 
   void create(int capacity) {
-    heap = LongMinHeap.newArrayHeap(capacity);
+    heap = LongMinHeap.newArrayHeap(capacity, Integer::compare);
   }
 
   @Test
@@ -75,6 +77,31 @@ class LongMinHeapTest {
     heap.push(2, 6L);
     // but now its not ok to push it again
     assertThrows(IllegalStateException.class, () -> heap.push(2, 4L));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "0, 1, 2, 3, 4, 5",
+    "5, 4, 3, 2, 1, 0",
+    "0, 1, 2, 5, 4, 3",
+    "0, 1, 5, 2, 4, 3",
+    "0, 5, 1, 2, 4, 3",
+    "5, 0, 1, 2, 4, 3",
+  })
+  void tieBreaker(int a, int b, int c, int d, int e, int f) {
+    heap = LongMinHeap.newArrayHeap(6, (id1, id2) -> -Integer.compare(id1, id2));
+    heap.push(a, 0L);
+    heap.push(b, 0L);
+    heap.push(c, 0L);
+    heap.push(d, 0L);
+    heap.push(e, 0L);
+    heap.push(f, 0L);
+    assertEquals(5, heap.poll());
+    assertEquals(4, heap.poll());
+    assertEquals(3, heap.poll());
+    assertEquals(2, heap.poll());
+    assertEquals(1, heap.poll());
+    assertEquals(0, heap.poll());
   }
 
   @Test

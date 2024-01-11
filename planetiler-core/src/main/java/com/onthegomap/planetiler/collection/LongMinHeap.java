@@ -17,6 +17,8 @@
  */
 package com.onthegomap.planetiler.collection;
 
+import java.util.function.IntBinaryOperator;
+
 /**
  * API for min-heaps that keeps track of {@code int} keys in a range from {@code [0, size)} ordered by {@code long}
  * values.
@@ -31,8 +33,8 @@ public interface LongMinHeap {
    * <p>
    * This is slightly faster than a traditional binary min heap due to a shallower, more cache-friendly memory layout.
    */
-  static LongMinHeap newArrayHeap(int elements) {
-    return new ArrayLongMinHeap(elements);
+  static LongMinHeap newArrayHeap(int elements, IntBinaryOperator tieBreaker) {
+    return new ArrayLongMinHeap(elements, tieBreaker);
   }
 
   int size();
