@@ -206,7 +206,7 @@ public class CompareArchives {
     compareList(name, "values list", layer1.getValuesList(), layer2.getValuesList());
     if (compareValues(name, "features count", layer1.getFeaturesCount(), layer2.getFeaturesCount())) {
       var ids1 = layer1.getFeaturesList().stream().map(f -> f.getId()).toList();
-      var ids2 = layer1.getFeaturesList().stream().map(f -> f.getId()).toList();
+      var ids2 = layer2.getFeaturesList().stream().map(f -> f.getId()).toList();
       if (compareValues(name, "feature ids", Set.of(ids1), Set.of(ids2)) &&
         compareValues(name, "feature order", ids1, ids2)) {
         for (int i = 0; i < layer1.getFeaturesCount() && i < layer2.getFeaturesCount(); i++) {

@@ -88,7 +88,7 @@ public class LongMerger {
     }
 
     private boolean lessThan(long ak, long bk, T a, T b) {
-      return ak < bk || (ak == bk && a != null && b != null && tieBreaker.compare(a, b) < 0);
+      return ak < bk || (ak == bk && lessThanCmp(a, b, tieBreaker));
     }
   }
 
