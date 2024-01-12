@@ -40,7 +40,9 @@ import org.locationtech.jts.geom.prep.PreparedPolygon;
  * Multipolygon way members have an "inner" and "outer" role, but they can be incorrectly specified, so instead
  * determine the nesting order and alternate outer/inner/outer/inner... from the outermost ring inwards.
  * <p>
- * This class is ported to Java from <a href="imposm3 multipolygon.go">...</a> and <a href="imposm3 ring.go">...</a>
+ * This class is ported to Java from
+ * <a href="https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go">imposm3 multipolygon.go</a> and
+ * <a href="https://github.com/omniscale/imposm3/blob/master/geom/ring.go">imposm3 ring.go</a>
  */
 public class OsmMultipolygon {
   /*
