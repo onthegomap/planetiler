@@ -7,6 +7,7 @@ import com.carrotsearch.hppc.LongIntHashMap;
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.carrotsearch.hppc.SortedIterationLongObjectHashMap;
 
 /**
  * Static factory method for <a href="https://github.com/carrotsearch/hppc">High Performance Primitive Collections</a>.
@@ -39,5 +40,9 @@ public class Hppc {
 
   public static LongByteMap newLongByteHashMap() {
     return new LongByteHashMap(10, 0.75);
+  }
+
+  public static <T> SortedIterationLongObjectHashMap<T> sortedView(LongObjectHashMap<T> input) {
+    return new SortedIterationLongObjectHashMap<>(input, Long::compare);
   }
 }

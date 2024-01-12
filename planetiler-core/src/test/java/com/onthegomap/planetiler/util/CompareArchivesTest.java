@@ -73,7 +73,8 @@ class CompareArchivesTest {
     var result = CompareArchives.compare(
       TileArchiveConfig.from(aPath.toString()),
       TileArchiveConfig.from(bPath.toString()),
-      config
+      config,
+      false
     );
     assertEquals(new CompareArchives.Result(
       5, 4, Map.of(

@@ -2,7 +2,6 @@ package com.onthegomap.planetiler.util;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.onthegomap.planetiler.archive.WriteableTileArchive;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,10 +96,6 @@ public class LayerAttrStats {
       this(id, fields, Optional.empty(), OptionalInt.of(minzoom), OptionalInt.of(maxzoom));
     }
 
-    public static VectorLayer forLayer(String id) {
-      return new VectorLayer(id, new HashMap<>());
-    }
-
     public VectorLayer withDescription(String newDescription) {
       return new VectorLayer(id, fields, Optional.of(newDescription), minzoom, maxzoom);
     }
@@ -174,7 +169,8 @@ public class LayerAttrStats {
   private static class StatsForLayer {
 
     private final String layer;
-    private final Map<String, FieldType> fields = new HashMap<>();
+    // use TreeMap to ensure the same output always appears the same in an archive
+    private final Map<String, FieldType> fields = new TreeMap<>();
     private int minzoom = Integer.MAX_VALUE;
     private int maxzoom = Integer.MIN_VALUE;
 

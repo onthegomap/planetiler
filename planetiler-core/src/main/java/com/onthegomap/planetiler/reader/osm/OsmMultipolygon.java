@@ -14,15 +14,14 @@
 package com.onthegomap.planetiler.reader.osm;
 
 import com.carrotsearch.hppc.LongArrayList;
-import com.carrotsearch.hppc.LongObjectMap;
+import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.ObjectIntMap;
-import com.carrotsearch.hppc.cursors.LongObjectCursor;
 import com.onthegomap.planetiler.collection.Hppc;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.geo.GeometryException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
@@ -41,8 +40,7 @@ import org.locationtech.jts.geom.prep.PreparedPolygon;
  * Multipolygon way members have an "inner" and "outer" role, but they can be incorrectly specified, so instead
  * determine the nesting order and alternate outer/inner/outer/inner... from the outermost ring inwards.
  * <p>
- * This class is ported to Java from https://github.com/omniscale/imposm3/blob/master/geom/multipolygon.go and
- * https://github.com/omniscale/imposm3/blob/master/geom/ring.go
+ * This class is ported to Java from <a href="imposm3 multipolygon.go">...</a> and <a href="imposm3 ring.go">...</a>
  */
 public class OsmMultipolygon {
   /*
@@ -62,7 +60,8 @@ public class OsmMultipolygon {
     private final Polygon geom;
     private final double area;
     private Ring containedBy = null;
-    private final Set<Ring> holes = new HashSet<>();
+    // use linked hash set to ensure stable output
+    private final Set<Ring> holes = new LinkedHashSet<>();
 
     private Ring(Polygon geom) {
       this.geom = geom;
@@ -163,7 +162,7 @@ public class OsmMultipolygon {
     boolean fix
   ) throws GeometryException {
     try {
-      if (rings.size() == 0) {
+      if (rings.isEmpty()) {
         throw new GeometryException.Verbose("osm_invalid_multipolygon_empty",
           "error building multipolygon " + osmId + ": no rings to process");
       }
@@ -175,7 +174,7 @@ public class OsmMultipolygon {
       }
       polygons.sort(BY_AREA_DESCENDING);
       Set<Ring> shells = groupParentChildShells(polygons);
-      if (shells.size() == 0) {
+      if (shells.isEmpty()) {
         throw new GeometryException.Verbose("osm_invalid_multipolygon_not_closed",
           "error building multipolygon " + osmId + ": multipolygon not closed");
       } else if (shells.size() == 1) {
@@ -227,7 +226,8 @@ public class OsmMultipolygon {
   }
 
   private static Set<Ring> groupParentChildShells(List<Ring> polygons) {
-    Set<Ring> shells = new HashSet<>();
+    // use linked hash sate to ensure the same input always produces the same output
+    Set<Ring> shells = new LinkedHashSet<>();
     int numPolygons = polygons.size();
     if (numPolygons == 0) {
       return shells;
@@ -313,7 +313,7 @@ public class OsmMultipolygon {
   }
 
   static List<LongArrayList> connectPolygonSegments(List<LongArrayList> outer) {
-    LongObjectMap<LongArrayList> endpointIndex = Hppc.newLongObjectHashMap(outer.size() * 2);
+    LongObjectHashMap<LongArrayList> endpointIndex = Hppc.newLongObjectHashMap(outer.size() * 2);
     List<LongArrayList> completeRings = new ArrayList<>(outer.size());
 
     for (LongArrayList ids : outer) {
@@ -366,12 +366,11 @@ public class OsmMultipolygon {
       }
     }
 
-    for (LongObjectCursor<LongArrayList> cursor : endpointIndex) {
-      LongArrayList value = cursor.value;
-      if (value.size() >= 4) {
-        if (value.get(0) == value.get(value.size() - 1) || cursor.key == value.get(0)) {
-          completeRings.add(value);
-        }
+    // iterate in sorted order to ensure the same input always produces the same output
+    for (var entry : Hppc.sortedView(endpointIndex)) {
+      LongArrayList value = entry.value;
+      if (value.size() >= 4 && (value.get(0) == value.get(value.size() - 1) || entry.key == value.get(0))) {
+        completeRings.add(value);
       }
     }
     return completeRings;
