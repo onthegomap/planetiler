@@ -24,10 +24,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
+import java.util.TreeMap;
 import java.util.function.LongSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,7 +147,8 @@ public final class WriteablePmtiles implements WriteableTileArchive {
     }
     try {
       Directories directories = makeDirectories(entries);
-      var otherMetadata = new LinkedHashMap<>(tileArchiveMetadata.toMap());
+      // use treemap to ensure consistent ouput between runs
+      var otherMetadata = new TreeMap<>(tileArchiveMetadata.toMap());
 
       // exclude keys included in top-level header
       otherMetadata.remove(TileArchiveMetadata.CENTER_KEY);
