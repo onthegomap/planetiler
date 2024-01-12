@@ -141,6 +141,11 @@ public class CompareArchives {
     }
 
     var order = input1.format().preferredOrder();
+    var order2 = input2.format().preferredOrder();
+    if (order != order2) {
+      throw new IllegalArgumentException(
+        "Archive orders must be the same to compare, got " + order + " and " + order2);
+    }
     var stats = config.arguments().getStats();
     var total = new AtomicLong(0);
     var diffs = new AtomicLong(0);
