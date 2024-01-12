@@ -60,7 +60,7 @@ public class OsmMultipolygon {
     private final Polygon geom;
     private final double area;
     private Ring containedBy = null;
-    // use linked hash set to ensure stable output
+    // use linked hash set to ensure same input always produces same output
     private final Set<Ring> holes = new LinkedHashSet<>();
 
     private Ring(Polygon geom) {
@@ -226,7 +226,7 @@ public class OsmMultipolygon {
   }
 
   private static Set<Ring> groupParentChildShells(List<Ring> polygons) {
-    // use linked hash sate to ensure the same input always produces the same output
+    // use linked hash set to ensure the same input always produces the same output
     Set<Ring> shells = new LinkedHashSet<>();
     int numPolygons = polygons.size();
     if (numPolygons == 0) {
