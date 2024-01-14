@@ -81,21 +81,25 @@ class LongMinHeapTest {
 
   @ParameterizedTest
   @CsvSource({
-    "0, 1, 2, 3, 4, 5",
-    "5, 4, 3, 2, 1, 0",
-    "0, 1, 2, 5, 4, 3",
-    "0, 1, 5, 2, 4, 3",
-    "0, 5, 1, 2, 4, 3",
-    "5, 0, 1, 2, 4, 3",
+    "0, 1, 2, 3, 4, 5, 6, 7",
+    "7, 6, 5, 4, 3, 2, 1, 0",
+    "0, 1, 2, 6, 7, 5, 4, 3",
+    "0, 1, 5, 2, 4, 3, 6, 7",
+    "0, 5, 6, 7, 1, 2, 4, 3",
+    "5, 0, 1, 2, 7, 6, 4, 3",
   })
-  void tieBreaker(int a, int b, int c, int d, int e, int f) {
-    heap = LongMinHeap.newArrayHeap(6, (id1, id2) -> -Integer.compare(id1, id2));
+  void tieBreaker(int a, int b, int c, int d, int e, int f, int g, int h) {
+    heap = LongMinHeap.newArrayHeap(9, (id1, id2) -> -Integer.compare(id1, id2));
     heap.push(a, 0L);
     heap.push(b, 0L);
     heap.push(c, 0L);
     heap.push(d, 0L);
     heap.push(e, 0L);
     heap.push(f, 0L);
+    heap.push(g, 0L);
+    heap.push(h, 0L);
+    assertEquals(7, heap.poll());
+    assertEquals(6, heap.poll());
     assertEquals(5, heap.poll());
     assertEquals(4, heap.poll());
     assertEquals(3, heap.poll());

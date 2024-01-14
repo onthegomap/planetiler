@@ -230,8 +230,8 @@ public class LongMerger {
         items[id] = next;
         heap.updateHead(next.key());
       } else {
-        items[id] = null;
         heap.poll();
+        items[id] = null;
       }
       return result;
     }

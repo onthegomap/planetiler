@@ -314,6 +314,10 @@ public final class FeatureGroup implements Iterable<FeatureGroup.TileFeatures>, 
     }
   }
 
+  public int chunksToRead() {
+    return sorter.chunksToRead();
+  }
+
   public interface RenderedFeatureEncoder extends Function<RenderedFeature, SortableFeature>, Closeable {}
 
   public record Reader(Worker readWorker, Iterable<TileFeatures> result) {}
