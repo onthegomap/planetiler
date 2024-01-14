@@ -2,11 +2,13 @@ package com.onthegomap.planetiler.collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.function.Supplier;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -196,6 +198,37 @@ class LongMergerTest {
         merge(listB, listC, listD, listA),
         "BCDA primary=" + primaryKey
       );
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 100})
+  void stressTest(int n) {
+    int items = 10;
+    int maxKey = 20;
+    var random = new Random(0);
+    List<List<SortableFeature>> featureLists = new ArrayList<>();
+    for (int i = 0; i < n; i++) {
+      List<SortableFeature> list = new ArrayList<>();
+      featureLists.add(list);
+      for (int j = 0; j < items; j++) {
+        byte[] bytes = new byte[]{(byte) random.nextInt(256)};
+        random.nextBytes(bytes);
+        list.add(new SortableFeature(random.nextLong(maxKey), bytes));
+      }
+      list.sort(Comparator.naturalOrder());
+    }
+
+    var iter =
+      LongMerger.mergeIterators(featureLists.stream().map(List::iterator).toList(), SortableFeature.COMPARE_BYTES);
+    var last = iter.next();
+    int i = 1;
+    while (iter.hasNext()) {
+      i++;
+      var item = iter.next();
+      assertTrue(last.compareTo(item) <= 0,
+        "items out of order i=" + i + " lists=" + n + " last=" + last + " item=" + item);
+      last = item;
     }
   }
 

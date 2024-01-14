@@ -213,7 +213,7 @@ class ArrayLongMinHeap implements LongMinHeap {
           }
         }
       }
-      if (comparePosPos(value, minValue, pos, minChild) <= 0) {
+      if (compareIdPos(value, minValue, id, minChild) <= 0) {
         break;
       }
       posToValue[pos] = minValue;
