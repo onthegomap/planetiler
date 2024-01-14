@@ -88,7 +88,8 @@ public class TileArchiveWriter {
     TileArchiveMetadata tileArchiveMetadata, Path layerStatsPath, PlanetilerConfig config, Stats stats) {
     var timer = stats.startStage("archive");
 
-    int readThreads = Math.min(config.featureReadThreads(), features.chunksToRead());
+    int chunksToRead = Math.min(1, features.chunksToRead());
+    int readThreads = Math.clamp(config.featureReadThreads(), 1, chunksToRead);
     int threads = config.threads();
     int processThreads = threads < 10 ? threads : threads - readThreads;
     int tileWriteThreads = config.tileWriteThreads();
