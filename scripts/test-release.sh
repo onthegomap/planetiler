@@ -14,24 +14,27 @@ fi
 
 echo "Test java build"
 echo "::group::OpenMapTiles monaco (java)"
-rm -f data/out.mbtiles
-java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/out.mbtiles
-./scripts/check-monaco.sh data/out.mbtiles
+rm -f data/out*.mbtiles
+# vary threads to stress-test determinism check
+java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles  --threads=32
+./scripts/check-monaco.sh data/jar-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (java)"
-rm -f data/out.mbtiles
-java -jar planetiler-dist/target/*with-deps.jar example-toilets --download --area=monaco --output=data/out.mbtiles
-./scripts/check-mbtiles.sh data/out.mbtiles
+java -jar planetiler-dist/target/*with-deps.jar example-toilets --download --area=monaco --output=data/jar-example.mbtiles
+./scripts/check-mbtiles.sh data/jar-example.mbtiles
 echo "::endgroup::"
 
 echo "::endgroup::"
 echo "::group::OpenMapTiles monaco (docker)"
-rm -f data/out.mbtiles
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/out.mbtiles
-./scripts/check-monaco.sh data/out.mbtiles
+# vary threads to stress-test determinism check
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles --threads=4
+./scripts/check-monaco.sh data/docker-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (docker)"
-rm -f data/out.mbtiles
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/out.mbtiles
-./scripts/check-mbtiles.sh data/out.mbtiles
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/docker-example.mbtiles
+./scripts/check-mbtiles.sh data/docker-example.mbtiles
+echo "::endgroup::"
+
+echo "::group::Compare"
+java -jar planetiler-dist/target/*with-deps.jar compare data/jar-monaco.mbtiles data/docker-monaco.mbtiles
 echo "::endgroup::"

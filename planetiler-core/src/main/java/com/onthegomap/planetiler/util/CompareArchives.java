@@ -13,15 +13,21 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import org.locationtech.jts.geom.Geometry;
@@ -45,6 +51,7 @@ public class CompareArchives {
   private static final Logger LOGGER = LoggerFactory.getLogger(CompareArchives.class);
   private final Map<String, Long> diffTypes = new ConcurrentHashMap<>();
   private final Map<String, Map<String, Long>> diffsByLayer = new ConcurrentHashMap<>();
+  private final List<String> archiveDiffs = new CopyOnWriteArrayList<>();
   private final TileArchiveConfig input1;
   private final TileArchiveConfig input2;
   private final boolean verbose;
@@ -55,6 +62,9 @@ public class CompareArchives {
     this.input2 = archiveConfig2;
   }
 
+  /**
+   * @throws FatalComparisonFailure if a comparison failure is encountered that prevents comparing the whole archives.
+   */
   public static Result compare(TileArchiveConfig archiveConfig1, TileArchiveConfig archiveConfig2,
     PlanetilerConfig config, boolean verbose) {
     return new CompareArchives(archiveConfig1, archiveConfig2, verbose).getResult(config);
@@ -70,6 +80,7 @@ public class CompareArchives {
     String inputString2 = args[args.length - 1];
     var arguments = Arguments.fromArgsOrConfigFile(Arrays.copyOf(args, args.length - 2));
     var verbose = arguments.getBoolean("verbose", "log each tile diff", false);
+    var strict = arguments.getBoolean("strict", "set to false to only fail on tile diffs", true);
     var config = PlanetilerConfig.from(arguments);
     var input1 = TileArchiveConfig.from(inputString1);
     var input2 = TileArchiveConfig.from(inputString2);
@@ -80,61 +91,55 @@ public class CompareArchives {
       var format = Format.defaultInstance();
       if (LOGGER.isInfoEnabled()) {
         LOGGER.info("Detailed diffs:");
-        for (var entry : result.diffsByLayer.entrySet()) {
+        for (var entry : result.tileDiffsByLayer.entrySet()) {
           LOGGER.info("  \"{}\" layer", entry.getKey());
           for (var layerEntry : entry.getValue().entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()) {
             LOGGER.info("    {}: {}", layerEntry.getKey(), format.integer(layerEntry.getValue()));
           }
         }
-        for (var entry : result.diffTypes.entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()) {
+        for (var entry : result.tileDiffTypes.entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()) {
           LOGGER.info("  {}: {}", entry.getKey(), format.integer(entry.getValue()));
         }
+        for (var diffType : result.archiveDiffs) {
+          LOGGER.info("  {}", diffType);
+        }
         LOGGER.info("Total tiles: {}", format.integer(result.total));
-        LOGGER.info("Total diffs: {} ({} of all tiles)", format.integer(result.tileDiffs),
+        LOGGER.info("Tile diffs: {} ({} of all tiles)", format.integer(result.tileDiffs),
           format.percent(result.tileDiffs * 1d / result.total));
       }
-    } catch (IllegalArgumentException e) {
+      System.exit((result.tileDiffs > 0 || (strict && !result.archiveDiffs.isEmpty())) ? 1 : 0);
+    } catch (FatalComparisonFailure e) {
       LOGGER.error("Error comparing archives {}", e.getMessage());
       System.exit(1);
+    }
+  }
+
+  public static class FatalComparisonFailure extends IllegalArgumentException {
+    FatalComparisonFailure(String message) {
+      super(message);
     }
   }
 
   private Result getResult(PlanetilerConfig config) {
     final TileCompression compression2;
     final TileCompression compression1;
-    if (!input1.format().equals(input2.format())) {
-      LOGGER.warn("archive1 and archive2 have different formats, got {} and {}", input1.format(), input2.format());
-    }
+    compareArchive("format", input1.format(), input2.format());
     try (
       var reader1 = TileArchives.newReader(input1, config);
       var reader2 = TileArchives.newReader(input2, config);
     ) {
       var metadata1 = reader1.metadata();
       var metadata2 = reader2.metadata();
-      if (!Objects.equals(metadata1, metadata2)) {
-        LOGGER.warn("""
-          archive1 and archive2 have different metadata
-          archive1: {}
-          archive2: {}
-          """, reader1.metadata(), reader2.metadata());
-      }
+      compareArchive("metadata", metadata1, metadata2);
       if (reader1 instanceof ReadablePmtiles pmt1 && reader2 instanceof ReadablePmtiles pmt2) {
         var header1 = pmt1.getHeader();
         var header2 = pmt2.getHeader();
-        if (!Objects.equals(header1, header2)) {
-          LOGGER.warn("""
-            archive1 and archive2 have different pmtiles headers
-            archive1: {}
-            archive2: {}
-            """, header1, header2);
-        }
+        compareArchive("pmtiles header", header1, header2);
       }
       compression1 = metadata1 == null ? TileCompression.UNKNOWN : metadata1.tileCompression();
       compression2 = metadata2 == null ? TileCompression.UNKNOWN : metadata2.tileCompression();
-      if (compression1 != compression2) {
-        LOGGER.warn(
-          "input1 and input2 must have the same compression, got {} and {} - will compare decompressed tile contents instead",
-          compression1, compression2);
+      if (!compareArchive("tile compression", compression1, compression2)) {
+        LOGGER.warn("Will compare decompressed tile contents instead");
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -143,7 +148,7 @@ public class CompareArchives {
     var order = input1.format().preferredOrder();
     var order2 = input2.format().preferredOrder();
     if (order != order2) {
-      throw new IllegalArgumentException(
+      throw new FatalComparisonFailure(
         "Archive orders must be the same to compare, got " + order + " and " + order2);
     }
     var stats = config.arguments().getStats();
@@ -232,7 +237,73 @@ public class CompareArchives {
       .newLine()
       .addProcessStats();
     loggers.awaitAndLog(pipeline.done(), config.logInterval());
-    return new Result(total.get(), diffs.get(), diffTypes, diffsByLayer);
+    if (archiveDiffs.isEmpty() && diffs.get() == 0) {
+      var path1 = input1.getLocalPath();
+      var path2 = input2.getLocalPath();
+      if (path1 != null && path2 != null && Files.isRegularFile(path1) && Files.isRegularFile(path2)) {
+        LOGGER.info("No diffs so far, comparing bytes in {} vs. {}", path1, path2);
+        compareFiles(path1, path2, config);
+      }
+    }
+    return new Result(total.get(), diffs.get(), archiveDiffs, diffTypes, diffsByLayer);
+  }
+
+  private void compareFiles(Path path1, Path path2, PlanetilerConfig config) {
+    long size = FileUtils.fileSize(path1);
+    if (compareArchive("archive size", size, FileUtils.fileSize(path2))) {
+      AtomicLong bytesRead = new AtomicLong(0);
+      var worker = new Worker("compare", Stats.inMemory(), 1, () -> {
+        byte[] bytes1 = new byte[8192];
+        byte[] bytes2 = new byte[8192];
+        long n = 0;
+        try (
+          var is1 = Files.newInputStream(path1, StandardOpenOption.READ);
+          var is2 = Files.newInputStream(path2, StandardOpenOption.READ)
+        ) {
+          do {
+            int len = is1.read(bytes1);
+            int len2 = is2.read(bytes2, 0, len);
+            if (len2 != len) {
+              String message = "Expected to read %s bytes from %s but got %s".formatted(len, path2, len2);
+              archiveDiffs.add(message);
+              LOGGER.warn(message);
+              return;
+            }
+            int mismatch = Arrays.mismatch(bytes1, bytes2);
+            if (mismatch >= 0 && mismatch < len) {
+              archiveDiffs.add("mismatch at byte %s".formatted(mismatch + n));
+              LOGGER.warn("Archives mismatch ay byte {}", mismatch + n);
+              return;
+            }
+            n += len;
+            bytesRead.set(n);
+          } while (n < size);
+        }
+        LOGGER.info("No mismatches! Analyzed {} / {} bytes", n, size);
+      });
+
+      var logger = ProgressLoggers.create()
+        .addStorageRatePercentCounter("bytes", size, bytesRead::get, true)
+        .newLine()
+        .addThreadPoolStats("compare", worker)
+        .newLine()
+        .addProcessStats();
+
+      worker.awaitAndLog(logger, config.logInterval());
+    }
+  }
+
+  private <T> boolean compareArchive(String name, T a, T b) {
+    if (Objects.equals(a, b)) {
+      return true;
+    }
+    LOGGER.warn("""
+      archive1 and archive2 have different {}
+      archive1: {}
+      archive2: {}
+      """, name, a, b);
+    archiveDiffs.add(name);
+    return false;
   }
 
   private void compareTiles(TileCoord coord, VectorTileProto.Tile proto1, VectorTileProto.Tile proto2) {
@@ -358,7 +429,7 @@ public class CompareArchives {
     return switch (tileCompression) {
       case GZIP -> Gzip.gunzip(bytes);
       case NONE -> bytes;
-      case UNKNOWN -> throw new IllegalArgumentException("Unknown compression");
+      case UNKNOWN -> throw new FatalComparisonFailure("Unknown compression");
     };
   }
 
@@ -385,7 +456,10 @@ public class CompareArchives {
   }
 
   public record Result(
-    long total, long tileDiffs, Map<String, Long> diffTypes,
-    Map<String, Map<String, Long>> diffsByLayer
+    long total,
+    long tileDiffs,
+    List<String> archiveDiffs,
+    Map<String, Long> tileDiffTypes,
+    Map<String, Map<String, Long>> tileDiffsByLayer
   ) {}
 }
