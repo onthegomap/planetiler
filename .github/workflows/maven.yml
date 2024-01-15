@@ -145,11 +145,9 @@ jobs:
         cache: 'maven'
 
     - name: quickstart.sh --build
-      run: rm -rf data/tmp && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/build.pmtiles
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --build && ./scripts/check-monaco.sh data/output.mbtiles
     - name: quickstart.sh --jar
-      run: rm -rf data/tmp && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/jar.pmtiles
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --jar && ./scripts/check-monaco.sh data/output.mbtiles
     # run docker last since it creates temp dirs with root user
     - name: quickstart.sh --docker
-      run: rm -rf data/tmp && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/docker.pmtiles
-    - name: compare
-      run:
+      run: rm -rf data/output.mbtiles data/tmp && ./quickstart.sh monaco --docker && ./scripts/check-monaco.sh data/output.mbtiles
