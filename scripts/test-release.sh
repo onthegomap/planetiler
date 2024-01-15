@@ -15,24 +15,24 @@ fi
 echo "Test java build"
 echo "::group::OpenMapTiles monaco (java)"
 rm -f data/out*.mbtiles
-java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-a.mbtiles
-./scripts/check-monaco.sh data/out.mbtiles
+java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles
+./scripts/check-monaco.sh data/jar-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (java)"
-java -jar planetiler-dist/target/*with-deps.jar example-toilets --download --area=monaco --output=data/jar-b.mbtiles
-./scripts/check-mbtiles.sh data/out.mbtiles
+java -jar planetiler-dist/target/*with-deps.jar example-toilets --download --area=monaco --output=data/jar-example.mbtiles
+./scripts/check-mbtiles.sh data/jar-example.mbtiles
 echo "::endgroup::"
 
 echo "::endgroup::"
 echo "::group::OpenMapTiles monaco (docker)"
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-a.mbtiles
-./scripts/check-monaco.sh data/out.mbtiles
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles
+./scripts/check-monaco.sh data/docker-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (docker)"
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/docker-b.mbtiles
-./scripts/check-mbtiles.sh data/out.mbtiles
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" example-toilets --area=monaco --output=data/docker-example.mbtiles
+./scripts/check-mbtiles.sh data/docker-example.mbtiles
 echo "::endgroup::"
 
 echo "::group::Compare"
-java -jar planetiler-dist/target/*with-deps.jar compare data/jar-a.mbtiles data/docker-a.mbtiles
+java -jar planetiler-dist/target/*with-deps.jar compare data/jar-monaco.mbtiles data/docker-monaco.mbtiles
 echo "::endgroup::"
