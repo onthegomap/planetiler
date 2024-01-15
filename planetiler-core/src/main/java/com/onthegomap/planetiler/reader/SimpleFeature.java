@@ -1,5 +1,6 @@
 package com.onthegomap.planetiler.reader;
 
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeoUtils;
 import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmReader;
@@ -8,7 +9,6 @@ import com.onthegomap.planetiler.reader.osm.OsmSourceFeature;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
@@ -21,14 +21,12 @@ import org.locationtech.jts.geom.Puntal;
  */
 public class SimpleFeature extends SourceFeature {
 
-  private static final AtomicLong idGenerator = new AtomicLong(0);
   private final Map<String, Object> tags;
   private Geometry worldGeometry;
   private Geometry latLonGeometry;
 
   private SimpleFeature(Geometry latLonGeometry, Geometry worldGeometry, Map<String, Object> tags, String source,
-    String sourceLayer,
-    long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations) {
+    String sourceLayer, long id, List<OsmReader.RelationMember<OsmRelationInfo>> relations) {
     super(tags, source, sourceLayer, relations, id);
     assert latLonGeometry == null || worldGeometry == null : "Cannot specify both a world and lat/lon geometry";
     this.latLonGeometry = latLonGeometry;
@@ -53,29 +51,39 @@ public class SimpleFeature extends SourceFeature {
   }
 
   /** Returns a new feature with no tags and a geometry specified in latitude/longitude coordinates. */
-  public static SimpleFeature fromLatLonGeometry(Geometry latLonGeometry) {
-    return new SimpleFeature(latLonGeometry, null, Map.of(), null, null, idGenerator.incrementAndGet(), null);
+  public static SimpleFeature fromLatLonGeometry(Geometry latLonGeometry, long id) {
+    return new SimpleFeature(latLonGeometry, null, Map.of(), null, null, id, null);
+  }
+
+  /** Alias for {@link #fromLatLonGeometry(Geometry, long)} with no ID set. */
+  public static SimpleFeature fromLatLonGeometry(Geometry worldGeometry) {
+    return fromLatLonGeometry(worldGeometry, VectorTile.NO_FEATURE_ID);
   }
 
   /**
    * Returns a new feature with no tags and a geometry specified in world web mercator coordinates where (0,0) is the
    * northwest and (1,1) is the southeast corner of the planet.
    */
-  public static SimpleFeature fromWorldGeometry(Geometry worldGeometry) {
-    return new SimpleFeature(null, worldGeometry, Map.of(), null, null, idGenerator.incrementAndGet(), null);
+  public static SimpleFeature fromWorldGeometry(Geometry worldGeometry, long id) {
+    return new SimpleFeature(null, worldGeometry, Map.of(), null, null, id, null);
   }
 
-  /** Returns a new feature with empty geometry and no tags. */
-  public static SimpleFeature empty() {
-    return fromWorldGeometry(GeoUtils.JTS_FACTORY.createGeometryCollection());
+  /** Alias for {@link #fromWorldGeometry(Geometry, long)} with no ID set. */
+  public static SimpleFeature fromWorldGeometry(Geometry worldGeometry) {
+    return fromWorldGeometry(worldGeometry, VectorTile.NO_FEATURE_ID);
   }
 
   /**
    * Returns a new feature without source information if you need a {@code SimpleFeature} but don't plan on passing it
    * to a profile.
    */
+  public static SimpleFeature create(Geometry latLonGeometry, Map<String, Object> tags, long id) {
+    return new SimpleFeature(latLonGeometry, null, tags, null, null, id, null);
+  }
+
+  /** Alias for {@link #create(Geometry, Map, long)} with no ID set. */
   public static SimpleFeature create(Geometry latLonGeometry, Map<String, Object> tags) {
-    return new SimpleFeature(latLonGeometry, null, tags, null, null, idGenerator.incrementAndGet(), null);
+    return create(latLonGeometry, tags, VectorTile.NO_FEATURE_ID);
   }
 
   private static class SimpleOsmFeature extends SimpleFeature implements OsmSourceFeature {
