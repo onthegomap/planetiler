@@ -223,8 +223,10 @@ public class CompareArchives {
           }
         }
       });
+    Format format = Format.defaultInstance();
     ProgressLoggers loggers = ProgressLoggers.create()
       .addRateCounter("tiles", total)
+      .add(() -> " diffs: [ " + format.numeric(diffs, true) + " ]")
       .newLine()
       .addPipelineStats(pipeline)
       .newLine()
