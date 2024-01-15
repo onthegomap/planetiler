@@ -12,6 +12,7 @@ import com.onthegomap.planetiler.geo.TileOrder;
 import com.onthegomap.planetiler.pmtiles.WriteablePmtiles;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
@@ -78,7 +79,9 @@ class CompareArchivesTest {
       false
     );
     assertEquals(new CompareArchives.Result(
-      5, 4, Map.of(
+      5, 4, List.of(
+        "pmtiles header"
+      ), Map.of(
         "archive 2 missing tile", 1L,
         "archive 1 missing tile", 2L,
         "different contents", 1L
@@ -132,7 +135,11 @@ class CompareArchivesTest {
       false
     );
     assertEquals(new CompareArchives.Result(
-      5, 4, Map.of(
+      5, 4, List.of(
+        "metadata",
+        "pmtiles header",
+        "tile compression"
+      ), Map.of(
         "archive 2 missing tile", 1L,
         "archive 1 missing tile", 2L,
         "different decompressed contents", 1L
