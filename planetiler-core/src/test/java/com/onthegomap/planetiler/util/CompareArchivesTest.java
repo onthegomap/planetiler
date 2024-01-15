@@ -151,4 +151,42 @@ class CompareArchivesTest {
       )
     ), result);
   }
+
+  @Test
+  void testCompareArchivesSame() throws IOException {
+    var aPath = path.resolve("a.pmtiles");
+    var bPath = path.resolve("b.pmtiles");
+    byte[] a1 = new byte[]{0xa, 0x2};
+    try (
+      var a = WriteablePmtiles.newWriteToFile(aPath);
+      var b = WriteablePmtiles.newWriteToFile(bPath);
+    ) {
+      a.initialize();
+      b.initialize();
+      try (
+        var aWriter = a.newTileWriter();
+        var bWriter = b.newTileWriter()
+      ) {
+        aWriter
+          .write(new TileEncodingResult(TileOrder.HILBERT.decode(0), a1, OptionalLong.empty()));
+        aWriter
+          .write(new TileEncodingResult(TileOrder.HILBERT.decode(2), a1, OptionalLong.empty()));
+        bWriter
+          .write(new TileEncodingResult(TileOrder.HILBERT.decode(0), a1, OptionalLong.empty()));
+        bWriter
+          .write(new TileEncodingResult(TileOrder.HILBERT.decode(2), a1, OptionalLong.empty()));
+      }
+      a.finish(new TileArchiveMetadata(new Profile.NullProfile(), config));
+      b.finish(new TileArchiveMetadata(new Profile.NullProfile(), config));
+    }
+    var result = CompareArchives.compare(
+      TileArchiveConfig.from(aPath.toString()),
+      TileArchiveConfig.from(bPath.toString()),
+      config,
+      false
+    );
+    assertEquals(new CompareArchives.Result(
+      2, 0, List.of(), Map.of(), Map.of()
+    ), result);
+  }
 }

@@ -15,7 +15,8 @@ fi
 echo "Test java build"
 echo "::group::OpenMapTiles monaco (java)"
 rm -f data/out*.mbtiles
-java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles
+# vary threads to stress-test determinism check
+java -jar planetiler-dist/target/*with-deps.jar --download --area=monaco --output=data/jar-monaco.mbtiles  --threads=32
 ./scripts/check-monaco.sh data/jar-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (java)"
@@ -25,7 +26,8 @@ echo "::endgroup::"
 
 echo "::endgroup::"
 echo "::group::OpenMapTiles monaco (docker)"
-docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles
+# vary threads to stress-test determinism check
+docker run -v "$(pwd)/data":/data ghcr.io/onthegomap/planetiler:"${version}" --area=monaco --output=data/docker-monaco.mbtiles --threads=4
 ./scripts/check-monaco.sh data/docker-monaco.mbtiles
 echo "::endgroup::"
 echo "::group::Example (docker)"

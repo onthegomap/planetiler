@@ -13,9 +13,14 @@ import com.onthegomap.planetiler.geo.GeometryType;
 import com.onthegomap.planetiler.geo.TileCoord;
 import com.onthegomap.planetiler.pmtiles.ReadablePmtiles;
 import com.onthegomap.planetiler.stats.ProgressLoggers;
+import com.onthegomap.planetiler.stats.Stats;
+import com.onthegomap.planetiler.worker.Worker;
 import com.onthegomap.planetiler.worker.WorkerPipeline;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +100,11 @@ public class CompareArchives {
         for (var entry : result.tileDiffTypes.entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()) {
           LOGGER.info("  {}: {}", entry.getKey(), format.integer(entry.getValue()));
         }
+        for (var diffType : result.archiveDiffs) {
+          LOGGER.info("  {}", diffType);
+        }
         LOGGER.info("Total tiles: {}", format.integer(result.total));
-        LOGGER.info("Total diffs: {} ({} of all tiles)", format.integer(result.tileDiffs),
+        LOGGER.info("Tile diffs: {} ({} of all tiles)", format.integer(result.tileDiffs),
           format.percent(result.tileDiffs * 1d / result.total));
       }
       System.exit((result.tileDiffs > 0 || (strict && !result.archiveDiffs.isEmpty())) ? 1 : 0);
@@ -227,7 +235,60 @@ public class CompareArchives {
       .newLine()
       .addProcessStats();
     loggers.awaitAndLog(pipeline.done(), config.logInterval());
+    if (archiveDiffs.isEmpty() && diffs.get() == 0) {
+      var path1 = input1.getLocalPath();
+      var path2 = input2.getLocalPath();
+      if (path1 != null && path2 != null && Files.isRegularFile(path1) && Files.isRegularFile(path2)) {
+        LOGGER.info("No diffs so far, comparing bytes in {} vs. {}", path1, path2);
+        compareFiles(path1, path2, config);
+      }
+    }
     return new Result(total.get(), diffs.get(), archiveDiffs, diffTypes, diffsByLayer);
+  }
+
+  private void compareFiles(Path path1, Path path2, PlanetilerConfig config) {
+    long size = FileUtils.fileSize(path1);
+    if (compareArchive("archive size", size, FileUtils.fileSize(path2))) {
+      AtomicLong bytesRead = new AtomicLong(0);
+      var worker = new Worker("compare", Stats.inMemory(), 1, () -> {
+        byte[] bytes1 = new byte[8192];
+        byte[] bytes2 = new byte[8192];
+        long n = 0;
+        try (
+          var is1 = Files.newInputStream(path1, StandardOpenOption.READ);
+          var is2 = Files.newInputStream(path2, StandardOpenOption.READ)
+        ) {
+          do {
+            int len = is1.read(bytes1);
+            int len2 = is2.read(bytes2, 0, len);
+            if (len2 != len) {
+              String message = "Expected to read %s bytes from %s but got %s".formatted(len, path2, len2);
+              archiveDiffs.add(message);
+              LOGGER.warn(message);
+              return;
+            }
+            int mismatch = Arrays.mismatch(bytes1, bytes2);
+            if (mismatch >= 0 && mismatch < len) {
+              archiveDiffs.add("mismatch at byte %s".formatted(mismatch + n));
+              LOGGER.warn("Archives mismatch ay byte {}", mismatch + n);
+              return;
+            }
+            n += len;
+            bytesRead.set(n);
+          } while (n < size);
+        }
+        LOGGER.info("No mismatches! Analyzed {} / {} bytes", n, size);
+      });
+
+      var logger = ProgressLoggers.create()
+        .addStorageRatePercentCounter("bytes", size, bytesRead::get, true)
+        .newLine()
+        .addThreadPoolStats("compare", worker)
+        .newLine()
+        .addProcessStats();
+
+      worker.awaitAndLog(logger, config.logInterval());
+    }
   }
 
   private <T> boolean compareArchive(String name, T a, T b) {
