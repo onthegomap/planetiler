@@ -7,6 +7,7 @@ import com.onthegomap.planetiler.reader.osm.OsmElement;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.util.Wikidata;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -156,6 +157,8 @@ public interface Profile {
   default boolean isOverlay() {
     return false;
   }
+
+  default Map<String,String> extraMetadata() { return Map.of(); }
 
   /**
    * Defines whether {@link Wikidata} should fetch wikidata translations for the input element.
