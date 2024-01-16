@@ -366,7 +366,7 @@ public class CompareArchives {
     compareValues(coord, layer, "feature JTS geometry type", geom1.getGeometryType(), geom2.getGeometryType());
     compareValues(coord, layer, "feature num geometries", geom1.getNumGeometries(), geom2.getNumGeometries());
     if (geom1 instanceof MultiPolygon) {
-      for (int i = 0; i < geom1.getNumGeometries(); i++) {
+      for (int i = 0; i < geom1.getNumGeometries() && i < geom2.getNumGeometries(); i++) {
         comparePolygon(coord, layer, geometryType, (Polygon) geom1.getGeometryN(i), (Polygon) geom2.getGeometryN(i));
       }
     } else if (geom1 instanceof Polygon p1 && geom2 instanceof Polygon p2) {
@@ -378,7 +378,7 @@ public class CompareArchives {
     compareValues(coord, layer, geomType + " exterior ring geometry", p1.getExteriorRing(), p2.getExteriorRing());
     if (compareValues(coord, layer, geomType + " num interior rings", p1.getNumInteriorRing(),
       p2.getNumInteriorRing())) {
-      for (int i = 0; i < p1.getNumInteriorRing(); i++) {
+      for (int i = 0; i < p1.getNumInteriorRing() && i < p2.getNumInteriorRing(); i++) {
         compareValues(coord, layer, geomType + " interior ring geometry", p1.getInteriorRingN(i),
           p2.getInteriorRingN(i));
       }
