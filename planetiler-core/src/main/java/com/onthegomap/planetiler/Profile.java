@@ -158,7 +158,7 @@ public interface Profile {
     return false;
   }
 
-  default Map<String,String> extraMetadata() { return Map.of(); }
+  default Map<String,String> extraArchiveMetadata() { return Map.of(); }
 
   /**
    * Defines whether {@link Wikidata} should fetch wikidata translations for the input element.

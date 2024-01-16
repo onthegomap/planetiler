@@ -204,7 +204,7 @@ class TileArchiveMetadataTest {
       }
 
       @Override
-      public Map<String,String> extraMetadata() {
+      public Map<String,String> extraArchiveMetadata() {
         return Map.of("FooVersion","2.0");
       }
     }

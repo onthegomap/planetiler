@@ -17,6 +17,7 @@ import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
@@ -95,7 +96,7 @@ public record TileArchiveMetadata(
       config.minzoom(),
       config.maxzoom(),
       vectorLayers == null ? null : new TileArchiveMetadataJson(vectorLayers),
-      mergeMaps(mapWithBuildInfo(),profile.extraMetadata()),
+      mergeMaps(mapWithBuildInfo(),profile.extraArchiveMetadata()),
       config.tileCompression()
     );
   }
@@ -178,11 +179,9 @@ public record TileArchiveMetadata(
    */
 
   private static Map<String,String> mergeMaps(Map<String,String> m1, Map<String,String> m2) {
-    return Stream.concat(m1.entrySet().stream(), m2.entrySet().stream())
-      .collect(Collectors.toMap(
-        Map.Entry::getKey,
-        Map.Entry::getValue,
-        (value1, value2) -> value2));
+    var result = new TreeMap<>(m1);
+    result.putAll(m2);
+    return result;
   }
 
   @JsonAnySetter
