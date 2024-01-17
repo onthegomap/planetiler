@@ -6,11 +6,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.Profile;
 import com.onthegomap.planetiler.TestUtils;
+import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.config.PlanetilerConfig;
 import com.onthegomap.planetiler.geo.GeoUtils;
+import com.onthegomap.planetiler.reader.SourceFeature;
 import com.onthegomap.planetiler.util.LayerAttrStats;
 import java.util.List;
 import java.util.Map;
@@ -189,6 +192,30 @@ class TileArchiveMetadataTest {
     assertEquals(-71.7115, metadata.center().x, 1e-5);
     assertEquals(42.07295, metadata.center().y, 1e-5);
     assertEquals(7, Math.ceil(metadata.zoom()));
+  }
+
+  @Test
+  void testAddExtraMetadata() {
+    class TestingProfile extends Profile.NullProfile  {
+
+      @Override
+      public String name() {
+        return "My Name";
+      }
+
+      @Override
+      public Map<String,String> extraArchiveMetadata() {
+        return Map.of("FooVersion","2.0");
+      }
+    }
+
+    var metadata = new TileArchiveMetadata(new TestingProfile(), PlanetilerConfig.from(Arguments.of(Map.of(
+      "bounds", "-73.6632,41.1274,-69.7598,43.0185"
+    ))));
+
+    var map = new TreeMap<>(metadata.toMap());
+    assertEquals("My Name", map.get("name"));
+    assertEquals("2.0", map.get("FooVersion"));
   }
 
   @Test
